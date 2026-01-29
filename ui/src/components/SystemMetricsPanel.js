@@ -49,15 +49,17 @@ export class SystemMetricsPanel extends Component {
     render() {
         if (!this.container) return;
 
-        this.fluent().clear();
-
-        const grid = FluentUI.create('div')
-            .class('metrics-grid')
-            .mount(this.container);
+        const grid = FluentUI.create(this.container)
+            .clear()
+            .child(FluentUI.create('div').class('metrics-grid'));
 
         // 1. Heartbeat
         this.ui.heart = FluentUI.create('span').class('metric-heart').text('♥');
-        grid.child(FluentUI.create('div').class('metric-item').child(this.ui.heart).child(FluentUI.create('span').class('metric-label').text('Heartbeat')));
+        grid.child(
+            FluentUI.create('div').class('metric-item')
+                .child(this.ui.heart)
+                .child(FluentUI.create('span').class('metric-label').text('Heartbeat'))
+        );
 
         // 2. Throughput
         this.ui.throughput = FluentUI.create('span').id('sm-throughput').text('0.00');
@@ -102,21 +104,16 @@ export class SystemMetricsPanel extends Component {
         );
 
         // 6. Throughput History (Sparkline)
-        this.ui.sparkline = FluentUI.create('path').id('sm-sparkline').attr({ d: '', fill: 'none', stroke: '#00ff9d', 'stroke-width': '1' });
-
-        // Note: SVG must be created with correct namespace usually, but browsers often handle it if inserted via innerHTML or createElementNS
-        // FluentUI uses createElement, which might fail for SVG if not NS aware.
-        // Let's modify FluentUI or use helper. FluentUI doesn't support NS yet.
-        // We will create SVG manually and wrap it or just use innerHTML for the SVG part to be safe and quick.
-
         const svgContainer = FluentUI.create('div').class('metric-item full-width')
             .child(FluentUI.create('span').class('metric-label').text('Throughput History'))
             .mount(grid);
 
-        svgContainer.dom.innerHTML += `<svg width="100%" height="30" viewBox="0 0 50 30" preserveAspectRatio="none" class="sparkline-svg">
+        // SVG needs manual creation for namespace or innerHTML
+        svgContainer.html(svgContainer.dom.innerHTML + `<svg width="100%" height="30" viewBox="0 0 50 30" preserveAspectRatio="none" class="sparkline-svg">
             <path id="sm-sparkline" d="" fill="none" stroke="#00ff9d" stroke-width="1" />
-        </svg>`;
-        this.ui.sparkline = { dom: svgContainer.dom.querySelector('#sm-sparkline') }; // Manual binding
+        </svg>`);
+
+        this.ui.sparkline = { dom: svgContainer.dom.querySelector('#sm-sparkline') };
 
         // 7. Uptime
         this.ui.uptime = FluentUI.create('span').class('metric-value').id('sm-uptime').text('0s');
