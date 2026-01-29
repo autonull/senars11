@@ -26,7 +26,7 @@ export class PromptCell extends Cell {
                 .html('🤖 System Request')
         );
 
-        const content = FluentUI.create('div').style({ padding: '12px' });
+        const content = FluentUI.create('div').style({ padding: '12px' }).mount(wrapper);
 
         content.child(
             FluentUI.create('div')
@@ -34,7 +34,9 @@ export class PromptCell extends Cell {
                 .text(this.content)
         );
 
-        const inputContainer = FluentUI.create('div').style({ display: 'flex', gap: '8px' });
+        const inputContainer = FluentUI.create('div')
+            .style({ display: 'flex', gap: '8px' })
+            .mount(content);
 
         const input = FluentUI.create('input')
             .attr({ type: 'text', placeholder: 'Type your response here...' })
@@ -65,8 +67,6 @@ export class PromptCell extends Cell {
         input.on('keydown', (e) => { if (e.key === 'Enter') submit(); });
 
         inputContainer.child(input).child(submitBtn);
-        content.child(inputContainer);
-        wrapper.child(content);
 
         this.element = wrapper.dom;
         requestAnimationFrame(() => input.dom.focus());
