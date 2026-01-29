@@ -73,11 +73,12 @@ export class MemoryInspector extends Component {
         this.fluent().clear().class('mi-container');
 
         // Render Toolbar
-        const toolbarWrapper = FluentUI.create('div').class('mi-toolbar');
-        this.container.appendChild(toolbarWrapper.dom);
+        const toolbarWrapper = FluentUI.create('div')
+            .class('mi-toolbar')
+            .mount(this.container);
 
-        const ftContainer = FluentUI.create('div');
-        toolbarWrapper.child(ftContainer);
+        const ftContainer = FluentUI.create('div')
+            .mount(toolbarWrapper);
 
         new FluentToolbar(ftContainer.dom, this.getToolbarConfig()).render();
         this.toolbar = toolbarWrapper.dom;
@@ -215,9 +216,11 @@ export class MemoryInspector extends Component {
 
     _renderListView() {
         if (!this.contentContainer) return;
-        this.contentContainer.innerHTML = '';
 
-        const listDiv = FluentUI.create('div').class('mi-list').mount(this.contentContainer);
+        // Use FluentUI on existing element
+        const container = FluentUI.create(this.contentContainer).clear();
+
+        const listDiv = FluentUI.create('div').class('mi-list').mount(container);
         const filtered = this.state.filteredData;
 
         if (filtered.length === 0) {

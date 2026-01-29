@@ -39,11 +39,7 @@ export class StatusBar extends Component {
     render() {
         if (!this.container) return;
 
-        if (this.container.children.length > 0) {
-             this.container.innerHTML = '';
-        }
-
-        const $container = $(this.container).class('status-bar');
+        const $container = $(this.container).clear().class('status-bar');
 
         const leftSection = $('div').class('status-left-section').mount($container);
 
