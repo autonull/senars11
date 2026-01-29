@@ -1,3 +1,5 @@
+import { FluentUI } from '../../utils/FluentUI.js';
+
 export class NotebookGraphView {
     constructor(container, cells, onSwitchView) {
         this.container = container;
@@ -8,13 +10,14 @@ export class NotebookGraphView {
 
     render() {
         if (!window.cytoscape) {
-            this.container.innerHTML = 'Cytoscape library not loaded.';
+            FluentUI.create(this.container).html('Cytoscape library not loaded.');
             return;
         }
 
-        const cyContainer = document.createElement('div');
-        cyContainer.style.cssText = 'width: 100%; height: 100%; background: #1e1e1e;';
-        this.container.appendChild(cyContainer);
+        const cyContainer = FluentUI.create('div')
+            .style({ width: '100%', height: '100%', background: '#1e1e1e' })
+            .mount(this.container)
+            .dom;
 
         const elements = this._buildElements();
 
@@ -159,22 +162,22 @@ export class NotebookGraphView {
             const container = this.container;
             const data = evt.target.data();
 
-            const tip = document.createElement('div');
-            tip.className = 'graph-tooltip';
-            tip.style.cssText = `
-                position: absolute; background: #252526; color: white; padding: 5px;
-                border: 1px solid #444; border-radius: 3px; font-size: 11px; z-index: 100;
-                pointer-events: none; max-width: 200px; word-break: break-all;
-            `;
-
             let content = data.label;
             if (data.isCell) {
                  const text = typeof data.content === 'string' ? data.content : JSON.stringify(data.content);
                  content = `${data.type.toUpperCase()}:\n${text.substring(0, 100)}${text.length>100?'...':''}`;
             }
-            tip.textContent = content;
 
-            container.appendChild(tip);
+            const tip = FluentUI.create('div')
+                .class('graph-tooltip')
+                .style({
+                    position: 'absolute', background: '#252526', color: 'white', padding: '5px',
+                    border: '1px solid #444', borderRadius: '3px', fontSize: '11px', zIndex: '100',
+                    pointerEvents: 'none', maxWidth: '200px', wordBreak: 'break-all'
+                })
+                .text(content)
+                .mount(container)
+                .dom;
 
             const moveHandler = (e) => {
                  const rect = container.getBoundingClientRect();

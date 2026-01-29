@@ -114,7 +114,10 @@ export class CodeCell extends Cell {
     }
 
     _createToolbar() {
-        const wrapper = FluentUI.create('div').class('cell-toolbar').dom;
+        const wrapper = FluentUI.create('div')
+            .class('cell-toolbar')
+            .dom;
+
         const tb = new Toolbar(wrapper, { style: 'display: flex; gap: 4px; align-items: center; padding: 2px 4px; background: #252526; border-bottom: 1px solid #333; height: 28px;' });
 
         tb.addButton({ label: '▶️', title: 'Run (Shift+Enter)', primary: true, style: 'padding: 0 8px;', onClick: () => this.execute() });
@@ -137,19 +140,25 @@ export class CodeCell extends Cell {
     }
 
     _addSecondaryActions(wrapper) {
-        this._addToolbarButton(wrapper, '⬆️', 'Move Up', () => this.onMoveUp?.(this));
-        this._addToolbarButton(wrapper, '⬇️', 'Move Down', () => this.onMoveDown?.(this));
-        this._addToolbarButton(wrapper, '➕', 'Insert Code', () => this.onInsertAfter?.('code'));
-        this._addToolbarButton(wrapper, '📑', 'Duplicate Cell', () => this.onDuplicate?.(this));
+        // Use a container for the buttons if needed, or append directly to wrapper (which is what the old code did)
+        // Since wrapper is the toolbar container, we can just mount to it.
+        const container = FluentUI.create(wrapper);
 
-        const delBtn = this._addToolbarButton(wrapper, '✕', 'Delete Cell', () => this.delete());
-        delBtn.style.color = '#ff4444';
-        delBtn.onmouseover = (e) => { e.target.style.background = '#b30000'; e.target.style.color = '#fff'; };
-        delBtn.onmouseout = (e) => { e.target.style.background = 'transparent'; e.target.style.color = '#ff4444'; };
+        this._addToolbarButton(container, '⬆️', 'Move Up', () => this.onMoveUp?.(this));
+        this._addToolbarButton(container, '⬇️', 'Move Down', () => this.onMoveDown?.(this));
+        this._addToolbarButton(container, '➕', 'Insert Code', () => this.onInsertAfter?.('code'));
+        this._addToolbarButton(container, '📑', 'Duplicate Cell', () => this.onDuplicate?.(this));
+
+        const delBtn = this._addToolbarButton(container, '✕', 'Delete Cell', () => this.delete());
+
+        FluentUI.create(delBtn)
+            .style({ color: '#ff4444' })
+            .on('mouseover', (e) => { e.target.style.background = '#b30000'; e.target.style.color = '#fff'; })
+            .on('mouseout', (e) => { e.target.style.background = 'transparent'; e.target.style.color = '#ff4444'; });
     }
 
-    _addToolbarButton(wrapper, icon, title, action) {
-        const btn = FluentUI.create('button')
+    _addToolbarButton(parent, icon, title, action) {
+        return FluentUI.create('button')
             .text(icon)
             .attr({ title })
             .style({
@@ -159,8 +168,8 @@ export class CodeCell extends Cell {
             .on('click', action)
             .on('mouseover', (e) => { e.target.style.color = '#fff'; e.target.style.background = '#333'; })
             .on('mouseout', (e) => { e.target.style.color = '#888'; e.target.style.background = 'transparent'; })
-            .mount(wrapper);
-        return btn.dom;
+            .mount(parent)
+            .dom;
     }
 
     _createEditor() {
@@ -206,10 +215,6 @@ export class CodeCell extends Cell {
 
             this.onExecute(this.content, this, options);
             this._updateGutter();
-
-            // Note: End time and duration would technically be set when execution finishes,
-            // but since onExecute is async or event-based, we might just show start time
-            // or need a callback for completion. For now, just timestamp is fine.
         }
     }
 
