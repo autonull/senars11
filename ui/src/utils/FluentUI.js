@@ -94,7 +94,17 @@ export class FluentUI {
      * @returns {FluentUI}
      */
     style(styles) {
-        Object.assign(this.element.style, styles);
+        if (!styles) return this;
+        Object.entries(styles).forEach(([key, value]) => {
+            // Avoid indexed properties which can cause errors in some environments
+            if (isNaN(parseInt(key))) {
+                try {
+                    this.element.style[key] = value;
+                } catch (e) {
+                    console.warn(`FluentUI: Failed to set style ${key}`, e);
+                }
+            }
+        });
         return this;
     }
 

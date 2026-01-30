@@ -13,7 +13,7 @@ import { MessageRouter } from './messaging/MessageRouter.js';
 import { SettingsManager } from './config/SettingsManager.js';
 import { EVENTS, COMPONENTS, MODES } from './config/constants.js';
 import { eventBus } from './core/EventBus.js';
-import { Modal } from './components/ui/Modal.js';
+import { ShortcutManager } from './core/ShortcutManager.js';
 
 cytoscape.use(fcose);
 window.cytoscape = cytoscape;
@@ -34,6 +34,7 @@ class SeNARSIDE {
         this.messageCount = 0;
         this.isRunning = false;
         this.statusBar = null;
+        this.shortcutManager = new ShortcutManager();
 
         const urlParams = new URLSearchParams(window.location.search);
         this.presetName = urlParams.get('layout') || 'ide';
@@ -62,18 +63,23 @@ class SeNARSIDE {
     }
 
     async initialize() {
-        this.statusBar = new StatusBar(document.getElementById('status-bar-root'));
-        this.statusBar.initialize({
-            onModeSwitch: () => this.showConnectionModal(),
-            onThemeToggle: () => this.toggleTheme()
-        });
+        try {
+            this.statusBar = new StatusBar(document.getElementById('status-bar-root'));
+            this.statusBar.initialize({
+                onModeSwitch: () => this.showConnectionModal(),
+                onThemeToggle: () => this.toggleTheme()
+            });
 
-        this.layoutManager.initialize(this.presetName);
+            this.layoutManager.initialize(this.presetName);
 
-        await this.switchMode(this.settingsManager.getMode());
-        this.setupKeyboardShortcuts();
+            await this.switchMode(this.settingsManager.getMode());
+            this.setupShortcuts();
 
-        eventBus.on(EVENTS.CONCEPT_SELECT, (payload) => this._onConceptSelect(payload));
+            eventBus.on(EVENTS.CONCEPT_SELECT, (payload) => this._onConceptSelect(payload));
+        } catch (error) {
+            this.logger.log(`Initialization error: ${error.message}`, 'error');
+            console.error('SeNARS IDE Initialization failed:', error);
+        }
     }
 
     _onConceptSelect(payload) {
@@ -88,19 +94,24 @@ class SeNARSIDE {
     }
 
     async switchMode(mode) {
-        this.connection?.disconnect();
-        this.settingsManager.setMode(mode);
+        try {
+            this.connection?.disconnect();
+            this.settingsManager.setMode(mode);
 
-        await this._setupConnection(mode);
+            await this._setupConnection(mode);
 
-        if (this.commandProcessor) {
-            this.commandProcessor.connection = this.connection;
-        } else {
-            this.commandProcessor = new CommandProcessor(this.connection, this.logger, this.graphManager);
+            if (this.commandProcessor) {
+                this.commandProcessor.connection = this.connection;
+            } else {
+                this.commandProcessor = new CommandProcessor(this.connection, this.logger, this.graphManager);
+            }
+
+            this.graphManager?.setCommandProcessor(this.commandProcessor);
+            this.updateModeIndicator();
+        } catch (error) {
+            this.logger.log(`Mode switch error: ${error.message}`, 'error');
+            console.error('Failed to switch mode:', error);
         }
-
-        this.graphManager?.setCommandProcessor(this.commandProcessor);
-        this.updateModeIndicator();
     }
 
     async _setupConnection(mode) {
@@ -141,62 +152,54 @@ class SeNARSIDE {
         });
     }
 
-    setupKeyboardShortcuts() {
-        document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'l') {
-                e.preventDefault();
-                this.getNotebook()?.clear();
-            }
-            if (e.ctrlKey && e.shiftKey && e.key === 'D') {
-                e.preventDefault();
-                new DemoLibraryModal(this.getNotebook()).show();
-            }
-            if (e.ctrlKey && e.key === 's') {
-                e.preventDefault();
+    setupShortcuts() {
+        // Register Global Shortcuts
+        this.shortcutManager.register({
+            key: 'l', ctrl: true, desc: 'Clear Notebook',
+            handler: () => this.getNotebook()?.clear()
+        });
+
+        this.shortcutManager.register({
+            key: 'D', ctrl: true, shift: true, desc: 'Demo Library',
+            handler: () => new DemoLibraryModal(this.getNotebook()).show()
+        });
+
+        this.shortcutManager.register({
+            key: 's', ctrl: true, desc: 'Save Notebook',
+            handler: () => {
                 this.getNotebook()?.saveToStorage();
                 this.getNotebook()?.createResultCell('💾 Notebook saved', 'system');
             }
-            if (e.ctrlKey && e.key === 'o') {
-                e.preventDefault();
-                this.triggerLoadFile();
-            }
-            if (e.ctrlKey && e.key === 'b') {
-                e.preventDefault();
-                this.layoutManager.toggleSidebar();
-            }
-            if (e.ctrlKey && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
-                e.preventDefault();
+        });
+
+        this.shortcutManager.register({
+            key: 'o', ctrl: true, desc: 'Load Notebook File',
+            handler: () => this.triggerLoadFile()
+        });
+
+        this.shortcutManager.register({
+            key: 'b', ctrl: true, desc: 'Toggle Sidebar',
+            handler: () => this.layoutManager.toggleSidebar()
+        });
+
+        this.shortcutManager.register({
+            key: 'f', ctrl: true, shift: true, desc: 'Search Memory',
+            handler: () => {
                 const memComp = this.components.get('memory');
                 memComp?.focusFilter?.();
             }
-            if (e.key === 'F1') {
-                e.preventDefault();
-                this.showHelpModal();
-            }
         });
-    }
 
-    showHelpModal() {
-        const shortcuts = [
-            { key: 'Ctrl + Enter', desc: 'Execute Cell' },
-            { key: 'Shift + Enter', desc: 'Execute & Advance' },
-            { key: 'Ctrl + L', desc: 'Clear Notebook' },
-            { key: 'Ctrl + S', desc: 'Save Notebook' },
-            { key: 'Ctrl + O', desc: 'Load Notebook File' },
-            { key: 'Ctrl + B', desc: 'Toggle Sidebar' },
-            { key: 'Ctrl + Shift + F', desc: 'Search Memory' },
-            { key: 'Ctrl + Shift + D', desc: 'Demo Library' },
-            { key: 'F1', desc: 'Help (Shortcuts)' }
-        ];
+        this.shortcutManager.register({
+            key: 'F1', desc: 'Help (Shortcuts)',
+            handler: () => this.shortcutManager.showHelpModal()
+        });
 
-        const content = shortcuts.map(({ key, desc }) => `
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #333;">
-                <span style="font-family: monospace; color: #00ff9d; font-weight: bold;">${key}</span>
-                <span style="color: #ccc;">${desc}</span>
-            </div>
-        `).join('');
-
-        new Modal({ title: '⌨️ Global Shortcuts', content, width: '450px' }).show();
+        // Document specific shortcuts that are handled within components but we list here for help
+        this.shortcutManager.shortcuts.push(
+            { key: 'Enter', ctrl: true, desc: 'Execute Cell (Notebook)' },
+            { key: 'Enter', shift: true, desc: 'Execute & Advance (Notebook)' }
+        );
     }
 
     triggerLoadFile() {
