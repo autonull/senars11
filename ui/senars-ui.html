@@ -25,7 +25,8 @@
         }
 
         .top-left { top: 30px; left: 30px; }
-        .bottom-center { bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; }
+        .bottom-center { bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; }
+        .top-right { top: 30px; right: 30px; display: none; /* Hidden by default until needed */ }
 
         h1 {
             margin: 0 0 5px 0;
@@ -55,6 +56,29 @@
         }
         .btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
         .btn:active { transform: translateY(0); }
+        .btn.active { background: #00d4ff; color: #000; box-shadow: 0 0 15px rgba(0,212,255,0.5); border-color: transparent; }
+
+        .scatter-controls {
+            display: none;
+            background: rgba(10, 10, 12, 0.9);
+            padding: 10px;
+            border-radius: 8px;
+            margin-left: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .scatter-controls select {
+            background: #222;
+            color: #eee;
+            border: 1px solid #444;
+            padding: 4px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            margin: 0 5px;
+        }
+        .scatter-controls label {
+            font-size: 0.8em;
+            color: #aaa;
+        }
 
         #zoom-level {
             font-family: 'JetBrains Mono', monospace;
@@ -64,6 +88,15 @@
             text-transform: uppercase;
             letter-spacing: 1px;
         }
+
+        #connection-status {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7em;
+            margin-top: 5px;
+            color: #666;
+        }
+        #connection-status.connected { color: #00ff9d; }
+        #connection-status.disconnected { color: #ff4444; }
 
         .zui-widget { pointer-events: auto; }
 
@@ -90,6 +123,7 @@
     <div class="hud-panel top-left">
         <h1>SeNARS Infinite</h1>
         <p>Zoomable Knowledge Universe</p>
+        <div id="connection-status">Connecting...</div>
         <div id="zoom-level">Level: overview</div>
     </div>
 
@@ -97,8 +131,28 @@
         <button id="btn-fit" class="btn" title="Fit View">⤢</button>
         <button id="btn-in" class="btn" title="Zoom In">＋</button>
         <button id="btn-out" class="btn" title="Zoom Out">－</button>
-        <button id="btn-layout" class="btn" title="Relayout">↻</button>
+        <div style="width: 1px; height: 20px; background: #333; margin: 0 10px;"></div>
+        <button id="btn-layout" class="btn" title="Force Layout">↻</button>
         <button id="btn-scatter" class="btn" title="Scatter View">∷</button>
+
+        <div id="scatter-controls" class="scatter-controls">
+            <label>X:</label>
+            <select id="scatter-x">
+                <option value="priority" selected>Priority</option>
+                <option value="confidence">Confidence</option>
+                <option value="frequency">Frequency</option>
+                <option value="durability">Durability</option>
+            </select>
+            <label>Y:</label>
+            <select id="scatter-y">
+                <option value="confidence" selected>Confidence</option>
+                <option value="priority">Priority</option>
+                <option value="frequency">Frequency</option>
+                <option value="durability">Durability</option>
+            </select>
+        </div>
+
+        <div style="width: 1px; height: 20px; background: #333; margin: 0 10px;"></div>
         <button id="btn-trace" class="btn" title="Trace Mode">⚡</button>
     </div>
 
@@ -150,18 +204,24 @@
 
     <script type="module">
         import { SeNARSGraph } from './src/zui/SeNARSGraph.js';
+        import { Config } from './src/config/Config.js';
+        import { WebSocketManager } from './src/connection/WebSocketManager.js';
+        import { ConnectionManager } from './src/connection/ConnectionManager.js';
 
-        // Initialize
+        window.WEBSOCKET_CONFIG = window.WEBSOCKET_CONFIG || { port: 3000 };
+
         const graph = new SeNARSGraph('graph-container', document.getElementById('widget-container'));
+        const connectionManager = new ConnectionManager(new WebSocketManager());
 
-        window.onload = () => {
+        // UI State
+        let currentLayoutMode = 'fcose';
+        let traceModeActive = false;
+
+        window.onload = async () => {
             if (graph.initialize()) {
                 console.log('SeNARS ZUI Initialized');
 
-                // Hide loader
-                setTimeout(() => {
-                    document.getElementById('loader').classList.add('hidden');
-                }, 500);
+                setTimeout(() => { document.getElementById('loader').classList.add('hidden'); }, 500);
 
                 // Setup Zoom Listener
                 graph.on('zoomLevelChange', (data) => {
@@ -170,22 +230,99 @@
                     el.style.color = data.level === 'detail' ? '#00ff9d' : '#555';
                 });
 
-                // Bind Controls
-                document.getElementById('btn-fit').onclick = () => graph.fitToScreen();
-                document.getElementById('btn-in').onclick = () => graph.zoomIn();
-                document.getElementById('btn-out').onclick = () => graph.zoomOut();
-                document.getElementById('btn-layout').onclick = () => graph.setLayout('fcose');
-                document.getElementById('btn-scatter').onclick = () => graph.applyScatterLayout();
-                document.getElementById('btn-trace').onclick = () => {
-                     // Toggle trace mode on random node or selected?
-                     // Currently trace mode is toggled by clicking a node with shift key
-                     alert('Hold Shift+Click on a node to trace connectivity.');
-                };
+                // Keyboard Selection Feedback
+                graph.on('nodeClick', (data) => {
+                    // Update trace mode if active
+                    if (traceModeActive && data.node) {
+                        graph.toggleTraceMode(data.node.id());
+                    }
+                });
 
-                // Add demo data
+                bindControls();
                 _addDemoData(graph);
+                await _setupConnection();
             }
         };
+
+        function bindControls() {
+            document.getElementById('btn-fit').onclick = () => graph.fitToScreen();
+            document.getElementById('btn-in').onclick = () => graph.zoomIn();
+            document.getElementById('btn-out').onclick = () => graph.zoomOut();
+
+            document.getElementById('btn-layout').onclick = () => {
+                switchLayout('fcose');
+            };
+
+            document.getElementById('btn-scatter').onclick = () => {
+                switchLayout('scatter');
+            };
+
+            document.getElementById('btn-trace').onclick = (e) => {
+                traceModeActive = !traceModeActive;
+                e.currentTarget.classList.toggle('active', traceModeActive);
+
+                if (traceModeActive && graph.keyboardNav?.kbState?.selectedNode) {
+                     const id = graph.keyboardNav.kbState.selectedNode.id();
+                     graph.toggleTraceMode(id);
+                } else if (!traceModeActive) {
+                    // Turn off trace mode
+                    graph.traceMode = true; // Hack to force toggle off
+                    graph.toggleTraceMode(null);
+                }
+            };
+
+            // Scatter Controls
+            const updateScatter = () => {
+                if (currentLayoutMode === 'scatter') {
+                    const x = document.getElementById('scatter-x').value;
+                    const y = document.getElementById('scatter-y').value;
+                    graph.applyScatterLayout(x, y);
+                }
+            };
+            document.getElementById('scatter-x').onchange = updateScatter;
+            document.getElementById('scatter-y').onchange = updateScatter;
+        }
+
+        function switchLayout(mode) {
+            currentLayoutMode = mode;
+            const scatterControls = document.getElementById('scatter-controls');
+
+            if (mode === 'scatter') {
+                scatterControls.style.display = 'inline-block';
+                const x = document.getElementById('scatter-x').value;
+                const y = document.getElementById('scatter-y').value;
+                graph.applyScatterLayout(x, y);
+                document.getElementById('btn-scatter').classList.add('active');
+                document.getElementById('btn-layout').classList.remove('active');
+            } else {
+                scatterControls.style.display = 'none';
+                graph.setLayout(mode);
+                document.getElementById('btn-scatter').classList.remove('active');
+                document.getElementById('btn-layout').classList.add('active');
+            }
+        }
+
+        async function _setupConnection() {
+            const statusEl = document.getElementById('connection-status');
+
+            connectionManager.subscribe('connection.status', (status) => {
+                statusEl.textContent = status;
+                statusEl.className = status === 'Connected' ? 'connected' : 'disconnected';
+            });
+
+            connectionManager.subscribe('*', (message) => {
+                graph.updateFromMessage(message);
+            });
+
+            try {
+                const url = Config.getWebSocketUrl();
+                await connectionManager.connect(url);
+            } catch (e) {
+                console.error('Failed to connect:', e);
+                statusEl.textContent = 'Connection Failed';
+                statusEl.className = 'disconnected';
+            }
+        }
 
         function _addDemoData(graph) {
             const concepts = [

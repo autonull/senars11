@@ -6,6 +6,9 @@ import { ContextualWidget } from './ContextualWidget.js';
 import { Config } from '../config/Config.js';
 import { AutoLearner } from '../utils/AutoLearner.js';
 import { ContextMenu } from '../components/ContextMenu.js';
+import { KeyboardNavigation } from '../visualization/KeyboardNavigation.js';
+import { eventBus } from '../core/EventBus.js';
+import { EVENTS } from '../config/constants.js';
 
 cytoscape.use(fcose);
 
@@ -19,6 +22,8 @@ export class SeNARSGraph extends GraphSystem {
         this.options = {};
         this.contextMenu = null;
         this.commandProcessor = null;
+        this.callbacks = {}; // For KeyboardNavigation compatibility
+        this.keyboardNav = new KeyboardNavigation(this);
 
         // State
         this.filters = { minPriority: 0, showTasks: true, hideIsolated: false };
@@ -27,6 +32,22 @@ export class SeNARSGraph extends GraphSystem {
         this.updatesEnabled = true;
         this._layoutTimeout = null;
         this.currentLayout = 'fcose';
+
+        this._setupGlobalListeners();
+    }
+
+    _setupGlobalListeners() {
+        eventBus.on(EVENTS.CONCEPT_SELECT, (payload) => {
+            const { id, concept } = payload;
+            if (concept?.term) this.autoLearner.recordInteraction(concept.term, 1);
+            if (id) this.highlightNode(id);
+        });
+
+        eventBus.on(EVENTS.GRAPH_FILTER, (payload) => this.applyFilters(payload));
+        eventBus.on(EVENTS.SETTINGS_UPDATED, () => {
+            this.updateStyle();
+            this.scheduleLayout();
+        });
     }
 
     initialize(options = {}) {
@@ -45,8 +66,33 @@ export class SeNARSGraph extends GraphSystem {
         if (success) {
             this.semanticZoom = new SemanticZoom(this);
             this.contextualWidget = new ContextualWidget(this, this.widgetContainer);
+            this.keyboardNav.initialize(this.container);
         }
         return success;
+    }
+
+    // Compatibility method for KeyboardNavigation
+    _getNodeData(node) {
+        // KeyboardNavigation expects this format
+        return {
+             type: 'node',
+             label: node.data('label'),
+             id: node.id(),
+             term: node.data('term') || node.data('label'),
+             nodeType: node.data('type'),
+             fullData: node.data('fullData')
+        };
+    }
+
+    // Compatibility method for KeyboardNavigation
+    updateGraphDetails(data) {
+        // Emit concept select event so other components can update
+        if (data.fullData) {
+            eventBus.emit(EVENTS.CONCEPT_SELECT, {
+                concept: data.fullData,
+                id: data.id
+            });
+        }
     }
 
     // --- Interaction & Events ---
@@ -114,6 +160,9 @@ export class SeNARSGraph extends GraphSystem {
         this.cy.elements().removeClass('keyboard-selected');
         node.addClass('keyboard-selected');
         this.cy.animate({ center: { eles: node } }, { duration: 200 });
+
+        // Ensure semantic zoom knows we might want details?
+        // Actually semantic zoom is based on zoom level.
     }
 
     // --- Data Management ---
@@ -373,6 +422,10 @@ export class SeNARSGraph extends GraphSystem {
                 }
             }
         }, 500);
+    }
+
+    updateStyle() {
+        this.cy?.style(Config.getGraphStyle());
     }
 
     // --- Visual Effects ---
