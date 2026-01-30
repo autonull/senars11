@@ -66,9 +66,67 @@ export class SeNARSGraph extends GraphSystem {
         if (success) {
             this.semanticZoom = new SemanticZoom(this);
             this.contextualWidget = new ContextualWidget(this, this.widgetContainer);
-            this.keyboardNav.initialize(this.container);
+
+            // Fix: ensure container is an element before calling keyboard nav init
+            if (this.container && typeof this.container !== 'string') {
+                this.keyboardNav.initialize(this.container);
+            } else if (typeof this.container === 'string') {
+                this.keyboardNav.initialize(document.getElementById(this.container));
+            }
+
+            // Interaction Polish: Hover effects
+            this._setupHoverEffects();
         }
         return success;
+    }
+
+    _setupHoverEffects() {
+        if (!this.cy) return;
+
+        this.cy.on('mouseover', 'node', (evt) => {
+            const node = evt.target;
+            node.addClass('hovered');
+
+            // Highlight direct neighbors
+            node.neighborhood().addClass('neighbor-edge');
+            node.neighborhood('node').addClass('neighbor');
+
+            // Optional: Show simplified widget immediately on hover
+            // this.contextualWidget.showHoverWidget(node);
+        });
+
+        this.cy.on('mouseout', 'node', (evt) => {
+            const node = evt.target;
+            node.removeClass('hovered');
+            node.neighborhood().removeClass('neighbor-edge');
+            node.neighborhood('node').removeClass('neighbor');
+        });
+    }
+
+    focusNode(nodeId) {
+        if (!this.cy) return;
+        const node = this.cy.getElementById(nodeId);
+
+        if (node.length > 0) {
+            this.cy.animate({
+                zoom: 1.5,
+                center: { eles: node },
+                duration: 500,
+                easing: 'ease-in-out-cubic'
+            });
+
+            // Select and highlight
+            this.cy.elements().removeClass('selected keyboard-selected');
+            node.addClass('selected');
+
+            // Trigger detailed view event
+            const data = this._getNodeData(node);
+            eventBus.emit(EVENTS.CONCEPT_SELECT, {
+                concept: data.fullData,
+                id: nodeId,
+                showDetails: true
+            });
+        }
     }
 
     // Compatibility method for KeyboardNavigation
@@ -139,13 +197,16 @@ export class SeNARSGraph extends GraphSystem {
             this.traceMode = true;
             this.tracedNode = nodeId;
 
+            // Only clear previous trace classes first
+            this.cy.elements().removeClass('trace-highlight trace-dim');
+
             const root = this.cy.getElementById(nodeId);
             const connected = root.union(root.successors()).union(root.predecessors()).union(root.neighborhood());
             const others = this.cy.elements().not(connected);
 
             this.cy.batch(() => {
-                others.addClass('trace-dim').removeClass('trace-highlight');
-                connected.addClass('trace-highlight').removeClass('trace-dim');
+                others.addClass('trace-dim');
+                connected.addClass('trace-highlight');
             });
 
             this.cy.animate({ fit: { eles: connected, padding: 50 }, duration: 500 });
@@ -160,9 +221,6 @@ export class SeNARSGraph extends GraphSystem {
         this.cy.elements().removeClass('keyboard-selected');
         node.addClass('keyboard-selected');
         this.cy.animate({ center: { eles: node } }, { duration: 200 });
-
-        // Ensure semantic zoom knows we might want details?
-        // Actually semantic zoom is based on zoom level.
     }
 
     // --- Data Management ---

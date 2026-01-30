@@ -100,6 +100,47 @@
 
         .zui-widget { pointer-events: auto; }
 
+        /* Side Panel */
+        #detail-panel {
+            position: fixed;
+            top: 0; right: -400px;
+            width: 350px;
+            height: 100vh;
+            background: rgba(10, 10, 12, 0.95);
+            backdrop-filter: blur(15px);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 150;
+            transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+        }
+        #detail-panel.visible { right: 0; }
+
+        .panel-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .panel-title { font-size: 1.2em; font-weight: bold; color: #fff; }
+        .panel-close { cursor: pointer; color: #888; font-size: 1.2em; }
+        .panel-close:hover { color: #fff; }
+
+        .panel-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9em;
+        }
+
+        .detail-item { margin-bottom: 15px; }
+        .detail-label { color: #888; font-size: 0.8em; margin-bottom: 3px; text-transform: uppercase; }
+        .detail-value { color: #eee; word-break: break-all; }
+        .detail-json { background: #1a1a1c; padding: 10px; border-radius: 4px; overflow-x: auto; color: #00ff9d; }
+
         /* Loader */
         .loader {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -154,6 +195,17 @@
 
         <div style="width: 1px; height: 20px; background: #333; margin: 0 10px;"></div>
         <button id="btn-trace" class="btn" title="Trace Mode">⚡</button>
+        <button id="btn-help" class="btn" title="Keyboard Shortcuts">?</button>
+    </div>
+
+    <div id="detail-panel">
+        <div class="panel-header">
+            <div class="panel-title">Concept Details</div>
+            <div class="panel-close" id="btn-close-panel">×</div>
+        </div>
+        <div class="panel-content" id="detail-content">
+            <p style="color: #666; text-align: center; margin-top: 50px;">Select a node to view details</p>
+        </div>
     </div>
 
     <script type="importmap">
@@ -207,6 +259,8 @@
         import { Config } from './src/config/Config.js';
         import { WebSocketManager } from './src/connection/WebSocketManager.js';
         import { ConnectionManager } from './src/connection/ConnectionManager.js';
+        import { eventBus } from './src/core/EventBus.js';
+        import { EVENTS } from './src/config/constants.js';
 
         window.WEBSOCKET_CONFIG = window.WEBSOCKET_CONFIG || { port: 3000 };
 
@@ -223,26 +277,84 @@
 
                 setTimeout(() => { document.getElementById('loader').classList.add('hidden'); }, 500);
 
-                // Setup Zoom Listener
-                graph.on('zoomLevelChange', (data) => {
-                    const el = document.getElementById('zoom-level');
-                    el.textContent = `LEVEL: ${data.level.toUpperCase()} (${data.zoom.toFixed(2)}x)`;
-                    el.style.color = data.level === 'detail' ? '#00ff9d' : '#555';
-                });
-
-                // Keyboard Selection Feedback
-                graph.on('nodeClick', (data) => {
-                    // Update trace mode if active
-                    if (traceModeActive && data.node) {
-                        graph.toggleTraceMode(data.node.id());
-                    }
-                });
-
+                setupEventListeners();
                 bindControls();
                 _addDemoData(graph);
                 await _setupConnection();
             }
         };
+
+        function setupEventListeners() {
+            // Zoom listener
+            graph.on('zoomLevelChange', (data) => {
+                const el = document.getElementById('zoom-level');
+                el.textContent = `LEVEL: ${data.level.toUpperCase()} (${data.zoom.toFixed(2)}x)`;
+                el.style.color = data.level === 'detail' ? '#00ff9d' : '#555';
+            });
+
+            // Detail view listener
+            eventBus.on(EVENTS.CONCEPT_SELECT, (payload) => {
+                if (payload && payload.concept) {
+                    showDetails(payload.concept);
+                }
+            });
+
+            // Also listen for raw node clicks from graph
+            graph.on('nodeClick', (data) => {
+                if (traceModeActive && data.node) {
+                    graph.toggleTraceMode(data.node.id());
+                } else if (data.node) {
+                    graph.focusNode(data.node.id());
+                }
+            });
+
+            // Close detail panel
+            document.getElementById('btn-close-panel').onclick = () => {
+                document.getElementById('detail-panel').classList.remove('visible');
+            };
+        }
+
+        function showDetails(concept) {
+            const panel = document.getElementById('detail-panel');
+            const content = document.getElementById('detail-content');
+
+            const term = concept.term || concept.name || 'Unknown';
+            const priority = concept.budget?.priority?.toFixed(2) || 'N/A';
+            const durability = concept.budget?.durability?.toFixed(2) || 'N/A';
+            const frequency = concept.truth?.frequency?.toFixed(2) || 'N/A';
+            const confidence = concept.truth?.confidence?.toFixed(2) || 'N/A';
+
+            content.innerHTML = `
+                <div class="detail-item">
+                    <div class="detail-label">Term</div>
+                    <div class="detail-value" style="color: #00bcd4; font-size: 1.1em;">${term}</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                    <div class="detail-item">
+                        <div class="detail-label">Priority</div>
+                        <div class="detail-value">${priority}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Durability</div>
+                        <div class="detail-value">${durability}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Frequency</div>
+                        <div class="detail-value">${frequency}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Confidence</div>
+                        <div class="detail-value">${confidence}</div>
+                    </div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">Raw Data</div>
+                    <div class="detail-json">${JSON.stringify(concept, null, 2)}</div>
+                </div>
+            `;
+
+            panel.classList.add('visible');
+        }
 
         function bindControls() {
             document.getElementById('btn-fit').onclick = () => graph.fitToScreen();
@@ -265,13 +377,23 @@
                      const id = graph.keyboardNav.kbState.selectedNode.id();
                      graph.toggleTraceMode(id);
                 } else if (!traceModeActive) {
-                    // Turn off trace mode
-                    graph.traceMode = true; // Hack to force toggle off
+                    graph.traceMode = true;
                     graph.toggleTraceMode(null);
                 }
             };
 
-            // Scatter Controls
+            document.getElementById('btn-help').onclick = () => {
+                alert(`Keyboard Shortcuts:
+- Click: Select & Focus Node
+- Double Click: Zoom to Node
+- Shift + Click: Trace Connections
+- Drag: Pan
+- Scroll: Zoom
+- Arrow Keys: Navigate Neighbors
+- Enter: Select Focused Node
+- Space: Expand Node`);
+            };
+
             const updateScatter = () => {
                 if (currentLayoutMode === 'scatter') {
                     const x = document.getElementById('scatter-x').value;
@@ -336,7 +458,7 @@
 
             concepts.forEach(c => graph.addNode({
                 term: c.term,
-                budget: { priority: c.priority },
+                budget: { priority: c.priority, durability: 0.8, quality: 0.7 },
                 truth: { frequency: c.frequency, confidence: 0.9 }
             }, false));
 
