@@ -137,6 +137,34 @@ export const GraphConfig = {
             { selector: 'edge[type = "similarity"]', style: {'line-color': c.SIMILARITY, 'target-arrow-color': c.SIMILARITY, 'line-style': 'dashed'} },
             { selector: 'edge[type = "implication"]', style: {'line-color': c.IMPLICATION, 'target-arrow-color': c.IMPLICATION} },
 
+            // --- Semantic Zoom Levels ---
+            {
+                selector: '.overview-mode',
+                style: {
+                    'label': '',
+                    'width': 'mapData(weight, 0, 100, 5, 20)',
+                    'height': 'mapData(weight, 0, 100, 5, 20)',
+                    'opacity': 0.6,
+                    'border-width': 0
+                }
+            },
+            {
+                selector: '.component-mode',
+                style: {
+                    'font-size': '10px',
+                    'width': 'mapData(weight, 0, 100, 15, 60)',
+                    'height': 'mapData(weight, 0, 100, 15, 60)',
+                    'opacity': 0.9
+                }
+            },
+            {
+                selector: '.detail-mode',
+                style: {
+                    'font-size': '12px',
+                    'opacity': 1.0
+                }
+            },
+
             // --- Interactions ---
             {
                 selector: ':selected',

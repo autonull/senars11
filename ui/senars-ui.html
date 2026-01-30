@@ -267,6 +267,9 @@
         const graph = new SeNARSGraph('graph-container', document.getElementById('widget-container'));
         const connectionManager = new ConnectionManager(new WebSocketManager());
 
+        // Expose for debugging/testing
+        window.senarsGraph = graph;
+
         // UI State
         let currentLayoutMode = 'fcose';
         let traceModeActive = false;
