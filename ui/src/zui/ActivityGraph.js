@@ -115,6 +115,7 @@ export class ActivityGraph {
         this.addRelationship('bird', 'wings', 'property');
         this.addRelationship('bird', 'fly', 'property');
 
+        this.relayout();
         this.viewport.fit();
     }
 
