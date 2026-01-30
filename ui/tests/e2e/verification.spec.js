@@ -74,4 +74,16 @@ test.describe('SeNARS Verification', () => {
         await page.screenshot({ path: screenshotPath, fullPage: true });
         console.log(`Screenshot saved to ${screenshotPath}`);
     });
+
+    test('Verify ZUI Demo Load', async ({ page }) => {
+        // Navigate to ZUI directory index
+        // server.js logic: path.join(__dirname, '..', filePath) for modules
+        // zui is in src/zui. So /src/zui/index.html
+
+        await page.goto('/src/zui/index.html');
+        await expect(page).toHaveTitle(/SeNARS ZUI/);
+        await expect(page.locator('#graph-container')).toBeVisible();
+        // Check for specific panel or count
+        await expect(page.locator('.hud-panel').first()).toBeVisible();
+    });
 });
