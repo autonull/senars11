@@ -198,7 +198,9 @@ class SeNARSIDE {
         // Document specific shortcuts that are handled within components but we list here for help
         this.shortcutManager.shortcuts.push(
             { key: 'Enter', ctrl: true, desc: 'Execute Cell (Notebook)' },
-            { key: 'Enter', shift: true, desc: 'Execute & Advance (Notebook)' }
+            { key: 'Enter', shift: true, desc: 'Execute & Advance (Notebook)' },
+            { key: 'ArrowUp', alt: true, desc: 'Move Cell Up' },
+            { key: 'ArrowDown', alt: true, desc: 'Move Cell Down' }
         );
     }
 

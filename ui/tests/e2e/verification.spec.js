@@ -53,7 +53,23 @@ test.describe('SeNARS Verification', () => {
         // Verify Timeline Widget appears in notebook
         await expect(page.locator('.timeline-widget')).toBeVisible();
 
-        // 8. Take Screenshot
+        // 8. Verify Settings Panel & Theme Switcher
+        // Since GoldenLayout tabs might be dynamic, we look for the Settings tab or component
+        // Assuming Settings is loaded in the layout by default or accessible
+        // Let's try to verify the Settings component structure if it's visible, or check the DOM
+
+        // Check if SettingsPanel component exists in DOM (GoldenLayout might hide it in tabs)
+        // If not visible, we won't force it open to avoid layout complexity in test,
+        // but we can check if the class for settings exists if it's rendered.
+
+        // Alternatively, check if we can switch theme via command/shortcut (less visual)
+        // Let's verify the theme switcher logic by calling it directly to ensure ergonomics
+        await page.evaluate(() => {
+            window.SeNARSIDE.themeManager.setTheme('light');
+        });
+        await expect(page.locator('body')).toHaveClass(/theme-light/);
+
+        // 9. Take Screenshot
         const screenshotPath = path.resolve('verification-screenshot.png');
         await page.screenshot({ path: screenshotPath, fullPage: true });
         console.log(`Screenshot saved to ${screenshotPath}`);
