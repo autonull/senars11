@@ -6,6 +6,7 @@ export class ZUIPanel {
         this.options = options;
         this.graph = null;
         this.initialized = false;
+        this.resizeObserver = null;
     }
 
     async initialize() {
@@ -22,18 +23,45 @@ export class ZUIPanel {
         this.graphContainer.style.overflow = 'hidden';
         this.container.appendChild(this.graphContainer);
 
-        // Initialize ActivityGraph
         this.graph = new ActivityGraph(this.graphContainer);
-        await this.graph.initialize();
 
-        this.resize();
-        this.initialized = true;
+        // Setup ResizeObserver to handle initialization and resizing
+        this.resizeObserver = new ResizeObserver((entries) => {
+            for (let entry of entries) {
+                const { width, height } = entry.contentRect;
+                if (width > 0 && height > 0) {
+                    if (!this.initialized) {
+                        this._initGraph();
+                    } else {
+                        this.resize();
+                    }
+                }
+            }
+        });
+
+        // Observe the container (or graphContainer)
+        this.resizeObserver.observe(this.graphContainer);
+    }
+
+    async _initGraph() {
+        if (this.initialized) return;
+
+        console.log('ZUIPanel: Initializing graph with dimensions', this.graphContainer.clientWidth, this.graphContainer.clientHeight);
+
+        const success = await this.graph.initialize();
+        if (success) {
+            this.initialized = true;
+            this.resize(); // Ensure fit
+        } else {
+            console.error('ZUIPanel: Failed to initialize graph');
+        }
     }
 
     resize() {
-        if (this.graph && this.graph.cy) {
-            this.graph.cy.resize();
-            this.graph.cy.fit();
+        if (this.initialized && this.graph && this.graph.viewport && this.graph.viewport.cy) {
+            this.graph.viewport.cy.resize();
+            // Debounce fit to avoid jumpiness during resize?
+            // For now just resize. fit() might be annoying if user panned.
         }
     }
 
@@ -42,5 +70,12 @@ export class ZUIPanel {
         if (this.graph) {
             this.graph.handleMessage(message);
         }
+    }
+
+    destroy() {
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+        }
+        // cleanup graph...
     }
 }
