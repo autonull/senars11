@@ -1,4 +1,5 @@
 import { ExampleBrowser } from './ExampleBrowser.js';
+import { FluentUI } from '../utils/FluentUI.js';
 
 export class DemoLibraryModal {
     constructor(notebookManager) {
@@ -7,32 +8,35 @@ export class DemoLibraryModal {
     }
 
     show() {
-        const backdrop = document.createElement('div');
-        backdrop.className = 'modal-backdrop';
+        const backdrop = FluentUI.create('div')
+            .class('modal-backdrop')
+            .on('click', (e) => { if (e.target === backdrop.dom) this.close(backdrop); })
+            .mount(document.body);
 
-        const modalContainer = document.createElement('div');
-        modalContainer.className = 'modal-container';
-        modalContainer.id = 'demo-library-modal';
+        const modalContainer = FluentUI.create('div')
+            .class('modal-container')
+            .id('demo-library-modal')
+            .mount(backdrop);
 
         // Title Bar
-        const header = document.createElement('div');
-        header.className = 'modal-header';
-        header.innerHTML = '<span class="modal-title">📚 Demo Library</span>';
-
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = '✕';
-        closeBtn.className = 'modal-close-btn';
-        closeBtn.onclick = () => this.close(backdrop);
-        header.appendChild(closeBtn);
-        modalContainer.appendChild(header);
+        FluentUI.create('div')
+            .class('modal-header')
+            .html('<span class="modal-title">📚 Demo Library</span>')
+            .child(
+                FluentUI.create('button')
+                    .text('✕')
+                    .class('modal-close-btn')
+                    .on('click', () => this.close(backdrop))
+            )
+            .mount(modalContainer);
 
         // Content
-        const content = document.createElement('div');
-        content.id = 'demo-browser-content';
-        content.className = 'modal-content';
-        modalContainer.appendChild(content);
+        const content = FluentUI.create('div')
+            .id('demo-browser-content')
+            .class('modal-content')
+            .mount(modalContainer);
 
-        const browser = new ExampleBrowser(content, {
+        const browser = new ExampleBrowser(content.dom, {
             viewMode: 'tree',
             onSelect: async (node) => {
                 if (node.type === 'file') {
@@ -46,13 +50,8 @@ export class DemoLibraryModal {
             }
         });
 
-        backdrop.appendChild(modalContainer);
-        document.body.appendChild(backdrop);
-
         // Initialize after appending to DOM
         browser.initialize();
-
-        backdrop.onclick = (e) => { if (e.target === backdrop) this.close(backdrop); };
 
         this.escHandler = (e) => {
             if (e.key === 'Escape') {
@@ -63,9 +62,13 @@ export class DemoLibraryModal {
     }
 
     close(backdrop) {
-        if (backdrop && backdrop.parentNode) {
-            document.body.removeChild(backdrop);
+        if (backdrop && backdrop.dom && backdrop.dom.parentNode) {
+            backdrop.dom.parentNode.removeChild(backdrop.dom);
+        } else if (backdrop && backdrop.parentNode) {
+             // Fallback if passed raw element
+             backdrop.parentNode.removeChild(backdrop);
         }
+
         if (this.escHandler) {
             document.removeEventListener('keydown', this.escHandler);
             this.escHandler = null;
