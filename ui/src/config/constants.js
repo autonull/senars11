@@ -21,7 +21,8 @@ export const COMPONENTS = {
     METRICS: 'metricsComponent',
     SETTINGS: 'settingsComponent',
     EXAMPLES: 'examplesComponent',
-    EDITOR: 'editorComponent'
+    EDITOR: 'editorComponent',
+    ZUI: 'zuiComponent'
 };
 
 export const STORAGE_KEYS = {
