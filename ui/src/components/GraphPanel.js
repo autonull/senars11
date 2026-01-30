@@ -1,5 +1,5 @@
 import { Component } from './Component.js';
-import { GraphManager } from '../visualization/GraphManager.js';
+import { SeNARSGraph } from '../zui/SeNARSGraph.js';
 import { FluentToolbar } from './ui/FluentToolbar.js';
 import { FluentUI } from '../utils/FluentUI.js';
 import { ReactiveState } from '../core/ReactiveState.js';
@@ -46,16 +46,13 @@ export class GraphPanel extends Component {
         this.createGraphContainer();
 
         try {
-            this.graphManager = new GraphManager({
-                graphContainer: this.graphDiv,
-                graphDetails: null
-            });
+            this.graphManager = new SeNARSGraph(this.graphDiv);
             this.initialized = this.graphManager.initialize();
             if (this.initialized) {
                 this.graphManager.setUpdatesEnabled(true);
             }
         } catch (e) {
-            console.error('Failed to initialize GraphManager:', e);
+            console.error('Failed to initialize SeNARSGraph:', e);
         }
     }
 
