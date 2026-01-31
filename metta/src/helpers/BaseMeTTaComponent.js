@@ -4,7 +4,7 @@
  * Following AGENTS.md: Elegant, Consolidated, Consistent, Organized, Deeply deduplicated
  */
 
-import {BaseComponent} from '@senars/core/src/util/BaseComponent.js';
+import {BaseComponent} from '../../../core/src/util/BaseComponent.js';
 
 /**
  * BaseMeTTaComponent - Base class for all MeTTa components

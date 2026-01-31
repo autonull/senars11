@@ -5,7 +5,7 @@
  */
 
 // Standard library imports
-import { TermFactory } from '@senars/core/src/term/TermFactory.js';
+import { TermFactory } from '../../core/src/term/TermFactory.js';
 
 // Module Loader
 import { ModuleLoader } from './kernel/ModuleLoader.js';
