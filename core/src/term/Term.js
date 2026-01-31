@@ -163,7 +163,10 @@ export class Term {
     }
 
     equals(other) {
+        if (this === other) return true;
+
         if (!(other instanceof Term) ||
+            this._hash !== other._hash ||
             this._type !== other._type ||
             this._operator !== other._operator ||
             this._name !== other._name) return false;

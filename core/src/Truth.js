@@ -2,6 +2,10 @@ import {TRUTH} from './config/constants.js';
 import {clamp} from './util/common.js';
 
 export class Truth {
+    /**
+     * Immutable Truth value representation.
+     * All instances are frozen upon creation.
+     */
     constructor(frequency = TRUTH.DEFAULT_FREQUENCY, confidence = TRUTH.DEFAULT_CONFIDENCE) {
         this._frequency = clamp(isNaN(frequency) ? TRUTH.DEFAULT_FREQUENCY : frequency, 0, 1);
         this._confidence = clamp(isNaN(confidence) ? TRUTH.DEFAULT_CONFIDENCE : confidence, 0, 1);
@@ -104,6 +108,7 @@ export class Truth {
 
         // Handle max confidence to avoid division by zero
         // NAL uses w = c/(1-c)
+        // We cap confidence at 1.0 - epsilon to prevent infinite weight
         const maxC = 1.0 - Number.EPSILON;
         const safeC1 = Math.min(c1, maxC);
         const safeC2 = Math.min(c2, maxC);
