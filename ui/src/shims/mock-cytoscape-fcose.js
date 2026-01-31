@@ -1,3 +1,7 @@
+/**
+ * Mock implementation of cytoscape-fcose for standalone UI testing without a bundler.
+ * In a full build environment, this should be replaced by the actual 'cytoscape-fcose' package.
+ */
 export default function(cytoscape) {
     if (!cytoscape) return;
 
@@ -9,6 +13,7 @@ export default function(cytoscape) {
         const eles = this.options.eles;
         const nodes = eles.nodes();
 
+        // Simple grid positioning as a fallback
         nodes.each((ele, i) => {
             ele.scratch('fcose', {
                 x: (i % 10) * 100,

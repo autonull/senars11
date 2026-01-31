@@ -6,150 +6,11 @@
     <title>SeNARS Infinite</title>
 
     <link rel="stylesheet" href="style.css">
-
-    <style>
-        body { margin: 0; padding: 0; overflow: hidden; background: #0a0a0c; color: #fff; font-family: 'Segoe UI', sans-serif; }
-        #graph-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
-        #widget-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; pointer-events: none; z-index: 2; }
-
-        .hud-panel {
-            position: absolute;
-            z-index: 100;
-            background: rgba(10, 10, 12, 0.8);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            transition: all 0.3s ease;
-        }
-
-        .top-left { top: 30px; left: 30px; }
-        .bottom-center { bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; }
-        .top-right { top: 30px; right: 30px; display: none; /* Hidden by default until needed */ }
-
-        h1 {
-            margin: 0 0 5px 0;
-            font-size: 1.5em;
-            background: linear-gradient(135deg, #00d4ff 0%, #00ff88 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-        }
-
-        p { margin: 0; font-size: 0.9em; color: #888; }
-
-        .btn {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: #eee;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 1.1em;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-        .btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-        .btn:active { transform: translateY(0); }
-        .btn.active { background: #00d4ff; color: #000; box-shadow: 0 0 15px rgba(0,212,255,0.5); border-color: transparent; }
-
-        .scatter-controls {
-            display: none;
-            background: rgba(10, 10, 12, 0.9);
-            padding: 10px;
-            border-radius: 8px;
-            margin-left: 15px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .scatter-controls select {
-            background: #222;
-            color: #eee;
-            border: 1px solid #444;
-            padding: 4px;
-            border-radius: 4px;
-            font-size: 0.8em;
-            margin: 0 5px;
-        }
-        .scatter-controls label {
-            font-size: 0.8em;
-            color: #aaa;
-        }
-
-        #zoom-level {
-            font-family: 'JetBrains Mono', monospace;
-            color: #555;
-            margin-top: 15px;
-            font-size: 0.8em;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        #connection-status {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.7em;
-            margin-top: 5px;
-            color: #666;
-        }
-        #connection-status.connected { color: #00ff9d; }
-        #connection-status.disconnected { color: #ff4444; }
-
-        .zui-widget { pointer-events: auto; }
-
-        /* Side Panel */
-        #detail-panel {
-            position: fixed;
-            top: 0; right: -400px;
-            width: 350px;
-            height: 100vh;
-            background: rgba(10, 10, 12, 0.95);
-            backdrop-filter: blur(15px);
-            border-left: 1px solid rgba(255, 255, 255, 0.1);
-            z-index: 150;
-            transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            display: flex;
-            flex-direction: column;
-            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
-        }
-        #detail-panel.visible { right: 0; }
-
-        .panel-header {
-            padding: 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .panel-title { font-size: 1.2em; font-weight: bold; color: #fff; }
-        .panel-close { cursor: pointer; color: #888; font-size: 1.2em; }
-        .panel-close:hover { color: #fff; }
-
-        .panel-content {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.9em;
-        }
-
-        .detail-item { margin-bottom: 15px; }
-        .detail-label { color: #888; font-size: 0.8em; margin-bottom: 3px; text-transform: uppercase; }
-        .detail-value { color: #eee; word-break: break-all; }
-        .detail-json { background: #1a1a1c; padding: 10px; border-radius: 4px; overflow-x: auto; color: #00ff9d; }
-
-        /* Loader */
-        .loader {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #0a0a0c; z-index: 200; display: flex; align-items: center; justify-content: center;
-            flex-direction: column;
-            transition: opacity 0.5s;
-        }
-        .loader.hidden { opacity: 0; pointer-events: none; }
-    </style>
+    <!-- zui.css is imported via style.css, but we can also include it directly if we want to be explicit,
+         but adhering to the plan of consolidated styles in style.css is better.
+         However, style.css has general styles. zui.css has specific styles for this page.
+         Since I added import to style.css, it should work.
+    -->
 </head>
 <body>
 
@@ -212,7 +73,7 @@
     {
         "imports": {
             "cytoscape": "/node_modules/cytoscape/dist/cytoscape.esm.min.mjs",
-            "cytoscape-fcose": "/src/shims/mock-cytoscape-fcose.js",
+            "cytoscape-fcose": "/ui/src/shims/mock-cytoscape-fcose.js",
             "cytoscape-fcose/": "/node_modules/cytoscape-fcose/",
             "cose-base": "/node_modules/cose-base/cose-base.js",
             "golden-layout": "/node_modules/golden-layout/dist/esm/index.js",
@@ -230,23 +91,23 @@
             "immer": "/node_modules/immer/dist/immer.mjs",
             "js-sha256": "/node_modules/js-sha256/src/sha256.js",
             "danfojs": "/node_modules/danfojs/lib/bundle.esm.js",
-            "module": "/src/shims/mock-node.js",
-            "fs": "/src/shims/mock-node.js",
-            "path": "/src/shims/mock-node.js",
-            "url": "/src/shims/mock-node.js",
-            "crypto": "/src/shims/mock-node.js",
-            "events": "/src/shims/events-shim.js",
-            "util": "/src/shims/mock-node.js",
-            "os": "/src/shims/mock-node.js",
-            "child_process": "/src/shims/mock-node.js",
-            "@langchain/core/messages": "/src/shims/mock-langchain.js",
-            "@langchain/core/tools": "/src/shims/mock-langchain.js",
-            "@langchain/ollama": "/src/shims/mock-langchain.js",
-            "@langchain/openai": "/src/shims/mock-langchain.js",
-            "@langchain/langgraph": "/src/shims/mock-langchain.js",
-            "@langchain/langgraph/prebuilt": "/src/shims/mock-langchain.js",
-            "@langchain/langgraph-checkpoint": "/src/shims/mock-langchain.js",
-            "langchain": "/src/shims/mock-langchain.js",
+            "module": "/ui/src/shims/mock-node.js",
+            "fs": "/ui/src/shims/mock-node.js",
+            "path": "/ui/src/shims/mock-node.js",
+            "url": "/ui/src/shims/mock-node.js",
+            "crypto": "/ui/src/shims/mock-node.js",
+            "events": "/ui/src/shims/events-shim.js",
+            "util": "/ui/src/shims/mock-node.js",
+            "os": "/ui/src/shims/mock-node.js",
+            "child_process": "/ui/src/shims/mock-node.js",
+            "@langchain/core/messages": "/ui/src/shims/mock-langchain.js",
+            "@langchain/core/tools": "/ui/src/shims/mock-langchain.js",
+            "@langchain/ollama": "/ui/src/shims/mock-langchain.js",
+            "@langchain/openai": "/ui/src/shims/mock-langchain.js",
+            "@langchain/langgraph": "/ui/src/shims/mock-langchain.js",
+            "@langchain/langgraph/prebuilt": "/ui/src/shims/mock-langchain.js",
+            "@langchain/langgraph-checkpoint": "/ui/src/shims/mock-langchain.js",
+            "langchain": "/ui/src/shims/mock-langchain.js",
             "chart.js/auto": "/node_modules/chart.js/auto/auto.js",
             "chart.js": "/node_modules/chart.js/dist/chart.js",
             "@kurkle/color": "/node_modules/@kurkle/color/dist/color.esm.js"
@@ -254,223 +115,6 @@
     }
     </script>
 
-    <script type="module">
-        import { SeNARSGraph } from './src/zui/SeNARSGraph.js';
-        import { Config } from './src/config/Config.js';
-        import { WebSocketManager } from './src/connection/WebSocketManager.js';
-        import { ConnectionManager } from './src/connection/ConnectionManager.js';
-        import { eventBus } from './src/core/EventBus.js';
-        import { EVENTS } from './src/config/constants.js';
-
-        window.WEBSOCKET_CONFIG = window.WEBSOCKET_CONFIG || { port: 3000 };
-
-        const graph = new SeNARSGraph('graph-container', document.getElementById('widget-container'));
-        const connectionManager = new ConnectionManager(new WebSocketManager());
-
-        // Expose for debugging/testing
-        window.senarsGraph = graph;
-
-        // UI State
-        let currentLayoutMode = 'fcose';
-        let traceModeActive = false;
-
-        window.onload = async () => {
-            if (graph.initialize()) {
-                console.log('SeNARS ZUI Initialized');
-
-                setTimeout(() => { document.getElementById('loader').classList.add('hidden'); }, 500);
-
-                setupEventListeners();
-                bindControls();
-                _addDemoData(graph);
-                await _setupConnection();
-            }
-        };
-
-        function setupEventListeners() {
-            // Zoom listener
-            graph.on('zoomLevelChange', (data) => {
-                const el = document.getElementById('zoom-level');
-                el.textContent = `LEVEL: ${data.level.toUpperCase()} (${data.zoom.toFixed(2)}x)`;
-                el.style.color = data.level === 'detail' ? '#00ff9d' : '#555';
-            });
-
-            // Detail view listener
-            eventBus.on(EVENTS.CONCEPT_SELECT, (payload) => {
-                if (payload && payload.concept) {
-                    showDetails(payload.concept);
-                }
-            });
-
-            // Also listen for raw node clicks from graph
-            graph.on('nodeClick', (data) => {
-                if (traceModeActive && data.node) {
-                    graph.toggleTraceMode(data.node.id());
-                } else if (data.node) {
-                    graph.focusNode(data.node.id());
-                }
-            });
-
-            // Close detail panel
-            document.getElementById('btn-close-panel').onclick = () => {
-                document.getElementById('detail-panel').classList.remove('visible');
-            };
-        }
-
-        function showDetails(concept) {
-            const panel = document.getElementById('detail-panel');
-            const content = document.getElementById('detail-content');
-
-            const term = concept.term || concept.name || 'Unknown';
-            const priority = concept.budget?.priority?.toFixed(2) || 'N/A';
-            const durability = concept.budget?.durability?.toFixed(2) || 'N/A';
-            const frequency = concept.truth?.frequency?.toFixed(2) || 'N/A';
-            const confidence = concept.truth?.confidence?.toFixed(2) || 'N/A';
-
-            content.innerHTML = `
-                <div class="detail-item">
-                    <div class="detail-label">Term</div>
-                    <div class="detail-value" style="color: #00bcd4; font-size: 1.1em;">${term}</div>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-                    <div class="detail-item">
-                        <div class="detail-label">Priority</div>
-                        <div class="detail-value">${priority}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">Durability</div>
-                        <div class="detail-value">${durability}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">Frequency</div>
-                        <div class="detail-value">${frequency}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">Confidence</div>
-                        <div class="detail-value">${confidence}</div>
-                    </div>
-                </div>
-                <div class="detail-item">
-                    <div class="detail-label">Raw Data</div>
-                    <div class="detail-json">${JSON.stringify(concept, null, 2)}</div>
-                </div>
-            `;
-
-            panel.classList.add('visible');
-        }
-
-        function bindControls() {
-            document.getElementById('btn-fit').onclick = () => graph.fitToScreen();
-            document.getElementById('btn-in').onclick = () => graph.zoomIn();
-            document.getElementById('btn-out').onclick = () => graph.zoomOut();
-
-            document.getElementById('btn-layout').onclick = () => {
-                switchLayout('fcose');
-            };
-
-            document.getElementById('btn-scatter').onclick = () => {
-                switchLayout('scatter');
-            };
-
-            document.getElementById('btn-trace').onclick = (e) => {
-                traceModeActive = !traceModeActive;
-                e.currentTarget.classList.toggle('active', traceModeActive);
-
-                if (traceModeActive && graph.keyboardNav?.kbState?.selectedNode) {
-                     const id = graph.keyboardNav.kbState.selectedNode.id();
-                     graph.toggleTraceMode(id);
-                } else if (!traceModeActive) {
-                    graph.traceMode = true;
-                    graph.toggleTraceMode(null);
-                }
-            };
-
-            document.getElementById('btn-help').onclick = () => {
-                alert(`Keyboard Shortcuts:
-- Click: Select & Focus Node
-- Double Click: Zoom to Node
-- Shift + Click: Trace Connections
-- Drag: Pan
-- Scroll: Zoom
-- Arrow Keys: Navigate Neighbors
-- Enter: Select Focused Node
-- Space: Expand Node`);
-            };
-
-            const updateScatter = () => {
-                if (currentLayoutMode === 'scatter') {
-                    const x = document.getElementById('scatter-x').value;
-                    const y = document.getElementById('scatter-y').value;
-                    graph.applyScatterLayout(x, y);
-                }
-            };
-            document.getElementById('scatter-x').onchange = updateScatter;
-            document.getElementById('scatter-y').onchange = updateScatter;
-        }
-
-        function switchLayout(mode) {
-            currentLayoutMode = mode;
-            const scatterControls = document.getElementById('scatter-controls');
-
-            if (mode === 'scatter') {
-                scatterControls.style.display = 'inline-block';
-                const x = document.getElementById('scatter-x').value;
-                const y = document.getElementById('scatter-y').value;
-                graph.applyScatterLayout(x, y);
-                document.getElementById('btn-scatter').classList.add('active');
-                document.getElementById('btn-layout').classList.remove('active');
-            } else {
-                scatterControls.style.display = 'none';
-                graph.setLayout(mode);
-                document.getElementById('btn-scatter').classList.remove('active');
-                document.getElementById('btn-layout').classList.add('active');
-            }
-        }
-
-        async function _setupConnection() {
-            const statusEl = document.getElementById('connection-status');
-
-            connectionManager.subscribe('connection.status', (status) => {
-                statusEl.textContent = status;
-                statusEl.className = status === 'Connected' ? 'connected' : 'disconnected';
-            });
-
-            connectionManager.subscribe('*', (message) => {
-                graph.updateFromMessage(message);
-            });
-
-            try {
-                const url = Config.getWebSocketUrl();
-                await connectionManager.connect(url);
-            } catch (e) {
-                console.error('Failed to connect:', e);
-                statusEl.textContent = 'Connection Failed';
-                statusEl.className = 'disconnected';
-            }
-        }
-
-        function _addDemoData(graph) {
-            const concepts = [
-                { term: 'self', priority: 1.0, frequency: 1.0 },
-                { term: 'world', priority: 0.9, frequency: 0.9 },
-                { term: 'knowledge', priority: 0.8, frequency: 0.8 },
-                { term: 'reasoning', priority: 0.85, frequency: 0.7 },
-                { term: 'perception', priority: 0.7, frequency: 0.6 },
-                { term: 'action', priority: 0.75, frequency: 0.65 }
-            ];
-
-            concepts.forEach(c => graph.addNode({
-                term: c.term,
-                budget: { priority: c.priority, durability: 0.8, quality: 0.7 },
-                truth: { frequency: c.frequency, confidence: 0.9 }
-            }, false));
-
-            graph.addEdge({ source: 'self', target: 'world', type: 'interaction' }, false);
-            graph.addEdge({ source: 'self', target: 'knowledge', type: 'possession' }, false);
-            graph.addEdge({ source: 'knowledge', target: 'reasoning', type: 'usage' }, false);
-
-            graph.scheduleLayout();
-        }
-    </script>
+    <script type="module" src="./src/main-zui.js"></script>
 </body>
 </html>
