@@ -50,6 +50,11 @@ export const PERFORMANCE = Object.freeze({
     BATCH_SIZE: 10
 });
 
+export const STAMP = Object.freeze({
+    BLOOM_SIZE: 256,
+    BLOOM_HASHES: 5
+});
+
 export const SYSTEM = Object.freeze({
     VERSION: '10.0.0',
     NAME: 'SeNARS',
