@@ -77,13 +77,17 @@ export class Truth {
     }
 
     static induction(t1, t2) {
-        return Truth.binaryOperation(t1, t2, (t, u) =>
-            new Truth(u.frequency, t.confidence * u.confidence));
+        return Truth.binaryOperation(t1, t2, (t, u) => {
+            const w = u.frequency * t.confidence * u.confidence;
+            return new Truth(u.frequency, Truth.w2c(w));
+        });
     }
 
     static abduction(t1, t2) {
-        return Truth.binaryOperation(t1, t2, (t, u) =>
-            new Truth(t.frequency, Math.min(t.confidence * u.confidence, u.confidence)));
+        return Truth.binaryOperation(t1, t2, (t, u) => {
+            const w = t.frequency * t.confidence * u.confidence;
+            return new Truth(t.frequency, Truth.w2c(w));
+        });
     }
 
     static detachment(t1, t2) {
@@ -228,6 +232,10 @@ export class Truth {
 
     static weak(confidence) {
         return clamp(confidence / (confidence + TRUTH.WEAKENING_FACTOR), 0, 1);
+    }
+
+    static w2c(w) {
+        return w / (w + 1);
     }
 
     equals(other) {
