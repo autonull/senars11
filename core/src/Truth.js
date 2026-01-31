@@ -97,12 +97,36 @@ export class Truth {
 
         const {f: f1, c: c1} = truth1;
         const {f: f2, c: c2} = truth2;
-        const confidenceSum = c1 + c2;
 
-        return new Truth(
-            confidenceSum > 0 ? (f1 * c1 + f2 * c2) / confidenceSum : (f1 + f2) / 2,
-            clamp(confidenceSum, 0, 1)
-        );
+        // Handle max confidence to avoid division by zero
+        // NAL uses w = c/(1-c)
+        const maxC = 1.0 - Number.EPSILON;
+        const safeC1 = Math.min(c1, maxC);
+        const safeC2 = Math.min(c2, maxC);
+
+        const w1 = safeC1 / (1 - safeC1);
+        const w2 = safeC2 / (1 - safeC2);
+        const w = w1 + w2;
+
+        if (w <= 0) return new Truth((f1 + f2) / 2, 0); // Should be rare
+
+        const f = (w1 * f1 + w2 * f2) / w;
+        const c = w / (w + 1);
+
+        return new Truth(f, c);
+    }
+
+    static choice(t1, t2) {
+        if (!t1) return t2;
+        if (!t2) return t1;
+
+        const e1 = Truth.expectation(t1);
+        const e2 = Truth.expectation(t2);
+
+        if (Math.abs(e1 - e2) < Number.EPSILON) {
+            return t1.confidence >= t2.confidence ? t1 : t2;
+        }
+        return e1 > e2 ? t1 : t2;
     }
 
     static negation(truth) {
@@ -117,7 +141,9 @@ export class Truth {
     }
 
     static expectation(truth) {
-        return (truth?.frequency ?? 0) * (truth?.confidence ?? 0);
+        if (!truth) return 0.5;
+        const {frequency: f, confidence: c} = truth;
+        return c * (f - 0.5) + 0.5;
     }
 
     static comparison(t1, t2) {
