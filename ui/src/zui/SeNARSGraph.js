@@ -361,9 +361,19 @@ export class SeNARSGraph extends GraphSystem {
     }
 
     _calculateNodeLabel(data) {
-        const { label, term, id, truth } = data;
-        let displayLabel = label ?? term ?? id;
-        return displayLabel;
+        const { label, term, id } = data;
+        let displayLabel = label;
+
+        if (!displayLabel && term) {
+            if (typeof term === 'string') {
+                displayLabel = term;
+            } else if (typeof term === 'object') {
+                // Try common term properties
+                displayLabel = term.name || term.term || (term.toString && term.toString()) || JSON.stringify(term);
+            }
+        }
+
+        return displayLabel || id || 'Unknown';
     }
 
     _calculateNodeWeight(priority, term) {
