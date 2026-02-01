@@ -67,18 +67,7 @@ export class CompoundCompositionRule extends NALRule {
             }
 
             // Create compound
-            const compound = termFactory.create(op, [finalC1, finalC2]); // Assume binary for now
-            // Or use termFactory.conjunction/disjunction/intersection/union helpers if they exist for specific semantics
-            // But NAL-3 uses specific operators: & (Intersection), | (Union)?
-            // TermFactory has: conjunction (&), disjunction (|), setExt ({}), setInt ([]), intersection (?), union (?)
-            // Usually Intersection is (&, T1, T2) or similar?
-            // TermFactory.conjunction uses '&'.
-            // TermFactory.disjunction uses '|'.
-
-            // Wait, NAL-3 Intersection of properties (Intensional Intersection) is usually written as (P & M).
-            // Union of subjects (Extensional Intersection?) is ((P & S) --> M)? No.
-
-            // Let's use & and | for simplicity and consistency with TermFactory.
+            const compound = termFactory.create(op, [finalC1, finalC2]);
 
             let conclusionTerm;
             if (isSubject) {
@@ -151,13 +140,18 @@ export class CompoundDecompositionRule extends NALRule {
 
         // Helper
         const derive = (sub, pred, truthVal) => {
+            if (!truthVal) return;
             const newTerm = termFactory.inheritance(sub, pred);
             const task = this.createDerivedTask(newTerm, truthVal, [primaryPremise], context, '.');
             if (task) results.push(task);
         };
 
-        const derivedTruth = Truth.structuralDeduction(truth);
-        if (!derivedTruth) return [];
+        const deductiveTruth = Truth.structuralDeduction(truth);
+        // Inductive truth for invalid structural deductions (like Intersection Subject Decomposition)
+        // (A & B) --> M does NOT deduce A --> M. It might suggest it inductively?
+        // Actually, NAL uses structural deduction only for tautological entailments.
+        // ((A & B) --> M) <=> (A --> M) is FALSE.
+        // ((A | B) --> M) <=> (A --> M) & (B --> M). This is TRUE.
 
         // Decompose Subject
         const s = term.subject;
@@ -165,29 +159,27 @@ export class CompoundDecompositionRule extends NALRule {
 
         if (s.isCompound) {
             // ((A & B) --> M) |- (A --> M)
-            if (s.operator === '&' || s.operator === '&&') { // Intersection
-                s.components.forEach(comp => derive(comp, p, derivedTruth));
-            }
-            // ((A | B) --> M) |- (A --> M)? No, Union subject implies M means A implies M AND B implies M.
-            // Truth value should be higher?
-            // NAL says: ((A | B) --> M) <=> (A --> M) && (B --> M).
-            // So deriving (A --> M) from ((A | B) --> M) is Deduction?
-            // Yes.
+            // This is NOT valid deduction. It is induction-like or invalid.
+            // Removing for now to fix logic error.
+
+            // ((A | B) --> M) |- (A --> M).
+            // Valid Deduction.
             if (s.operator === '|' || s.operator === '||') { // Union
-                 s.components.forEach(comp => derive(comp, p, derivedTruth));
+                 s.components.forEach(comp => derive(comp, p, deductiveTruth));
             }
         }
 
         // Decompose Predicate
         if (p.isCompound) {
             // (S --> (A & B)) |- (S --> A)
+            // Valid Deduction.
              if (p.operator === '&' || p.operator === '&&') { // Intersection
-                p.components.forEach(comp => derive(s, comp, derivedTruth));
+                p.components.forEach(comp => derive(s, comp, deductiveTruth));
             }
-             // (S --> (A | B)) |- (S --> A)? No. (S --> A) implies (S --> (A | B)).
-             // But (S --> (A | B)) does not imply (S --> A).
-             // It's Abduction-like? Or reduced confidence?
-             // structuralReduction?
+             // (S --> (A | B)) |- (S --> A)?
+             // (S --> A) => (S --> (A | B)).
+             // (S --> (A | B)) does not imply (S --> A).
+             // Invalid deduction.
         }
 
         return results;

@@ -24,20 +24,13 @@ export class ModusPonensRule extends NALRule {
     canApply(primaryPremise, secondaryPremise, context) {
         if (!primaryPremise || !secondaryPremise) return false;
 
-        const unifier = context?.unifier;
-
         // Check if one is an implication and the other matches the antecedent
         const isImplication = (term) => term.operator === '==>';
 
         const isAntecedentMatch = (implicationTerm, otherTerm) => {
             if (!isImplication(implicationTerm) || !implicationTerm.components) return false;
             const antecedent = implicationTerm.components[0];
-
-            if (unifier) {
-                const res = unifier.unify(antecedent, otherTerm);
-                return res.success;
-            }
-            return antecedent?.equals && antecedent.equals(otherTerm);
+            return this.unify(antecedent, otherTerm, context).success;
         };
 
         const primaryTerm = primaryPremise.term;
@@ -64,57 +57,45 @@ export class ModusPonensRule extends NALRule {
      * @returns {Array<Task>} Array of derived tasks
      */
     apply(primaryPremise, secondaryPremise, context = {}) {
-        const unifier = context?.unifier;
         let substitution = {};
 
-        // Helper to match and capture substitution
-        const match = (t1, t2) => {
-            if (unifier) {
-                const res = unifier.unify(t1, t2);
-                if (res.success) {
-                    substitution = res.substitution;
-                    return true;
-                }
-                return false;
-            }
-            return t1.equals(t2);
-        };
-
         try {
-            // Determine which premise is the implication and which is the antecedent
             let implicationPremise, antecedentPremise;
 
-            if (primaryPremise.term.operator === '==>' &&
-                match(primaryPremise.term.components[0], secondaryPremise.term)) {
+            // Determine which premise is the implication and which is the antecedent
+            const match1 = primaryPremise.term.operator === '==>' ?
+                this.unify(primaryPremise.term.components[0], secondaryPremise.term, context) : {success: false};
+
+            if (match1.success) {
                 implicationPremise = primaryPremise;
                 antecedentPremise = secondaryPremise;
-            } else if (secondaryPremise.term.operator === '==>' &&
-                match(secondaryPremise.term.components[0], primaryPremise.term)) {
-                implicationPremise = secondaryPremise;
-                antecedentPremise = primaryPremise;
+                substitution = match1.substitution;
             } else {
-                return [];
+                const match2 = secondaryPremise.term.operator === '==>' ?
+                    this.unify(secondaryPremise.term.components[0], primaryPremise.term, context) : {success: false};
+
+                if (match2.success) {
+                    implicationPremise = secondaryPremise;
+                    antecedentPremise = primaryPremise;
+                    substitution = match2.substitution;
+                } else {
+                    return [];
+                }
             }
 
             // Extract components: implication is (P ==> Q), antecedent is P
-            // const P = implicationPremise.term.components[0];  // Antecedent
             const Q = implicationPremise.term.components[1];  // Consequent
             const implicationTruth = implicationPremise.truth;
             const antecedentTruth = antecedentPremise.truth;
 
             // Calculate truth value for conclusion Q using Modus Ponens formula
-            // Frequency: f_imp * f_ant
-            // Confidence: c_imp * c_ant * f_imp
             const newTruth = new Truth(
                 implicationTruth.f * antecedentTruth.f,  // f_imp * f_ant
                 implicationTruth.c * antecedentTruth.c * implicationTruth.f  // c_imp * c_ant * f_imp
             );
 
             // Apply substitution if available (NAL-6)
-            let finalConsequent = Q;
-            if (unifier && Object.keys(substitution).length > 0) {
-                finalConsequent = unifier.applySubstitution(Q, substitution);
-            }
+            const finalConsequent = this.applySubstitution(Q, substitution, context);
 
             // Use base class to create the task with proper stamp and budget
             const derivedTask = super.createDerivedTask(

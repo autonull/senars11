@@ -43,7 +43,7 @@ describe('NAL Parity Tests (1-6)', () => {
 
         // NAL-3: Decomposition
         // (S --> (P & M)) |- (S --> P)
-        test.skip('Decomposition: Extract Property from Intersection', async () => {
+        test('Decomposition: Extract Property from Intersection', async () => {
             const result = await new TestNAR()
                 .input('<tweety --> (&, bird, yellow)>', 0.9, 0.9)
                 .run(5)

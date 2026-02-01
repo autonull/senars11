@@ -29,10 +29,10 @@ export class SyllogisticRule extends NALRule {
     canApply(primaryPremise, secondaryPremise, context) {
         if (!primaryPremise || !secondaryPremise) return false;
 
-        // Both premises need to be compound statements with the appropriate operator
         const term1 = primaryPremise.term;
         const term2 = secondaryPremise.term;
 
+        // Both premises need to be compound statements with the appropriate operator
         if (!term1?.isCompound || !term2?.isCompound) return false;
 
         // Check that at least one premise has the correct operator for this rule
@@ -45,25 +45,11 @@ export class SyllogisticRule extends NALRule {
 
         if (comp1.length !== 2 || comp2.length !== 2) return false;
 
-        // Find potential matching middle terms using unification or equality
-        // Pattern 1: (S --> M) + (M --> P) where term1.predicate matches term2.subject
-        // Pattern 2: (M --> P) + (S --> M) where term2.predicate matches term1.subject
+        // Use helper from NALRule
+        const match1 = this.unify(term1.predicate, term2.subject, context).success;
+        const match2 = !match1 && this.unify(term2.predicate, term1.subject, context).success;
 
-        const unifier = context?.unifier;
-
-        const tryMatch = (t1, t2) => {
-            if (unifier) {
-                // If unifier is available, check if terms can unify
-                return unifier.unify(t1, t2).success;
-            }
-            // Fallback to strict equality
-            return t1.equals(t2);
-        };
-
-        const matchesPattern1 = tryMatch(term1.predicate, term2.subject);
-        const matchesPattern2 = !matchesPattern1 && tryMatch(term2.predicate, term1.subject);
-
-        return matchesPattern1 || matchesPattern2;
+        return match1 || match2;
     }
 
     /**
@@ -75,39 +61,25 @@ export class SyllogisticRule extends NALRule {
     apply(primaryPremise, secondaryPremise, context) {
         const term1 = primaryPremise.term;
         const term2 = secondaryPremise.term;
-        const unifier = context?.unifier;
         const termFactory = context?.termFactory;
 
-        let substitution = {};
-
-        // Helper to match and capture substitution
-        const match = (t1, t2) => {
-            if (unifier) {
-                const res = unifier.unify(t1, t2);
-                if (res.success) {
-                    substitution = res.substitution;
-                    return true;
-                }
-                return false;
-            }
-            return t1.equals(t2);
-        };
-
-        // Re-check patterns to capture substitution
         // Pattern 1: (S --> M) + (M --> P) => (S --> P)
-        if (match(term1.predicate, term2.subject)) {
+        const match1 = this.unify(term1.predicate, term2.subject, context);
+        if (match1.success) {
             return this._createDerivedTask(
                 primaryPremise, secondaryPremise,
                 term1.subject, term2.predicate,
-                this.operator, termFactory, unifier, substitution
+                this.operator, termFactory, context, match1.substitution
             );
         }
+
         // Pattern 2: (M --> P) + (S --> M) => (S --> P)
-        else if (match(term2.predicate, term1.subject)) {
+        const match2 = this.unify(term2.predicate, term1.subject, context);
+        if (match2.success) {
             return this._createDerivedTask(
                 primaryPremise, secondaryPremise,
                 term2.subject, term1.predicate,
-                this.operator, termFactory, unifier, substitution
+                this.operator, termFactory, context, match2.substitution
             );
         }
 
@@ -118,7 +90,7 @@ export class SyllogisticRule extends NALRule {
      * Helper method to create derived task from syllogistic conclusion
      * @private
      */
-    _createDerivedTask(primaryPremise, secondaryPremise, subject, predicate, operator, termFactory = null, unifier = null, substitution = {}) {
+    _createDerivedTask(primaryPremise, secondaryPremise, subject, predicate, operator, termFactory = null, context = null, substitution = {}) {
         // Calculate truth value using NAL deduction
         const truth1 = primaryPremise.truth;
         const truth2 = secondaryPremise.truth;
@@ -134,13 +106,8 @@ export class SyllogisticRule extends NALRule {
         }
 
         // Apply substitution if available (NAL-6)
-        let finalSubject = subject;
-        let finalPredicate = predicate;
-
-        if (unifier && Object.keys(substitution).length > 0) {
-            finalSubject = unifier.applySubstitution(subject, substitution);
-            finalPredicate = unifier.applySubstitution(predicate, substitution);
-        }
+        const finalSubject = this.applySubstitution(subject, substitution, context);
+        const finalPredicate = this.applySubstitution(predicate, substitution, context);
 
         // Create the conclusion term using the Term class with proper structure
         const conclusionTerm = termFactory.create(operator, [finalSubject, finalPredicate]);
@@ -150,7 +117,7 @@ export class SyllogisticRule extends NALRule {
             conclusionTerm,
             derivedTruth,
             [primaryPremise, secondaryPremise],
-            null, // context not used for stamp/budget currently
+            context, // Pass context if needed by future overrides
             '.'   // Punctuation is Belief
         );
 
