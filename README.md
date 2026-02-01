@@ -14,7 +14,6 @@ The following features are implemented and available for use:
 - **Extensible Architecture**: Pluggable components supporting different reasoning strategies (Bag, Prolog, Exhaustive, Resolution, Goal-Driven, Analogical)
 - **Robust Data Foundation**: Immutable data structures (Terms, Tasks, Truth, Stamps) with canonical representation and functional processing
 - **Event-Based Communication**: Components communicate through a centralized EventBus for loose coupling with built-in metrics
-- **Tensor Logic**: Neural-symbolic integration with differentiable tensors (see [README.tensor.md](README.tensor.md))
 - **MCP Server**: Model Context Protocol integration for AI assistant connectivity
 - **Web UI**: Real-time visualization of reasoning via WebSocket monitoring
 
@@ -29,7 +28,6 @@ The following features are implemented and available for use:
 *   **[Vision & Philosophy](README.vision.md)**: The "Why" behind SeNARS, RLFP, and long-term goals.
 *   **[Architecture](README.architecture.md)**: High-level patterns, async/sync hybridization, and diagrams.
 *   **[Core Components](README.core.md)**: Memory, Focus, Rules, Data Structures, and Algorithms.
-*   **[Tensor Logic](README.tensor.md)**: Neural-symbolic AI foundation with differentiable tensors.
 *   **[Resources](README.resources.md)**: Resource awareness, AIKR principle, and throttling.
 
 ### Reference

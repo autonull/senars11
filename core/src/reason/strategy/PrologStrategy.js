@@ -26,7 +26,6 @@ export class PrologStrategy extends Strategy {
         this.substitutionStack = [];
         this.variableCounter = 0;
         this.functorRegistry = config.functorRegistry ?? new FunctorRegistry();
-        this.tensorFunctor = config.tensorFunctor ?? null; // Optional tensor support
         this._registerPrologOperatorAliases();
         this.config = {maxDepth: 10, maxSolutions: 5, backtrackingEnabled: true, ...config};
     }
@@ -120,9 +119,7 @@ export class PrologStrategy extends Strategy {
 
     _isBuiltIn(term) {
         const pred = this._getPredicateName(term);
-        const isFunctorBuiltin = this.functorRegistry.has(pred) || pred === 'is';
-        const isTensorOp = this.tensorFunctor && this.tensorFunctor.canEvaluate(term);
-        return isFunctorBuiltin || isTensorOp;
+        return this.functorRegistry.has(pred) || pred === 'is';
     }
 
     _getPredicateArgs(term) {
@@ -181,17 +178,9 @@ export class PrologStrategy extends Strategy {
     }
 
     _evalExpression(term) {
-        // Already a tensor
-        if (term?.isTensor) return term;
-
         // Number atom
         const val = parseFloat(term.name);
         if (!isNaN(val)) return val;
-
-        // Tensor operations (if TensorFunctor available)
-        if (this.tensorFunctor && isCompound(term) && this.tensorFunctor.canEvaluate(term)) {
-            return this.tensorFunctor.evaluate(term, new Map());
-        }
 
         // Compound expression — use functor registry
         if (isCompound(term)) {
@@ -346,11 +335,6 @@ export class PrologStrategy extends Strategy {
 
     registerFunctor(name, fn, properties = {}) {
         this.functorRegistry.registerFunctorDynamic(name, fn, properties);
-        return this;
-    }
-
-    registerTensorFunctor(tensorFunctor) {
-        this.tensorFunctor = tensorFunctor;
         return this;
     }
 

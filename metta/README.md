@@ -24,7 +24,7 @@ This implementation treats **NAL (Non-Axiomatic Logic)** as a first-class citize
 
 ### 3. The "Hybrid Engine" Architecture
 We recognize that real-world AI needs both **speed** and **flexibility**. Our architecture delivers both:
--   **Grounded Mode (Performance)**: Critical operations (math, logic tables, tensor ops) are "grounded" to native JavaScript, executing in microseconds (~0.001ms).
+-   **Grounded Mode (Performance)**: Critical operations (math, logic tables) are "grounded" to native JavaScript, executing in microseconds (~0.001ms).
 -   **Pure Mode (Reflection)**: We also provide "Pure MeTTa" implementations of the same logic. This allows the system to inspect, analyze, and even rewrite its own logic at the source code level, enabling deep metareasoning.
 
 ### 4. Self-Modifying Metaprogramming

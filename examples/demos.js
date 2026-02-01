@@ -52,11 +52,6 @@ const DEMOS = [
     {path: 'advanced/prolog-strategy-demo.js', name: 'Prolog Strategy', category: 'advanced', lmRequired: false},
     {path: 'advanced/performance-benchmark.js', name: 'Performance Benchmark', category: 'advanced', lmRequired: false},
 
-    // Tensor Logic (no LM required)
-    {path: 'tensor-logic/tensor-basics.mjs', name: 'Tensor Basics', category: 'tensor', lmRequired: false, quick: true},
-    {path: 'tensor-logic/mlp-training.mjs', name: 'MLP Training', category: 'tensor', lmRequired: false},
-    {path: 'tensor-logic/autograd-demo.mjs', name: 'Autograd', category: 'tensor', lmRequired: false},
-
     // NARS-GPT (mock LM - no external LM required)
     {path: 'narsgpt/demo-narsgpt.js', name: 'NARS-GPT Demo', category: 'narsgpt', lmRequired: false, quick: true},
     {path: 'narsgpt/domain-knowledge.js', name: 'Domain Knowledge', category: 'narsgpt', lmRequired: false},
