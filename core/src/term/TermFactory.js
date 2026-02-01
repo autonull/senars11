@@ -340,7 +340,26 @@ export class TermFactory extends BaseComponent {
     }
 
     getComplexity(term) {
-        return this._complexityCache.get(typeof term === 'string' ? term : term?.name) ?? 1;
+        if (typeof term !== 'string' && term?.complexity) {
+            return term.complexity;
+        }
+        const name = typeof term === 'string' ? term : term?.name;
+
+        // 1. Check metadata cache
+        if (this._complexityCache.has(name)) {
+            return this._complexityCache.get(name);
+        }
+
+        // 2. Try to get canonical term from cache (resurrects if in weak cache)
+        const cachedTerm = this._cache.get(name);
+        if (cachedTerm) {
+            // Re-populate metadata cache
+            const complexity = cachedTerm.complexity;
+            this._complexityCache.set(name, complexity);
+            return complexity;
+        }
+
+        return 1;
     }
 
     setMaxCacheSize(size) {

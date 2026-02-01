@@ -10,6 +10,9 @@ export class EventBus {
         this._stats = {eventsEmitted: 0, eventsHandled: 0, errors: 0};
         this._enabled = true;
         this._maxListeners = 10; // Prevent memory leaks
+        this._concurrency = 0;
+        this._maxConcurrency = 50; // Backpressure threshold
+        this._queue = [];
     }
 
     on(eventName, callback) {
@@ -56,31 +59,45 @@ export class EventBus {
     async emit(eventName, data = {}, options = {}) {
         if (!this._enabled) return;
 
-        this._stats.eventsEmitted++;
-        const traceId = options.traceId ?? TraceId.generate();
-        let processedData = {...data, eventName, traceId};
-
-        // Process middleware in parallel where possible
-        for (const middleware of this._middleware) {
-            try {
-                // Allow middleware to be either sync or async
-                const result = await middleware(processedData);
-
-                // Allow middleware to cancel event processing by returning null
-                if (result === null) return;
-                processedData = result;
-            } catch (error) {
-                return this._handleError('middleware', error, {eventName, data, traceId});
-            }
+        // Backpressure: Wait if concurrency limit reached
+        if (this._concurrency >= this._maxConcurrency) {
+            await new Promise(resolve => this._queue.push(resolve));
         }
 
-        // Emit event
+        this._concurrency++;
         try {
-            this._emitter.emit(eventName, processedData);
-            this._stats.eventsHandled++;
-        } catch (error) {
-            this._stats.errors++;
-            this._handleError('listener', error, {eventName, data, traceId});
+            this._stats.eventsEmitted++;
+            const traceId = options.traceId ?? TraceId.generate();
+            let processedData = {...data, eventName, traceId};
+
+            // Process middleware in parallel where possible
+            for (const middleware of this._middleware) {
+                try {
+                    // Allow middleware to be either sync or async
+                    const result = await middleware(processedData);
+
+                    // Allow middleware to cancel event processing by returning null
+                    if (result === null) return;
+                    processedData = result;
+                } catch (error) {
+                    return this._handleError('middleware', error, {eventName, data, traceId});
+                }
+            }
+
+            // Emit event
+            try {
+                this._emitter.emit(eventName, processedData);
+                this._stats.eventsHandled++;
+            } catch (error) {
+                this._stats.errors++;
+                this._handleError('listener', error, {eventName, data, traceId});
+            }
+        } finally {
+            this._concurrency--;
+            if (this._queue.length > 0) {
+                const next = this._queue.shift();
+                next();
+            }
         }
     }
 
