@@ -345,6 +345,58 @@ export class Memory extends BaseComponent {
         return this._resourceManager.getConceptsByResourceUsage(this._concepts, ascending);
     }
 
+    /**
+     * Get concepts modified since the given timestamp
+     * @param {number} sinceTimestamp
+     * @returns {Array<Concept>}
+     */
+    getModifiedConcepts(sinceTimestamp) {
+        // Optimization: For large memory, this could be improved by maintaining a separate index
+        // or sorted list of modified concepts. For now, iteration is acceptable.
+        const modified = [];
+        for (const concept of this._concepts.values()) {
+            if (concept.lastModified > sinceTimestamp) {
+                modified.push(concept);
+            }
+        }
+        return modified;
+    }
+
+    /**
+     * Get belief deltas (changes) since the given timestamp
+     * @param {number} sinceTimestamp
+     * @returns {Array<{term: string, truth: Object, timestamp: number, source: string}>}
+     */
+    getBeliefDeltas(sinceTimestamp) {
+        const modifiedConcepts = this.getModifiedConcepts(sinceTimestamp);
+        const deltas = [];
+
+        for (const concept of modifiedConcepts) {
+            // Get best belief
+            const beliefs = concept.getTasksByType('BELIEF');
+            if (beliefs.length > 0) {
+                // Assuming the highest priority belief is the "current truth"
+                // Or maybe the one with highest confidence?
+                // Using first one from getTasksByType which is priority sorted
+                const bestBelief = beliefs[0];
+
+                // Only include if this specific task was created recently?
+                // Or if the concept was modified recently, send the current state?
+                // Sending current state (snapshot sync) is safer for eventual consistency.
+                deltas.push({
+                    term: concept.term.toString(),
+                    truth: {
+                        frequency: bestBelief.truth.frequency,
+                        confidence: bestBelief.truth.confidence
+                    },
+                    timestamp: concept.lastModified,
+                    source: 'gossip'
+                });
+            }
+        }
+        return deltas;
+    }
+
     validateMemory() {
         if (!this._memoryValidator) {
             return {valid: true, message: 'Memory validation is disabled'};

@@ -25,6 +25,7 @@ export class Concept extends BaseComponent {
         this._term = term;
         this._createdAt = Date.now();
         this._lastAccessed = Date.now();
+        this._lastModified = Date.now();
         this._beliefs = new Bag(this.config.maxBeliefs);
         this._goals = new Bag(this.config.maxGoals);
         this._questions = new Bag(this.config.maxQuestions);
@@ -43,6 +44,10 @@ export class Concept extends BaseComponent {
 
     get lastAccessed() {
         return this._lastAccessed;
+    }
+
+    get lastModified() {
+        return this._lastModified;
     }
 
     get activation() {
@@ -106,11 +111,16 @@ export class Concept extends BaseComponent {
         this._lastAccessed = Date.now();
     }
 
+    _updateLastModified() {
+        this._lastModified = Date.now();
+    }
+
     addTask(task) {
         const storage = this._getStorage(task.type);
         const added = storage.add(task);
         if (added) {
             this._updateLastAccessed();
+            this._updateLastModified();
             this._useCount++;
         }
         return added;
@@ -154,6 +164,7 @@ export class Concept extends BaseComponent {
         const removed = this._getStorage(task.type).remove(task);
         if (removed) {
             this._updateLastAccessed();
+            this._updateLastModified();
         }
         return removed || false;
     }
@@ -164,11 +175,15 @@ export class Concept extends BaseComponent {
         }
         this._activation *= (1 - decayRate);
         this._updateLastAccessed();
+        // Decay modifies activation which is state, but maybe strictly structure didn't change?
+        // Let's say modified for safety as state changed.
+        this._updateLastModified();
     }
 
     boostActivation(activationBoost = this.config.defaultActivationBoost) {
         this._activation = clamp(this._activation + activationBoost, 0, this.config.maxActivation);
         this._updateLastAccessed();
+        this._updateLastModified();
         this.incrementUseCount();
     }
 
@@ -178,6 +193,7 @@ export class Concept extends BaseComponent {
 
     updateQuality(qualityChange) {
         this._quality = clamp(this._quality + qualityChange, this.config.minQuality, this.config.maxQuality);
+        this._updateLastModified();
     }
 
     containsTask(task) {

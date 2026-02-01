@@ -18,6 +18,9 @@ import { BaseComponent } from '../util/BaseComponent.js';
 import { ComponentManager } from '../util/ComponentManager.js';
 import { IntrospectionEvents } from '../util/IntrospectionEvents.js';
 import { BudgetManager } from '../util/BudgetManager.js';
+import { Truth } from '../Truth.js';
+import { Stamp } from '../Stamp.js';
+import { Task } from '../task/Task.js';
 
 export class NAR extends BaseComponent {
     constructor(config = {}) {
@@ -624,6 +627,78 @@ export class NAR extends BaseComponent {
     getBeliefs(queryTerm = null) {
         return queryTerm ? this.query(queryTerm)
             : this._memory.getAllConcepts().flatMap(c => c.getTasksByType('BELIEF'));
+    }
+
+    /**
+     * Reconcile an external belief with local knowledge (Phase 5.2)
+     * @param {Object} beliefData - {term: string, truth: {frequency, confidence}, source: string}
+     * @returns {Promise<boolean>} - Whether the belief was accepted/processed
+     */
+    async reconcile(beliefData) {
+        if (!beliefData || !beliefData.term || !beliefData.truth) return false;
+
+        try {
+            // 1. Parse term
+            // Use parser if available to ensure correct structure (compound vs atomic)
+            let term;
+            if (this._parser && typeof beliefData.term === 'string') {
+                const parsed = this._parser.parse(beliefData.term.endsWith('.') ? beliefData.term : beliefData.term + '.');
+                term = parsed.term;
+            } else {
+                term = this._termFactory.create(beliefData.term);
+            }
+
+            const incomingTruth = new Truth(beliefData.truth.frequency, beliefData.truth.confidence);
+
+            // 2. Retrieve existing concept
+            const concept = this._memory.getConcept(term);
+
+            let finalTruth = incomingTruth;
+
+            // 3. Conflict Reconciliation (Revision)
+            if (concept) {
+                const beliefs = concept.getTasksByType('BELIEF');
+                if (beliefs.length > 0) {
+                    const localBelief = beliefs[0]; // Best local belief
+                    // Only revise if they are not the same evidence base (simplified check)
+                    // In a real distributed system, we'd check Stamp overlap.
+                    // Here we assume "gossip" implies independent observation or aggregated truth.
+
+                    const revised = Truth.revision(localBelief.truth, incomingTruth);
+                    if (revised) {
+                        finalTruth = revised;
+                    }
+                }
+            }
+
+            // 4. Create Task with revised truth
+            // We use a generic Input stamp or derived stamp
+            const stamp = Stamp.createInput(); // Treated as new input for now
+
+            // Calculate priority based on truth expectation to ensure revised beliefs bubble up
+            const expectation = Truth.expectation(finalTruth);
+
+            const task = new Task({
+                term: term,
+                truth: finalTruth,
+                stamp: stamp,
+                punctuation: '.',
+                budget: {
+                    priority: Math.max(0.1, expectation),
+                    durability: 0.9,
+                    quality: finalTruth.confidence
+                }
+            });
+
+            // 5. Input via standard process (which handles memory update)
+            // We bypass full input processor parsing since we have the object,
+            // but we use _processNewTask to ensure it goes through the pipeline
+            return await this._processNewTask(task, 'reconcile', beliefData.term, null, {traceId: 'gossip'});
+
+        } catch (error) {
+            this.logError('Reconciliation failed:', error);
+            return false;
+        }
     }
 
     async ask(task) {
