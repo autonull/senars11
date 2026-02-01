@@ -563,6 +563,24 @@ export class MemoryConsolidation extends ConfigurableComponent {
 
         for (const concept of memory.getAllConcepts()) {
             if (concept.forgettingMarked) {
+                // Phase 4.2: Consolidation as Compilation
+                // Before forgetting, compile high-value tasks and store in Archive
+                if (memory.archive) {
+                    const tasks = concept.getAllTasks();
+                    const compiledRules = this.compile(tasks);
+
+                    // Archive if we have compiled content
+                    if (compiledRules.length > 0) {
+                        // Store the compiled batch (simplified for now)
+                        // In real implementation, this might link back to the term
+                        const content = JSON.stringify({
+                            term: concept.term.toString(),
+                            rules: compiledRules
+                        });
+                        memory.archive.put(content);
+                    }
+                }
+
                 conceptsToRemove.push(concept.term);
             }
         }

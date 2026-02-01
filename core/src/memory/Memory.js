@@ -10,6 +10,7 @@ import {MemoryStatistics} from './MemoryStatistics.js';
 import {MemoryScorer} from './MemoryScorer.js';
 import {MemoryResourceManager} from './MemoryResourceManager.js';
 import {ForgettingStrategyFactory} from './forgetting/ForgettingStrategyFactory.js';
+import {Archive} from './Archive.js';
 
 export class Memory extends BaseComponent {
     static CONSOLIDATION_THRESHOLDS = Object.freeze({
@@ -45,6 +46,7 @@ export class Memory extends BaseComponent {
         this._focusConcepts = new Set();
         this._index = new MemoryIndex();
         this._consolidation = new MemoryConsolidation();
+        this._archive = new Archive();
 
         // Initialize resource manager and forgetting strategy
         this._resourceManager = new MemoryResourceManager(this._config);
@@ -94,6 +96,10 @@ export class Memory extends BaseComponent {
 
     get index() {
         return this._index;
+    }
+
+    get archive() {
+        return this._archive;
     }
 
     get stats() {
