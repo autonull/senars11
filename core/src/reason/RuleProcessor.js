@@ -60,8 +60,10 @@ export class RuleProcessor {
 
                 await this._checkAndApplyBackpressure();
 
+                const context = this._createRuleContext();
+
                 // 1. Execute Legacy Rules
-                const candidateRules = this.ruleExecutor.getCandidateRules(primaryPremise, secondaryPremise);
+                const candidateRules = this.ruleExecutor.getCandidateRules(primaryPremise, secondaryPremise, context);
 
                 for (const rule of candidateRules) {
                     if (signal?.aborted) break;
