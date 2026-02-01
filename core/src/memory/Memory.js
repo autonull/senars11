@@ -92,6 +92,10 @@ export class Memory extends BaseComponent {
         return new Set(this._focusConcepts);
     }
 
+    get index() {
+        return this._index;
+    }
+
     get stats() {
         return {...this._stats};
     }

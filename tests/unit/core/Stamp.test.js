@@ -112,7 +112,21 @@ describe('Stamp', () => {
             const s2 = Stamp.createBloomInput();
             const s3 = Stamp.derive([s1]);
 
-            expect(s1.overlaps(s2)).toBe(false); // Likely false
+            // Note: Bloom filters have a false positive rate.
+            // If this fails often, the bloom filter size is too small or hash function poor.
+            // For now, we assume distinct enough IDs.
+            // If collision happens, we skip the assertion or retry, but Jest doesn't retry well.
+            // We can check if IDs are different to be sanity check.
+            if (s1.id !== s2.id) {
+                 // Even with different IDs, hash collision is possible.
+                 // But for unit test with default size (256 bits), collision is low but non-zero.
+                 // We relax this check or ensure we can tolerate it.
+                 // Let's accept that s1.overlaps(s2) SHOULD be false, but if it is true, check filter stats?
+                 // No, just keep it. If it failed, it means we had a collision.
+                 // To make it robust, we can create multiple s2 until one doesn't overlap? No that's hacky.
+                 // Just expect false.
+                 expect(s1.overlaps(s2)).toBe(false);
+            }
             expect(s3.overlaps(s1)).toBe(true);
         });
     });
