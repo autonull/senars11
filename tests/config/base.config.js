@@ -17,7 +17,6 @@ const baseConfig = {
     },
     moduleNameMapper: {
         '^@senars/metta/(.*)$': '<rootDir>/metta/$1',
-        '^@senars/tensor/(.*)$': '<rootDir>/tensor/$1',
         '^@senars/core/(.*)$': '<rootDir>/core/$1',
         '^@senars/agent/(.*)$': '<rootDir>/agent/$1',
     },

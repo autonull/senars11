@@ -18,7 +18,6 @@
 | **Core NAR** | `core/src/nar/NAR.js` | Main reasoning API |
 | **Strategies** | `core/src/reason/strategy/` | Premise selection algorithms |
 | **Rules** | `core/src/reason/rules/nal/` | NAL inference rules |
-| **Tensor Logic** | `core/src/functor/` | Neural-symbolic AI with differentiable tensors |
 | **LM Integration** | `core/src/lm/` | Language model providers, embeddings |
 | **MCP Server** | `agent/src/mcp/` | AI assistant integration |
 | **Demo System** | `agent/src/demo/` | Remote-controlled demos |

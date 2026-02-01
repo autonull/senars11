@@ -1,29 +1,8 @@
-import { Tensor } from '@senars/tensor';
-import { T } from '@senars/tensor/src/backends/NativeBackend.js';
 import { MeTTaInterpreter } from '@senars/metta';
 import { Config, Term } from '@senars/core';
 
 async function runTest() {
     console.log('Browser Compatibility Test Starting...');
-
-    // 1. Test Tensor
-    try {
-        console.log('--- Testing Tensor ---');
-        // Use NativeBackend for operations
-        const t1 = T.tensor([1, 2, 3]);
-        const t2 = T.tensor([4, 5, 6]);
-        const t3 = T.add(t1, t2);
-        console.log('Tensor 1:', t1.toString());
-        console.log('Tensor 2:', t2.toString());
-        console.log('Tensor Add Result:', t3.toString());
-        if (t3.data[0] === 5 && t3.data[1] === 7 && t3.data[2] === 9) {
-            console.log('Tensor Test: PASSED');
-        } else {
-            console.error('Tensor Test: FAILED');
-        }
-    } catch (e) {
-        console.error('Tensor failed:', e);
-    }
 
     // 2. Test Core
     try {
