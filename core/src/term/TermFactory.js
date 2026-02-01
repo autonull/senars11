@@ -1,5 +1,4 @@
 import { Term, TermType } from './Term.js';
-import { CognitiveDiversity } from './CognitiveDiversity.js';
 import { BaseComponent } from '../util/BaseComponent.js';
 import { IntrospectionEvents } from '../util/IntrospectionEvents.js';
 import { TermCache } from './TermCache.js';
@@ -37,7 +36,6 @@ export class TermFactory extends BaseComponent {
         super(config, 'TermFactory', eventBus);
         this._cache = new TermCache({ maxSize: this.config.maxCacheSize ?? 5000 });
         this._complexityCache = new Map();
-        this._cognitiveDiversity = new CognitiveDiversity(this);
     }
 
     create(data, components) {
@@ -57,10 +55,9 @@ export class TermFactory extends BaseComponent {
     _createCompound(operator, components) {
         const { operator: op, components: comps } = this._normalizeTermData(operator, components);
 
-        if (this._reflexiveMarker) {
-            const shouldBeTrue = this._reflexiveMarker.shouldBeTrue;
-            this._reflexiveMarker = null;
-            return shouldBeTrue ? this.createTrue() : null;
+        // Handle reflexive relations (e.g., <-> A A) which are tautologies
+        if (RELATIONAL_OPERATORS.includes(op) && comps.length === 2 && comps[0].name === comps[1].name) {
+             return this.createTrue();
         }
 
         if (COMMUTATIVE_OPERATORS.has(op) && comps.length === 1 && !SET_OPERATORS.includes(op)) {
@@ -92,7 +89,6 @@ export class TermFactory extends BaseComponent {
         this._emitIntrospectionEvent(IntrospectionEvents.TERM_CACHE_MISS, () => ({ termName: name }));
         const term = this._createAndCache(operator, normalizedComponents, name);
         this._calculateComplexityMetrics(term, normalizedComponents);
-        this._cognitiveDiversity.registerTerm(term);
         return term;
     }
 
@@ -207,7 +203,6 @@ export class TermFactory extends BaseComponent {
         const evictedKey = this._cache.setWithEviction(name, term);
         if (evictedKey) {
             this._complexityCache.delete(evictedKey);
-            this._cognitiveDiversity.unregisterTerm(evictedKey);
         }
 
         this._emitIntrospectionEvent(IntrospectionEvents.TERM_CREATED, () => ({ termName: name }));
@@ -220,13 +215,6 @@ export class TermFactory extends BaseComponent {
         }
 
         let normalizedComponents = components.map(comp => comp instanceof Term ? comp : this.create(comp));
-
-        if (operator && normalizedComponents.length === 2 && RELATIONAL_OPERATORS.includes(operator)) {
-            const [left, right] = normalizedComponents;
-            if (left.name === right.name) {
-                this._reflexiveMarker = { operator, shouldBeTrue: true };
-            }
-        }
 
         if (operator) {
             this._validateOperator(operator);
@@ -373,7 +361,6 @@ export class TermFactory extends BaseComponent {
     clearCache() {
         this._cache.clear();
         this._complexityCache.clear();
-        this._cognitiveDiversity.clear();
     }
 
     getStats() {
@@ -381,24 +368,11 @@ export class TermFactory extends BaseComponent {
         return {
             cacheSize: this._cache.size,
             complexityCacheSize: this._complexityCache.size,
-            cognitiveDiversityStats: this._cognitiveDiversity.getMetrics(),
             cacheHits: cacheStats.hits,
             cacheMisses: cacheStats.misses,
             cacheHitRate: cacheStats.hitRate,
             efficiency: cacheStats.hitRate,
             maxCacheSize: cacheStats.maxSize
-        };
-    }
-
-    createWithDiversity(data, diversityFactor = 0.1) {
-        const term = this.create(data);
-        const complexity = this.getComplexity(term);
-        const diversityMetrics = this._cognitiveDiversity.evaluateDiversity(term);
-        return {
-            term,
-            diversityScore: complexity * (1 + diversityFactor) * diversityMetrics.normalizationFactor,
-            complexity,
-            cognitiveDiversity: diversityMetrics
         };
     }
 
@@ -421,14 +395,6 @@ export class TermFactory extends BaseComponent {
             : Array.from(this._complexityCache.values()).reduce((sum, c) => sum + c, 0) / this._complexityCache.size;
     }
 
-    getCognitiveDiversityMetrics() {
-        return this._cognitiveDiversity.getMetrics();
-    }
-
-    calculateCognitiveDiversity() {
-        return this._cognitiveDiversity.calculateDiversity();
-    }
-
     createTrue() {
         return this._getOrCreateAtomic('True');
     }
@@ -449,6 +415,5 @@ export class TermFactory extends BaseComponent {
         this.clearCache();
         this._cache = null;
         this._complexityCache = null;
-        this._cognitiveDiversity = null;
     }
 }
