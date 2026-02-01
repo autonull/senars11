@@ -1,7 +1,7 @@
 import {WebSocketServer} from 'ws';
 import {EventEmitter} from 'events';
 import {ClientMessageHandlers} from './ClientMessageHandlers.js';
-import {DEFAULT_CLIENT_CAPABILITIES, WEBSOCKET_CONFIG} from '@senars/core';
+import {DEFAULT_CLIENT_CAPABILITIES, WEBSOCKET_CONFIG, IntrospectionEvents} from '@senars/core';
 import {Logger} from '../../../core/src/util/Logger.js';
 
 const DEFAULT_OPTIONS = Object.freeze({
@@ -412,6 +412,86 @@ class WebSocketMonitor {
                 this.bufferEvent(event, data, options);
             });
         });
+
+        // Enhanced ZUI Events
+        nar.on('memory:concept:created', (data) => {
+            // Handle both direct and wrapped payloads
+            const concept = data.concept || data.payload?.concept;
+            // Logger.info(`WSMonitor handling concept: ${concept?.term}`);
+            if (concept) {
+                this.bufferEvent('concept.created', concept);
+            }
+        });
+
+        nar.on('memory:task:added', (data) => {
+            const task = data.task || data.payload?.task;
+            // Logger.info(`WSMonitor handling task: ${task?.term}`);
+            if (task) {
+                this.bufferEvent('task.added', task);
+                this._checkAndEmitLink(task);
+            }
+        });
+
+        nar.on('reasoning:derivation', (data) => {
+            // REASONING_DERIVATION in NAR.js uses _eventBus.emit with { derivedTask, source, ... }
+            // But wait, NAR.js emits with derivedTask property!
+            // { derivedTask: derivation, source: ... }
+            // So data.derivedTask or data.payload?.derivedTask
+
+            // Wait, StreamReasoner also emits reasoning.derivation via legacy event?
+            // IntrospectionEvents.REASONING_DERIVATION in NAR.js:
+            // this._eventBus.emit(IntrospectionEvents.REASONING_DERIVATION, { derivedTask: derivation, ... })
+
+            const task = data.task || data.payload?.task || data.derivedTask || data.payload?.derivedTask;
+            if (task) {
+                // Ensure derived tasks are visualized
+                this.bufferEvent('task.added', task); // ZUI expects task.added for tasks
+                this.bufferEvent('reasoning.derivation', task); // Keep semantic event too
+                this._checkAndEmitLink(task);
+            }
+        });
+    }
+
+    _checkAndEmitLink(task) {
+        // Extract relationships for graph visualization
+        const term = task.term;
+        if (!term) return;
+
+        const termStr = typeof term === 'string' ? term : (term.name || term.toString());
+
+        // Parse both <S --> P> and prefix (-->/ <->, S, P) formats
+        // Note: This is a simplified parser for visualization purposes.
+        // It handles atomic terms correctly but may not fully support complex NAL-3+ compound terms with nested commas.
+        // A full Narsese parser should be used for robust handling in future iterations.
+        let subject, copula, predicate;
+
+        const standardMatch = termStr.match(/^<([^<>]+)\s*(-->|<->)\s*([^<>]+)>$/);
+        // Improved prefix match to be slightly more permissive but still simple
+        const prefixMatch = termStr.match(/^\((-->|<->),\s*(.+?),\s*(.+?)\)$/);
+
+        if (standardMatch) {
+            [subject, copula, predicate] = [standardMatch[1], standardMatch[2], standardMatch[3]];
+        } else if (prefixMatch) {
+            [copula, subject, predicate] = [prefixMatch[1], prefixMatch[2], prefixMatch[3]];
+        }
+
+        if (subject && predicate) {
+            subject = subject.trim();
+            predicate = predicate.trim();
+            const type = copula === '-->' ? 'inheritance' : 'similarity';
+
+            // IMPORTANT: Emit node creation events for endpoints first
+            // This ensures nodes exist in the graph before the edge is added
+            this.bufferEvent('concept.created', { term: subject });
+            this.bufferEvent('concept.created', { term: predicate });
+
+            this.bufferEvent('link.created', {
+                source: subject,
+                target: predicate,
+                type: type,
+                truth: task.truth
+            });
+        }
     }
 
     on(event, listener) {

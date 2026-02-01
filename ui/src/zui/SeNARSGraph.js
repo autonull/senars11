@@ -379,8 +379,10 @@ export class SeNARSGraph extends GraphSystem {
         const truth = data.truth;
 
         let html = '';
-        if (priority !== undefined) html += `<div>Prio: ${priority.toFixed(2)}</div>`;
-        if (truth) html += `<div>{${truth.frequency.toFixed(2)}, ${truth.confidence.toFixed(2)}}</div>`;
+        if (priority !== undefined && typeof priority === 'number') html += `<div>Prio: ${priority.toFixed(2)}</div>`;
+        if (truth && truth.frequency !== undefined && truth.confidence !== undefined) {
+             html += `<div>{${Number(truth.frequency).toFixed(2)}, ${Number(truth.confidence).toFixed(2)}}</div>`;
+        }
 
         if (html) {
             this.contextualWidget.attach(nodeId, html);

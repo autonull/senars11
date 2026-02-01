@@ -25,7 +25,7 @@ window.onload = async () => {
 
         setupEventListeners();
         bindControls();
-        _addDemoData(graph);
+        // _addDemoData(graph);
         await _setupConnection();
     }
 };
