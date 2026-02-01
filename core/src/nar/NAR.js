@@ -17,6 +17,7 @@ import { ToolIntegration } from '../tool/ToolIntegration.js';
 import { BaseComponent } from '../util/BaseComponent.js';
 import { ComponentManager } from '../util/ComponentManager.js';
 import { IntrospectionEvents } from '../util/IntrospectionEvents.js';
+import { BudgetManager } from '../util/BudgetManager.js';
 
 export class NAR extends BaseComponent {
     constructor(config = {}) {
@@ -126,6 +127,10 @@ export class NAR extends BaseComponent {
         this._focus = new Focus(config.focus);
         this._taskManager = new TaskManager(this._memory, null, config.taskManager);
         this._evaluator = new EvaluationEngine(null, this._termFactory);
+        this._budgetManager = new BudgetManager({
+            total: config.budget?.total ?? 10000,
+            enableComplexityPenalty: false
+        });
         this._lm = lmEnabled ? new LM() : null;
 
         // Initialize InputProcessor for input handling
@@ -161,7 +166,8 @@ export class NAR extends BaseComponent {
             focus: this._focus,
             memory: this._memory,
             termFactory: this._termFactory,
-            parser: this._parser
+            parser: this._parser,
+            budgetManager: this._budgetManager
         });
 
         // Subscribe to output events from the reasoner

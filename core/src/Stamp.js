@@ -11,20 +11,27 @@ export class Stamp {
 
     static createBloomInput = () => new BloomStamp({source: 'INPUT', depth: 0});
 
-    static derive = (parentStamps = [], depth = 0) => {
+    static derive = (parentStamps = [], overrides = {}) => {
         // If any parent is a BloomStamp, result is BloomStamp
         if (parentStamps.some(s => s instanceof BloomStamp)) {
-             return Stamp.deriveBloom(parentStamps);
+             return Stamp.deriveBloom(parentStamps, overrides);
         }
 
         const allDerivations = parentStamps.flatMap(s => s.derivations ? [s.id, ...s.derivations] : [s.id]);
         const maxParentDepth = parentStamps.length > 0 ? Math.max(...parentStamps.map(s => s.depth || 0)) : 0;
-        return new ArrayStamp({derivations: [...new Set(allDerivations)], depth: maxParentDepth + 1});
+        return new ArrayStamp({
+            derivations: [...new Set(allDerivations)],
+            depth: maxParentDepth + 1,
+            source: overrides.source || 'DERIVED'
+        });
     };
 
-    static deriveBloom = (parentStamps = []) => {
+    static deriveBloom = (parentStamps = [], overrides = {}) => {
         const maxParentDepth = parentStamps.length > 0 ? Math.max(...parentStamps.map(s => s.depth || 0)) : 0;
-        const newStamp = new BloomStamp({source: 'DERIVED', depth: maxParentDepth + 1});
+        const newStamp = new BloomStamp({
+            source: overrides.source || 'DERIVED',
+            depth: maxParentDepth + 1
+        });
 
         // Merge parent filters
         for (const parent of parentStamps) {

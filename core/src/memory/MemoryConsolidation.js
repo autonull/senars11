@@ -600,4 +600,20 @@ export class MemoryConsolidation extends ConfigurableComponent {
             consolidationNeeded: totalActivation / concepts.length < this.getConfigValue('activationThreshold')
         };
     }
+
+    /**
+     * Compile tasks/concepts into MeTTa rewrite rules (Consolidation as Compilation)
+     * @param {Array<Task>} tasks - The tasks to compile
+     * @returns {Array<string>} - The compiled MeTTa rules
+     */
+    compile(tasks) {
+        // Placeholder for Phase 4.2
+        // Convert evidence chains into MeTTa rewrite rules (implications).
+        // Compresses the deductive history into executable logic.
+
+        return tasks.map(task => {
+            // Simple placeholder transformation
+            return `(compile-stub "${task.term ? task.term.toString() : 'unknown'}")`;
+        });
+    }
 }

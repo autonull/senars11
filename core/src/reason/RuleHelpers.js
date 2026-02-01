@@ -84,11 +84,18 @@ export function processDerivation(result, maxDerivationDepth, budgetManager = nu
              const penalty = budgetManager.calculateComplexityPenalty(result.term.complexity);
              // Apply penalty to task budget (priority/durability)
              if (result.budget) {
-                 result.budget = {
+                 const newBudget = {
                      ...result.budget,
                      priority: result.budget.priority / penalty,
                      durability: result.budget.durability / penalty
                  };
+
+                 // Use clone if available, otherwise try assignment (though Task is usually frozen)
+                 if (typeof result.clone === 'function') {
+                     result = result.clone({budget: newBudget});
+                 } else {
+                     result.budget = newBudget;
+                 }
              }
         }
 
