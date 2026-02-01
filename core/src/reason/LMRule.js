@@ -54,7 +54,16 @@ export class LMRule extends Rule {
             avgExecutionTime: 0
         };
 
-        this.circuitBreaker = new CircuitBreaker(this.config.circuitBreaker);
+        this.circuitBreaker = new CircuitBreaker({
+            ...this.config.circuitBreaker,
+            onStateChange: (newState) => {
+                this._emitEvent('circuit.state_change', {
+                    ruleId: this.id,
+                    state: newState,
+                    timestamp: Date.now()
+                });
+            }
+        });
     }
 
     static create(config) {
