@@ -1,57 +1,88 @@
+
 import { LMRule } from '../../LMRule.js';
-import { tryParseNarsese } from '../../RuleHelpers.js';
-import { Punctuation, Task } from '../../../task/Task.js';
+import { NarseseTranslator } from '../../../lm/NarseseTranslator.js';
+import { Task } from '../../../task/Task.js';
 import { Truth } from '../../../Truth.js';
 
-export const createNarseseTranslationRule = (dependencies) => {
-    const { lm, parser, eventBus } = dependencies;
+export class LMNarseseTranslationRule extends LMRule {
+    constructor(id, lm, config = {}) {
+        super(id, lm, {
+            ...config,
+            name: 'LMNarseseTranslationRule',
+            description: 'Translates natural language to Narsese with calibrated confidence',
+            singlePremise: true,
+            promptTemplate: config.promptTemplate ||
+                'Translate the following sentence into Narsese logic (NARS format). Sentence: "{{taskTerm}}"',
+            condition: (primary) => {
+                // Apply only to string terms (natural language inputs) that are NOT already Narsese
+                return typeof primary?.term === 'string' &&
+                       !primary.term.includes('-->') &&
+                       !primary.term.includes('==>');
+            },
+            process: (response, primary, secondary, context) => {
+                // This method is called after LM generation
+                // We use it to parse the Narsese
+                return response;
+            },
+            generate: (response, primary, secondary, context) => {
+                // Generate Tasks
+                if (!response) return [];
 
-    return LMRule.create({
-        id: 'narsese-translation',
-        lm,
-        eventBus,
-        name: 'Narsese Translation Rule',
-        description: 'Translates natural language string concepts into formal Narsese.',
-        priority: 0.9,
-        singlePremise: true,
+                const translator = new NarseseTranslator();
+                const lmStats = context.lmStats; // Assuming context has access to LMStats
+                const providerId = this.lm.providerId || 'unknown';
 
-        condition: (primaryPremise) => {
-            if (!primaryPremise?.term) return false;
-            const term = primaryPremise.term;
-            if (term.components?.length > 0 && !term.isAtomic) return false;
+                // Get calibrated confidence (if logProb available in response metadata, pass it)
+                // For now, we assume simple text response
+                const confidence = lmStats ? lmStats.getCalibratedConfidence(providerId) : 0.8;
 
-            const name = term.name ?? term.toString();
-            return typeof name === 'string' && name.startsWith('"') && name.endsWith('"');
-        },
+                try {
+                    // Try to translate
+                    // If response is already Narsese, translator might handle or we regex it
+                    // But translator.toNarsese takes NL.
+                    // If LM returns NL explanation + Narsese, we need to extract Narsese.
+                    // For simplicity, assume LM returns roughly Narsese or structured text.
+                    // Actually, if prompt asks for translation, LM output IS the Narsese candidate (or close to it).
 
-        prompt: (primaryPremise) => {
-            const content = (primaryPremise.term.name ?? primaryPremise.term.toString()).replace(/^"|"$/g, '');
-            return `Translate the English sentence to a Narsese relation.
-"Dogs are animals" => <dog --> animal>.
-"Birds can fly" => <bird --> [fly]>.
-"${content}" => `;
-        },
+                    // Ideally we use the LM output as the "Narsese" directly if it looks like Narsese,
+                    // OR we use the translator to convert the *original* text if this rule was just a trigger.
+                    // But LMRule *uses* the LM. So we expect the LM to do the translation.
 
-        process: (r) => r?.trim() ?? '',
+                    // If LM output is Narsese:
+                    if (response.includes('-->') || response.includes('==>')) {
+                        // Extract Narsese part
+                        const match = response.match(/\([^\)]+\)/);
+                        if (match) {
+                            return [new Task({
+                                term: match[0],
+                                truth: new Truth(1.0, confidence),
+                                punctuation: '.'
+                            })];
+                        }
+                    }
 
-        generate: (processedOutput) => {
-            if (!processedOutput) return [];
+                    // Fallback: Use NarseseTranslator on the *original* term if LM failed to give Narsese
+                    // But then why use LM?
+                    // Maybe LM provides a better "interpretation" which we then translate?
 
-            const parsed = tryParseNarsese(processedOutput, parser);
-            if (!parsed) return [];
+                    // Let's assume this rule relies on LM to generate Narsese string.
+                    const narseseStr = response.trim();
+                    return [new Task({
+                        term: narseseStr,
+                        truth: new Truth(1.0, confidence),
+                        punctuation: '.'
+                    })];
 
-            const term = parsed.term ?? parsed;
-            const punctuation = parsed.punctuation ?? Punctuation.BELIEF;
-            const truth = parsed?.truthValue
-                ? new Truth(parsed.truthValue.frequency, parsed.truthValue.confidence)
-                : (punctuation === Punctuation.BELIEF ? new Truth(1.0, 0.9) : null);
+                } catch (e) {
+                    return [];
+                }
+            }
+        });
+    }
+}
 
-            return [new Task({
-                term,
-                punctuation,
-                truth,
-                budget: { priority: 0.8, durability: 0.8, quality: 0.5 }
-            })];
-        }
-    });
+export const createNarseseTranslationRule = (dependencies, config = {}) => {
+    const { lm } = dependencies;
+    const id = config.id || 'lm-narsese-translation';
+    return new LMNarseseTranslationRule(id, lm, config);
 };
