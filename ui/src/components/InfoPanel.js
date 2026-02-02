@@ -9,15 +9,19 @@ export class InfoPanel extends Component {
         if (!this.container) return;
         this.container.innerHTML = `
             <div class="hud-panel info-panel">
-                <h1>SeNARS Explorer</h1>
-                <p>Gardening Knowledge Interactively</p>
+                <div class="hud-header">
+                    <span class="hud-title">SeNARS Explorer</span>
+                    <span class="hud-subtitle">VER 1.0</span>
+                </div>
                 <div id="system-metrics-container"></div>
-                <div id="zoom-level">Level: overview</div>
-                <div id="bag-stats">Bag: 0 / 50</div>
+                <div class="hud-row">
+                    <span id="zoom-level">ZOOM: 1.0x</span>
+                    <span id="bag-stats">MEM: 0/50</span>
+                </div>
                 <div class="mode-controls">
-                    <button class="btn mode-btn active" data-mode="visualization">Visualization</button>
-                    <button class="btn mode-btn" data-mode="representation">Representation</button>
-                    <button class="btn mode-btn" data-mode="control">Control</button>
+                    <button class="btn mode-btn active" data-mode="visualization">VIS</button>
+                    <button class="btn mode-btn" data-mode="representation">REP</button>
+                    <button class="btn mode-btn" data-mode="control">CTL</button>
                 </div>
             </div>
         `;
