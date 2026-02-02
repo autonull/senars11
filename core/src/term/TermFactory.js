@@ -38,6 +38,25 @@ export class TermFactory extends BaseComponent {
         this._complexityCache = new Map();
     }
 
+    /**
+     * Deserialize a term from a JSON object or string.
+     * Guaranteed to return an interned Term instance.
+     * @param {Object|string} data
+     * @returns {Term}
+     */
+    fromJSON(data) {
+        if (!data) return null;
+        if (data instanceof Term) return data;
+
+        // If it's a string, treat as atomic name
+        if (typeof data === 'string') return this.create(data);
+
+        // If it has components, they need to be deserialized first if they aren't Terms
+        // Note: this.create() handles recursive creation, so we can just pass the object
+        // provided it matches the structure expected by create().
+        return this.create(data);
+    }
+
     create(data, components) {
         if (typeof data === 'string' && Array.isArray(components)) {
             return this._createCompound(data, components);

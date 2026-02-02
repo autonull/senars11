@@ -61,7 +61,11 @@ export class Term {
         return hash.toString(16).padStart(8, '0');
     }
 
+    /**
+     * @deprecated Use TermFactory.fromJSON instead to ensure interning.
+     */
     static fromJSON(data) {
+        // console.warn('Term.fromJSON is deprecated. Use TermFactory.fromJSON instead.');
         if (!data) throw new Error('Term.fromJSON requires valid data object');
         const { type, name, components = [], operator } = data;
         return new Term(type, name, components, operator);
@@ -87,16 +91,8 @@ export class Term {
     }
 
     equals(other) {
-        if (this === other) return true;
-        if (!(other instanceof Term) ||
-            this._hash !== other._hash ||
-            this._type !== other._type ||
-            this._operator !== other._operator ||
-            this._name !== other._name) return false;
-
-        return this._type === TermType.COMPOUND
-            ? this._components.length === other._components.length && this._components.every((comp, i) => comp.equals(other._components[i]))
-            : true;
+        // Strict interning means identity is equality
+        return this === other;
     }
 
     toString() { return this._name; }

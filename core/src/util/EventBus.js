@@ -12,6 +12,7 @@ export class EventBus {
         this._maxListeners = 10; // Prevent memory leaks
         this._concurrency = 0;
         this._maxConcurrency = 50; // Backpressure threshold
+        this._maxQueueSize = 1000; // Prevent unbounded memory growth
         this._queue = [];
     }
 
@@ -61,6 +62,10 @@ export class EventBus {
 
         // Backpressure: Wait if concurrency limit reached
         if (this._concurrency >= this._maxConcurrency) {
+            if (this._queue.length >= this._maxQueueSize) {
+                Logger.warn(`EventBus queue full (${this._maxQueueSize}), dropping event "${eventName}"`);
+                return;
+            }
             await new Promise(resolve => this._queue.push(resolve));
         }
 

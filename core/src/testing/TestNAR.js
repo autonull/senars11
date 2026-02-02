@@ -218,7 +218,8 @@ export class TestNAR {
 
                 let found = false;
                 for (const task of allTasks) {
-                    if (await matcher.matches(task)) {
+                    // Pass the NAR's termFactory to ensure reference equality matches work
+                    if (await matcher.matches(task, this.nar._termFactory)) {
                         found = true;
                         break;
                     }
