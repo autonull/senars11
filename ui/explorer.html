@@ -69,72 +69,11 @@
     <div id="graph-container"></div>
     <div id="widget-container"></div>
 
-    <!-- HUD -->
-    <div class="hud-panel top-left">
-        <h1>SeNARS Explorer</h1>
-        <p>Gardening Knowledge Interactively</p>
-        <div id="system-metrics-container"></div>
-        <div id="zoom-level">Level: overview</div>
-        <div id="bag-stats">Bag: 0 / 50</div>
-        <div class="mode-controls">
-            <button class="btn mode-btn active" data-mode="visualization">Visualization</button>
-            <button class="btn mode-btn" data-mode="representation">Representation</button>
-            <button class="btn mode-btn" data-mode="control">Control</button>
-        </div>
-    </div>
+    <!-- HUD Overlay Container -->
+    <div id="hud-overlay"></div>
 
-    <div class="hud-panel top-right">
-        <div class="control-group">
-            <input type="text" id="search-input" placeholder="Search..." class="control-input">
-            <select id="demo-select" class="control-select">
-                <option value="" disabled selected>Load Demo...</option>
-            </select>
-            <button id="btn-clear" class="btn warning-btn">Clear</button>
-        </div>
-        <div class="divider"></div>
-        <button id="btn-llm-config" class="btn">LLM Config</button>
-        <div id="llm-status" class="status-indicator">Offline</div>
-    </div>
-
-    <div id="inspector-panel" class="hud-panel right-center hidden">
-        <h3>Inspector</h3>
-        <div id="inspector-content"></div>
-        <button id="btn-close-inspector" class="btn small-btn">Close</button>
-    </div>
-
-    <div id="log-panel" class="hud-panel bottom-left">
-        <div id="log-content"></div>
-        <div class="repl-container">
-            <span class="repl-prompt">&gt;</span>
-            <input type="text" id="repl-input" placeholder="Enter command or chat..." autocomplete="off">
-        </div>
-    </div>
-
-    <div id="control-toolbar" class="hud-panel bottom-center hidden">
-        <div class="reasoner-controls">
-            <button id="btn-run" class="btn" title="Run Reasoner">▶</button>
-            <button id="btn-pause" class="btn hidden" title="Pause Reasoner">⏸</button>
-            <button id="btn-step" class="btn" title="Step Reasoner">⏯</button>
-            <div class="throttle-control">
-                <span class="control-label">Delay:</span>
-                <input type="range" id="throttle-slider" min="0" max="1000" value="100" step="50">
-                <span id="throttle-val">100ms</span>
-            </div>
-        </div>
-        <div class="divider"></div>
-        <button id="btn-add-concept" class="btn">Add Concept</button>
-        <button id="btn-add-link" class="btn">Link Selected</button>
-        <button id="btn-delete" class="btn warning-btn">Delete</button>
-    </div>
-
+    <!-- Status Bar Container -->
     <div id="status-bar-container"></div>
-
-    <div class="hud-panel bottom-right">
-        <button id="btn-fit" class="btn">Fit View</button>
-        <button id="btn-in" class="btn">+</button>
-        <button id="btn-out" class="btn">-</button>
-        <button id="btn-layout" class="btn">Relayout</button>
-    </div>
 
     <script type="module" src="/src/explorer/main.js"></script>
 </body>

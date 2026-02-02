@@ -28,10 +28,67 @@ body {
     z-index: 2;
 }
 
+/* HUD Overlay System */
+#hud-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh; /* Subtract Status Bar height if needed, but flex handles it better */
+    z-index: 10;
+    pointer-events: none; /* Let clicks pass through to graph */
+    display: grid;
+    grid-template-areas:
+        "top top top"
+        "left center right"
+        "bottom bottom bottom";
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto 1fr auto;
+    padding: 20px;
+    box-sizing: border-box;
+    gap: 10px;
+}
+
+.hud-zone {
+    pointer-events: none;
+    display: flex;
+    gap: 10px;
+}
+
+.hud-top {
+    grid-area: top;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.hud-left {
+    grid-area: left;
+    flex-direction: column;
+    justify-content: flex-end; /* Align bottom by default */
+}
+
+.hud-right {
+    grid-area: right;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.hud-bottom {
+    grid-area: bottom;
+    justify-content: center;
+    align-items: flex-end;
+    margin-bottom: 30px; /* Space for status bar */
+}
+
+.hud-center {
+    grid-area: center;
+    justify-content: center;
+    align-items: center;
+}
+
 /* HUD Panels - Glassmorphism */
 .hud-panel {
-    position: absolute;
-    z-index: 10;
+    pointer-events: auto; /* Enable interaction */
     background: rgba(20, 20, 20, 0.7);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -40,16 +97,36 @@ body {
     padding: 20px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     transition: all 0.3s ease;
+    max-width: 100%;
 }
 
-.top-left { top: 20px; left: 20px; max-width: 300px; }
-.top-right { top: 20px; right: 20px; display: flex; align-items: center; gap: 15px; }
-.bottom-left { bottom: 50px; left: 20px; width: 350px; display: flex; flex-direction: column; gap: 10px; }
-.bottom-right { bottom: 50px; right: 20px; }
-.right-center { top: 50%; right: 20px; transform: translateY(-50%); width: 250px; }
-.bottom-center { bottom: 50px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; }
+/* Specific Panel Styles (Refactored from previous classes) */
+.info-panel {
+    min-width: 250px;
+}
 
-.hidden { display: none !important; }
+.control-toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.bottom-right-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.log-panel-container {
+    width: 350px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 400px;
+}
+
+.inspector-panel {
+    width: 250px;
+}
 
 /* Typography */
 h1 {
@@ -232,15 +309,23 @@ p {
 }
 
 /* Log Panel & REPL */
+.log-area {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0; /* Important for flexbox scrolling */
+}
+
 #log-content {
     font-family: 'Consolas', monospace;
     font-size: 0.8rem;
     line-height: 1.4;
     color: #aaa;
-    max-height: 200px;
     overflow-y: auto;
     padding-bottom: 5px;
     border-bottom: 1px solid rgba(255,255,255,0.05);
+    flex: 1;
+    margin-bottom: 10px;
 }
 
 .repl-container {
@@ -252,6 +337,7 @@ p {
     padding: 4px 8px;
     border: 1px solid rgba(255,255,255,0.1);
     transition: border-color 0.2s;
+    min-height: 32px;
 }
 
 .repl-container:focus-within {
@@ -277,6 +363,10 @@ p {
 
 #repl-input::placeholder {
     color: #555;
+}
+
+.top-controls {
+    flex-wrap: wrap;
 }
 
 /* Inspector Content */
@@ -387,3 +477,5 @@ p {
     padding-bottom: 10px;
     border-bottom: 1px solid rgba(255,255,255,0.05);
 }
+
+.hidden { display: none !important; }

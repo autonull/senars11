@@ -4,6 +4,11 @@ import { LMConfigDialog } from '../agent/LMConfigDialog.js';
 import { DEMOS } from './demos.js';
 import { StatusBar } from '../components/StatusBar.js';
 import { SystemMetricsPanel } from '../components/SystemMetricsPanel.js';
+import { HUDLayoutManager } from '../layout/HUDLayoutManager.js';
+import { InfoPanel } from '../components/InfoPanel.js';
+import { ControlToolbar } from '../components/ControlToolbar.js';
+import { LogPanel } from '../components/LogPanel.js';
+import { InspectorPanel } from '../components/InspectorPanel.js';
 
 export class ExplorerApp {
     constructor() {
@@ -17,6 +22,13 @@ export class ExplorerApp {
         this.reasonerLoopId = null;
         this.statusBar = null;
         this.metricsPanel = null;
+
+        // Layout & Panels
+        this.layoutManager = new HUDLayoutManager('hud-overlay');
+        this.infoPanel = new InfoPanel();
+        this.controlToolbar = new ControlToolbar();
+        this.logPanel = new LogPanel();
+        this.inspectorPanel = new InspectorPanel();
     }
 
     async initialize() {
@@ -28,13 +40,26 @@ export class ExplorerApp {
 
         this.graph.onNodeTap((data) => this.showInspector(data));
 
-        // Init Components
+        // Init Layout System
+        this.layoutManager.initialize();
+
+        // Instantiate and Mount Components
+        this.layoutManager.addComponent(this.infoPanel, 'top');
+
+        this.layoutManager.addComponent(this.controlToolbar, 'bottom');
+
+        this.layoutManager.addComponent(this.logPanel, 'left');
+
+        this.layoutManager.addComponent(this.inspectorPanel, 'right');
+
+        // Init Components (StatusBar & Metrics)
         this.statusBar = new StatusBar('status-bar-container');
         this.statusBar.initialize({
             onModeSwitch: () => console.log('Mode Switch'),
             onThemeToggle: () => console.log('Theme Toggle')
         });
 
+        // Metrics are inside InfoPanel now
         this.metricsPanel = new SystemMetricsPanel('system-metrics-container');
         this.metricsPanel.initialize();
 
@@ -44,7 +69,7 @@ export class ExplorerApp {
         // Init UI Bindings
         this._bindControls();
 
-        // Dynamic import
+        // Dynamic import of LLM Controller
         try {
             const module = await import('../agent/LMAgentController.js');
             this.lmController = new module.LMAgentController(this.logger);
@@ -66,18 +91,20 @@ export class ExplorerApp {
     }
 
     _bindControls() {
-        document.getElementById('btn-fit').onclick = () => this.graph.fit();
-        document.getElementById('btn-in').onclick = () => this.graph.zoomIn();
-        document.getElementById('btn-out').onclick = () => this.graph.zoomOut();
-        document.getElementById('btn-layout').onclick = () => this.graph.relayout();
+        // Navigation Controls
+        this._bindClick('btn-fit', () => this.graph.fit());
+        this._bindClick('btn-in', () => this.graph.zoomIn());
+        this._bindClick('btn-out', () => this.graph.zoomOut());
+        this._bindClick('btn-layout', () => this.graph.relayout());
 
         // Data Controls
-        document.getElementById('btn-clear').onclick = () => {
+        this._bindClick('btn-clear', () => {
             this.graph.clear();
             this.log('Cleared workspace.', 'system');
             this._updateStats();
-        };
+        });
 
+        // Search
         const searchInput = document.getElementById('search-input');
         if (searchInput) {
             searchInput.onkeydown = (e) => {
@@ -102,25 +129,31 @@ export class ExplorerApp {
             };
         }
 
+        // Demo Select
         const demoSelect = document.getElementById('demo-select');
-        Object.keys(DEMOS).forEach(name => {
-            const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
-            demoSelect.appendChild(opt);
+        if (demoSelect) {
+            Object.keys(DEMOS).forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                demoSelect.appendChild(opt);
+            });
+
+            demoSelect.onchange = (e) => {
+                if (e.target.value) {
+                    this.loadDemo(e.target.value);
+                    e.target.value = "";
+                }
+            };
+        }
+
+        // Inspector
+        this._bindClick('btn-close-inspector', () => {
+             const panel = document.getElementById('inspector-panel');
+             if(panel) panel.classList.add('hidden');
         });
 
-        demoSelect.onchange = (e) => {
-            if (e.target.value) {
-                this.loadDemo(e.target.value);
-                e.target.value = "";
-            }
-        };
-
-        document.getElementById('btn-close-inspector').onclick = () => {
-            document.getElementById('inspector-panel').classList.add('hidden');
-        };
-
+        // Mode Switching
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.onclick = (e) => {
                 document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
@@ -130,14 +163,14 @@ export class ExplorerApp {
         });
 
         // Gardening Tools
-        document.getElementById('btn-add-concept').onclick = () => this.handleAddConcept();
-        document.getElementById('btn-add-link').onclick = () => this.handleAddLink();
-        document.getElementById('btn-delete').onclick = () => this.handleDelete();
+        this._bindClick('btn-add-concept', () => this.handleAddConcept());
+        this._bindClick('btn-add-link', () => this.handleAddLink());
+        this._bindClick('btn-delete', () => this.handleDelete());
 
         // Reasoner Controls
-        document.getElementById('btn-run').onclick = () => this.toggleReasoner(true);
-        document.getElementById('btn-pause').onclick = () => this.toggleReasoner(false);
-        document.getElementById('btn-step').onclick = () => this.stepReasoner();
+        this._bindClick('btn-run', () => this.toggleReasoner(true));
+        this._bindClick('btn-pause', () => this.toggleReasoner(false));
+        this._bindClick('btn-step', () => this.stepReasoner());
 
         const slider = document.getElementById('throttle-slider');
         const label = document.getElementById('throttle-val');
@@ -148,7 +181,8 @@ export class ExplorerApp {
             };
         }
 
-        document.getElementById('btn-llm-config').onclick = () => {
+        // LLM Config
+        this._bindClick('btn-llm-config', () => {
             new LMConfigDialog(document.body, {
                 onSave: async (config) => {
                     if (this.lmController) {
@@ -159,8 +193,9 @@ export class ExplorerApp {
                     }
                 }
             }).show();
-        };
+        });
 
+        // REPL
         const input = document.getElementById('repl-input');
         if (input) {
             input.onkeydown = async (e) => {
@@ -171,6 +206,11 @@ export class ExplorerApp {
                 }
             };
         }
+    }
+
+    _bindClick(id, handler) {
+        const el = document.getElementById(id);
+        if (el) el.onclick = handler;
     }
 
     loadDemo(name) {
@@ -190,6 +230,8 @@ export class ExplorerApp {
     showInspector(data) {
         const panel = document.getElementById('inspector-panel');
         const content = document.getElementById('inspector-content');
+        if (!panel || !content) return;
+
         panel.classList.remove('hidden');
 
         let html = `
@@ -235,7 +277,7 @@ export class ExplorerApp {
         content.innerHTML = html;
 
         if (isControl) {
-            document.getElementById('btn-inspector-save').onclick = () => this.saveNodeChanges(data.id);
+            this._bindClick('btn-inspector-save', () => this.saveNodeChanges(data.id));
         }
     }
 
@@ -259,19 +301,17 @@ export class ExplorerApp {
         const item = this.graph.bag.items.get(id);
         if (item) {
             Object.assign(item, updates);
-            this.graph.bag.items.set(id, item); // Trigger re-set might not be needed if reference is same, but good for safety
+            this.graph.bag.items.set(id, item);
         }
 
         // Update Graph Node
         const cyNode = this.graph.viewport.cy.$id(id);
         if (cyNode && cyNode.length > 0) {
             cyNode.data(updates);
-            // Re-style if needed (e.g. priority might change size)
-            // But usually styles are mapped to data automatically if using mappers
         }
 
         this.log(`Updated node ${id}`, 'user');
-        this.showInspector({ id, ...updates }); // Refresh inspector
+        this.showInspector({ id, ...updates });
     }
 
     _updateStats() {
@@ -333,13 +373,17 @@ export class ExplorerApp {
         this.mode = mode;
         this.graph.setMode(mode);
 
-        // Show/Hide Control Toolbar
+        // Show/Hide Control Toolbar via CSS class, though now it's in a wrapper
         const toolbar = document.getElementById('control-toolbar');
-        if (mode === 'control') {
-            toolbar.classList.remove('hidden');
-        } else {
-            toolbar.classList.add('hidden');
+        if (toolbar) {
+            if (mode === 'control') {
+                toolbar.classList.remove('hidden');
+            } else {
+                toolbar.classList.add('hidden');
+            }
         }
+
+        // We could also ask LayoutManager to swap components here if we wanted completely different layouts
 
         console.log(`Mode switched to: ${mode}`);
     }
@@ -384,21 +428,12 @@ export class ExplorerApp {
                 if (ele.isNode()) {
                     this.graph.bag.remove(ele.id());
                 }
-                // Edges are removed automatically by Cytoscape when nodes are removed,
-                // but if we are just deleting an edge, we might need to handle it.
-                // However, our sync logic relies on the Bag.
-                // If we delete a node from Bag, sync removes it.
-                // If we delete an edge... we don't have edges in Bag currently.
-                // Our edges are just visual or derived.
-                // For this mock, we will just remove from Cytoscape directly for edges,
-                // and from Bag for nodes.
 
                 if (ele.isEdge()) {
                     ele.remove();
                 }
             });
 
-            // Re-sync to ensure consistency
             this.graph._syncGraph();
             this.log(`Deleted ${selected.length} items.`, 'user');
             this._updateStats();
@@ -425,13 +460,13 @@ export class ExplorerApp {
         const btnPause = document.getElementById('btn-pause');
 
         if (run) {
-            btnRun.classList.add('hidden');
-            btnPause.classList.remove('hidden');
+            if(btnRun) btnRun.classList.add('hidden');
+            if(btnPause) btnPause.classList.remove('hidden');
             this._runReasonerLoop();
             this.log('Reasoner started', 'system');
         } else {
-            btnRun.classList.remove('hidden');
-            btnPause.classList.add('hidden');
+            if(btnRun) btnRun.classList.remove('hidden');
+            if(btnPause) btnPause.classList.add('hidden');
             if (this.reasonerLoopId) {
                 clearTimeout(this.reasonerLoopId);
                 this.reasonerLoopId = null;
@@ -476,10 +511,8 @@ export class ExplorerApp {
             const nar = this.lmController.toolsBridge.getNAR();
             if (!nar) return;
 
-            // Get stats
             const stats = nar.getStats();
 
-            // Update Status Bar
             if (this.statusBar) {
                 this.statusBar.updateStats({
                     cycles: stats.cycleCount || 0,
@@ -488,7 +521,6 @@ export class ExplorerApp {
                 });
             }
 
-            // Update Metrics Panel
             if (this.metricsPanel) {
                 const totalConcepts = stats.memoryStats ? stats.memoryStats.totalConcepts : 0;
                 const maxConcepts = (stats.config && stats.config.memory) ? stats.config.memory.maxConcepts : 1000;
