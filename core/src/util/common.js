@@ -157,3 +157,11 @@ export const getHeapUsed = () => {
 export const isNodeEnvironment = () => typeof process !== 'undefined' && process.versions?.node;
 
 export const isBrowserEnvironment = () => typeof window !== 'undefined';
+
+export const cleanText = (text) => {
+    if (!text) return '';
+    return text.replace(/^["']|["']$/g, '').replace(/[.,;!?]+$/, '').trim();
+};
+
+export const isValidLength = (text, min, max) =>
+    text && text.length >= min && text.length <= max;
