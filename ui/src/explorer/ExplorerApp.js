@@ -2,6 +2,8 @@ import { ExplorerGraph } from './ExplorerGraph.js';
 import { Logger } from '../logging/Logger.js';
 import { LMConfigDialog } from '../agent/LMConfigDialog.js';
 import { DEMOS } from './demos.js';
+import { StatusBar } from '../components/StatusBar.js';
+import { SystemMetricsPanel } from '../components/SystemMetricsPanel.js';
 
 export class ExplorerApp {
     constructor() {
@@ -9,6 +11,12 @@ export class ExplorerApp {
         this.logger = new Logger();
         this.lmController = null;
         this.mode = 'visualization';
+
+        this.isReasonerRunning = false;
+        this.reasonerDelay = 100;
+        this.reasonerLoopId = null;
+        this.statusBar = null;
+        this.metricsPanel = null;
     }
 
     async initialize() {
@@ -19,6 +27,19 @@ export class ExplorerApp {
         this.loadDemo('Solar System');
 
         this.graph.onNodeTap((data) => this.showInspector(data));
+
+        // Init Components
+        this.statusBar = new StatusBar('status-bar-container');
+        this.statusBar.initialize({
+            onModeSwitch: () => console.log('Mode Switch'),
+            onThemeToggle: () => console.log('Theme Toggle')
+        });
+
+        this.metricsPanel = new SystemMetricsPanel('system-metrics-container');
+        this.metricsPanel.initialize();
+
+        // Start stats update loop
+        this._startStatsLoop();
 
         // Init UI Bindings
         this._bindControls();
@@ -112,6 +133,20 @@ export class ExplorerApp {
         document.getElementById('btn-add-concept').onclick = () => this.handleAddConcept();
         document.getElementById('btn-add-link').onclick = () => this.handleAddLink();
         document.getElementById('btn-delete').onclick = () => this.handleDelete();
+
+        // Reasoner Controls
+        document.getElementById('btn-run').onclick = () => this.toggleReasoner(true);
+        document.getElementById('btn-pause').onclick = () => this.toggleReasoner(false);
+        document.getElementById('btn-step').onclick = () => this.stepReasoner();
+
+        const slider = document.getElementById('throttle-slider');
+        const label = document.getElementById('throttle-val');
+        if (slider && label) {
+            slider.oninput = (e) => {
+                this.reasonerDelay = parseInt(e.target.value);
+                label.textContent = `${this.reasonerDelay}ms`;
+            };
+        }
 
         document.getElementById('btn-llm-config').onclick = () => {
             new LMConfigDialog(document.body, {
@@ -382,5 +417,99 @@ export class ExplorerApp {
             el.textContent = text;
             el.className = `status-indicator status-${state}`;
         }
+    }
+
+    toggleReasoner(run) {
+        this.isReasonerRunning = run;
+        const btnRun = document.getElementById('btn-run');
+        const btnPause = document.getElementById('btn-pause');
+
+        if (run) {
+            btnRun.classList.add('hidden');
+            btnPause.classList.remove('hidden');
+            this._runReasonerLoop();
+            this.log('Reasoner started', 'system');
+        } else {
+            btnRun.classList.remove('hidden');
+            btnPause.classList.add('hidden');
+            if (this.reasonerLoopId) {
+                clearTimeout(this.reasonerLoopId);
+                this.reasonerLoopId = null;
+            }
+            this.log('Reasoner paused', 'system');
+        }
+    }
+
+    async stepReasoner() {
+        if (!this.lmController || !this.lmController.toolsBridge) {
+            this.log('Reasoner not available (LLM not connected?)', 'warning');
+            return;
+        }
+
+        const nar = this.lmController.toolsBridge.getNAR();
+        if (!nar) {
+             this.log('NAR instance not found', 'error');
+             return;
+        }
+
+        try {
+            await nar.step();
+        } catch (e) {
+            this.log(`Reasoner step error: ${e.message}`, 'error');
+            this.toggleReasoner(false);
+        }
+    }
+
+    async _runReasonerLoop() {
+        if (!this.isReasonerRunning) return;
+
+        await this.stepReasoner();
+
+        if (this.isReasonerRunning) {
+            this.reasonerLoopId = setTimeout(() => this._runReasonerLoop(), this.reasonerDelay);
+        }
+    }
+
+    _startStatsLoop() {
+        setInterval(() => {
+            if (!this.lmController || !this.lmController.toolsBridge) return;
+            const nar = this.lmController.toolsBridge.getNAR();
+            if (!nar) return;
+
+            // Get stats
+            const stats = nar.getStats();
+
+            // Update Status Bar
+            if (this.statusBar) {
+                this.statusBar.updateStats({
+                    cycles: stats.cycleCount || 0,
+                    messages: 0,
+                    latency: 0
+                });
+            }
+
+            // Update Metrics Panel
+            if (this.metricsPanel) {
+                const totalConcepts = stats.memoryStats ? stats.memoryStats.totalConcepts : 0;
+                const maxConcepts = (stats.config && stats.config.memory) ? stats.config.memory.maxConcepts : 1000;
+
+                this.metricsPanel.update({
+                    performance: {
+                        throughput: this.isReasonerRunning ? (1000 / Math.max(this.reasonerDelay, 1)) : 0,
+                        avgLatency: 0
+                    },
+                    resourceUsage: {
+                        heapUsed: totalConcepts,
+                        heapTotal: maxConcepts
+                    },
+                    taskProcessing: {
+                        totalProcessed: stats.cycleCount,
+                        successful: stats.cycleCount
+                    },
+                    reasoningSteps: stats.cycleCount,
+                    uptime: Date.now() - (nar._startTime || Date.now())
+                });
+            }
+        }, 500);
     }
 }

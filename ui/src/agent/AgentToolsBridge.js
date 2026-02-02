@@ -174,7 +174,7 @@ export class AgentToolsBridge {
 
                 const count = args.count || 1;
                 for (let i = 0; i < count; i++) {
-                    this.nar.cycle();
+                    await this.nar.step();
                 }
 
                 return {

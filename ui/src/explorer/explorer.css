@@ -44,10 +44,10 @@ body {
 
 .top-left { top: 20px; left: 20px; max-width: 300px; }
 .top-right { top: 20px; right: 20px; display: flex; align-items: center; gap: 15px; }
-.bottom-left { bottom: 20px; left: 20px; width: 350px; display: flex; flex-direction: column; gap: 10px; }
-.bottom-right { bottom: 20px; right: 20px; }
+.bottom-left { bottom: 50px; left: 20px; width: 350px; display: flex; flex-direction: column; gap: 10px; }
+.bottom-right { bottom: 50px; right: 20px; }
 .right-center { top: 50%; right: 20px; transform: translateY(-50%); width: 250px; }
-.bottom-center { bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; }
+.bottom-center { bottom: 50px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; }
 
 .hidden { display: none !important; }
 
@@ -323,3 +323,67 @@ p {
 ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+
+/* New Components */
+#status-bar-container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    z-index: 100;
+    background: rgba(10, 10, 10, 0.9);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.reasoner-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.throttle-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: #aaa;
+}
+
+#throttle-slider {
+    width: 80px;
+    height: 4px;
+    -webkit-appearance: none;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    outline: none;
+}
+
+#throttle-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #00d4ff;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+#throttle-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+#throttle-val {
+    min-width: 40px;
+    text-align: right;
+    font-family: 'Consolas', monospace;
+    color: #00ff9d;
+}
+
+#system-metrics-container {
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
