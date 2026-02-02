@@ -16,6 +16,24 @@ export class ExplorerGraph {
         return false;
     }
 
+    clear() {
+        this.bag.clear();
+        this.viewport.cy.elements().remove();
+        this._syncGraph();
+    }
+
+    onNodeTap(callback) {
+        if (this.viewport.cy) {
+            this.viewport.cy.on('tap', 'node', (evt) => {
+                const node = evt.target;
+                callback({
+                    id: node.id(),
+                    ...node.data()
+                });
+            });
+        }
+    }
+
     addConcept(term, priority, details = {}) {
         this.bag.add(term, priority, details);
         this._syncGraph();
@@ -203,6 +221,36 @@ export class ExplorerGraph {
             animationDuration: 500,
             padding: 50
         }).run();
+    }
+
+    findNode(id) {
+        if (!this.viewport.cy) return null;
+
+        // Try exact match first
+        let node = this.viewport.cy.$id(id);
+
+        // If not found, try case-insensitive partial match on label
+        if (node.empty()) {
+            const nodes = this.viewport.cy.nodes().filter(n => n.data('label').toLowerCase().includes(id.toLowerCase()));
+            if (nodes.nonempty()) {
+                node = nodes.first();
+            }
+        }
+
+        if (node.nonempty()) {
+            this.viewport.cy.animate({
+                center: { eles: node },
+                zoom: 1.5,
+                duration: 500
+            });
+
+            // Highlight effect
+            node.addClass('highlighted');
+            setTimeout(() => node.removeClass('highlighted'), 2000);
+
+            return node;
+        }
+        return null;
     }
 
     fit() {

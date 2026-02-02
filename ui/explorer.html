@@ -74,6 +74,7 @@
         <h1>SeNARS Explorer</h1>
         <p>Gardening Knowledge Interactively</p>
         <div id="zoom-level">Level: overview</div>
+        <div id="bag-stats">Bag: 0 / 50</div>
         <div class="mode-controls">
             <button class="btn mode-btn active" data-mode="visualization">Visualization</button>
             <button class="btn mode-btn" data-mode="representation">Representation</button>
@@ -82,8 +83,22 @@
     </div>
 
     <div class="hud-panel top-right">
+        <div class="control-group">
+            <input type="text" id="search-input" placeholder="Search..." class="control-input">
+            <select id="demo-select" class="control-select">
+                <option value="" disabled selected>Load Demo...</option>
+            </select>
+            <button id="btn-clear" class="btn warning-btn">Clear</button>
+        </div>
+        <div class="divider"></div>
         <button id="btn-llm-config" class="btn">LLM Config</button>
         <div id="llm-status" class="status-indicator">Offline</div>
+    </div>
+
+    <div id="inspector-panel" class="hud-panel right-center hidden">
+        <h3>Inspector</h3>
+        <div id="inspector-content"></div>
+        <button id="btn-close-inspector" class="btn small-btn">Close</button>
     </div>
 
     <div id="log-panel" class="hud-panel bottom-left">
@@ -92,6 +107,12 @@
             <span class="repl-prompt">&gt;</span>
             <input type="text" id="repl-input" placeholder="Enter command or chat..." autocomplete="off">
         </div>
+    </div>
+
+    <div id="control-toolbar" class="hud-panel bottom-center hidden">
+        <button id="btn-add-concept" class="btn">Add Concept</button>
+        <button id="btn-add-link" class="btn">Link Selected</button>
+        <button id="btn-delete" class="btn warning-btn">Delete</button>
     </div>
 
     <div class="hud-panel bottom-right">

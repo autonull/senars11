@@ -57,6 +57,30 @@ export class ExplorerApp {
             this._updateStats();
         };
 
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+            searchInput.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    const term = searchInput.value.trim();
+                    if (term) {
+                        const foundNode = this.graph.findNode(term);
+                        if (foundNode) {
+                            this.log(`Found: ${term}`, 'system');
+                            searchInput.value = '';
+
+                            this.showInspector({
+                                id: foundNode.id(),
+                                ...foundNode.data()
+                            });
+                            foundNode.select();
+                        } else {
+                            this.log(`Not found: ${term}`, 'warning');
+                        }
+                    }
+                }
+            };
+        }
+
         const demoSelect = document.getElementById('demo-select');
         Object.keys(DEMOS).forEach(name => {
             const opt = document.createElement('option');
@@ -83,6 +107,11 @@ export class ExplorerApp {
                 this.setMode(e.target.dataset.mode);
             };
         });
+
+        // Gardening Tools
+        document.getElementById('btn-add-concept').onclick = () => this.handleAddConcept();
+        document.getElementById('btn-add-link').onclick = () => this.handleAddLink();
+        document.getElementById('btn-delete').onclick = () => this.handleDelete();
 
         document.getElementById('btn-llm-config').onclick = () => {
             new LMConfigDialog(document.body, {
@@ -128,29 +157,86 @@ export class ExplorerApp {
         const content = document.getElementById('inspector-content');
         panel.classList.remove('hidden');
 
-        let html = '';
+        let html = `
+            <div class="prop-row">
+                <span class="prop-label">ID</span>
+                <span class="prop-value">${data.id}</span>
+            </div>
+        `;
+
+        const isControl = (this.mode === 'control');
+
         for (const [key, value] of Object.entries(data)) {
             if (key === 'weight' || key === 'id') continue;
 
             let displayVal = value;
             if (typeof value === 'number') displayVal = value.toFixed(3);
 
+            if (isControl) {
+                html += `
+                    <div class="prop-row">
+                        <span class="prop-label">${key}</span>
+                        <input type="text" class="prop-input" id="insp-input-${key}" value="${value}" />
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="prop-row">
+                        <span class="prop-label">${key}</span>
+                        <span class="prop-value">${displayVal}</span>
+                    </div>
+                `;
+            }
+        }
+
+        if (isControl) {
             html += `
-                <div class="prop-row">
-                    <span class="prop-label">${key}</span>
-                    <span class="prop-value">${displayVal}</span>
+                <div style="margin-top: 10px; text-align: right;">
+                    <button id="btn-inspector-save" class="btn small-btn">Save</button>
                 </div>
             `;
         }
 
-        html = `
-            <div class="prop-row">
-                <span class="prop-label">ID</span>
-                <span class="prop-value">${data.id}</span>
-            </div>
-        ` + html;
-
         content.innerHTML = html;
+
+        if (isControl) {
+            document.getElementById('btn-inspector-save').onclick = () => this.saveNodeChanges(data.id);
+        }
+    }
+
+    saveNodeChanges(id) {
+        const inputs = document.querySelectorAll('#inspector-content .prop-input');
+        const updates = {};
+
+        inputs.forEach(input => {
+            const key = input.id.replace('insp-input-', '');
+            let value = input.value;
+
+            // Attempt to parse numbers
+            if (!isNaN(parseFloat(value)) && isFinite(value)) {
+                value = parseFloat(value);
+            }
+
+            updates[key] = value;
+        });
+
+        // Update Bag
+        const item = this.graph.bag.items.get(id);
+        if (item) {
+            Object.assign(item, updates);
+            this.graph.bag.items.set(id, item); // Trigger re-set might not be needed if reference is same, but good for safety
+        }
+
+        // Update Graph Node
+        const cyNode = this.graph.viewport.cy.$id(id);
+        if (cyNode && cyNode.length > 0) {
+            cyNode.data(updates);
+            // Re-style if needed (e.g. priority might change size)
+            // But usually styles are mapped to data automatically if using mappers
+        }
+
+        this.log(`Updated node ${id}`, 'user');
+        this.showInspector({ id, ...updates }); // Refresh inspector
     }
 
     _updateStats() {
@@ -211,7 +297,77 @@ export class ExplorerApp {
     setMode(mode) {
         this.mode = mode;
         this.graph.setMode(mode);
+
+        // Show/Hide Control Toolbar
+        const toolbar = document.getElementById('control-toolbar');
+        if (mode === 'control') {
+            toolbar.classList.remove('hidden');
+        } else {
+            toolbar.classList.add('hidden');
+        }
+
         console.log(`Mode switched to: ${mode}`);
+    }
+
+    handleAddConcept() {
+        const term = prompt("Enter concept name:");
+        if (term) {
+            this.graph.addConcept(term, 0.5, { type: 'concept' }); // Default priority 0.5
+            this.log(`Created concept: ${term}`, 'user');
+        }
+    }
+
+    handleAddLink() {
+        if (!this.graph.viewport.cy) return;
+        const selected = this.graph.viewport.cy.$(':selected');
+
+        if (selected.length !== 2) {
+            alert("Please select exactly two nodes to link.");
+            return;
+        }
+
+        const source = selected[0].id();
+        const target = selected[1].id();
+
+        const type = prompt(`Link ${source} -> ${target} as:`, 'implication');
+        if (type) {
+            this.graph.addRelationship(source, target, type);
+            this.log(`Linked ${source} -> ${target} (${type})`, 'user');
+        }
+    }
+
+    handleDelete() {
+        if (!this.graph.viewport.cy) return;
+        const selected = this.graph.viewport.cy.$(':selected');
+
+        if (selected.empty()) {
+            return;
+        }
+
+        if (confirm(`Delete ${selected.length} items?`)) {
+            selected.forEach(ele => {
+                if (ele.isNode()) {
+                    this.graph.bag.remove(ele.id());
+                }
+                // Edges are removed automatically by Cytoscape when nodes are removed,
+                // but if we are just deleting an edge, we might need to handle it.
+                // However, our sync logic relies on the Bag.
+                // If we delete a node from Bag, sync removes it.
+                // If we delete an edge... we don't have edges in Bag currently.
+                // Our edges are just visual or derived.
+                // For this mock, we will just remove from Cytoscape directly for edges,
+                // and from Bag for nodes.
+
+                if (ele.isEdge()) {
+                    ele.remove();
+                }
+            });
+
+            // Re-sync to ensure consistency
+            this.graph._syncGraph();
+            this.log(`Deleted ${selected.length} items.`, 'user');
+            this._updateStats();
+        }
     }
 
     _setupLMEvents() {
