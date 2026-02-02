@@ -64,6 +64,26 @@ async function verify() {
         throw error;
     }
 
+    // 1.2 Verify Term Equality (Structural vs Reference)
+    console.log('Verifying Term Equality (Structural vs Reference)...');
+    // Create two separate instances of 'dog' bypassing cache to simulate eviction
+    // Note: We need to use Term constructor directly if exported, or trick the factory/cache
+    // Since Term is exported from TermFactory.js, we can import it if we modify imports,
+    // or just assume we can create new Terms via factory.create if we clear cache.
+
+    // Create first term
+    const dog1 = termFactory.create('dog');
+
+    // Clear cache to force new instance creation
+    termFactory.clearCache();
+
+    // Create second term - should be new instance
+    const dog2 = termFactory.create('dog');
+
+    if (dog1 === dog2) throw new Error('Failed to create separate instances for testing equality');
+    if (!dog1.equals(dog2)) throw new Error('Structural equality check failed: dog1.equals(dog2) should be true');
+    console.log('Term Equality: OK (Structural equality works across instances)');
+
     // 3. Verify EventBus Backpressure
     console.log('Verifying EventBus Backpressure...');
     const eventBus = new EventBus();
