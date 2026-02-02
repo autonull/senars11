@@ -1,6 +1,7 @@
 import { ExplorerGraph } from './ExplorerGraph.js';
 import { Logger } from '../logging/Logger.js';
 import { LMConfigDialog } from '../agent/LMConfigDialog.js';
+import { DEMOS } from './demos.js';
 
 export class ExplorerApp {
     constructor() {
@@ -15,18 +16,19 @@ export class ExplorerApp {
 
         // Init Graph
         await this.graph.initialize();
-        this._setupGraphDemoData();
+        this.loadDemo('Solar System');
+
+        this.graph.onNodeTap((data) => this.showInspector(data));
 
         // Init UI Bindings
         this._bindControls();
 
-        // Dynamic import LMAgentController to avoid hard dependency crashes in raw ESM
+        // Dynamic import
         try {
             const module = await import('../agent/LMAgentController.js');
             this.lmController = new module.LMAgentController(this.logger);
             this._setupLMEvents();
 
-            // Try to init LLM if config exists
             try {
                 await this.lmController.initialize();
                 this._updateLLMStatus('Ready', 'ready');
@@ -43,25 +45,45 @@ export class ExplorerApp {
     }
 
     _bindControls() {
-        // Zoom/Fit
         document.getElementById('btn-fit').onclick = () => this.graph.fit();
         document.getElementById('btn-in').onclick = () => this.graph.zoomIn();
         document.getElementById('btn-out').onclick = () => this.graph.zoomOut();
         document.getElementById('btn-layout').onclick = () => this.graph.relayout();
 
-        // Modes
+        // Data Controls
+        document.getElementById('btn-clear').onclick = () => {
+            this.graph.clear();
+            this.log('Cleared workspace.', 'system');
+            this._updateStats();
+        };
+
+        const demoSelect = document.getElementById('demo-select');
+        Object.keys(DEMOS).forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            demoSelect.appendChild(opt);
+        });
+
+        demoSelect.onchange = (e) => {
+            if (e.target.value) {
+                this.loadDemo(e.target.value);
+                e.target.value = "";
+            }
+        };
+
+        document.getElementById('btn-close-inspector').onclick = () => {
+            document.getElementById('inspector-panel').classList.add('hidden');
+        };
+
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.onclick = (e) => {
-                // UI update
                 document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
                 e.target.classList.add('active');
-
-                // Logic update
                 this.setMode(e.target.dataset.mode);
             };
         });
 
-        // LLM Config
         document.getElementById('btn-llm-config').onclick = () => {
             new LMConfigDialog(document.body, {
                 onSave: async (config) => {
@@ -75,7 +97,6 @@ export class ExplorerApp {
             }).show();
         };
 
-        // REPL Input
         const input = document.getElementById('repl-input');
         if (input) {
             input.onkeydown = async (e) => {
@@ -88,10 +109,61 @@ export class ExplorerApp {
         }
     }
 
+    loadDemo(name) {
+        const demo = DEMOS[name];
+        if (!demo) return;
+
+        this.graph.clear();
+        this.log(`Loading demo: ${name}`, 'system');
+
+        demo.concepts.forEach(c => this.graph.addConcept(c.term, c.priority, { type: c.type }));
+        demo.relationships.forEach(r => this.graph.addRelationship(r[0], r[1], r[2]));
+
+        this.graph.relayout();
+        this._updateStats();
+    }
+
+    showInspector(data) {
+        const panel = document.getElementById('inspector-panel');
+        const content = document.getElementById('inspector-content');
+        panel.classList.remove('hidden');
+
+        let html = '';
+        for (const [key, value] of Object.entries(data)) {
+            if (key === 'weight' || key === 'id') continue;
+
+            let displayVal = value;
+            if (typeof value === 'number') displayVal = value.toFixed(3);
+
+            html += `
+                <div class="prop-row">
+                    <span class="prop-label">${key}</span>
+                    <span class="prop-value">${displayVal}</span>
+                </div>
+            `;
+        }
+
+        html = `
+            <div class="prop-row">
+                <span class="prop-label">ID</span>
+                <span class="prop-value">${data.id}</span>
+            </div>
+        ` + html;
+
+        content.innerHTML = html;
+    }
+
+    _updateStats() {
+        const bag = this.graph.bag;
+        const el = document.getElementById('bag-stats');
+        if (el && bag) {
+            el.textContent = `Bag: ${bag.items.size} / ${bag.capacity}`;
+        }
+    }
+
     async handleReplCommand(command) {
         this.log(`> ${command}`, 'user');
 
-        // Simple local commands
         if (command === '/clear') {
             document.getElementById('log-content').innerHTML = '';
             return;
@@ -101,11 +173,8 @@ export class ExplorerApp {
             return;
         }
 
-        // Send to LLM/Agent if available
         if (this.lmController) {
             try {
-                // If it's a Narsese task, we might want to inject it directly.
-                // For now, treat everything as chat/instruction to the agent.
                 const response = await this.lmController.chat(command);
                 this.log(response, 'agent');
             } catch (e) {
@@ -157,34 +226,5 @@ export class ExplorerApp {
             el.textContent = text;
             el.className = `status-indicator status-${state}`;
         }
-    }
-
-    _setupGraphDemoData() {
-        // Core Concepts
-        const concepts = [
-            { term: 'Self', priority: 0.95, type: 'concept' },
-            { term: 'World', priority: 0.9, type: 'concept' },
-            { term: 'Bird', priority: 0.85, type: 'concept' },
-            { term: 'Animal', priority: 0.8, type: 'concept' },
-            { term: 'Cat', priority: 0.8, type: 'concept' },
-            { term: 'Dog', priority: 0.8, type: 'concept' },
-            { term: 'Fire', priority: 0.7, type: 'concept' },
-            { term: 'Smoke', priority: 0.7, type: 'concept' }
-        ];
-
-        concepts.forEach(c => this.graph.addConcept(c.term, c.priority, { type: c.type }));
-
-        // Relationships
-        this.graph.addRelationship('Bird', 'Animal', 'inheritance');
-        this.graph.addRelationship('Cat', 'Dog', 'similarity');
-        this.graph.addRelationship('Smoke', 'Fire', 'implication');
-        this.graph.addRelationship('Self', 'World', 'equivalence');
-
-        // Random nodes for Bag pressure
-        for (let i = 0; i < 40; i++) {
-            this.graph.addConcept(`Noise_${i}`, Math.random() * 0.5, { type: Math.random() > 0.5 ? 'concept' : 'task' });
-        }
-
-        this.graph.relayout();
     }
 }
