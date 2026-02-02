@@ -44,24 +44,30 @@ export class ExplorerApp {
         this.layoutManager.initialize();
 
         // Instantiate and Mount Components
+        this.infoPanel.mount();
         this.layoutManager.addComponent(this.infoPanel, 'top');
 
+        // Metrics - Mount to top region
+        this.metricsPanel = new SystemMetricsPanel(null); // No static container
+        this.metricsPanel.initialize();
+        this.metricsPanel.mount(); // prepare
+        this.layoutManager.addComponent(this.metricsPanel, 'top');
+
+        this.controlToolbar.mount();
         this.layoutManager.addComponent(this.controlToolbar, 'bottom');
 
+        this.logPanel.mount();
         this.layoutManager.addComponent(this.logPanel, 'left');
 
+        this.inspectorPanel.mount();
         this.layoutManager.addComponent(this.inspectorPanel, 'right');
 
-        // Init Components (StatusBar & Metrics)
+        // Init Components (StatusBar)
         this.statusBar = new StatusBar('status-bar-container');
         this.statusBar.initialize({
             onModeSwitch: () => console.log('Mode Switch'),
             onThemeToggle: () => console.log('Theme Toggle')
         });
-
-        // Metrics are inside InfoPanel now
-        this.metricsPanel = new SystemMetricsPanel('system-metrics-container');
-        this.metricsPanel.initialize();
 
         // Start stats update loop
         this._startStatsLoop();
