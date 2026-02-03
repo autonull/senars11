@@ -55,17 +55,20 @@ export class InspectorPanel extends Component {
         const isControl = (mode === 'control');
 
         // Properties
-        for (const [key, value] of Object.entries(data)) {
-            if (key === 'weight' || key === 'id' || typeof value === 'object') continue;
+        const fields = this._getEditableFields(data);
 
+        fields.forEach(field => {
+            const { key, value, type, path } = field;
             let displayVal = value;
             if (typeof value === 'number') displayVal = value.toFixed(3);
 
             if (isControl) {
+                const inputType = type === 'number' ? 'number' : 'text';
+                const step = type === 'number' ? '0.01' : '';
                 html += `
                     <div class="prop-row">
                         <span class="prop-label">${key}</span>
-                        <input type="text" class="prop-input" data-key="${key}" value="${value}" />
+                        <input type="${inputType}" class="prop-input" step="${step}" data-path="${path}" value="${value}" />
                     </div>
                 `;
             } else {
@@ -76,7 +79,7 @@ export class InspectorPanel extends Component {
                     </div>
                 `;
             }
-        }
+        });
 
         if (isControl) {
             html += `
@@ -96,6 +99,46 @@ export class InspectorPanel extends Component {
         }
     }
 
+    _getEditableFields(data, prefix = '') {
+        let fields = [];
+
+        // Priority fields (flat)
+        const priorityKeys = ['term', 'label', 'type'];
+        priorityKeys.forEach(k => {
+            if (data[k] !== undefined) {
+                fields.push({ key: k, value: data[k], type: typeof data[k], path: k });
+            }
+        });
+
+        // Nested objects we care about
+        if (data.budget) {
+            ['priority', 'durability', 'quality'].forEach(k => {
+                if (data.budget[k] !== undefined) {
+                    fields.push({ key: `budget.${k}`, value: data.budget[k], type: 'number', path: `budget.${k}` });
+                }
+            });
+        }
+
+        if (data.truth) {
+            ['frequency', 'confidence'].forEach(k => {
+                 if (data.truth[k] !== undefined) {
+                    fields.push({ key: `truth.${k}`, value: data.truth[k], type: 'number', path: `truth.${k}` });
+                }
+            });
+        }
+
+        // Handle other flat properties
+        for (const [key, value] of Object.entries(data)) {
+            if (['weight', 'id', 'budget', 'truth', 'fullData', 'tasks'].includes(key)) continue;
+            if (priorityKeys.includes(key)) continue; // Already added
+            if (typeof value === 'object') continue; // Skip generic objects
+
+            fields.push({ key, value, type: typeof value, path: key });
+        }
+
+        return fields;
+    }
+
     _handleSave() {
         if (!this.onSave || !this.currentData) return;
 
@@ -103,17 +146,34 @@ export class InspectorPanel extends Component {
         const updates = {};
 
         inputs.forEach(input => {
-            const key = input.dataset.key;
+            const path = input.dataset.path;
             let value = input.value;
 
-            // Attempt numeric parse
-            if (!isNaN(parseFloat(value)) && isFinite(value)) {
+            // Numeric handling
+            if (input.type === 'number') {
                 value = parseFloat(value);
             }
-            updates[key] = value;
+
+            // Reconstruct nested object structure
+            this._setDeep(updates, path, value);
         });
 
+        // For deep updates, we need to merge with current data structure
+        // But ExplorerApp.js saveNodeChanges does a shallow merge usually.
+        // We might need to handle the merge here or in ExplorerApp.
+        // Let's assume updates is enough for now, but we need to ensure budget/truth are objects
+
         this.onSave(this.currentData.id, updates);
+    }
+
+    _setDeep(obj, path, value) {
+        const parts = path.split('.');
+        let current = obj;
+        for (let i = 0; i < parts.length - 1; i++) {
+            if (!current[parts[i]]) current[parts[i]] = {};
+            current = current[parts[i]];
+        }
+        current[parts[parts.length - 1]] = value;
     }
 
     _truncate(str, n = 20) {

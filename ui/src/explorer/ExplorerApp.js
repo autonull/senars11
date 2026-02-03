@@ -80,7 +80,13 @@ export class ExplorerApp {
         } else {
              // Bind inspector
              this.graph.on('nodeClick', ({ node }) => {
-                 this.showInspector({ id: node.id(), ...node.data() });
+                 const data = node.data();
+                 // Merge fullData to top level for inspector so it sees budget/truth
+                 this.showInspector({
+                     id: node.id(),
+                     ...data,
+                     ...(data.fullData || {})
+                 });
              });
 
              // Setup Context Menu proxy
@@ -133,6 +139,8 @@ export class ExplorerApp {
 
         // Init UI Bindings
         this._bindControls();
+        this._bindDragDrop();
+        this._bindKeyboardShortcuts();
 
         // Dynamic import of LLM Controller
         try {
@@ -427,15 +435,18 @@ export class ExplorerApp {
     }
 
     saveNodeChanges(id, updates) {
-        // SeNARSGraph uses addNode/updateNode to handle bag updates internally
-        // We just need to construct the update payload
-        const payload = {
-            id: id,
-            ...updates
-            // Note: SeNARSGraph expects full data structure for deep updates,
-            // but for shallow props it might be fine.
-            // If bag exists, it updates bag item.
-        };
+        // Fetch existing data to merge
+        let existing = {};
+        if (this.graph.bag && this.graph.bag.get(id)) {
+            existing = this.graph.bag.get(id).data;
+        } else if (this.graph.cy) {
+            const node = this.graph.cy.$id(id);
+            if (node.nonempty()) {
+                existing = node.data('fullData') || node.data();
+            }
+        }
+
+        const payload = this._deepMerge(existing, updates);
 
         this.graph.updateNode(payload);
 
@@ -657,18 +668,76 @@ export class ExplorerApp {
         input.onchange = (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    this.loadGraphData(data);
-                } catch (err) {
-                    this.log(`Error parsing JSON: ${err.message}`, 'error');
-                }
-            };
-            reader.readAsText(file);
+            this.loadFile(file);
         };
         input.click();
+    }
+
+    loadFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                this.loadGraphData(data);
+                this.log(`Loaded file: ${file.name}`, 'system');
+            } catch (err) {
+                this.log(`Error parsing JSON: ${err.message}`, 'error');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    _bindDragDrop() {
+        const container = document.body;
+
+        container.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            container.classList.add('dragging-over');
+        });
+
+        container.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            container.classList.remove('dragging-over');
+        });
+
+        container.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            container.classList.remove('dragging-over');
+
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                if (file.name.endsWith('.json')) {
+                    this.loadFile(file);
+                } else {
+                    this.log('Only .json files are supported', 'warning');
+                }
+            }
+        });
+    }
+
+    _bindKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Ignore if typing in an input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+                return;
+            }
+
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                this.handleDelete();
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                this.handleSaveJSON();
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+                e.preventDefault();
+                this.handleLoadJSON();
+            } else if (e.key === ' ') {
+                e.preventDefault(); // Prevent scroll
+                this.toggleReasoner(!this.isReasonerRunning);
+            }
+        });
     }
 
     loadGraphData(json) {
@@ -787,6 +856,25 @@ export class ExplorerApp {
         if (this.isReasonerRunning) {
             this.reasonerLoopId = setTimeout(() => this._runReasonerLoop(), this.reasonerDelay);
         }
+    }
+
+    _deepMerge(target, source) {
+        const isObject = (item) => (item && typeof item === 'object' && !Array.isArray(item));
+        const output = Object.assign({}, target);
+
+        if (isObject(target) && isObject(source)) {
+            Object.keys(source).forEach(key => {
+                if (isObject(source[key])) {
+                    if (!(key in target))
+                        Object.assign(output, { [key]: source[key] });
+                    else
+                        output[key] = this._deepMerge(target[key], source[key]);
+                } else {
+                    Object.assign(output, { [key]: source[key] });
+                }
+            });
+        }
+        return output;
     }
 
     _startStatsLoop() {
