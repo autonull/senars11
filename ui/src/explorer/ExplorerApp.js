@@ -12,6 +12,7 @@ import { LogPanel } from '../components/LogPanel.js';
 import { InspectorPanel } from '../components/InspectorPanel.js';
 import { CommandPalette } from '../components/CommandPalette.js';
 import { ToastManager } from '../components/ToastManager.js';
+import { DemoLibraryModal } from '../components/DemoLibraryModal.js';
 
 export class ExplorerApp {
     constructor() {
@@ -28,6 +29,9 @@ export class ExplorerApp {
         this.reasonerLoopId = null;
         this.statusBar = null;
         this.metricsPanel = null;
+
+        this.isDecayEnabled = false;
+        this.decayLoopId = null;
 
         // Layout & Panels
         this.layoutManager = new HUDLayoutManager('hud-overlay');
@@ -148,17 +152,21 @@ export class ExplorerApp {
             };
         }
 
-        // Demo Select
+        // Demo Select (Deprecated by Command/Modal but kept for legacy UI if present)
         const demoSelect = document.getElementById('demo-select');
         if (demoSelect) {
+            // Remove existing logic to avoid duplicates if re-bound
+            const newSelect = demoSelect.cloneNode(false);
+            demoSelect.parentNode.replaceChild(newSelect, demoSelect);
+
             Object.keys(DEMOS).forEach(name => {
                 const opt = document.createElement('option');
                 opt.value = name;
                 opt.textContent = name;
-                demoSelect.appendChild(opt);
+                newSelect.appendChild(opt);
             });
 
-            demoSelect.onchange = (e) => {
+            newSelect.onchange = (e) => {
                 if (e.target.value) {
                     this.loadDemo(e.target.value);
                     e.target.value = "";
@@ -238,6 +246,7 @@ export class ExplorerApp {
 
         this.graph.clear();
         this.log(`Loading demo: ${name}`, 'system');
+        this.toastManager.show(`Demo loaded: ${name}`, 'success');
 
         demo.concepts.forEach(c => this.graph.addConcept(c.term, c.priority, { type: c.type }));
         demo.relationships.forEach(r => this.graph.addRelationship(r[0], r[1], r[2]));
@@ -285,6 +294,9 @@ export class ExplorerApp {
         this.commandPalette.registerCommand('link', 'Link Selected Nodes', null, () => this.handleAddLink());
         this.commandPalette.registerCommand('delete', 'Delete Selected', 'Del', () => this.handleDelete());
 
+        // Attention / Decay
+        this.commandPalette.registerCommand('toggle-decay', 'Toggle Attention Decay', null, () => this.toggleDecay());
+
         // Reasoner
         this.commandPalette.registerCommand('run', 'Run Reasoner', 'Space', () => this.toggleReasoner(!this.isReasonerRunning));
         this.commandPalette.registerCommand('step', 'Step Reasoner', 'S', () => this.stepReasoner());
@@ -294,9 +306,42 @@ export class ExplorerApp {
         this.commandPalette.registerCommand('mode-ctl', 'Switch to Control Mode', null, () => this.setMode('control'));
 
         // Demos
+        this.commandPalette.registerCommand('demos', 'Browse Demo Library', 'D', () => this.showDemoLibrary());
+
         Object.keys(DEMOS).forEach(name => {
             this.commandPalette.registerCommand(`demo-${name.toLowerCase().replace(/\s/g, '-')}`, `Load Demo: ${name}`, null, () => this.loadDemo(name));
         });
+    }
+
+    showDemoLibrary() {
+        const modal = new DemoLibraryModal({
+            onSelect: (name) => this.loadDemo(name)
+        });
+        modal.show();
+    }
+
+    toggleDecay(forceState) {
+        this.isDecayEnabled = forceState !== undefined ? forceState : !this.isDecayEnabled;
+
+        if (this.isDecayEnabled) {
+            this.log('Attention Decay: ON', 'system');
+            this.decayLoopId = setInterval(() => this._processDecay(), 1000);
+        } else {
+            this.log('Attention Decay: OFF', 'system');
+            clearInterval(this.decayLoopId);
+        }
+    }
+
+    _processDecay() {
+        const removed = this.graph.bag.decay(0.98, 0.05); // Decay factor, threshold
+
+        if (removed.length > 0) {
+            this.graph._syncGraph(); // Full sync if removal
+        } else {
+            this.graph.updatePriorities(); // Just visual update
+        }
+
+        this._updateStats();
     }
 
     _updateStats() {

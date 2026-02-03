@@ -113,6 +113,26 @@ export class ExplorerGraph {
         }
     }
 
+    updatePriorities() {
+        if (!this.viewport.cy) return;
+
+        this.viewport.cy.batch(() => {
+            this.bag.getAll().forEach(item => {
+                const node = this.viewport.cy.$id(item.id);
+                if (node.nonempty()) {
+                    // Update visual weight based on new priority
+                    // We assume styles are bound to 'weight' or opacity
+                    const newWeight = (item.priority * 30) + 20;
+                    if (node.data('weight') !== newWeight) {
+                        node.data('weight', newWeight);
+                        // Also update opacity?
+                        node.style('opacity', 0.2 + (item.priority * 0.8));
+                    }
+                }
+            });
+        });
+    }
+
     _syncGraph() {
         if (!this.viewport.cy) return;
 
@@ -148,6 +168,14 @@ export class ExplorerGraph {
                             ...item.data
                         },
                         position: pos
+                    });
+
+                    // Fade in new node
+                    const newNode = this.viewport.cy.$id(item.id);
+                    newNode.style('opacity', 0);
+                    newNode.animate({
+                         style: { opacity: 0.2 + (item.priority * 0.8) },
+                         duration: 500
                     });
                 }
             });
