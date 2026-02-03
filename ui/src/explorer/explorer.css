@@ -503,4 +503,46 @@ p {
     border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
+/* Context Menu */
+.context-menu {
+    position: fixed;
+    z-index: 1000;
+    background: rgba(10, 20, 10, 0.95);
+    border: 1px solid #00ff9d;
+    box-shadow: 0 0 20px rgba(0, 255, 157, 0.2);
+    border-radius: 4px;
+    padding: 6px 0;
+    min-width: 180px;
+    backdrop-filter: blur(10px);
+    font-family: 'Consolas', monospace;
+    transform-origin: top left;
+}
+
+.context-menu-item {
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    color: #e0e0e0;
+    font-size: 0.9rem;
+    transition: all 0.1s;
+}
+
+.context-menu-item:hover {
+    background: rgba(0, 255, 157, 0.15);
+    color: #fff;
+    padding-left: 20px; /* Slight movement on hover */
+}
+
+.context-menu-icon {
+    width: 20px;
+    text-align: center;
+    font-size: 1.1rem;
+}
+
+.context-menu-label {
+    flex: 1;
+}
+
 .hidden { display: none !important; }

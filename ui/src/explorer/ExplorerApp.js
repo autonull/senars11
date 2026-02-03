@@ -1,4 +1,5 @@
 import { ExplorerGraph } from './ExplorerGraph.js';
+import { ExplorerContextMenu } from './ExplorerContextMenu.js';
 import { Logger } from '../logging/Logger.js';
 import { LMConfigDialog } from '../agent/LMConfigDialog.js';
 import { DEMOS } from './demos.js';
@@ -13,6 +14,7 @@ import { InspectorPanel } from '../components/InspectorPanel.js';
 export class ExplorerApp {
     constructor() {
         this.graph = new ExplorerGraph('graph-container');
+        this.contextMenu = new ExplorerContextMenu(this.graph, this);
         this.logger = new Logger();
         this.lmController = null;
         this.mode = 'visualization';
@@ -40,26 +42,27 @@ export class ExplorerApp {
 
         this.graph.onNodeTap((data) => this.showInspector(data));
 
+        this.graph.onContextTap((evt, element, type) => {
+            if (type === 'background') {
+                this.contextMenu.show(evt.x, evt.y, null, 'background');
+            } else {
+                this.contextMenu.show(evt.x, evt.y, element, type);
+            }
+        });
+
         // Init Layout System
         this.layoutManager.initialize();
 
         // Instantiate and Mount Components
-        this.infoPanel.mount();
         this.layoutManager.addComponent(this.infoPanel, 'top');
 
         // Metrics - Mount to top region
         this.metricsPanel = new SystemMetricsPanel(null); // No static container
         this.metricsPanel.initialize();
-        this.metricsPanel.mount(); // prepare
         this.layoutManager.addComponent(this.metricsPanel, 'top');
 
-        this.controlToolbar.mount();
         this.layoutManager.addComponent(this.controlToolbar, 'bottom');
-
-        this.logPanel.mount();
         this.layoutManager.addComponent(this.logPanel, 'left');
-
-        this.inspectorPanel.mount();
         this.layoutManager.addComponent(this.inspectorPanel, 'right');
 
         // Init Components (StatusBar)
