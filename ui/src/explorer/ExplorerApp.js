@@ -124,77 +124,82 @@ export class ExplorerApp {
     }
 
     _bindControls() {
-        // Navigation Controls
-        this._bindClick('btn-fit', () => this.graph.fit());
-        this._bindClick('btn-in', () => this.graph.zoomIn());
-        this._bindClick('btn-out', () => this.graph.zoomOut());
-        this._bindClick('btn-layout', () => this.graph.relayout());
+        const bindings = [
+            { id: 'btn-fit', action: () => this.graph.fit() },
+            { id: 'btn-in', action: () => this.graph.zoomIn() },
+            { id: 'btn-out', action: () => this.graph.zoomOut() },
+            { id: 'btn-layout', action: () => this.graph.relayout() },
+            { id: 'btn-clear', action: () => { this.graph.clear(); this.log('Workspace cleared.', 'system'); this._updateStats(); } },
+            { id: 'btn-add-concept', action: () => this.handleAddConcept() },
+            { id: 'btn-add-link', action: () => this.handleAddLink() },
+            { id: 'btn-delete', action: () => this.handleDelete() },
+            { id: 'btn-run', action: () => this.toggleReasoner(true) },
+            { id: 'btn-pause', action: () => this.toggleReasoner(false) },
+            { id: 'btn-step', action: () => this.stepReasoner() },
+            { id: 'btn-llm-config', action: () => this._showLLMConfig() },
+            { id: 'btn-close-inspector', action: () => document.getElementById('inspector-panel')?.classList.add('hidden') }
+        ];
 
-        // Data Controls
-        this._bindClick('btn-clear', () => {
-            this.graph.clear();
-            this.log('Cleared workspace.', 'system');
-            this._updateStats();
-        });
+        bindings.forEach(({ id, action }) => this._bindClick(id, action));
 
-        // Search
+        this._bindSearch();
+        this._bindDemoSelect();
+        this._bindModeSwitch();
+        this._bindThrottleSlider();
+        this._bindRepl();
+        this._bindLayerToggles();
+        this._bindMappingControls();
+    }
+
+    _bindSearch() {
         const searchInput = document.getElementById('search-input');
-        if (searchInput) {
-            searchInput.oninput = (e) => {
-                const term = e.target.value.trim();
-                this.graph.highlightMatches(term);
-            };
+        if (!searchInput) return;
 
-            searchInput.onkeydown = (e) => {
-                if (e.key === 'Enter') {
-                    const term = searchInput.value.trim();
-                    if (term) {
-                        const foundNode = this.graph.findNode(term);
-                        if (foundNode) {
-                            this.log(`Found: ${term}`, 'system');
-                            // Keep value for ongoing filtering
-                            this.showInspector({
-                                id: foundNode.id(),
-                                ...foundNode.data()
-                            });
-                            foundNode.select();
-                        } else {
-                            this.log(`Not found: ${term}`, 'warning');
-                        }
+        searchInput.oninput = (e) => {
+            const term = e.target.value.trim();
+            this.graph.highlightMatches(term);
+        };
+
+        searchInput.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                const term = searchInput.value.trim();
+                if (term) {
+                    const foundNode = this.graph.findNode(term);
+                    if (foundNode) {
+                        this.log(`Found: ${term}`, 'system');
+                        this.showInspector({ id: foundNode.id(), ...foundNode.data() });
+                        foundNode.select();
+                    } else {
+                        this.log(`Not found: ${term}`, 'warning');
                     }
                 }
-            };
-        }
+            }
+        };
+    }
 
-        // Demo Select (Deprecated by Command/Modal but kept for legacy UI if present)
+    _bindDemoSelect() {
         const demoSelect = document.getElementById('demo-select');
-        if (demoSelect) {
-            // Remove existing logic to avoid duplicates if re-bound
-            const newSelect = demoSelect.cloneNode(false);
-            demoSelect.parentNode.replaceChild(newSelect, demoSelect);
+        if (!demoSelect) return;
 
-            Object.keys(DEMOS).forEach(name => {
-                const opt = document.createElement('option');
-                opt.value = name;
-                opt.textContent = name;
-                newSelect.appendChild(opt);
-            });
+        const newSelect = demoSelect.cloneNode(false);
+        demoSelect.parentNode.replaceChild(newSelect, demoSelect);
 
-            newSelect.onchange = (e) => {
-                if (e.target.value) {
-                    this.loadDemo(e.target.value);
-                    e.target.value = "";
-                }
-            };
-        }
-
-        // Inspector
-        this._bindClick('btn-close-inspector', () => {
-             const panel = document.getElementById('inspector-panel');
-             if(panel) panel.classList.add('hidden');
+        Object.keys(DEMOS).forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            newSelect.appendChild(opt);
         });
 
-        // Mode Switching
+        newSelect.onchange = (e) => {
+            if (e.target.value) {
+                this.loadDemo(e.target.value);
+                e.target.value = "";
+            }
+        };
+    }
+
+    _bindModeSwitch() {
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.onclick = (e) => {
                 document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
@@ -202,8 +207,33 @@ export class ExplorerApp {
                 this.setMode(e.target.dataset.mode);
             };
         });
+    }
 
-        // Layer Toggles
+    _bindThrottleSlider() {
+        const slider = document.getElementById('throttle-slider');
+        const label = document.getElementById('throttle-val');
+        if (slider && label) {
+            slider.oninput = (e) => {
+                this.reasonerDelay = parseInt(e.target.value);
+                label.textContent = `${this.reasonerDelay}ms`;
+            };
+        }
+    }
+
+    _bindRepl() {
+        const input = document.getElementById('repl-input');
+        if (input) {
+            input.onkeydown = async (e) => {
+                if (e.key === 'Enter' && input.value.trim()) {
+                    const command = input.value.trim();
+                    input.value = '';
+                    await this.handleReplCommand(command);
+                }
+            };
+        }
+    }
+
+    _bindLayerToggles() {
         document.querySelectorAll('input[data-layer]').forEach(input => {
             input.onchange = (e) => {
                 const layer = e.target.dataset.layer;
@@ -212,8 +242,9 @@ export class ExplorerApp {
                 this.log(`${layer} layer ${visible ? 'visible' : 'hidden'}`, 'system');
             };
         });
+    }
 
-        // Visual Mappings
+    _bindMappingControls() {
         const sizeSelect = document.getElementById('mapping-size');
         if (sizeSelect) {
             sizeSelect.onchange = (e) => {
@@ -229,51 +260,21 @@ export class ExplorerApp {
                 this.log(`Color mapping: ${e.target.value}`, 'system');
             };
         }
+    }
 
-        // Gardening Tools
-        this._bindClick('btn-add-concept', () => this.handleAddConcept());
-        this._bindClick('btn-add-link', () => this.handleAddLink());
-        this._bindClick('btn-delete', () => this.handleDelete());
-
-        // Reasoner Controls
-        this._bindClick('btn-run', () => this.toggleReasoner(true));
-        this._bindClick('btn-pause', () => this.toggleReasoner(false));
-        this._bindClick('btn-step', () => this.stepReasoner());
-
-        const slider = document.getElementById('throttle-slider');
-        const label = document.getElementById('throttle-val');
-        if (slider && label) {
-            slider.oninput = (e) => {
-                this.reasonerDelay = parseInt(e.target.value);
-                label.textContent = `${this.reasonerDelay}ms`;
-            };
-        }
-
-        // LLM Config
-        this._bindClick('btn-llm-config', () => {
-            new LMConfigDialog(document.body, {
-                onSave: async (config) => {
-                    if (this.lmController) {
-                        await this.lmController.reconfigure(config);
-                        this._updateLLMStatus('Ready', 'ready');
-                    } else {
-                        alert('LLM Controller not available.');
-                    }
+    _showLLMConfig() {
+        new LMConfigDialog(document.body, {
+            onSave: async (config) => {
+                if (this.lmController) {
+                    await this.lmController.reconfigure(config);
+                    this._updateLLMStatus('Ready', 'ready');
+                } else {
+                    alert('LLM Controller not available.');
                 }
-            }).show();
-        });
+            }
+        }).show();
+    }
 
-        // REPL
-        const input = document.getElementById('repl-input');
-        if (input) {
-            input.onkeydown = async (e) => {
-                if (e.key === 'Enter' && input.value.trim()) {
-                    const command = input.value.trim();
-                    input.value = '';
-                    await this.handleReplCommand(command);
-                }
-            };
-        }
     }
 
     _bindClick(id, handler) {

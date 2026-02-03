@@ -1,5 +1,6 @@
 import { GraphViewport } from '../zui/GraphViewport.js';
 import { BagBuffer } from './BagBuffer.js';
+import { getTacticalStyle } from './ExplorerStyles.js';
 
 export class ExplorerGraph {
     constructor(container) {
@@ -198,47 +199,50 @@ export class ExplorerGraph {
 
         const visibleItems = this.bag.getAll();
         const visibleIds = new Set(visibleItems.map(i => i.id));
+        const currentNodes = this.viewport.cy.nodes();
 
         this.viewport.cy.batch(() => {
-            // Remove nodes not in bag
-            // Note: removing nodes automatically removes connected edges
-            this.viewport.cy.nodes().forEach(node => {
+            // Efficient removal using Set
+            for (const node of currentNodes) {
                 if (!visibleIds.has(node.id())) {
                     this.viewport.cy.remove(node);
                 }
-            });
+            }
 
-            // Add new nodes
-            visibleItems.forEach(item => {
+            // Efficient addition (checking existence before creating)
+            for (const item of visibleItems) {
                 if (this.viewport.cy.$id(item.id).empty()) {
-                    // Random initial position to prevent stacking at 0,0
-                    const pos = {
-                        x: Math.random() * 800 - 400,
-                        y: Math.random() * 600 - 300
-                    };
-
-                    this.viewport.addElements({
-                        group: 'nodes',
-                        data: {
-                            id: item.id,
-                            label: item.id,
-                            weight: (item.priority * 30) + 20, // Size based on priority
-                            priority: item.priority,
-                            type: item.data.type || 'concept',
-                            ...item.data
-                        },
-                        position: pos
-                    });
-
-                    // Fade in new node
-                    const newNode = this.viewport.cy.$id(item.id);
-                    newNode.style('opacity', 0);
-                    newNode.animate({
-                         style: { opacity: 0.2 + (item.priority * 0.8) },
-                         duration: 500
-                    });
+                    this._addNode(item);
                 }
-            });
+            }
+        });
+    }
+
+    _addNode(item) {
+        const pos = {
+            x: Math.random() * 800 - 400,
+            y: Math.random() * 600 - 300
+        };
+
+        this.viewport.addElements({
+            group: 'nodes',
+            data: {
+                id: item.id,
+                label: item.id,
+                weight: (item.priority * 30) + 20,
+                priority: item.priority,
+                type: item.data.type || 'concept',
+                ...item.data
+            },
+            position: pos
+        });
+
+        // Animation
+        const newNode = this.viewport.cy.$id(item.id);
+        newNode.style('opacity', 0);
+        newNode.animate({
+             style: { opacity: 0.2 + (item.priority * 0.8) },
+             duration: 500
         });
     }
 
@@ -478,15 +482,13 @@ export class ExplorerGraph {
     findNode(id) {
         if (!this.viewport.cy) return null;
 
-        // Try exact match first
+        const term = id?.toLowerCase();
         let node = this.viewport.cy.$id(id);
 
-        // If not found, try case-insensitive partial match on label
-        if (node.empty()) {
-            const nodes = this.viewport.cy.nodes().filter(n => n.data('label').toLowerCase().includes(id.toLowerCase()));
-            if (nodes.nonempty()) {
-                node = nodes.first();
-            }
+        if (node.empty() && term) {
+            node = this.viewport.cy.nodes().filter(n =>
+                (n.data('label') || '').toLowerCase().includes(term)
+            ).first();
         }
 
         if (node.nonempty()) {
@@ -496,10 +498,8 @@ export class ExplorerGraph {
                 duration: 500
             });
 
-            // Highlight effect
             node.addClass('highlighted');
             setTimeout(() => node.removeClass('highlighted'), 2000);
-
             return node;
         }
         return null;
