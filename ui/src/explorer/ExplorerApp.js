@@ -1,4 +1,4 @@
-import { ExplorerGraph } from './ExplorerGraph.js';
+import { GraphPanel } from '../components/GraphPanel.js';
 import { HUDContextMenu } from '../components/HUDContextMenu.js';
 import { Logger } from '../logging/Logger.js';
 import { LMConfigDialog } from '../agent/LMConfigDialog.js';
@@ -14,11 +14,27 @@ import { CommandPalette } from '../components/CommandPalette.js';
 import { ToastManager } from '../components/ToastManager.js';
 import { DemoLibraryModal } from '../components/DemoLibraryModal.js';
 import { TargetPanel } from '../components/TargetPanel.js';
+import { getTacticalStyle } from '../visualization/ExplorerGraphTheme.js';
 
 export class ExplorerApp {
     constructor() {
-        this.graph = new ExplorerGraph('graph-container');
-        this.contextMenu = new HUDContextMenu(this.graph, this);
+        this.mappings = {
+            size: 'priority',
+            color: 'hash'
+        };
+
+        const themeStyle = getTacticalStyle(this.mappings, this._getColorFromHash.bind(this));
+
+        // Use GraphPanel instead of ExplorerGraph
+        this.graphPanel = new GraphPanel('graph-container', {
+            useBag: true,
+            bagCapacity: 50,
+            style: themeStyle
+        });
+
+        // Context menu and other components expect a graph object with certain interface
+        // We'll proxy through graphPanel.graphManager (SeNARSGraph)
+        this.contextMenu = new HUDContextMenu(this.graphPanel.graphManager, this);
         this.commandPalette = new CommandPalette();
         this.toastManager = new ToastManager();
         this.logger = new Logger();
@@ -45,27 +61,43 @@ export class ExplorerApp {
         this.inspectorPanel.onSave = (id, updates) => this.saveNodeChanges(id, updates);
     }
 
+    // Convenience accessor for the underlying graph manager
+    get graph() {
+        return this.graphPanel.graphManager;
+    }
+
     async initialize() {
         console.log('ExplorerApp: Initializing...');
 
         this._setupHUD();
 
         // Init Graph
-        await this.graph.initialize();
-        // this.loadDemo('Solar System');
+        this.graphPanel.initialize(); // GraphPanel init
 
-        this.graph.onNodeTap((data) => this.showInspector(data));
+        // Wait for graphManager to be ready if async
+        if (!this.graph) {
+             console.error("GraphPanel failed to initialize graphManager");
+        } else {
+             // Bind inspector
+             this.graph.on('nodeClick', ({ node }) => {
+                 this.showInspector({ id: node.id(), ...node.data() });
+             });
+
+             // Setup Context Menu proxy
+             // SeNARSGraph emits 'contextMenu' event
+             this.graph.on('contextMenu', ({ target, originalEvent }) => {
+                 const type = target && target !== this.graph.cy ? (target.isNode() ? 'node' : 'edge') : 'background';
+                 const evt = originalEvent;
+                 if (type === 'background') {
+                     this.contextMenu.show(evt.x, evt.y, null, 'background');
+                 } else {
+                     this.contextMenu.show(evt.x, evt.y, target, type);
+                 }
+             });
+        }
 
         // Register Commands
         this._registerCommands();
-
-        this.graph.onContextTap((evt, element, type) => {
-            if (type === 'background') {
-                this.contextMenu.show(evt.x, evt.y, null, 'background');
-            } else {
-                this.contextMenu.show(evt.x, evt.y, element, type);
-            }
-        });
 
         // Init Layout System
         this.layoutManager.initialize();
@@ -123,12 +155,29 @@ export class ExplorerApp {
         console.log('ExplorerApp: Initialized');
     }
 
+    _getColorFromHash(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const hue = Math.abs(hash % 360);
+        return { hue, color: `hsl(${hue}, 70%, 50%)` };
+    }
+
+    _updateGraphStyle() {
+        if (this.graph && this.graph.cy) {
+            const style = getTacticalStyle(this.mappings, this._getColorFromHash.bind(this));
+            this.graph.cy.style(style);
+        }
+    }
+
     _bindControls() {
+        // Some actions need translation from ExplorerGraph API to SeNARSGraph API
         const bindings = [
             { id: 'btn-fit', action: () => this.graph.fit() },
             { id: 'btn-in', action: () => this.graph.zoomIn() },
             { id: 'btn-out', action: () => this.graph.zoomOut() },
-            { id: 'btn-layout', action: () => this.graph.relayout() },
+            { id: 'btn-layout', action: () => this.graph.scheduleLayout() }, // SeNARSGraph uses scheduleLayout
             { id: 'btn-clear', action: () => { this.graph.clear(); this.log('Workspace cleared.', 'system'); this._updateStats(); } },
             { id: 'btn-add-concept', action: () => this.handleAddConcept() },
             { id: 'btn-add-link', action: () => this.handleAddLink() },
@@ -157,14 +206,29 @@ export class ExplorerApp {
 
         searchInput.oninput = (e) => {
             const term = e.target.value.trim();
-            this.graph.highlightMatches(term);
+            // SeNARSGraph doesn't have highlightMatches by default, but GraphViewport does.
+            // SeNARSGraph extends GraphSystem which has access to cy.
+            // We can implement highlightMatches here or assume it's available if we mixed it in.
+            // Or use direct cy manipulation.
+            if (this.graph.highlightMatches) {
+                 this.graph.highlightMatches(term);
+            } else {
+                 // Fallback or implementation
+                 this._highlightMatches(term);
+            }
         };
 
         searchInput.onkeydown = (e) => {
             if (e.key === 'Enter') {
                 const term = searchInput.value.trim();
                 if (term) {
-                    const foundNode = this.graph.findNode(term);
+                    let foundNode;
+                    if (this.graph.findNode) {
+                        foundNode = this.graph.findNode(term);
+                    } else {
+                        foundNode = this._findNode(term);
+                    }
+
                     if (foundNode) {
                         this.log(`Found: ${term}`, 'system');
                         this.showInspector({ id: foundNode.id(), ...foundNode.data() });
@@ -175,6 +239,54 @@ export class ExplorerApp {
                 }
             }
         };
+    }
+
+    // Helpers for search if SeNARSGraph misses them
+    _highlightMatches(term) {
+        if (!this.graph || !this.graph.cy) return;
+        this.graph.cy.batch(() => {
+            const allElements = this.graph.cy.elements();
+            allElements.removeClass('matched dimmed');
+
+            if (!term || term.length < 2) return;
+
+            const termLower = term.toLowerCase();
+            const matches = allElements.filter(ele => {
+                if (!ele.isNode()) return false;
+                const label = (ele.data('label') || '').toLowerCase();
+                return label.includes(termLower);
+            });
+
+            if (matches.nonempty()) {
+                allElements.addClass('dimmed');
+                matches.removeClass('dimmed').addClass('matched');
+                matches.connectedEdges().removeClass('dimmed');
+            }
+        });
+    }
+
+    _findNode(id) {
+        if (!this.graph || !this.graph.cy) return null;
+        const term = id?.toLowerCase();
+        let node = this.graph.cy.$id(id);
+
+        if (node.empty() && term) {
+            node = this.graph.cy.nodes().filter(n =>
+                (n.data('label') || '').toLowerCase().includes(term)
+            ).first();
+        }
+
+        if (node.nonempty()) {
+            this.graph.cy.animate({
+                center: { eles: node },
+                zoom: 1.5,
+                duration: 500
+            });
+            node.addClass('highlighted');
+            setTimeout(() => node.removeClass('highlighted'), 2000);
+            return node;
+        }
+        return null;
     }
 
     _bindDemoSelect() {
@@ -238,7 +350,14 @@ export class ExplorerApp {
             input.onchange = (e) => {
                 const layer = e.target.dataset.layer;
                 const visible = e.target.checked;
-                this.graph.toggleLayer(layer, visible);
+                // Map layer toggles to filter
+                // SeNARSGraph uses applyFilters({ showTasks: bool, ... })
+                if (layer === 'tasks') {
+                     this.graph.applyFilters({ showTasks: visible });
+                }
+                // Concepts layer isn't explicitly filterable in SeNARSGraph currently, only tasks/isolated.
+                // We might need to implement concept hiding if needed, but usually we just hide tasks.
+
                 this.log(`${layer} layer ${visible ? 'visible' : 'hidden'}`, 'system');
             };
         });
@@ -248,7 +367,8 @@ export class ExplorerApp {
         const sizeSelect = document.getElementById('mapping-size');
         if (sizeSelect) {
             sizeSelect.onchange = (e) => {
-                this.graph.setSizeMapping(e.target.value);
+                this.mappings.size = e.target.value;
+                this._updateGraphStyle();
                 this.log(`Size mapping: ${e.target.value}`, 'system');
             };
         }
@@ -256,7 +376,8 @@ export class ExplorerApp {
         const colorSelect = document.getElementById('mapping-color');
         if (colorSelect) {
             colorSelect.onchange = (e) => {
-                this.graph.setColorMapping(e.target.value);
+                this.mappings.color = e.target.value;
+                this._updateGraphStyle();
                 this.log(`Color mapping: ${e.target.value}`, 'system');
             };
         }
@@ -275,8 +396,6 @@ export class ExplorerApp {
         }).show();
     }
 
-    }
-
     _bindClick(id, handler) {
         const el = document.getElementById(id);
         if (el) el.onclick = handler;
@@ -290,10 +409,14 @@ export class ExplorerApp {
         this.log(`Loading demo: ${name}`, 'system');
         this.toastManager.show(`Demo loaded: ${name}`, 'success');
 
-        demo.concepts.forEach(c => this.graph.addConcept(c.term, c.priority, { type: c.type }));
-        demo.relationships.forEach(r => this.graph.addRelationship(r[0], r[1], r[2]));
+        demo.concepts.forEach(c => this.graph.addNode({ ...c, id: c.term }, false));
+        // SeNARSGraph addNode takes object with id/term/budget
+        // addConcept was: addConcept(term, priority, details)
+        // SeNARSGraph addNode: { id, term, budget: { priority }, ...details }
 
-        this.graph.relayout();
+        demo.relationships.forEach(r => this.graph.addEdge({ source: r[0], target: r[1], type: r[2] }, false));
+
+        this.graph.scheduleLayout();
         this._updateStats();
     }
 
@@ -302,21 +425,24 @@ export class ExplorerApp {
     }
 
     saveNodeChanges(id, updates) {
-        // Update Bag
-        const item = this.graph.bag.items.get(id);
-        if (item) {
-            Object.assign(item, updates);
-            this.graph.bag.items.set(id, item);
-        }
+        // SeNARSGraph uses addNode/updateNode to handle bag updates internally
+        // We just need to construct the update payload
+        const payload = {
+            id: id,
+            ...updates
+            // Note: SeNARSGraph expects full data structure for deep updates,
+            // but for shallow props it might be fine.
+            // If bag exists, it updates bag item.
+        };
 
-        // Update Graph Node
-        const cyNode = this.graph.viewport.cy.$id(id);
-        if (cyNode && cyNode.length > 0) {
-            cyNode.data(updates);
-        }
+        this.graph.updateNode(payload);
 
         this.log(`Updated node ${id}`, 'success');
-        this.showInspector({ id, ...item.data, ...updates });
+        // Retrieve updated item from bag or graph to show in inspector
+        const item = this.graph.bag ? this.graph.bag.get(id) : null;
+        if (item) {
+             this.showInspector({ id, ...item.data, ...updates });
+        }
     }
 
     _setupHUD() {
@@ -333,7 +459,7 @@ export class ExplorerApp {
         this.commandPalette.registerCommand('fit', 'Fit View to Graph', 'F', () => this.graph.fit());
         this.commandPalette.registerCommand('zoom-in', 'Zoom In', '+', () => this.graph.zoomIn());
         this.commandPalette.registerCommand('zoom-out', 'Zoom Out', '-', () => this.graph.zoomOut());
-        this.commandPalette.registerCommand('layout', 'Re-calculate Layout', 'L', () => this.graph.relayout());
+        this.commandPalette.registerCommand('layout', 'Re-calculate Layout', 'L', () => this.graph.scheduleLayout());
 
         // Data
         this.commandPalette.registerCommand('clear', 'Clear Workspace', null, () => {
@@ -384,14 +510,13 @@ export class ExplorerApp {
     }
 
     _processDecay() {
-        const removed = this.graph.bag.decay(0.98, 0.05); // Decay factor, threshold
-
-        if (removed.length > 0) {
-            this.graph._syncGraph(); // Full sync if removal
-        } else {
-            this.graph.updatePriorities(); // Just visual update
+        // SeNARSGraph has processDecay if useBag is true
+        if (this.graph.processDecay) {
+            const removed = this.graph.processDecay(0.98, 0.05);
+            if (removed.length > 0) {
+                // _syncFromBag called internally
+            }
         }
-
         this._updateStats();
     }
 
@@ -458,7 +583,14 @@ export class ExplorerApp {
 
     setMode(mode) {
         this.mode = mode;
-        this.graph.setMode(mode);
+        // SeNARSGraph doesn't have setMode.
+        // Visualization mode in Explorer meant autoungrabify.
+        // GraphSystem has boxSelectionEnabled.
+        if (mode === 'visualization') {
+            this.graph.cy.autoungrabify(true);
+        } else {
+            this.graph.cy.autoungrabify(false);
+        }
 
         // Show/Hide Control Toolbar via CSS class, though now it's in a wrapper
         const toolbar = document.getElementById('control-toolbar');
@@ -470,22 +602,21 @@ export class ExplorerApp {
             }
         }
 
-        // We could also ask LayoutManager to swap components here if we wanted completely different layouts
-
         console.log(`Mode switched to: ${mode}`);
     }
 
     handleAddConcept() {
         const term = prompt("Enter concept name:");
         if (term) {
-            this.graph.addConcept(term, 0.5, { type: 'concept' }); // Default priority 0.5
+            // SeNARSGraph addNode: { id: term, term: term, budget: { priority: 0.5 }, type: 'concept' }
+            this.graph.addNode({ id: term, term: term, budget: { priority: 0.5 }, type: 'concept' }, true);
             this.log(`Created concept: ${term}`, 'user');
         }
     }
 
     handleAddLink() {
-        if (!this.graph.viewport.cy) return;
-        const selected = this.graph.viewport.cy.$(':selected');
+        if (!this.graph.cy) return;
+        const selected = this.graph.cy.$(':selected');
 
         if (selected.length !== 2) {
             alert("Please select exactly two nodes to link.");
@@ -497,14 +628,14 @@ export class ExplorerApp {
 
         const type = prompt(`Link ${source} -> ${target} as:`, 'implication');
         if (type) {
-            this.graph.addRelationship(source, target, type);
+            this.graph.addEdge({ source, target, type }, true);
             this.log(`Linked ${source} -> ${target} (${type})`, 'user');
         }
     }
 
     handleDelete() {
-        if (!this.graph.viewport.cy) return;
-        const selected = this.graph.viewport.cy.$(':selected');
+        if (!this.graph.cy) return;
+        const selected = this.graph.cy.$(':selected');
 
         if (selected.empty()) {
             return;
@@ -513,7 +644,8 @@ export class ExplorerApp {
         if (confirm(`Delete ${selected.length} items?`)) {
             selected.forEach(ele => {
                 if (ele.isNode()) {
-                    this.graph.bag.remove(ele.id());
+                    if (this.graph.bag) this.graph.bag.remove(ele.id());
+                    else this.graph.cy.remove(ele); // Fallback
                 }
 
                 if (ele.isEdge()) {
@@ -521,7 +653,7 @@ export class ExplorerApp {
                 }
             });
 
-            this.graph._syncGraph();
+            if (this.graph.bag) this.graph._syncFromBag();
             this.log(`Deleted ${selected.length} items.`, 'user');
             this._updateStats();
         }

@@ -9,6 +9,7 @@ import { ContextMenu } from '../components/ContextMenu.js';
 import { KeyboardNavigation } from '../visualization/KeyboardNavigation.js';
 import { eventBus } from '../core/EventBus.js';
 import { EVENTS } from '../config/constants.js';
+import { BagBuffer } from '../data/BagBuffer.js';
 
 cytoscape.use(fcose);
 
@@ -32,6 +33,7 @@ export class SeNARSGraph extends GraphSystem {
         this.updatesEnabled = true;
         this._layoutTimeout = null;
         this.currentLayout = 'fcose';
+        this.bag = null;
 
         this._setupGlobalListeners();
     }
@@ -52,6 +54,12 @@ export class SeNARSGraph extends GraphSystem {
 
     initialize(options = {}) {
         this.options = options;
+
+        // Initialize Bag if requested
+        if (options.useBag) {
+            this.bag = new BagBuffer(options.bagCapacity || 50);
+        }
+
         const success = super.initialize({
             style: Config.getGraphStyle(),
             layout: Config.getGraphLayout(),
@@ -246,10 +254,19 @@ export class SeNARSGraph extends GraphSystem {
         if (!this.cy) return false;
 
         const config = this._createNodeConfig(data);
-        if (this.cy.getElementById(config.data.id).length) return false;
+        const id = config.data.id;
+
+        // Bag Logic
+        if (this.bag) {
+            this.bag.add(id, data.budget?.priority || 0, data);
+            this._syncFromBag();
+            return true;
+        }
+
+        if (this.cy.getElementById(id).length) return false;
 
         this.cy.add(config);
-        this._updateWidget(config.data.id, data);
+        this._updateWidget(id, data);
 
         // Auto-learn interactions if term provided
         if (data.term) {
@@ -261,6 +278,15 @@ export class SeNARSGraph extends GraphSystem {
     }
 
     updateNode(data) {
+        if (this.bag) {
+            // Update in bag
+            if (this.bag.get(data.id)) {
+                this.bag.add(data.id, data.budget?.priority || 0, data);
+                this._syncFromBag();
+                return;
+            }
+        }
+
         if (!this.cy || !data?.id) return;
         const node = this.cy.getElementById(data.id);
 
@@ -524,10 +550,66 @@ export class SeNARSGraph extends GraphSystem {
 
     clear() {
         super.clear();
+        this.bag?.clear();
         this.contextualWidget?.clear();
     }
 
     fitToScreen() {
         this.fit(undefined, 30);
+    }
+
+    // --- Bag Management ---
+
+    processDecay(factor = 0.99, threshold = 0.05) {
+        if (!this.bag) return [];
+        const removed = this.bag.decay(factor, threshold);
+        if (removed.length > 0) {
+            this._syncFromBag();
+        } else {
+            // Visual update for priorities if needed, but _syncFromBag does it all
+            this._syncFromBag();
+        }
+        return removed;
+    }
+
+    _syncFromBag() {
+        if (!this.cy || !this.bag) return;
+
+        const visibleItems = this.bag.getAll();
+        const visibleIds = new Set(visibleItems.map(i => i.id));
+        const currentNodes = this.cy.nodes();
+
+        this.cy.batch(() => {
+            // Remove
+            currentNodes.forEach(node => {
+                if (!visibleIds.has(node.id())) {
+                    this.cy.remove(node);
+                }
+            });
+
+            // Add/Update
+            visibleItems.forEach(item => {
+                const node = this.cy.getElementById(item.id);
+                if (node.empty()) {
+                    // Create new
+                    const config = this._createNodeConfig(item.data);
+                    // Override weight/priority from bag item which might be decayed
+                    config.data.priority = item.priority;
+                    this.cy.add(config);
+                    this.animateFadeIn(item.id);
+                } else {
+                    // Update existing
+                    // We might want to update weight based on decayed priority
+                     const priority = item.priority;
+                     const weight = this._calculateNodeWeight(priority, item.data.term);
+                     if (node.data('weight') !== weight) {
+                         node.data('weight', weight);
+                         node.data('priority', priority);
+                     }
+                }
+            });
+        });
+
+        this.scheduleLayout();
     }
 }
