@@ -53,6 +53,44 @@ export class ExplorerGraph {
         }
     }
 
+    onNodeHover(callback) {
+        if (this.viewport.cy) {
+            this.viewport.cy.on('mouseover', 'node', (evt) => {
+                const node = evt.target;
+                node.addClass('hovered');
+                callback({
+                    id: node.id(),
+                    ...node.data()
+                });
+            });
+        }
+    }
+
+    onNodeHoverOut(callback) {
+        if (this.viewport.cy) {
+            this.viewport.cy.on('mouseout', 'node', (evt) => {
+                const node = evt.target;
+                node.removeClass('hovered');
+                callback({
+                    id: node.id(),
+                    ...node.data()
+                });
+            });
+        }
+    }
+
+    onNodeDoubleTap(callback) {
+        if (this.viewport.cy) {
+            this.viewport.cy.on('dbltap', 'node', (evt) => {
+                const node = evt.target;
+                callback({
+                    id: node.id(),
+                    ...node.data()
+                });
+            });
+        }
+    }
+
     onContextTap(callback) {
         if (this.viewport.cy) {
             this.viewport.cy.on('cxttap', (evt) => {
@@ -372,6 +410,17 @@ export class ExplorerGraph {
                     'overlay-padding': 10,
                     'overlay-opacity': 0.5
                 }
+            },
+            {
+                selector: '.hovered',
+                style: {
+                    'border-width': 2,
+                    'border-style': 'solid',
+                    'overlay-color': '#fff',
+                    'overlay-padding': 5,
+                    'overlay-opacity': 0.2,
+                    'z-index': 9999
+                }
             }
         ];
 
@@ -454,6 +503,65 @@ export class ExplorerGraph {
             return node;
         }
         return null;
+    }
+
+    highlightMatches(term) {
+        if (!this.viewport.cy) return;
+
+        this.viewport.cy.batch(() => {
+            const allElements = this.viewport.cy.elements();
+            allElements.removeClass('matched dimmed');
+
+            if (!term || term.length < 2) return;
+
+            const termLower = term.toLowerCase();
+            const matches = allElements.filter(ele => {
+                if (!ele.isNode()) return false;
+                const label = (ele.data('label') || '').toLowerCase();
+                return label.includes(termLower);
+            });
+
+            if (matches.nonempty()) {
+                allElements.addClass('dimmed');
+                matches.removeClass('dimmed').addClass('matched');
+                matches.connectedEdges().removeClass('dimmed'); // Show connections for context
+            }
+        });
+    }
+
+    setFocus(nodeId) {
+        if (!this.viewport.cy) return;
+
+        const node = this.viewport.cy.$id(nodeId);
+        if (node.empty()) return;
+
+        this.viewport.cy.batch(() => {
+            // If already focused, clear focus
+            if (node.hasClass('focused-target')) {
+                this.clearFocus();
+                return;
+            }
+
+            this.viewport.cy.elements().removeClass('focused-target focused-context').addClass('dimmed');
+
+            node.removeClass('dimmed').addClass('focused-target');
+
+            const neighborhood = node.neighborhood();
+            neighborhood.removeClass('dimmed').addClass('focused-context');
+        });
+
+        this.viewport.cy.animate({
+            center: { eles: node },
+            zoom: 2,
+            duration: 500
+        });
+    }
+
+    clearFocus() {
+        if (!this.viewport.cy) return;
+        this.viewport.cy.batch(() => {
+            this.viewport.cy.elements().removeClass('dimmed focused-target focused-context');
+        });
     }
 
     fit() {

@@ -13,6 +13,7 @@ import { InspectorPanel } from '../components/InspectorPanel.js';
 import { CommandPalette } from '../components/CommandPalette.js';
 import { ToastManager } from '../components/ToastManager.js';
 import { DemoLibraryModal } from '../components/DemoLibraryModal.js';
+import { TargetPanel } from '../components/TargetPanel.js';
 
 export class ExplorerApp {
     constructor() {
@@ -77,6 +78,13 @@ export class ExplorerApp {
         this.metricsPanel.initialize();
         this.layoutManager.addComponent(this.metricsPanel, 'top');
 
+        this.targetPanel = new TargetPanel(null); // Will be absolute
+        const targetContainer = document.createElement('div');
+        targetContainer.id = 'target-panel-container';
+        document.body.appendChild(targetContainer);
+        this.targetPanel.container = targetContainer; // Manual mount
+        this.targetPanel.render();
+
         this.layoutManager.addComponent(this.controlToolbar, 'bottom');
         this.layoutManager.addComponent(this.logPanel, 'left');
         this.layoutManager.addComponent(this.inspectorPanel, 'right');
@@ -132,6 +140,11 @@ export class ExplorerApp {
         // Search
         const searchInput = document.getElementById('search-input');
         if (searchInput) {
+            searchInput.oninput = (e) => {
+                const term = e.target.value.trim();
+                this.graph.highlightMatches(term);
+            };
+
             searchInput.onkeydown = (e) => {
                 if (e.key === 'Enter') {
                     const term = searchInput.value.trim();
@@ -139,8 +152,7 @@ export class ExplorerApp {
                         const foundNode = this.graph.findNode(term);
                         if (foundNode) {
                             this.log(`Found: ${term}`, 'system');
-                            searchInput.value = '';
-
+                            // Keep value for ongoing filtering
                             this.showInspector({
                                 id: foundNode.id(),
                                 ...foundNode.data()
