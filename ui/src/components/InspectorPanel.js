@@ -1,4 +1,5 @@
 import { Component } from './Component.js';
+import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
 
 export class InspectorPanel extends Component {
     constructor(container) {
@@ -76,10 +77,15 @@ export class InspectorPanel extends Component {
                     </div>
                 `;
             } else {
+                let formattedVal = displayVal;
+                if (key === 'term' || key === 'label') {
+                    formattedVal = NarseseHighlighter.highlight(String(value));
+                }
+
                 html += `
                     <div class="prop-row">
                         <span class="prop-label">${key}</span>
-                        <span class="prop-value">${displayVal}</span>
+                        <span class="prop-value">${formattedVal}</span>
                     </div>
                 `;
             }

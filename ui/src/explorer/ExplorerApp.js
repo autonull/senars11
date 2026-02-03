@@ -15,6 +15,7 @@ import { ToastManager } from '../components/ToastManager.js';
 import { DemoLibraryModal } from '../components/DemoLibraryModal.js';
 import { TargetPanel } from './TargetPanel.js';
 import { getTacticalStyle } from '../visualization/ExplorerGraphTheme.js';
+import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
 
 export class ExplorerApp {
     constructor() {
@@ -644,7 +645,13 @@ export class ExplorerApp {
         if (type === 'system') color = '#cc88ff';
         if (type === 'success') color = '#55ff55';
 
-        entry.innerHTML = `<span style="color:#666">[${timestamp}]</span> <span style="color:${color}">${message}</span>`;
+        // Apply highlighting if message contains Narsese-like structure
+        let content = String(message);
+        if (type !== 'error' && (content.includes('<') || content.includes('-->') || content.includes('$') || content.includes('{'))) {
+            content = NarseseHighlighter.highlight(content);
+        }
+
+        entry.innerHTML = `<span style="color:#666">[${timestamp}]</span> <span style="color:${color}">${content}</span>`;
 
         logPanel.appendChild(entry);
         logPanel.scrollTop = logPanel.scrollHeight;
