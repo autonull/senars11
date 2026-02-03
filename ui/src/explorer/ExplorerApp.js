@@ -34,7 +34,7 @@ export class ExplorerApp {
 
         // Context menu and other components expect a graph object with certain interface
         // We'll proxy through graphPanel.graphManager (SeNARSGraph)
-        this.contextMenu = new HUDContextMenu(this.graphPanel.graphManager, this);
+        this.contextMenu = null; // Will be initialized after graph is ready
         this.commandPalette = new CommandPalette();
         this.toastManager = new ToastManager();
         this.logger = new Logger();
@@ -73,6 +73,7 @@ export class ExplorerApp {
 
         // Init Graph
         this.graphPanel.initialize(); // GraphPanel init
+        this.contextMenu = new HUDContextMenu(this.graph, this);
 
         // Wait for graphManager to be ready if async
         if (!this.graph) {
@@ -833,18 +834,35 @@ export class ExplorerApp {
         }
 
         if (confirm(`Delete ${selected.length} items?`)) {
+            const nodeIds = [];
             selected.forEach(ele => {
                 if (ele.isNode()) {
-                    if (this.graph.bag) this.graph.bag.remove(ele.id());
-                    else this.graph.cy.remove(ele); // Fallback
-                }
-
-                if (ele.isEdge()) {
+                    nodeIds.push(ele.id());
+                } else if (ele.isEdge()) {
                     ele.remove();
                 }
             });
 
-            if (this.graph.bag) this.graph._syncFromBag();
+            if (nodeIds.length > 0) {
+                if (this.graph.removeNodes) {
+                    this.graph.removeNodes(nodeIds);
+                } else {
+                    // Fallback
+                    nodeIds.forEach(id => {
+                        if (this.graph.removeNode) {
+                            this.graph.removeNode(id);
+                        } else {
+                            if (this.graph.bag) this.graph.bag.remove(id);
+                            else {
+                                const node = this.graph.cy.getElementById(id);
+                                if (node.nonempty()) this.graph.cy.remove(node);
+                            }
+                        }
+                    });
+                    if (this.graph.bag && !this.graph.removeNode) this.graph._syncFromBag();
+                }
+            }
+
             this.log(`Deleted ${selected.length} items.`, 'user');
             this._updateStats();
         }

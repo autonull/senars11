@@ -250,6 +250,26 @@ export class SeNARSGraph extends GraphSystem {
         handlers[message.type]?.();
     }
 
+    removeNode(id) {
+        this.removeNodes([id]);
+    }
+
+    removeNodes(ids) {
+        if (!Array.isArray(ids)) ids = [ids];
+
+        if (this.bag) {
+            ids.forEach(id => this.bag.remove(id));
+            this._syncFromBag();
+        } else if (this.cy) {
+            this.cy.batch(() => {
+                ids.forEach(id => {
+                    const node = this.cy.getElementById(id);
+                    if (node.nonempty()) this.cy.remove(node);
+                });
+            });
+        }
+    }
+
     addNode(data, runLayout = true) {
         if (!this.cy) return false;
 

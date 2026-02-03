@@ -185,8 +185,8 @@ export class GraphPanel extends Component {
 
     createGraphContainer() {
         this.graphDiv = FluentUI.create('div')
-            .class('graph-container')
-            .id('graph-container')
+            .class('graph-viewport')
+            .style({ width: '100%', height: '100%' })
             .mount(this.container)
             .dom;
     }
