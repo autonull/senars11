@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,9 +8,10 @@
 
     <!-- CSS -->
     <link rel="stylesheet" href="/src/styles/theme-tactical.css">
-    <link rel="stylesheet" href="/src/styles/hud.css">
+    <link rel="stylesheet" href="/src/styles/hud-docking.css">
     <link rel="stylesheet" href="/src/styles/hud-typography.css">
     <link rel="stylesheet" href="/src/styles/metrics.css">
+    <link rel="stylesheet" href="/src/styles/status-bar.css">
 
     <!-- Styles from agent for components -->
     <link rel="stylesheet" href="/src/styles/components.css">
@@ -68,16 +70,17 @@
     }
     </script>
 </head>
+
 <body>
+    <!-- Graph fills center 3/4 -->
     <div id="graph-container"></div>
-    <div id="widget-container"></div>
 
-    <!-- HUD Overlay Container -->
-    <div id="hud-overlay"></div>
-
-    <!-- Status Bar Container -->
+    <!-- Status Bar (top, always visible) -->
     <div id="status-bar-container"></div>
+
+    <!-- Widgets managed by HUDLayoutManager -->
 
     <script type="module" src="/src/explorer/main.js"></script>
 </body>
+
 </html>

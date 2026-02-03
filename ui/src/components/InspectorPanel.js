@@ -9,6 +9,10 @@ export class InspectorPanel extends Component {
 
     render() {
         if (!this.container) return;
+        // Set container ID for docking system
+        this.container.id = 'inspector-widget';
+        this.container.className = 'hud-widget dock-right';
+
         // Basic shell
         this.container.innerHTML = `
             <div id="inspector-panel" class="hud-panel inspector-panel hidden">
@@ -121,7 +125,7 @@ export class InspectorPanel extends Component {
 
         if (data.truth) {
             ['frequency', 'confidence'].forEach(k => {
-                 if (data.truth[k] !== undefined) {
+                if (data.truth[k] !== undefined) {
                     fields.push({ key: `truth.${k}`, value: data.truth[k], type: 'number', path: `truth.${k}` });
                 }
             });
@@ -177,6 +181,6 @@ export class InspectorPanel extends Component {
     }
 
     _truncate(str, n = 20) {
-        return (str.length > n) ? str.substr(0, n-1) + '...' : str;
+        return (str.length > n) ? str.substr(0, n - 1) + '...' : str;
     }
 }

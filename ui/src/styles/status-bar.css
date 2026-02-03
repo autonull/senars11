@@ -1,0 +1,195 @@
+/* StatusBar Unified Design */
+.status-bar {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    min-height: 40px;
+    height: 40px;
+    padding: 8px 15px;
+    width: 100%;
+    box-sizing: border-box;
+    transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease;
+    gap: 8px;
+}
+
+.status-bar--expanded {
+    height: 130px;
+    padding: 12px 15px;
+}
+
+/* REPL Section */
+.status-repl-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 20, 10, 0.6);
+    border: 1px solid rgba(0, 255, 157, 0.3);
+    border-radius: 0;
+    padding: 4px 10px;
+    flex: 1;
+    transition: all 0.2s ease;
+}
+
+.status-repl-section:focus-within {
+    border-color: #00ff9d;
+    box-shadow: 0 0 8px rgba(0, 255, 157, 0.2);
+}
+
+.repl-prompt {
+    color: #00ff9d;
+    font-weight: bold;
+    font-family: 'Consolas', monospace;
+    font-size: 0.95rem;
+}
+
+.status-repl-input {
+    background: transparent;
+    border: none;
+    color: #fff;
+    width: 100%;
+    font-family: 'Consolas', monospace;
+    font-size: 0.9rem;
+    outline: none;
+    resize: none;
+    line-height: 1.4;
+    transition: all 0.3s ease;
+}
+
+.status-repl-input::placeholder {
+    color: #446655;
+}
+
+/* Controls Section */
+.status-controls-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+}
+
+.status-btn {
+    background: rgba(0, 255, 157, 0.1);
+    border: 1px solid rgba(0, 255, 157, 0.3);
+    color: #00ff9d;
+    padding: 6px 14px;
+    border-radius: 0;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-family: 'Consolas', monospace;
+    transition: all 0.15s ease;
+    min-width: 44px;
+    min-height: 32px;
+}
+
+.status-btn:hover {
+    background: rgba(0, 255, 157, 0.2);
+    border-color: #00ff9d;
+    transform: translateY(-1px);
+}
+
+.status-btn:active {
+    transform: translateY(0);
+}
+
+.status-throttle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 20, 10, 0.5);
+    padding: 4px 10px;
+    border: 1px solid rgba(0, 255, 157, 0.2);
+    font-size: 0.75rem;
+    color: #aaa;
+}
+
+#status-throttle-slider {
+    width: 100px;
+    height: 4px;
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(0, 255, 157, 0.2);
+    border-radius: 0;
+    outline: none;
+}
+
+#status-throttle-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #00ff9d;
+    border-radius: 0;
+    cursor: pointer;
+    box-shadow: 0 0 5px #00ff9d;
+    transition: transform 0.2s;
+}
+
+#status-throttle-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+#status-throttle-value {
+    min-width: 45px;
+    text-align: right;
+    font-family: 'Consolas', monospace;
+    color: #00ff9d;
+    font-size: 0.85rem;
+}
+
+/* Info Section */
+.status-info-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 0.85rem;
+    font-family: 'Consolas', monospace;
+    color: #aaccbb;
+}
+
+.status-metric {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.status-interactive {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.status-interactive:hover {
+    color: #fff;
+    text-shadow: 0 0 5px rgba(0, 255, 157, 0.5);
+    transform: scale(1.1);
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Collapsed state - single row layout */
+.status-bar:not(.status-bar--expanded) {
+    flex-direction: row;
+    align-items: center;
+    gap: 15px;
+}
+
+.status-bar:not(.status-bar--expanded) .status-repl-section {
+    flex: 1;
+    max-width: 400px;
+}
+
+.status-bar:not(.status-bar--expanded) .status-controls-section {
+    flex: 0 0 auto;
+}
+
+.status-bar:not(.status-bar--expanded) .status-info-section {
+    flex: 0 0 auto;
+}
+
+/* Expanded state */
+.status-bar.status-bar--expanded .status-repl-section {
+    flex: 0 0 auto;
+    min-height: 80px;
+}

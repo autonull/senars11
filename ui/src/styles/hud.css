@@ -1,57 +1,62 @@
-/* HUD Base Layout */
+/* HUD Base Layout - Fixed Positioning */
 #hud-overlay {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
     z-index: 10;
     pointer-events: none;
-    display: grid;
-    grid-template-areas:
-        "top top top"
-        "left center right"
-        "bottom bottom bottom";
-    grid-template-columns: minmax(300px, 25%) 1fr minmax(300px, 25%);
-    grid-template-rows: auto 1fr auto;
-    padding: 20px;
-    box-sizing: border-box;
-    gap: 10px;
 }
 
 .hud-zone {
     pointer-events: none;
     display: flex;
     gap: 10px;
+    position: fixed;
 }
 
 .hud-top {
-    grid-area: top;
+    top: 20px;
+    left: 20px;
+    right: 20px;
     justify-content: space-between;
     align-items: flex-start;
+    flex-direction: row;
 }
 
 .hud-left {
-    grid-area: left;
+    left: 20px;
+    top: 80px;
+    bottom: 80px; /* Space for status bar */
+    width: 300px;
     flex-direction: column;
-    justify-content: flex-end; /* Align bottom by default */
+    justify-content: flex-end;
+    overflow-y: auto;
 }
 
 .hud-right {
-    grid-area: right;
+    right: 20px;
+    top: 80px;
+    bottom: 80px; /* Space for status bar */
+    width: 300px;
     flex-direction: column;
     justify-content: center;
+    overflow-y: auto;
 }
 
 .hud-bottom {
-    grid-area: bottom;
+    bottom: 80px; /* Space for status bar */
+    left: 340px; /* Space for left panel */
+    right: 340px; /* Space for right panel */
     justify-content: center;
     align-items: flex-end;
-    margin-bottom: 30px; /* Space for status bar */
 }
 
 .hud-center {
-    grid-area: center;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     justify-content: center;
     align-items: center;
 }
@@ -59,16 +64,38 @@
 /* HUD Panels - Fighter Jet Style */
 .hud-panel {
     pointer-events: auto;
-    background: rgba(5, 20, 15, 0.75); /* Darker, more opaque background */
-    border: 1px solid rgba(0, 255, 157, 0.4); /* Tech green border */
-    border-radius: 0px; /* Sharp corners */
-    padding: 15px;
+    background: rgba(5, 20, 15, 0.75);
+    border: 1px solid rgba(0, 255, 157, 0.4);
+    border-radius: 0px;
+    padding: 12px;
     box-shadow: 0 0 10px rgba(0, 255, 157, 0.1);
     transition: all 0.3s ease;
     max-width: 100%;
     position: relative;
     backdrop-filter: blur(8px);
     color: #ccffee;
+    max-height: 100%; /* Allow scrolling within panel */
+    overflow-y: auto; /* Auto-scroll internal content */
+    display: flex;
+    flex-direction: column;
+}
+
+/* Scrollbar styling for panels */
+.hud-panel::-webkit-scrollbar {
+    width: 4px;
+}
+
+.hud-panel::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.hud-panel::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 157, 0.3);
+    border-radius: 0;
+}
+
+.hud-panel::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 255, 157, 0.5);
 }
 
 /* HUD Corner Brackets */
@@ -77,10 +104,10 @@
     position: absolute;
     top: -1px;
     left: -1px;
-    width: 15px;
-    height: 15px;
-    border-top: 2px solid #00ff9d;
-    border-left: 2px solid #00ff9d;
+    width: 10px;
+    height: 10px;
+    border-top: 1px solid rgba(0, 255, 157, 0.6);
+    border-left: 1px solid rgba(0, 255, 157, 0.6);
     pointer-events: none;
 }
 
@@ -89,23 +116,37 @@
     position: absolute;
     bottom: -1px;
     right: -1px;
-    width: 15px;
-    height: 15px;
-    border-bottom: 2px solid #00ff9d;
-    border-right: 2px solid #00ff9d;
+    width: 10px;
+    height: 10px;
+    border-bottom: 1px solid rgba(0, 255, 157, 0.6);
+    border-right: 1px solid rgba(0, 255, 157, 0.6);
     pointer-events: none;
 }
 
-/* Status Bar */
+/* Status Bar - Fixed at bottom */
+#status-bar-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    z-index: 100;
+    background: rgba(5, 10, 5, 0.95);
+    border-top: 1px solid rgba(0, 255, 157, 0.3);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+}
+
 .status-bar {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    height: 28px;
-    padding: 0 10px;
+    min-height: 40px;
+    height: 40px;
+    padding: 0 15px;
     width: 100%;
     box-sizing: border-box;
+    transition: height 0.3s ease, padding 0.3s ease;
 }
 
 .status-left-section, .status-right-section {

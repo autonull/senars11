@@ -7,12 +7,12 @@ export class ExplorerInfoPanel extends Component {
 
     render() {
         if (!this.container) return;
+        // Set container ID for docking system
+        this.container.id = 'layers-widget';
+        this.container.className = 'hud-widget dock-left';
+
         this.container.innerHTML = `
             <div class="hud-panel info-panel">
-                <div class="hud-header">
-                    <span class="hud-title">SeNARS Explorer</span>
-                    <span class="hud-subtitle">VER 1.0</span>
-                </div>
                 <div class="hud-row">
                     <span id="zoom-level">ZOOM: 1.0x</span>
                     <span id="bag-stats">MEM: 0/50</span>
@@ -47,6 +47,7 @@ export class ExplorerInfoPanel extends Component {
                         <option value="type">COLOR: TYPE</option>
                         <option value="priority">COLOR: PRIORITY</option>
                     </select>
+                </div>
                 </div>
             </div>
         `;

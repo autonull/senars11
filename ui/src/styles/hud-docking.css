@@ -1,0 +1,170 @@
+/* HUD Docking System - Center 3/4 for Graph */
+
+:root {
+    --widget-border-width: 15%;
+    --widget-max-width: 280px;
+    --widget-padding: 8px;
+    --widget-gap: 10px;
+    --statusbar-height: 40px;
+    --statusbar-expanded-height: 130px;
+}
+
+/* Graph Container - Center 3/4 */
+#graph-container {
+    position: fixed;
+    left: 0;
+    top: var(--statusbar-height);
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+}
+
+/* Widget Base Styles */
+.hud-widget {
+    position: fixed;
+    background: rgba(5, 20, 15, 0.85);
+    border: 1px solid rgba(0, 255, 157, 0.3);
+    padding: var(--widget-padding);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    z-index: 10;
+    transition: all 0.3s ease;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.hud-widget::-webkit-scrollbar {
+    width: 4px;
+}
+
+.hud-widget::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.hud-widget::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 157, 0.3);
+}
+
+.hud-widget.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.95);
+}
+
+/* Docking Zones */
+.hud-widget.dock-left {
+    left: var(--widget-gap);
+    width: calc(var(--widget-border-width) - var(--widget-gap) * 2);
+    max-width: var(--widget-max-width);
+}
+
+.hud-widget.dock-right {
+    right: var(--widget-gap);
+    width: calc(var(--widget-border-width) - var(--widget-gap) * 2);
+    max-width: var(--widget-max-width);
+}
+
+.hud-widget.dock-bottom {
+    bottom: var(--widget-gap);
+    left: calc(var(--widget-border-width) + var(--widget-gap));
+    right: calc(var(--widget-border-width) + var(--widget-gap));
+}
+
+/* Specific Widget Positions */
+#layers-widget {
+    top: calc(var(--statusbar-height) + var(--widget-gap));
+    max-height: calc(50vh - var(--statusbar-height) - var(--widget-gap) * 2);
+}
+
+#metrics-widget {
+    top: calc(var(--statusbar-height) + var(--widget-gap));
+    max-height: 300px;
+}
+
+#inspector-widget {
+    bottom: var(--widget-gap);
+    max-height: calc(50vh - var(--widget-gap) * 2);
+}
+
+#log-widget {
+    max-height: 250px;
+}
+
+#controls-widget {
+    bottom: var(--widget-gap);
+    right: var(--widget-gap);
+    width: auto;
+    padding: 6px;
+    left: auto;
+    display: none;
+    /* Hidden - controls moved to StatusBar */
+}
+
+/* Compact Widget Styles */
+.hud-widget .hud-row {
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.hud-widget .btn {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+}
+
+.hud-widget h3,
+.hud-widget .hud-title {
+    font-size: 0.9rem;
+    margin: 0 0 6px 0;
+}
+
+/* Toggle Buttons (for showing/hiding widgets) */
+.widget-toggle {
+    position: fixed;
+    background: rgba(0, 255, 157, 0.1);
+    border: 1px solid rgba(0, 255, 157, 0.3);
+    color: #00ff9d;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    z-index: 50;
+    transition: all 0.2s ease;
+}
+
+.widget-toggle:hover {
+    background: rgba(0, 255, 157, 0.2);
+    border-color: #00ff9d;
+}
+
+.widget-toggle.active {
+    background: rgba(0, 255, 157, 0.3);
+}
+
+/* Widget Toggle Buttons in StatusBar */
+.widget-toggle-btn {
+    background: rgba(0, 255, 157, 0.1);
+    border: 1px solid rgba(0, 255, 157, 0.2);
+    color: #00ff9d;
+    padding: 4px 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 3px;
+}
+
+.widget-toggle-btn:hover {
+    background: rgba(0, 255, 157, 0.2);
+    border-color: rgba(0, 255, 157, 0.5);
+}
+
+.widget-toggle-btn.active {
+    background: rgba(0, 255, 157, 0.25);
+    border-color: #00ff9d;
+    box-shadow: 0 0 8px rgba(0, 255, 157, 0.3);
+}
+
+.status-divider {
+    width: 1px;
+    height: 20px;
+    background: rgba(0, 255, 157, 0.2);
+    margin: 0 8px;
+}

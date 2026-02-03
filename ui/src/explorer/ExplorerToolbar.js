@@ -7,8 +7,13 @@ export class ExplorerToolbar extends Component {
 
     render() {
         if (!this.container) return;
+        // Set container ID for docking system - these are the old controls
+        // We'll make them a compact corner widget
+        this.container.id = 'controls-widget';
+        this.container.className = 'hud-widget';
+
         this.container.innerHTML = `
-            <div id="control-toolbar" class="hud-panel control-toolbar hidden">
+            <div id="control-toolbar" class="hud-panel control-toolbar">
                 <div class="reasoner-controls">
                     <button id="btn-run" class="btn" title="Run Reasoner">▶</button>
                     <button id="btn-pause" class="btn hidden" title="Pause Reasoner">⏸</button>
