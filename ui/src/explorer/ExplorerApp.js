@@ -1,19 +1,19 @@
 import { GraphPanel } from '../components/GraphPanel.js';
-import { HUDContextMenu } from '../components/HUDContextMenu.js';
+import { HUDContextMenu } from './HUDContextMenu.js';
 import { Logger } from '../logging/Logger.js';
 import { LMConfigDialog } from '../agent/LMConfigDialog.js';
 import { DEMOS } from '../data/demos.js';
 import { StatusBar } from '../components/StatusBar.js';
 import { SystemMetricsPanel } from '../components/SystemMetricsPanel.js';
 import { HUDLayoutManager } from '../layout/HUDLayoutManager.js';
-import { InfoPanel } from '../components/InfoPanel.js';
-import { ControlToolbar } from '../components/ControlToolbar.js';
+import { ExplorerInfoPanel } from './ExplorerInfoPanel.js';
+import { ExplorerToolbar } from './ExplorerToolbar.js';
 import { LogPanel } from '../components/LogPanel.js';
 import { InspectorPanel } from '../components/InspectorPanel.js';
 import { CommandPalette } from '../components/CommandPalette.js';
 import { ToastManager } from '../components/ToastManager.js';
 import { DemoLibraryModal } from '../components/DemoLibraryModal.js';
-import { TargetPanel } from '../components/TargetPanel.js';
+import { TargetPanel } from './TargetPanel.js';
 import { getTacticalStyle } from '../visualization/ExplorerGraphTheme.js';
 
 export class ExplorerApp {
@@ -52,8 +52,8 @@ export class ExplorerApp {
 
         // Layout & Panels
         this.layoutManager = new HUDLayoutManager('hud-overlay');
-        this.infoPanel = new InfoPanel();
-        this.controlToolbar = new ControlToolbar();
+        this.infoPanel = new ExplorerInfoPanel();
+        this.controlToolbar = new ExplorerToolbar();
         this.logPanel = new LogPanel();
         this.inspectorPanel = new InspectorPanel();
 

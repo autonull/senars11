@@ -1,6 +1,6 @@
 import { ExampleBrowser } from './ExampleBrowser.js';
 import { FluentUI } from '../utils/FluentUI.js';
-import { DEMOS } from '../explorer/demos.js';
+import { DEMOS } from '../data/demos.js';
 
 export class DemoLibraryModal {
     constructor(options = {}) {

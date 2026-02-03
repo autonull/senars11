@@ -172,16 +172,16 @@ Implement 3-state visibility:
   - Layout selector dropdown
   - Remember user preference
 
-- [ ] **Visual encoding enhancements**
-  - Node size = priority (already done?)
-  - Node color = task count gradient
+- [x] **Visual encoding enhancements**
+  - Node size = priority (supported in Explorer)
+  - Node color = task count gradient (supported in Explorer)
   - Edge thickness = relationship strength
   - Animated updates when reasoning
 
 - [ ] **Graph controls**
   - Fullscreen toggle
   - Export as SVG/PNG
-  - Reset view button
+  - Reset view button (available in Explorer)
 
 ### 5.3 Derivation Tracer Enhancements
 
@@ -229,6 +229,13 @@ ui/src/zui/
 - [x] Build viewport with Cytoscape
 - [x] Create standalone demo
 - [ ] Document ZUI patterns (separate doc)
+
+### 6.4 Explorer Refactoring (Completed)
+
+- [x] Enable general-purpose usability
+- [x] Utilize `SeNARSGraph` and `GraphPanel`
+- [x] Externalize `BagBuffer`, `demos`, and CSS
+- [x] Extract Explorer-specific components (`ExplorerInfoPanel`, `ExplorerToolbar`, `TargetPanel`)
 
 ---
 
