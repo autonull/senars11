@@ -61,7 +61,7 @@ export class SeNARSGraph extends GraphSystem {
         }
 
         const success = super.initialize({
-            style: Config.getGraphStyle(),
+            style: options.style || Config.getGraphStyle(),
             layout: Config.getGraphLayout(),
             cytoscapeOptions: {
                 minZoom: 0.05,
