@@ -2,7 +2,7 @@ import { ExplorerGraph } from './ExplorerGraph.js';
 import { HUDContextMenu } from '../components/HUDContextMenu.js';
 import { Logger } from '../logging/Logger.js';
 import { LMConfigDialog } from '../agent/LMConfigDialog.js';
-import { DEMOS } from './demos.js';
+import { DEMOS } from '../data/demos.js';
 import { StatusBar } from '../components/StatusBar.js';
 import { SystemMetricsPanel } from '../components/SystemMetricsPanel.js';
 import { HUDLayoutManager } from '../layout/HUDLayoutManager.js';
@@ -52,7 +52,7 @@ export class ExplorerApp {
 
         // Init Graph
         await this.graph.initialize();
-        this.loadDemo('Solar System');
+        // this.loadDemo('Solar System');
 
         this.graph.onNodeTap((data) => this.showInspector(data));
 

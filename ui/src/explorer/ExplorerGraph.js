@@ -1,6 +1,6 @@
 import { GraphViewport } from '../zui/GraphViewport.js';
-import { BagBuffer } from './BagBuffer.js';
-import { getTacticalStyle } from './ExplorerStyles.js';
+import { BagBuffer } from '../data/BagBuffer.js';
+import { getTacticalStyle } from '../visualization/ExplorerGraphTheme.js';
 
 export class ExplorerGraph {
     constructor(container) {
@@ -38,7 +38,7 @@ export class ExplorerGraph {
 
     clear() {
         this.bag.clear();
-        this.viewport.cy.elements().remove();
+        this.viewport.clear();
         this._syncGraph();
     }
 
@@ -257,177 +257,7 @@ export class ExplorerGraph {
 
     _applyTacticalStyle() {
         if (!this.viewport.cy) return;
-
-        const getSize = (ele) => {
-            if (this.mappings.size === 'fixed') return 40;
-            if (this.mappings.size === 'priority') {
-                const p = ele.data('priority') || 0;
-                return 30 + (p * 50);
-            }
-            if (this.mappings.size === 'complexity') {
-                const l = (ele.data('label') || '').length;
-                return Math.min(30 + (l * 2), 80);
-            }
-            return 40;
-        };
-
-        const getColor = (ele, prop = 'background') => {
-            const type = ele.data('type');
-            const p = ele.data('priority') || 0;
-            const label = ele.data('label') || '';
-
-            if (this.mappings.color === 'type') {
-                const base = type === 'task' ? [255, 187, 0] : [0, 255, 157]; // Amber or Green
-                const alpha = prop === 'background' ? (0.1 + (p * 0.4)) : 1;
-                return `rgba(${base[0]}, ${base[1]}, ${base[2]}, ${alpha})`;
-            }
-
-            if (this.mappings.color === 'hash') {
-                const { hue } = this._getColorFromHash(label);
-                const alpha = prop === 'background' ? (0.1 + (p * 0.4)) : 1;
-                return `hsla(${hue}, 70%, 50%, ${alpha})`;
-            }
-
-            if (this.mappings.color === 'priority') {
-                // Heatmap style: Low (Blue) -> High (Red)
-                const hue = 240 - (p * 240);
-                const alpha = prop === 'background' ? 0.4 : 1;
-                return `hsla(${hue}, 80%, 50%, ${alpha})`;
-            }
-
-            return '#fff';
-        };
-
-        const style = [
-            {
-                selector: 'node',
-                style: {
-                    'label': (ele) => {
-                        const type = ele.data('type');
-                        const label = ele.data('label');
-                        const emoji = type === 'concept' ? '🧠' : type === 'task' ? '⚡' : '🔹';
-                        return `${emoji} ${label}`;
-                    },
-                    'text-valign': 'center',
-                    'text-halign': 'center',
-                    'color': (ele) => getColor(ele, 'border'),
-                    'text-background-color': 'rgba(0,0,0,0.5)',
-                    'text-background-opacity': 1,
-                    'text-background-padding': 2,
-                    'background-color': (ele) => getColor(ele, 'background'),
-                    'border-width': 1,
-                    'border-color': (ele) => getColor(ele, 'border'),
-                    'width': getSize,
-                    'height': getSize,
-                    'font-family': 'Consolas, monospace',
-                    'font-size': 10,
-                    'text-transform': 'uppercase',
-                    'transition-property': 'border-width, border-color, width, height, opacity, background-color',
-                    'transition-duration': '0.3s'
-                }
-            },
-            {
-                selector: 'node[type="task"]',
-                style: {
-                    'shape': 'diamond'
-                }
-            },
-            {
-                selector: 'node[type="concept"]',
-                style: {
-                    'shape': 'hexagon'
-                }
-            },
-            {
-                selector: '.layer-hidden',
-                style: {
-                    'display': 'none'
-                }
-            },
-            {
-                selector: 'edge',
-                style: {
-                    'width': 1,
-                    'line-color': '#334433',
-                    'target-arrow-color': '#334433',
-                    'target-arrow-shape': 'triangle',
-                    'curve-style': 'bezier',
-                    'opacity': 0.8
-                }
-            },
-            {
-                selector: 'edge[label="inheritance"]',
-                style: {
-                    'line-style': 'dotted',
-                    'line-color': '#00ff9d',
-                    'target-arrow-color': '#00ff9d',
-                    'width': 1
-                }
-            },
-            {
-                selector: 'edge[label="similarity"]',
-                style: {
-                    'line-style': 'dashed',
-                    'line-dash-pattern': [4, 4],
-                    'line-color': '#00d4ff',
-                    'target-arrow-shape': 'none',
-                    'width': 1
-                }
-            },
-            {
-                selector: 'edge[label="implication"]',
-                style: {
-                    'line-style': 'solid',
-                    'line-color': '#00ff9d',
-                    'target-arrow-color': '#00ff9d',
-                    'width': 2,
-                    'arrow-scale': 1.5
-                }
-            },
-            {
-                selector: 'edge[label="equivalence"]',
-                style: {
-                    'line-style': 'dashed',
-                    'line-dash-pattern': [2, 2],
-                    'line-color': '#ff00ff',
-                    'target-arrow-shape': 'none',
-                    'width': 1
-                }
-            },
-            {
-                selector: ':selected',
-                style: {
-                    'border-width': 2,
-                    'border-color': '#fff',
-                    'border-style': 'double',
-                    'overlay-color': '#00ff9d',
-                    'overlay-padding': 5,
-                    'overlay-opacity': 0.3
-                }
-            },
-            {
-                selector: '.highlighted',
-                style: {
-                    'border-width': 4,
-                    'border-color': '#00d4ff',
-                    'overlay-color': '#00d4ff',
-                    'overlay-padding': 10,
-                    'overlay-opacity': 0.5
-                }
-            },
-            {
-                selector: '.hovered',
-                style: {
-                    'border-width': 2,
-                    'border-style': 'solid',
-                    'overlay-color': '#fff',
-                    'overlay-padding': 5,
-                    'overlay-opacity': 0.2,
-                    'z-index': 9999
-                }
-            }
-        ];
-
+        const style = getTacticalStyle(this.mappings, this._getColorFromHash.bind(this));
         this.viewport.cy.style(style);
     }
 
@@ -480,88 +310,19 @@ export class ExplorerGraph {
     }
 
     findNode(id) {
-        if (!this.viewport.cy) return null;
-
-        const term = id?.toLowerCase();
-        let node = this.viewport.cy.$id(id);
-
-        if (node.empty() && term) {
-            node = this.viewport.cy.nodes().filter(n =>
-                (n.data('label') || '').toLowerCase().includes(term)
-            ).first();
-        }
-
-        if (node.nonempty()) {
-            this.viewport.cy.animate({
-                center: { eles: node },
-                zoom: 1.5,
-                duration: 500
-            });
-
-            node.addClass('highlighted');
-            setTimeout(() => node.removeClass('highlighted'), 2000);
-            return node;
-        }
-        return null;
+        return this.viewport.findNode(id);
     }
 
     highlightMatches(term) {
-        if (!this.viewport.cy) return;
-
-        this.viewport.cy.batch(() => {
-            const allElements = this.viewport.cy.elements();
-            allElements.removeClass('matched dimmed');
-
-            if (!term || term.length < 2) return;
-
-            const termLower = term.toLowerCase();
-            const matches = allElements.filter(ele => {
-                if (!ele.isNode()) return false;
-                const label = (ele.data('label') || '').toLowerCase();
-                return label.includes(termLower);
-            });
-
-            if (matches.nonempty()) {
-                allElements.addClass('dimmed');
-                matches.removeClass('dimmed').addClass('matched');
-                matches.connectedEdges().removeClass('dimmed'); // Show connections for context
-            }
-        });
+        this.viewport.highlightMatches(term);
     }
 
     setFocus(nodeId) {
-        if (!this.viewport.cy) return;
-
-        const node = this.viewport.cy.$id(nodeId);
-        if (node.empty()) return;
-
-        this.viewport.cy.batch(() => {
-            // If already focused, clear focus
-            if (node.hasClass('focused-target')) {
-                this.clearFocus();
-                return;
-            }
-
-            this.viewport.cy.elements().removeClass('focused-target focused-context').addClass('dimmed');
-
-            node.removeClass('dimmed').addClass('focused-target');
-
-            const neighborhood = node.neighborhood();
-            neighborhood.removeClass('dimmed').addClass('focused-context');
-        });
-
-        this.viewport.cy.animate({
-            center: { eles: node },
-            zoom: 2,
-            duration: 500
-        });
+        this.viewport.setFocus(nodeId);
     }
 
     clearFocus() {
-        if (!this.viewport.cy) return;
-        this.viewport.cy.batch(() => {
-            this.viewport.cy.elements().removeClass('dimmed focused-target focused-context');
-        });
+        this.viewport.clearFocus();
     }
 
     fit() {
@@ -569,10 +330,10 @@ export class ExplorerGraph {
     }
 
     zoomIn() {
-        this.viewport.cy.animate({ zoom: this.viewport.cy.zoom() * 1.2, duration: 200 });
+        this.viewport.zoomIn();
     }
 
     zoomOut() {
-        this.viewport.cy.animate({ zoom: this.viewport.cy.zoom() / 1.2, duration: 200 });
+        this.viewport.zoomOut();
     }
 }
