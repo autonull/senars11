@@ -1,4 +1,4 @@
-export class ExplorerContextMenu {
+export class HUDContextMenu {
     constructor(graph, app) {
         this.graph = graph;
         this.app = app;
@@ -12,7 +12,7 @@ export class ExplorerContextMenu {
 
     _createMenuElement() {
         const menu = document.createElement('div');
-        menu.id = 'explorer-context-menu';
+        menu.id = 'hud-context-menu';
         menu.className = 'context-menu hud-panel hidden';
         document.body.appendChild(menu);
         this.menuElement = menu;

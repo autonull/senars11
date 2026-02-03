@@ -1,0 +1,188 @@
+/* HUD Base Layout */
+#hud-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 10;
+    pointer-events: none;
+    display: grid;
+    grid-template-areas:
+        "top top top"
+        "left center right"
+        "bottom bottom bottom";
+    grid-template-columns: minmax(300px, 25%) 1fr minmax(300px, 25%);
+    grid-template-rows: auto 1fr auto;
+    padding: 20px;
+    box-sizing: border-box;
+    gap: 10px;
+}
+
+.hud-zone {
+    pointer-events: none;
+    display: flex;
+    gap: 10px;
+}
+
+.hud-top {
+    grid-area: top;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.hud-left {
+    grid-area: left;
+    flex-direction: column;
+    justify-content: flex-end; /* Align bottom by default */
+}
+
+.hud-right {
+    grid-area: right;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.hud-bottom {
+    grid-area: bottom;
+    justify-content: center;
+    align-items: flex-end;
+    margin-bottom: 30px; /* Space for status bar */
+}
+
+.hud-center {
+    grid-area: center;
+    justify-content: center;
+    align-items: center;
+}
+
+/* HUD Panels - Fighter Jet Style */
+.hud-panel {
+    pointer-events: auto;
+    background: rgba(5, 20, 15, 0.75); /* Darker, more opaque background */
+    border: 1px solid rgba(0, 255, 157, 0.4); /* Tech green border */
+    border-radius: 0px; /* Sharp corners */
+    padding: 15px;
+    box-shadow: 0 0 10px rgba(0, 255, 157, 0.1);
+    transition: all 0.3s ease;
+    max-width: 100%;
+    position: relative;
+    backdrop-filter: blur(8px);
+    color: #ccffee;
+}
+
+/* HUD Corner Brackets */
+.hud-panel::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    width: 15px;
+    height: 15px;
+    border-top: 2px solid #00ff9d;
+    border-left: 2px solid #00ff9d;
+    pointer-events: none;
+}
+
+.hud-panel::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 15px;
+    height: 15px;
+    border-bottom: 2px solid #00ff9d;
+    border-right: 2px solid #00ff9d;
+    pointer-events: none;
+}
+
+/* Status Bar */
+.status-bar {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    height: 28px;
+    padding: 0 10px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.status-left-section, .status-right-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 0.75rem;
+    font-family: 'Consolas', monospace;
+    color: #aaccbb;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.status-interactive {
+    cursor: pointer;
+}
+.status-interactive:hover {
+    color: #fff;
+    text-shadow: 0 0 5px rgba(0, 255, 157, 0.5);
+}
+
+/* Target Panel */
+.target-panel {
+    position: absolute;
+    top: 80px;
+    right: 20px;
+    width: 250px;
+    z-index: 100;
+}
+
+.target-data {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.target-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Consolas', monospace;
+    font-size: 0.85rem;
+}
+
+.target-row .label {
+    color: #88aa99;
+}
+
+.target-row .value {
+    color: #00ff9d;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.target-row .value-small {
+    color: #00d4ff;
+    font-size: 0.8rem;
+    min-width: 40px;
+    text-align: right;
+}
+
+.bar-container {
+    flex: 1;
+    height: 4px;
+    background: rgba(0, 255, 157, 0.2);
+    margin: 0 10px;
+}
+
+.bar-fill {
+    height: 100%;
+    background: #00ff9d;
+    width: 0%;
+    transition: width 0.2s;
+    box-shadow: 0 0 5px #00ff9d;
+}

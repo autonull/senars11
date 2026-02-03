@@ -1,5 +1,5 @@
 import { ExplorerGraph } from './ExplorerGraph.js';
-import { ExplorerContextMenu } from './ExplorerContextMenu.js';
+import { HUDContextMenu } from '../components/HUDContextMenu.js';
 import { Logger } from '../logging/Logger.js';
 import { LMConfigDialog } from '../agent/LMConfigDialog.js';
 import { DEMOS } from './demos.js';
@@ -18,7 +18,7 @@ import { TargetPanel } from '../components/TargetPanel.js';
 export class ExplorerApp {
     constructor() {
         this.graph = new ExplorerGraph('graph-container');
-        this.contextMenu = new ExplorerContextMenu(this.graph, this);
+        this.contextMenu = new HUDContextMenu(this.graph, this);
         this.commandPalette = new CommandPalette();
         this.toastManager = new ToastManager();
         this.logger = new Logger();
