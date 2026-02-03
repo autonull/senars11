@@ -124,4 +124,97 @@ export class GraphViewport {
     fit() {
         this.cy?.fit();
     }
+
+    findNode(id) {
+        if (!this.cy) return null;
+
+        const term = id?.toLowerCase();
+        let node = this.cy.$id(id);
+
+        if (node.empty() && term) {
+            node = this.cy.nodes().filter(n =>
+                (n.data('label') || '').toLowerCase().includes(term)
+            ).first();
+        }
+
+        if (node.nonempty()) {
+            this.cy.animate({
+                center: { eles: node },
+                zoom: 1.5,
+                duration: 500
+            });
+
+            node.addClass('highlighted');
+            setTimeout(() => node.removeClass('highlighted'), 2000);
+            return node;
+        }
+        return null;
+    }
+
+    highlightMatches(term) {
+        if (!this.cy) return;
+
+        this.cy.batch(() => {
+            const allElements = this.cy.elements();
+            allElements.removeClass('matched dimmed');
+
+            if (!term || term.length < 2) return;
+
+            const termLower = term.toLowerCase();
+            const matches = allElements.filter(ele => {
+                if (!ele.isNode()) return false;
+                const label = (ele.data('label') || '').toLowerCase();
+                return label.includes(termLower);
+            });
+
+            if (matches.nonempty()) {
+                allElements.addClass('dimmed');
+                matches.removeClass('dimmed').addClass('matched');
+                matches.connectedEdges().removeClass('dimmed'); // Show connections for context
+            }
+        });
+    }
+
+    setFocus(nodeId) {
+        if (!this.cy) return;
+
+        const node = this.cy.$id(nodeId);
+        if (node.empty()) return;
+
+        this.cy.batch(() => {
+            // If already focused, clear focus
+            if (node.hasClass('focused-target')) {
+                this.clearFocus();
+                return;
+            }
+
+            this.cy.elements().removeClass('focused-target focused-context').addClass('dimmed');
+
+            node.removeClass('dimmed').addClass('focused-target');
+
+            const neighborhood = node.neighborhood();
+            neighborhood.removeClass('dimmed').addClass('focused-context');
+        });
+
+        this.cy.animate({
+            center: { eles: node },
+            zoom: 2,
+            duration: 500
+        });
+    }
+
+    clearFocus() {
+        if (!this.cy) return;
+        this.cy.batch(() => {
+            this.cy.elements().removeClass('dimmed focused-target focused-context');
+        });
+    }
+
+    zoomIn() {
+        this.cy?.animate({ zoom: this.cy.zoom() * 1.2, duration: 200 });
+    }
+
+    zoomOut() {
+        this.cy?.animate({ zoom: this.cy.zoom() / 1.2, duration: 200 });
+    }
 }

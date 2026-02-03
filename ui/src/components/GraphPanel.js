@@ -6,10 +6,11 @@ import { ReactiveState } from '../core/ReactiveState.js';
 import { eventBus } from '../core/EventBus.js';
 
 export class GraphPanel extends Component {
-    constructor(containerId) {
+    constructor(containerId, graphOptions = {}) {
         super(containerId);
         this.graphManager = null;
         this.initialized = false;
+        this.graphOptions = graphOptions;
 
         const savedLayout = localStorage.getItem('senars-graph-layout') || 'fcose';
 
@@ -47,7 +48,7 @@ export class GraphPanel extends Component {
 
         try {
             this.graphManager = new SeNARSGraph(this.graphDiv);
-            this.initialized = this.graphManager.initialize();
+            this.initialized = this.graphManager.initialize(this.graphOptions);
             if (this.initialized) {
                 this.graphManager.setUpdatesEnabled(true);
             }
