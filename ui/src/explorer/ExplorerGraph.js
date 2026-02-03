@@ -10,7 +10,7 @@ export class ExplorerGraph {
 
     async initialize() {
         if (this.viewport.initialize()) {
-            this._applyPsychedelicStyle();
+            this._applyTacticalStyle();
             return true;
         }
         return false;
@@ -54,24 +54,27 @@ export class ExplorerGraph {
         if (!this.viewport.cy) return;
         const node = this.viewport.cy.$id(id);
         if (node.nonempty()) {
+            // Target acquisition effect
              node.animation({
                 style: {
-                    'border-width': 10 * intensity,
-                    'border-opacity': 0.8,
-                    'shadow-blur': 20 * intensity,
-                    'shadow-color': node.style('border-color'),
-                    'shadow-opacity': 1
+                    'border-width': 2 * intensity,
+                    'border-opacity': 1,
+                    'overlay-padding': 15 * intensity,
+                    'overlay-color': '#00ff9d',
+                    'overlay-opacity': 0.5,
+                    'background-color': 'rgba(0, 255, 157, 0.4)'
                 },
-                duration: 300
+                duration: 150
             }).play().promise('complete').then(() => {
                 node.animation({
                      style: {
-                        'border-width': 2, // Reset to original (approx)
+                        'border-width': 1, // Reset to tactical default
                         'border-opacity': 1,
-                        'shadow-blur': 0,
-                        'shadow-opacity': 0
+                        'overlay-padding': 0,
+                        'overlay-opacity': 0,
+                        'background-color': 'rgba(0,0,0,0.5)'
                      },
-                     duration: 500
+                     duration: 600
                 }).play();
             });
         }
@@ -182,7 +185,7 @@ export class ExplorerGraph {
         });
     }
 
-    _applyPsychedelicStyle() {
+    _applyTacticalStyle() {
         if (!this.viewport.cy) return;
 
         const style = [
@@ -192,92 +195,107 @@ export class ExplorerGraph {
                     'label': 'data(label)',
                     'text-valign': 'center',
                     'text-halign': 'center',
-                    'color': '#fff',
-                    'text-outline-width': 1,
-                    'text-outline-color': '#000',
-                    'background-color': '#333',
-                    'border-width': 2,
-                    'border-color': '#00d4ff', // Cyan
+                    'color': '#00ff9d',
+                    'text-background-color': 'rgba(0,0,0,0.5)',
+                    'text-background-opacity': 1,
+                    'text-background-padding': 2,
+                    'background-color': 'rgba(0,0,0,0.5)',
+                    'border-width': 1,
+                    'border-color': '#00ff9d',
                     'width': 'data(weight)',
                     'height': 'data(weight)',
-                    'font-family': 'Segoe UI, sans-serif',
-                    'font-size': 12,
-                    'text-shadow-blur': 4,
-                    'text-shadow-color': '#000',
-                    'transition-property': 'background-color, border-color, width, height',
-                    'transition-duration': '0.3s'
+                    'font-family': 'Consolas, monospace',
+                    'font-size': 10,
+                    'text-transform': 'uppercase',
+                    'transition-property': 'border-width, border-color, width, height',
+                    'transition-duration': '0.2s'
                 }
             },
             {
                 selector: 'node[type="task"]',
                 style: {
                     'shape': 'diamond',
-                    'border-color': '#ff00ff', // Magenta
-                    'background-color': '#4a004a'
+                    'border-color': '#ffbb00', // Warning Amber
+                    'background-color': 'rgba(255, 187, 0, 0.1)'
                 }
             },
             {
                 selector: 'node[type="concept"]',
                 style: {
-                    'shape': 'ellipse',
-                    'border-color': '#00ff88', // Lime
-                    'background-color': '#004a2d'
+                    'shape': 'hexagon',
+                    'border-color': '#00ff9d', // HUD Green
+                    'background-color': 'rgba(0, 255, 157, 0.1)'
                 }
             },
             {
                 selector: 'edge',
                 style: {
                     'width': 1,
-                    'line-color': '#555',
-                    'target-arrow-color': '#555',
+                    'line-color': '#334433',
+                    'target-arrow-color': '#334433',
                     'target-arrow-shape': 'triangle',
                     'curve-style': 'bezier',
-                    'opacity': 0.6
+                    'opacity': 0.8
                 }
             },
             {
                 selector: 'edge[label="inheritance"]',
                 style: {
-                    'line-style': 'solid',
-                    'line-color': '#ccc',
-                    'target-arrow-color': '#ccc',
-                    'width': 2
+                    'line-style': 'dotted',
+                    'line-color': '#00ff9d',
+                    'target-arrow-color': '#00ff9d',
+                    'width': 1
                 }
             },
             {
                 selector: 'edge[label="similarity"]',
                 style: {
                     'line-style': 'dashed',
+                    'line-dash-pattern': [4, 4],
                     'line-color': '#00d4ff',
                     'target-arrow-shape': 'none',
-                    'width': 2
+                    'width': 1
                 }
             },
             {
                 selector: 'edge[label="implication"]',
                 style: {
                     'line-style': 'solid',
-                    'line-color': '#ffbb00',
-                    'target-arrow-color': '#ffbb00',
-                    'width': 3
+                    'line-color': '#00ff9d',
+                    'target-arrow-color': '#00ff9d',
+                    'width': 2,
+                    'arrow-scale': 1.5
                 }
             },
             {
                 selector: 'edge[label="equivalence"]',
                 style: {
                     'line-style': 'dashed',
+                    'line-dash-pattern': [2, 2],
                     'line-color': '#ff00ff',
                     'target-arrow-shape': 'none',
-                    'width': 2
+                    'width': 1
                 }
             },
             {
                 selector: ':selected',
                 style: {
-                    'border-width': 4,
+                    'border-width': 2,
                     'border-color': '#fff',
-                    'overlay-color': '#fff',
-                    'overlay-opacity': 0.2
+                    'border-style': 'double',
+                    'overlay-color': '#00ff9d',
+                    'overlay-padding': 5,
+                    'overlay-opacity': 0.3
+                }
+            },
+            {
+                selector: '.highlighted',
+                style: {
+                    'border-width': 4,
+                    'border-color': '#00d4ff',
+                    'overlay-color': '#00d4ff',
+                    'overlay-padding': 10,
+                    'overlay-opacity': 0.5
                 }
             }
         ];

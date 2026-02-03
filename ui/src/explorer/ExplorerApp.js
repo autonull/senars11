@@ -47,6 +47,8 @@ export class ExplorerApp {
     async initialize() {
         console.log('ExplorerApp: Initializing...');
 
+        this._setupHUD();
+
         // Init Graph
         await this.graph.initialize();
         this.loadDemo('Solar System');
@@ -275,6 +277,15 @@ export class ExplorerApp {
 
         this.log(`Updated node ${id}`, 'success');
         this.showInspector({ id, ...item.data, ...updates });
+    }
+
+    _setupHUD() {
+        // Inject HUD visual elements
+        if (!document.querySelector('.hud-grid-background')) {
+            const grid = document.createElement('div');
+            grid.className = 'hud-grid-background';
+            document.body.prepend(grid);
+        }
     }
 
     _registerCommands() {
