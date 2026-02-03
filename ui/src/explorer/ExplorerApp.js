@@ -40,6 +40,7 @@ export class ExplorerApp {
         this.toastManager = new ToastManager();
         this.logger = new Logger();
         this.lmController = null;
+        this.localToolsBridge = null;
         this.mode = 'visualization';
 
         this.isReasonerRunning = false;
@@ -187,17 +188,53 @@ export class ExplorerApp {
                 this._updateLLMStatus('Ready', 'ready');
             } catch (e) {
                 console.warn('LLM init failed (might need config):', e);
-                this._updateLLMStatus('Config Required', 'error');
+                // If LLM init fails, check if we have tools bridge (NAR) access
+                if (!this.lmController.toolsBridge) {
+                    await this._initLocalBridge();
+                    this._updateLLMStatus('Config Required (Local)', 'warning');
+                } else {
+                    this._updateLLMStatus('Config Required', 'warning');
+                }
             }
         } catch (e) {
             console.error('Failed to load LMAgentController module:', e);
-            const errorMsg = e.message || String(e);
-            this._updateLLMStatus('Module Error', 'error');
-            this.log(`Failed to load LMAgentController: ${errorMsg}`, 'error');
-            this.toastManager.show(`Module Error: ${errorMsg}`, 'error');
+            // Fallback to local reasoner
+            await this._initLocalBridge();
+
+            if (this.localToolsBridge) {
+                this._updateLLMStatus('Reasoner Only', 'warning');
+                this.toastManager.show('LLM unavailable - Running in Reasoner Only mode', 'info');
+            } else {
+                const errorMsg = e.message || String(e);
+                this._updateLLMStatus('Module Error', 'error');
+                this.log(`Failed to load LMAgentController: ${errorMsg}`, 'error');
+                this.toastManager.show(`Module Error: ${errorMsg}`, 'error');
+            }
         }
 
         console.log('ExplorerApp: Initialized');
+    }
+
+    async _initLocalBridge() {
+        try {
+            const module = await import('../agent/AgentToolsBridge.js');
+            this.localToolsBridge = new module.AgentToolsBridge();
+            await this.localToolsBridge.initialize();
+            this.log('Local Reasoner initialized successfully', 'system');
+        } catch (e) {
+            console.error('Failed to load AgentToolsBridge:', e);
+            this.log('Failed to load local reasoner', 'error');
+        }
+    }
+
+    _getNAR() {
+        if (this.lmController && this.lmController.toolsBridge && this.lmController.toolsBridge.getNAR()) {
+            return this.lmController.toolsBridge.getNAR();
+        }
+        if (this.localToolsBridge) {
+            return this.localToolsBridge.getNAR();
+        }
+        return null;
     }
 
     _getColorFromHash(str) {
@@ -615,7 +652,7 @@ export class ExplorerApp {
             return;
         }
 
-        if (this.lmController) {
+        if (this.lmController && this.lmController.isInitialized) {
             try {
                 const response = await this.lmController.chat(command);
                 this.log(response, 'agent');
@@ -623,6 +660,7 @@ export class ExplorerApp {
                 this.log(`Error: ${e.message}`, 'error');
             }
         } else {
+            // Basic fallback for REPL if LLM is down but we have NAR
             this.log('Agent offline. Connect LLM to chat.', 'warning');
         }
     }
@@ -914,14 +952,9 @@ export class ExplorerApp {
     }
 
     async stepReasoner() {
-        if (!this.lmController || !this.lmController.toolsBridge) {
-            this.log('Reasoner not available (LLM not connected?)', 'warning');
-            return;
-        }
-
-        const nar = this.lmController.toolsBridge.getNAR();
+        const nar = this._getNAR();
         if (!nar) {
-            this.log('NAR instance not found', 'error');
+            this.log('Reasoner not available (LLM not connected?)', 'warning');
             return;
         }
 
@@ -964,8 +997,7 @@ export class ExplorerApp {
 
     _startStatsLoop() {
         setInterval(() => {
-            if (!this.lmController || !this.lmController.toolsBridge) return;
-            const nar = this.lmController.toolsBridge.getNAR();
+            const nar = this._getNAR();
             if (!nar) return;
 
             const stats = nar.getStats();
