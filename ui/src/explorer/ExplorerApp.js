@@ -163,7 +163,7 @@ export class ExplorerApp {
         this.statusBar = new StatusBar('status-bar-container');
         this.statusBar.initialize({
             onModeSwitch: () => console.log('Mode Switch'),
-            onThemeToggle: () => console.log('Theme Toggle'),
+            onThemeToggle: () => this._toggleTheme(),
             onReasonerControl: (action, value) => this.handleReasonerControl(action, value),
             onReplSubmit: (command) => this.handleReplCommand(command),
             onWidgetToggle: (widgetId) => this.toggleWidget(widgetId)
@@ -826,12 +826,34 @@ export class ExplorerApp {
 
     _bindKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
-            // Ignore if typing in an input
+            // Shortcuts valid even when focused in input
+            if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+                e.preventDefault();
+                this.toggleWidget('layers');
+                this.toggleWidget('inspector');
+                return;
+            }
+
+            if (e.key === 'F1') {
+                e.preventDefault();
+                this.commandPalette.toggle();
+                return;
+            }
+
+            // Ignore subsequent shortcuts if typing in an input
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
                 return;
             }
 
-            if (e.key === 'Delete' || e.key === 'Backspace') {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+                e.preventDefault();
+                document.getElementById('log-content').innerHTML = '';
+                this.log('Log cleared', 'system');
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+                e.preventDefault();
+                const search = document.getElementById('search-input');
+                if (search) search.focus();
+            } else if (e.key === 'Delete' || e.key === 'Backspace') {
                 this.handleDelete();
             } else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                 e.preventDefault();
@@ -844,6 +866,17 @@ export class ExplorerApp {
                 this.toggleReasoner(!this.isReasonerRunning);
             }
         });
+    }
+
+    _toggleTheme() {
+        const body = document.body;
+        if (body.classList.contains('light-theme')) {
+            body.classList.remove('light-theme');
+            this.log('Switched to Dark Theme', 'system');
+        } else {
+            body.classList.add('light-theme');
+            this.log('Switched to Light Theme', 'system');
+        }
     }
 
     loadGraphData(json) {

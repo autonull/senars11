@@ -1,76 +1,46 @@
-/**
- * Utility to highlight Narsese syntax in text.
- */
+
 export class NarseseHighlighter {
-    static highlight(text, language = 'narsese') {
-        if (!text) return '';
-        if (typeof text !== 'string') {
-            text = typeof text === 'object' ? JSON.stringify(text) : String(text);
-        }
-
-        if (language === 'metta') {
-            return this.highlightMetta(text);
-        }
-
-        // Default to Narsese
-        let html = text
-            // Escape HTML (simple version)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-
-        // 1. Highlight Structure: < and >
-        html = html.replace(/(&lt;|&gt;)/g, '<span class="nars-structure">$1</span>');
-
-        // 2. Highlight Relations: -->, <->, ==> etc.
-        html = html.replace(/(--&gt;|&lt;-&gt;|=&gt;|&lt;=&gt;)/g, '<span class="nars-copula">$1</span>');
-
-        // 3. Highlight Truth Values: %1.0;0.9%
-        html = html.replace(/(%\d+(\.\d+)?;\d+(\.\d+)?%)/g, '<span class="nars-truth">$1</span>');
-
-        // 4. Highlight Variables: $x, #y, ?z
-        html = html.replace(/([$#?][a-zA-Z0-9_]+)/g, '<span class="nars-variable">$1</span>');
-
-        // 5. Highlight Operators: ^op
-        html = html.replace(/(\^[a-zA-Z0-9_]+)/g, '<span class="nars-operator">$1</span>');
-
-        // 6. Highlight Punctuation: . ! ? @
-        // (Careful not to match inside words, but Narsese usually has spaces or is at end)
-        html = html.replace(/(\s)([\.!\?@])(\s|$)/g, '$1<span class="nars-punctuation">$2</span>$3');
-
-        return html;
-    }
-
-    static highlightMetta(text) {
+    static highlight(text) {
         if (!text) return '';
 
+        // Escape HTML first
         let html = text
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
 
-        // 1. Comments
-        html = html.replace(/(;.*)/g, '<span class="metta-comment">$1</span>');
+        // 1. Highlight Structure: < ... > (Statement brackets)
+        // Since we escaped, we look for &lt; and &gt;
+        // But we want to color just the brackets, or the content?
+        // Typically coloring the brackets is subtle.
+        // Let's color the Copula and Variables more strongly.
 
-        // 2. Symbols/Functions (rudimentary) - match keywords BEFORE replacing parens
-        const keywords = ['=', '->', '!', 'match', 'let', 'type'];
-        keywords.forEach(kw => {
-             // Match keywords that are preceded by space or start of line or opening paren
-             // and followed by space or end of line or closing paren
-             // But simplest is: look for boundaries including parens
-             // Since we haven't escaped parens yet, we can check for them.
+        // 2. Copulas (Arrows)
+        // -->  ==>  =/>  <->  <=>
+        // Escaped: --&gt;  ==&gt;  =/&gt;  &lt;-&gt;  &lt;=&gt;
+        const copulaRegex = /(--&gt;|==&gt;|=\/&gt;|&lt;-&gt;|&lt;=&gt;)/g;
+        html = html.replace(copulaRegex, '<span class="nars-copula">$1</span>');
 
-             // A keyword might be: (match ...
-             // So preceded by ( or space.
-             const regex = new RegExp(`([\\s\\(]|^)(${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})([\\s\\)]|$)`, 'g');
-             html = html.replace(regex, '$1<span class="metta-keyword">$2</span>$3');
-        });
+        // 3. Variables ($var, #var, ?var)
+        // Only if they are standalone words or inside structure
+        const varRegex = /([?$#][a-zA-Z0-9_]+)/g;
+        html = html.replace(varRegex, '<span class="nars-var">$1</span>');
 
-        // 3. Variables ($var)
-        html = html.replace(/(\$[a-zA-Z0-9_]+)/g, '<span class="metta-variable">$1</span>');
+        // 4. Truth Values %f;c%
+        const truthRegex = /%([0-9.]+;[0-9.]+)%/g;
+        html = html.replace(truthRegex, '<span class="nars-truth">%$1%</span>');
 
-        // 4. Parentheses (Do this last so it doesn't mess up keyword matching boundaries)
-        html = html.replace(/(\(|\))/g, '<span class="metta-paren">$1</span>');
+        // 5. Brackets { } [ ]
+        html = html.replace(/([\{\}\[\]])/g, '<span class="nars-punct">$1</span>');
+
+        // 6. Statement Brackets &lt; &gt;
+        // We might want to color them if they aren't part of a copula
+        // This is tricky with regex on already modified string.
+        // Simple approach: Replace remaining &lt; &gt; that are NOT part of span tags?
+        // Too complex for simple highlighter.
+        // Let's just highlight &lt; and &gt; globally if they are boundaries.
 
         return html;
     }
