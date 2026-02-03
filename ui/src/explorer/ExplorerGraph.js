@@ -185,6 +185,15 @@ export class ExplorerGraph {
         });
     }
 
+    _getColorFromHash(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const hue = Math.abs(hash % 360);
+        return { hue, color: `hsl(${hue}, 70%, 50%)` };
+    }
+
     _applyTacticalStyle() {
         if (!this.viewport.cy) return;
 
@@ -234,13 +243,21 @@ export class ExplorerGraph {
                 selector: 'node[type="concept"]',
                 style: {
                     'shape': 'hexagon',
-                    'border-color': '#00ff9d', // HUD Green
-                    'background-color': (ele) => {
-                         const p = ele.data('priority') || 0;
-                         const alpha = 0.1 + (p * 0.3);
-                         return `rgba(0, 255, 157, ${alpha})`;
+                    'border-color': (ele) => {
+                        const label = ele.data('label') || '';
+                        return this._getColorFromHash(label).color;
                     },
-                    'color': '#00ff9d'
+                    'background-color': (ele) => {
+                         const label = ele.data('label') || '';
+                         const p = ele.data('priority') || 0;
+                         const { hue } = this._getColorFromHash(label);
+                         const alpha = 0.1 + (p * 0.4);
+                         return `hsla(${hue}, 70%, 50%, ${alpha})`;
+                    },
+                    'color': (ele) => {
+                        const label = ele.data('label') || '';
+                        return this._getColorFromHash(label).color;
+                    }
                 }
             },
             {

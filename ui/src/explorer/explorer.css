@@ -403,6 +403,41 @@ p {
     color: #00ff9d;
 }
 
+/* Status Bar */
+.status-bar {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    height: 28px;
+    padding: 0 10px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.status-left-section, .status-right-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 0.75rem;
+    font-family: 'Consolas', monospace;
+    color: #aaccbb;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.status-interactive {
+    cursor: pointer;
+}
+.status-interactive:hover {
+    color: #fff;
+    text-shadow: 0 0 5px rgba(0, 255, 157, 0.5);
+}
+
 /* Status Indicators */
 .status-indicator {
     font-size: 0.75rem;
