@@ -22,6 +22,17 @@ export class InfoPanel extends Component {
                     <button class="btn mode-btn" data-mode="representation">REP</button>
                     <button class="btn mode-btn" data-mode="control">CTL</button>
                 </div>
+                <h3>LAYERS</h3>
+                <div class="layer-controls">
+                    <label class="layer-toggle">
+                        <input type="checkbox" checked data-layer="concepts">
+                        <span class="layer-label">CONCEPTS 🧠</span>
+                    </label>
+                    <label class="layer-toggle">
+                        <input type="checkbox" checked data-layer="tasks">
+                        <span class="layer-label">TASKS ⚡</span>
+                    </label>
+                </div>
             </div>
         `;
     }

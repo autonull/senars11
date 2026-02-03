@@ -358,6 +358,51 @@ p {
     box-shadow: 0 0 8px rgba(0, 255, 157, 0.1);
 }
 
+/* Layer Toggles */
+.layer-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.layer-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-family: 'Consolas', monospace;
+    font-size: 0.8rem;
+    color: #aaccbb;
+}
+
+.layer-toggle:hover {
+    color: #fff;
+}
+
+.layer-toggle input {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border: 1px solid #00ff9d;
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+}
+
+.layer-toggle input:checked {
+    background: rgba(0, 255, 157, 0.3);
+}
+
+.layer-toggle input:checked::after {
+    content: '✓';
+    position: absolute;
+    top: -2px;
+    left: 1px;
+    font-size: 10px;
+    color: #00ff9d;
+}
+
 /* Status Indicators */
 .status-indicator {
     font-size: 0.75rem;

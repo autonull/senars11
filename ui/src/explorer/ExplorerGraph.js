@@ -192,7 +192,12 @@ export class ExplorerGraph {
             {
                 selector: 'node',
                 style: {
-                    'label': 'data(label)',
+                    'label': (ele) => {
+                        const type = ele.data('type');
+                        const label = ele.data('label');
+                        const emoji = type === 'concept' ? '🧠' : type === 'task' ? '⚡' : '🔹';
+                        return `${emoji} ${label}`;
+                    },
                     'text-valign': 'center',
                     'text-halign': 'center',
                     'color': '#00ff9d',
@@ -202,13 +207,14 @@ export class ExplorerGraph {
                     'background-color': 'rgba(0,0,0,0.5)',
                     'border-width': 1,
                     'border-color': '#00ff9d',
-                    'width': 'data(weight)',
-                    'height': 'data(weight)',
+                    // Map size based on priority
+                    'width': 'mapData(priority, 0, 1, 30, 80)',
+                    'height': 'mapData(priority, 0, 1, 30, 80)',
                     'font-family': 'Consolas, monospace',
                     'font-size': 10,
                     'text-transform': 'uppercase',
-                    'transition-property': 'border-width, border-color, width, height',
-                    'transition-duration': '0.2s'
+                    'transition-property': 'border-width, border-color, width, height, opacity',
+                    'transition-duration': '0.3s'
                 }
             },
             {
@@ -216,7 +222,12 @@ export class ExplorerGraph {
                 style: {
                     'shape': 'diamond',
                     'border-color': '#ffbb00', // Warning Amber
-                    'background-color': 'rgba(255, 187, 0, 0.1)'
+                    'background-color': (ele) => {
+                         const p = ele.data('priority') || 0;
+                         const alpha = 0.1 + (p * 0.3);
+                         return `rgba(255, 187, 0, ${alpha})`;
+                    },
+                    'color': '#ffbb00'
                 }
             },
             {
@@ -224,7 +235,18 @@ export class ExplorerGraph {
                 style: {
                     'shape': 'hexagon',
                     'border-color': '#00ff9d', // HUD Green
-                    'background-color': 'rgba(0, 255, 157, 0.1)'
+                    'background-color': (ele) => {
+                         const p = ele.data('priority') || 0;
+                         const alpha = 0.1 + (p * 0.3);
+                         return `rgba(0, 255, 157, ${alpha})`;
+                    },
+                    'color': '#00ff9d'
+                }
+            },
+            {
+                selector: '.layer-hidden',
+                style: {
+                    'display': 'none'
                 }
             },
             {
@@ -317,11 +339,38 @@ export class ExplorerGraph {
         if (!this.viewport.cy) return;
 
         this.viewport.cy.layout({
-            name: 'grid',
+            name: 'cose',
             animate: true,
-            animationDuration: 500,
-            padding: 50
+            animationDuration: 1000,
+            padding: 50,
+            nodeOverlap: 20,
+            componentSpacing: 100,
+            nodeRepulsion: function( node ){ return 4096; },
+            idealEdgeLength: function( edge ){ return 100; },
+            edgeElasticity: function( edge ){ return 100; },
+            nestingFactor: 5,
+            gravity: 80,
+            numIter: 1000,
+            initialTemp: 200,
+            coolingFactor: 0.95,
+            minTemp: 1.0
         }).run();
+    }
+
+    toggleLayer(layerName, isVisible) {
+        if (!this.viewport.cy) return;
+
+        const selector = layerName === 'tasks' ? 'node[type="task"]' :
+                         layerName === 'concepts' ? 'node[type="concept"]' : null;
+
+        if (selector) {
+            const elements = this.viewport.cy.elements(selector);
+            if (isVisible) {
+                elements.removeClass('layer-hidden');
+            } else {
+                elements.addClass('layer-hidden');
+            }
+        }
     }
 
     findNode(id) {

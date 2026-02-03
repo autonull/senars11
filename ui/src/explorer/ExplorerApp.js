@@ -191,6 +191,16 @@ export class ExplorerApp {
             };
         });
 
+        // Layer Toggles
+        document.querySelectorAll('input[data-layer]').forEach(input => {
+            input.onchange = (e) => {
+                const layer = e.target.dataset.layer;
+                const visible = e.target.checked;
+                this.graph.toggleLayer(layer, visible);
+                this.log(`${layer} layer ${visible ? 'visible' : 'hidden'}`, 'system');
+            };
+        });
+
         // Gardening Tools
         this._bindClick('btn-add-concept', () => this.handleAddConcept());
         this._bindClick('btn-add-link', () => this.handleAddLink());
