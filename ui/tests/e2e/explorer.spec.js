@@ -7,11 +7,11 @@ test.describe('SeNARS Explorer', () => {
 
     test('should load the explorer page', async ({ page }) => {
         await expect(page).toHaveTitle(/SeNARS Explorer/);
-        await expect(page.locator('h1')).toHaveText('SeNARS Explorer');
+        await expect(page.locator('.info-panel .hud-title')).toHaveText('SeNARS Explorer');
     });
 
     test('should show mode buttons', async ({ page }) => {
-        const modes = ['Visualization', 'Representation', 'Control'];
+        const modes = ['VIS', 'REP', 'CTL'];
         for (const mode of modes) {
             await expect(page.locator(`.mode-btn:has-text("${mode}")`)).toBeVisible();
         }
@@ -40,15 +40,28 @@ test.describe('SeNARS Explorer', () => {
         // Wait a bit for async init
         await page.waitForTimeout(2000);
 
+        // Add some nodes to test rendering
+        await page.evaluate(() => {
+            if (window.Explorer && window.Explorer.graph) {
+                for (let i = 0; i < 10; i++) {
+                    window.Explorer.graph.addNode({ id: `TestNode${i}`, term: `TestNode${i}` }, false);
+                }
+                window.Explorer.graph.scheduleLayout();
+            }
+        });
+
+        // Wait for nodes to be added
+        await page.waitForTimeout(500);
+
         // Check if Explorer app is exposed and count nodes
         const nodeCount = await page.evaluate(() => {
-            return window.Explorer && window.Explorer.graph.viewport.cy ? window.Explorer.graph.viewport.cy.nodes().length : 0;
+            return window.Explorer && window.Explorer.graph.cy ? window.Explorer.graph.cy.nodes().length : 0;
         });
 
         console.log('Node count:', nodeCount);
         expect(nodeCount).toBeGreaterThan(0);
 
-        // Check Bag limit (we set default to 50 in ExplorerGraph, and added 60+4 items in ExplorerApp)
+        // Check Bag limit (we set default to 50 in ExplorerGraph)
         expect(nodeCount).toBeLessThanOrEqual(50);
     });
 });

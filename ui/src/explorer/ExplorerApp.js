@@ -186,7 +186,9 @@ export class ExplorerApp {
             { id: 'btn-pause', action: () => this.toggleReasoner(false) },
             { id: 'btn-step', action: () => this.stepReasoner() },
             { id: 'btn-llm-config', action: () => this._showLLMConfig() },
-            { id: 'btn-close-inspector', action: () => document.getElementById('inspector-panel')?.classList.add('hidden') }
+            { id: 'btn-close-inspector', action: () => document.getElementById('inspector-panel')?.classList.add('hidden') },
+            { id: 'btn-save', action: () => this.handleSaveJSON() },
+            { id: 'btn-load', action: () => this.handleLoadJSON() }
         ];
 
         bindings.forEach(({ id, action }) => this._bindClick(id, action));
@@ -630,6 +632,69 @@ export class ExplorerApp {
         if (type) {
             this.graph.addEdge({ source, target, type }, true);
             this.log(`Linked ${source} -> ${target} (${type})`, 'user');
+        }
+    }
+
+    handleSaveJSON() {
+        if (!this.graph || !this.graph.cy) return;
+        const json = this.graph.cy.json();
+        const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'senars-graph.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        this.log('Graph saved to senars-graph.json', 'system');
+    }
+
+    handleLoadJSON() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    this.loadGraphData(data);
+                } catch (err) {
+                    this.log(`Error parsing JSON: ${err.message}`, 'error');
+                }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    }
+
+    loadGraphData(json) {
+        if (!this.graph || !this.graph.cy) return;
+
+        // Handle Cytoscape JSON export format
+        if (json.elements) {
+            this.graph.clear();
+            const nodes = json.elements.nodes || [];
+            const edges = json.elements.edges || [];
+
+            let addedNodes = 0;
+            nodes.forEach(n => {
+                if (this.graph.addNode(n.data, false)) addedNodes++;
+            });
+
+            let addedEdges = 0;
+            edges.forEach(e => {
+                if (this.graph.addEdge(e.data, false)) addedEdges++;
+            });
+
+            this.graph.scheduleLayout();
+            this.log(`Loaded ${addedNodes} nodes and ${addedEdges} edges`, 'success');
+            this._updateStats();
+        } else {
+            this.log('Invalid graph JSON format (missing "elements")', 'error');
         }
     }
 
