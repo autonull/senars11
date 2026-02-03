@@ -10,11 +10,15 @@ import { InfoPanel } from '../components/InfoPanel.js';
 import { ControlToolbar } from '../components/ControlToolbar.js';
 import { LogPanel } from '../components/LogPanel.js';
 import { InspectorPanel } from '../components/InspectorPanel.js';
+import { CommandPalette } from '../components/CommandPalette.js';
+import { ToastManager } from '../components/ToastManager.js';
 
 export class ExplorerApp {
     constructor() {
         this.graph = new ExplorerGraph('graph-container');
         this.contextMenu = new ExplorerContextMenu(this.graph, this);
+        this.commandPalette = new CommandPalette();
+        this.toastManager = new ToastManager();
         this.logger = new Logger();
         this.lmController = null;
         this.mode = 'visualization';
@@ -31,6 +35,9 @@ export class ExplorerApp {
         this.controlToolbar = new ControlToolbar();
         this.logPanel = new LogPanel();
         this.inspectorPanel = new InspectorPanel();
+
+        // Wire up inspector save callback
+        this.inspectorPanel.onSave = (id, updates) => this.saveNodeChanges(id, updates);
     }
 
     async initialize() {
@@ -41,6 +48,9 @@ export class ExplorerApp {
         this.loadDemo('Solar System');
 
         this.graph.onNodeTap((data) => this.showInspector(data));
+
+        // Register Commands
+        this._registerCommands();
 
         this.graph.onContextTap((evt, element, type) => {
             if (type === 'background') {
@@ -237,75 +247,10 @@ export class ExplorerApp {
     }
 
     showInspector(data) {
-        const panel = document.getElementById('inspector-panel');
-        const content = document.getElementById('inspector-content');
-        if (!panel || !content) return;
-
-        panel.classList.remove('hidden');
-
-        let html = `
-            <div class="prop-row">
-                <span class="prop-label">ID</span>
-                <span class="prop-value">${data.id}</span>
-            </div>
-        `;
-
-        const isControl = (this.mode === 'control');
-
-        for (const [key, value] of Object.entries(data)) {
-            if (key === 'weight' || key === 'id') continue;
-
-            let displayVal = value;
-            if (typeof value === 'number') displayVal = value.toFixed(3);
-
-            if (isControl) {
-                html += `
-                    <div class="prop-row">
-                        <span class="prop-label">${key}</span>
-                        <input type="text" class="prop-input" id="insp-input-${key}" value="${value}" />
-                    </div>
-                `;
-            } else {
-                html += `
-                    <div class="prop-row">
-                        <span class="prop-label">${key}</span>
-                        <span class="prop-value">${displayVal}</span>
-                    </div>
-                `;
-            }
-        }
-
-        if (isControl) {
-            html += `
-                <div style="margin-top: 10px; text-align: right;">
-                    <button id="btn-inspector-save" class="btn small-btn">Save</button>
-                </div>
-            `;
-        }
-
-        content.innerHTML = html;
-
-        if (isControl) {
-            this._bindClick('btn-inspector-save', () => this.saveNodeChanges(data.id));
-        }
+        this.inspectorPanel.update(data, this.mode);
     }
 
-    saveNodeChanges(id) {
-        const inputs = document.querySelectorAll('#inspector-content .prop-input');
-        const updates = {};
-
-        inputs.forEach(input => {
-            const key = input.id.replace('insp-input-', '');
-            let value = input.value;
-
-            // Attempt to parse numbers
-            if (!isNaN(parseFloat(value)) && isFinite(value)) {
-                value = parseFloat(value);
-            }
-
-            updates[key] = value;
-        });
-
+    saveNodeChanges(id, updates) {
         // Update Bag
         const item = this.graph.bag.items.get(id);
         if (item) {
@@ -319,8 +264,39 @@ export class ExplorerApp {
             cyNode.data(updates);
         }
 
-        this.log(`Updated node ${id}`, 'user');
-        this.showInspector({ id, ...updates });
+        this.log(`Updated node ${id}`, 'success');
+        this.showInspector({ id, ...item.data, ...updates });
+    }
+
+    _registerCommands() {
+        // Navigation
+        this.commandPalette.registerCommand('fit', 'Fit View to Graph', 'F', () => this.graph.fit());
+        this.commandPalette.registerCommand('zoom-in', 'Zoom In', '+', () => this.graph.zoomIn());
+        this.commandPalette.registerCommand('zoom-out', 'Zoom Out', '-', () => this.graph.zoomOut());
+        this.commandPalette.registerCommand('layout', 'Re-calculate Layout', 'L', () => this.graph.relayout());
+
+        // Data
+        this.commandPalette.registerCommand('clear', 'Clear Workspace', null, () => {
+             this.graph.clear();
+             this.log('Workspace cleared', 'system');
+        });
+
+        this.commandPalette.registerCommand('add-concept', 'Add New Concept', 'A', () => this.handleAddConcept());
+        this.commandPalette.registerCommand('link', 'Link Selected Nodes', null, () => this.handleAddLink());
+        this.commandPalette.registerCommand('delete', 'Delete Selected', 'Del', () => this.handleDelete());
+
+        // Reasoner
+        this.commandPalette.registerCommand('run', 'Run Reasoner', 'Space', () => this.toggleReasoner(!this.isReasonerRunning));
+        this.commandPalette.registerCommand('step', 'Step Reasoner', 'S', () => this.stepReasoner());
+
+        // UI
+        this.commandPalette.registerCommand('mode-vis', 'Switch to Visualization Mode', null, () => this.setMode('visualization'));
+        this.commandPalette.registerCommand('mode-ctl', 'Switch to Control Mode', null, () => this.setMode('control'));
+
+        // Demos
+        Object.keys(DEMOS).forEach(name => {
+            this.commandPalette.registerCommand(`demo-${name.toLowerCase().replace(/\s/g, '-')}`, `Load Demo: ${name}`, null, () => this.loadDemo(name));
+        });
     }
 
     _updateStats() {
@@ -371,11 +347,17 @@ export class ExplorerApp {
         if (type === 'error') color = '#ff5555';
         if (type === 'warning') color = '#ffbb00';
         if (type === 'system') color = '#cc88ff';
+        if (type === 'success') color = '#55ff55';
 
         entry.innerHTML = `<span style="color:#666">[${timestamp}]</span> <span style="color:${color}">${message}</span>`;
 
         logPanel.appendChild(entry);
         logPanel.scrollTop = logPanel.scrollHeight;
+
+        // Also show toast for important events
+        if (type === 'error' || type === 'warning' || type === 'success') {
+            this.toastManager.show(message, type);
+        }
     }
 
     setMode(mode) {
