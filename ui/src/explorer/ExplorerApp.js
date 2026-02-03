@@ -190,7 +190,10 @@ export class ExplorerApp {
             }
         } catch (e) {
             console.error('Failed to load LMAgentController module:', e);
+            const errorMsg = e.message || String(e);
             this._updateLLMStatus('Module Error', 'error');
+            this.log(`Failed to load LMAgentController: ${errorMsg}`, 'error');
+            this.toastManager.show(`Module Error: ${errorMsg}`, 'error');
         }
 
         console.log('ExplorerApp: Initialized');
