@@ -201,6 +201,23 @@ export class ExplorerApp {
             };
         });
 
+        // Visual Mappings
+        const sizeSelect = document.getElementById('mapping-size');
+        if (sizeSelect) {
+            sizeSelect.onchange = (e) => {
+                this.graph.setSizeMapping(e.target.value);
+                this.log(`Size mapping: ${e.target.value}`, 'system');
+            };
+        }
+
+        const colorSelect = document.getElementById('mapping-color');
+        if (colorSelect) {
+            colorSelect.onchange = (e) => {
+                this.graph.setColorMapping(e.target.value);
+                this.log(`Color mapping: ${e.target.value}`, 'system');
+            };
+        }
+
         // Gardening Tools
         this._bindClick('btn-add-concept', () => this.handleAddConcept());
         this._bindClick('btn-add-link', () => this.handleAddLink());

@@ -33,6 +33,21 @@ export class InfoPanel extends Component {
                         <span class="layer-label">TASKS ⚡</span>
                     </label>
                 </div>
+                <h3>VISUAL MAPPINGS</h3>
+                <div class="control-group">
+                    <select id="mapping-size" class="control-select small-btn">
+                        <option value="priority">SIZE: PRIORITY</option>
+                        <option value="complexity">SIZE: COMPLEXITY</option>
+                        <option value="fixed">SIZE: FIXED</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <select id="mapping-color" class="control-select small-btn">
+                        <option value="hash">COLOR: HASH</option>
+                        <option value="type">COLOR: TYPE</option>
+                        <option value="priority">COLOR: PRIORITY</option>
+                    </select>
+                </div>
             </div>
         `;
     }

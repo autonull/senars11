@@ -6,6 +6,10 @@ export class ExplorerGraph {
         this.viewport = new GraphViewport(container);
         this.bag = new BagBuffer(50); // Limit visible nodes
         this.mode = 'visualization';
+        this.mappings = {
+            size: 'priority',
+            color: 'hash'
+        };
     }
 
     async initialize() {
@@ -14,6 +18,21 @@ export class ExplorerGraph {
             return true;
         }
         return false;
+    }
+
+    setSizeMapping(mode) {
+        this.mappings.size = mode;
+        this._updateStyles();
+    }
+
+    setColorMapping(mode) {
+        this.mappings.color = mode;
+        this._updateStyles();
+    }
+
+    _updateStyles() {
+        this._applyTacticalStyle();
+        // Force redraw if needed, though applyTacticalStyle updates stylesheet
     }
 
     clear() {
@@ -197,6 +216,46 @@ export class ExplorerGraph {
     _applyTacticalStyle() {
         if (!this.viewport.cy) return;
 
+        const getSize = (ele) => {
+            if (this.mappings.size === 'fixed') return 40;
+            if (this.mappings.size === 'priority') {
+                const p = ele.data('priority') || 0;
+                return 30 + (p * 50);
+            }
+            if (this.mappings.size === 'complexity') {
+                const l = (ele.data('label') || '').length;
+                return Math.min(30 + (l * 2), 80);
+            }
+            return 40;
+        };
+
+        const getColor = (ele, prop = 'background') => {
+            const type = ele.data('type');
+            const p = ele.data('priority') || 0;
+            const label = ele.data('label') || '';
+
+            if (this.mappings.color === 'type') {
+                const base = type === 'task' ? [255, 187, 0] : [0, 255, 157]; // Amber or Green
+                const alpha = prop === 'background' ? (0.1 + (p * 0.4)) : 1;
+                return `rgba(${base[0]}, ${base[1]}, ${base[2]}, ${alpha})`;
+            }
+
+            if (this.mappings.color === 'hash') {
+                const { hue } = this._getColorFromHash(label);
+                const alpha = prop === 'background' ? (0.1 + (p * 0.4)) : 1;
+                return `hsla(${hue}, 70%, 50%, ${alpha})`;
+            }
+
+            if (this.mappings.color === 'priority') {
+                // Heatmap style: Low (Blue) -> High (Red)
+                const hue = 240 - (p * 240);
+                const alpha = prop === 'background' ? 0.4 : 1;
+                return `hsla(${hue}, 80%, 50%, ${alpha})`;
+            }
+
+            return '#fff';
+        };
+
         const style = [
             {
                 selector: 'node',
@@ -209,55 +268,32 @@ export class ExplorerGraph {
                     },
                     'text-valign': 'center',
                     'text-halign': 'center',
-                    'color': '#00ff9d',
+                    'color': (ele) => getColor(ele, 'border'),
                     'text-background-color': 'rgba(0,0,0,0.5)',
                     'text-background-opacity': 1,
                     'text-background-padding': 2,
-                    'background-color': 'rgba(0,0,0,0.5)',
+                    'background-color': (ele) => getColor(ele, 'background'),
                     'border-width': 1,
-                    'border-color': '#00ff9d',
-                    // Map size based on priority
-                    'width': 'mapData(priority, 0, 1, 30, 80)',
-                    'height': 'mapData(priority, 0, 1, 30, 80)',
+                    'border-color': (ele) => getColor(ele, 'border'),
+                    'width': getSize,
+                    'height': getSize,
                     'font-family': 'Consolas, monospace',
                     'font-size': 10,
                     'text-transform': 'uppercase',
-                    'transition-property': 'border-width, border-color, width, height, opacity',
+                    'transition-property': 'border-width, border-color, width, height, opacity, background-color',
                     'transition-duration': '0.3s'
                 }
             },
             {
                 selector: 'node[type="task"]',
                 style: {
-                    'shape': 'diamond',
-                    'border-color': '#ffbb00', // Warning Amber
-                    'background-color': (ele) => {
-                         const p = ele.data('priority') || 0;
-                         const alpha = 0.1 + (p * 0.3);
-                         return `rgba(255, 187, 0, ${alpha})`;
-                    },
-                    'color': '#ffbb00'
+                    'shape': 'diamond'
                 }
             },
             {
                 selector: 'node[type="concept"]',
                 style: {
-                    'shape': 'hexagon',
-                    'border-color': (ele) => {
-                        const label = ele.data('label') || '';
-                        return this._getColorFromHash(label).color;
-                    },
-                    'background-color': (ele) => {
-                         const label = ele.data('label') || '';
-                         const p = ele.data('priority') || 0;
-                         const { hue } = this._getColorFromHash(label);
-                         const alpha = 0.1 + (p * 0.4);
-                         return `hsla(${hue}, 70%, 50%, ${alpha})`;
-                    },
-                    'color': (ele) => {
-                        const label = ele.data('label') || '';
-                        return this._getColorFromHash(label).color;
-                    }
+                    'shape': 'hexagon'
                 }
             },
             {
