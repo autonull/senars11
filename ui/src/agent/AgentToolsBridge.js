@@ -19,6 +19,12 @@ export class AgentToolsBridge {
             logging: { level: 'info' }
         });
 
+        // Initialize NAR (registers rules, etc.)
+        await this.nar.initialize();
+
+        // Enable tracing for visualization
+        this.nar.traceEnabled = true;
+
         // Register tools
         this.registerTools();
     }

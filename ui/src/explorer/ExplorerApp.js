@@ -1107,6 +1107,8 @@ export class ExplorerApp {
 
         try {
             await nar.step();
+            // Optional: Debug log to console (not UI log) to verify loop is running
+            // console.log('ExplorerApp: step completed');
         } catch (e) {
             this.log(`Reasoner step error: ${e.message}`, 'error');
             this.toggleReasoner(false);
