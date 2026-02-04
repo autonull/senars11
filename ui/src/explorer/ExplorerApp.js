@@ -168,7 +168,8 @@ export class ExplorerApp {
             onThemeToggle: () => this._toggleTheme(),
             onReasonerControl: (action, value) => this.handleReasonerControl(action, value),
             onReplSubmit: (command) => this.handleReplCommand(command),
-            onWidgetToggle: (widgetId) => this.toggleWidget(widgetId)
+            onWidgetToggle: (widgetId) => this.toggleWidget(widgetId),
+            onConfig: () => this._showLLMConfig()
         });
 
         // Start stats update loop
@@ -249,17 +250,20 @@ export class ExplorerApp {
         if (nar.on) {
             nar.on(IntrospectionEvents.TASK_ADDED, (data) => {
                 console.log('ExplorerApp: TASK_ADDED event received', data);
+                this.log(`INPUT: ${data.task.term}`, 'user');
                 this._onTaskAdded(data.task);
             });
 
             // Bind to REASONING_DERIVATION for derived results
             nar.on(IntrospectionEvents.REASONING_DERIVATION, (data) => {
                 console.log('ExplorerApp: REASONING_DERIVATION event received', data);
+                this.log(`DERIVED: ${data.derivedTask.term}`, 'system');
                 this._onTaskAdded(data.derivedTask);
             });
 
             nar.on(IntrospectionEvents.TASK_ERROR, (data) => {
                 console.error('ExplorerApp: TASK_ERROR event received', data);
+                this.log(`ERROR: ${data.error}`, 'error');
             });
 
             this._narEventsBound = true;
@@ -300,8 +304,12 @@ export class ExplorerApp {
              }
         }
 
-        // Request layout update if needed, or rely on loop
-        // this.graph.scheduleLayout();
+        // Request layout update to ensure new nodes are positioned correctly
+        if (this.graph.scheduleLayout) {
+            // Debounce or throttle could be added here if high frequency,
+            // but for now direct call ensures responsiveness for demonstration.
+            this.graph.scheduleLayout();
+        }
     }
 
     _getColorFromHash(str) {

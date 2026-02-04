@@ -20,7 +20,6 @@ export class LogPanel extends Component {
                     </select>
                     <button id="btn-clear" class="btn warning-btn">Clear</button>
                     <div class="divider"></div>
-                    <button id="btn-llm-config" class="btn">LLM Config</button>
                     <div id="llm-status" class="status-indicator">Offline</div>
                 </div>
 

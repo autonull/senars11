@@ -34,12 +34,13 @@ export class StatusBar extends Component {
         );
     }
 
-    initialize({ onModeSwitch, onThemeToggle, onReasonerControl, onReplSubmit, onWidgetToggle }) {
+    initialize({ onModeSwitch, onThemeToggle, onReasonerControl, onReplSubmit, onWidgetToggle, onConfig }) {
         this.onModeSwitch = onModeSwitch;
         this.onThemeToggle = onThemeToggle;
         this.onReasonerControl = onReasonerControl;
         this.onReplSubmit = onReplSubmit;
         this.onWidgetToggle = onWidgetToggle;
+        this.onConfig = onConfig;
         this.render();
     }
 
@@ -177,6 +178,14 @@ export class StatusBar extends Component {
                 const value = e.target.value;
                 throttleValue.textContent = `${value}ms`;
                 this.onReasonerControl?.('throttle', parseInt(value));
+            });
+        }
+
+        const configBtn = document.getElementById('status-config');
+        if (configBtn) {
+            configBtn.style.cursor = 'pointer';
+            configBtn.addEventListener('click', () => {
+                this.onConfig?.();
             });
         }
     }

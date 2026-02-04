@@ -84,6 +84,10 @@ test.describe('SeNARS Explorer Modes', () => {
         const logs = await page.locator('#log-content').innerText();
         console.log('DOM LOGS:', logs);
 
+        // Verify logs contain the input (internal format may vary, so check keywords)
+        expect(logs).toContain('INPUT:');
+        expect(logs).toContain('reasoning');
+
         // Expect events to be bound
         expect(debugInfo.eventsBound).toBe(true);
 

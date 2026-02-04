@@ -87,7 +87,16 @@
 }
 
 #log-widget {
-    max-height: 250px;
+    max-height: 350px;
+    width: 60%; /* Make it wider */
+    left: 20%; /* Center it roughly if dock-bottom wasn't overriding left/right */
+}
+/* Override dock-bottom width calculation for log widget to make it wider/centered */
+.hud-widget.dock-bottom#log-widget {
+    left: 20%;
+    right: 20%;
+    width: auto;
+    max-width: none;
 }
 
 #controls-widget {
