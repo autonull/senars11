@@ -246,6 +246,11 @@ export class ExplorerApp {
         const nar = this._getNAR();
         if (!nar || this._narEventsBound) return;
 
+        // Enable tracing to ensure we get derivation events
+        if (nar.hasOwnProperty('traceEnabled')) {
+            nar.traceEnabled = true;
+        }
+
         // Bind to TASK_ADDED to visualize new concepts/tasks entering the system
         if (nar.on) {
             nar.on(IntrospectionEvents.TASK_ADDED, (data) => {
@@ -286,9 +291,24 @@ export class ExplorerApp {
              type: 'concept'
         }, false);
 
-        // Simple relation extraction for visualization: <A --> B>
-        // This is a basic heuristic for visualization purposes.
-        if (term.includes('-->')) {
+        // Simple relation extraction for visualization
+        // Handle Prefix: (--> , source , target)
+        if (term.startsWith('(-->')) {
+             const parts = term.replace(/^\(-->\s*,?\s*|\)$/g, '').split(',').map(s => s.trim());
+             if (parts.length >= 2) {
+                 const source = parts[0];
+                 const target = parts[1];
+
+                 this.graph.addNode({ id: source, term: source }, false);
+                 this.graph.addNode({ id: target, term: target }, false);
+
+                 this.graph.addEdge({
+                     source, target, type: 'inheritance'
+                 }, false);
+             }
+        }
+        // Handle Infix: <source --> target>
+        else if (term.includes('-->')) {
              const parts = term.replace(/[<>]/g, '').split('-->');
              if (parts.length === 2) {
                  const source = parts[0].trim();
