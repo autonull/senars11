@@ -1246,7 +1246,8 @@ export class ExplorerApp {
             if (!nar) return;
 
             const stats = nar.getStats();
-            const totalConcepts = stats.memoryStats ? stats.memoryStats.totalConcepts : 0;
+            const memoryStats = stats.memoryStats || {};
+            const totalConcepts = memoryStats.conceptCount || memoryStats.totalConcepts || (memoryStats.memoryUsage ? memoryStats.memoryUsage.concepts : 0);
             const maxConcepts = (stats.config && stats.config.memory) ? stats.config.memory.maxConcepts : 1000;
             const tps = this.isReasonerRunning ? (1000 / Math.max(this.reasonerDelay, 1)).toFixed(1) : 0;
 

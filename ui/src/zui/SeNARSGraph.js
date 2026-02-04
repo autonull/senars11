@@ -535,7 +535,8 @@ export class SeNARSGraph extends GraphSystem {
         this._layoutTimeout = setTimeout(() => {
             if (this.cy && this.updatesEnabled) {
                 if (this.currentLayout !== 'scatter' && this.currentLayout !== 'sorted-grid') {
-                    super.layout(Config.getGraphLayout(this.currentLayout || 'fcose'));
+                    const layoutOpts = Config.getGraphLayout(this.currentLayout || 'fcose');
+                    super.layout(layoutOpts);
                 }
             }
         }, 500);

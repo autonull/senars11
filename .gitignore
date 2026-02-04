@@ -36,3 +36,4 @@ trajectory_*.json
 preferences.json
 browser-bundle.js
 ui/dist/
+verification/
