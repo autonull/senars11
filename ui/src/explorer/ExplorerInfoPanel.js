@@ -7,9 +7,6 @@ export class ExplorerInfoPanel extends Component {
 
     render() {
         if (!this.container) return;
-        // Set container ID for docking system
-        this.container.id = 'layers-widget';
-        this.container.className = 'hud-widget dock-left';
 
         this.container.innerHTML = `
             <div class="hud-panel info-panel">

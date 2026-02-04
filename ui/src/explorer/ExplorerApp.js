@@ -61,8 +61,9 @@ export class ExplorerApp {
         this.logPanel = new LogPanel();
         this.inspectorPanel = new InspectorPanel();
 
-        // Wire up inspector save callback
+        // Wire up inspector callbacks
         this.inspectorPanel.onSave = (id, updates) => this.saveNodeChanges(id, updates);
+        this.inspectorPanel.onQuery = (term) => this.handleReplCommand(`<${term} ?>?`);
     }
 
     // Convenience accessor for the underlying graph manager
@@ -129,8 +130,7 @@ export class ExplorerApp {
         const layersContainer = document.createElement('div');
         this.infoPanel.container = layersContainer;
         this.infoPanel.render();
-        // Widget sets its own ID and docking class
-        document.body.appendChild(layersContainer);
+        this.layoutManager.registerWidget('layers', layersContainer, 'left', true);
 
         // 2. Metrics Widget (right, top) - SystemMetricsPanel
         const metricsContainer = document.createElement('div');
@@ -138,29 +138,25 @@ export class ExplorerApp {
         this.metricsPanel.container = metricsContainer;
         this.metricsPanel.initialize();
         this.metricsPanel.render();
-        // Widget sets its own ID and docking class
-        document.body.appendChild(metricsContainer);
+        this.layoutManager.registerWidget('metrics', metricsContainer, 'right', true);
 
         // 3. Log Widget (bottom) - LogPanel
         const logContainer = document.createElement('div');
         this.logPanel.container = logContainer;
         this.logPanel.render();
-        // Widget sets its own ID and docking class
-        document.body.appendChild(logContainer);
+        this.layoutManager.registerWidget('log', logContainer, 'bottom', true);
 
         // 4. Inspector Widget (right, bottom) - InspectorPanel
         const inspectorContainer = document.createElement('div');
         this.inspectorPanel.container = inspectorContainer;
         this.inspectorPanel.render();
-        // Widget sets its own ID and docking class
-        document.body.appendChild(inspectorContainer);
+        this.layoutManager.registerWidget('inspector', inspectorContainer, 'right', false);
 
         // 5. Controls Widget (bottom-right corner) - ExplorerToolbar
         const controlsContainer = document.createElement('div');
         this.controlToolbar.container = controlsContainer;
         this.controlToolbar.render();
-        // Widget sets its own ID and docking class
-        document.body.appendChild(controlsContainer);
+        this.layoutManager.registerWidget('controls', controlsContainer, 'none', true);
 
         // 6. Target Panel (absolute positioned, not docked)
         this.targetPanel = new TargetPanel(null);
@@ -550,18 +546,10 @@ export class ExplorerApp {
      * @returns {boolean} New visibility state
      */
     toggleWidget(widgetId) {
-        const widgetElement = document.getElementById(`${widgetId}-widget`);
-        if (!widgetElement) {
-            console.warn(`Widget ${widgetId} not found`);
-            return false;
+        const newState = this.layoutManager.toggle(widgetId);
+        if (newState !== false) {
+            this.log(`${widgetId} widget ${newState ? 'shown' : 'hidden'}`, 'system');
         }
-
-        const isCurrentlyVisible = !widgetElement.classList.contains('hidden');
-        widgetElement.classList.toggle('hidden');
-
-        const newState = !isCurrentlyVisible;
-        this.log(`${widgetId} widget ${newState ? 'shown' : 'hidden'}`, 'system');
-
         return newState;
     }
 
