@@ -713,12 +713,14 @@ export class ExplorerApp {
 
         // Show/Hide Control Toolbar via CSS class, though now it's in a wrapper
         const toolbar = document.getElementById('control-toolbar');
-        if (toolbar) {
-            if (mode === 'control') {
-                toolbar.classList.remove('hidden');
-            } else {
-                toolbar.classList.add('hidden');
-            }
+        const toolbarWidget = document.getElementById('controls-widget');
+
+        if (mode === 'control') {
+            if (toolbar) toolbar.classList.remove('hidden');
+            if (toolbarWidget) toolbarWidget.classList.remove('hidden');
+        } else {
+            if (toolbar) toolbar.classList.add('hidden');
+            if (toolbarWidget) toolbarWidget.classList.add('hidden');
         }
 
         console.log(`Mode switched to: ${mode}`);

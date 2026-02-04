@@ -96,7 +96,7 @@
     width: auto;
     padding: 6px;
     left: auto;
-    display: none;
+    /* display: none; */
     /* Hidden - controls moved to StatusBar */
 }
 
