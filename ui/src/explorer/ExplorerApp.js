@@ -31,7 +31,8 @@ export class ExplorerApp {
         this.graphPanel = new GraphPanel('graph-container', {
             useBag: true,
             bagCapacity: 50,
-            style: themeStyle
+            style: themeStyle,
+            showToolbar: false
         });
 
         // Context menu and other components expect a graph object with certain interface
@@ -389,7 +390,51 @@ export class ExplorerApp {
         this._bindModeSwitch();
         this._bindLayerToggles();
         this._bindMappingControls();
+        this._bindLayoutControls();
         // Note: REPL and reasoner controls now in StatusBar
+    }
+
+    _bindLayoutControls() {
+        const layoutSelect = document.getElementById('layout-select');
+        if (layoutSelect) {
+            layoutSelect.onchange = (e) => {
+                const layout = e.target.value;
+                if (layout === 'scatter') {
+                    // Default scatter args or prompt? Using defaults for now.
+                    if (this.graph.applyScatterLayout) {
+                        this.graph.applyScatterLayout('priority', 'confidence');
+                    }
+                } else if (layout === 'sorted-grid') {
+                    if (this.graph.applySortedGridLayout) {
+                        this.graph.applySortedGridLayout('priority');
+                    }
+                } else {
+                    if (this.graph.setLayout) {
+                        this.graph.setLayout(layout);
+                    }
+                }
+                this.log(`Layout switched to: ${layout}`, 'system');
+            };
+        }
+
+        const isolatedCheck = document.getElementById('check-isolated');
+        if (isolatedCheck) {
+            isolatedCheck.onchange = (e) => {
+                const hide = e.target.checked;
+                this.graph.applyFilters({ hideIsolated: hide });
+                this.log(`Isolated nodes ${hide ? 'hidden' : 'shown'}`, 'system');
+            };
+        }
+
+        const prioSlider = document.getElementById('filter-priority');
+        const prioVal = document.getElementById('prio-val');
+        if (prioSlider) {
+            prioSlider.oninput = (e) => {
+                const val = parseFloat(e.target.value);
+                if (prioVal) prioVal.textContent = val.toFixed(2);
+                this.graph.applyFilters({ minPriority: val });
+            };
+        }
     }
 
     _bindSearch() {

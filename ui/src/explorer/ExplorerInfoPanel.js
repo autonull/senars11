@@ -33,7 +33,27 @@ export class ExplorerInfoPanel extends Component {
                         <input type="checkbox" data-layer="trace">
                         <span class="layer-label">Reasoning 🔗</span>
                     </label>
+                    <label class="layer-toggle">
+                        <input type="checkbox" id="check-isolated">
+                        <span class="layer-label">Hide Isolated</span>
+                    </label>
                 </div>
+
+                <h3>Layout & Filters</h3>
+                <div class="control-group">
+                    <select id="layout-select" class="control-select small-btn">
+                        <option value="fcose">Layout: Force</option>
+                        <option value="grid">Layout: Grid</option>
+                        <option value="circle">Layout: Circle</option>
+                        <option value="scatter">Layout: Scatter</option>
+                        <option value="sorted-grid">Layout: Sorted</option>
+                    </select>
+                </div>
+                <div class="control-group" style="margin-top: 5px; padding: 0 5px;">
+                     <div class="hud-subtitle" style="margin-bottom: 2px;">Min Priority: <span id="prio-val">0.0</span></div>
+                     <input type="range" id="filter-priority" min="0" max="1" step="0.05" value="0" style="width: 100%">
+                </div>
+
                 <h3>Visual Mappings</h3>
                 <div class="control-group">
                     <select id="mapping-size" class="control-select small-btn">
