@@ -72,6 +72,17 @@ export class StatusBar extends Component {
 
                 <!-- Right section: System Info + Widget Toggles -->
                 <div class="status-info-section">
+                    <!-- Global Toolbar Items Moved from LogPanel/Toolbar -->
+                    <div class="status-toolbar-items">
+                        <input type="text" id="search-input" placeholder="Search..." class="control-input-small">
+                        <select id="demo-select" class="control-select-small">
+                            <option value="" disabled selected>Load Demo...</option>
+                        </select>
+                         <button id="btn-clear" class="status-btn-small warning" title="Clear Workspace">🗑️</button>
+                    </div>
+
+                    <div class="status-divider"></div>
+
                     <div class="status-metric" id="status-cycles">📊 Cycles: 0</div>
                     <div class="status-metric" id="status-nodes">🧠 Nodes: 0/50</div>
                     <div class="status-metric" id="status-tps">⚡ TPS: 0</div>

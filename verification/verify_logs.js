@@ -40,6 +40,14 @@ import { chromium } from 'playwright';
         console.log('Log Panel is already visible.');
     }
 
+    // Verify Search Input in StatusBar
+    console.log('Checking Search Input in StatusBar...');
+    const searchInput = await page.$('#status-bar-container #search-input');
+    if (!searchInput || !(await searchInput.isVisible())) {
+        throw new Error('Search Input not found in StatusBar!');
+    }
+    console.log('Search Input found.');
+
     // Input Narsese via REPL
     console.log('Inputting Narsese: <live --> reasoning>.');
     await page.fill('#status-repl-input', '<live --> reasoning>.');
