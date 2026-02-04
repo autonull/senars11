@@ -134,24 +134,14 @@ export class StatusBar extends Component {
             }, 200);
         });
 
-        // Submit on Ctrl+Enter
+        // Submit on Enter (unless Shift is held), or Ctrl+Enter
         repl.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            if ((e.key === 'Enter' && !e.shiftKey) || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) {
                 e.preventDefault();
                 const command = repl.value.trim();
                 if (command) {
                     this.onReplSubmit?.(command);
                     repl.value = '';
-                }
-            } else if (e.key === 'Enter' && !e.shiftKey) {
-                // Single Enter = submit if not expanded
-                if (!this.state.expanded) {
-                    e.preventDefault();
-                    const command = repl.value.trim();
-                    if (command) {
-                        this.onReplSubmit?.(command);
-                        repl.value = '';
-                    }
                 }
             }
         });

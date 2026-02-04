@@ -16,6 +16,7 @@ import { DemoLibraryModal } from '../components/DemoLibraryModal.js';
 import { TargetPanel } from './TargetPanel.js';
 import { getTacticalStyle } from '../visualization/ExplorerGraphTheme.js';
 import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
+import { IntrospectionEvents } from '@senars/core';
 
 export class ExplorerApp {
     constructor() {
@@ -49,6 +50,7 @@ export class ExplorerApp {
         this.statusBar = null;
         this.metricsPanel = null;
 
+        this._narEventsBound = false;
         this.isDecayEnabled = false;
         this.decayLoopId = null;
 
@@ -186,6 +188,7 @@ export class ExplorerApp {
             try {
                 await this.lmController.initialize();
                 this._updateLLMStatus('Ready', 'ready');
+                this._bindNAREvents();
             } catch (e) {
                 console.warn('LLM init failed (might need config):', e);
                 // If LLM init fails, check if we have tools bridge (NAR) access
@@ -221,6 +224,7 @@ export class ExplorerApp {
             this.localToolsBridge = new module.AgentToolsBridge();
             await this.localToolsBridge.initialize();
             this.log('Local Reasoner initialized successfully', 'system');
+            this._bindNAREvents();
         } catch (e) {
             console.error('Failed to load AgentToolsBridge:', e);
             this.log('Failed to load local reasoner', 'error');
@@ -235,6 +239,69 @@ export class ExplorerApp {
             return this.localToolsBridge.getNAR();
         }
         return null;
+    }
+
+    _bindNAREvents() {
+        const nar = this._getNAR();
+        if (!nar || this._narEventsBound) return;
+
+        // Bind to TASK_ADDED to visualize new concepts/tasks entering the system
+        if (nar.on) {
+            nar.on(IntrospectionEvents.TASK_ADDED, (data) => {
+                console.log('ExplorerApp: TASK_ADDED event received', data);
+                this._onTaskAdded(data.task);
+            });
+
+            // Bind to REASONING_DERIVATION for derived results
+            nar.on(IntrospectionEvents.REASONING_DERIVATION, (data) => {
+                console.log('ExplorerApp: REASONING_DERIVATION event received', data);
+                this._onTaskAdded(data.derivedTask);
+            });
+
+            nar.on(IntrospectionEvents.TASK_ERROR, (data) => {
+                console.error('ExplorerApp: TASK_ERROR event received', data);
+            });
+
+            this._narEventsBound = true;
+            console.log('ExplorerApp: Bound to NAR events');
+        }
+    }
+
+    _onTaskAdded(task) {
+        if (!task || !task.term) return;
+
+        const term = task.term.toString();
+        console.log(`ExplorerApp: Adding node for term: ${term}`);
+        const budget = task.budget || { priority: 0.5 };
+
+        // Add Node
+        this.graph.addNode({
+             id: term,
+             term: term,
+             budget: budget,
+             type: 'concept'
+        }, false);
+
+        // Simple relation extraction for visualization: <A --> B>
+        // This is a basic heuristic for visualization purposes.
+        if (term.includes('-->')) {
+             const parts = term.replace(/[<>]/g, '').split('-->');
+             if (parts.length === 2) {
+                 const source = parts[0].trim();
+                 const target = parts[1].trim();
+
+                 // Ensure source/target nodes exist
+                 this.graph.addNode({ id: source, term: source }, false);
+                 this.graph.addNode({ id: target, term: target }, false);
+
+                 this.graph.addEdge({
+                     source, target, type: 'inheritance'
+                 }, false);
+             }
+        }
+
+        // Request layout update if needed, or rely on loop
+        // this.graph.scheduleLayout();
     }
 
     _getColorFromHash(str) {
@@ -264,9 +331,6 @@ export class ExplorerApp {
             { id: 'btn-add-concept', action: () => this.handleAddConcept() },
             { id: 'btn-add-link', action: () => this.handleAddLink() },
             { id: 'btn-delete', action: () => this.handleDelete() },
-            { id: 'btn-run', action: () => this.toggleReasoner(true) },
-            { id: 'btn-pause', action: () => this.toggleReasoner(false) },
-            { id: 'btn-step', action: () => this.stepReasoner() },
             { id: 'btn-llm-config', action: () => this._showLLMConfig() },
             { id: 'btn-close-inspector', action: () => document.getElementById('inspector-panel')?.classList.add('hidden') },
             { id: 'btn-save', action: () => this.handleSaveJSON() },
@@ -648,8 +712,32 @@ export class ExplorerApp {
             return;
         }
         if (command === '/help') {
-            this.log('Available commands: /clear, /help', 'system');
+            this.log('Available commands: /clear, /help, <narsese>', 'system');
             return;
+        }
+
+        // Direct Narsese input detection (e.g. <A --> B>.)
+        const isNarsese = (command.startsWith('<') || command.startsWith('(')) &&
+                          (command.endsWith('.') || command.endsWith('?') || command.endsWith('!'));
+
+        // If we are offline/Local Mode OR the input is clearly Narsese, bypass LLM
+        const useLocal = !this.lmController || !this.lmController.isInitialized || isNarsese;
+
+        if (useLocal) {
+             const nar = this._getNAR();
+             if (nar) {
+                 try {
+                     nar.input(command);
+                     this.log(`Input to NAR: ${command}`, 'system');
+                     // If it was a query, we might want to see result immediately if synchronous,
+                     // but loop handles stats/updates.
+                 } catch (e) {
+                     this.log(`NAR Error: ${e.message}`, 'error');
+                 }
+             } else {
+                 this.log('Agent offline and no Local Reasoner available.', 'error');
+             }
+             return;
         }
 
         if (this.lmController && this.lmController.isInitialized) {
@@ -659,9 +747,6 @@ export class ExplorerApp {
             } catch (e) {
                 this.log(`Error: ${e.message}`, 'error');
             }
-        } else {
-            // Basic fallback for REPL if LLM is down but we have NAR
-            this.log('Agent offline. Connect LLM to chat.', 'warning');
         }
     }
 
@@ -967,17 +1052,16 @@ export class ExplorerApp {
 
     toggleReasoner(run) {
         this.isReasonerRunning = run;
-        const btnRun = document.getElementById('btn-run');
-        const btnPause = document.getElementById('btn-pause');
+
+        // Update StatusBar
+        if (this.statusBar) {
+            this.statusBar.setReasonerRunning(run);
+        }
 
         if (run) {
-            if (btnRun) btnRun.classList.add('hidden');
-            if (btnPause) btnPause.classList.remove('hidden');
             this._runReasonerLoop();
             this.log('Reasoner started', 'system');
         } else {
-            if (btnRun) btnRun.classList.remove('hidden');
-            if (btnPause) btnPause.classList.add('hidden');
             if (this.reasonerLoopId) {
                 clearTimeout(this.reasonerLoopId);
                 this.reasonerLoopId = null;

@@ -32,27 +32,70 @@ test.describe('SeNARS Explorer Modes', () => {
         expect(hasCat).toBe(true);
 
         // Run Reasoner
-        await page.click('#btn-run');
+        await page.click('#status-btn-run');
         // Pause button should become visible
-        await expect(page.locator('#btn-pause')).toBeVisible();
+        await expect(page.locator('#status-btn-pause')).toBeVisible();
 
         // Check if stats are updating (TPS > 0)
         await page.waitForTimeout(2000);
-        const tpsText = await page.locator('#status-bar-container').textContent();
-        // The stats are in status bar. Implementation details:
-        // ExplorerApp.js: this.statusBar.updateStats({...})
-        // StatusBar.js: likely renders text.
-        // Let's look for "TPS:" in the page text content or specific element.
-        // ExplorerApp.js:
-        // this.statusBar.updateStats({ ... tps: ... })
-        // Let's rely on finding "TPS:" and a number > 0.
 
         // Wait for stats update
         await expect(page.locator('.status-bar')).toContainText(/TPS:\s*[0-9.]+/);
 
-        // Stop Reasoner
-        await page.click('#btn-pause');
-        await expect(page.locator('#btn-run')).toBeVisible();
+        // Stop Reasoner - NOTE: button is now in status bar, ID is status-btn-pause
+        await page.click('#status-btn-pause');
+        await expect(page.locator('#status-btn-run')).toBeVisible();
+
+        // Verify Duplicate Controls are GONE
+        // The old controls were in .reasoner-controls within #control-toolbar.
+        // We removed .reasoner-controls or the buttons inside.
+        const oldRunBtn = page.locator('#control-toolbar #btn-run');
+        await expect(oldRunBtn).toHaveCount(0);
+    });
+
+    test('Live Reasoning: Direct Narsese Input via REPL', async ({ page }) => {
+        await page.goto('/explorer.html');
+
+        // Wait for initialization to complete (either Ready/Online or even Reasoner Only)
+        // This ensures the NAR (or bridge) is actually available before we type.
+        await expect(page.locator('#llm-status')).toHaveText(/Ready|Online|Reasoner Only/, { timeout: 20000 });
+
+        // Input Narsese command
+        const narsese = '<live --> reasoning>.';
+        await page.fill('#status-repl-input', narsese);
+        await page.press('#status-repl-input', 'Enter');
+
+        // Verify node creation
+        await page.waitForTimeout(2000); // Give a bit more time
+
+        const debugInfo = await page.evaluate(() => {
+            if (!window.Explorer) return { error: 'No Explorer' };
+            const cy = window.Explorer.graph.cy;
+            return {
+                eventsBound: window.Explorer._narEventsBound,
+                nodeIds: cy ? cy.nodes().map(n => n.id()) : [],
+                hasLive: cy ? cy.getElementById('live').nonempty() : false,
+                hasTerm: cy ? cy.getElementById('<live --> reasoning>').nonempty() : false
+            };
+        });
+
+        console.log('Debug Info:', debugInfo);
+
+        const logs = await page.locator('#log-content').innerText();
+        console.log('DOM LOGS:', logs);
+
+        // Expect events to be bound
+        expect(debugInfo.eventsBound).toBe(true);
+
+        // Expect at least one of the nodes to be present (the term or the constituent)
+        // Note: Term format might be prefix like (--> ...), so we check if any node contains our content
+        const found = debugInfo.nodeIds.some(id => id.includes('live') && id.includes('reasoning'));
+        expect(found).toBe(true);
+
+        // Verify reasoning/stats update
+        await page.click('#status-btn-run');
+        await page.waitForTimeout(1000);
+        await expect(page.locator('.status-bar')).toContainText(/TPS:\s*[0-9.]+/);
     });
 
     test('Local Mode: Should fallback to AgentToolsBridge when LLM fails', async ({ page }) => {
@@ -85,15 +128,15 @@ test.describe('SeNARS Explorer Modes', () => {
         });
         expect(hasDog).toBe(true);
 
-        // Run Reasoner
-        await page.click('#btn-run');
-        await expect(page.locator('#btn-pause')).toBeVisible();
+        // Run Reasoner - use Status Bar controls
+        await page.click('#status-btn-run');
+        await expect(page.locator('#status-btn-pause')).toBeVisible();
 
         // Check if stats are updating
         await page.waitForTimeout(2000);
         await expect(page.locator('.status-bar')).toContainText(/TPS:\s*[0-9.]+/);
 
         // Stop Reasoner
-        await page.click('#btn-pause');
+        await page.click('#status-btn-pause');
     });
 });
