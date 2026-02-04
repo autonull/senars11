@@ -273,6 +273,17 @@ export class ExplorerApp {
                 console.log('ExplorerApp: REASONING_DERIVATION event received', data);
                 this.log(`DERIVED: ${data.derivedTask.term}`, 'system');
                 this._onTaskAdded(data.derivedTask);
+
+                // Animate reasoning trace
+                // data might contain: task, belief, derivedTask
+                // or similar structure depending on core version
+                const sourceId = data.task?.term?.toString();
+                const beliefId = data.belief?.term?.toString();
+                const derivedId = data.derivedTask?.term?.toString();
+
+                if (this.graph && this.graph.animateReasoning) {
+                     this.graph.animateReasoning(sourceId, beliefId, derivedId);
+                }
             });
 
             nar.on(IntrospectionEvents.TASK_ERROR, (data) => {
@@ -790,6 +801,26 @@ export class ExplorerApp {
             return;
         }
 
+        // JSON Input Handling
+        if (command.startsWith('{') && command.endsWith('}')) {
+            try {
+                const data = JSON.parse(command);
+                this.log('Processing JSON input...', 'system');
+                if (data.term || data.id) {
+                    this.graph.updateNode(data);
+                    this.log(`Updated node: ${data.term || data.id}`, 'success');
+                } else if (data.source && data.target) {
+                    this.graph.addEdge(data, true);
+                    this.log(`Added edge: ${data.source} -> ${data.target}`, 'success');
+                } else {
+                    this.log('JSON must contain "term"/"id" for nodes or "source"/"target" for edges.', 'warning');
+                }
+            } catch (e) {
+                this.log(`Invalid JSON: ${e.message}`, 'error');
+            }
+            return;
+        }
+
         // Direct Narsese input detection (e.g. <A --> B>.)
         const isNarsese = (command.startsWith('<') || command.startsWith('(')) &&
                           (command.endsWith('.') || command.endsWith('?') || command.endsWith('!'));
@@ -956,13 +987,53 @@ export class ExplorerApp {
 
             if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                 const file = e.dataTransfer.files[0];
+
+                // Route file based on extension
                 if (file.name.endsWith('.json')) {
                     this.loadFile(file);
+                } else if (file.name.endsWith('.metta')) {
+                    this.loadMeTTaFile(file);
+                } else if (file.name.endsWith('.nal') || file.name.endsWith('.nars')) {
+                    this.loadNALFile(file);
                 } else {
-                    this.log('Only .json files are supported', 'warning');
+                    this.log(`Unsupported file type: ${file.name}`, 'warning');
                 }
             }
         });
+    }
+
+    loadMeTTaFile(file) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const code = e.target.result;
+            this.log(`Loading MeTTa file: ${file.name}`, 'system');
+            await this.handleReplCommand(`!${code}`);
+        };
+        reader.readAsText(file);
+    }
+
+    loadNALFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const content = e.target.result;
+            this.log(`Loading NAL file: ${file.name}`, 'system');
+            const lines = content.split('\n');
+            let count = 0;
+            lines.forEach(line => {
+                const trim = line.trim();
+                if (trim && !trim.startsWith('//') && !trim.startsWith(';')) {
+                    // Send to REPL/NAR
+                    // We bypass handleReplCommand to avoid async flood if we want bulk
+                    // But for simplicity reuse it or direct NAR input
+                    const nar = this._getNAR();
+                    if (nar) {
+                        try { nar.input(trim); count++; } catch (e) { /* ignore parse errs */ }
+                    }
+                }
+            });
+            this.log(`Processed ${count} NAL lines`, 'success');
+        };
+        reader.readAsText(file);
     }
 
     _bindKeyboardShortcuts() {

@@ -76,6 +76,17 @@ export class InspectorPanel extends Component {
         // Properties
         const fields = this._getEditableFields(data);
 
+        // Internal State Tab/Section
+        if (data.fullData) {
+             const internalJson = JSON.stringify(data.fullData, null, 2);
+             html += `
+                <div class="inspector-section collapsed">
+                    <h4 onclick="this.parentNode.classList.toggle('collapsed')">Internal State ▶</h4>
+                    <pre class="internal-state-code">${this._escapeHtml(internalJson)}</pre>
+                </div>
+             `;
+        }
+
         fields.forEach(field => {
             const { key, value, type, path } = field;
             let displayVal = value;

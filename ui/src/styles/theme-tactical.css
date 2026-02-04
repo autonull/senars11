@@ -505,6 +505,30 @@ p {
     color: var(--accent-primary);
 }
 
+/* Internal State Inspector */
+.internal-state-code {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    background: rgba(0,0,0,0.2);
+    padding: 5px;
+    overflow-x: auto;
+    border: 1px solid var(--border-secondary);
+    display: none;
+}
+
+.inspector-section h4 {
+    cursor: pointer;
+    user-select: none;
+}
+
+.inspector-section:not(.collapsed) .internal-state-code {
+    display: block;
+}
+
+.inspector-section.collapsed h4::after {
+    content: ''; /* handled by arrow in html */
+}
+
 /* Scrollbars */
 ::-webkit-scrollbar {
     width: 6px;

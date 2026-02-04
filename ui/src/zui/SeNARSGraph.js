@@ -562,6 +562,28 @@ export class SeNARSGraph extends GraphSystem {
         });
     }
 
+    animateReasoning(sourceId, targetId, derivedId) {
+        if (!this.cy) return;
+
+        // Flash source and target
+        [sourceId, targetId].forEach(id => {
+            if (!id) return;
+            const node = this.cy.getElementById(id);
+            if (node.nonempty()) {
+                node.flashClass('trace-highlight', 500);
+            }
+        });
+
+        // If we have a derived node (newly created), animate its entry
+        if (derivedId) {
+            this.animateUpdate(derivedId);
+            const node = this.cy.getElementById(derivedId);
+            if (node.nonempty()) {
+                node.flashClass('trace-highlight', 1000);
+            }
+        }
+    }
+
     animateFadeIn(nodeId) {
         const node = this.cy?.getElementById(nodeId);
         if (!node?.length) return;
