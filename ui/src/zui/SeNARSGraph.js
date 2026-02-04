@@ -565,22 +565,47 @@ export class SeNARSGraph extends GraphSystem {
     animateReasoning(sourceId, targetId, derivedId) {
         if (!this.cy) return;
 
-        // Flash source and target
+        const duration = 800;
+
+        // Sequence: Source + Target flash -> Derived appears
+
+        // 1. Highlight premises
         [sourceId, targetId].forEach(id => {
             if (!id) return;
             const node = this.cy.getElementById(id);
             if (node.nonempty()) {
-                node.flashClass('trace-highlight', 500);
+                // Remove class first to re-trigger if needed, or just use flashClass logic
+                // Using animate to pulse size slightly
+                node.animation({
+                    style: { 'border-width': 8, 'border-color': '#cc88ff' },
+                    duration: duration / 2
+                }).play().promise().then(() => {
+                    node.animation({
+                         style: { 'border-width': 2, 'border-color': '#555' }, // reset to approx default, usually handled by stylesheet removal
+                         duration: duration / 2
+                    }).play().promise().then(() => {
+                         node.removeStyle('border-width border-color'); // Clean up override
+                    });
+                });
+
+                node.flashClass('trace-highlight', duration);
             }
         });
 
-        // If we have a derived node (newly created), animate its entry
+        // 2. Animate Derived Node (Delayed slightly)
         if (derivedId) {
-            this.animateUpdate(derivedId);
-            const node = this.cy.getElementById(derivedId);
-            if (node.nonempty()) {
-                node.flashClass('trace-highlight', 1000);
-            }
+            setTimeout(() => {
+                const node = this.cy.getElementById(derivedId);
+                if (node.nonempty()) {
+                    node.animation({
+                        style: { 'width': 60, 'height': 60, 'border-color': '#00ff9d' }, // Pulse bigger
+                        duration: 300
+                    }).play().promise().then(() => {
+                        node.removeStyle('width height border-color');
+                    });
+                    node.flashClass('trace-highlight', 1500);
+                }
+            }, duration / 2);
         }
     }
 
@@ -588,7 +613,7 @@ export class SeNARSGraph extends GraphSystem {
         const node = this.cy?.getElementById(nodeId);
         if (!node?.length) return;
         node.style('opacity', 0);
-        node.animate({ style: { 'opacity': 1 }, duration: 500 });
+        node.animation({ style: { 'opacity': 1 }, duration: 500 });
     }
 
     clear() {
