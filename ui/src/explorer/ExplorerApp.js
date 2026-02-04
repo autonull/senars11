@@ -271,8 +271,6 @@ export class ExplorerApp {
                 this._onTaskAdded(data.derivedTask);
 
                 // Animate reasoning trace
-                // data might contain: task, belief, derivedTask
-                // or similar structure depending on core version
                 const sourceId = data.task?.term?.toString();
                 const beliefId = data.belief?.term?.toString();
                 const derivedId = data.derivedTask?.term?.toString();
@@ -306,6 +304,10 @@ export class ExplorerApp {
              budget: budget,
              type: 'concept'
         }, false);
+
+        if (this.graph.animateAttention) {
+            this.graph.animateAttention(term);
+        }
 
         // Simple relation extraction for visualization
         // Handle Prefix: (--> , source , target)

@@ -566,31 +566,20 @@ export class SeNARSGraph extends GraphSystem {
     animateReasoning(sourceId, targetId, derivedId) {
         if (!this.cy) return;
 
-        const duration = 800;
+        const duration = 1000;
 
         // Sequence: Source + Target flash -> Derived appears
 
         // 1. Highlight premises
-        [sourceId, targetId].forEach(id => {
-            if (!id) return;
-            const node = this.cy.getElementById(id);
-            if (node.nonempty()) {
-                // Remove class first to re-trigger if needed, or just use flashClass logic
-                // Using animate to pulse size slightly
-                node.animation({
-                    style: { 'border-width': 8, 'border-color': '#cc88ff' },
-                    duration: duration / 2
-                }).play().promise().then(() => {
-                    node.animation({
-                         style: { 'border-width': 2, 'border-color': '#555' }, // reset to approx default, usually handled by stylesheet removal
-                         duration: duration / 2
-                    }).play().promise().then(() => {
-                         node.removeStyle('border-width border-color'); // Clean up override
-                    });
-                });
+        const nodes = [sourceId, targetId].filter(id => id).map(id => this.cy.getElementById(id));
+        const foundNodes = nodes.filter(n => n.nonempty());
 
-                node.flashClass('trace-highlight', duration);
-            }
+        if (foundNodes.length === 0) {
+            console.warn('SeNARSGraph: animateReasoning called but source/target nodes not found', { sourceId, targetId });
+        }
+
+        foundNodes.forEach(node => {
+            node.flashClass('reasoning-active', duration);
         });
 
         // 2. Animate Derived Node (Delayed slightly)
@@ -598,15 +587,19 @@ export class SeNARSGraph extends GraphSystem {
             setTimeout(() => {
                 const node = this.cy.getElementById(derivedId);
                 if (node.nonempty()) {
-                    node.animation({
-                        style: { 'width': 60, 'height': 60, 'border-color': '#00ff9d' }, // Pulse bigger
-                        duration: 300
-                    }).play().promise().then(() => {
-                        node.removeStyle('width height border-color');
-                    });
-                    node.flashClass('trace-highlight', 1500);
+                    node.flashClass('reasoning-active', 1500);
+                } else {
+                     console.warn('SeNARSGraph: derived node not found for animation', derivedId);
                 }
             }, duration / 2);
+        }
+    }
+
+    animateAttention(nodeId) {
+        if (!this.cy) return;
+        const node = this.cy.getElementById(nodeId);
+        if (node.nonempty()) {
+            node.flashClass('attention-active', 500);
         }
     }
 

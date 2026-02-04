@@ -66,7 +66,6 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
                 'height': getSize,
                 'font-family': 'Consolas, monospace',
                 'font-size': 10,
-                'text-transform': 'uppercase',
                 'transition-property': 'border-width, border-color, width, height, opacity, background-color',
                 'transition-duration': '0.3s'
             }
@@ -207,6 +206,22 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
                 'overlay-color': '#00d4ff',
                 'overlay-padding': 2,
                 'overlay-opacity': 0.2
+            }
+        },
+        {
+            selector: '.reasoning-active',
+            style: {
+                'border-width': 10,
+                'border-color': '#FFaa00',
+                'transition-duration': '0.1s'
+            }
+        },
+        {
+            selector: '.attention-active',
+            style: {
+                'border-width': 6,
+                'border-color': '#00d4ff',
+                'transition-duration': '0.1s'
             }
         }
     ];

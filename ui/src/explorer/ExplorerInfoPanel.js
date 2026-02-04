@@ -23,30 +23,30 @@ export class ExplorerInfoPanel extends Component {
                 <div class="layer-controls">
                     <label class="layer-toggle">
                         <input type="checkbox" checked data-layer="concepts">
-                        <span class="layer-label">CONCEPTS 🧠</span>
+                        <span class="layer-label">Concepts 🧠</span>
                     </label>
                     <label class="layer-toggle">
                         <input type="checkbox" checked data-layer="tasks">
-                        <span class="layer-label">TASKS ⚡</span>
+                        <span class="layer-label">Tasks ⚡</span>
                     </label>
                      <label class="layer-toggle">
                         <input type="checkbox" data-layer="trace">
-                        <span class="layer-label">REASONING 🔗</span>
+                        <span class="layer-label">Reasoning 🔗</span>
                     </label>
                 </div>
-                <h3>VISUAL MAPPINGS</h3>
+                <h3>Visual Mappings</h3>
                 <div class="control-group">
                     <select id="mapping-size" class="control-select small-btn">
-                        <option value="priority">SIZE: PRIORITY</option>
-                        <option value="complexity">SIZE: COMPLEXITY</option>
-                        <option value="fixed">SIZE: FIXED</option>
+                        <option value="priority">Size: Priority</option>
+                        <option value="complexity">Size: Complexity</option>
+                        <option value="fixed">Size: Fixed</option>
                     </select>
                 </div>
                 <div class="control-group">
                     <select id="mapping-color" class="control-select small-btn">
-                        <option value="hash">COLOR: HASH</option>
-                        <option value="type">COLOR: TYPE</option>
-                        <option value="priority">COLOR: PRIORITY</option>
+                        <option value="hash">Color: Hash</option>
+                        <option value="type">Color: Type</option>
+                        <option value="priority">Color: Priority</option>
                     </select>
                 </div>
                 </div>
