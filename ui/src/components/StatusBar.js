@@ -87,6 +87,8 @@ export class StatusBar extends Component {
                     <div class="status-metric" id="status-nodes">🧠 Nodes: 0/50</div>
                     <div class="status-metric" id="status-tps">⚡ TPS: 0</div>
                     <div class="status-divider"></div>
+                    <div id="llm-status" class="status-indicator status-offline">Offline</div>
+                    <div class="status-divider"></div>
                     <button class="widget-toggle-btn active" id="toggle-layers" title="Toggle Layers (1)">📐</button>
                     <button class="widget-toggle-btn active" id="toggle-metrics" title="Toggle Metrics (2)">📊</button>
                     <button class="widget-toggle-btn active" id="toggle-logs" title="Toggle Logs (3)">📝</button>
@@ -216,9 +218,9 @@ export class StatusBar extends Component {
         this.state.stats = { ...this.state.stats, ...stats };
 
         // Update DOM directly since we're not using reactive bindings here
-        const cyclesEl = document.getElementById('status-cycles');
-        const nodesEl = document.getElementById('status-nodes');
-        const tpsEl = document.getElementById('status-tps');
+        const cyclesEl = this.container.querySelector('#status-cycles');
+        const nodesEl = this.container.querySelector('#status-nodes');
+        const tpsEl = this.container.querySelector('#status-tps');
 
         if (cyclesEl) cyclesEl.textContent = `📊 Cycles: ${stats.cycles || 0}`;
         if (nodesEl) nodesEl.textContent = `🧠 Nodes: ${stats.nodes || 0}/${stats.maxNodes || 50}`;
@@ -226,8 +228,8 @@ export class StatusBar extends Component {
     }
 
     setReasonerRunning(isRunning) {
-        const btnRun = document.getElementById('status-btn-run');
-        const btnPause = document.getElementById('status-btn-pause');
+        const btnRun = this.container.querySelector('#status-btn-run');
+        const btnPause = this.container.querySelector('#status-btn-pause');
 
         if (isRunning) {
             btnRun?.classList.add('hidden');

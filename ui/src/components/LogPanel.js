@@ -22,7 +22,7 @@ export class LogPanel extends Component {
         if (!this.container) return;
         // Set container ID for docking system
         this.container.id = 'log-widget';
-        this.container.className = 'hud-widget dock-right';
+        this.container.className = 'hud-widget dock-bottom';
 
         this.container.innerHTML = `
             <div class="hud-panel log-panel-container">

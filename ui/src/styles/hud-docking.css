@@ -87,9 +87,8 @@
 }
 
 #log-widget {
-    top: calc(var(--statusbar-height) + var(--widget-gap) + 160px); /* Position below metrics panel */
-    bottom: var(--widget-gap);
-    max-height: none; /* Let it stretch */
+    height: 200px;
+    max-height: 40vh;
     display: flex;
     flex-direction: column;
 }

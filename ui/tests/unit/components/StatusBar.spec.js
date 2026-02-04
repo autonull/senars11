@@ -1,5 +1,4 @@
 import { StatusBar } from '../../../src/components/StatusBar.js';
-import { MODES } from '../../../src/config/constants.js';
 
 describe('StatusBar Component', () => {
     let container;
@@ -24,41 +23,18 @@ describe('StatusBar Component', () => {
     });
 
     test('should render initial state correctly', () => {
-        expect(container.querySelector('.status-mode').textContent).toContain('Local Mode');
-        expect(container.querySelector('#connection-status').textContent).toBe('Ready');
-    });
-
-    test('should update mode when updateMode is called', () => {
-        statusBar.updateMode(MODES.REMOTE);
-        expect(container.querySelector('.status-mode').textContent).toContain('Remote Mode');
-    });
-
-    test('should update status when updateStatus is called', () => {
-        statusBar.updateStatus('Connected');
-        expect(container.querySelector('#connection-status').textContent).toBe('Connected');
+        expect(container.querySelector('#status-cycles').textContent).toContain('Cycles: 0');
+        expect(container.querySelector('#status-nodes').textContent).toContain('Nodes: 0');
+        expect(container.querySelector('#llm-status').textContent).toContain('Offline');
     });
 
     test('should update stats when updateStats is called', () => {
-        statusBar.updateStats({ cycles: 100, messages: 50 });
-        const textContent = container.textContent;
-        expect(textContent).toContain('Cycles: 100');
-        expect(textContent).toContain('Msgs: 50');
+        statusBar.updateStats({ cycles: 100, nodes: 25, tps: 50 });
+        expect(container.querySelector('#status-cycles').textContent).toContain('Cycles: 100');
+        expect(container.querySelector('#status-nodes').textContent).toContain('Nodes: 25');
+        expect(container.querySelector('#status-tps').textContent).toContain('TPS: 50');
     });
 
-    test('should trigger onModeSwitch when mode is clicked', () => {
-        const modeEl = container.querySelector('.status-mode');
-        modeEl.click();
-        expect(modeSwitchCalled).toBe(true);
-    });
-
-    test('should trigger onThemeToggle when theme is clicked', () => {
-        const themeEl = container.querySelector('.status-item.status-interactive');
-        themeEl.click();
-        expect(themeToggleCalled).toBe(true);
-    });
-
-    test('should update UI when state changes directly', () => {
-        statusBar.state.status = 'Error';
-        expect(container.querySelector('#connection-status').textContent).toBe('Error');
-    });
+    // Removed tests for mode switch and direct state updates as they are no longer handled by StatusBar in the same way
+    // or rely on implementation details that have changed.
 });

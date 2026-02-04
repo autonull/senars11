@@ -379,7 +379,6 @@ export class ExplorerApp {
             { id: 'btn-add-concept', action: () => this.handleAddConcept() },
             { id: 'btn-add-link', action: () => this.handleAddLink() },
             { id: 'btn-delete', action: () => this.handleDelete() },
-            { id: 'btn-llm-config', action: () => this._showLLMConfig() },
             { id: 'btn-close-inspector', action: () => document.getElementById('inspector-panel')?.classList.add('hidden') },
             { id: 'btn-save', action: () => this.handleSaveJSON() },
             { id: 'btn-load', action: () => this.handleLoadJSON() }
