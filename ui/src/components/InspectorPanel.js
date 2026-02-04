@@ -66,7 +66,7 @@ export class InspectorPanel extends Component {
             <div class="inspector-section">
                 <h4>Related</h4>
                 <div class="related-tags">
-                   ${related.length ? related.map(r => `<span class="related-tag">${r}</span>`).join('') : '<span class="prop-value-dim">No direct links</span>'}
+                   ${related.length ? related.map(r => `<span class="related-tag">${this._escapeHtml(r)}</span>`).join('') : '<span class="prop-value-dim">No direct links</span>'}
                 </div>
             </div>
         `;
@@ -202,5 +202,15 @@ export class InspectorPanel extends Component {
 
     _truncate(str, n = 20) {
         return (str.length > n) ? str.substr(0, n - 1) + '...' : str;
+    }
+
+    _escapeHtml(text) {
+        if (!text) return '';
+        return String(text)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     }
 }

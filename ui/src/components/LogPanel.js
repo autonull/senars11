@@ -27,7 +27,6 @@ export class LogPanel extends Component {
         this.container.innerHTML = `
             <div class="hud-panel log-panel-container">
                 <div class="log-header">
-                    <span class="hud-title">ACTIVITY LOG</span>
                     <div class="log-controls">
                         <input type="text" id="log-search" placeholder="Filter..." class="control-input-small">
                         <div class="log-toggles">
@@ -93,7 +92,7 @@ export class LogPanel extends Component {
 
         const el = this._createLogElement(entry);
         content.appendChild(el);
-        content.parentNode.scrollTop = content.parentNode.scrollHeight;
+        this._scrollToBottom(content.parentNode);
     }
 
     _renderLogs() {
@@ -110,7 +109,17 @@ export class LogPanel extends Component {
         });
 
         content.appendChild(fragment);
-        content.parentNode.scrollTop = content.parentNode.scrollHeight;
+        this._scrollToBottom(content.parentNode);
+    }
+
+    _scrollToBottom(container) {
+        // If user is near bottom (within 50px), scroll to bottom.
+        // Otherwise, do nothing (allow user to read history).
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+
+        if (isNearBottom) {
+            container.scrollTop = container.scrollHeight;
+        }
     }
 
     _shouldShow(entry) {
