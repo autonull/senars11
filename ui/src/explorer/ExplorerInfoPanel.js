@@ -32,6 +32,10 @@ export class ExplorerInfoPanel extends Component {
                         <input type="checkbox" checked data-layer="tasks">
                         <span class="layer-label">TASKS ⚡</span>
                     </label>
+                     <label class="layer-toggle">
+                        <input type="checkbox" data-layer="trace">
+                        <span class="layer-label">REASONING 🔗</span>
+                    </label>
                 </div>
                 <h3>VISUAL MAPPINGS</h3>
                 <div class="control-group">

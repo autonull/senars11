@@ -57,6 +57,20 @@ export class InspectorPanel extends Component {
             </div>
         `;
 
+        // Related Concepts (Derived from topology or explicit links if available)
+        // We'll mock it or look for links in data if passed
+        const related = data.links || [];
+        // Note: graph topology isn't usually passed in data unless we enrich it.
+        // But let's add a placeholder section.
+        html += `
+            <div class="inspector-section">
+                <h4>Related</h4>
+                <div class="related-tags">
+                   ${related.length ? related.map(r => `<span class="related-tag">${r}</span>`).join('') : '<span class="prop-value-dim">No direct links</span>'}
+                </div>
+            </div>
+        `;
+
         const isControl = (mode === 'control');
 
         // Properties

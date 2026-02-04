@@ -4,10 +4,14 @@
  */
 
 import { NAR } from '@senars/core';
+import { MeTTaInterpreter } from '@senars/metta';
+import { SeNARSBridge } from '@senars/metta-bridge';
 
 export class AgentToolsBridge {
     constructor() {
         this.nar = null;
+        this.metta = null;
+        this.bridge = null;
         this.tools = new Map();
     }
 
@@ -25,11 +29,43 @@ export class AgentToolsBridge {
         // Enable tracing for visualization
         this.nar.traceEnabled = true;
 
+        // Initialize MeTTa
+        this.metta = new MeTTaInterpreter(this.nar);
+        this.bridge = new SeNARSBridge(this.nar, this.metta);
+        this.metta.reasoner = { bridge: this.bridge }; // Link bridge back to metta
+        this.metta._initializeBridge();
+
         // Register tools
         this.registerTools();
     }
 
     registerTools() {
+        // MeTTa Execution Tool
+        this.tools.set('run_metta', {
+            name: 'run_metta',
+            description: 'Execute MeTTa code',
+            parameters: {
+                code: 'string - MeTTa code to execute'
+            },
+            execute: async (args) => {
+                if (!this.metta) {
+                    return { success: false, error: 'MeTTa not initialized' };
+                }
+                try {
+                    const result = await this.metta.run(args.code);
+                    return {
+                        success: true,
+                        data: result.toString()
+                    };
+                } catch (error) {
+                    return {
+                        success: false,
+                        error: error.message
+                    };
+                }
+            }
+        });
+
         // Weather tool (demo/example)
         this.tools.set('get_weather', {
             name: 'get_weather',

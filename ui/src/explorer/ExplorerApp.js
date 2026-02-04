@@ -86,9 +86,18 @@ export class ExplorerApp {
             // Bind inspector
             this.graph.on('nodeClick', ({ node }) => {
                 const data = node.data();
+
+                // Extract simple links for inspector
+                const links = node.connectedEdges().map(edge => {
+                     const target = edge.target();
+                     const source = edge.source();
+                     return target.id() === node.id() ? source.id() : target.id();
+                }).slice(0, 5); // Limit to 5
+
                 // Merge fullData to top level for inspector so it sees budget/truth
                 this.showInspector({
                     id: node.id(),
+                    links: links,
                     ...data,
                     ...(data.fullData || {})
                 });
@@ -551,13 +560,22 @@ export class ExplorerApp {
             input.onchange = (e) => {
                 const layer = e.target.dataset.layer;
                 const visible = e.target.checked;
-                // Map layer toggles to filter
-                // SeNARSGraph uses applyFilters({ showTasks: bool, ... })
+
                 if (layer === 'tasks') {
                     this.graph.applyFilters({ showTasks: visible });
+                } else if (layer === 'concepts') {
+                     // We interpret "hide concepts" as hiding non-tasks or hiding everything?
+                     // Let's assume hiding concept nodes.
+                     this.graph.applyFilters({ showConcepts: visible });
+                } else if (layer === 'trace') {
+                     // Toggle trace visibility or mode
+                     if (visible) {
+                        this.graph.cy.elements().addClass('trace-dim');
+                        // Highlight recent traces?
+                     } else {
+                        this.graph.cy.elements().removeClass('trace-dim trace-highlight');
+                     }
                 }
-                // Concepts layer isn't explicitly filterable in SeNARSGraph currently, only tasks/isolated.
-                // We might need to implement concept hiding if needed, but usually we just hide tasks.
 
                 this.log(`${layer} layer ${visible ? 'visible' : 'hidden'}`, 'system');
             };
@@ -740,7 +758,35 @@ export class ExplorerApp {
             return;
         }
         if (command === '/help') {
-            this.log('Available commands: /clear, /help, <narsese>', 'system');
+            this.log('Available commands: /clear, /help, !code (MeTTa), <narsese>', 'system');
+            return;
+        }
+
+        // MeTTa Code Execution
+        if (command.startsWith('!')) {
+            const code = command.substring(1).trim();
+            this.log(`Executing MeTTa: ${code}`, 'system');
+
+            // Try via LM Controller bridge if available, else local
+            let bridge = this.localToolsBridge;
+            if (this.lmController && this.lmController.toolsBridge) {
+                bridge = this.lmController.toolsBridge;
+            }
+
+            if (bridge && bridge.hasTool('run_metta')) {
+                try {
+                    const result = await bridge.executeTool('run_metta', { code });
+                    if (result.success) {
+                        this.log(result.data, 'success');
+                    } else {
+                        this.log(`MeTTa Error: ${result.error}`, 'error');
+                    }
+                } catch (e) {
+                    this.log(`Execution Error: ${e.message}`, 'error');
+                }
+            } else {
+                this.log('MeTTa interpreter not available.', 'error');
+            }
             return;
         }
 
@@ -779,33 +825,13 @@ export class ExplorerApp {
     }
 
     log(message, type = 'info') {
-        const logPanel = document.getElementById('log-content');
-        if (!logPanel) return;
-
-        const entry = document.createElement('div');
-        entry.style.marginBottom = '4px';
-        entry.style.wordWrap = 'break-word';
-
-        const timestamp = new Date().toLocaleTimeString();
-
-        let color = '#aaa';
-        if (type === 'user') color = '#00ff9d';
-        if (type === 'agent') color = '#00d4ff';
-        if (type === 'error') color = '#ff5555';
-        if (type === 'warning') color = '#ffbb00';
-        if (type === 'system') color = '#cc88ff';
-        if (type === 'success') color = '#55ff55';
-
-        // Apply highlighting if message contains Narsese-like structure
-        let content = String(message);
-        if (type !== 'error' && (content.includes('<') || content.includes('-->') || content.includes('$') || content.includes('{'))) {
-            content = NarseseHighlighter.highlight(content);
+        // Use the new LogPanel API if available
+        if (this.logPanel && this.logPanel.addLog) {
+            this.logPanel.addLog(message, type);
+        } else {
+            // Fallback
+            console.log(`[${type.toUpperCase()}] ${message}`);
         }
-
-        entry.innerHTML = `<span style="color:#666">[${timestamp}]</span> <span style="color:${color}">${content}</span>`;
-
-        logPanel.appendChild(entry);
-        logPanel.scrollTop = logPanel.scrollHeight;
 
         // Also show toast for important events
         if (type === 'error' || type === 'warning' || type === 'success') {

@@ -850,6 +850,18 @@ p {
     display: none !important;
 }
 
+/* Trace Visualization */
+.trace-dim {
+    opacity: 0.1 !important;
+    transition: opacity 0.5s ease;
+}
+
+.trace-highlight {
+    opacity: 1 !important;
+    z-index: 10;
+    box-shadow: 0 0 10px var(--accent-secondary);
+}
+
 /* Narsese Syntax Highlighting */
 .nars-copula {
     color: var(--accent-secondary);

@@ -27,7 +27,7 @@ export class SeNARSGraph extends GraphSystem {
         this.keyboardNav = new KeyboardNavigation(this);
 
         // State
-        this.filters = { minPriority: 0, showTasks: true, hideIsolated: false };
+        this.filters = { minPriority: 0, showTasks: true, showConcepts: true, hideIsolated: false };
         this.traceMode = false;
         this.tracedNode = null;
         this.updatesEnabled = true;
@@ -521,6 +521,7 @@ export class SeNARSGraph extends GraphSystem {
 
                 let visible = true;
                 if (type === 'task' && !this.filters.showTasks) visible = false;
+                if ((type === 'concept' || !type) && !this.filters.showConcepts) visible = false;
                 if (priority < this.filters.minPriority) visible = false;
                 if (this.filters.hideIsolated && node.degree() === 0) visible = false;
 
