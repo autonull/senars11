@@ -13,9 +13,14 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
         const label = ele.data('label') || '';
         const priority = ele.data('priority') || 0;
 
-        return mode === 'complexity'
-            ? Math.min(40 + (label.length * 2), 90)
-            : 40 + (priority * 50); // Default: priority
+        // Base size logic
+        let size = 40 + (priority * 40);
+
+        if (mode === 'complexity') {
+            size = Math.min(40 + (label.length * 2), 100);
+        }
+
+        return size;
     };
 
     const getColor = (ele, prop = 'background') => {
@@ -50,38 +55,50 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
                 'label': (ele) => {
                     const type = ele.data('type');
                     const label = ele.data('label');
-                    const emoji = type === 'concept' ? '🧠' : type === 'task' ? '⚡' : '🔹';
-                    return `${emoji} ${label}`;
+                    // Minimalistic icons
+                    const icon = type === 'concept' ? '' : type === 'task' ? '⚡' : '';
+                    return `${icon} ${label}`.trim();
                 },
                 'text-valign': 'center',
                 'text-halign': 'center',
                 'color': '#ffffff',
                 'text-outline-color': '#000000',
                 'text-outline-width': 2,
-                'text-background-color': 'rgba(0,0,0,0.5)',
-                'text-background-opacity': 0,
                 'background-color': (ele) => getColor(ele, 'background'),
-                'border-width': 2,
+                'background-opacity': 0.8,
+                'border-width': 1,
                 'border-color': (ele) => getColor(ele, 'border'),
                 'width': getSize,
                 'height': getSize,
-                'font-family': 'Consolas, monospace',
-                'font-size': 12,
-                'font-weight': 'bold',
+                'font-family': '"JetBrains Mono", monospace',
+                'font-size': 14,
+                'font-weight': '500',
                 'transition-property': 'border-width, border-color, width, height, opacity, background-color',
-                'transition-duration': '0.3s'
+                'transition-duration': '0.3s',
+                'text-max-width': 100,
+                'text-wrap': 'ellipsis'
             }
         },
         {
             selector: 'node[type="task"]',
             style: {
-                'shape': 'diamond'
+                'shape': 'diamond',
+                'border-width': 2
             }
         },
         {
             selector: 'node[type="concept"]',
             style: {
-                'shape': 'hexagon'
+                'shape': 'round-rectangle',
+                'padding': 4
+            }
+        },
+        {
+            selector: '.ghost',
+            style: {
+                'opacity': 0.3,
+                'border-style': 'dashed',
+                'label': ''
             }
         },
         {
@@ -94,20 +111,20 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
             selector: 'edge',
             style: {
                 'width': 1,
-                'line-color': '#334433',
-                'target-arrow-color': '#334433',
+                'line-color': '#445544',
+                'target-arrow-color': '#445544',
                 'target-arrow-shape': 'triangle',
                 'curve-style': 'bezier',
-                'opacity': 0.8
+                'opacity': 0.6
             }
         },
         {
             selector: 'edge[label="inheritance"]',
             style: {
-                'line-style': 'dotted',
+                'line-style': 'solid',
                 'line-color': '#00ff9d',
                 'target-arrow-color': '#00ff9d',
-                'width': 1
+                'width': 1.5
             }
         },
         {
@@ -127,7 +144,7 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
                 'line-color': '#00ff9d',
                 'target-arrow-color': '#00ff9d',
                 'width': 2,
-                'arrow-scale': 1.5
+                'arrow-scale': 1.2
             }
         },
         {
@@ -147,16 +164,16 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
                 'color': '#FFaa00',
                 'font-size': 10,
                 'text-background-color': '#000',
-                'text-background-opacity': 0.7,
+                'text-background-opacity': 0.8,
                 'text-background-padding': 2,
                 'line-style': 'dashed',
                 'line-dash-pattern': [6, 3],
                 'line-color': '#FFaa00',
                 'target-arrow-color': '#FFaa00',
                 'target-arrow-shape': 'vee',
-                'width': 2,
+                'width': 1.5,
                 'curve-style': 'unbundled-bezier',
-                'control-point-distances': 20,
+                'control-point-distances': 30,
                 'control-point-weights': 0.5
             }
         },
@@ -165,37 +182,34 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
             style: {
                 'border-width': 2,
                 'border-color': '#fff',
-                'border-style': 'double',
                 'overlay-color': '#00ff9d',
-                'overlay-padding': 5,
-                'overlay-opacity': 0.3
+                'overlay-padding': 6,
+                'overlay-opacity': 0.2
             }
         },
         {
             selector: '.highlighted',
             style: {
-                'border-width': 4,
+                'border-width': 3,
                 'border-color': '#00d4ff',
                 'overlay-color': '#00d4ff',
-                'overlay-padding': 10,
-                'overlay-opacity': 0.5
+                'overlay-padding': 8,
+                'overlay-opacity': 0.4,
+                'z-index': 100
             }
         },
         {
             selector: '.hovered',
             style: {
                 'border-width': 2,
-                'border-style': 'solid',
-                'overlay-color': '#fff',
-                'overlay-padding': 5,
-                'overlay-opacity': 0.2,
-                'z-index': 9999
+                'border-color': '#ffffff',
+                'z-index': 999
             }
         },
         {
             selector: '.dimmed',
             style: {
-                'opacity': 0.1,
+                'opacity': 0.05,
                 'z-index': 0,
                 'label': ''
             }
@@ -203,37 +217,28 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
         {
             selector: '.matched',
             style: {
-                'border-width': 4,
+                'border-width': 3,
                 'border-color': '#fff',
                 'overlay-color': '#00ff9d',
                 'overlay-padding': 8,
-                'overlay-opacity': 0.6,
-                'z-index': 9999
+                'overlay-opacity': 0.5,
+                'z-index': 999
             }
         },
         {
-            selector: '.focused-target',
+            selector: '.trace-highlight',
             style: {
-                'border-width': 6,
-                'border-style': 'double',
+                'border-width': 3,
+                'border-color': '#ff00ff',
                 'overlay-color': '#ff00ff',
-                'overlay-padding': 12,
-                'overlay-opacity': 0.4
-            }
-        },
-        {
-            selector: '.focused-context',
-            style: {
-                'opacity': 1,
-                'overlay-color': '#00d4ff',
-                'overlay-padding': 2,
-                'overlay-opacity': 0.2
+                'overlay-opacity': 0.2,
+                'z-index': 1000
             }
         },
         {
             selector: '.reasoning-active',
             style: {
-                'border-width': 10,
+                'border-width': 5,
                 'border-color': '#FFaa00',
                 'transition-duration': '0.1s'
             }
@@ -241,7 +246,7 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
         {
             selector: '.attention-active',
             style: {
-                'border-width': 6,
+                'border-width': 4,
                 'border-color': '#00d4ff',
                 'transition-duration': '0.1s'
             }
