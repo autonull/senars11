@@ -64,21 +64,25 @@
 /* HUD Panels - Fighter Jet Style */
 .hud-panel {
     pointer-events: auto;
-    background: rgba(5, 20, 15, 0.75);
-    border: 1px solid rgba(0, 255, 157, 0.4);
+    /* Removed default background/border to avoid double-up with widgets */
+    background: transparent;
+    border: none;
     border-radius: 0px;
-    padding: 12px;
-    box-shadow: 0 0 10px rgba(0, 255, 157, 0.1);
+    padding: 4px;
+    box-shadow: none;
     transition: all 0.3s ease;
     max-width: 100%;
     position: relative;
-    backdrop-filter: blur(8px);
+    backdrop-filter: none;
     color: #ccffee;
     max-height: 100%; /* Allow scrolling within panel */
-    overflow-y: auto; /* Auto-scroll internal content */
+    overflow-y: visible; /* Let container scroll */
     display: flex;
     flex-direction: column;
 }
+
+/* Standalone panels (not in widgets) might need the border back,
+   but for now Explorer uses widgets. */
 
 /* Scrollbar styling for panels */
 .hud-panel::-webkit-scrollbar {
