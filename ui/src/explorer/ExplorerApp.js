@@ -713,11 +713,24 @@ export class ExplorerApp {
      * @returns {boolean} New visibility state
      */
     toggleWidget(widgetId) {
-        const newState = this.layoutManager.toggle(widgetId);
-        if (newState !== false) {
-            this.log(`${widgetId} widget ${newState ? 'shown' : 'hidden'}`, 'system');
+        const result = this.layoutManager.toggle(widgetId);
+        // toggle returns false if widget not found, or boolean new state
+        // But if it returns false when hidden (false), it's ambiguous.
+        // We rely on getWidget to confirm.
+
+        const widget = this.layoutManager.getWidget(widgetId);
+        if (widget) {
+            const isVisible = !widget.classList.contains('hidden');
+            this.log(`${widgetId} widget ${isVisible ? 'shown' : 'hidden'}`, 'system');
+
+            if (isVisible) {
+                widget.classList.add('active-widget');
+            } else {
+                widget.classList.remove('active-widget');
+            }
+            return isVisible;
         }
-        return newState;
+        return false;
     }
 
     _bindLayerToggles() {

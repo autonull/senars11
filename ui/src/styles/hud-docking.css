@@ -51,6 +51,14 @@
     transform: scale(0.95);
 }
 
+/* Active Widget State */
+.hud-widget.active-widget {
+    border-color: #00ff9d;
+    box-shadow: 0 0 12px rgba(0, 255, 157, 0.25);
+    background: rgba(5, 25, 20, 0.9);
+    z-index: 15;
+}
+
 /* Docking Zones */
 .hud-widget.dock-left {
     left: var(--widget-gap);
@@ -206,4 +214,33 @@
     height: 20px;
     background: rgba(0, 255, 157, 0.2);
     margin: 0 8px;
+}
+
+/* Simple Mobile Responsiveness */
+@media (max-width: 768px) {
+    :root {
+        --widget-border-width: 0px;
+        --widget-max-width: 100%;
+        --widget-padding: 4px;
+    }
+    .hud-widget {
+        max-width: 96%;
+        left: 2% !important;
+        right: 2% !important;
+        width: 96% !important;
+    }
+    .hud-widget.dock-left, .hud-widget.dock-right {
+        position: fixed;
+        width: 96%;
+    }
+    #graph-container {
+        top: var(--statusbar-height);
+        bottom: 0;
+        left: 0;
+        right: 0;
+    }
+    /* Stack widgets vertically if visible */
+    #layers-widget { top: 50px; }
+    #metrics-widget { top: 250px; }
+    #log-widget { display: none; } /* Hide logs on mobile by default */
 }
