@@ -908,7 +908,13 @@ export class ExplorerApp {
 
     showDemoLibrary() {
         const modal = new DemoLibraryModal({
-            onSelect: (name) => this.loadDemo(name)
+            onSelect: (selection) => {
+                if (typeof selection === 'string') {
+                    this.loadDemo(selection);
+                } else if (selection && selection.path) {
+                    this.loadRemoteFile(selection.path);
+                }
+            }
         });
         modal.show();
     }
@@ -1239,9 +1245,7 @@ export class ExplorerApp {
     loadMeTTaFile(file) {
         const reader = new FileReader();
         reader.onload = async (e) => {
-            const code = e.target.result;
-            this.log(`Loading MeTTa file: ${file.name}`, 'system');
-            await this.handleReplCommand(`!${code}`);
+            await this.processMeTTaContent(e.target.result, file.name);
         };
         reader.readAsText(file);
     }
@@ -1249,25 +1253,55 @@ export class ExplorerApp {
     loadNALFile(file) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            const content = e.target.result;
-            this.log(`Loading NAL file: ${file.name}`, 'system');
-            const lines = content.split('\n');
-            let count = 0;
-            lines.forEach(line => {
-                const trim = line.trim();
-                if (trim && !trim.startsWith('//') && !trim.startsWith(';')) {
-                    // Send to REPL/NAR
-                    // We bypass handleReplCommand to avoid async flood if we want bulk
-                    // But for simplicity reuse it or direct NAR input
-                    const nar = this._getNAR();
-                    if (nar) {
-                        try { nar.input(trim); count++; } catch (e) { /* ignore parse errs */ }
-                    }
-                }
-            });
-            this.log(`Processed ${count} NAL lines`, 'success');
+            this.processNALContent(e.target.result, file.name);
         };
         reader.readAsText(file);
+    }
+
+    async loadRemoteFile(path) {
+        try {
+            this.log(`Fetching remote file: ${path}`, 'system');
+            const response = await fetch('/' + path); // Server serves from root
+            if (!response.ok) throw new Error(response.statusText);
+            const content = await response.text();
+
+            if (path.endsWith('.metta')) {
+                await this.processMeTTaContent(content, path);
+            } else if (path.endsWith('.nars') || path.endsWith('.nal')) {
+                this.processNALContent(content, path);
+            } else {
+                this.log(`Unsupported remote file type: ${path}`, 'warning');
+            }
+        } catch (e) {
+            this.log(`Failed to load file: ${e.message}`, 'error');
+        }
+    }
+
+    async processMeTTaContent(code, filename) {
+        this.log(`Loading MeTTa content: ${filename}`, 'system');
+        await this.handleReplCommand(`!${code}`);
+    }
+
+    processNALContent(content, filename) {
+        this.log(`Loading NAL content: ${filename}`, 'system');
+        const lines = content.split('\n');
+        let count = 0;
+        const nar = this._getNAR();
+
+        lines.forEach(line => {
+            const trim = line.trim();
+            if (trim && !trim.startsWith('//') && !trim.startsWith(';')) {
+                if (nar) {
+                    try { nar.input(trim); count++; } catch (e) { /* ignore parse errs */ }
+                }
+            }
+        });
+
+        if (!nar) {
+            this.log('Reasoner not available to process NAL', 'warning');
+        } else {
+            this.log(`Processed ${count} NAL lines`, 'success');
+        }
     }
 
     _bindKeyboardShortcuts() {

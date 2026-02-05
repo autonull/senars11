@@ -31,18 +31,43 @@ test.describe('Complex Usage Scenarios', () => {
         await expect(modal).toBeVisible();
         await expect(modal.locator('.modal-title')).toHaveText('📚 Demo Library');
 
-        // Check for new demo entry
+        // Check for new demo entry in Featured Tab
         const demoItem = page.locator('.demo-item', { hasText: 'Complex Interaction' });
         await expect(demoItem).toBeVisible();
 
-        // Select it (should load demo)
-        await demoItem.click();
+        // Switch to System Examples Tab
+        await page.click('button:has-text("📂 System Examples")');
+
+        // Wait for ExampleBrowser to load
+        await expect(page.locator('.eb-tree-root')).toBeVisible();
+
+        // Find a file (e.g., alien-encounter.nars)
+        // It might be nested in examples/scripts
+        const scriptFolder = page.locator('.eb-tree-summary', { hasText: 'scripts' });
+        if (await scriptFolder.isVisible()) {
+             // It might be already open or closed. If open, we see children.
+        } else {
+             // Root 'examples' might need expansion if not auto-expanded
+        }
+
+        // We know structure: examples -> scripts -> alien-encounter.nars
+        // Click scripts folder if needed (assuming auto-expand on root)
+
+        // Look for file directly as we flatten or auto-expand?
+        // ExampleBrowser renders tree.
+        const fileBtn = page.locator('button.eb-file-btn[data-path="examples/scripts/alien-encounter.nars"]');
+        // Ensure parent is open. The implementation opens directories by default?
+        // "const details = FluentUI.create('details').prop({ open: true })" -> Yes.
+
+        await expect(fileBtn).toBeVisible();
+        await fileBtn.click();
 
         // Modal should close
         await expect(modal).not.toBeVisible();
 
-        // Loading should start (check log or toast)
-        const logEntry = page.locator('.log-entry', { hasText: 'Loading demo: Complex Interaction' }).first();
+        // Loading should start (remote file fetch)
+        // Log: Fetching remote file: examples/scripts/alien-encounter.nars
+        const logEntry = page.locator('.log-entry', { hasText: 'Fetching remote file' }).first();
         await expect(logEntry).toBeVisible();
     });
 });
