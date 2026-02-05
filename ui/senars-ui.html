@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeNARS Infinite</title>
+
+    <link rel="stylesheet" href="style.css">
+    <!-- zui.css is imported via style.css, but we can also include it directly if we want to be explicit,
+         but adhering to the plan of consolidated styles in style.css is better.
+         However, style.css has general styles. zui.css has specific styles for this page.
+         Since I added import to style.css, it should work.
+    -->
+</head>
+<body>
+
+    <div class="loader" id="loader">
+        <h1 style="font-size: 2em;">SeNARS Infinite</h1>
+        <p>Initializing Graph System...</p>
+    </div>
+
+    <div id="graph-container"></div>
+    <div id="widget-container"></div>
+
+    <div class="hud-panel top-left">
+        <h1>SeNARS Infinite</h1>
+        <p>Zoomable Knowledge Universe</p>
+        <div id="connection-status">Connecting...</div>
+        <div id="zoom-level">Level: overview</div>
+    </div>
+
+    <div class="hud-panel bottom-center">
+        <button id="btn-fit" class="btn" title="Fit View">⤢</button>
+        <button id="btn-in" class="btn" title="Zoom In">＋</button>
+        <button id="btn-out" class="btn" title="Zoom Out">－</button>
+        <div style="width: 1px; height: 20px; background: #333; margin: 0 10px;"></div>
+        <button id="btn-layout" class="btn" title="Force Layout">↻</button>
+        <button id="btn-scatter" class="btn" title="Scatter View">∷</button>
+
+        <div id="scatter-controls" class="scatter-controls">
+            <label>X:</label>
+            <select id="scatter-x">
+                <option value="priority" selected>Priority</option>
+                <option value="confidence">Confidence</option>
+                <option value="frequency">Frequency</option>
+                <option value="durability">Durability</option>
+            </select>
+            <label>Y:</label>
+            <select id="scatter-y">
+                <option value="confidence" selected>Confidence</option>
+                <option value="priority">Priority</option>
+                <option value="frequency">Frequency</option>
+                <option value="durability">Durability</option>
+            </select>
+        </div>
+
+        <div style="width: 1px; height: 20px; background: #333; margin: 0 10px;"></div>
+        <button id="btn-trace" class="btn" title="Trace Mode">⚡</button>
+        <button id="btn-help" class="btn" title="Keyboard Shortcuts">?</button>
+    </div>
+
+    <div id="detail-panel">
+        <div class="panel-header">
+            <div class="panel-title">Concept Details</div>
+            <div class="panel-close" id="btn-close-panel">×</div>
+        </div>
+        <div class="panel-content" id="detail-content">
+            <p style="color: #666; text-align: center; margin-top: 50px;">Select a node to view details</p>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "cytoscape": "/node_modules/cytoscape/dist/cytoscape.esm.min.mjs",
+            "cytoscape-fcose": "/ui/src/shims/mock-cytoscape-fcose.js",
+            "cytoscape-fcose/": "/node_modules/cytoscape-fcose/",
+            "cose-base": "/node_modules/cose-base/cose-base.js",
+            "golden-layout": "/node_modules/golden-layout/dist/esm/index.js",
+            "marked": "/node_modules/marked/lib/marked.esm.js",
+            "@senars/core": "/core/src/index.js",
+            "@senars/core/": "/core/",
+            "@senars/agent": "/agent/src/index.js",
+            "@senars/agent/": "/agent/",
+            "@senars/metta": "/metta/src/",
+            "@senars/metta/": "/metta/src/",
+            "zod": "/node_modules/zod/index.js",
+            "mitt": "/node_modules/mitt/dist/mitt.mjs",
+            "uuid": "/node_modules/uuid/dist/esm-browser/index.js",
+            "eventemitter3": "/node_modules/eventemitter3/dist/eventemitter3.esm.js",
+            "immer": "/node_modules/immer/dist/immer.mjs",
+            "js-sha256": "/node_modules/js-sha256/src/sha256.js",
+            "danfojs": "/node_modules/danfojs/lib/bundle.esm.js",
+            "module": "/ui/src/shims/mock-node.js",
+            "fs": "/ui/src/shims/mock-node.js",
+            "path": "/ui/src/shims/mock-node.js",
+            "url": "/ui/src/shims/mock-node.js",
+            "crypto": "/ui/src/shims/mock-node.js",
+            "events": "/ui/src/shims/events-shim.js",
+            "util": "/ui/src/shims/mock-node.js",
+            "os": "/ui/src/shims/mock-node.js",
+            "child_process": "/ui/src/shims/mock-node.js",
+            "@langchain/core/messages": "/ui/src/shims/mock-langchain.js",
+            "@langchain/core/tools": "/ui/src/shims/mock-langchain.js",
+            "@langchain/ollama": "/ui/src/shims/mock-langchain.js",
+            "@langchain/openai": "/ui/src/shims/mock-langchain.js",
+            "@langchain/langgraph": "/ui/src/shims/mock-langchain.js",
+            "@langchain/langgraph/prebuilt": "/ui/src/shims/mock-langchain.js",
+            "@langchain/langgraph-checkpoint": "/ui/src/shims/mock-langchain.js",
+            "langchain": "/ui/src/shims/mock-langchain.js",
+            "chart.js/auto": "/node_modules/chart.js/auto/auto.js",
+            "chart.js": "/node_modules/chart.js/dist/chart.js",
+            "@kurkle/color": "/node_modules/@kurkle/color/dist/color.esm.js"
+        }
+    }
+    </script>
+
+    <script type="module" src="./src/main-zui.js"></script>
+</body>
+</html>

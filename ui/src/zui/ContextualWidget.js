@@ -2,8 +2,8 @@
  * ContextualWidget manages HTML overlays on graph nodes.
  */
 export class ContextualWidget {
-    constructor(graphViewport, container) {
-        this.viewport = graphViewport;
+    constructor(graphSystem, container) {
+        this.graph = graphSystem;
         this.container = container;
         this.activeWidgets = new Map(); // nodeId -> DOM element
 
@@ -11,7 +11,7 @@ export class ContextualWidget {
     }
 
     _setupListeners() {
-        this.viewport.on('zoomLevelChange', (data) => {
+        this.graph.on('zoomLevelChange', (data) => {
             if (data.level === 'detail') {
                 this.showWidgets();
             } else {
@@ -19,9 +19,12 @@ export class ContextualWidget {
             }
         });
 
-        this.viewport.on('viewport', () => {
+        this.graph.on('viewport', () => {
              this.updatePositions();
         });
+
+        // Clean up widgets when nodes are removed
+        // We might need to listen to a node removal event if graph supports it
     }
 
     attach(nodeId, contentHtml) {
@@ -60,7 +63,7 @@ export class ContextualWidget {
     }
 
     updatePositions() {
-        if (!this.viewport.cy) return;
+        if (!this.graph.cy) return;
 
         this.activeWidgets.forEach((div, nodeId) => {
             if (div.style.display !== 'none') {
@@ -70,7 +73,7 @@ export class ContextualWidget {
     }
 
     updateNodeWidget(nodeId) {
-        const node = this.viewport.cy?.getElementById(nodeId);
+        const node = this.graph.cy?.getElementById(nodeId);
         if (!node?.length) return;
 
         const pos = node.renderedPosition();
@@ -86,5 +89,10 @@ export class ContextualWidget {
             div.remove();
             this.activeWidgets.delete(nodeId);
         }
+    }
+
+    clear() {
+        this.activeWidgets.forEach(div => div.remove());
+        this.activeWidgets.clear();
     }
 }
