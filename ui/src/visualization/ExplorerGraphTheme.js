@@ -59,7 +59,14 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
                     const type = ele.data('type');
                     const label = ele.data('label');
                     // Minimalistic icons
-                    const icon = type === 'concept' ? '' : type === 'task' ? '⚡' : '';
+                    let icon = '';
+                    switch (type) {
+                        case 'task': icon = '⚡'; break;
+                        case 'question': icon = '❓'; break;
+                        case 'operation': icon = '⚙️'; break;
+                        case 'goal': icon = '🎯'; break;
+                        default: icon = '';
+                    }
                     return `${icon} ${label}`.trim();
                 },
                 'text-valign': 'center',
@@ -78,21 +85,43 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
                 'font-weight': '500',
                 'transition-property': 'border-width, border-color, width, height, opacity, background-color',
                 'transition-duration': '0.3s',
-                'text-max-width': 100,
-                'text-wrap': 'ellipsis'
+                'text-max-width': 120,
+                'text-wrap': 'wrap'
             }
         },
         {
             selector: 'node[type="task"]',
             style: {
-                'shape': 'diamond',
-                'border-width': 2
+                'shape': 'cut-rectangle',
+                'border-width': 2,
+                'border-style': 'dashed'
             }
         },
         {
             selector: 'node[type="concept"]',
             style: {
                 'shape': 'round-rectangle',
+                'padding': 4
+            }
+        },
+        {
+            selector: 'node[type="question"]',
+            style: {
+                'shape': 'tag',
+                'padding': 4
+            }
+        },
+        {
+            selector: 'node[type="operation"]',
+            style: {
+                'shape': 'vee',
+                'padding': 4
+            }
+        },
+        {
+            selector: 'node[type="goal"]',
+            style: {
+                'shape': 'star',
                 'padding': 4
             }
         },

@@ -432,7 +432,7 @@ export class SeNARSGraph extends GraphSystem {
     }
 
     _calculateNodeLabel(data) {
-        const { label, term, id } = data;
+        const { label, term, id, truth } = data;
         let displayLabel = label;
 
         if (!displayLabel && term) {
@@ -444,7 +444,15 @@ export class SeNARSGraph extends GraphSystem {
             }
         }
 
-        return displayLabel || id || 'Unknown';
+        displayLabel = displayLabel || id || 'Unknown';
+
+        if (truth) {
+            const f = (truth.frequency ?? 0).toFixed(2);
+            const c = (truth.confidence ?? 0).toFixed(2);
+            displayLabel += `\n[F:${f} C:${c}]`;
+        }
+
+        return displayLabel;
     }
 
     _calculateNodeWeight(priority, term) {

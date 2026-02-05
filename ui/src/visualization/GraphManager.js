@@ -275,9 +275,13 @@ export class GraphManager {
     _calculateNodeLabel(payload) {
         const { label, term, id, truth } = payload;
         let displayLabel = label ?? term ?? id;
+
         if (truth) {
-            displayLabel += `\n{${(truth.frequency ?? 0).toFixed(2)}, ${(truth.confidence ?? 0).toFixed(2)}}`;
+            const f = (truth.frequency ?? 0).toFixed(2);
+            const c = (truth.confidence ?? 0).toFixed(2);
+            displayLabel += `\n[F:${f} C:${c}]`;
         }
+
         return displayLabel;
     }
 
