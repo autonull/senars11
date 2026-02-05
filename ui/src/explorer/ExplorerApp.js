@@ -267,8 +267,9 @@ export class ExplorerApp {
             // Bind to REASONING_DERIVATION for derived results
             nar.on(IntrospectionEvents.REASONING_DERIVATION, (data) => {
                 console.log('ExplorerApp: REASONING_DERIVATION event received', data);
-                this.log(`DERIVED: ${data.derivedTask.term}`, 'system');
-                this._onTaskAdded(data.derivedTask);
+                this.log(`DERIVED: ${data.derivedTask.term} (${data.inferenceRule})`, 'system');
+
+                this._onDerivation(data);
 
                 // Animate reasoning trace
                 const sourceId = data.task?.term?.toString();
@@ -287,6 +288,51 @@ export class ExplorerApp {
 
             this._narEventsBound = true;
             console.log('ExplorerApp: Bound to NAR events');
+        }
+    }
+
+    _onDerivation(data) {
+        const { task, belief, derivedTask, inferenceRule } = data;
+
+        // Ensure derived task node exists
+        this._onTaskAdded(derivedTask);
+
+        const derivedId = derivedTask.term.toString();
+        const rule = inferenceRule || 'Inference';
+
+        // Add derivation edges
+        if (task && task.term) {
+            const sourceId = task.term.toString();
+            // Ensure source node exists (might be just an ID ref if not in bag, but we try)
+            if (this.graph.cy.$id(sourceId).empty()) {
+                this._onTaskAdded(task);
+            }
+
+            this.graph.addEdge({
+                source: sourceId,
+                target: derivedId,
+                type: 'derivation',
+                label: rule
+            }, false);
+        }
+
+        if (belief && belief.term) {
+            const beliefId = belief.term.toString();
+             if (this.graph.cy.$id(beliefId).empty()) {
+                this._onTaskAdded(belief);
+            }
+
+            this.graph.addEdge({
+                source: beliefId,
+                target: derivedId,
+                type: 'derivation',
+                label: rule
+            }, false);
+        }
+
+        if (this.graph.scheduleLayout) {
+             // Debounced layout in real app, but direct here
+             // this.graph.scheduleLayout();
         }
     }
 

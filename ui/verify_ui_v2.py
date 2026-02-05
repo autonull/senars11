@@ -44,6 +44,30 @@ def verify_ui_v2():
             page.screenshot(path="verification/explorer-check-v2.png")
             print("Captured explorer-check-v2.png")
 
+            print("Verifying Reasoning Derivation...")
+            # Inject simulated reasoning event
+            page.evaluate("""
+                () => {
+                    const app = window.Explorer;
+                    if (app) {
+                        // Mock derivation data structure matching SeNARS Core
+                        const mockData = {
+                            task: { term: "Concept_A", budget: { priority: 0.8 } },
+                            belief: { term: "Concept_B", budget: { priority: 0.7 } },
+                            derivedTask: { term: "Derived_C", budget: { priority: 0.9 } },
+                            inferenceRule: "Deduction"
+                        };
+
+                        // Manually trigger the handler since we can't easily emit internal NAR events from here
+                        app._onDerivation(mockData);
+                        app.graph.scheduleLayout();
+                    }
+                }
+            """)
+            time.sleep(2) # Wait for layout
+            page.screenshot(path="verification/derivation-check.png")
+            print("Captured derivation-check.png")
+
             print("Verifying Shortcuts Modal...")
             page.keyboard.press("?")
             time.sleep(1)
