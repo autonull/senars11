@@ -56,8 +56,11 @@ export class StatusBar extends Component {
                         <div class="status-menu-item">
                             <button class="status-menu-btn">File</button>
                             <div class="status-menu-dropdown">
-                                <button data-action="save">Save Graph...</button>
-                                <button data-action="load">Load Graph...</button>
+                                <button data-action="save">Save Graph (JSON)...</button>
+                                <button data-action="load">Load Graph (JSON)...</button>
+                                <div class="menu-divider"></div>
+                                <button data-action="export-png">Export PNG</button>
+                                <button data-action="export-svg">Export SVG</button>
                             </div>
                         </div>
                         <div class="status-menu-item">
@@ -67,10 +70,16 @@ export class StatusBar extends Component {
                                 <button data-action="add-link">Link Nodes</button>
                                 <button data-action="delete">Delete Selected</button>
                                 <div class="menu-divider"></div>
+                                <button data-action="clear" class="danger">Clear All</button>
+                            </div>
+                        </div>
+                        <div class="status-menu-item">
+                            <button class="status-menu-btn">View</button>
+                            <div class="status-menu-dropdown">
                                 <button data-action="fit">Fit View</button>
                                 <button data-action="layout">Auto Layout</button>
                                 <div class="menu-divider"></div>
-                                <button data-action="clear" class="danger">Clear All</button>
+                                <button data-action="fullscreen">Toggle Fullscreen</button>
                             </div>
                         </div>
                         <div class="status-menu-item">

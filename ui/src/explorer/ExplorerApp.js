@@ -192,6 +192,7 @@ export class ExplorerApp {
         this._bindControls();
         this._bindDragDrop();
         this._bindKeyboardShortcuts();
+        this._restoreTheme();
 
         // Dynamic import of LLM Controller
         try {
@@ -679,6 +680,12 @@ export class ExplorerApp {
             case 'load':
                 this.handleLoadJSON();
                 break;
+            case 'export-png':
+                this.handleExportImage('png');
+                break;
+            case 'export-svg':
+                this.handleExportImage('svg');
+                break;
             case 'add-concept':
                 this.handleAddConcept();
                 break;
@@ -693,6 +700,9 @@ export class ExplorerApp {
                 break;
             case 'layout':
                 this.graph.scheduleLayout();
+                break;
+            case 'fullscreen':
+                this.handleToggleFullscreen();
                 break;
             case 'clear':
                 this.graph.clear();
@@ -1116,6 +1126,59 @@ export class ExplorerApp {
         input.click();
     }
 
+    handleExportImage(format) {
+        if (!this.graph || !this.graph.cy) return;
+
+        let content, type, ext;
+        if (format === 'png') {
+            content = this.graph.cy.png({ full: true, bg: 'transparent' }); // base64 string
+            type = 'image/png';
+            ext = 'png';
+        } else if (format === 'svg') {
+            if (this.graph.cy.svg) {
+                content = this.graph.cy.svg({ full: true });
+                type = 'image/svg+xml';
+                ext = 'svg';
+            } else {
+                this.log('SVG export not supported (extension missing)', 'error');
+                return;
+            }
+        }
+
+        if (format === 'png') {
+            const a = document.createElement('a');
+            a.href = content;
+            a.download = `senars-graph.${ext}`;
+            a.click();
+        } else {
+            const blob = new Blob([content], { type });
+            this._downloadBlob(blob, `senars-graph.${ext}`);
+        }
+
+        this.log(`Graph exported as ${ext.toUpperCase()}`, 'success');
+    }
+
+    handleToggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                this.log(`Error enabling fullscreen: ${err.message}`, 'error');
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+    _downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
     loadFile(file) {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -1252,10 +1315,19 @@ export class ExplorerApp {
         const body = document.body;
         if (body.classList.contains('light-theme')) {
             body.classList.remove('light-theme');
+            localStorage.setItem('senars-theme', 'dark');
             this.log('Switched to Dark Theme', 'system');
         } else {
             body.classList.add('light-theme');
+            localStorage.setItem('senars-theme', 'light');
             this.log('Switched to Light Theme', 'system');
+        }
+    }
+
+    _restoreTheme() {
+        const theme = localStorage.getItem('senars-theme');
+        if (theme === 'light') {
+            document.body.classList.add('light-theme');
         }
     }
 
