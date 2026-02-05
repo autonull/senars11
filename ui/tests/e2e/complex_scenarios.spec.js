@@ -35,29 +35,20 @@ test.describe('Complex Usage Scenarios', () => {
         const demoItem = page.locator('.demo-item', { hasText: 'Complex Interaction' });
         await expect(demoItem).toBeVisible();
 
+        await page.screenshot({ path: 'ui/tests/e2e/screenshots/demo_modal_featured.png' });
+
         // Switch to System Examples Tab
         await page.click('button:has-text("📂 System Examples")');
 
         // Wait for ExampleBrowser to load
         await expect(page.locator('.eb-tree-root')).toBeVisible();
+        await page.waitForTimeout(500); // Allow animation
+
+        await page.screenshot({ path: 'ui/tests/e2e/screenshots/demo_modal_examples.png' });
 
         // Find a file (e.g., alien-encounter.nars)
-        // It might be nested in examples/scripts
-        const scriptFolder = page.locator('.eb-tree-summary', { hasText: 'scripts' });
-        if (await scriptFolder.isVisible()) {
-             // It might be already open or closed. If open, we see children.
-        } else {
-             // Root 'examples' might need expansion if not auto-expanded
-        }
-
-        // We know structure: examples -> scripts -> alien-encounter.nars
-        // Click scripts folder if needed (assuming auto-expand on root)
-
-        // Look for file directly as we flatten or auto-expand?
-        // ExampleBrowser renders tree.
         const fileBtn = page.locator('button.eb-file-btn[data-path="examples/scripts/alien-encounter.nars"]');
-        // Ensure parent is open. The implementation opens directories by default?
-        // "const details = FluentUI.create('details').prop({ open: true })" -> Yes.
+        // Ensure parent is open. The implementation opens directories by default.
 
         await expect(fileBtn).toBeVisible();
         await fileBtn.click();
@@ -66,9 +57,17 @@ test.describe('Complex Usage Scenarios', () => {
         await expect(modal).not.toBeVisible();
 
         // Loading should start (remote file fetch)
-        // Log: Fetching remote file: examples/scripts/alien-encounter.nars
         const logEntry = page.locator('.log-entry', { hasText: 'Fetching remote file' }).first();
         await expect(logEntry).toBeVisible();
+
+        // Verify content processing (Alien Encounter has "UFO")
+        // Wait for it to appear in log or graph
+        // Note: processNALContent is synchronous mostly, but fetch is async.
+        await expect(page.locator('.log-entry', { hasText: 'Processed 4 NAL lines' })).toBeVisible({ timeout: 10000 });
+
+        // Graph should have nodes
+        await page.waitForTimeout(1000); // Allow layout
+        await page.screenshot({ path: 'ui/tests/e2e/screenshots/scenario_alien_loaded.png' });
     });
 });
 
