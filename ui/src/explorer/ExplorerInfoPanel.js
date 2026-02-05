@@ -19,56 +19,66 @@ export class ExplorerInfoPanel extends Component {
                     <button class="btn mode-btn" data-mode="representation">REP</button>
                     <button class="btn mode-btn" data-mode="control">CTL</button>
                 </div>
-                <h3>LAYERS</h3>
-                <div class="layer-controls">
-                    <label class="layer-toggle">
-                        <input type="checkbox" checked data-layer="concepts">
-                        <span class="layer-label">Concepts 🧠</span>
-                    </label>
-                    <label class="layer-toggle">
-                        <input type="checkbox" checked data-layer="tasks">
-                        <span class="layer-label">Tasks ⚡</span>
-                    </label>
-                     <label class="layer-toggle">
-                        <input type="checkbox" data-layer="trace">
-                        <span class="layer-label">Reasoning 🔗</span>
-                    </label>
-                    <label class="layer-toggle">
-                        <input type="checkbox" id="check-isolated">
-                        <span class="layer-label">Hide Isolated</span>
-                    </label>
-                </div>
 
-                <h3>Layout & Filters</h3>
-                <div class="control-group">
-                    <select id="layout-select" class="control-select small-btn">
-                        <option value="fcose">Layout: Force</option>
-                        <option value="grid">Layout: Grid</option>
-                        <option value="circle">Layout: Circle</option>
-                        <option value="scatter">Layout: Scatter</option>
-                        <option value="sorted-grid">Layout: Sorted</option>
-                    </select>
-                </div>
-                <div class="control-group" style="margin-top: 5px; padding: 0 5px;">
-                     <div class="hud-subtitle" style="margin-bottom: 2px;">Min Priority: <span id="prio-val">0.0</span></div>
-                     <input type="range" id="filter-priority" min="0" max="1" step="0.05" value="0" style="width: 100%">
-                </div>
+                <details open>
+                    <summary>LAYERS</summary>
+                    <div class="layer-controls">
+                        <label class="layer-toggle">
+                            <input type="checkbox" checked data-layer="concepts">
+                            <span class="layer-label">Concepts 🧠</span>
+                        </label>
+                        <label class="layer-toggle">
+                            <input type="checkbox" checked data-layer="tasks">
+                            <span class="layer-label">Tasks ⚡</span>
+                        </label>
+                        <label class="layer-toggle">
+                            <input type="checkbox" data-layer="trace">
+                            <span class="layer-label">Reasoning 🔗</span>
+                        </label>
+                        <label class="layer-toggle">
+                            <input type="checkbox" id="check-isolated">
+                            <span class="layer-label">Hide Isolated</span>
+                        </label>
+                    </div>
+                </details>
 
-                <h3>Visual Mappings</h3>
-                <div class="control-group">
-                    <select id="mapping-size" class="control-select small-btn">
-                        <option value="priority">Size: Priority</option>
-                        <option value="complexity">Size: Complexity</option>
-                        <option value="fixed">Size: Fixed</option>
-                    </select>
-                </div>
-                <div class="control-group">
-                    <select id="mapping-color" class="control-select small-btn">
-                        <option value="hash">Color: Hash</option>
-                        <option value="type">Color: Type</option>
-                        <option value="priority">Color: Priority</option>
-                    </select>
-                </div>
+                <details>
+                    <summary>Layout & Filters</summary>
+                    <div class="control-group">
+                        <select id="layout-select" class="control-select small-btn">
+                            <option value="fcose">Layout: Force</option>
+                            <option value="grid">Layout: Grid</option>
+                            <option value="circle">Layout: Circle</option>
+                            <option value="scatter">Layout: Scatter</option>
+                            <option value="sorted-grid">Layout: Sorted</option>
+                        </select>
+                    </div>
+                    <div class="control-group" style="margin-top: 5px; padding: 0 5px;">
+                        <div class="hud-subtitle" style="margin-bottom: 2px;">Min Priority: <span id="prio-val">0.0</span></div>
+                        <input type="range" id="filter-priority" min="0" max="1" step="0.05" value="0" style="width: 100%">
+                    </div>
+                </details>
+
+                <details>
+                    <summary>Visual Mappings</summary>
+                    <div class="control-group">
+                        <select id="mapping-size" class="control-select small-btn">
+                            <option value="priority">Size: Priority</option>
+                            <option value="complexity">Size: Complexity</option>
+                            <option value="fixed">Size: Fixed</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <select id="mapping-color" class="control-select small-btn">
+                            <option value="hash">Color: Hash</option>
+                            <option value="type">Color: Type</option>
+                            <option value="priority">Color: Priority</option>
+                        </select>
+                    </div>
+                </details>
+
+                <div class="control-group" style="margin-top: 10px; border-top: 1px solid rgba(0, 255, 157, 0.2); padding-top: 10px;">
+                     <button id="btn-shortcuts" class="btn small-btn" style="width: 100%">Keyboard Shortcuts (?)</button>
                 </div>
             </div>
         `;

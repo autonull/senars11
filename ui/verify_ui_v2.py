@@ -22,6 +22,12 @@ def verify_ui_v2():
             page.screenshot(path="verification/metrics-dashboard-check-v2.png")
             print("Captured metrics-dashboard-check-v2.png")
 
+            print("Verifying Explorer...")
+            page.goto("http://localhost:5173/explorer.html")
+            time.sleep(5)
+            page.screenshot(path="verification/explorer-check-v2.png")
+            print("Captured explorer-check-v2.png")
+
         except Exception as e:
             print(f"Error verification: {e}")
 
