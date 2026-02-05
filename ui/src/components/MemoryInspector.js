@@ -73,11 +73,14 @@ export class MemoryInspector extends Component {
         this.fluent().clear().class('mi-container');
 
         // Render Toolbar
-        const toolbarContainer = FluentUI.create('div').class('mi-toolbar');
-        this.container.appendChild(toolbarContainer.dom);
+        const toolbarWrapper = FluentUI.create('div').class('mi-toolbar');
+        this.container.appendChild(toolbarWrapper.dom);
 
-        new FluentToolbar(toolbarContainer.dom, this.getToolbarConfig()).render();
-        this.toolbar = toolbarContainer.dom;
+        const ftContainer = FluentUI.create('div');
+        toolbarWrapper.child(ftContainer);
+
+        new FluentToolbar(ftContainer.dom, this.getToolbarConfig()).render();
+        this.toolbar = toolbarWrapper.dom;
 
         // Render Content Container
         this.contentContainer = FluentUI.create('div')

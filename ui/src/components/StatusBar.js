@@ -1,28 +1,33 @@
 import { Component } from './Component.js';
-import { FluentUI } from '../utils/FluentUI.js';
+import { FluentUI, $ } from '../utils/FluentUI.js';
+import { ReactiveState } from '../core/ReactiveState.js';
+import { eventBus } from '../core/EventBus.js';
 import { MODES } from '../config/constants.js';
 
 export class StatusBar extends Component {
     constructor(container) {
         super(container);
-        this.mode = MODES.LOCAL;
-        this.status = 'Ready';
-        this.stats = {
-            cycles: 0,
-            messages: 0,
-            latency: 0
-        };
+
+        this.state = new ReactiveState({
+            mode: MODES.LOCAL,
+            status: 'Ready',
+            stats: {
+                cycles: 0,
+                messages: 0,
+                latency: 0
+            }
+        });
+
         this.onModeSwitch = null;
         this.onThemeToggle = null;
+        this._disposables = [];
 
-        this.ui = {
-            mode: null,
-            status: null,
-            cycles: null,
-            messages: null,
-            latency: null,
-            theme: null
-        };
+        // Subscribe to global events
+        this._disposables.push(
+            eventBus.on('connection.status', (status) => {
+                this.state.status = status;
+            })
+        );
     }
 
     initialize({ onModeSwitch, onThemeToggle }) {
@@ -34,96 +39,88 @@ export class StatusBar extends Component {
     render() {
         if (!this.container) return;
 
-        // Prevent re-rendering if already built (unless we want to support full re-renders)
-        if (this.ui.mode) return;
-
-        this.container.innerHTML = '';
-
-        FluentUI.create(this.container)
-            .class('status-bar')
-            .child(
-                FluentUI.create('div')
-                    .class('status-left-section')
-                    .child(
-                        this.ui.mode = FluentUI.create('div')
-                            .class('status-mode')
-                            .attr({ title: 'Click to switch connection mode' })
-                            .on('click', (e) => {
-                                console.log('[StatusBar] Mode switch clicked');
-                                if (this.onModeSwitch) {
-                                    this.onModeSwitch();
-                                } else {
-                                    console.warn('[StatusBar] No onModeSwitch handler defined');
-                                }
-                            })
-                    )
-                    .child(
-                        this.ui.status = FluentUI.create('div')
-                            .id('connection-status')
-                    )
-            )
-            .child(
-                FluentUI.create('div')
-                    .class('status-right-section')
-                    .child(this.ui.cycles = FluentUI.create('div'))
-                    .child(this.ui.messages = FluentUI.create('div'))
-                    .child(this.ui.latency = FluentUI.create('div'))
-                    .child(
-                        this.ui.theme = FluentUI.create('div')
-                            .class('status-item status-interactive')
-                            .text('🎨 Theme')
-                            .attr({ title: 'Toggle Theme' })
-                            .on('click', () => this.onThemeToggle?.())
-                    )
-            );
-
-        this._refreshAll();
-    }
-
-    _refreshAll() {
-        this._updateModeDisplay();
-        this._updateStatusDisplay();
-        this._updateStatsDisplay();
-    }
-
-    _updateModeDisplay() {
-        if (!this.ui.mode) return;
-        this.ui.mode.text(this.mode === MODES.LOCAL ? '💻 Local Mode' : '🌐 Remote Mode');
-        if (this.ui.latency) {
-            this.ui.latency.style({ display: this.mode === MODES.REMOTE ? 'block' : 'none' });
+        if (this.container.children.length > 0) {
+             this.container.innerHTML = '';
         }
+
+        const $container = $(this.container).class('status-bar');
+
+        const leftSection = $('div').class('status-left-section').mount($container);
+
+        // Mode
+        const modeEl = $('div')
+            .class('status-mode')
+            .attr({ title: 'Click to switch connection mode' })
+            .on('click', () => {
+                console.log('[StatusBar] Mode switch clicked');
+                this.onModeSwitch?.();
+            })
+            .mount(leftSection);
+
+        this._bind(modeEl, 'mode', (mode) => {
+             modeEl.text(mode === MODES.LOCAL ? '💻 Local Mode' : '🌐 Remote Mode');
+        });
+
+        // Status
+        const statusEl = $('div')
+            .id('connection-status')
+            .mount(leftSection);
+
+        this._bind(statusEl, 'status', (status) => statusEl.text(status));
+
+        const rightSection = $('div').class('status-right-section').mount($container);
+
+        // Cycles
+        const cyclesEl = $('div').mount(rightSection);
+        this._bind(cyclesEl, 'stats', (stats) => cyclesEl.text(`Cycles: ${stats.cycles}`));
+
+        // Messages
+        const msgsEl = $('div').mount(rightSection);
+        this._bind(msgsEl, 'stats', (stats) => msgsEl.text(`Msgs: ${stats.messages}`));
+
+        // Latency
+        const latencyEl = $('div').mount(rightSection);
+
+        const updateLatency = () => {
+            const visible = this.state.mode === MODES.REMOTE;
+            latencyEl.style({ display: visible ? 'block' : 'none' });
+            if (visible) latencyEl.text(`Ping: ${this.state.stats.latency}ms`);
+        };
+
+        this._disposables.push(this.state.watchAll(['mode', 'stats'], updateLatency));
+        updateLatency(); // Initial call
+
+        // Theme
+        $('div')
+            .class('status-item status-interactive')
+            .text('🎨 Theme')
+            .attr({ title: 'Toggle Theme' })
+            .on('click', () => this.onThemeToggle?.())
+            .mount(rightSection);
     }
 
-    _updateStatusDisplay() {
-        if (!this.ui.status) return;
-        this.ui.status.text(this.status);
-    }
-
-    _updateStatsDisplay() {
-        if (!this.ui.cycles) return;
-        this.ui.cycles.text(`Cycles: ${this.stats.cycles}`);
-        this.ui.messages.text(`Msgs: ${this.stats.messages}`);
-        if (this.mode === MODES.REMOTE && this.ui.latency) {
-            this.ui.latency.text(`Ping: ${this.stats.latency}ms`);
-        }
+    _bind(element, prop, handler) {
+        // Initial set
+        handler(this.state[prop]);
+        // Watch
+        this._disposables.push(this.state.watch(prop, handler));
     }
 
     updateMode(mode) {
-        if (this.mode !== mode) {
-            this.mode = mode;
-            this._updateModeDisplay();
-        }
+        this.state.mode = mode;
     }
 
     updateStatus(status) {
-        if (this.status !== status) {
-            this.status = status;
-            this._updateStatusDisplay();
-        }
+        this.state.status = status;
     }
 
     updateStats(stats = {}) {
-        this.stats = { ...this.stats, ...stats };
-        this._updateStatsDisplay();
+        this.state.stats = { ...this.state.stats, ...stats };
+    }
+
+    destroy() {
+        super.destroy();
+        this._disposables.forEach(d => d());
+        this._disposables = [];
     }
 }

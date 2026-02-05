@@ -1,16 +1,22 @@
 import { Component } from './Component.js';
 import { SmartTextarea } from '../notebook/SmartTextarea.js';
-import { FluentUI } from '../utils/FluentUI.js';
+import { FluentUI, $ } from '../utils/FluentUI.js';
+import { ReactiveState } from '../core/ReactiveState.js';
 
 export class CodeEditorPanel extends Component {
     constructor(container) {
         super(container);
         this.app = null;
         this.editor = null;
-        this.autoRun = false;
-        this.language = 'metta';
         this.demoSelect = null;
         this.langSelect = null;
+
+        this.state = new ReactiveState({
+            autoRun: false,
+            language: 'metta'
+        });
+
+        this._disposables = [];
     }
 
     initialize(app) {
@@ -20,80 +26,94 @@ export class CodeEditorPanel extends Component {
 
     render() {
         if (!this.container) return;
-        this.fluent().clear().class('code-editor-panel');
+
+        try {
+            $(this.container).clear().class('code-editor-panel');
+        } catch (e) {
+            console.error('FluentUI error:', e);
+        }
 
         // Toolbar
-        const toolbar = FluentUI.create('div')
+        const toolbar = $('div')
             .class('editor-toolbar')
             .style({ padding: '5px', background: '#252526', borderBottom: '1px solid #333', display: 'flex', gap: '8px', alignItems: 'center' })
             .mount(this.container);
 
-        toolbar.child(
-            FluentUI.create('button')
-                .text('▶️ Run')
-                .class('btn-primary')
-                .style({ padding: '4px 12px', background: '#0e639c', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' })
-                .on('click', () => this.execute())
-        );
+        $('button')
+            .text('▶️ Run')
+            .class('btn-primary')
+            .style({ padding: '4px 12px', background: '#0e639c', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' })
+            .on('click', () => this.execute())
+            .mount(toolbar);
 
         // Language Select
-        this.langSelect = FluentUI.create('select')
+        this.langSelect = $('select')
             .style({ background: '#333', color: '#eee', border: '1px solid #444', borderRadius: '3px', padding: '2px' })
-            .on('change', (e) => { this.language = e.target.value; })
-            .child(FluentUI.create('option').attr({ value: 'metta' }).text('MeTTa'))
-            .child(FluentUI.create('option').attr({ value: 'narsese' }).text('Narsese'));
+            .on('change', (e) => { this.state.language = e.target.value; })
+            .child($('option').attr({ value: 'metta' }).text('MeTTa'))
+            .child($('option').attr({ value: 'narsese' }).text('Narsese'))
+            .mount(toolbar);
 
-        toolbar.child(this.langSelect);
+        this._disposables.push(this.state.watch('language', (lang) => {
+             if (this.langSelect && this.langSelect.dom.value !== lang) {
+                 this.langSelect.dom.value = lang;
+             }
+        }));
+        this.langSelect.dom.value = this.state.language;
 
         // Demo Select
-        this.demoSelect = FluentUI.create('select')
+        this.demoSelect = $('select')
             .id('demo-select')
             .style({ background: '#333', color: '#eee', border: '1px solid #444', borderRadius: '3px', padding: '2px', maxWidth: '150px' })
-            .child(FluentUI.create('option').text('Load Demo...'))
-            .on('change', (e) => this.onDemoSelect(e.target.value));
+            .child($('option').text('Load Demo...'))
+            .on('change', (e) => this.onDemoSelect(e.target.value))
+            .mount(toolbar);
 
-        toolbar.child(this.demoSelect);
         this.loadDemos();
 
-        toolbar.child(
-            FluentUI.create('button')
-                .text('💾 Save')
-                .style({ padding: '4px 8px', background: '#333', color: '#ccc', border: '1px solid #444', borderRadius: '3px', cursor: 'pointer' })
-                .on('click', () => this.saveFile())
-        );
+        $('button')
+            .text('💾 Save')
+            .style({ padding: '4px 8px', background: '#333', color: '#ccc', border: '1px solid #444', borderRadius: '3px', cursor: 'pointer' })
+            .on('click', () => this.saveFile())
+            .mount(toolbar);
 
-        toolbar.child(
-            FluentUI.create('button')
-                .text('📂 Load')
-                .style({ padding: '4px 8px', background: '#333', color: '#ccc', border: '1px solid #444', borderRadius: '3px', cursor: 'pointer' })
-                .on('click', () => this.loadFile())
-        );
+        $('button')
+            .text('📂 Load')
+            .style({ padding: '4px 8px', background: '#333', color: '#ccc', border: '1px solid #444', borderRadius: '3px', cursor: 'pointer' })
+            .on('click', () => this.loadFile())
+            .mount(toolbar);
 
         // Auto Run Toggle
-        const autoRunLabel = FluentUI.create('label')
-            .style({ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85em', color: '#ccc', marginLeft: '8px', cursor: 'pointer' });
+        const autoRunLabel = $('label')
+            .style({ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85em', color: '#ccc', marginLeft: '8px', cursor: 'pointer' })
+            .mount(toolbar);
 
-        const autoRunCheck = FluentUI.create('input')
+        const autoRunCheck = $('input')
             .attr({ type: 'checkbox' })
-            .on('change', (e) => { this.autoRun = e.target.checked; });
+            .on('change', (e) => { this.state.autoRun = e.target.checked; });
+
+        this._disposables.push(this.state.watch('autoRun', (val) => {
+            if (autoRunCheck.dom.checked !== val) {
+                autoRunCheck.dom.checked = val;
+            }
+        }));
+        autoRunCheck.dom.checked = this.state.autoRun;
 
         autoRunLabel.child(autoRunCheck).child(document.createTextNode('Auto-Run'));
-        toolbar.child(autoRunLabel);
 
-        toolbar.child(
-            FluentUI.create('span')
-                .text('Shift+Enter to Run')
-                .style({ fontSize: '0.8em', color: '#888', alignSelf: 'center', marginLeft: 'auto' })
-        );
+        $('span')
+            .text('Shift+Enter to Run')
+            .style({ fontSize: '0.8em', color: '#888', alignSelf: 'center', marginLeft: 'auto' })
+            .mount(toolbar);
 
         // Editor Area
-        const editorContainer = FluentUI.create('div')
+        const editorContainer = $('div')
             .style({ flex: '1', position: 'relative', height: 'calc(100% - 35px)', overflow: 'hidden' })
             .mount(this.container);
 
         try {
             this.editor = new SmartTextarea(editorContainer.dom, {
-                rows: 20, // Initial rows, but autoResize false for fixed height
+                rows: 20,
                 autoResize: false,
                 onExecute: (text) => this.execute(text)
             });
@@ -103,10 +123,9 @@ export class CodeEditorPanel extends Component {
             this.editor.textarea.style.height = '100%'; // Ensure full height
 
             // Hook for Auto-Run
-            // Check if textarea exists
             if (this.editor.textarea) {
                 this.editor.textarea.addEventListener('input', this.debounce(() => {
-                    if (this.autoRun) {
+                    if (this.state.autoRun) {
                         this.execute();
                     }
                 }, 1000));
@@ -175,9 +194,9 @@ export class CodeEditorPanel extends Component {
 
             // Create optgroups
             for (const [group, files] of Object.entries(grouped)) {
-                const optgroup = FluentUI.create('optgroup').attr({ label: group });
+                const optgroup = $('optgroup').attr({ label: group });
                 files.forEach(f => {
-                    optgroup.child(FluentUI.create('option').attr({ value: f.path }).text(f.name));
+                    optgroup.child($('option').attr({ value: f.path }).text(f.name));
                 });
                 this.demoSelect.child(optgroup);
             }
@@ -199,11 +218,9 @@ export class CodeEditorPanel extends Component {
 
             // Detect language
             if (path.endsWith('.metta')) {
-                this.language = 'metta';
-                if (this.langSelect) this.langSelect.dom.value = 'metta';
+                this.state.language = 'metta';
             } else if (path.endsWith('.nars')) {
-                this.language = 'narsese';
-                if (this.langSelect) this.langSelect.dom.value = 'narsese';
+                this.state.language = 'narsese';
             }
 
         } catch (e) {
@@ -224,7 +241,7 @@ export class CodeEditorPanel extends Component {
         const content = text || this.editor.getValue();
         if (!content.trim()) return;
 
-        // Future: Check syntax based on this.language before running
+        // Future: Check syntax based on this.state.language before running
 
         if (this.app?.commandProcessor) {
             // Optionally log to notebook if available
@@ -239,11 +256,17 @@ export class CodeEditorPanel extends Component {
             }
 
             // Send to command processor
-            this.app.commandProcessor.processCommand(content, false, this.language);
+            this.app.commandProcessor.processCommand(content, false, this.state.language);
         }
     }
 
     resize() {
         // Handle resize if needed
+    }
+
+    destroy() {
+        super.destroy();
+        this._disposables.forEach(d => d());
+        this._disposables = [];
     }
 }
