@@ -105,7 +105,10 @@ export class StatusBar extends Component {
                 <div class="status-info-section">
                     <!-- Global Toolbar Items Moved from LogPanel/Toolbar -->
                     <div class="status-toolbar-items">
-                        <input type="text" id="search-input" placeholder="Search..." class="control-input-small">
+                        <div style="display: flex; align-items: center; position: relative;">
+                            <input type="text" id="search-input" placeholder="Search..." class="control-input-small">
+                            <button id="btn-clear-search" class="status-btn-small" style="position: absolute; right: 2px; font-size: 0.8em; display: none;">✕</button>
+                        </div>
                         <select id="demo-select" class="control-select-small">
                             <option value="" disabled selected>Load Demo...</option>
                         </select>

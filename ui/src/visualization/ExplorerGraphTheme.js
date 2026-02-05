@@ -38,14 +38,17 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
         if (mode === 'priority') {
             // Heatmap style: Low (Blue) -> High (Red)
             const hue = 240 - (priority * 240);
-            const alpha = prop === 'background' ? 0.6 : 1;
-            return `hsla(${hue}, 80%, 50%, ${alpha})`;
+            const lightness = 30 + (priority * 40); // 30% to 70%
+            const alpha = prop === 'background' ? (0.6 + (priority * 0.4)) : 1;
+            return `hsla(${hue}, 80%, ${lightness}%, ${alpha})`;
         }
 
         // Default: hash
         const { hue } = getColorFromHash(label);
+        // Vary lightness by priority: High priority = brighter/more intense
+        const lightness = 30 + (priority * 40); // 30% to 70%
         const alpha = prop === 'background' ? (0.6 + (priority * 0.4)) : 1;
-        return `hsla(${hue}, 70%, 50%, ${alpha})`;
+        return `hsla(${hue}, 70%, ${lightness}%, ${alpha})`;
     };
 
     return [

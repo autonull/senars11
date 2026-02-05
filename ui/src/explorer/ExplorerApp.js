@@ -105,6 +105,18 @@ export class ExplorerApp {
                 });
             });
 
+            // Double-click to focus
+            this.graph.on('nodeDblClick', ({ node }) => {
+                if (this.graph.cy) {
+                    this.graph.cy.animate({
+                        center: { eles: node },
+                        zoom: 1.5,
+                        duration: 500
+                    });
+                    this.log(`Focused: ${node.id()}`, 'system');
+                }
+            });
+
             // Setup Context Menu proxy
             // SeNARSGraph emits 'contextMenu' event
             this.graph.on('contextMenu', ({ target, originalEvent }) => {
@@ -501,8 +513,12 @@ export class ExplorerApp {
         const searchInput = document.getElementById('search-input');
         if (!searchInput) return;
 
+        const clearBtn = document.getElementById('btn-clear-search');
+
         searchInput.oninput = (e) => {
             const term = e.target.value.trim();
+            if (clearBtn) clearBtn.style.display = term ? 'block' : 'none';
+
             // SeNARSGraph doesn't have highlightMatches by default, but GraphViewport does.
             // SeNARSGraph extends GraphSystem which has access to cy.
             // We can implement highlightMatches here or assume it's available if we mixed it in.
@@ -514,6 +530,14 @@ export class ExplorerApp {
                 this._highlightMatches(term);
             }
         };
+
+        if (clearBtn) {
+            clearBtn.onclick = () => {
+                searchInput.value = '';
+                searchInput.dispatchEvent(new Event('input'));
+                searchInput.focus();
+            };
+        }
 
         searchInput.onkeydown = (e) => {
             if (e.key === 'Enter') {
