@@ -366,12 +366,14 @@ export class ExplorerApp {
         console.log(`ExplorerApp: Adding node for term: ${term}`);
         const budget = task.budget || { priority: 0.5 };
 
-        // Add Node
+        // Add Node with random initial position to prevent straight-line layouts
+        const pos = { x: Math.random() * 800, y: Math.random() * 600 };
         this.graph.addNode({
              id: term,
              term: term,
              budget: budget,
-             type: 'concept'
+             type: 'concept',
+             position: pos
         }, false);
 
         if (this.graph.animateAttention) {
