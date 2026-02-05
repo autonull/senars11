@@ -28,6 +28,12 @@ def verify_ui_v2():
             page.screenshot(path="verification/explorer-check-v2.png")
             print("Captured explorer-check-v2.png")
 
+            print("Verifying Shortcuts Modal...")
+            page.keyboard.press("?")
+            time.sleep(1)
+            page.screenshot(path="verification/shortcuts-check.png")
+            print("Captured shortcuts-check.png")
+
         except Exception as e:
             print(f"Error verification: {e}")
 

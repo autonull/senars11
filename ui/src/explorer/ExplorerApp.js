@@ -12,6 +12,7 @@ import { InspectorPanel } from '../components/InspectorPanel.js';
 import { CommandPalette } from '../components/CommandPalette.js';
 import { ToastManager } from '../components/ToastManager.js';
 import { DemoLibraryModal } from '../components/DemoLibraryModal.js';
+import { ShortcutsModal } from '../components/ShortcutsModal.js';
 import { TargetPanel } from './TargetPanel.js';
 import { getTacticalStyle } from '../visualization/ExplorerGraphTheme.js';
 import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
@@ -361,34 +362,7 @@ export class ExplorerApp {
     }
 
     _showShortcuts() {
-        const shortcuts = [
-            'Keyboard Shortcuts:',
-            '------------------',
-            'Space: Start/Pause Reasoner',
-            'S: Step Reasoner',
-            'F: Fit Graph',
-            '+ / -: Zoom In/Out',
-            'L: Recalculate Layout',
-            'Del: Delete Selected',
-            'Ctrl+B: Toggle Sidebars',
-            'Ctrl+L: Clear Logs',
-            'Ctrl+G: Focus Search',
-            'F1: Command Palette',
-            '?: Show Shortcuts'
-        ];
-
-        // Use ToastManager for a nice display if possible, or fallback to alert/log
-        if (this.toastManager) {
-             // Create a long duration toast or use multiple toasts?
-             // ToastManager might be single line. Let's use alert for now or a custom modal.
-             // Given we don't have a generic modal builder easily available (except DemoLibraryModal),
-             // let's print to log and show a simple alert or use a series of toasts.
-             // Actually, let's just log it to the system log so it persists.
-             shortcuts.forEach(s => this.log(s, 'system'));
-             this.toastManager.show('Shortcuts printed to System Log', 'info');
-        } else {
-             console.log(shortcuts.join('\n'));
-        }
+        new ShortcutsModal().show();
     }
 
     _bindControls() {
