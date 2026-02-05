@@ -64,6 +64,7 @@ export class ExplorerApp {
         // Wire up inspector callbacks
         this.inspectorPanel.onSave = (id, updates) => this.saveNodeChanges(id, updates);
         this.inspectorPanel.onQuery = (term) => this.handleReplCommand(`<${term} ?>?`);
+        this.inspectorPanel.onTrace = (id) => this.graph.traceDerivationPath(id);
     }
 
     // Convenience accessor for the underlying graph manager
@@ -294,10 +295,19 @@ export class ExplorerApp {
     _onDerivation(data) {
         const { task, belief, derivedTask, inferenceRule } = data;
 
+        // Enrich derived task with derivation metadata for Inspector
+        const derivedId = derivedTask.term.toString();
+        const sources = [];
+        if (task?.term) sources.push(task.term.toString());
+        if (belief?.term) sources.push(belief.term.toString());
+
+        derivedTask.derivation = {
+            rule: inferenceRule || 'Inference',
+            sources: sources
+        };
+
         // Ensure derived task node exists
         this._onTaskAdded(derivedTask);
-
-        const derivedId = derivedTask.term.toString();
         const rule = inferenceRule || 'Inference';
 
         // Add derivation edges

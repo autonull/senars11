@@ -7,6 +7,7 @@ export class InspectorPanel extends Component {
         this.currentData = null;
         this.onSave = null;
         this.onQuery = null;
+        this.onTrace = null;
     }
 
     render() {
@@ -55,11 +56,26 @@ export class InspectorPanel extends Component {
             </div>
         `;
 
+        // Derivation Trace (If available)
+        if (data.derivation) {
+            const { rule, sources } = data.derivation;
+            html += `
+                <div class="inspector-section">
+                    <h4>Derivation Trace</h4>
+                    <div class="prop-row">
+                        <span class="prop-label">Rule</span>
+                        <span class="prop-value" style="color:var(--accent-secondary)">${rule}</span>
+                    </div>
+                    <div class="related-tags">
+                        ${sources.map(s => `<span class="related-tag" title="Source">${this._truncate(s, 15)}</span>`).join('')}
+                    </div>
+                    <button id="btn-trace-path" class="btn small-btn" style="margin-top:5px; width:100%">Show Trace Path 🔗</button>
+                </div>
+            `;
+        }
+
         // Related Concepts (Derived from topology or explicit links if available)
-        // We'll mock it or look for links in data if passed
         const related = data.links || [];
-        // Note: graph topology isn't usually passed in data unless we enrich it.
-        // But let's add a placeholder section.
         html += `
             <div class="inspector-section">
                 <h4>Related</h4>
@@ -134,6 +150,13 @@ export class InspectorPanel extends Component {
             if (btnQuery) {
                 btnQuery.onclick = () => this._handleQuery();
             }
+        }
+
+        const btnTrace = content.querySelector('#btn-trace-path');
+        if (btnTrace) {
+            btnTrace.onclick = () => {
+                if (this.onTrace) this.onTrace(this.currentData.id);
+            };
         }
     }
 

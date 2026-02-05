@@ -226,6 +226,26 @@ export class SeNARSGraph extends GraphSystem {
         }
     }
 
+    traceDerivationPath(nodeId) {
+        if (!this.cy) return;
+        const node = this.cy.getElementById(nodeId);
+        if (node.empty()) return;
+
+        // Recursive predecessor search
+        const predecessors = node.predecessors();
+        const edges = predecessors.filter('edge');
+        const nodes = predecessors.filter('node').union(node);
+
+        this.cy.batch(() => {
+            this.cy.elements().removeClass('trace-highlight trace-dim');
+            this.cy.elements().not(nodes.union(edges)).addClass('trace-dim');
+            nodes.addClass('trace-highlight');
+            edges.addClass('trace-highlight');
+        });
+
+        this.cy.animate({ fit: { eles: nodes.union(edges), padding: 50 }, duration: 800 });
+    }
+
     highlightNode(nodeId) {
         if (!this.cy) return;
         const node = typeof nodeId === 'string' ? this.cy.getElementById(nodeId) : nodeId;

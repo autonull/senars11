@@ -96,6 +96,16 @@ def verify_ui_v2():
             page.screenshot(path="verification/metta-check.png")
             print("Captured metta-check.png")
 
+            print("Verifying Trace Path...")
+            # Select the derived node from previous step
+            page.evaluate("window.Explorer.graph.focusNode('Derived_C')")
+            time.sleep(1)
+            # Click trace button in inspector (if visible) or trigger directly
+            page.evaluate("window.Explorer.inspectorPanel.onTrace('Derived_C')")
+            time.sleep(2)
+            page.screenshot(path="verification/trace-path-check.png")
+            print("Captured trace-path-check.png")
+
         except Exception as e:
             print(f"Error verification: {e}")
 
