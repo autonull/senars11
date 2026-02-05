@@ -1,4 +1,5 @@
 import {Concept} from './Concept.js';
+import {Term} from '../term/Term.js';
 import {MemoryIndex} from './MemoryIndex.js';
 import {MemoryConsolidation} from './MemoryConsolidation.js';
 import {Bag} from './Bag.js';
@@ -38,7 +39,6 @@ export class Memory extends BaseComponent {
         const mergedConfig = {...defaultConfig, ...config};
 
         super(mergedConfig, 'Memory');
-        this._config = mergedConfig;
 
         this._concepts = new Map();
         this._conceptBag = new Bag(this._config.maxConcepts, this._config.forgetPolicy);
@@ -179,8 +179,8 @@ export class Memory extends BaseComponent {
     }
 
     _findConceptByEquality(term) {
-        for (const [key, value] of this._concepts) {
-            if (key.equals(term)) return value;
+        for (const concept of this._concepts.values()) {
+            if (concept.term.equals(term)) return concept;
         }
         return null;
     }
@@ -445,12 +445,18 @@ export class Memory extends BaseComponent {
 
             for (const conceptData of data.concepts) {
                 if (conceptData.concept) {
-                    const term = typeof conceptData.term === 'string' ?
-                        {
+                    let term;
+                    if (typeof conceptData.term === 'string') {
+                        term = {
                             toString: () => conceptData.term,
-                            equals: (other) => other.toString && other.toString() === conceptData.term
-                        } :
-                        conceptData.term;
+                            equals: (other) => other.toString && other.toString() === conceptData.term,
+                            name: conceptData.term,
+                            type: 'atom',
+                            isTerm: true
+                        };
+                    } else {
+                        term = conceptData.term instanceof Term ? conceptData.term : Term.fromJSON(conceptData.term);
+                    }
 
                     const concept = new Concept(term, this._config);
                     if (concept.deserialize) {

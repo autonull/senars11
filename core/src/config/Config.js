@@ -54,6 +54,7 @@ export const DEFAULT_CONFIG = {
  * Configuration validator
  */
 import { validateConfigWithDefaults } from './ConfigValidator.js';
+import { Logger } from '../util/Logger.js';
 
 export const DEFAULT_CONFIG_CORE = Object.freeze({
     nar: {
@@ -284,7 +285,7 @@ export class Component {
      */
     async initialize() {
         if (this.initialized) {
-            console.warn(`${this.constructor.name} is already initialized`);
+            Logger.warn(`${this.constructor.name} is already initialized`);
             return true;
         }
 
@@ -298,7 +299,7 @@ export class Component {
             this.initialized = true;
             return true;
         } catch (error) {
-            console.error(`Failed to initialize ${this.constructor.name}:`, error);
+            Logger.error(`Failed to initialize ${this.constructor.name}:`, error);
             return false;
         }
     }
@@ -313,7 +314,7 @@ export class Component {
         }
 
         if (this.started) {
-            console.warn(`${this.constructor.name} is already started`);
+            Logger.warn(`${this.constructor.name} is already started`);
             return true;
         }
 
@@ -322,7 +323,7 @@ export class Component {
             this.started = true;
             return true;
         } catch (error) {
-            console.error(`Failed to start ${this.constructor.name}:`, error);
+            Logger.error(`Failed to start ${this.constructor.name}:`, error);
             return false;
         }
     }
@@ -333,7 +334,7 @@ export class Component {
      */
     async stop() {
         if (!this.started) {
-            console.warn(`${this.constructor.name} is not running`);
+            Logger.warn(`${this.constructor.name} is not running`);
             return true;
         }
 
@@ -343,7 +344,7 @@ export class Component {
             this.started = false;
             return true;
         } catch (error) {
-            console.error(`Failed to stop ${this.constructor.name}:`, error);
+            Logger.error(`Failed to stop ${this.constructor.name}:`, error);
             return false;
         }
     }
@@ -360,7 +361,7 @@ export class Component {
         try {
             await this._destroy();
         } catch (error) {
-            console.error(`Error during destroy of ${this.constructor.name}:`, error);
+            Logger.error(`Error during destroy of ${this.constructor.name}:`, error);
         }
     }
 
@@ -424,7 +425,7 @@ export class Component {
             this.config = ConfigValidator.deepMerge(this.config, newConfig);
             return true;
         } catch (error) {
-            console.error(`Failed to update config for ${this.constructor.name}:`, error);
+            Logger.error(`Failed to update config for ${this.constructor.name}:`, error);
             return false;
         }
     }

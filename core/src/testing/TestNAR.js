@@ -4,6 +4,7 @@
  */
 
 import {TaskMatch} from './TaskMatch.js';
+import {Logger} from '../util/Logger.js';
 
 // Re-export TaskMatch as before to maintain backward compatibility
 //export { SharedTaskMatch as TaskMatch };
@@ -18,6 +19,7 @@ export class TestNAR {
         this.nar = null;
         this.trace = trace; // Add trace flag to show all events
         this.eventLog = []; // Log of all events for debugging
+        this.logger = Logger;
     }
 
     static _matchesTruth(taskTruth, criteriaTruth) {
@@ -105,10 +107,10 @@ export class TestNAR {
         if (this.trace) {
             this.nar.traceEnabled = true;
             this.nar.on('reasoning.derivation', (data) => {
-                console.log(`[TRACE] Derivation: ${data.derivedTask.toString()} from ${data.derivedTask.stamp?.source || data.source}`);
+                this.logger.info(`[TRACE] Derivation: ${data.derivedTask.toString()} from ${data.derivedTask.stamp?.source || data.source}`);
             });
             this.nar.on('task.input', (data) => {
-                console.log(`[TRACE] Input: ${data.task.toString()}`);
+                this.logger.info(`[TRACE] Input: ${data.task.toString()}`);
             });
         }
 
@@ -245,7 +247,7 @@ ${taskList}
                     await this.nar.dispose();
                 } catch (disposeError) {
                     // Log disposal errors but don't fail the test
-                    console.warn('Warning during NAR disposal:', disposeError.message);
+                    this.logger.warn('Warning during NAR disposal:', {message: disposeError.message});
                 }
             }
         }

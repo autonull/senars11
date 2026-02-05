@@ -26,10 +26,6 @@ export class NAR extends BaseComponent {
         this.traceEnabled = false;
     }
 
-    get config() {
-        return this._configManager.toJSON();
-    }
-
     get memory() {
         return this._memory;
     }

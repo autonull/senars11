@@ -26,6 +26,10 @@ export class ExplanationService extends BaseComponent {
         }
     }
 
+    async _initialize() {
+        this.logInfo('ExplanationService initialized');
+    }
+
     /**
      * Generate an explanation for a single tool execution result
      * @param {object} toolResult - The tool execution result to explain

@@ -1,7 +1,7 @@
 import { ArrayStamp } from '../Stamp.js';
 import { Truth } from '../Truth.js';
-
 import { Term } from '../term/Term.js';
+import { freeze } from '../util/common.js';
 
 export const Punctuation = Object.freeze({
     BELIEF: '.',
@@ -48,10 +48,10 @@ export class Task {
         }
 
         this.truth = this._createTruth(finalTruth);
-        this.budget = Object.freeze({ ...budget });
+        this.budget = freeze({ ...budget });
         this.stamp = stamp ?? ArrayStamp.createInput();
         this.metadata = metadata;
-        Object.freeze(this);
+        freeze(this);
     }
 
     get punctuation() {

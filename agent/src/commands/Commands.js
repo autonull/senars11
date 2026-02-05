@@ -7,6 +7,7 @@ import {fileURLToPath} from 'url';
 import {basename, dirname, join, resolve} from 'path';
 import {promises as fs} from 'fs';
 import {FormattingUtils} from '../../../core/src/util/FormattingUtils.js';
+import {Logger} from '../../../core/src/util/Logger.js';
 import {z} from 'zod';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -140,7 +141,7 @@ export class PlanCommand extends AgentCommand {
     async _executeImpl(agent, ...args) {
         if (args.length < 1) return 'Usage: plan <description>';
         if (!agent.ai) return '❌ No AI Client enabled.';
-        console.log(`[PlanCommand] Generating plan for: "${args.join(' ')}"`);
+        Logger.info(`[PlanCommand] Generating plan for: "${args.join(' ')}"`);
 
         try {
             const {object} = await agent.ai.generateObject(
@@ -165,7 +166,7 @@ export class ThinkCommand extends AgentCommand {
     async _executeImpl(agent, ...args) {
         if (args.length < 1) return 'Usage: think <topic>';
         if (!agent.ai) return '❌ No AI Client enabled.';
-        console.log(`[ThinkCommand] Thinking about: "${args.join(' ')}"`);
+        Logger.info(`[ThinkCommand] Thinking about: "${args.join(' ')}"`);
         const {text} = await agent.ai.generate(`Reflect on: "${args.join(' ')}"`, {temperature: 0.8});
         return `💭 Reflection:\n${text}`;
     }
@@ -179,7 +180,7 @@ export class ReasonCommand extends AgentCommand {
     async _executeImpl(agent, ...args) {
         if (args.length < 1) return 'Usage: reason <statement>';
         if (!agent.ai) return '❌ No AI Client enabled.';
-        console.log(`[ReasonCommand] Reasoning about: "${args.join(' ')}"`);
+        Logger.info(`[ReasonCommand] Reasoning about: "${args.join(' ')}"`);
         const {text} = await agent.ai.generate(`Reason about: "${args.join(' ')}"`, {temperature: 0.3});
         return `🧠 Reasoning Result:\n${text}`;
     }
@@ -193,7 +194,7 @@ export class LMCommand extends AgentCommand {
     async _executeImpl(agent, ...args) {
         if (args.length < 1) return 'Usage: lm <prompt>';
         if (!agent.ai) return '❌ No AI Client enabled.';
-        console.log(`[LMCommand] Prompting: "${args.join(' ')}"`);
+        Logger.info(`[LMCommand] Prompting: "${args.join(' ')}"`);
         const {text} = await agent.ai.generate(args.join(' '), {temperature: 0.7});
         return `🤖 LM Response:\n${text}`;
     }

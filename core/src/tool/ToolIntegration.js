@@ -24,13 +24,20 @@ export class ToolIntegration extends BaseComponent {
         this.initialTools = additionalTools;
     }
 
+    async _initialize() {
+        if (this.reasoningCore) {
+            await this.initializeTools();
+        }
+        this.logInfo('ToolIntegration initialized');
+    }
+
     /**
      * Connect to the reasoning core
      * @param {object} reasoner - The reasoning core instance
      */
     connectToReasoningCore(reasoner) {
         this.reasoningCore = reasoner;
-        this.logger.info('Connected tools to reasoning core');
+        this.logInfo('Connected tools to reasoning core');
         return this;
     }
 
@@ -51,16 +58,16 @@ export class ToolIntegration extends BaseComponent {
                             description: metadata.description
                         });
                     } catch (toolError) {
-                        this.logger.warn(`Failed to register tool ${tool.constructor.name}:`, toolError.message);
+                        this.logWarn(`Failed to register tool ${tool.constructor.name}: ${toolError.message}`);
                     }
                 }
             }
 
-            this.logger.info('Tools initialization completed', {
+            this.logInfo('Tools initialization completed', {
                 toolCount: this.engine.getAvailableTools().length
             });
         } catch (error) {
-            this.logger.warn('Tool initialization partially failed:', error.message);
+            this.logWarn(`Tool initialization partially failed: ${error.message}`);
         }
         return this;
     }
@@ -120,7 +127,7 @@ export class ToolIntegration extends BaseComponent {
             const executionTime = this._logToolUsage(toolId, params, result, startTime, context);
             return { ...result, executionTime };
         } catch (error) {
-            this.logger.error(`Tool execution failed: ${toolId}`, {
+            this.logError(`Tool execution failed: ${toolId}`, {
                 error: error.message,
                 params: JSON.stringify(params).substring(0, 200)
             });

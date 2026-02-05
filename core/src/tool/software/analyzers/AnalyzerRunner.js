@@ -12,7 +12,7 @@ export class AnalyzerRunner {
         const options = ArgParser.parse(args);
 
         if (options.help) {
-            console.log(ArgParser.getHelpMessage());
+            process.stdout.write(ArgParser.getHelpMessage() + '\n');
             return;
         }
 

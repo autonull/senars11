@@ -53,7 +53,6 @@ export const safeGet = (obj, path, defaultValue = undefined) => {
     return path.split('.').reduce((current, key) =>
         current?.[key] ?? defaultValue, obj) ?? defaultValue;
 };
-export const getNestedProperty = safeGet;
 
 export const setNestedProperty = (obj, path, value) => {
     if (!obj || typeof path !== 'string') return;
@@ -118,6 +117,8 @@ export const generateId = (prefix = 'id') => `${prefix}_${Date.now()}_${Math.ran
 
 export const formatTimestamp = (timestamp = Date.now()) => new Date(timestamp).toISOString();
 
+export const isObject = item => (item && typeof item === 'object' && !Array.isArray(item));
+
 export function deepMerge(target, source) {
     if (!source) return target;
     if (!isObject(target) || !isObject(source)) return source;
@@ -135,8 +136,6 @@ export function deepMerge(target, source) {
     }
     return output;
 }
-
-const isObject = item => (item && typeof item === 'object' && !Array.isArray(item));
 
 export const deepMergeConfig = (base, ...overrides) => {
     return overrides.reduce((acc, curr) => deepMerge(acc, curr), base);

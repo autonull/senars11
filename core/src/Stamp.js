@@ -16,16 +16,45 @@ export class Stamp {
 export class ArrayStamp extends Stamp {
     constructor({id = uuidv4(), creationTime = Date.now(), source = 'DERIVED', derivations = [], depth = 0} = {}) {
         super();
-        Object.assign(this, {id, creationTime, source, derivations: Object.freeze([...new Set(derivations)]), depth});
+        this._id = id;
+        this._creationTime = creationTime;
+        this._source = source;
+        this._derivations = Object.freeze([...new Set(derivations)]);
+        this._depth = depth;
         Object.freeze(this);
     }
 
-    get occurrenceTime() {
-        return this.creationTime;
+    get id() {
+        return this._id;
     }
 
-    equals = other => other instanceof ArrayStamp && this.id === other.id;
-    toString = () => `Stamp(${this.id},${this.creationTime},${this.source})`;
+    get creationTime() {
+        return this._creationTime;
+    }
+
+    get source() {
+        return this._source;
+    }
+
+    get derivations() {
+        return this._derivations;
+    }
+
+    get depth() {
+        return this._depth;
+    }
+
+    get occurrenceTime() {
+        return this._creationTime;
+    }
+
+    equals(other) {
+        return other instanceof ArrayStamp && this._id === other.id;
+    }
+
+    toString() {
+        return `Stamp(${this._id},${this._creationTime},${this._source})`;
+    }
 }
 
 export class BloomStamp extends Stamp {

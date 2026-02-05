@@ -24,12 +24,15 @@ export class StreamReasoner extends BaseComponent {
         // 1. Select tasks/concepts from memory (Focus)
         const concepts = this.memory.getMostActiveConcepts(1);
         if (concepts.length === 0) {
-            process.stdout.write('No active concepts\n');
+            this.logDebug('No active concepts');
             return;
         }
 
         const concept = concepts[0];
-        const task = concept.getMostUrgentTask();
+        // concept.getMostUrgentTask() does not exist in Concept.js, Concept has getHighestPriorityTask(type)
+        // Assuming we want highest priority task of any type or prioritizing Goals?
+        // Let's use getHighestPriorityTask('GOAL') or 'BELIEF' as fallback
+        const task = concept.getHighestPriorityTask('GOAL') || concept.getHighestPriorityTask('QUESTION') || concept.getHighestPriorityTask('BELIEF');
         if (!task) return;
 
         // 2. Select beliefs (premises)

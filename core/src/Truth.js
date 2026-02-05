@@ -3,17 +3,37 @@ import {clamp} from './util/common.js';
 
 export class Truth {
     constructor(frequency = TRUTH.DEFAULT_FREQUENCY, confidence = TRUTH.DEFAULT_CONFIDENCE) {
-        this.frequency = clamp(isNaN(frequency) ? TRUTH.DEFAULT_FREQUENCY : frequency, 0, 1);
-        this.confidence = clamp(isNaN(confidence) ? TRUTH.DEFAULT_CONFIDENCE : confidence, 0, 1);
+        this._frequency = clamp(isNaN(frequency) ? TRUTH.DEFAULT_FREQUENCY : frequency, 0, 1);
+        this._confidence = clamp(isNaN(confidence) ? TRUTH.DEFAULT_CONFIDENCE : confidence, 0, 1);
         Object.freeze(this);
     }
 
+    static get TRUE() {
+        return Truth._TRUE || (Truth._TRUE = new Truth(1.0, TRUTH.DEFAULT_CONFIDENCE));
+    }
+
+    static get FALSE() {
+        return Truth._FALSE || (Truth._FALSE = new Truth(0.0, TRUTH.DEFAULT_CONFIDENCE));
+    }
+
+    static get NEUTRAL() {
+        return Truth._NEUTRAL || (Truth._NEUTRAL = new Truth(0.5, TRUTH.DEFAULT_CONFIDENCE));
+    }
+
+    get frequency() {
+        return this._frequency;
+    }
+
+    get confidence() {
+        return this._confidence;
+    }
+
     get f() {
-        return this.frequency;
+        return this._frequency;
     }
 
     get c() {
-        return this.confidence;
+        return this._confidence;
     }
 
     /**
@@ -49,8 +69,11 @@ export class Truth {
 
     // Truth operation methods using a more modular approach
     static deduction(t1, t2) {
-        return Truth.binaryOperation(t1, t2, (t, u) =>
-            new Truth(t.frequency * u.frequency, t.confidence * u.confidence));
+        return Truth.binaryOperation(t1, t2, (t, u) => {
+            const f = t.frequency * u.frequency;
+            const c = t.confidence * u.confidence;
+            return (f === 1.0 && c === TRUTH.DEFAULT_CONFIDENCE) ? Truth.TRUE : new Truth(f, c);
+        });
     }
 
     static induction(t1, t2) {
@@ -70,10 +93,10 @@ export class Truth {
 
     static revision(truth1, truth2) {
         if (!truth1 || !truth2) return truth1 || truth2;
-        if (truth1.equals(truth2)) return truth1;
+        if (truth1 === truth2 || truth1.equals(truth2)) return truth1;
 
-        const {frequency: f1, confidence: c1} = truth1;
-        const {frequency: f2, confidence: c2} = truth2;
+        const {f: f1, c: c1} = truth1;
+        const {f: f2, c: c2} = truth2;
         const confidenceSum = c1 + c2;
 
         return new Truth(
@@ -83,7 +106,10 @@ export class Truth {
     }
 
     static negation(truth) {
-        return Truth.unaryOperation(truth, t => new Truth(1 - t.frequency, t.confidence));
+        return Truth.unaryOperation(truth, t => {
+            const f = 1 - t.frequency;
+            return (f === 0.0 && t.confidence === TRUTH.DEFAULT_CONFIDENCE) ? Truth.FALSE : new Truth(f, t.confidence);
+        });
     }
 
     static conversion(truth) {
@@ -180,11 +206,11 @@ export class Truth {
 
     equals(other) {
         return other instanceof Truth &&
-            Math.abs(this.frequency - other.frequency) < TRUTH.EPSILON &&
-            Math.abs(this.confidence - other.confidence) < TRUTH.EPSILON;
+            Math.abs(this._frequency - other.frequency) < TRUTH.EPSILON &&
+            Math.abs(this._confidence - other.confidence) < TRUTH.EPSILON;
     }
 
     toString() {
-        return `%${this.frequency.toFixed(TRUTH.PRECISION)};${this.confidence.toFixed(TRUTH.PRECISION)}%`;
+        return `%${this._frequency.toFixed(TRUTH.PRECISION)};${this._confidence.toFixed(TRUTH.PRECISION)}%`;
     }
 }

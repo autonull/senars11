@@ -1,4 +1,5 @@
 import { NAR } from './nar/NAR.js';
+import { Logger } from './util/Logger.js';
 
 /**
  * SeNARS Facade - A simplified API for SeNARS reasoning system
@@ -53,7 +54,7 @@ export class SeNARS {
                 await this.nar.initialize();
                 this._initialized = true;
             } catch (error) {
-                console.error('Failed to initialize SeNARS:', error);
+                Logger.error('Failed to initialize SeNARS:', error);
                 this._initPromise = null; // Reset on error so it can be retried
                 throw error;
             }
@@ -76,7 +77,7 @@ export class SeNARS {
             await this.nar.input(narsese);
             return true;
         } catch (error) {
-            console.error('Learning failed:', error);
+            Logger.error('Learning failed:', error);
             return false;
         }
     }
@@ -147,7 +148,7 @@ export class SeNARS {
                 timestamp: Date.now()
             };
         } catch (error) {
-            console.error('Question failed:', error);
+            Logger.error('Question failed:', error);
             return {
                 answer: null,
                 confidence: 0,
