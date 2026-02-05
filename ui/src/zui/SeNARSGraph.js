@@ -82,6 +82,11 @@ export class SeNARSGraph extends GraphSystem {
                 this.keyboardNav.initialize(document.getElementById(this.container));
             }
 
+            // Ensure content is visible after layout
+            this.cy.on('layoutstop', () => {
+                this.cy.fit(undefined, 30);
+            });
+
             // Interaction Polish: Hover effects
             this._setupHoverEffects();
         }
@@ -658,7 +663,8 @@ export class SeNARSGraph extends GraphSystem {
                     // Override weight/priority from bag item which might be decayed
                     config.data.priority = item.priority;
                     this.cy.add(config);
-                    this.animateFadeIn(item.id);
+                    // Removed fade-in to ensure immediate visibility stability
+                    // this.animateFadeIn(item.id);
                 } else {
                     // Update existing
                     // We might want to update weight based on decayed priority
