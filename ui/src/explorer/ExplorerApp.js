@@ -665,6 +665,9 @@ export class ExplorerApp {
                 this.log('Workspace cleared.', 'system');
                 this._updateStats();
                 break;
+            case 'shortcuts':
+                this._showShortcuts();
+                break;
             default:
                 console.warn('Unknown menu action:', action);
         }
@@ -871,11 +874,9 @@ export class ExplorerApp {
     }
 
     _updateStats() {
-        const bag = this.graph.bag;
-        const el = document.getElementById('bag-stats');
-        if (el && bag) {
-            el.textContent = `Bag: ${bag.items.size} / ${bag.capacity}`;
-        }
+        // Redundant with _startStatsLoop, but kept for immediate feedback
+        // Just clear the old legacy direct manipulation if it exists
+        // The real update happens in _startStatsLoop targeting the InfoPanel
     }
 
     async handleReplCommand(command) {
@@ -1372,14 +1373,23 @@ export class ExplorerApp {
             const maxConcepts = (stats.config && stats.config.memory) ? stats.config.memory.maxConcepts : 1000;
             const tps = this.isReasonerRunning ? (1000 / Math.max(this.reasonerDelay, 1)).toFixed(1) : 0;
 
-            // Update StatusBar
+            // Update StatusBar and InfoPanel
+            // Get active (visible) nodes from graph if available
+            const activeNodes = (this.graph && this.graph.cy) ? this.graph.cy.nodes().length : 0;
+            const statsPayload = {
+                cycles: stats.cycleCount || 0,
+                nodes: totalConcepts,
+                activeNodes: activeNodes,
+                maxNodes: maxConcepts,
+                tps: tps
+            };
+
             if (this.statusBar) {
-                this.statusBar.updateStats({
-                    cycles: stats.cycleCount || 0,
-                    nodes: totalConcepts,
-                    maxNodes: maxConcepts,
-                    tps: tps
-                });
+                this.statusBar.updateStats(statsPayload);
+            }
+
+            if (this.infoPanel && this.infoPanel.updateStats) {
+                this.infoPanel.updateStats(statsPayload);
             }
 
             // Legacy status bar support

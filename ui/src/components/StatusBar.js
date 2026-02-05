@@ -73,6 +73,12 @@ export class StatusBar extends Component {
                                 <button data-action="clear" class="danger">Clear All</button>
                             </div>
                         </div>
+                        <div class="status-menu-item">
+                            <button class="status-menu-btn">Help</button>
+                            <div class="status-menu-dropdown">
+                                <button data-action="shortcuts">Keyboard Shortcuts</button>
+                            </div>
+                        </div>
                     </div>
                     <div class="status-repl-wrapper">
                         <span class="repl-prompt">&gt;</span>
@@ -282,7 +288,9 @@ export class StatusBar extends Component {
         const tpsEl = this.container.querySelector('#status-tps');
 
         if (cyclesEl) cyclesEl.textContent = `📊 Cycles: ${stats.cycles || 0}`;
-        if (nodesEl) nodesEl.textContent = `🧠 Nodes: ${stats.nodes || 0}/${stats.maxNodes || 50}`;
+        // Prefer "active" (visible) nodes if passed, otherwise backend stats
+        const activeNodes = stats.activeNodes !== undefined ? stats.activeNodes : (stats.nodes || 0);
+        if (nodesEl) nodesEl.textContent = `🧠 Nodes: ${activeNodes}/${stats.maxNodes || 50}`;
         if (tpsEl) tpsEl.textContent = `⚡ TPS: ${stats.tps || 0}`;
     }
 

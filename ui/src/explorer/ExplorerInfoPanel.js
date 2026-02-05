@@ -12,7 +12,7 @@ export class ExplorerInfoPanel extends Component {
             <div class="hud-panel info-panel">
                 <div class="hud-row">
                     <span id="zoom-level">ZOOM: 1.0x</span>
-                    <span id="bag-stats">MEM: 0/50</span>
+                    <span id="bag-stats">NODES: 0/50</span>
                 </div>
                 <div class="mode-controls">
                     <button class="btn mode-btn active" data-mode="visualization">VIS</button>
@@ -76,11 +76,15 @@ export class ExplorerInfoPanel extends Component {
                         </select>
                     </div>
                 </details>
-
-                <div class="control-group" style="margin-top: 10px; border-top: 1px solid rgba(0, 255, 157, 0.2); padding-top: 10px;">
-                     <button id="btn-shortcuts" class="btn small-btn" style="width: 100%">Keyboard Shortcuts (?)</button>
-                </div>
             </div>
         `;
+    }
+
+    updateStats(stats) {
+        if (!this.container) return;
+        const el = this.container.querySelector('#bag-stats');
+        if (el && stats) {
+            el.textContent = `NODES: ${stats.activeNodes || 0}/${stats.maxNodes || 50}`;
+        }
     }
 }
