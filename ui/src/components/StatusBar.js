@@ -126,6 +126,7 @@ export class StatusBar extends Component {
         this._bindReplEvents();
         this._bindControlEvents();
         this._bindWidgetToggles();
+        this._bindMenuEvents();
     }
 
     _bindWidgetToggles() {

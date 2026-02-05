@@ -25,6 +25,22 @@ def verify_ui_v2():
             print("Verifying Explorer...")
             page.goto("http://localhost:5173/explorer.html")
             time.sleep(5)
+
+            # Inject logs to verify colors
+            page.evaluate("""
+                () => {
+                    const app = window.Explorer;
+                    if (app) {
+                        app.log("System Message Check", "system");
+                        app.log("User Input Check", "user");
+                        app.log("Agent Response Check", "agent");
+                        app.log("Error Message Check", "error");
+                        app.log("Success Message Check", "success");
+                    }
+                }
+            """)
+            time.sleep(1)
+
             page.screenshot(path="verification/explorer-check-v2.png")
             print("Captured explorer-check-v2.png")
 

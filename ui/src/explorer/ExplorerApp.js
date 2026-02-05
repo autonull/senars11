@@ -217,6 +217,11 @@ export class ExplorerApp {
         }
 
         console.log('ExplorerApp: Initialized');
+
+        // Show welcome toast
+        setTimeout(() => {
+            this.toastManager.show('Welcome! Press "?" for keyboard shortcuts.', 'info', 5000);
+        }, 1000);
     }
 
     async _initLocalBridge() {

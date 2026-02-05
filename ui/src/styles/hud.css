@@ -269,3 +269,32 @@ details[open] summary::after {
 details[open] summary {
     border-bottom: 1px solid rgba(0, 255, 157, 0.4);
 }
+
+/* Log Entry Types */
+.log-entry span:first-child {
+    color: var(--text-muted);
+}
+
+.log-entry.log-user span:last-child {
+    color: var(--accent-primary);
+}
+
+.log-entry.log-agent span:last-child {
+    color: var(--accent-secondary);
+}
+
+.log-entry.log-error span:last-child {
+    color: var(--status-error);
+}
+
+.log-entry.log-warning span:last-child {
+    color: var(--status-warning);
+}
+
+.log-entry.log-success span:last-child {
+    color: var(--status-success);
+}
+
+.log-entry.log-system span:last-child {
+    color: var(--status-system);
+}
