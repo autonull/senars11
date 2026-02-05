@@ -9,6 +9,7 @@ import { HUDLayoutManager } from '../layout/HUDLayoutManager.js';
 import { ExplorerInfoPanel } from './ExplorerInfoPanel.js';
 import { LogPanel } from '../components/LogPanel.js';
 import { InspectorPanel } from '../components/InspectorPanel.js';
+import { TaskBrowser } from './TaskBrowser.js';
 import { CommandPalette } from '../components/CommandPalette.js';
 import { ToastManager } from '../components/ToastManager.js';
 import { DemoLibraryModal } from '../components/DemoLibraryModal.js';
@@ -61,11 +62,27 @@ export class ExplorerApp {
         this.infoPanel = new ExplorerInfoPanel();
         this.logPanel = new LogPanel();
         this.inspectorPanel = new InspectorPanel();
+        this.taskBrowser = new TaskBrowser();
 
         // Wire up inspector callbacks
         this.inspectorPanel.onSave = (id, updates) => this.saveNodeChanges(id, updates);
         this.inspectorPanel.onQuery = (term) => this.handleReplCommand(`<${term} ?>?`);
         this.inspectorPanel.onTrace = (id) => this.graph.traceDerivationPath(id);
+
+        // Wire up task browser callbacks
+        this.taskBrowser.onSelect = (term) => {
+            const node = this.graph.cy.$id(term);
+            if (node.nonempty()) {
+                this.graph.cy.animate({
+                    center: { eles: node },
+                    zoom: 1.5,
+                    duration: 500
+                });
+                node.select();
+                const data = node.data();
+                this.showInspector({ id: term, ...data, ...(data.fullData || {}) });
+            }
+        };
     }
 
     // Convenience accessor for the underlying graph manager
@@ -165,6 +182,12 @@ export class ExplorerApp {
         this.inspectorPanel.container = inspectorContainer;
         this.inspectorPanel.render();
         this.layoutManager.registerWidget('inspector', inspectorContainer, 'left', false);
+
+        // 5. Tasks Widget (right, middle) - TaskBrowser
+        const tasksContainer = document.createElement('div');
+        this.taskBrowser.container = tasksContainer;
+        this.taskBrowser.render();
+        this.layoutManager.registerWidget('tasks', tasksContainer, 'right', false);
 
         // 6. Target Panel (absolute positioned, not docked)
         this.targetPanel = new TargetPanel(null);
@@ -362,6 +385,11 @@ export class ExplorerApp {
 
     _onTaskAdded(task) {
         if (!task || !task.term) return;
+
+        // Update Task Browser
+        if (this.taskBrowser) {
+            this.taskBrowser.addTask(task);
+        }
 
         const term = task.term.toString();
         console.log(`ExplorerApp: Adding node for term: ${term}`);
@@ -939,7 +967,7 @@ export class ExplorerApp {
         this.isFocusMode = !this.isFocusMode;
 
         // Widgets to toggle
-        const widgets = ['layers', 'metrics', 'log', 'inspector'];
+        const widgets = ['layers', 'metrics', 'log', 'inspector', 'tasks'];
 
         widgets.forEach(id => {
             const widget = this.layoutManager.getWidget(id);
