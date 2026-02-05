@@ -39,10 +39,10 @@ export class EventBus {
     }
 
     constructor() {
-        this._listeners = new Map(); // event -> [callbacks]
-        this._wildcards = new Map(); // pattern -> [callbacks]
-        this._middleware = []; // [middleware functions]
-        this._history = []; // Event history for debugging
+        this._listeners = new Map();
+        this._wildcards = new Map();
+        this._middleware = [];
+        this._history = [];
         this._maxHistory = 100;
         this._debugMode = false;
     }
@@ -55,22 +55,26 @@ export class EventBus {
      */
     on(event, callback) {
         if (event.includes('*')) {
-            // Wildcard subscription
-            if (!this._wildcards.has(event)) {
-                this._wildcards.set(event, []);
-            }
-            this._wildcards.get(event).push(callback);
-
-            return () => this._removeWildcard(event, callback);
+            return this._addWildcardListener(event, callback);
         } else {
-            // Exact match subscription
-            if (!this._listeners.has(event)) {
-                this._listeners.set(event, []);
-            }
-            this._listeners.get(event).push(callback);
-
-            return () => this._removeListener(event, callback);
+            return this._addListener(event, callback);
         }
+    }
+
+    _addWildcardListener(pattern, callback) {
+        if (!this._wildcards.has(pattern)) {
+            this._wildcards.set(pattern, []);
+        }
+        this._wildcards.get(pattern).push(callback);
+        return () => this._removeWildcard(pattern, callback);
+    }
+
+    _addListener(event, callback) {
+        if (!this._listeners.has(event)) {
+            this._listeners.set(event, []);
+        }
+        this._listeners.get(event).push(callback);
+        return () => this._removeListener(event, callback);
     }
 
     /**

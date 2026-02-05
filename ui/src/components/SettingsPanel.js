@@ -14,71 +14,12 @@ export class SettingsPanel extends Component {
     }
 
     render() {
-        // Get current defaults
-        const layout = GraphConfig.getGraphLayout('fcose');
-        const theme = this.app?.themeManager?.getTheme() || 'default';
-        const serverUrl = this.app?.serverUrl || '';
-
         this.fluent().clear().class('settings-container')
-            // Workspace Section
-            .child(this._renderSection('WORKSPACE',
-                FluentUI.create('div').style({ display: 'flex', gap: '8px' })
-                    .child(FluentUI.create('button').class('toolbar-btn primary').style({ flex: '1' }).text('💾 Save Workspace').on('click', () => this._saveWorkspace()))
-                    .child(FluentUI.create('button').class('toolbar-btn').style({ flex: '1' }).text('📂 Load Workspace').on('click', () => this._loadWorkspace()))
-            ))
-
-            // UI Settings Section
-            .child(this._renderSection('UI SETTINGS', [
-                FluentUI.create('div').class('setting-item')
-                    .child(FluentUI.create('label').class('setting-label').text('Theme'))
-                    .child(
-                        FluentUI.create('select')
-                            .id('setting-theme')
-                            .class('setting-select')
-                            .on('change', (e) => this.app?.themeManager?.setTheme(e.target.value))
-                            .children([
-                                { v: 'default', l: 'Dark (Default)' },
-                                { v: 'light', l: 'Light' },
-                                { v: 'contrast', l: 'High Contrast' }
-                            ].map(opt => FluentUI.create('option').attr({ value: opt.v }).text(opt.l).prop({ selected: theme === opt.v })))
-                    ),
-                FluentUI.create('div').class('setting-item')
-                    .child(
-                        FluentUI.create('button')
-                            .id('reset-layout')
-                            .class('reset-btn')
-                            .text('RESET LAYOUT')
-                            .on('click', () => {
-                                if(confirm('Reset layout to default? This will reload the page.')) {
-                                    localStorage.removeItem('senars-ide-layout');
-                                    location.reload();
-                                }
-                            })
-                    )
-            ]))
-
-            // Connection Section
-            .child(this._renderSection('CONNECTION',
-                FluentUI.create('div').class('setting-item')
-                    .child(FluentUI.create('label').class('setting-label').text('Server URL'))
-                    .child(FluentUI.create('input').attr({ type: 'text', id: 'setting-server-url', value: serverUrl, placeholder: 'ws://localhost:3000' }).class('setting-input'))
-            ))
-
-            // Graph Physics Section
-            .child(this._renderSection('GRAPH PHYSICS (fCoSE)', [
-                this._createSlider('Gravity', 'gravity', 0, 1, 0.05, layout.gravity),
-                this._createSlider('Repulsion', 'nodeRepulsion', 100000, 1000000, 50000, layout.nodeRepulsion),
-                this._createSlider('Edge Length', 'idealEdgeLength', 50, 300, 10, layout.idealEdgeLength)
-            ]))
-
-            // Colors Section
-            .child(this._renderSection('COLORS', [
-                this._createColorPicker('Concept', 'CONCEPT'),
-                this._createColorPicker('Task', 'TASK'),
-                this._createColorPicker('Question', 'QUESTION'),
-                this._createColorPicker('Highlight', 'HIGHLIGHT')
-            ]))
-
+            .child(this._renderWorkspaceSection())
+            .child(this._renderUISettingsSection())
+            .child(this._renderConnectionSection())
+            .child(this._renderPhysicsSection())
+            .child(this._renderColorsSection())
             .child(
                 FluentUI.create('button')
                     .id('apply-settings')
@@ -86,6 +27,73 @@ export class SettingsPanel extends Component {
                     .text('APPLY SETTINGS')
                     .on('click', () => this._applySettings())
             );
+    }
+
+    _renderWorkspaceSection() {
+        return this._renderSection('WORKSPACE',
+            FluentUI.create('div').style({ display: 'flex', gap: '8px' })
+                .child(FluentUI.create('button').class('toolbar-btn primary').style({ flex: '1' }).text('💾 Save Workspace').on('click', () => this._saveWorkspace()))
+                .child(FluentUI.create('button').class('toolbar-btn').style({ flex: '1' }).text('📂 Load Workspace').on('click', () => this._loadWorkspace()))
+        );
+    }
+
+    _renderUISettingsSection() {
+        const theme = this.app?.themeManager?.getTheme() || 'default';
+        return this._renderSection('UI SETTINGS', [
+            FluentUI.create('div').class('setting-item')
+                .child(FluentUI.create('label').class('setting-label').text('Theme'))
+                .child(
+                    FluentUI.create('select')
+                        .id('setting-theme')
+                        .class('setting-select')
+                        .on('change', (e) => this.app?.themeManager?.setTheme(e.target.value))
+                        .children([
+                            { v: 'default', l: 'Dark (Default)' },
+                            { v: 'light', l: 'Light' },
+                            { v: 'contrast', l: 'High Contrast' }
+                        ].map(opt => FluentUI.create('option').attr({ value: opt.v }).text(opt.l).prop({ selected: theme === opt.v })))
+                ),
+            FluentUI.create('div').class('setting-item')
+                .child(
+                    FluentUI.create('button')
+                        .id('reset-layout')
+                        .class('reset-btn')
+                        .text('RESET LAYOUT')
+                        .on('click', async () => {
+                            if (await Modal.confirm('Reset layout to default? This will reload the page.')) {
+                                localStorage.removeItem('senars-ide-layout');
+                                location.reload();
+                            }
+                        })
+                )
+        ]);
+    }
+
+    _renderConnectionSection() {
+        const serverUrl = this.app?.serverUrl || '';
+        return this._renderSection('CONNECTION',
+            FluentUI.create('div').class('setting-item')
+                .child(FluentUI.create('label').class('setting-label').text('Server URL'))
+                .child(FluentUI.create('input').attr({ type: 'text', id: 'setting-server-url', value: serverUrl, placeholder: 'ws://localhost:3000' }).class('setting-input'))
+        );
+    }
+
+    _renderPhysicsSection() {
+        const layout = GraphConfig.getGraphLayout('fcose');
+        return this._renderSection('GRAPH PHYSICS (fCoSE)', [
+            this._createSlider('Gravity', 'gravity', 0, 1, 0.05, layout.gravity),
+            this._createSlider('Repulsion', 'nodeRepulsion', 100000, 1000000, 50000, layout.nodeRepulsion),
+            this._createSlider('Edge Length', 'idealEdgeLength', 50, 300, 10, layout.idealEdgeLength)
+        ]);
+    }
+
+    _renderColorsSection() {
+        return this._renderSection('COLORS', [
+            this._createColorPicker('Concept', 'CONCEPT'),
+            this._createColorPicker('Task', 'TASK'),
+            this._createColorPicker('Question', 'QUESTION'),
+            this._createColorPicker('Highlight', 'HIGHLIGHT')
+        ]);
     }
 
     _renderSection(title, content) {
@@ -167,10 +175,10 @@ export class SettingsPanel extends Component {
         input.click();
     }
 
-    _restoreWorkspace(workspace) {
+    async _restoreWorkspace(workspace) {
         if (!this.app) return;
 
-        if (confirm('Load workspace? Current state will be overwritten.')) {
+        if (await Modal.confirm('Load workspace? Current state will be overwritten.')) {
             // Restore Settings
             if (workspace.settings) {
                 if (workspace.settings.theme) this.app.themeManager?.setTheme(workspace.settings.theme);
@@ -185,7 +193,8 @@ export class SettingsPanel extends Component {
             // Restore Layout
             if (workspace.layout) {
                 localStorage.setItem(`senars-layout-${this.app.presetName || 'ide'}`, JSON.stringify(workspace.layout));
-                Modal.alert('Workspace loaded. Page will reload to apply layout changes.').then(() => location.reload());
+                await Modal.alert('Workspace loaded. Page will reload to apply layout changes.');
+                location.reload();
             } else {
                 Modal.alert('Workspace loaded (Notebook and Settings).');
             }

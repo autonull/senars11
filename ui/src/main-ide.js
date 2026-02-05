@@ -27,7 +27,7 @@ class SeNARSIDE {
         this.components = new Map();
         this.graphManager = null;
         this.themeManager = new ThemeManager();
-        this.logger = new Logger(); // Core logger
+        this.logger = new Logger();
         this.commandProcessor = null;
         this.lmActivityIndicator = null;
         this.cycleCount = 0;
@@ -35,7 +35,6 @@ class SeNARSIDE {
         this.isRunning = false;
         this.statusBar = null;
 
-        // Handle URL params for mode/layout
         const urlParams = new URLSearchParams(window.location.search);
         this.presetName = urlParams.get('layout') || 'ide';
 
@@ -50,7 +49,6 @@ class SeNARSIDE {
 
         this.presetName ||= 'ide';
 
-        // Map common aliases
         const aliases = { console: 'repl', online: 'dashboard' };
         this.presetName = aliases[this.presetName] ?? this.presetName;
     }
@@ -75,10 +73,8 @@ class SeNARSIDE {
         await this.switchMode(this.settingsManager.getMode());
         this.setupKeyboardShortcuts();
 
-        // Listen for concept selection (Global Event Bus & DOM)
         const onConceptSelect = (concept) => {
             if (!concept) return;
-             // Open Memory Inspector if available
              const memoryComponent = this.layoutManager.layout.root.getItemsByFilter(item => item.config.componentName === COMPONENTS.MEMORY)[0];
              memoryComponent?.parent?.setActiveContentItem?.(memoryComponent);
         };
@@ -95,15 +91,8 @@ class SeNARSIDE {
         this.connection?.disconnect();
         this.settingsManager.setMode(mode);
 
-        const manager = mode === MODES.LOCAL ? new LocalConnectionManager() : new WebSocketManager();
-        this.connection = new ConnectionManager(manager);
+        await this._setupConnection(mode);
 
-        await this.connection.connect(mode === MODES.REMOTE ? this.settingsManager.getServerUrl() : undefined);
-
-        this.connection.subscribe('*', (message) => this.messageRouter.handleMessage(message));
-        this.connection.subscribe('connection.status', (status) => this.statusBar?.updateStatus(status));
-
-        // Update CommandProcessor with new connection
         if (this.commandProcessor) {
             this.commandProcessor.connection = this.connection;
         } else {
@@ -111,8 +100,17 @@ class SeNARSIDE {
         }
 
         this.graphManager?.setCommandProcessor(this.commandProcessor);
-
         this.updateModeIndicator();
+    }
+
+    async _setupConnection(mode) {
+        const manager = mode === MODES.LOCAL ? new LocalConnectionManager() : new WebSocketManager();
+        this.connection = new ConnectionManager(manager);
+
+        await this.connection.connect(mode === MODES.REMOTE ? this.settingsManager.getServerUrl() : undefined);
+
+        this.connection.subscribe('*', (message) => this.messageRouter.handleMessage(message));
+        this.connection.subscribe('connection.status', (status) => this.statusBar?.updateStatus(status));
     }
 
     updateModeIndicator() {
@@ -191,18 +189,14 @@ class SeNARSIDE {
             { key: 'F1', desc: 'Help (Shortcuts)' }
         ];
 
-        const content = shortcuts.map(s => `
+        const content = shortcuts.map(({ key, desc }) => `
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #333;">
-                <span style="font-family: monospace; color: #00ff9d; font-weight: bold;">${s.key}</span>
-                <span style="color: #ccc;">${s.desc}</span>
+                <span style="font-family: monospace; color: #00ff9d; font-weight: bold;">${key}</span>
+                <span style="color: #ccc;">${desc}</span>
             </div>
         `).join('');
 
-        new Modal({
-            title: '⌨️ Global Shortcuts',
-            content,
-            width: '450px'
-        }).show();
+        new Modal({ title: '⌨️ Global Shortcuts', content, width: '450px' }).show();
     }
 
     triggerLoadFile() {

@@ -29,27 +29,36 @@ export class CommandProcessor {
         if (!text) return;
 
         if (text.startsWith('/')) {
-            const parts = text.slice(1).trim().split(/\s+/);
-            const cmdName = parts[0];
-            const args = parts.slice(1);
-
-            const command = this.commands.get(cmdName);
-            if (command) {
-                command.fn({ args, text });
-            } else {
-                this.logger.log(`Unknown command: /${cmdName}`, 'error');
-            }
-        } else {
-            // Forward to connection
-            if (this.connection?.isConnected()) {
-                const type = (mode === 'agent' || mode === 'metta' || text.startsWith('!'))
-                    ? 'agent/input'
-                    : 'narseseInput';
-                this.connection.sendMessage(type, { text });
-            } else {
-                this.logger.log('Not connected', 'error');
-            }
+            this._handleSlashCommand(text);
+            return;
         }
+
+        this._handleInputInternal(text, mode);
+    }
+
+    _handleSlashCommand(text) {
+        const parts = text.slice(1).trim().split(/\s+/);
+        const cmdName = parts[0];
+        const args = parts.slice(1);
+
+        const command = this.commands.get(cmdName);
+        if (command) {
+            command.fn({ args, text });
+        } else {
+            this.logger.log(`Unknown command: /${cmdName}`, 'error');
+        }
+    }
+
+    _handleInputInternal(text, mode) {
+        if (!this.connection?.isConnected()) {
+            this.logger.log('Not connected', 'error');
+            return;
+        }
+
+        const type = (mode === 'agent' || mode === 'metta' || text.startsWith('!'))
+            ? 'agent/input'
+            : 'narseseInput';
+        this.connection.sendMessage(type, { text });
     }
 
     _executeHelp(ctx) {
@@ -126,69 +135,76 @@ export class CommandProcessor {
         }
 
         try {
-            const root = this.layout.root;
-            if (!root) return false;
-
-            const findItem = (item, name) => {
-                if (item.componentName === name) return item;
-                if (item.contentItems) {
-                    for (const c of item.contentItems) {
-                        const found = findItem(c, name);
-                        if (found) return found;
-                    }
-                }
-                return null;
-            };
-
-            const notebookItem = findItem(root, 'notebookComponent');
-
-            // Traverse up to find the Row that contains the Notebook (or its stack) and the Sidebar
-            let currentItem = notebookItem;
-            let row = null;
-
-            // REPL might be in a Stack, which is in a Row
-            if (currentItem?.parent?.type === 'stack') {
-                currentItem = currentItem.parent;
-            }
-
-            if (currentItem?.parent?.type === 'row') {
-                row = currentItem.parent;
-            }
-
-            if (row) {
-                 const itemIndex = row.contentItems.indexOf(currentItem);
-                 // Assuming REPL is on left (index 0) or right.
-                 const sidebarIndex = itemIndex === 0 ? 1 : 0;
-                 const sidebarItem = row.contentItems[sidebarIndex];
-
-                 if (sidebarItem) {
-                    // Helper to set width safely
-                    const setWidth = (item, w) => {
-                        if (item.config) item.config.width = w;
-                        else item.width = w;
-                    };
-
-                    if (mode === 'full-notebook' || mode === 'full-repl' || mode === 'collapse-sidebar') {
-                        setWidth(currentItem, 100);
-                        setWidth(sidebarItem, 0);
-                        this.layout.updateSize();
-                        this.logger.log('Layout: Full Notebook', 'info', '🖥️');
-                        return true;
-                    } else if (mode === 'standard') {
-                        setWidth(currentItem, 70);
-                        setWidth(sidebarItem, 30);
-                        this.layout.updateSize();
-                        this.logger.log('Layout: Standard', 'info', '🖥️');
-                        return true;
-                    }
-                 }
-            }
-
-            this.logger.log(`Unknown layout mode: ${mode}`, 'error');
+            this._applyLayoutMode(mode);
         } catch (e) {
             console.error('Layout error', e);
             this.logger.log(`Failed to update layout: ${e.message}`, 'error');
         }
         return true;
+    }
+
+    _applyLayoutMode(mode) {
+        const { notebookItem, sidebarItem } = this._findLayoutComponents();
+        if (!notebookItem || !sidebarItem) {
+             throw new Error('Could not find notebook or sidebar components');
+        }
+
+        const setWidth = (item, w) => {
+            if (item.config) item.config.width = w;
+            else item.width = w;
+        };
+
+        if (mode === 'full-notebook' || mode === 'full-repl' || mode === 'collapse-sidebar') {
+            setWidth(notebookItem, 100);
+            setWidth(sidebarItem, 0);
+            this.layout.updateSize();
+            this.logger.log('Layout: Full Notebook', 'info', '🖥️');
+        } else if (mode === 'standard') {
+            setWidth(notebookItem, 70);
+            setWidth(sidebarItem, 30);
+            this.layout.updateSize();
+            this.logger.log('Layout: Standard', 'info', '🖥️');
+        } else {
+            throw new Error(`Unknown layout mode: ${mode}`);
+        }
+    }
+
+    _findLayoutComponents() {
+        const root = this.layout.root;
+        if (!root) return {};
+
+        const findItem = (item, name) => {
+            if (item.componentName === name) return item;
+            if (item.contentItems) {
+                for (const c of item.contentItems) {
+                    const found = findItem(c, name);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+
+        const notebookItem = findItem(root, 'notebookComponent');
+        if (!notebookItem) return {};
+
+        let currentItem = notebookItem;
+        let row = null;
+
+        if (currentItem?.parent?.type === 'stack') {
+            currentItem = currentItem.parent;
+        }
+
+        if (currentItem?.parent?.type === 'row') {
+            row = currentItem.parent;
+        }
+
+        if (row) {
+             const itemIndex = row.contentItems.indexOf(currentItem);
+             const sidebarIndex = itemIndex === 0 ? 1 : 0;
+             const sidebarItem = row.contentItems[sidebarIndex];
+             return { notebookItem: currentItem, sidebarItem };
+        }
+
+        return {};
     }
 }

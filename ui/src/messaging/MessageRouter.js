@@ -33,40 +33,58 @@ export class MessageRouter {
         const notebook = this.app.getNotebook();
         if (!notebook) return;
 
-        if (message.type === 'visualization') {
-            const { type, data, content } = message.payload;
-            if (type === 'markdown') {
-                notebook.createMarkdownCell(content || data);
-            } else if (type === 'graph' || type === 'chart') {
-                const widgetType = type === 'graph' ? 'GraphWidget' : 'ChartWidget';
-                notebook.createWidgetCell(widgetType, data);
+        switch (message.type) {
+            case 'visualization':
+                this._handleVisualization(notebook, message.payload);
+                break;
+            case 'ui-command':
+                this._handleUICommand(message.payload);
+                break;
+            case 'agent/prompt':
+                this._handleAgentPrompt(notebook, message.payload);
+                break;
+            default:
+                this._logGenericMessage(message);
+        }
+    }
+
+    _handleVisualization(notebook, payload) {
+        const { type, data, content } = payload;
+        if (type === 'markdown') {
+            notebook.createMarkdownCell(content || data);
+        } else if (type === 'graph' || type === 'chart') {
+            const widgetType = type === 'graph' ? 'GraphWidget' : 'ChartWidget';
+            notebook.createWidgetCell(widgetType, data);
+        }
+    }
+
+    _handleUICommand(payload) {
+        const { command, args } = payload;
+        const fullCommand = `/${command} ${args}`;
+        this.app.logger.log(`System requested UI Command: ${fullCommand}`, 'system');
+        this.app.commandProcessor?.processCommand(fullCommand, true);
+    }
+
+    _handleAgentPrompt(notebook, payload) {
+        const { question, id } = payload;
+        notebook.createPromptCell(question, (response) => {
+            this.app.connection?.sendMessage('agent/response', { id, response });
+        });
+    }
+
+    _logGenericMessage(message) {
+        const category = categorizeMessage(message);
+
+        if (category !== 'unknown' && category !== 'metric') {
+            let content = message.content || message.payload;
+            if (message.payload?.answer) content = message.payload.answer;
+
+            if (content && typeof content === 'object') {
+                content = JSON.stringify(content);
             }
-        } else if (message.type === 'ui-command') {
-            const { command, args } = message.payload;
-            const fullCommand = `/${command} ${args}`;
-            this.app.logger.log(`System requested UI Command: ${fullCommand}`, 'system');
-            this.app.commandProcessor?.processCommand(fullCommand, true);
-        } else if (message.type === 'agent/prompt') {
-            const { question, id } = message.payload;
-            notebook.createPromptCell(question, (response) => {
-                this.app.connection?.sendMessage('agent/response', { id, response });
-            });
-        } else {
-            // Generic message handling (logging) is often handled by subscribers or specific components
-            // But we can check if we want to explicitly log something here if it's not covered
-            const category = categorizeMessage(message);
 
-            if (category !== 'unknown' && category !== 'metric') {
-                let content = message.content || message.payload;
-                if (message.payload?.answer) content = message.payload.answer;
-
-                if (content && typeof content === 'object') {
-                    content = JSON.stringify(content);
-                }
-
-                if (content) {
-                    this.app.logger.log(content, message.type || category);
-                }
+            if (content) {
+                this.app.logger.log(content, message.type || category);
             }
         }
     }

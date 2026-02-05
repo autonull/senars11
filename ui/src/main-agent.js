@@ -84,107 +84,101 @@ class AgentREPL {
             this.updateStatus('Step 1/6: Loading modules...');
             this.log('Initializing Agent REPL...', 'system');
 
-            // Initialize UI components
-            this.updateStatus('Step 2/6: Creating UI components...');
-            this.statusBar = new StatusBar(document.getElementById(UI_IDS.STATUS_BAR_ROOT));
-            this.statusBar.initialize({
-                onModeSwitch: () => {
-                    console.log('[AgentREPL] onModeSwitch triggered, showing config dialog');
-                    this.showConfigDialog();
-                }
-            });
-            this.statusBar.updateMode('Agent');
-            this.statusBar.updateStatus('Initializing...');
-
-            // Create notebook panel container
-            this.updateStatus('Step 3/6: Setting up notebook panel...');
-            const notebookContainer = this.ui.createNotebookContainer();
-
-            this.notebookPanel = new NotebookPanel(notebookContainer);
-            this.notebookPanel.initialize(this);
-
-            // Show welcome message
-            this.updateStatus('Step 4/6: Displaying welcome message...');
-            this.showWelcomeMessage();
-
-            // Initialize LM controller
-            this.updateStatus('Step 5/6: Initializing Language Model...');
-            this.lmController = new LMAgentController(this.logger);
-
-            // Set up progress tracking
-            this.lmController.on('model-load-start', (data) => {
-                this.updateStatus(`Loading model: ${data.modelName}...`);
-                this.notebookPanel.notebookManager.createResultCell(
-                    `📥 Starting model download: ${data.modelName}`,
-                    'system'
-                );
-            });
-
-            this.lmController.on('model-dl-progress', (data) => {
-                const percent = Math.round(data.progress * 100);
-                this.updateStatus(`Downloading model: ${percent}% - ${data.text || ''}`);
-
-                // Update notebook every 10%
-                if (percent % 10 === 0) {
-                    this.notebookPanel.notebookManager.createResultCell(
-                        `📥 Download progress: ${percent}%`,
-                        'system'
-                    );
-                }
-            });
-
-            this.lmController.on('model-load-complete', (data) => {
-                this.updateStatus('✅ Model loaded successfully!');
-                this.ui.hideLoading();
-                this.notebookPanel.notebookManager.createResultCell(
-                    `✅ Model loaded: ${data.modelName} (took ${Math.round(data.elapsedMs / 1000)}s)`,
-                    'system'
-                );
-                this.notebookPanel.notebookManager.createResultCell(
-                    `🎯 Ready for interaction! Available tools: ${this.lmController.getAvailableTools().length}`,
-                    'system'
-                );
-                this.statusBar.updateStatus('Ready');
-            });
-
-            this.lmController.on('model-load-error', (data) => {
-                const errorMsg = `❌ Error loading model: ${data.error}`;
-                this.updateStatus(errorMsg, true);
-                this.ui.hideLoading();
-                this.notebookPanel.notebookManager.createResultCell(errorMsg, 'system');
-                this.statusBar.updateStatus('Error');
-            });
-
-            // Initialize the LM
-            this.log('[AgentREPL] Starting LM controller initialization...');
-            await this.lmController.initialize();
-            this.log('[AgentREPL] LM controller initialized, awaiting model load...');
-
-            // Create connection manager that routes through LM
-            this.updateStatus('Step 6/6: Setting up agent connection...');
-            this.connection = new AgentConnectionManager(this.lmController, this.logger);
-            await this.connection.connect();
+            await this._initializeUI();
+            await this._initializeLogic();
 
             this.isInitialized = true;
             this.log('Agent REPL initialized successfully', 'success');
             console.log('[AgentREPL] ✅ Full initialization complete');
 
         } catch (error) {
-            const errorMsg = `❌ Initialization failed: ${error.message}`;
-            console.error('[AgentREPL] ERROR:', error);
-            this.updateStatus(errorMsg, true);
-            this.log(errorMsg, 'error');
-            this.ui.hideLoading();
+            this._handleInitError(error);
+        }
+    }
 
-            if (this.notebookPanel) {
+    async _initializeUI() {
+        this.updateStatus('Step 2/6: Creating UI components...');
+        this.statusBar = new StatusBar(document.getElementById(UI_IDS.STATUS_BAR_ROOT));
+        this.statusBar.initialize({
+            onModeSwitch: () => this.showConfigDialog()
+        });
+        this.statusBar.updateMode('Agent');
+        this.statusBar.updateStatus('Initializing...');
+
+        this.updateStatus('Step 3/6: Setting up notebook panel...');
+        const notebookContainer = this.ui.createNotebookContainer();
+        this.notebookPanel = new NotebookPanel(notebookContainer);
+        this.notebookPanel.initialize(this);
+
+        this.updateStatus('Step 4/6: Displaying welcome message...');
+        this.showWelcomeMessage();
+    }
+
+    async _initializeLogic() {
+        this.updateStatus('Step 5/6: Initializing Language Model...');
+        this.lmController = new LMAgentController(this.logger);
+        this._setupLMEvents();
+
+        this.log('[AgentREPL] Starting LM controller initialization...');
+        await this.lmController.initialize();
+        this.log('[AgentREPL] LM controller initialized, awaiting model load...');
+
+        this.updateStatus('Step 6/6: Setting up agent connection...');
+        this.connection = new AgentConnectionManager(this.lmController, this.logger);
+        await this.connection.connect();
+    }
+
+    _setupLMEvents() {
+        this.lmController.on('model-load-start', (data) => {
+            this.updateStatus(`Loading model: ${data.modelName}...`);
+            this.notebookPanel.notebookManager.createResultCell(
+                `📥 Starting model download: ${data.modelName}`, 'system'
+            );
+        });
+
+        this.lmController.on('model-dl-progress', (data) => {
+            const percent = Math.round(data.progress * 100);
+            this.updateStatus(`Downloading model: ${percent}% - ${data.text || ''}`);
+            if (percent % 10 === 0) {
                 this.notebookPanel.notebookManager.createResultCell(
-                    `${errorMsg}\n\nStack trace:\n${error.stack}`,
-                    'system'
+                    `📥 Download progress: ${percent}%`, 'system'
                 );
             }
+        });
 
-            this.statusBar?.updateStatus('Error');
-        }
+        this.lmController.on('model-load-complete', (data) => {
+            this.updateStatus('✅ Model loaded successfully!');
+            this.ui.hideLoading();
+            this.notebookPanel.notebookManager.createResultCell(
+                `✅ Model loaded: ${data.modelName} (took ${Math.round(data.elapsedMs / 1000)}s)`, 'system'
+            );
+            this.notebookPanel.notebookManager.createResultCell(
+                `🎯 Ready for interaction! Available tools: ${this.lmController.getAvailableTools().length}`, 'system'
+            );
+            this.statusBar.updateStatus('Ready');
+        });
+
+        this.lmController.on('model-load-error', (data) => {
+            const errorMsg = `❌ Error loading model: ${data.error}`;
+            this.updateStatus(errorMsg, true);
+            this.ui.hideLoading();
+            this.notebookPanel.notebookManager.createResultCell(errorMsg, 'system');
+            this.statusBar.updateStatus('Error');
+        });
+    }
+
+    _handleInitError(error) {
+        const errorMsg = `❌ Initialization failed: ${error.message}`;
+        console.error('[AgentREPL] ERROR:', error);
+        this.updateStatus(errorMsg, true);
+        this.log(errorMsg, 'error');
+        this.ui.hideLoading();
+
+        this.notebookPanel?.notebookManager.createResultCell(
+            `${errorMsg}\n\nStack trace:\n${error.stack}`, 'system'
+        );
+
+        this.statusBar?.updateStatus('Error');
     }
 
     showWelcomeMessage() {

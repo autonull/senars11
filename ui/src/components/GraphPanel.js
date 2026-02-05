@@ -64,11 +64,10 @@ export class GraphPanel extends Component {
         toolbarContainer.className = 'graph-toolbar-container';
         this.container.appendChild(toolbarContainer);
 
-        const config = this.getToolbarConfig();
-        new FluentToolbar(toolbarContainer, config).render();
+        new FluentToolbar(toolbarContainer, this._createToolbarItems()).render();
     }
 
-    getToolbarConfig() {
+    _createToolbarItems() {
         return [
             {
                 type: 'group',

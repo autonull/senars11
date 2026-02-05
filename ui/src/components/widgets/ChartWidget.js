@@ -17,9 +17,12 @@ export class ChartWidget extends Component {
         this.container.appendChild(canvas);
 
         const ctx = canvas.getContext('2d');
+        const finalConfig = this._deepMerge(this._getDefaultConfig(), this.config);
+        this.chart = new Chart(ctx, finalConfig);
+    }
 
-        // Default cyberpunk config
-        const defaultConfig = {
+    _getDefaultConfig() {
+        return {
             type: 'line',
             data: {
                 labels: [],
@@ -54,10 +57,6 @@ export class ChartWidget extends Component {
                 animation: false
             }
         };
-
-        const finalConfig = this._deepMerge(defaultConfig, this.config);
-
-        this.chart = new Chart(ctx, finalConfig);
     }
 
     _deepMerge(target, source) {

@@ -34,93 +34,104 @@ export class SimpleGraphWidget extends Component {
             this.cy = cytoscape({
                 container: container,
                 elements: elems,
-                style: [
-                    {
-                        selector: 'node',
-                        style: {
-                            'background-color': '#111',
-                            'label': 'data(label)',
-                            'color': '#00ff9d',
-                            'font-size': '10px',
-                            'text-valign': 'center',
-                            'text-halign': 'center',
-                            'width': 'mapData(val, 0, 100, 20, 60)',
-                            'height': 'mapData(val, 0, 100, 20, 60)',
-                            'border-width': 2,
-                            'border-color': '#00ff9d',
-                            'text-outline-color': '#000',
-                            'text-outline-width': 2,
-                            'font-family': 'monospace',
-                            'text-transform': 'uppercase'
-                        }
-                    },
-                    {
-                        selector: 'node[type="task"]',
-                        style: {
-                            'border-color': '#ffcc00',
-                            'color': '#ffcc00'
-                        }
-                    },
-                    {
-                        selector: 'edge',
-                        style: {
-                            'width': 2,
-                            'line-color': '#333',
-                            'target-arrow-color': '#333',
-                            'target-arrow-shape': 'triangle',
-                            'curve-style': 'bezier',
-                            'label': 'data(label)',
-                            'font-size': '8px',
-                            'color': '#555',
-                            'text-rotation': 'autorotate',
-                            'text-background-opacity': 1,
-                            'text-background-color': '#0a0a0c',
-                            'text-background-padding': '2px'
-                        }
-                    },
-                    {
-                        selector: ':selected',
-                        style: {
-                            'border-width': 4,
-                            'border-color': '#fff',
-                            'line-color': '#fff',
-                            'target-arrow-color': '#fff',
-                            'shadow-blur': 10,
-                            'shadow-color': '#fff'
-                        }
-                    }
-                ],
-                layout: {
-                    name: 'fcose',
-                    animate: true,
-                    animationDuration: 500,
-                    padding: 30,
-                    nodeDimensionsIncludeLabels: true,
-                    randomize: true
-                }
+                style: this._getGraphStyle(),
+                layout: this._getLayoutConfig()
             });
 
-            // Controls Overlay
-            const controls = document.createElement('div');
-            controls.className = 'graph-overlay-controls';
-
-            const fitBtn = document.createElement('button');
-            fitBtn.innerHTML = '⤢';
-            fitBtn.title = 'Fit View';
-            fitBtn.onclick = () => this.cy.fit();
-
-            const expandBtn = document.createElement('button');
-            expandBtn.innerHTML = '🔭';
-            expandBtn.title = 'Expand View';
-            expandBtn.onclick = () => this.expandView();
-
-            controls.append(fitBtn, expandBtn);
-            this.container.appendChild(controls);
+            this._createControls();
 
         } catch (e) {
             console.error('Error initializing SimpleGraphWidget:', e);
             container.innerHTML = `<div style="padding:10px; color:red;">Error: ${e.message}</div>`;
         }
+    }
+
+    _getGraphStyle() {
+        return [
+            {
+                selector: 'node',
+                style: {
+                    'background-color': '#111',
+                    'label': 'data(label)',
+                    'color': '#00ff9d',
+                    'font-size': '10px',
+                    'text-valign': 'center',
+                    'text-halign': 'center',
+                    'width': 'mapData(val, 0, 100, 20, 60)',
+                    'height': 'mapData(val, 0, 100, 20, 60)',
+                    'border-width': 2,
+                    'border-color': '#00ff9d',
+                    'text-outline-color': '#000',
+                    'text-outline-width': 2,
+                    'font-family': 'monospace',
+                    'text-transform': 'uppercase'
+                }
+            },
+            {
+                selector: 'node[type="task"]',
+                style: {
+                    'border-color': '#ffcc00',
+                    'color': '#ffcc00'
+                }
+            },
+            {
+                selector: 'edge',
+                style: {
+                    'width': 2,
+                    'line-color': '#333',
+                    'target-arrow-color': '#333',
+                    'target-arrow-shape': 'triangle',
+                    'curve-style': 'bezier',
+                    'label': 'data(label)',
+                    'font-size': '8px',
+                    'color': '#555',
+                    'text-rotation': 'autorotate',
+                    'text-background-opacity': 1,
+                    'text-background-color': '#0a0a0c',
+                    'text-background-padding': '2px'
+                }
+            },
+            {
+                selector: ':selected',
+                style: {
+                    'border-width': 4,
+                    'border-color': '#fff',
+                    'line-color': '#fff',
+                    'target-arrow-color': '#fff',
+                    'shadow-blur': 10,
+                    'shadow-color': '#fff'
+                }
+            }
+        ];
+    }
+
+    _getLayoutConfig() {
+        return {
+            name: 'fcose',
+            animate: true,
+            animationDuration: 500,
+            padding: 30,
+            nodeDimensionsIncludeLabels: true,
+            randomize: true
+        };
+    }
+
+    _createControls() {
+        const controls = document.createElement('div');
+        controls.className = 'graph-overlay-controls';
+
+        const fitBtn = document.createElement('button');
+        fitBtn.innerHTML = '⤢';
+        fitBtn.title = 'Fit View';
+        fitBtn.onclick = () => this.cy.fit();
+
+        const expandBtn = document.createElement('button');
+        expandBtn.innerHTML = '🔭';
+        expandBtn.title = 'Expand View';
+        expandBtn.onclick = () => this.expandView();
+
+        controls.append(fitBtn, expandBtn);
+        this.container.appendChild(controls);
     }
 
     _convertData(data) {

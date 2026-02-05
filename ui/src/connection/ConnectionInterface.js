@@ -6,6 +6,10 @@
  */
 
 export class ConnectionInterface {
+    constructor() {
+        this.messageHandlers = new Map();
+    }
+
     /**
      * Establish connection to the backend
      * @returns {Promise<boolean>}
@@ -36,8 +40,11 @@ export class ConnectionInterface {
      * @param {string} event - Event name
      * @param {Function} callback - Event handler
      */
-    subscribe(event, callback) {
-        throw new Error('Method not implemented');
+    subscribe(type, handler) {
+        if (!this.messageHandlers.has(type)) {
+            this.messageHandlers.set(type, []);
+        }
+        this.messageHandlers.get(type).push(handler);
     }
 
     /**
@@ -45,8 +52,30 @@ export class ConnectionInterface {
      * @param {string} event - Event name
      * @param {Function} callback - Event handler
      */
-    unsubscribe(event, callback) {
-        throw new Error('Method not implemented');
+    unsubscribe(type, handler) {
+        const handlers = this.messageHandlers.get(type);
+        if (!handlers) return;
+        const index = handlers.indexOf(handler);
+        if (index > -1) handlers.splice(index, 1);
+    }
+
+    /**
+     * Dispatch message to subscribers
+     * @param {Object} message
+     */
+    dispatchMessage(message) {
+        const handlers = [
+            ...(this.messageHandlers.get(message.type) || []),
+            ...(this.messageHandlers.get('*') || [])
+        ];
+
+        for (const handler of handlers) {
+            try {
+                handler(message);
+            } catch (e) {
+                console.error("Handler error", e);
+            }
+        }
     }
 
     /**

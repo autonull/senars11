@@ -42,7 +42,11 @@ export class NotebookPanel extends Component {
         if (!this.container) return;
 
         this.fluent().clear().class('notebook-panel-container');
+        this._renderToolbar();
+        this._renderContent();
+    }
 
+    _renderToolbar() {
         this.filterToolbar = new FilterToolbar(this.messageFilter, {
             onFilterChange: () => this.notebookManager.applyFilter(this.messageFilter),
             onExport: () => this.exportNotebook(),
@@ -55,7 +59,9 @@ export class NotebookPanel extends Component {
         });
 
         FluentUI.create('div').child(this.filterToolbar.render()).mount(this.container);
+    }
 
+    _renderContent() {
         const notebookContainer = FluentUI.create('div')
             .class('notebook-container')
             .mount(this.container);
@@ -122,7 +128,12 @@ export class NotebookPanel extends Component {
     }
 
     handleExtraAction(action) {
-        const actions = {
+        const handler = this._getActionHandlers()[action];
+        handler?.();
+    }
+
+    _getActionHandlers() {
+        return {
             markdown: () => this.notebookManager.createMarkdownCell('Double click to edit...'),
             graph: () => this.notebookManager.createWidgetCell('GraphWidget', { nodes: [], edges: [] }),
             tasktree: () => this.notebookManager.createWidgetCell('TaskTreeWidget', { label: 'Root Goal', type: 'goal', children: [{ label: 'Subgoal 1', type: 'op' }, { label: 'Subgoal 2', type: 'op' }] }),
@@ -131,8 +142,6 @@ export class NotebookPanel extends Component {
             timeline: () => this.notebookManager.createWidgetCell('TimelineWidget', { events: [] }),
             variables: () => this.notebookManager.createWidgetCell('VariableInspector', { bindings: {} })
         };
-
-        actions[action]?.();
     }
 
     showDemoSelector() {

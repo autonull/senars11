@@ -20,7 +20,7 @@ export class LayoutManager {
     initialize(presetName) {
         const layoutRoot = document.getElementById(this.containerId);
         if (!layoutRoot) {
-            console.error('Layout root not found');
+            console.error(`LayoutManager: Root element #${this.containerId} not found`);
             return;
         }
 
@@ -33,7 +33,14 @@ export class LayoutManager {
     }
 
     _registerComponents() {
-        const componentMap = {
+        const componentMap = this._getComponentFactoryMap();
+        Object.entries(componentMap).forEach(([name, factory]) => {
+            this.layout.registerComponentFactoryFunction(name, factory);
+        });
+    }
+
+    _getComponentFactoryMap() {
+        return {
             [COMPONENTS.NOTEBOOK]: (c) => this._createNotebook(c),
             'replComponent': (c) => this._createNotebook(c), // Legacy
             [COMPONENTS.GRAPH]: (c) => this._createGraph(c),
@@ -44,10 +51,6 @@ export class LayoutManager {
             [COMPONENTS.EXAMPLES]: (c) => this._createExamples(c),
             [COMPONENTS.EDITOR]: (c) => this._createEditor(c)
         };
-
-        Object.entries(componentMap).forEach(([name, factory]) => {
-            this.layout.registerComponentFactoryFunction(name, factory);
-        });
     }
 
     _loadLayout(presetName) {

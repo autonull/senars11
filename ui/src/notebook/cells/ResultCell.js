@@ -161,4 +161,15 @@ export class ResultCell extends Cell {
         actions.append(copyBtn, infoBtn, collapseBtn);
         return actions;
     }
+
+    _createActionBtn(icon, title, onClick) {
+        const btn = document.createElement('button');
+        btn.innerHTML = icon;
+        btn.title = title;
+        btn.onclick = onClick;
+        btn.style.cssText = 'background: transparent; border: none; cursor: pointer; color: #ccc; padding: 2px; font-size: 14px;';
+        btn.onmouseenter = () => btn.style.color = '#fff';
+        btn.onmouseleave = () => btn.style.color = '#ccc';
+        return btn;
+    }
 }

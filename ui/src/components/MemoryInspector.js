@@ -97,72 +97,80 @@ export class MemoryInspector extends Component {
 
     getToolbarConfig() {
         return [
-            {
-                type: 'group',
-                class: 'mi-filter-row',
-                items: [
-                    {
-                        type: 'custom',
-                        renderer: () => FluentUI.create('input')
-                            .attr({ type: 'text', placeholder: 'Filter terms...', id: 'mi-filter-text' })
-                            .class('mi-filter-input')
-                            .on('input', (e) => {
-                                this.state.filterText = e.target.value.toLowerCase();
-                            }).dom
-                    },
-                    {
-                        type: 'button',
-                        label: 'REFRESH',
-                        class: 'mi-refresh-btn',
-                        onClick: () => document.dispatchEvent(new CustomEvent(EVENTS.MEMORY_REFRESH))
-                    }
-                ]
-            },
-            {
-                type: 'group',
-                class: 'mi-filter-row',
-                items: [
-                    {
-                        type: 'toggle',
-                        label: 'Has Goals',
-                        class: 'mi-checkbox-label',
-                        onChange: (checked) => {
-                            this.state.filters = { ...this.state.filters, hasGoals: checked };
-                        }
-                    },
-                    {
-                        type: 'toggle',
-                        label: 'Has Questions',
-                        class: 'mi-checkbox-label',
-                        onChange: (checked) => {
-                            this.state.filters = { ...this.state.filters, hasQuestions: checked };
-                        }
-                    },
-                    {
-                        type: 'toggle',
-                        label: 'Compact',
-                        checked: true,
-                        class: 'mi-checkbox-label',
-                        style: { marginLeft: '8px' },
-                        onChange: (checked) => {
-                            this.state.listMode = checked ? 'compact' : 'full';
-                        }
-                    },
-                    {
-                        type: 'select',
-                        style: { marginLeft: 'auto', fontSize: '10px', padding: '2px' },
-                        options: [
-                            { value: 'priority', label: 'Priority' },
-                            { value: 'term', label: 'Term' },
-                            { value: 'taskCount', label: 'Task Count' }
-                        ],
-                        onChange: (val) => {
-                            this.state.sortField = val;
-                        }
-                    }
-                ]
-            }
+            this._getFilterControls(),
+            this._getSortControls()
         ];
+    }
+
+    _getFilterControls() {
+        return {
+            type: 'group',
+            class: 'mi-filter-row',
+            items: [
+                {
+                    type: 'custom',
+                    renderer: () => FluentUI.create('input')
+                        .attr({ type: 'text', placeholder: 'Filter terms...', id: 'mi-filter-text' })
+                        .class('mi-filter-input')
+                        .on('input', (e) => {
+                            this.state.filterText = e.target.value.toLowerCase();
+                        }).dom
+                },
+                {
+                    type: 'button',
+                    label: 'REFRESH',
+                    class: 'mi-refresh-btn',
+                    onClick: () => document.dispatchEvent(new CustomEvent(EVENTS.MEMORY_REFRESH))
+                }
+            ]
+        };
+    }
+
+    _getSortControls() {
+        return {
+            type: 'group',
+            class: 'mi-filter-row',
+            items: [
+                {
+                    type: 'toggle',
+                    label: 'Has Goals',
+                    class: 'mi-checkbox-label',
+                    onChange: (checked) => {
+                        this.state.filters = { ...this.state.filters, hasGoals: checked };
+                    }
+                },
+                {
+                    type: 'toggle',
+                    label: 'Has Questions',
+                    class: 'mi-checkbox-label',
+                    onChange: (checked) => {
+                        this.state.filters = { ...this.state.filters, hasQuestions: checked };
+                    }
+                },
+                {
+                    type: 'toggle',
+                    label: 'Compact',
+                    checked: true,
+                    class: 'mi-checkbox-label',
+                    style: { marginLeft: '8px' },
+                    onChange: (checked) => {
+                        this.state.listMode = checked ? 'compact' : 'full';
+                    }
+                },
+                {
+                    type: 'select',
+                    style: { marginLeft: 'auto', fontSize: '10px', padding: '2px' },
+                    options: [
+                        { value: 'priority', label: 'Priority' },
+                        { value: 'term', label: 'Term' },
+                        { value: 'taskCount', label: 'Task Count' }
+                    ],
+                    onChange: (val) => {
+                        this.state.sortField = val;
+                    }
+                }
+            ]
+        };
     }
 
     update(payload) {
@@ -209,39 +217,44 @@ export class MemoryInspector extends Component {
 
     _renderListView() {
         if (!this.contentContainer) return;
-        this.contentContainer.innerHTML = ''; // Clear container for list view
+        this.contentContainer.innerHTML = '';
 
         const listDiv = FluentUI.create('div').class('mi-list').mount(this.contentContainer);
         const filtered = this.state.filteredData;
 
         if (filtered.length === 0) {
             listDiv.html('<div style="padding:10px; color:var(--text-muted); text-align:center;">No concepts found</div>');
-        } else {
-            const limit = this.state.limit;
-            const isCompact = this.state.listMode === 'compact';
-
-            for (const concept of filtered.slice(0, limit)) {
-                new ConceptCard(listDiv.dom, concept, { compact: isCompact }).render();
-            }
-
-            if (filtered.length > limit) {
-                listDiv.child(
-                    FluentUI.create('button')
-                        .text(`Load More (${filtered.length - limit} remaining)`)
-                        .class('mi-load-more-btn')
-                        .style({
-                            display: 'block', margin: '10px auto', padding: '5px 10px',
-                            background: '#333', border: '1px solid #444', color: '#ccc', cursor: 'pointer'
-                        })
-                        .on('click', () => {
-                            this.state.limit += 50;
-                            // Re-render handled by state watcher if we watched 'limit', but we didn't add it yet
-                            // Adding explicit render call here or ensuring watcher covers it
-                            this._renderListView();
-                        })
-                );
-            }
+            return;
         }
+
+        this._renderListItems(listDiv, filtered);
+    }
+
+    _renderListItems(container, data) {
+        const limit = this.state.limit;
+        const isCompact = this.state.listMode === 'compact';
+
+        for (const concept of data.slice(0, limit)) {
+            new ConceptCard(container.dom, concept, { compact: isCompact }).render();
+        }
+
+        if (data.length > limit) {
+            container.child(this._createLoadMoreButton(data.length - limit));
+        }
+    }
+
+    _createLoadMoreButton(remaining) {
+        return FluentUI.create('button')
+            .text(`Load More (${remaining} remaining)`)
+            .class('mi-load-more-btn')
+            .style({
+                display: 'block', margin: '10px auto', padding: '5px 10px',
+                background: '#333', border: '1px solid #444', color: '#ccc', cursor: 'pointer'
+            })
+            .on('click', () => {
+                this.state.limit += 50;
+                this._renderListView();
+            });
     }
 
     _renderDetailsView() {

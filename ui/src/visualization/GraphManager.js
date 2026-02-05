@@ -130,8 +130,12 @@ export class GraphManager {
         const nodes = this.cy.nodes();
         const width = this.cy.width() * 0.8;
         const height = this.cy.height() * 0.8;
-        // const padding = 50; // Unused variable
 
+        this._calculateScatterPositions(nodes, width, height, xAxis, yAxis);
+        this.cy.fit();
+    }
+
+    _calculateScatterPositions(nodes, width, height, xAxis, yAxis) {
         const getVal = (node, axis) => {
             const data = node.data('fullData') || {};
             const truth = data.truth || {};
@@ -152,16 +156,11 @@ export class GraphManager {
             const x = getVal(node, xAxis);
             const y = getVal(node, yAxis);
 
-            // Map 0-1 to screen coordinates
-            // X: 0 -> -width/2, 1 -> width/2
-            // Y: 0 -> height/2, 1 -> -height/2 (SVG coords are inverted for Y)
             const posX = (x - 0.5) * width;
-            const posY = -(y - 0.5) * height; // Invert Y so high values are at top
+            const posY = -(y - 0.5) * height;
 
             node.position({ x: posX, y: posY });
         });
-
-        this.cy.fit();
     }
 
     applySortedGridLayout(sortField = 'priority') {
@@ -283,17 +282,24 @@ export class GraphManager {
     addNode(nodeData, runLayout = true) {
         if (!this.cy) return false;
 
+        const config = this._createNodeConfig(nodeData);
+        if (this.cy.getElementById(config.data.id).length) return false;
+
+        this.cy.add(config);
+
+        if (runLayout) this.scheduleLayout();
+        return true;
+    }
+
+    _createNodeConfig(nodeData) {
         const { id, type } = nodeData;
         const nodeId = id ?? `concept_${Date.now()}`;
-
-        if (this.cy.getElementById(nodeId).length) return false;
-
         const displayLabel = this._calculateNodeLabel(nodeData);
         const priority = nodeData.budget?.priority ?? 0;
         const taskCount = nodeData.tasks?.length ?? nodeData.taskCount ?? 0;
         const weight = this._calculateNodeWeight(priority, nodeData.term);
 
-        this.cy.add({
+        return {
             group: 'nodes',
             data: {
                 id: nodeId,
@@ -303,21 +309,26 @@ export class GraphManager {
                 taskCount: taskCount,
                 fullData: nodeData
             }
-        });
-
-        if (runLayout) this.scheduleLayout();
-        return true;
+        };
     }
 
     addEdge(edgeData, runLayout = true) {
         if (!this.cy) return false;
 
+        const config = this._createEdgeConfig(edgeData);
+        if (this.cy.getElementById(config.data.id).length) return false;
+
+        this.cy.add(config);
+
+        if (runLayout) this.scheduleLayout();
+        return true;
+    }
+
+    _createEdgeConfig(edgeData) {
         const { id, source, target, label, type } = edgeData;
         const edgeId = id ?? `edge_${Date.now()}_${source}_${target}`;
 
-        if (this.cy.getElementById(edgeId).length) return false;
-
-        this.cy.add({
+        return {
             group: 'edges',
             data: {
                 id: edgeId,
@@ -326,10 +337,7 @@ export class GraphManager {
                 label: label ?? 'Relationship',
                 type: type ?? 'relationship'
             }
-        });
-
-        if (runLayout) this.scheduleLayout();
-        return true;
+        };
     }
 
     updateFromMessage(message) {
