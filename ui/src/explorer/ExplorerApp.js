@@ -808,22 +808,28 @@ export class ExplorerApp {
         if (el) el.onclick = handler;
     }
 
-    loadDemo(name) {
+    async loadDemo(name) {
         const demo = DEMOS[name];
         if (!demo) return;
 
         this.graph.clear();
         this.log(`Loading demo: ${name}`, 'system');
-        this.toastManager.show(`Demo loaded: ${name}`, 'success');
 
-        demo.concepts.forEach(c => this.graph.addNode({ ...c, id: c.term }, false));
-        // SeNARSGraph addNode takes object with id/term/budget
-        // addConcept was: addConcept(term, priority, details)
-        // SeNARSGraph addNode: { id, term, budget: { priority }, ...details }
+        if (demo.script) {
+            this.toastManager.show(`Running Script: ${name}`, 'info');
+            for (const line of demo.script) {
+                await this.handleReplCommand(line);
+                // Artificial delay for visualization
+                await new Promise(r => setTimeout(r, 800));
+            }
+            this.toastManager.show(`Script completed: ${name}`, 'success');
+        } else {
+            this.toastManager.show(`Demo loaded: ${name}`, 'success');
+            demo.concepts.forEach(c => this.graph.addNode({ ...c, id: c.term }, false));
+            demo.relationships.forEach(r => this.graph.addEdge({ source: r[0], target: r[1], type: r[2] }, false));
+            this.graph.scheduleLayout();
+        }
 
-        demo.relationships.forEach(r => this.graph.addEdge({ source: r[0], target: r[1], type: r[2] }, false));
-
-        this.graph.scheduleLayout();
         this._updateStats();
     }
 
