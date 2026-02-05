@@ -117,12 +117,12 @@ export class Concept extends BaseComponent {
     }
 
     enforceCapacity(maxTasksPerType) {
-        Object.entries(CAPACITY_DISTRIBUTION).forEach(([type, factor]) => {
+        for (const [type, factor] of Object.entries(CAPACITY_DISTRIBUTION)) {
             const bag = this[`_${type.toLowerCase()}s`]; // Convert BELIEF to _beliefs
             if (bag) {
                 bag.pruneTo(maxTasksPerType * factor);
             }
-        });
+        }
     }
 
     getTask(taskId) {
@@ -159,7 +159,9 @@ export class Concept extends BaseComponent {
     }
 
     applyDecay(decayRate = this.config.defaultDecayRate) {
-        [this._beliefs, this._goals, this._questions].forEach(bag => bag.applyDecay(decayRate));
+        for (const bag of [this._beliefs, this._goals, this._questions]) {
+            bag.applyDecay(decayRate);
+        }
         this._activation *= (1 - decayRate);
         this._updateLastAccessed();
     }

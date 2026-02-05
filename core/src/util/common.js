@@ -17,11 +17,11 @@ export const freeze = Object.freeze;
 export const deepFreeze = (obj) => {
     if (obj === null || typeof obj !== 'object') return obj;
 
-    Object.getOwnPropertyNames(obj).forEach(prop => {
+    for (const prop of Object.getOwnPropertyNames(obj)) {
         if (obj[prop] !== null && typeof obj[prop] === 'object') {
             deepFreeze(obj[prop]);
         }
-    });
+    }
 
     return freeze(obj);
 };
@@ -123,16 +123,17 @@ export function deepMerge(target, source) {
     if (!source) return target;
     if (!isObject(target) || !isObject(source)) return source;
 
-    const output = Object.assign({}, target);
+    const output = {...target};
+
     if (isObject(target) && isObject(source)) {
-        Object.keys(source).forEach(key => {
+        for (const key of Object.keys(source)) {
             if (isObject(source[key])) {
-                if (!(key in target)) Object.assign(output, {[key]: source[key]});
+                if (!(key in target)) output[key] = source[key];
                 else output[key] = deepMerge(target[key], source[key]);
             } else {
-                Object.assign(output, {[key]: source[key]});
+                output[key] = source[key];
             }
-        });
+        }
     }
     return output;
 }

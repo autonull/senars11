@@ -66,10 +66,8 @@ export class Reasoner extends EventEmitter {
             this._shuffleArray(focusTasks);
             const processedPairs = new Set();
 
-            for (let i = 0; i < focusTasks.length; i++) {
+            for (const primaryPremise of focusTasks) {
                 if (Date.now() - startTime > timeoutMs) break;
-
-                const primaryPremise = focusTasks[i];
 
                 // Single premise processing (e.g. for LM rules)
                 try {

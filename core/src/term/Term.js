@@ -172,10 +172,7 @@ export class Term {
 
         if (this._components.length !== other._components.length) return false;
 
-        for (let i = 0; i < this._components.length; i++) {
-            if (!this._components[i].equals(other._components[i])) return false;
-        }
-        return true;
+        return this._components.every((comp, i) => comp.equals(other._components[i]));
     }
 
     toString() {

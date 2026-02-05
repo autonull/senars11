@@ -75,8 +75,9 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      * Initialize all operation sets in proper order
      */
     _initializeOperations() {
-        [registerAdvancedOps, registerReactiveOps, registerParallelOps, registerMinimalOps, registerHofOps]
-            .forEach(registerFn => registerFn(this));
+        for (const registerFn of [registerAdvancedOps, registerReactiveOps, registerParallelOps, registerMinimalOps, registerHofOps]) {
+            registerFn(this);
+        }
     }
 
     /**
@@ -229,7 +230,9 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
             const evalRes = this.evaluate(expr);
             if (Array.isArray(evalRes)) {
                 results.push(...evalRes);
-                evalRes.forEach(r => this.space.add(r));
+                for (const r of evalRes) {
+                    this.space.add(r);
+                }
             } else {
                 results.push(evalRes);
                 this.space.add(evalRes);
