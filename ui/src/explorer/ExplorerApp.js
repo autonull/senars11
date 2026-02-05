@@ -7,7 +7,6 @@ import { StatusBar } from '../components/StatusBar.js';
 import { SystemMetricsPanel } from '../components/SystemMetricsPanel.js';
 import { HUDLayoutManager } from '../layout/HUDLayoutManager.js';
 import { ExplorerInfoPanel } from './ExplorerInfoPanel.js';
-import { ExplorerToolbar } from './ExplorerToolbar.js';
 import { LogPanel } from '../components/LogPanel.js';
 import { InspectorPanel } from '../components/InspectorPanel.js';
 import { CommandPalette } from '../components/CommandPalette.js';
@@ -58,7 +57,6 @@ export class ExplorerApp {
         // Layout & Panels
         this.layoutManager = new HUDLayoutManager('hud-overlay');
         this.infoPanel = new ExplorerInfoPanel();
-        this.controlToolbar = new ExplorerToolbar();
         this.logPanel = new LogPanel();
         this.inspectorPanel = new InspectorPanel();
 
@@ -153,12 +151,6 @@ export class ExplorerApp {
         this.inspectorPanel.render();
         this.layoutManager.registerWidget('inspector', inspectorContainer, 'left', false);
 
-        // 5. Controls Widget (bottom-right corner) - ExplorerToolbar
-        const controlsContainer = document.createElement('div');
-        this.controlToolbar.container = controlsContainer;
-        this.controlToolbar.render();
-        this.layoutManager.registerWidget('controls', controlsContainer, 'none', true);
-
         // 6. Target Panel (absolute positioned, not docked)
         this.targetPanel = new TargetPanel(null);
         const targetContainer = document.createElement('div');
@@ -175,7 +167,8 @@ export class ExplorerApp {
             onReasonerControl: (action, value) => this.handleReasonerControl(action, value),
             onReplSubmit: (command) => this.handleReplCommand(command),
             onWidgetToggle: (widgetId) => this.toggleWidget(widgetId),
-            onConfig: () => this._showLLMConfig()
+            onConfig: () => this._showLLMConfig(),
+            onMenuAction: (action) => this.handleMenuAction(action)
         });
 
         // Start stats update loop
@@ -584,6 +577,39 @@ export class ExplorerApp {
             case 'throttle':
                 this.reasonerDelay = value;
                 break;
+        }
+    }
+
+    handleMenuAction(action) {
+        switch (action) {
+            case 'save':
+                this.handleSaveJSON();
+                break;
+            case 'load':
+                this.handleLoadJSON();
+                break;
+            case 'add-concept':
+                this.handleAddConcept();
+                break;
+            case 'add-link':
+                this.handleAddLink();
+                break;
+            case 'delete':
+                this.handleDelete();
+                break;
+            case 'fit':
+                this.graph.fit();
+                break;
+            case 'layout':
+                this.graph.scheduleLayout();
+                break;
+            case 'clear':
+                this.graph.clear();
+                this.log('Workspace cleared.', 'system');
+                this._updateStats();
+                break;
+            default:
+                console.warn('Unknown menu action:', action);
         }
     }
 
