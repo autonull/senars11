@@ -79,6 +79,7 @@ export class StatusBar extends Component {
                                 <button data-action="fit">Fit View</button>
                                 <button data-action="layout">Auto Layout</button>
                                 <div class="menu-divider"></div>
+                                <button data-action="focus-mode">Toggle Focus Mode</button>
                                 <button data-action="fullscreen">Toggle Fullscreen</button>
                             </div>
                         </div>

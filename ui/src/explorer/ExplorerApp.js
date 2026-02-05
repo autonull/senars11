@@ -53,6 +53,7 @@ export class ExplorerApp {
 
         this._narEventsBound = false;
         this.isDecayEnabled = false;
+        this.isFocusMode = false;
         this.decayLoopId = null;
 
         // Layout & Panels
@@ -701,6 +702,9 @@ export class ExplorerApp {
             case 'layout':
                 this.graph.scheduleLayout();
                 break;
+            case 'focus-mode':
+                this.toggleFocusMode();
+                break;
             case 'fullscreen':
                 this.handleToggleFullscreen();
                 break;
@@ -931,6 +935,38 @@ export class ExplorerApp {
         }
     }
 
+    toggleFocusMode() {
+        this.isFocusMode = !this.isFocusMode;
+
+        // Widgets to toggle
+        const widgets = ['layers', 'metrics', 'log', 'inspector'];
+
+        widgets.forEach(id => {
+            const widget = this.layoutManager.getWidget(id);
+            if (widget) {
+                if (this.isFocusMode) {
+                    // Hide if currently visible
+                    if (!widget.classList.contains('hidden')) {
+                         this.layoutManager.hide(id);
+                         widget.dataset.wasVisible = 'true';
+                    }
+                } else {
+                    // Restore if it was visible before
+                    if (widget.dataset.wasVisible === 'true') {
+                        this.layoutManager.show(id);
+                        delete widget.dataset.wasVisible;
+                    }
+                }
+            }
+        });
+
+        // Also toggle status bar expansion or visibility if desired?
+        // For now, we keep status bar but maybe minimize it?
+        // The prompt asked for "Enhance UI/UX ergonomics". Focus mode is a good enhancement.
+
+        this.log(`Focus Mode: ${this.isFocusMode ? 'ON' : 'OFF'}`, 'system');
+    }
+
     _processDecay() {
         // SeNARSGraph has processDecay if useBag is true
         if (this.graph.processDecay) {
@@ -1084,11 +1120,26 @@ export class ExplorerApp {
     }
 
     handleAddConcept() {
-        const term = prompt("Enter concept name:");
-        if (term) {
+        const input = prompt("Enter concept name (or type:name):");
+        if (input) {
+            let term = input.trim();
+            let type = 'concept';
+
+            // Check for type definition (e.g., "Person:Alice")
+            const colonIndex = term.indexOf(':');
+            if (colonIndex > 0) {
+                 type = term.substring(0, colonIndex).trim();
+                 term = term.substring(colonIndex + 1).trim();
+            }
+
+            if (!term) {
+                 this.log("Invalid concept name.", "warning");
+                 return;
+            }
+
             // SeNARSGraph addNode: { id: term, term: term, budget: { priority: 0.5 }, type: 'concept' }
-            this.graph.addNode({ id: term, term: term, budget: { priority: 0.5 }, type: 'concept' }, true);
-            this.log(`Created concept: ${term}`, 'user');
+            this.graph.addNode({ id: term, term: term, budget: { priority: 0.5 }, type: type }, true);
+            this.log(`Created ${type}: ${term}`, 'user');
         }
     }
 
