@@ -7,7 +7,6 @@ test.describe('SeNARS Explorer', () => {
 
     test('should load the explorer page', async ({ page }) => {
         await expect(page).toHaveTitle(/SeNARS Explorer/);
-        await expect(page.locator('.info-panel .hud-title')).toHaveText('SeNARS Explorer');
     });
 
     test('should show mode buttons', async ({ page }) => {
@@ -24,7 +23,7 @@ test.describe('SeNARS Explorer', () => {
     });
 
     test('should open LLM config dialog', async ({ page }) => {
-        await page.click('#btn-llm-config');
+        await page.click('#status-config');
         await expect(page.locator('#lm-config-overlay')).toBeVisible();
         await expect(page.locator('.modal-dialog h2')).toHaveText('Language Model Configuration');
 

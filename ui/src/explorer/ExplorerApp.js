@@ -709,6 +709,9 @@ export class ExplorerApp {
             case 'load':
                 this.handleLoadJSON();
                 break;
+            case 'import-csv':
+                this.handleImportCSV();
+                break;
             case 'export-png':
                 this.handleExportImage('png');
                 break;
@@ -1190,6 +1193,92 @@ export class ExplorerApp {
         }
     }
 
+    handleImportCSV() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.csv';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            this.loadCSVFile(file);
+        };
+        input.click();
+    }
+
+    loadCSVFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            this.processCSVContent(e.target.result, file.name);
+        };
+        reader.readAsText(file);
+    }
+
+    processCSVContent(content, filename) {
+        this.log(`Loading CSV content: ${filename}`, 'system');
+        const lines = content.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+
+        if (lines.length === 0) {
+            this.log('CSV is empty', 'warning');
+            return;
+        }
+
+        // Determine format based on header or first line
+        const header = lines[0].toLowerCase().split(',').map(c => c.trim());
+        const hasHeader = header.includes('id') || header.includes('source');
+
+        let startIndex = 0;
+        let columnMap = {}; // Maps logical name to index
+
+        if (hasHeader) {
+            startIndex = 1;
+            header.forEach((h, i) => columnMap[h] = i);
+        } else {
+            // Assume default positions
+            // If 2+ columns: source, target, [type/label]
+            // If 1 column: id
+            const firstLineCols = lines[0].split(',').length;
+            if (firstLineCols >= 2) {
+                columnMap = { source: 0, target: 1, type: 2 };
+            } else {
+                columnMap = { id: 0, type: 1 };
+            }
+        }
+
+        let nodesCount = 0;
+        let edgesCount = 0;
+
+        for (let i = startIndex; i < lines.length; i++) {
+            const cols = lines[i].split(',').map(c => c.trim());
+
+            // Check for edge
+            if (columnMap.hasOwnProperty('source') && columnMap.hasOwnProperty('target') &&
+                cols[columnMap.source] && cols[columnMap.target]) {
+
+                const source = cols[columnMap.source];
+                const target = cols[columnMap.target];
+                const type = columnMap.type !== undefined ? cols[columnMap.type] : 'related';
+
+                // Ensure nodes exist
+                this.graph.addNode({ id: source, term: source, type: 'concept' }, false);
+                this.graph.addNode({ id: target, term: target, type: 'concept' }, false);
+
+                this.graph.addEdge({ source, target, type }, false);
+                edgesCount++;
+            }
+            // Check for node
+            else if (columnMap.hasOwnProperty('id') && cols[columnMap.id]) {
+                const id = cols[columnMap.id];
+                const type = columnMap.type !== undefined ? cols[columnMap.type] : 'concept';
+                this.graph.addNode({ id, term: id, type }, false);
+                nodesCount++;
+            }
+        }
+
+        this.graph.scheduleLayout();
+        this.log(`Imported ${nodesCount} nodes and ${edgesCount} edges from CSV`, 'success');
+        this._updateStats();
+    }
+
     handleSaveJSON() {
         if (!this.graph || !this.graph.cy) return;
         const json = this.graph.cy.json();
@@ -1310,6 +1399,8 @@ export class ExplorerApp {
                 // Route file based on extension
                 if (file.name.endsWith('.json')) {
                     this.loadFile(file);
+                } else if (file.name.endsWith('.csv')) {
+                    this.loadCSVFile(file);
                 } else if (file.name.endsWith('.metta')) {
                     this.loadMeTTaFile(file);
                 } else if (file.name.endsWith('.nal') || file.name.endsWith('.nars')) {

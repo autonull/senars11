@@ -58,6 +58,7 @@ export class StatusBar extends Component {
                             <div class="status-menu-dropdown">
                                 <button data-action="save">Save Graph (JSON)...</button>
                                 <button data-action="load">Load Graph (JSON)...</button>
+                                <button data-action="import-csv">Import Graph (CSV)...</button>
                                 <div class="menu-divider"></div>
                                 <button data-action="export-png">Export PNG</button>
                                 <button data-action="export-svg">Export SVG</button>
