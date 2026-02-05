@@ -83,12 +83,15 @@
 
 #inspector-widget {
     bottom: var(--widget-gap);
-    max-height: calc(50vh - var(--widget-gap) * 2);
+    top: auto;
+    max-height: 40vh;
 }
 
 #log-widget {
-    height: 200px;
-    max-height: 40vh;
+    top: calc(var(--statusbar-height) + var(--widget-gap) + 310px);
+    bottom: var(--widget-gap);
+    height: auto;
+    max-height: none;
     display: flex;
     flex-direction: column;
 }

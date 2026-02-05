@@ -141,17 +141,17 @@ export class ExplorerApp {
         this.metricsPanel.render();
         this.layoutManager.registerWidget('metrics', metricsContainer, 'right', true);
 
-        // 3. Log Widget (bottom) - LogPanel
+        // 3. Log Widget (right, bottom) - LogPanel
         const logContainer = document.createElement('div');
         this.logPanel.container = logContainer;
         this.logPanel.render();
-        this.layoutManager.registerWidget('log', logContainer, 'bottom', true);
+        this.layoutManager.registerWidget('log', logContainer, 'right', true);
 
-        // 4. Inspector Widget (right, bottom) - InspectorPanel
+        // 4. Inspector Widget (left, bottom) - InspectorPanel
         const inspectorContainer = document.createElement('div');
         this.inspectorPanel.container = inspectorContainer;
         this.inspectorPanel.render();
-        this.layoutManager.registerWidget('inspector', inspectorContainer, 'right', false);
+        this.layoutManager.registerWidget('inspector', inspectorContainer, 'left', false);
 
         // 5. Controls Widget (bottom-right corner) - ExplorerToolbar
         const controlsContainer = document.createElement('div');
