@@ -79,6 +79,7 @@ export class StatusBar extends Component {
                                 <button data-action="fit">Fit View</button>
                                 <button data-action="layout">Auto Layout</button>
                                 <div class="menu-divider"></div>
+                                <button data-action="focus-mode">Toggle Focus Mode</button>
                                 <button data-action="fullscreen">Toggle Fullscreen</button>
                             </div>
                         </div>
@@ -136,6 +137,7 @@ export class StatusBar extends Component {
                     <button class="widget-toggle-btn active" id="toggle-metrics" title="Toggle Metrics (2)">📊</button>
                     <button class="widget-toggle-btn active" id="toggle-logs" title="Toggle Logs (3)">📝</button>
                     <button class="widget-toggle-btn active" id="toggle-inspector" title="Toggle Inspector (4)">🔍</button>
+                    <button class="widget-toggle-btn" id="toggle-tasks" title="Toggle Tasks (5)">✅</button>
                     <div class="status-metric status-interactive" id="status-config" title="Config">⚙️</div>
                 </div>
             </div>
@@ -153,7 +155,8 @@ export class StatusBar extends Component {
             'toggle-layers': 'layers',
             'toggle-metrics': 'metrics',
             'toggle-logs': 'log',
-            'toggle-inspector': 'inspector'
+            'toggle-inspector': 'inspector',
+            'toggle-tasks': 'tasks'
         };
 
         Object.entries(toggleButtons).forEach(([btnId, widgetId]) => {

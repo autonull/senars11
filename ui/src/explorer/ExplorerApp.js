@@ -9,6 +9,7 @@ import { HUDLayoutManager } from '../layout/HUDLayoutManager.js';
 import { ExplorerInfoPanel } from './ExplorerInfoPanel.js';
 import { LogPanel } from '../components/LogPanel.js';
 import { InspectorPanel } from '../components/InspectorPanel.js';
+import { TaskBrowser } from './TaskBrowser.js';
 import { CommandPalette } from '../components/CommandPalette.js';
 import { ToastManager } from '../components/ToastManager.js';
 import { DemoLibraryModal } from '../components/DemoLibraryModal.js';
@@ -53,6 +54,7 @@ export class ExplorerApp {
 
         this._narEventsBound = false;
         this.isDecayEnabled = false;
+        this.isFocusMode = false;
         this.decayLoopId = null;
 
         // Layout & Panels
@@ -60,11 +62,27 @@ export class ExplorerApp {
         this.infoPanel = new ExplorerInfoPanel();
         this.logPanel = new LogPanel();
         this.inspectorPanel = new InspectorPanel();
+        this.taskBrowser = new TaskBrowser();
 
         // Wire up inspector callbacks
         this.inspectorPanel.onSave = (id, updates) => this.saveNodeChanges(id, updates);
         this.inspectorPanel.onQuery = (term) => this.handleReplCommand(`<${term} ?>?`);
         this.inspectorPanel.onTrace = (id) => this.graph.traceDerivationPath(id);
+
+        // Wire up task browser callbacks
+        this.taskBrowser.onSelect = (term) => {
+            const node = this.graph.cy.$id(term);
+            if (node.nonempty()) {
+                this.graph.cy.animate({
+                    center: { eles: node },
+                    zoom: 1.5,
+                    duration: 500
+                });
+                node.select();
+                const data = node.data();
+                this.showInspector({ id: term, ...data, ...(data.fullData || {}) });
+            }
+        };
     }
 
     // Convenience accessor for the underlying graph manager
@@ -164,6 +182,12 @@ export class ExplorerApp {
         this.inspectorPanel.container = inspectorContainer;
         this.inspectorPanel.render();
         this.layoutManager.registerWidget('inspector', inspectorContainer, 'left', false);
+
+        // 5. Tasks Widget (right, middle) - TaskBrowser
+        const tasksContainer = document.createElement('div');
+        this.taskBrowser.container = tasksContainer;
+        this.taskBrowser.render();
+        this.layoutManager.registerWidget('tasks', tasksContainer, 'right', false);
 
         // 6. Target Panel (absolute positioned, not docked)
         this.targetPanel = new TargetPanel(null);
@@ -361,6 +385,11 @@ export class ExplorerApp {
 
     _onTaskAdded(task) {
         if (!task || !task.term) return;
+
+        // Update Task Browser
+        if (this.taskBrowser) {
+            this.taskBrowser.addTask(task);
+        }
 
         const term = task.term.toString();
         console.log(`ExplorerApp: Adding node for term: ${term}`);
@@ -703,6 +732,9 @@ export class ExplorerApp {
             case 'layout':
                 this.graph.scheduleLayout();
                 break;
+            case 'focus-mode':
+                this.toggleFocusMode();
+                break;
             case 'fullscreen':
                 this.handleToggleFullscreen();
                 break;
@@ -933,6 +965,38 @@ export class ExplorerApp {
         }
     }
 
+    toggleFocusMode() {
+        this.isFocusMode = !this.isFocusMode;
+
+        // Widgets to toggle
+        const widgets = ['layers', 'metrics', 'log', 'inspector', 'tasks'];
+
+        widgets.forEach(id => {
+            const widget = this.layoutManager.getWidget(id);
+            if (widget) {
+                if (this.isFocusMode) {
+                    // Hide if currently visible
+                    if (!widget.classList.contains('hidden')) {
+                         this.layoutManager.hide(id);
+                         widget.dataset.wasVisible = 'true';
+                    }
+                } else {
+                    // Restore if it was visible before
+                    if (widget.dataset.wasVisible === 'true') {
+                        this.layoutManager.show(id);
+                        delete widget.dataset.wasVisible;
+                    }
+                }
+            }
+        });
+
+        // Also toggle status bar expansion or visibility if desired?
+        // For now, we keep status bar but maybe minimize it?
+        // The prompt asked for "Enhance UI/UX ergonomics". Focus mode is a good enhancement.
+
+        this.log(`Focus Mode: ${this.isFocusMode ? 'ON' : 'OFF'}`, 'system');
+    }
+
     _processDecay() {
         // SeNARSGraph has processDecay if useBag is true
         if (this.graph.processDecay) {
@@ -1086,11 +1150,26 @@ export class ExplorerApp {
     }
 
     handleAddConcept() {
-        const term = prompt("Enter concept name:");
-        if (term) {
+        const input = prompt("Enter concept name (or type:name):");
+        if (input) {
+            let term = input.trim();
+            let type = 'concept';
+
+            // Check for type definition (e.g., "Person:Alice")
+            const colonIndex = term.indexOf(':');
+            if (colonIndex > 0) {
+                 type = term.substring(0, colonIndex).trim();
+                 term = term.substring(colonIndex + 1).trim();
+            }
+
+            if (!term) {
+                 this.log("Invalid concept name.", "warning");
+                 return;
+            }
+
             // SeNARSGraph addNode: { id: term, term: term, budget: { priority: 0.5 }, type: 'concept' }
-            this.graph.addNode({ id: term, term: term, budget: { priority: 0.5 }, type: 'concept' }, true);
-            this.log(`Created concept: ${term}`, 'user');
+            this.graph.addNode({ id: term, term: term, budget: { priority: 0.5 }, type: type }, true);
+            this.log(`Created ${type}: ${term}`, 'user');
         }
     }
 
