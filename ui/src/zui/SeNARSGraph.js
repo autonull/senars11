@@ -142,6 +142,24 @@ export class SeNARSGraph extends GraphSystem {
         }
     }
 
+    enterNode(nodeId) {
+        if (!this.cy) return;
+        const node = this.cy.getElementById(nodeId);
+
+        if (node.length > 0) {
+            // "Enter" the node by zooming in significantly
+            this.cy.animate({
+                zoom: 4.0, // High zoom level to trigger LOD 3
+                center: { eles: node },
+                duration: 800,
+                easing: 'ease-out-expo'
+            });
+
+            node.addClass('selected');
+            this.highlightNode(nodeId);
+        }
+    }
+
     // Compatibility method for KeyboardNavigation
     _getNodeData(node) {
         // KeyboardNavigation expects this format

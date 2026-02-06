@@ -101,6 +101,17 @@ export class ContextualWidget {
         });
         div.innerHTML = contentHtml;
 
+        // Bind double-click to "Enter" node
+        const header = div.querySelector('.zui-header');
+        if (header) {
+            header.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                if (this.graph.enterNode) {
+                    this.graph.enterNode(nodeId);
+                }
+            });
+        }
+
         this.transformContainer.appendChild(div);
         this.activeWidgets.set(nodeId, div);
 
