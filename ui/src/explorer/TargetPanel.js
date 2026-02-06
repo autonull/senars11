@@ -39,12 +39,17 @@ export class TargetPanel extends Component {
         const panel = this.container.querySelector('.target-panel');
         if (panel) panel.classList.remove('hidden');
 
-        this._setText('target-term', data.label || data.id);
+        // Prefer clean term/id over visual label (which might have stats)
+        const displayTerm = data.term || data.id || data.label || 'Unknown';
+        this._setText('target-term', String(displayTerm));
         this._setText('target-type', (data.type || 'CONCEPT').toUpperCase());
-        this._setText('target-priority', (data.priority || 0).toFixed(2));
+
+        // Handle priority from budget or top-level
+        const priority = data.budget?.priority !== undefined ? data.budget.priority : (data.priority || 0);
+        this._setText('target-priority', Number(priority).toFixed(2));
 
         const bar = this.container.querySelector('#target-priority-bar');
-        if (bar) bar.style.width = `${(data.priority || 0) * 100}%`;
+        if (bar) bar.style.width = `${Number(priority) * 100}%`;
     }
 
     clear() {

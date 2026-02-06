@@ -110,12 +110,17 @@ export class ExplorerApp {
                 }).slice(0, 5); // Limit to 5
 
                 // Merge fullData to top level for inspector so it sees budget/truth
-                this.showInspector({
+                const conceptData = {
                     id: node.id(),
                     links: links,
                     ...data,
                     ...(data.fullData || {})
-                });
+                };
+
+                this.showInspector(conceptData);
+                if (this.targetPanel) {
+                    this.targetPanel.update(conceptData);
+                }
             });
 
             this.graph.on('nodeDblClick', ({ node }) => {
@@ -308,6 +313,14 @@ export class ExplorerApp {
                     ...data,
                     ...(data.fullData || {})
                 });
+
+                if (this.targetPanel) {
+                    this.targetPanel.update({
+                        id: nodeId,
+                        ...data,
+                        ...(data.fullData || {})
+                    });
+                }
             } else {
                  this.log(`Concept not in view: ${nodeId}`, 'warning');
                  // Still show inspector if we have data?
