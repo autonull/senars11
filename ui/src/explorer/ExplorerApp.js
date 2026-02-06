@@ -1,4 +1,6 @@
 import { GraphPanel } from '../components/GraphPanel.js';
+import { eventBus } from '../core/EventBus.js';
+import { EVENTS } from '../config/constants.js';
 import { HUDContextMenu } from './HUDContextMenu.js';
 import { Logger } from '../logging/Logger.js';
 import { LMConfigDialog } from '../agent/LMConfigDialog.js';
@@ -68,39 +70,12 @@ export class ExplorerApp {
         this.inspectorPanel.onSave = (id, updates) => this.saveNodeChanges(id, updates);
         this.inspectorPanel.onQuery = (term) => this.handleReplCommand(`<${term} ?>?`);
         this.inspectorPanel.onTrace = (id) => this.graph.traceDerivationPath(id);
-        this.inspectorPanel.onSelect = (term) => {
-             const node = this.graph.cy.$id(term);
-             if (node.nonempty()) {
-                 this.graph.cy.animate({
-                     center: { eles: node },
-                     zoom: 1.5,
-                     duration: 500
-                 });
-                 node.select();
-                 // Inspector update handled by nodeClick/select event or manual update?
-                 // The 'select' event will likely trigger if we have a listener, or we might need to update inspector directly.
-                 // However, nodeClick usually handles it. But animating to it is good.
-             } else {
-                 this.log(`Node not found in view: ${term}`, 'warning');
-                 // Try to create a placeholder or fetch it?
-             }
-        };
 
-        // Wire up task browser callbacks
-        this.taskBrowser.onSelect = (term) => {
-            const node = this.graph.cy.$id(term);
-            if (node.nonempty()) {
-                this.graph.cy.animate({
-                    center: { eles: node },
-                    zoom: 1.5,
-                    duration: 500
-                });
-                node.select();
-                const data = node.data();
-                this.showInspector({ id: term, ...data, ...(data.fullData || {}) });
-            }
-        };
-        this.taskBrowser.onTrace = (id) => this.graph.traceDerivationPath(id);
+        // NOTE: We now use EventBus for selections, but keep these for direct callbacks if needed
+        this.inspectorPanel.onSelect = (term) => eventBus.emit(EVENTS.CONCEPT_SELECT, { id: term });
+
+        // Task Browser now uses EventBus internally
+        // this.taskBrowser.onTrace = (id) => this.graph.traceDerivationPath(id);
     }
 
     // Convenience accessor for the underlying graph manager
@@ -271,10 +246,74 @@ export class ExplorerApp {
 
         console.log('ExplorerApp: Initialized');
 
+        // Subscribe to Global Events
+        this._subscribeToEvents();
+
         // Show welcome toast
         setTimeout(() => {
             this.toastManager.show('Welcome! Press "?" for keyboard shortcuts.', 'info', 5000);
         }, 1000);
+    }
+
+    _subscribeToEvents() {
+        // Handle Task Selection
+        eventBus.on(EVENTS.TASK_SELECT, ({ task }) => {
+            if (task && task.term) {
+                const term = task.term.toString();
+                // Select in graph if exists
+                const node = this.graph.cy.$id(term);
+
+                if (node.nonempty()) {
+                    this.graph.cy.animate({
+                        center: { eles: node },
+                        zoom: 1.5,
+                        duration: 500
+                    });
+                    node.select();
+
+                    const data = node.data();
+                    this.showInspector({
+                        id: term,
+                        ...data,
+                        ...(data.fullData || {})
+                    });
+                } else {
+                    // Show inspector with just task data
+                    this.showInspector({
+                        id: term,
+                        term: term,
+                        ...task,
+                        // If we have raw task, pass it
+                        ...(task.raw || {})
+                    });
+                }
+            }
+        });
+
+        // Handle Concept Selection
+        eventBus.on(EVENTS.CONCEPT_SELECT, ({ id, term }) => {
+            const nodeId = id || term;
+            const node = this.graph.cy.$id(nodeId);
+
+            if (node.nonempty()) {
+                this.graph.cy.animate({
+                    center: { eles: node },
+                    zoom: 1.5,
+                    duration: 500
+                });
+                node.select();
+                const data = node.data();
+                this.showInspector({
+                    id: nodeId,
+                    ...data,
+                    ...(data.fullData || {})
+                });
+            } else {
+                 this.log(`Concept not in view: ${nodeId}`, 'warning');
+                 // Still show inspector if we have data?
+                 // The event payload might have concept data
+            }
+        });
     }
 
     async _initLocalBridge() {
@@ -887,6 +926,10 @@ export class ExplorerApp {
 
     showInspector(data) {
         this.inspectorPanel.update(data, this.mode);
+        // Ensure widget is visible in docking system
+        if (this.layoutManager) {
+            this.layoutManager.show('inspector');
+        }
     }
 
     saveNodeChanges(id, updates) {

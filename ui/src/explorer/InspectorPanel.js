@@ -1,0 +1,288 @@
+import { Component } from '../components/Component.js';
+import { ConceptCard } from '../components/ConceptCard.js';
+import { DerivationWidget } from '../components/widgets/DerivationWidget.js';
+import { FluentUI, $ } from '../utils/FluentUI.js';
+import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
+
+export class InspectorPanel extends Component {
+    constructor(container) {
+        super(container);
+        this.currentData = null;
+        this.onSave = null;
+        this.onQuery = null;
+        this.onTrace = null;
+        this.onSelect = null;
+    }
+
+    render() {
+        if (!this.container) return;
+
+        // Using FluentUI
+        const root = $(this.container).clear();
+
+        const panel = $('div')
+            .id('inspector-panel')
+            .class('hud-panel', 'inspector-panel', 'hidden')
+            .mount(root);
+
+        $('h3').text('Inspector').mount(panel);
+
+        this.contentContainer = $('div')
+            .id('inspector-content')
+            .mount(panel);
+
+        $('div').class('inspector-empty').text('Select a node to inspect').mount(this.contentContainer);
+
+        $('button')
+            .id('btn-close-inspector')
+            .class('btn', 'small-btn')
+            .text('Close')
+            .on('click', () => this.hide())
+            .mount(panel);
+    }
+
+    show() {
+        const panel = $(this.container).dom.querySelector('#inspector-panel');
+        if (panel) panel.classList.remove('hidden');
+    }
+
+    hide() {
+        const panel = $(this.container).dom.querySelector('#inspector-panel');
+        if (panel) panel.classList.add('hidden');
+    }
+
+    update(data, mode = 'visualization') {
+        this.currentData = data;
+        if (!this.contentContainer) return;
+
+        this.contentContainer.clear();
+        this.show();
+
+        // 1. Quick Actions Toolbar
+        const actions = $('div').class('inspector-actions').mount(this.contentContainer);
+
+        $('button').class('btn', 'action-btn').attr('title', 'Query').text('🔍')
+            .on('click', () => this._handleQuery())
+            .mount(actions);
+
+        $('button').class('btn', 'action-btn').attr('title', 'Focus in Graph').text('🎯')
+            .on('click', () => { if (this.onSelect) this.onSelect(data.id); })
+            .mount(actions);
+
+        if (data.derivation) {
+            $('button').class('btn', 'action-btn').attr('title', 'Trace Derivation').text('🔗')
+                .on('click', () => { if (this.onTrace) this.onTrace(data.id); })
+                .mount(actions);
+        }
+
+        // 2. Header using ConceptCard
+        const conceptData = {
+            term: data.term || data.id,
+            budget: data.budget,
+            tasks: data.tasks || [],
+            taskCount: data.taskCount,
+            id: data.id
+        };
+
+        const cardWrapper = $('div').style({ marginBottom: '10px' }).mount(this.contentContainer);
+        new ConceptCard(cardWrapper.dom, conceptData, { compact: false }).render();
+
+        // 3. Truth Value (Visual)
+        if (data.truth) {
+             const { frequency, confidence } = data.truth;
+             const section = $('div').class('inspector-section').mount(this.contentContainer);
+             $('h4').text('Truth Value').mount(section);
+
+             const createBar = (label, val, color) => {
+                 const row = $('div').class('prop-row').style({ display: 'block', paddingBottom: '4px' }).mount(section);
+                 const info = $('div').style({ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }).mount(row);
+                 $('span').class('prop-label', 'small').text(label).mount(info);
+                 $('span').class('prop-value', 'small').text((val||0).toFixed(2)).mount(info);
+
+                 const bar = $('div').class('progress-bar').mount(row);
+                 $('div').class('progress-fill')
+                    .style({ width: `${(val||0) * 100}%`, backgroundColor: color })
+                    .mount(bar);
+             };
+
+             createBar('Frequency', frequency, 'var(--accent-primary)');
+             createBar('Confidence', confidence, 'var(--accent-secondary)');
+        }
+
+        // 4. Derivation Trace
+        if (data.derivation) {
+            const section = $('div').class('inspector-section').mount(this.contentContainer);
+            $('h4').text('Derivation Trace').mount(section);
+
+            const widgetContainer = $('div')
+                .style({ height: '200px', border: '1px solid var(--border-color)', borderRadius: '4px', position: 'relative' })
+                .mount(section);
+
+            // Adapt data for DerivationWidget
+            const widgetData = {
+                rule: data.derivation.rule,
+                derived: { term: data.term || data.id },
+                input: data.derivation.input || (data.derivation.sources && data.derivation.sources[0] ? { term: data.derivation.sources[0] } : null),
+                knowledge: data.derivation.knowledge || (data.derivation.sources && data.derivation.sources[1] ? { term: data.derivation.sources[1] } : null)
+            };
+
+            const widget = new DerivationWidget(widgetContainer.dom, widgetData);
+            requestAnimationFrame(() => widget.render());
+        }
+
+        // 5. Related Concepts
+        const related = data.links || [];
+        const relSection = $('div').class('inspector-section').mount(this.contentContainer);
+        $('h4').text('Related').mount(relSection);
+        const tags = $('div').class('related-tags').mount(relSection);
+
+        if (related.length) {
+            related.forEach(r => {
+                $('span')
+                    .class('related-tag', 'clickable-tag')
+                    .attr('title', `Focus ${r}`)
+                    .text(r)
+                    .on('click', () => { if (this.onSelect) this.onSelect(r); })
+                    .mount(tags);
+            });
+        } else {
+            $('span').class('prop-value-dim').text('No direct links').mount(tags);
+        }
+
+        // 6. Properties & Controls
+        const isControl = (mode === 'control');
+        const fields = this._getEditableFields(data);
+
+        // Internal State Tab
+        if (data.fullData) {
+            const section = $('div').class('inspector-section', 'collapsed').mount(this.contentContainer);
+            $('h4').text('Internal State ▶').on('click', (e) => {
+                section.dom.classList.toggle('collapsed');
+            }).mount(section);
+
+            const internalJson = JSON.stringify(data.fullData, null, 2);
+            $('pre').class('internal-state-code').text(internalJson).mount(section);
+        }
+
+        fields.forEach(field => {
+            const { key, value, type, path } = field;
+            let displayVal = value;
+            if (typeof value === 'number') displayVal = value.toFixed(3);
+
+            const row = $('div').class('prop-row').mount(this.contentContainer);
+            $('span').class('prop-label').text(key).mount(row);
+
+            if (isControl) {
+                const inputType = type === 'number' ? 'number' : 'text';
+                const step = type === 'number' ? '0.01' : '';
+                $('input')
+                    .attr('type', inputType)
+                    .class('prop-input')
+                    .attr('step', step)
+                    .data('path', path)
+                    .val(value)
+                    .mount(row);
+            } else {
+                let formattedVal = displayVal;
+                if (key === 'term' || key === 'label') {
+                     $('span').class('prop-value').html(NarseseHighlighter.highlight(String(value))).mount(row);
+                } else {
+                     $('span').class('prop-value').text(String(formattedVal)).mount(row);
+                }
+            }
+        });
+
+        if (isControl) {
+            const btnRow = $('div').style({ marginTop: '10px', textAlign: 'right' }).mount(this.contentContainer);
+            $('button')
+                .id('btn-inspector-save')
+                .class('btn', 'small-btn')
+                .text('Save Changes')
+                .on('click', () => this._handleSave())
+                .mount(btnRow);
+        }
+    }
+
+    _handleQuery() {
+        if (this.onQuery && this.currentData) {
+            this.onQuery(this.currentData.id || this.currentData.term);
+        }
+    }
+
+    _getEditableFields(data, prefix = '') {
+        let fields = [];
+
+        // Priority fields (flat)
+        const priorityKeys = ['term', 'label', 'type'];
+        priorityKeys.forEach(k => {
+            if (data[k] !== undefined) {
+                fields.push({ key: k, value: data[k], type: typeof data[k], path: k });
+            }
+        });
+
+        // Nested objects we care about
+        if (data.budget && typeof data.budget === 'object') {
+            ['priority', 'durability', 'quality'].forEach(k => {
+                if (data.budget[k] !== undefined) {
+                    fields.push({ key: `budget.${k}`, value: data.budget[k], type: 'number', path: `budget.${k}` });
+                }
+            });
+        }
+
+        if (data.truth && typeof data.truth === 'object') {
+            ['frequency', 'confidence'].forEach(k => {
+                if (data.truth[k] !== undefined) {
+                    fields.push({ key: `truth.${k}`, value: data.truth[k], type: 'number', path: `truth.${k}` });
+                }
+            });
+        }
+
+        // Handle other properties
+        for (const [key, value] of Object.entries(data)) {
+            if (['weight', 'id', 'budget', 'truth', 'fullData', 'tasks', 'links', 'derivation'].includes(key)) continue;
+            if (priorityKeys.includes(key)) continue;
+
+            if (value && typeof value === 'object') {
+                let strVal = '[Object]';
+                try {
+                    strVal = JSON.stringify(value);
+                } catch (e) {
+                    strVal = '[Circular/Error]';
+                }
+                fields.push({ key: key, value: strVal, type: 'object', path: key });
+            } else {
+                fields.push({ key, value, type: typeof value, path: key });
+            }
+        }
+
+        return fields;
+    }
+
+    _handleSave() {
+        if (!this.onSave || !this.currentData) return;
+
+        const inputs = this.container.querySelectorAll('.prop-input');
+        const updates = {};
+
+        inputs.forEach(input => {
+            const path = input.dataset.path;
+            let value = input.value;
+            if (input.type === 'number') {
+                value = parseFloat(value);
+            }
+            this._setDeep(updates, path, value);
+        });
+
+        this.onSave(this.currentData.id, updates);
+    }
+
+    _setDeep(obj, path, value) {
+        const parts = path.split('.');
+        let current = obj;
+        for (let i = 0; i < parts.length - 1; i++) {
+            if (!current[parts[i]]) current[parts[i]] = {};
+            current = current[parts[i]];
+        }
+        current[parts[parts.length - 1]] = value;
+    }
+}
