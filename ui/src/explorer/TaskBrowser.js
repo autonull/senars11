@@ -7,8 +7,10 @@ export class TaskBrowser extends Component {
         this.concepts = new Map(); // Map<string, { term: string, tasks: Array }>
         this.filter = '';
         this.typeFilters = { belief: true, goal: true, question: true };
+        this.expandedStates = new Set(); // Track expanded concepts
         this.onSelect = null;
         this.onTrace = null;
+        this.renderPending = false;
     }
 
     addTask(task) {
@@ -60,13 +62,22 @@ export class TaskBrowser extends Component {
         // Sort tasks by priority
         tasks.sort((a, b) => b.priority - a.priority);
 
-        // Debounce render if high frequency? For now direct.
-        this.renderList();
+        this.requestRender();
+    }
+
+    requestRender() {
+        if (this.renderPending) return;
+        this.renderPending = true;
+        requestAnimationFrame(() => {
+            this.renderList();
+            this.renderPending = false;
+        });
     }
 
     clear() {
         this.concepts.clear();
-        this.renderList();
+        this.expandedStates.clear();
+        this.requestRender();
     }
 
     deleteTask(term, taskIndex) {
@@ -76,7 +87,7 @@ export class TaskBrowser extends Component {
             if (entry.tasks.length === 0) {
                 this.concepts.delete(term);
             }
-            this.renderList();
+            this.requestRender();
         }
     }
 
@@ -193,8 +204,13 @@ export class TaskBrowser extends Component {
                 `;
             }).join('');
 
+            const isExpanded = this.expandedStates.has(rawTerm) ? 'open' : '';
+
+            // We store the term in a data attribute. Since safeTerm is escaped,
+            // putting it in innerHTML attribute value is correct.
+            // When reading dataset.term, browser decodes entities.
             return `
-                <details class="concept-group ${prioClass}">
+                <details class="concept-group ${prioClass}" ${isExpanded} data-term="${safeTerm}">
                     <summary class="concept-summary" title="${safeTerm}">
                         <span class="concept-term">${highlightedTerm}</span>
                         <span class="concept-badge">${taskCount}</span>
@@ -209,10 +225,19 @@ export class TaskBrowser extends Component {
         listContainer.innerHTML = html;
 
         // Bind events
+        listContainer.querySelectorAll('details').forEach(el => {
+            el.ontoggle = (e) => {
+                const term = el.dataset.term; // Browser decodes &lt; to <
+                if (el.open) this.expandedStates.add(term);
+                else this.expandedStates.delete(term);
+            };
+        });
+
         listContainer.querySelectorAll('.concept-summary').forEach(el => {
              el.onclick = (e) => {
-                 const term = el.title; // title holds full term
-                 if (this.onSelect) this.onSelect(term);
+                 // details.dataset.term is on the parent
+                 const term = el.parentElement.dataset.term;
+                 if (this.onSelect && term) this.onSelect(term);
              };
         });
 

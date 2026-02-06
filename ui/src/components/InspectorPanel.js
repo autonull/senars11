@@ -66,6 +66,34 @@ export class InspectorPanel extends Component {
             </div>
         `;
 
+        // Truth Value (Visual)
+        if (data.truth) {
+             const { frequency, confidence } = data.truth;
+             html += `
+                <div class="inspector-section">
+                    <h4>Truth Value</h4>
+                    <div class="prop-row" style="display:block; padding-bottom: 4px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:2px">
+                             <span class="prop-label small">Frequency</span>
+                             <span class="prop-value small">${(frequency||0).toFixed(2)}</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${(frequency||0) * 100}%; background-color: var(--accent-primary);"></div>
+                        </div>
+                    </div>
+                    <div class="prop-row" style="display:block; padding-bottom: 4px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:2px">
+                             <span class="prop-label small">Confidence</span>
+                             <span class="prop-value small">${(confidence||0).toFixed(2)}</span>
+                        </div>
+                        <div class="progress-bar">
+                             <div class="progress-fill" style="width: ${(confidence||0) * 100}%; background-color: var(--accent-secondary);"></div>
+                        </div>
+                    </div>
+                </div>
+             `;
+        }
+
         // Derivation Trace (If available)
         if (data.derivation) {
             const { rule, sources } = data.derivation;
