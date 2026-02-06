@@ -586,3 +586,77 @@ details[open] summary {
     background: rgba(0, 212, 255, 0.1);
     box-shadow: 0 0 5px rgba(0, 212, 255, 0.2);
 }
+
+/* Log Panel Enhancements */
+.log-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px;
+    background: rgba(0, 20, 10, 0.2);
+    border-bottom: 1px solid rgba(0, 255, 157, 0.1);
+}
+
+.log-toggles {
+    display: flex;
+    gap: 2px;
+}
+
+.log-toggle {
+    cursor: pointer;
+    padding: 2px 5px;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    color: #557766;
+    font-size: 0.75rem;
+    font-weight: bold;
+    font-family: 'Consolas', monospace;
+    transition: all 0.2s;
+}
+
+.log-toggle:hover {
+    color: #00ff9d;
+    background: rgba(0, 255, 157, 0.05);
+}
+
+.log-toggle.active {
+    background: rgba(0, 255, 157, 0.1);
+    color: #00ff9d;
+    border-color: rgba(0, 255, 157, 0.3);
+}
+
+/* Log Categories */
+.log-system { border-left: 2px solid var(--status-system, #00d4ff); background: rgba(0, 212, 255, 0.02); }
+.log-user { border-left: 2px solid var(--accent-primary, #00ff9d); background: rgba(0, 255, 157, 0.02); }
+.log-agent { border-left: 2px solid var(--accent-secondary, #ffcc00); background: rgba(255, 204, 0, 0.02); }
+.log-error { border-left: 2px solid var(--status-error, #ff4444); background: rgba(255, 68, 68, 0.05); }
+.log-warning { border-left: 2px solid var(--status-warning, #ffbb00); background: rgba(255, 187, 0, 0.05); }
+.log-success { border-left: 2px solid var(--status-success, #00aa66); }
+
+.log-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+}
+
+.btn-icon {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #557766;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+.btn-icon:hover {
+    color: #00ff9d;
+    background: rgba(0, 255, 157, 0.1);
+    border-color: rgba(0, 255, 157, 0.3);
+}
