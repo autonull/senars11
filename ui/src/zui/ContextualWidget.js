@@ -117,10 +117,11 @@ export class ContextualWidget {
         const node = this.graph.cy?.getElementById(nodeId);
         if (!node?.length) return;
 
+        const div = this.activeWidgets.get(nodeId);
+        if (!div) return;
+
         // Use Model Position (Fractal Space)
         const pos = node.position();
-        const div = this.activeWidgets.get(nodeId);
-
         div.style.left = `${pos.x}px`;
         div.style.top = `${pos.y}px`;
     }

@@ -488,17 +488,25 @@ export class SeNARSGraph extends GraphSystem {
     _updateWidget(nodeId, data) {
         if (!this.contextualWidget) return;
 
-        const priority = data.budget?.priority;
-        const truth = data.truth;
-
-        let html = '';
-        if (priority !== undefined && typeof priority === 'number') html += `<div>Prio: ${priority.toFixed(2)}</div>`;
-        if (truth && truth.frequency !== undefined && truth.confidence !== undefined) {
-             html += `<div>{${Number(truth.frequency).toFixed(2)}, ${Number(truth.confidence).toFixed(2)}}</div>`;
+        // Widgets are optional. Only attach if explicitly requested.
+        if (data.widgetContent) {
+            this.contextualWidget.attach(nodeId, data.widgetContent);
+            return;
         }
 
-        if (html) {
-            this.contextualWidget.attach(nodeId, html);
+        if (data.showWidget) {
+            const priority = data.budget?.priority;
+            const truth = data.truth;
+
+            let html = '';
+            if (priority !== undefined && typeof priority === 'number') html += `<div>Prio: ${priority.toFixed(2)}</div>`;
+            if (truth && truth.frequency !== undefined && truth.confidence !== undefined) {
+                 html += `<div>{${Number(truth.frequency).toFixed(2)}, ${Number(truth.confidence).toFixed(2)}}</div>`;
+            }
+
+            if (html) {
+                this.contextualWidget.attach(nodeId, html);
+            }
         }
     }
 
@@ -738,6 +746,9 @@ export class SeNARSGraph extends GraphSystem {
                      // Always update fullData as it might have changed via inspector
                      node.data('fullData', item.data);
                 }
+
+                // Ensure widget is attached if required
+                this._updateWidget(item.id, item.data);
             });
         });
 
