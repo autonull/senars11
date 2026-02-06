@@ -150,3 +150,63 @@ p { margin: 0; font-size: 0.9em; color: #888; }
     transition: opacity 0.5s;
 }
 .loader.hidden { opacity: 0; pointer-events: none; }
+
+/* SpaceGraph-style Hover Frame */
+.zui-hover-frame {
+    position: absolute;
+    pointer-events: none;
+    z-index: 4; /* Below active widgets (5) */
+    display: none;
+    box-sizing: border-box;
+    opacity: 0;
+    transition: opacity 0.2s ease-out;
+}
+
+.zui-hover-frame.active {
+    opacity: 1;
+}
+
+/* Corner Brackets using pseudo-elements */
+.zui-hover-frame::before,
+.zui-hover-frame::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    border: 2px solid transparent;
+    pointer-events: none;
+    box-sizing: border-box;
+}
+
+/* Top-Left and Bottom-Right corners */
+.zui-hover-frame::before {
+    border-top-color: #00ff9d;
+    border-left-color: #00ff9d;
+    border-radius: 4px 0 0 0;
+    width: 15px;
+    height: 15px;
+}
+
+.zui-hover-frame::after {
+    border-bottom-color: #00ff9d;
+    border-right-color: #00ff9d;
+    border-radius: 0 0 4px 0;
+    width: 15px;
+    height: 15px;
+    top: auto;
+    left: auto;
+    bottom: 0;
+    right: 0;
+}
+
+/* Add extra corners via box-shadow or nested elements if needed.
+   For now, 2 corners is a stylistic choice, let's add the other two for full framing
+   simulating a target reticle. */
+
+.zui-hover-frame {
+    /* Center crosshair optionally? */
+}
+
+/* Use a child element for the other two corners to avoid complexity with just before/after */

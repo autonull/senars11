@@ -7,6 +7,8 @@ export class ContextualWidget {
         this.container = container;
         this.activeWidgets = new Map(); // nodeId -> DOM element
         this.transformContainer = null;
+        this.hoverFrame = null;
+        this.hoveredNodeId = null;
 
         this._initContainer();
         this._setupListeners();
@@ -26,6 +28,11 @@ export class ContextualWidget {
             zIndex: '5' // Low Z-Index to be above canvas but below HUD
         });
         this.container.appendChild(this.transformContainer);
+
+        // Create Hover Frame (hidden by default)
+        this.hoverFrame = document.createElement('div');
+        this.hoverFrame.className = 'zui-hover-frame';
+        this.transformContainer.appendChild(this.hoverFrame);
     }
 
     _setupListeners() {
@@ -174,9 +181,45 @@ export class ContextualWidget {
         }
     }
 
+    showHoverFrame(node) {
+        if (!this.hoverFrame) return;
+
+        const pos = node.position();
+        const width = node.width() || 30;
+        const height = node.height() || 30;
+        const padding = 20;
+
+        // Position in model space
+        Object.assign(this.hoverFrame.style, {
+            display: 'block',
+            left: `${pos.x}px`,
+            top: `${pos.y}px`,
+            width: `${width + padding}px`,
+            height: `${height + padding}px`,
+            transform: 'translate(-50%, -50%)' // Center on node
+        });
+
+        // Add minimal animation class
+        this.hoverFrame.classList.remove('active');
+        // Force reflow
+        void this.hoverFrame.offsetWidth;
+        this.hoverFrame.classList.add('active');
+
+        this.hoveredNodeId = node.id();
+    }
+
+    hideHoverFrame() {
+        if (this.hoverFrame) {
+            this.hoverFrame.style.display = 'none';
+            this.hoverFrame.classList.remove('active');
+        }
+        this.hoveredNodeId = null;
+    }
+
     clear() {
         this.activeWidgets.forEach(div => div.remove());
         this.activeWidgets.clear();
+        if (this.hoverFrame) this.hoverFrame.style.display = 'none';
         // this.transformContainer.innerHTML = ''; // Also clears container
     }
 }
