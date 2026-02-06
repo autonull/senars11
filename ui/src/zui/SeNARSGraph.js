@@ -394,12 +394,35 @@ export class SeNARSGraph extends GraphSystem {
     }
 
     _createNodeConfig(data) {
-        const { id, type, term } = data;
+        const { id, type, term, position } = data;
         const nodeId = id ?? `concept_${Date.now()}_${Math.random()}`;
         const displayLabel = this._calculateNodeLabel(data);
         const priority = data.budget?.priority ?? 0.5;
         const taskCount = data.tasks?.length ?? data.taskCount ?? 0;
         const weight = this._calculateNodeWeight(priority, term);
+
+        // Initialize with random position if not provided to avoid "horizontal line" issue
+        // We use a small area around the center or current extent
+        let initialPos = position;
+        if (!initialPos) {
+            const range = 500;
+            initialPos = {
+                x: (Math.random() - 0.5) * range,
+                y: (Math.random() - 0.5) * range
+            };
+            // If graph exists and has nodes, try to spawn near them but not exactly
+            if (this.cy && this.cy.nodes().nonempty()) {
+                const extent = this.cy.extent();
+                if (extent && extent.w > 0) {
+                     const cx = (extent.x1 + extent.x2) / 2;
+                     const cy = (extent.y1 + extent.y2) / 2;
+                     initialPos = {
+                         x: cx + (Math.random() - 0.5) * (extent.w * 0.5),
+                         y: cy + (Math.random() - 0.5) * (extent.h * 0.5)
+                     };
+                }
+            }
+        }
 
         return {
             group: 'nodes',
@@ -411,7 +434,8 @@ export class SeNARSGraph extends GraphSystem {
                 taskCount: taskCount,
                 fullData: data,
                 term: term
-            }
+            },
+            position: initialPos
         };
     }
 
@@ -568,7 +592,16 @@ export class SeNARSGraph extends GraphSystem {
         this._layoutTimeout = setTimeout(() => {
             if (this.cy && this.updatesEnabled) {
                 if (this.currentLayout !== 'scatter' && this.currentLayout !== 'sorted-grid') {
-                    const layoutOpts = Config.getGraphLayout(this.currentLayout || 'fcose');
+                    const baseOpts = Config.getGraphLayout(this.currentLayout || 'fcose');
+                    // Use gentler options for updates to preserve momentum/mental map
+                    const layoutOpts = {
+                        ...baseOpts,
+                        randomize: false,
+                        animate: true,
+                        fit: false, // Don't fit on every update to avoid camera jumping
+                        animationDuration: 800,
+                        animationEasing: 'ease-out-cubic'
+                    };
                     super.layout(layoutOpts);
                 }
             }
