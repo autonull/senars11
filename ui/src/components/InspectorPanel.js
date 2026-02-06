@@ -8,6 +8,7 @@ export class InspectorPanel extends Component {
         this.onSave = null;
         this.onQuery = null;
         this.onTrace = null;
+        this.onSelect = null;
     }
 
     render() {
@@ -48,8 +49,17 @@ export class InspectorPanel extends Component {
 
         this.show();
 
-        // Header (ID)
+        // 1. Quick Actions Toolbar
         let html = `
+            <div class="inspector-actions">
+                <button class="btn action-btn" title="Query" id="btn-action-query">🔍</button>
+                <button class="btn action-btn" title="Focus in Graph" id="btn-action-focus">🎯</button>
+                ${data.derivation ? `<button class="btn action-btn" title="Trace Derivation" id="btn-action-trace">🔗</button>` : ''}
+            </div>
+        `;
+
+        // Header (ID)
+        html += `
             <div class="prop-row">
                 <span class="prop-label">ID</span>
                 <span class="prop-value" title="${data.id}">${this._truncate(data.id)}</span>
@@ -67,9 +77,8 @@ export class InspectorPanel extends Component {
                         <span class="prop-value" style="color:var(--accent-secondary)">${rule}</span>
                     </div>
                     <div class="related-tags">
-                        ${sources.map(s => `<span class="related-tag" title="Source">${this._truncate(s, 15)}</span>`).join('')}
+                        ${sources.map(s => `<span class="related-tag clickable-tag" data-term="${this._escapeHtml(s)}" title="Focus ${s}">${this._truncate(s, 15)}</span>`).join('')}
                     </div>
-                    <button id="btn-trace-path" class="btn small-btn" style="margin-top:5px; width:100%">Show Trace Path 🔗</button>
                 </div>
             `;
         }
@@ -80,7 +89,7 @@ export class InspectorPanel extends Component {
             <div class="inspector-section">
                 <h4>Related</h4>
                 <div class="related-tags">
-                   ${related.length ? related.map(r => `<span class="related-tag">${this._escapeHtml(r)}</span>`).join('') : '<span class="prop-value-dim">No direct links</span>'}
+                   ${related.length ? related.map(r => `<span class="related-tag clickable-tag" data-term="${this._escapeHtml(r)}" title="Focus ${r}">${this._escapeHtml(r)}</span>`).join('') : '<span class="prop-value-dim">No direct links</span>'}
                 </div>
             </div>
         `;
@@ -133,7 +142,6 @@ export class InspectorPanel extends Component {
         if (isControl) {
             html += `
                 <div style="margin-top: 10px; text-align: right;">
-                    <button id="btn-inspector-query" class="btn small-btn" style="margin-right: 5px;">Query</button>
                     <button id="btn-inspector-save" class="btn small-btn">Save Changes</button>
                 </div>
             `;
@@ -141,22 +149,33 @@ export class InspectorPanel extends Component {
 
         content.innerHTML = html;
 
+        // Bind Actions
+        const btnQuery = content.querySelector('#btn-action-query');
+        if (btnQuery) btnQuery.onclick = () => this._handleQuery();
+
+        const btnFocus = content.querySelector('#btn-action-focus');
+        if (btnFocus) btnFocus.onclick = () => {
+             if (this.onSelect) this.onSelect(this.currentData.id);
+        };
+
+        const btnTrace = content.querySelector('#btn-action-trace');
+        if (btnTrace) btnTrace.onclick = () => {
+             if (this.onTrace) this.onTrace(this.currentData.id);
+        };
+
+        // Bind clickable tags
+        content.querySelectorAll('.clickable-tag').forEach(tag => {
+            tag.onclick = (e) => {
+                const term = e.target.dataset.term;
+                if (this.onSelect && term) this.onSelect(term);
+            };
+        });
+
         if (isControl) {
             const btnSave = content.querySelector('#btn-inspector-save');
             if (btnSave) {
                 btnSave.onclick = () => this._handleSave();
             }
-            const btnQuery = content.querySelector('#btn-inspector-query');
-            if (btnQuery) {
-                btnQuery.onclick = () => this._handleQuery();
-            }
-        }
-
-        const btnTrace = content.querySelector('#btn-trace-path');
-        if (btnTrace) {
-            btnTrace.onclick = () => {
-                if (this.onTrace) this.onTrace(this.currentData.id);
-            };
         }
     }
 
@@ -234,11 +253,6 @@ export class InspectorPanel extends Component {
             // Reconstruct nested object structure
             this._setDeep(updates, path, value);
         });
-
-        // For deep updates, we need to merge with current data structure
-        // But ExplorerApp.js saveNodeChanges does a shallow merge usually.
-        // We might need to handle the merge here or in ExplorerApp.
-        // Let's assume updates is enough for now, but we need to ensure budget/truth are objects
 
         this.onSave(this.currentData.id, updates);
     }
