@@ -105,10 +105,7 @@ export class SeNARSGraph extends GraphSystem {
             node.neighborhood().addClass('neighbor-edge');
             node.neighborhood('node').addClass('neighbor');
 
-            // Show SpaceGraph-style Hover Frame
-            if (this.contextualWidget) {
-                this.contextualWidget.showHoverFrame(node);
-            }
+            this.contextualWidget?.showHoverFrame(node);
         });
 
         this.cy.on('mouseout', 'node', (evt) => {
@@ -117,9 +114,7 @@ export class SeNARSGraph extends GraphSystem {
             node.neighborhood().removeClass('neighbor-edge');
             node.neighborhood('node').removeClass('neighbor');
 
-            if (this.contextualWidget) {
-                this.contextualWidget.hideHoverFrame();
-            }
+            this.contextualWidget?.hideHoverFrame();
         });
     }
 
@@ -128,23 +123,15 @@ export class SeNARSGraph extends GraphSystem {
         const node = this.cy.getElementById(nodeId);
         if (node.empty()) return;
 
-        // Push current state to history
         this.historyStack.push({
             zoom: this.cy.zoom(),
             pan: { ...this.cy.pan() },
             time: Date.now()
         });
 
-        // Limit history size
         if (this.historyStack.length > 20) this.historyStack.shift();
 
-        // Calculate ideal zoom to frame the node with padding
-        // We aim for the node (and maybe immediate context) to fill a good portion of the screen
-        // SpaceGraph "perfectly frames" the element.
-        // In 2D, this means zooming until the node's bounding box covers a significant area.
-        // For a single node, we just pick a standard "detail" zoom level or relative to node size.
-
-        const targetZoom = 2.5; // Detail level threshold is 2.0, so 2.5 ensures full detail
+        const targetZoom = 2.5;
 
         this.cy.animate({
             zoom: targetZoom,

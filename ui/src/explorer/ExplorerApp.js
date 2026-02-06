@@ -125,10 +125,7 @@ export class ExplorerApp {
             this.graph.on('nodeClick', ({ node }) => {
                 const data = node.data();
 
-                // AutoZoom (SpaceGraph Style)
-                if (this.graph.flyTo) {
-                    this.graph.flyTo(node.id());
-                }
+                this.graph.flyTo?.(node.id());
 
                 // Extract simple links for inspector
                 const links = node.connectedEdges().map(edge => {
@@ -146,10 +143,7 @@ export class ExplorerApp {
                 });
             });
 
-            // Double-click to go deeper or special action?
-            // For now, keep it as backup or maybe "Enter"
             this.graph.on('nodeDblClick', ({ node }) => {
-                // Already handled by click->flyTo, but maybe we want to maximize?
                 this.log(`Focused: ${node.id()}`, 'system');
             });
 
@@ -934,9 +928,7 @@ export class ExplorerApp {
         this.commandPalette.registerCommand('zoom-in', 'Zoom In', '+', () => this.graph.zoomIn());
         this.commandPalette.registerCommand('zoom-out', 'Zoom Out', '-', () => this.graph.zoomOut());
         this.commandPalette.registerCommand('layout', 'Re-calculate Layout', 'L', () => this.graph.scheduleLayout());
-        this.commandPalette.registerCommand('go-back', 'Go Back (History)', 'Esc', () => {
-             if (this.graph.goBack) this.graph.goBack();
-        });
+        this.commandPalette.registerCommand('go-back', 'Go Back (History)', 'Esc', () => this.graph.goBack?.());
 
         // Data
         this.commandPalette.registerCommand('clear', 'Clear Workspace', null, () => {
@@ -1522,9 +1514,7 @@ export class ExplorerApp {
             }
 
             if (e.key === 'Escape') {
-                // Go Back
-                if (this.graph.goBack) this.graph.goBack();
-                // Also close modals if any (optional)
+                this.graph.goBack?.();
             }
 
             if ((e.ctrlKey || e.metaKey) && e.key === 'l') {

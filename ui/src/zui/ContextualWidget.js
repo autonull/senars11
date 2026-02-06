@@ -23,13 +23,12 @@ export class ContextualWidget {
             left: '0',
             width: '100%',
             height: '100%',
-            pointerEvents: 'none', // Allow clicks to pass through to graph
+            pointerEvents: 'none',
             transformOrigin: '0 0',
-            zIndex: '5' // Low Z-Index to be above canvas but below HUD
+            zIndex: '5'
         });
         this.container.appendChild(this.transformContainer);
 
-        // Create Hover Frame (hidden by default)
         this.hoverFrame = document.createElement('div');
         this.hoverFrame.className = 'zui-hover-frame';
         this.transformContainer.appendChild(this.hoverFrame);
@@ -110,14 +109,10 @@ export class ContextualWidget {
 
         // Bind double-click to "Enter" node
         const header = div.querySelector('.zui-header');
-        if (header) {
-            header.addEventListener('dblclick', (e) => {
-                e.stopPropagation();
-                if (this.graph.enterNode) {
-                    this.graph.enterNode(nodeId);
-                }
-            });
-        }
+        header?.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            this.graph.enterNode?.(nodeId);
+        });
 
         this.transformContainer.appendChild(div);
         this.activeWidgets.set(nodeId, div);
@@ -196,10 +191,9 @@ export class ContextualWidget {
             top: `${pos.y}px`,
             width: `${width + padding}px`,
             height: `${height + padding}px`,
-            transform: 'translate(-50%, -50%)' // Center on node
+            transform: 'translate(-50%, -50%)'
         });
 
-        // Add minimal animation class
         this.hoverFrame.classList.remove('active');
         // Force reflow
         void this.hoverFrame.offsetWidth;
