@@ -100,6 +100,7 @@ export class ExplorerApp {
                 this.showInspector({ id: term, ...data, ...(data.fullData || {}) });
             }
         };
+        this.taskBrowser.onTrace = (id) => this.graph.traceDerivationPath(id);
     }
 
     // Convenience accessor for the underlying graph manager

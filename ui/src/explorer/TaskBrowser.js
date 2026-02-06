@@ -1,4 +1,5 @@
 import { Component } from '../components/Component.js';
+import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
 
 export class TaskBrowser extends Component {
     constructor(container) {
@@ -6,6 +7,7 @@ export class TaskBrowser extends Component {
         this.concepts = new Map(); // Map<string, { term: string, tasks: Array }>
         this.filter = '';
         this.onSelect = null;
+        this.onTrace = null;
     }
 
     addTask(task) {
@@ -130,7 +132,9 @@ export class TaskBrowser extends Component {
         });
 
         const html = filteredConcepts.map(concept => {
-            const safeTerm = this._escapeHtml(concept.term);
+            const rawTerm = concept.term;
+            const safeTerm = this._escapeHtml(rawTerm);
+            const highlightedTerm = NarseseHighlighter.highlight(rawTerm);
             const taskCount = concept.tasks.length;
             const maxPrio = Math.max(...concept.tasks.map(t => t.priority));
             const prioClass = maxPrio > 0.8 ? 'high' : (maxPrio > 0.5 ? 'med' : 'low');
@@ -141,6 +145,10 @@ export class TaskBrowser extends Component {
                 const truthStr = task.truth ? ` <span class="task-truth">(${task.truth.f.toFixed(2)}, ${task.truth.c.toFixed(2)})</span>` : '';
                 const derivationStr = task.derivation ? `<div class="task-derivation">↳ ${task.derivation.rule}</div>` : '';
 
+                // Add trace button if derived
+                const traceBtn = task.derivation ?
+                    `<button class="btn-icon trace-task-btn" title="Trace Derivation">🔗</button>` : '';
+
                 return `
                     <div class="sub-task-item" data-term="${safeTerm}" data-index="${index}">
                         <div class="task-row">
@@ -149,6 +157,7 @@ export class TaskBrowser extends Component {
                                 <span class="task-prio">[${task.priority.toFixed(2)}]</span>
                                 ${truthStr}
                             </span>
+                             ${traceBtn}
                              <button class="btn-icon delete-task-btn" title="Delete">×</button>
                         </div>
                         ${derivationStr}
@@ -159,7 +168,7 @@ export class TaskBrowser extends Component {
             return `
                 <details class="concept-group ${prioClass}">
                     <summary class="concept-summary" title="${safeTerm}">
-                        <span class="concept-term">${this._truncate(safeTerm, 30)}</span>
+                        <span class="concept-term">${highlightedTerm}</span>
                         <span class="concept-badge">${taskCount}</span>
                     </summary>
                     <div class="concept-tasks">
@@ -174,9 +183,6 @@ export class TaskBrowser extends Component {
         // Bind events
         listContainer.querySelectorAll('.concept-summary').forEach(el => {
              el.onclick = (e) => {
-                 // Prevent toggling when clicking specific parts if needed?
-                 // Default behavior is fine.
-                 // Also select the concept node in graph
                  const term = el.title; // title holds full term
                  if (this.onSelect) this.onSelect(term);
              };
@@ -185,13 +191,14 @@ export class TaskBrowser extends Component {
         listContainer.querySelectorAll('.sub-task-item').forEach(el => {
             el.onclick = (e) => {
                 e.stopPropagation(); // Don't collapse details
+                const term = el.dataset.term;
                 if (e.target.classList.contains('delete-task-btn')) {
-                    const term = el.dataset.term;
                     const index = parseInt(el.dataset.index);
                     this.deleteTask(term, index);
+                } else if (e.target.classList.contains('trace-task-btn')) {
+                    if (this.onTrace) this.onTrace(term);
                 } else {
                     // Also select on task click
-                    const term = el.dataset.term;
                     if (this.onSelect) this.onSelect(term);
                 }
             };
