@@ -226,16 +226,18 @@ export class ExplorerApp {
 
             try {
                 await this.lmController.initialize();
-                this._updateLLMStatus('Ready', 'ready');
+                this._updateLLMStatus('Ready', 'online');
+                this._updateReasonerStatus('Online (via LLM Bridge)', 'online');
                 this._bindNAREvents();
             } catch (e) {
                 console.warn('LLM init failed (might need config):', e);
                 // If LLM init fails, check if we have tools bridge (NAR) access
                 if (!this.lmController.toolsBridge) {
                     await this._initLocalBridge();
-                    this._updateLLMStatus('Config Required (Local)', 'warning');
+                    this._updateLLMStatus('Config Required', 'warning');
                 } else {
                     this._updateLLMStatus('Config Required', 'warning');
+                    this._updateReasonerStatus('Offline', 'offline');
                 }
             }
         } catch (e) {
@@ -244,11 +246,12 @@ export class ExplorerApp {
             await this._initLocalBridge();
 
             if (this.localToolsBridge) {
-                this._updateLLMStatus('Reasoner Only', 'warning');
+                this._updateLLMStatus('Offline', 'offline');
                 this.toastManager.show('LLM unavailable - Running in Reasoner Only mode', 'info');
             } else {
                 const errorMsg = e.message || String(e);
                 this._updateLLMStatus('Module Error', 'error');
+                this._updateReasonerStatus('Error', 'error');
                 this.log(`Failed to load LMAgentController: ${errorMsg}`, 'error');
                 this.toastManager.show(`Module Error: ${errorMsg}`, 'error');
             }
@@ -268,10 +271,12 @@ export class ExplorerApp {
             this.localToolsBridge = new module.AgentToolsBridge();
             await this.localToolsBridge.initialize();
             this.log('Local Reasoner initialized successfully', 'system');
+            this._updateReasonerStatus('Online (Local)', 'online');
             this._bindNAREvents();
         } catch (e) {
             console.error('Failed to load AgentToolsBridge:', e);
             this.log('Failed to load local reasoner', 'error');
+            this._updateReasonerStatus('Load Failed', 'error');
         }
     }
 
@@ -1618,10 +1623,20 @@ export class ExplorerApp {
     }
 
     _updateLLMStatus(text, state) {
+        if (this.statusBar) {
+            this.statusBar.setCapability('llm', state, `LLM: ${text}`);
+        }
+        // Legacy fallback
         const el = document.getElementById('llm-status');
         if (el) {
             el.textContent = text;
             el.className = `status-indicator status-${state}`;
+        }
+    }
+
+    _updateReasonerStatus(text, state) {
+        if (this.statusBar) {
+            this.statusBar.setCapability('reasoner', state, `Reasoner: ${text}`);
         }
     }
 

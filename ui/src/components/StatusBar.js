@@ -132,7 +132,12 @@ export class StatusBar extends Component {
                     <div class="status-metric" id="status-nodes">🧠 Nodes: 0/50</div>
                     <div class="status-metric" id="status-tps">⚡ TPS: 0</div>
                     <div class="status-divider"></div>
-                    <div id="llm-status" class="status-indicator status-offline">Offline</div>
+
+                    <div class="capability-lights">
+                        <div id="cap-reasoner" class="cap-light status-offline" title="NAL Reasoner: Offline"></div>
+                        <div id="cap-llm" class="cap-light status-offline" title="LLM Reasoning: Offline"></div>
+                    </div>
+
                     <div class="status-divider"></div>
                     <button class="widget-toggle-btn active" id="toggle-layers" title="Toggle Layers (1)">📐</button>
                     <button class="widget-toggle-btn active" id="toggle-metrics" title="Toggle Metrics (2)">📊</button>
@@ -320,6 +325,16 @@ export class StatusBar extends Component {
         } else {
             btnRun?.classList.remove('hidden');
             btnPause?.classList.add('hidden');
+        }
+    }
+
+    setCapability(id, status, tooltip) {
+        const el = this.container.querySelector(`#cap-${id}`);
+        if (el) {
+            // Remove old status classes
+            el.classList.remove('status-offline', 'status-online', 'status-warning', 'status-error', 'status-loading');
+            el.classList.add(`status-${status}`);
+            if (tooltip) el.title = tooltip;
         }
     }
 
