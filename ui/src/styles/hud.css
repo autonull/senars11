@@ -1,3 +1,13 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
 /* HUD Base Layout - Fixed Positioning */
 #hud-overlay {
     position: fixed;
@@ -107,7 +117,7 @@
     position: fixed;
     bottom: 0;
     left: 0;
-    width: 100vw;
+    width: 100%;
     z-index: 100;
     background: rgba(5, 10, 5, 0.95);
     border-top: 1px solid rgba(0, 255, 157, 0.3);
@@ -276,4 +286,53 @@ details[open] summary {
 
 .log-entry.log-system span:last-child {
     color: var(--status-system);
+}
+
+@media (max-width: 768px) {
+    .hud-left {
+        width: 250px;
+        left: 10px;
+    }
+    .hud-right {
+        width: 250px;
+        right: 10px;
+    }
+    .hud-bottom {
+        left: 10px;
+        right: 10px;
+    }
+}
+
+@media (max-width: 600px) {
+    .hud-left {
+        width: 100%;
+        left: 0;
+        top: 60px;
+        bottom: auto;
+        height: 40%;
+        background: rgba(0,0,0,0.8);
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        display: none; /* Collapsed by default on mobile, toggled via JS */
+    }
+    .hud-left.active-widget {
+        display: flex;
+        z-index: 200;
+    }
+
+    .hud-right {
+        width: 100%;
+        right: 0;
+        bottom: 50px; /* Above status bar */
+        top: auto;
+        height: 40%;
+        background: rgba(0,0,0,0.8);
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+        display: none;
+    }
+    .hud-right.active-widget {
+        display: flex;
+        z-index: 200;
+    }
 }
