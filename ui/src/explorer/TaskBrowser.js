@@ -6,6 +6,7 @@ export class TaskBrowser extends Component {
         super(container);
         this.concepts = new Map(); // Map<string, { term: string, tasks: Array }>
         this.filter = '';
+        this.typeFilters = { belief: true, goal: true, question: true };
         this.onSelect = null;
         this.onTrace = null;
     }
@@ -87,7 +88,12 @@ export class TaskBrowser extends Component {
                 <div class="hud-header">
                     <h3>Tasks & Concepts</h3>
                     <div class="task-controls">
-                        <input type="text" id="task-search" placeholder="Filter..." class="control-input-small" style="width: 100px;">
+                        <div class="filter-toggles">
+                            <button class="btn-toggle ${this.typeFilters.belief ? 'active' : ''}" data-type="belief" title="Toggle Beliefs">●</button>
+                            <button class="btn-toggle ${this.typeFilters.goal ? 'active' : ''}" data-type="goal" title="Toggle Goals">♦</button>
+                            <button class="btn-toggle ${this.typeFilters.question ? 'active' : ''}" data-type="question" title="Toggle Questions">¿</button>
+                        </div>
+                        <input type="text" id="task-search" placeholder="Filter..." class="control-input-small" style="width: 80px;">
                         <button id="btn-clear-tasks" class="btn small-btn" title="Clear List">🗑️</button>
                     </div>
                 </div>
@@ -105,6 +111,15 @@ export class TaskBrowser extends Component {
             };
         }
 
+        this.container.querySelectorAll('.btn-toggle').forEach(btn => {
+            btn.onclick = (e) => {
+                const type = e.target.dataset.type;
+                this.typeFilters[type] = !this.typeFilters[type];
+                e.target.classList.toggle('active', this.typeFilters[type]);
+                this.renderList();
+            };
+        });
+
         const clearBtn = this.container.querySelector('#btn-clear-tasks');
         if (clearBtn) {
             clearBtn.onclick = () => this.clear();
@@ -115,19 +130,32 @@ export class TaskBrowser extends Component {
         const listContainer = this.container.querySelector('#task-list');
         if (!listContainer) return;
 
-        // Filter concepts
+        // Helper to check if task type is visible
+        const isTypeVisible = (t) => {
+            const type = t.type.toLowerCase();
+            if (type.includes('goal')) return this.typeFilters.goal;
+            if (type.includes('question') || type.includes('quest')) return this.typeFilters.question;
+            return this.typeFilters.belief;
+        };
+
+        // Filter concepts and their tasks
         const filteredConcepts = Array.from(this.concepts.values())
-            .filter(c => c.term.toLowerCase().includes(this.filter));
+            .map(c => ({
+                ...c,
+                // We keep original indices by mapping first
+                visibleItems: c.tasks.map((t, i) => ({ task: t, index: i })).filter(({ task }) => isTypeVisible(task))
+            }))
+            .filter(c => c.visibleItems.length > 0 && c.term.toLowerCase().includes(this.filter));
 
         if (filteredConcepts.length === 0) {
             listContainer.innerHTML = `<div class="empty-state">${this.concepts.size === 0 ? 'No tasks yet' : 'No matches'}</div>`;
             return;
         }
 
-        // Sort concepts by max priority of their tasks
+        // Sort concepts by max priority of their visible tasks
         filteredConcepts.sort((a, b) => {
-            const maxA = Math.max(...a.tasks.map(t => t.priority));
-            const maxB = Math.max(...b.tasks.map(t => t.priority));
+            const maxA = Math.max(...a.visibleItems.map(item => item.task.priority));
+            const maxB = Math.max(...b.visibleItems.map(item => item.task.priority));
             return maxB - maxA;
         });
 
@@ -135,12 +163,12 @@ export class TaskBrowser extends Component {
             const rawTerm = concept.term;
             const safeTerm = this._escapeHtml(rawTerm);
             const highlightedTerm = NarseseHighlighter.highlight(rawTerm);
-            const taskCount = concept.tasks.length;
-            const maxPrio = Math.max(...concept.tasks.map(t => t.priority));
+            const taskCount = concept.visibleItems.length;
+            const maxPrio = Math.max(...concept.visibleItems.map(item => item.task.priority));
             const prioClass = maxPrio > 0.8 ? 'high' : (maxPrio > 0.5 ? 'med' : 'low');
 
             // Tasks HTML
-            const tasksHtml = concept.tasks.map((task, index) => {
+            const tasksHtml = concept.visibleItems.map(({ task, index }) => {
                 const typeIcon = this._getTypeIcon(task.type);
                 const truthStr = task.truth ? ` <span class="task-truth">(${task.truth.f.toFixed(2)}, ${task.truth.c.toFixed(2)})</span>` : '';
                 const derivationStr = task.derivation ? `<div class="task-derivation">↳ ${task.derivation.rule}</div>` : '';
