@@ -336,3 +336,115 @@ details[open] summary {
         z-index: 200;
     }
 }
+
+/* Task Browser Enhancements */
+.concept-group {
+    margin-bottom: 5px;
+    border: 1px solid rgba(0, 255, 157, 0.1);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.concept-group.high { border-left: 3px solid #ff4444; }
+.concept-group.med { border-left: 3px solid #ffcc00; }
+.concept-group.low { border-left: 3px solid #00aa66; }
+
+.concept-summary {
+    padding: 8px 10px;
+    background: rgba(0, 40, 20, 0.3);
+    border-bottom: none;
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.concept-term {
+    font-family: 'Consolas', monospace;
+    color: #aaccbb;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 70%;
+}
+
+.concept-badge {
+    background: rgba(0, 255, 157, 0.2);
+    color: #00ff9d;
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 0.75rem;
+}
+
+.concept-tasks {
+    padding: 5px 0;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.sub-task-item {
+    padding: 4px 10px 4px 20px;
+    border-bottom: 1px solid rgba(0, 255, 157, 0.05);
+    font-family: 'Consolas', monospace;
+    font-size: 0.8rem;
+    transition: background 0.2s;
+}
+
+.sub-task-item:hover {
+    background: rgba(0, 255, 157, 0.1);
+    cursor: pointer;
+}
+
+.task-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.task-type {
+    width: 16px;
+    text-align: center;
+    color: #00d4ff;
+    font-weight: bold;
+}
+
+.task-detail {
+    flex: 1;
+    display: flex;
+    gap: 8px;
+    color: #88aa99;
+}
+
+.task-prio {
+    color: #ffcc00;
+}
+
+.task-truth {
+    color: #00aa66;
+    font-size: 0.75rem;
+}
+
+.task-derivation {
+    margin-left: 24px;
+    font-size: 0.75rem;
+    color: #557766;
+    font-style: italic;
+}
+
+.delete-task-btn {
+    background: none;
+    border: none;
+    color: #557766;
+    cursor: pointer;
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0 4px;
+    opacity: 0;
+    transition: opacity 0.2s, color 0.2s;
+}
+
+.sub-task-item:hover .delete-task-btn {
+    opacity: 1;
+}
+
+.delete-task-btn:hover {
+    color: #ff4444;
+}

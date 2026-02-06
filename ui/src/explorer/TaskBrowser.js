@@ -3,7 +3,7 @@ import { Component } from '../components/Component.js';
 export class TaskBrowser extends Component {
     constructor(container) {
         super(container);
-        this.tasks = []; // Array of { term, type, priority, ... }
+        this.concepts = new Map(); // Map<string, { term: string, tasks: Array }>
         this.filter = '';
         this.onSelect = null;
     }
@@ -11,31 +11,70 @@ export class TaskBrowser extends Component {
     addTask(task) {
         if (!task || !task.term) return;
 
-        // Avoid duplicates (simplified check)
         const term = task.term.toString();
-        const existing = this.tasks.find(t => t.term === term);
 
-        if (existing) {
-            // Update stats
-            existing.priority = task.budget ? task.budget.priority : existing.priority;
-            existing.count = (existing.count || 1) + 1;
-        } else {
-            this.tasks.push({
+        if (!this.concepts.has(term)) {
+            this.concepts.set(term, {
                 term: term,
-                type: task.type || 'concept',
-                priority: task.budget ? task.budget.priority : 0.5,
-                count: 1,
-                raw: task
+                tasks: []
             });
         }
+
+        const conceptEntry = this.concepts.get(term);
+        const tasks = conceptEntry.tasks;
+
+        // Deduplication or Update logic
+        // We consider a task "same" if it has same type and same derivation rule (if any)
+        // Or strictly by object equality if we can't determine ID.
+        // For now, let's use a simple check based on type and content if available.
+        // If it's an update to an existing task (e.g. budget change), we should update it.
+
+        const existingIndex = tasks.findIndex(t =>
+            t.type === (task.type || 'concept') &&
+            t.punctuation === task.punctuation &&
+            // If derived, check rule
+            (t.derivation?.rule === task.derivation?.rule)
+        );
+
+        const taskEntry = {
+            term: term,
+            type: task.type || 'concept',
+            punctuation: task.punctuation || '.', // Default to belief if unknown
+            priority: task.budget ? task.budget.priority : 0.5,
+            truth: task.truth, // {f, c}
+            derivation: task.derivation, // { rule, sources }
+            timestamp: Date.now(),
+            raw: task
+        };
+
+        if (existingIndex >= 0) {
+            // Update existing
+            tasks[existingIndex] = { ...tasks[existingIndex], ...taskEntry };
+        } else {
+            tasks.push(taskEntry);
+        }
+
+        // Sort tasks by priority
+        tasks.sort((a, b) => b.priority - a.priority);
 
         // Debounce render if high frequency? For now direct.
         this.renderList();
     }
 
     clear() {
-        this.tasks = [];
+        this.concepts.clear();
         this.renderList();
+    }
+
+    deleteTask(term, taskIndex) {
+        const entry = this.concepts.get(term);
+        if (entry) {
+            entry.tasks.splice(taskIndex, 1);
+            if (entry.tasks.length === 0) {
+                this.concepts.delete(term);
+            }
+            this.renderList();
+        }
     }
 
     render() {
@@ -44,20 +83,17 @@ export class TaskBrowser extends Component {
         this.container.innerHTML = `
             <div class="hud-panel task-browser">
                 <div class="hud-header">
-                    <h3>Tasks</h3>
+                    <h3>Tasks & Concepts</h3>
                     <div class="task-controls">
                         <input type="text" id="task-search" placeholder="Filter..." class="control-input-small" style="width: 100px;">
                         <button id="btn-clear-tasks" class="btn small-btn" title="Clear List">🗑️</button>
                     </div>
                 </div>
-                <div id="task-list" class="task-list">
+                <div id="task-list" class="task-list" style="overflow-y: auto; flex: 1;">
                     <div class="empty-state">No tasks yet</div>
                 </div>
             </div>
         `;
-
-        // Styles specific to this component (if not in global CSS)
-        // We assume hud-panel styles cover most things
 
         const searchInput = this.container.querySelector('#task-search');
         if (searchInput) {
@@ -77,41 +113,102 @@ export class TaskBrowser extends Component {
         const listContainer = this.container.querySelector('#task-list');
         if (!listContainer) return;
 
-        const filtered = this.tasks
-            .filter(t => t.term.toLowerCase().includes(this.filter))
-            .sort((a, b) => b.priority - a.priority);
+        // Filter concepts
+        const filteredConcepts = Array.from(this.concepts.values())
+            .filter(c => c.term.toLowerCase().includes(this.filter));
 
-        if (filtered.length === 0) {
-            listContainer.innerHTML = `<div class="empty-state">${this.tasks.length === 0 ? 'No tasks yet' : 'No matches'}</div>`;
+        if (filteredConcepts.length === 0) {
+            listContainer.innerHTML = `<div class="empty-state">${this.concepts.size === 0 ? 'No tasks yet' : 'No matches'}</div>`;
             return;
         }
 
-        // Group by type? Or just flat list for now.
-        // Let's do flat list with nice styling
+        // Sort concepts by max priority of their tasks
+        filteredConcepts.sort((a, b) => {
+            const maxA = Math.max(...a.tasks.map(t => t.priority));
+            const maxB = Math.max(...b.tasks.map(t => t.priority));
+            return maxB - maxA;
+        });
 
-        listContainer.innerHTML = filtered.map(t => {
-            const prioClass = t.priority > 0.8 ? 'high' : (t.priority > 0.5 ? 'med' : 'low');
-            const safeTerm = this._escapeHtml(this._truncate(t.term));
-            const safeTitle = this._escapeHtml(t.term);
-            return `
-                <div class="task-item ${prioClass}" data-term="${safeTitle}">
-                    <div class="task-row">
-                        <span class="task-term" title="${safeTitle}">${safeTerm}</span>
-                        <span class="task-prio">${t.priority.toFixed(2)}</span>
+        const html = filteredConcepts.map(concept => {
+            const safeTerm = this._escapeHtml(concept.term);
+            const taskCount = concept.tasks.length;
+            const maxPrio = Math.max(...concept.tasks.map(t => t.priority));
+            const prioClass = maxPrio > 0.8 ? 'high' : (maxPrio > 0.5 ? 'med' : 'low');
+
+            // Tasks HTML
+            const tasksHtml = concept.tasks.map((task, index) => {
+                const typeIcon = this._getTypeIcon(task.type);
+                const truthStr = task.truth ? ` <span class="task-truth">(${task.truth.f.toFixed(2)}, ${task.truth.c.toFixed(2)})</span>` : '';
+                const derivationStr = task.derivation ? `<div class="task-derivation">↳ ${task.derivation.rule}</div>` : '';
+
+                return `
+                    <div class="sub-task-item" data-term="${safeTerm}" data-index="${index}">
+                        <div class="task-row">
+                            <span class="task-type" title="${task.type}">${typeIcon}</span>
+                            <span class="task-detail">
+                                <span class="task-prio">[${task.priority.toFixed(2)}]</span>
+                                ${truthStr}
+                            </span>
+                             <button class="btn-icon delete-task-btn" title="Delete">×</button>
+                        </div>
+                        ${derivationStr}
                     </div>
-                </div>
+                `;
+            }).join('');
+
+            return `
+                <details class="concept-group ${prioClass}">
+                    <summary class="concept-summary" title="${safeTerm}">
+                        <span class="concept-term">${this._truncate(safeTerm, 30)}</span>
+                        <span class="concept-badge">${taskCount}</span>
+                    </summary>
+                    <div class="concept-tasks">
+                        ${tasksHtml}
+                    </div>
+                </details>
             `;
         }).join('');
 
-        // Bind clicks
-        listContainer.querySelectorAll('.task-item').forEach(el => {
-            el.onclick = () => {
-                if (this.onSelect) this.onSelect(el.dataset.term);
+        listContainer.innerHTML = html;
+
+        // Bind events
+        listContainer.querySelectorAll('.concept-summary').forEach(el => {
+             el.onclick = (e) => {
+                 // Prevent toggling when clicking specific parts if needed?
+                 // Default behavior is fine.
+                 // Also select the concept node in graph
+                 const term = el.title; // title holds full term
+                 if (this.onSelect) this.onSelect(term);
+             };
+        });
+
+        listContainer.querySelectorAll('.sub-task-item').forEach(el => {
+            el.onclick = (e) => {
+                e.stopPropagation(); // Don't collapse details
+                if (e.target.classList.contains('delete-task-btn')) {
+                    const term = el.dataset.term;
+                    const index = parseInt(el.dataset.index);
+                    this.deleteTask(term, index);
+                } else {
+                    // Also select on task click
+                    const term = el.dataset.term;
+                    if (this.onSelect) this.onSelect(term);
+                }
             };
         });
     }
 
+    _getTypeIcon(type) {
+        if (!type) return '•';
+        const t = type.toLowerCase();
+        if (t.includes('belief') || t === 'judgment') return '●'; // Dot
+        if (t.includes('goal')) return '♦'; // Diamond
+        if (t.includes('question') || t.includes('quest')) return '¿';
+        return '•';
+    }
+
     _truncate(str, n = 25) {
+        if (!str) return '';
         return (str.length > n) ? str.substr(0, n - 1) + '...' : str;
     }
 
