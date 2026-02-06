@@ -41,11 +41,19 @@ export class ContextualWidget {
              this.updateTransform(data);
         });
 
-        // Listen for node movement (dragging or layout) directly on cy instance if available
+        // Listen for node movement (dragging or layout) directly on cy instance
+        const bindPositionListener = () => {
+            if (this.graph.cy) {
+                this.graph.cy.on('position', 'node', (e) => {
+                    this.updateNodeWidget(e.target.id());
+                });
+            }
+        };
+
         if (this.graph.cy) {
-             this.graph.cy.on('position', 'node', (e) => {
-                 this.updateNodeWidget(e.target.id());
-             });
+            bindPositionListener();
+        } else {
+            this.graph.on('ready', bindPositionListener);
         }
     }
 
@@ -54,6 +62,31 @@ export class ContextualWidget {
         const pan = this.graph.cy.pan();
         const zoom = this.graph.cy.zoom();
         this.transformContainer.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
+        this.updateLOD(zoom);
+    }
+
+    updateLOD(zoom) {
+        let lodClass = 'zui-lod-0';
+        // LOD Thresholds:
+        // < 0.4: Hidden (LOD 0)
+        // 0.4 - 1.0: Header Only (LOD 1)
+        // > 1.0: Full Content (LOD 2)
+        // > 2.5: High Detail / Enhanced (LOD 3)
+        if (zoom > 0.4) lodClass = 'zui-lod-1';
+        if (zoom > 1.0) lodClass = 'zui-lod-2';
+        if (zoom > 2.5) lodClass = 'zui-lod-3';
+
+        if (this.currentLOD !== lodClass) {
+            this.transformContainer.className = `zui-transform-layer ${lodClass}`;
+            this.currentLOD = lodClass;
+        }
+
+        // Smooth opacity fade-in from 0.3 to 0.5
+        let opacity = 1;
+        if (zoom < 0.3) opacity = 0;
+        else if (zoom < 0.5) opacity = (zoom - 0.3) / 0.2;
+
+        this.transformContainer.style.opacity = opacity;
     }
 
     attach(nodeId, contentHtml) {
@@ -63,13 +96,7 @@ export class ContextualWidget {
         div.className = 'zui-widget';
         Object.assign(div.style, {
             position: 'absolute',
-            // display: 'none', // Managed by zoom level now?
-            pointerEvents: 'auto', // Allow interaction with widget
-            background: 'rgba(0,0,0,0.8)',
-            color: '#fff',
-            padding: '5px',
-            borderRadius: '4px',
-            fontSize: '10px',
+            pointerEvents: 'auto', // Allow interaction
             transform: 'translate(-50%, -150%)' // Center horizontally, place above node
         });
         div.innerHTML = contentHtml;
@@ -82,12 +109,14 @@ export class ContextualWidget {
 
     attachTestWidget(nodeId) {
         const html = `
-            <div style="background: #222; border: 1px solid #444; padding: 8px; border-radius: 4px; min-width: 150px;">
-                <div style="margin-bottom: 5px; font-weight: bold; color: #00ff9d;">Editable Node</div>
-                <input type="text" value="Fractal Widget" style="width: 100%; background: #111; border: 1px solid #555; color: #fff; padding: 4px;">
-                <div style="display: flex; gap: 5px; margin-top: 5px;">
-                    <button style="flex: 1; cursor: pointer;">Save</button>
-                    <button style="flex: 1; cursor: pointer;">Cancel</button>
+            <div class="zui-panel">
+                <div class="zui-header">Editable Node</div>
+                <div class="zui-content">
+                    <input type="text" value="Fractal Widget" class="zui-input">
+                    <div class="zui-controls">
+                        <button class="zui-btn primary">Save</button>
+                        <button class="zui-btn">Cancel</button>
+                    </div>
                 </div>
             </div>
         `;

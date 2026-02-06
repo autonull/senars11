@@ -400,3 +400,143 @@ button:active {
     position: relative;
     cursor: help;
 }
+
+/* Fractal ZUI Styles */
+.zui-transform-layer {
+    transition: opacity 0.1s linear;
+}
+
+.zui-widget {
+    pointer-events: auto;
+    font-family: var(--font-mono, 'Consolas', monospace);
+    font-size: 10px;
+}
+
+.zui-panel {
+    background: rgba(10, 15, 12, 0.95);
+    border: 1px solid #444;
+    border-radius: 4px;
+    overflow: hidden;
+    min-width: 160px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+    transition: all 0.3s ease;
+}
+
+.zui-header {
+    padding: 6px 10px;
+    font-weight: bold;
+    color: #00ff9d;
+    background: rgba(0, 255, 157, 0.1);
+    font-size: 11px;
+    white-space: nowrap;
+    border-bottom: 1px solid rgba(0, 255, 157, 0.2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+}
+
+.zui-content {
+    padding: 10px;
+    transition: opacity 0.3s ease, max-height 0.3s ease;
+}
+
+.zui-input {
+    width: 100%;
+    background: #111;
+    border: 1px solid #555;
+    color: #eee;
+    padding: 6px;
+    font-size: 11px;
+    margin-bottom: 8px;
+    border-radius: 2px;
+    font-family: inherit;
+}
+
+.zui-input:focus {
+    border-color: #00ff9d;
+    outline: none;
+}
+
+.zui-controls {
+    display: flex;
+    gap: 6px;
+}
+
+.zui-btn {
+    flex: 1;
+    cursor: pointer;
+    font-size: 10px;
+    padding: 4px 8px;
+    background: #333;
+    color: #ccc;
+    border: 1px solid #555;
+    border-radius: 2px;
+    text-transform: uppercase;
+    transition: background 0.2s;
+}
+
+.zui-btn:hover {
+    background: #444;
+    color: #fff;
+}
+
+.zui-btn.primary {
+    background: rgba(0, 255, 157, 0.2);
+    border-color: rgba(0, 255, 157, 0.5);
+    color: #00ff9d;
+}
+
+.zui-btn.primary:hover {
+    background: rgba(0, 255, 157, 0.4);
+}
+
+/* LOD States (Semantic Zoom) */
+
+/* LOD 0: Very Far - Hidden by opacity in JS, but ensure display is none */
+.zui-lod-0 .zui-widget {
+    display: none;
+}
+
+/* LOD 1: Far - Header Only */
+.zui-lod-1 .zui-content {
+    display: none;
+}
+
+.zui-lod-1 .zui-panel {
+    background: rgba(0, 0, 0, 0.4);
+    border: none;
+    box-shadow: none;
+    min-width: auto;
+}
+
+.zui-lod-1 .zui-header {
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid rgba(0, 255, 157, 0.4);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 10px;
+    text-align: center;
+}
+
+/* LOD 2: Medium - Full Content Standard */
+.zui-lod-2 .zui-content {
+    display: block;
+    opacity: 1;
+}
+
+/* LOD 3: Close - Enhanced / High Detail */
+.zui-lod-3 .zui-panel {
+    border-color: #00ff9d;
+    box-shadow: 0 0 20px rgba(0, 255, 157, 0.15);
+}
+
+.zui-lod-3 .zui-header {
+    background: rgba(0, 255, 157, 0.2);
+    font-size: 12px;
+    padding: 8px 12px;
+}
+
+.zui-lod-3 .zui-input {
+    background: #000;
+    border-color: #666;
+}
