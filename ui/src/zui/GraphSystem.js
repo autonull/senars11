@@ -132,6 +132,15 @@ export class GraphSystem {
                 this.emit('backgroundClick', { originalEvent: evt });
             }
         });
+
+        this.cy.on('dbltap', (evt) => {
+            if (evt.target === this.cy) {
+                this.emit('backgroundDoubleClick', {
+                    position: evt.position,
+                    originalEvent: evt
+                });
+            }
+        });
     }
 
     _setupResizeObserver(container) {

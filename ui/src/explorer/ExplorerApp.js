@@ -138,6 +138,11 @@ export class ExplorerApp {
                     this.contextMenu.show(evt.x, evt.y, target, type);
                 }
             });
+
+            // Bind Background Double Click for Creation
+            this.graph.on('backgroundDoubleClick', ({ position }) => {
+                this.handleAddConcept(position);
+            });
         }
 
         // Register Commands
@@ -1224,7 +1229,7 @@ export class ExplorerApp {
         console.log(`Mode switched to: ${mode}`);
     }
 
-    handleAddConcept() {
+    handleAddConcept(position = null) {
         const input = prompt("Enter concept name (or type:name):");
         if (input) {
             let term = input.trim();
@@ -1243,8 +1248,14 @@ export class ExplorerApp {
             }
 
             // SeNARSGraph addNode: { id: term, term: term, budget: { priority: 0.5 }, type: 'concept' }
-            this.graph.addNode({ id: term, term: term, budget: { priority: 0.5 }, type: type }, true);
-            this.log(`Created ${type}: ${term}`, 'user');
+            this.graph.addNode({
+                id: term,
+                term: term,
+                budget: { priority: 0.5 },
+                type: type,
+                position: position // Pass clicked position if available
+            }, true);
+            this.log(`Created ${type}: ${term}`, 'success');
         }
     }
 
