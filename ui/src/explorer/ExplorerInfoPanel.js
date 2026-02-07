@@ -8,16 +8,19 @@ export class ExplorerInfoPanel extends Component {
     render() {
         if (!this.container) return;
 
+        const maxNodes = 50;
+        const zoom = '1.0x';
+
         this.container.innerHTML = `
             <div class="hud-panel info-panel">
                 <div class="hud-row">
-                    <span id="zoom-level">ZOOM: 1.0x</span>
-                    <span id="bag-stats">NODES: 0/50</span>
+                    <span id="zoom-level">ZOOM: ${zoom}</span>
+                    <span id="bag-stats">NODES: 0/${maxNodes}</span>
                 </div>
                 <div class="mode-controls" style="display: flex; gap: 2px; margin-bottom: 12px;">
-                    <button class="btn mode-btn active" data-mode="visualization" title="Visualization Mode" style="flex: 1;">VISUAL</button>
-                    <button class="btn mode-btn" data-mode="representation" title="Representation Mode" style="flex: 1;">DATA</button>
-                    <button class="btn mode-btn" data-mode="control" title="Control Mode" style="flex: 1;">EDIT</button>
+                    ${this._renderModeBtn('visualization', 'VISUAL', true)}
+                    ${this._renderModeBtn('representation', 'DATA')}
+                    ${this._renderModeBtn('control', 'EDIT')}
                 </div>
 
                 <details open>
@@ -83,11 +86,13 @@ export class ExplorerInfoPanel extends Component {
         `;
     }
 
-    updateStats(stats) {
-        if (!this.container) return;
-        const el = this.container.querySelector('#bag-stats');
-        if (el && stats) {
-            el.textContent = `NODES: ${stats.activeNodes || 0}/${stats.maxNodes || 50}`;
-        }
+    _renderModeBtn(mode, label, active = false) {
+        const cls = active ? 'active' : '';
+        return `<button class="btn mode-btn ${cls}" data-mode="${mode}" title="${label} Mode" style="flex: 1;">${label}</button>`;
+    }
+
+    updateStats({ activeNodes = 0, maxNodes = 50 } = {}) {
+        const el = this.container?.querySelector('#bag-stats');
+        if (el) el.textContent = `NODES: ${activeNodes}/${maxNodes}`;
     }
 }

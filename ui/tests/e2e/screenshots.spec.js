@@ -46,6 +46,10 @@ test.describe('SeNARS Explorer Verification Screenshots', () => {
         // Verify Inspector is visible
         await expect(page.locator('#inspector-panel')).toBeVisible();
 
+        // Verify Status Bar Widgets are visible
+        await expect(page.locator('#status-cycles')).toBeVisible();
+        await expect(page.locator('#toggle-layers')).toBeVisible();
+
         // Target Panel should NOT be visible (removed)
         await expect(page.locator('.target-panel')).not.toBeVisible();
 

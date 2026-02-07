@@ -156,7 +156,6 @@ export class StatusBar extends Component {
     }
 
     _bindWidgetToggles() {
-        // Widget toggle buttons
         const toggleButtons = {
             'toggle-layers': 'layers',
             'toggle-metrics': 'metrics',
@@ -166,14 +165,11 @@ export class StatusBar extends Component {
         };
 
         Object.entries(toggleButtons).forEach(([btnId, widgetId]) => {
-            const btn = document.getElementById(btnId);
+            const btn = this.container.querySelector(`#${btnId}`);
             if (btn) {
                 btn.addEventListener('click', () => {
-                    // Trigger callback to ExplorerApp
-                    if (this.onWidgetToggle) {
-                        const isVisible = this.onWidgetToggle(widgetId);
-                        btn.classList.toggle('active', isVisible);
-                    }
+                    const isVisible = this.onWidgetToggle?.(widgetId);
+                    btn.classList.toggle('active', isVisible);
                 });
             }
         });

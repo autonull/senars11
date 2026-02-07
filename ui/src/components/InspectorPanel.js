@@ -111,23 +111,7 @@ export class InspectorPanel extends Component {
 
         // 4. Derivation Trace
         if (data.derivation) {
-            const section = $('div').class('inspector-section').mount(this.contentContainer);
-            $('h4').text('Derivation Trace').mount(section);
-
-            const widgetContainer = $('div')
-                .style({ height: '180px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(0, 255, 157, 0.1)', borderRadius: '4px', position: 'relative' })
-                .mount(section);
-
-            // Adapt data for DerivationWidget
-            const widgetData = {
-                rule: data.derivation.rule,
-                derived: { term: data.term || data.id },
-                input: data.derivation.input || (data.derivation.sources && data.derivation.sources[0] ? { term: data.derivation.sources[0] } : null),
-                knowledge: data.derivation.knowledge || (data.derivation.sources && data.derivation.sources[1] ? { term: data.derivation.sources[1] } : null)
-            };
-
-            const widget = new DerivationWidget(widgetContainer.dom, widgetData);
-            requestAnimationFrame(() => widget.render());
+            this._renderDerivationWidget(data.derivation, data.term || data.id);
         }
 
         // 5. Related Concepts
@@ -201,6 +185,31 @@ export class InspectorPanel extends Component {
                 .on('click', () => this._handleSave())
                 .mount(btnRow);
         }
+    }
+
+    _renderDerivationWidget(derivation, term) {
+        const section = $('div').class('inspector-section').mount(this.contentContainer);
+        $('h4').text('Derivation Trace').mount(section);
+
+        const widgetContainer = $('div')
+            .style({
+                height: '180px',
+                background: 'rgba(0,0,0,0.2)',
+                border: '1px solid rgba(0, 255, 157, 0.1)',
+                borderRadius: '4px',
+                position: 'relative'
+            })
+            .mount(section);
+
+        const widgetData = {
+            rule: derivation.rule,
+            derived: { term },
+            input: derivation.input || (derivation.sources?.[0] ? { term: derivation.sources[0] } : null),
+            knowledge: derivation.knowledge || (derivation.sources?.[1] ? { term: derivation.sources[1] } : null)
+        };
+
+        const widget = new DerivationWidget(widgetContainer.dom, widgetData);
+        requestAnimationFrame(() => widget.render());
     }
 
     _handleQuery() {
