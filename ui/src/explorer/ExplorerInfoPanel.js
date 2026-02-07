@@ -14,14 +14,14 @@ export class ExplorerInfoPanel extends Component {
                     <span id="zoom-level">ZOOM: 1.0x</span>
                     <span id="bag-stats">NODES: 0/50</span>
                 </div>
-                <div class="mode-controls">
-                    <button class="btn mode-btn active" data-mode="visualization">VIS</button>
-                    <button class="btn mode-btn" data-mode="representation">REP</button>
-                    <button class="btn mode-btn" data-mode="control">CTL</button>
+                <div class="mode-controls" style="display: flex; gap: 2px; margin-bottom: 12px;">
+                    <button class="btn mode-btn active" data-mode="visualization" title="Visualization Mode" style="flex: 1;">VISUAL</button>
+                    <button class="btn mode-btn" data-mode="representation" title="Representation Mode" style="flex: 1;">DATA</button>
+                    <button class="btn mode-btn" data-mode="control" title="Control Mode" style="flex: 1;">EDIT</button>
                 </div>
 
                 <details open>
-                    <summary>LAYERS</summary>
+                    <summary style="font-size: 0.85rem; padding: 4px 0;">LAYERS</summary>
                     <div class="layer-controls">
                         <label class="layer-toggle">
                             <input type="checkbox" checked data-layer="concepts">
@@ -43,24 +43,27 @@ export class ExplorerInfoPanel extends Component {
                 </details>
 
                 <details>
-                    <summary>Layout & Filters</summary>
-                    <div class="control-group">
-                        <select id="layout-select" class="control-select small-btn">
-                            <option value="fcose" selected>Layout: Organic (Force)</option>
-                            <option value="grid">Layout: Grid</option>
-                            <option value="circle">Layout: Circle</option>
-                            <option value="scatter">Layout: Scatter</option>
-                            <option value="sorted-grid">Layout: Sorted</option>
+                    <summary style="font-size: 0.85rem; padding: 4px 0;">VIEW SETTINGS</summary>
+                    <div class="control-group" style="margin-bottom: 8px;">
+                        <select id="layout-select" class="control-select small-btn" style="width: 100%; margin-bottom: 4px;">
+                            <option value="fcose" selected>Organic (Force)</option>
+                            <option value="grid">Grid</option>
+                            <option value="circle">Circle</option>
+                            <option value="scatter">Scatter Plot</option>
+                            <option value="sorted-grid">Sorted Grid</option>
                         </select>
                     </div>
-                    <div class="control-group" style="margin-top: 5px; padding: 0 5px;">
-                        <div class="hud-subtitle" style="margin-bottom: 2px;">Min Priority: <span id="prio-val">0.0</span></div>
-                        <input type="range" id="filter-priority" min="0" max="1" step="0.05" value="0" style="width: 100%">
+                    <div class="control-group" style="padding: 0 2px;">
+                        <div class="hud-subtitle" style="margin-bottom: 4px; display: flex; justify-content: space-between;">
+                            <span>Min Priority</span>
+                            <span id="prio-val" style="color: #fff;">0.0</span>
+                        </div>
+                        <input type="range" id="filter-priority" min="0" max="1" step="0.05" value="0" style="width: 100%; cursor: pointer;">
                     </div>
                 </details>
 
                 <details>
-                    <summary>Visual Mappings</summary>
+                    <summary style="font-size: 0.85rem; padding: 4px 0;">VISUAL MAPPINGS</summary>
                     <div class="control-group">
                         <select id="mapping-size" class="control-select small-btn">
                             <option value="priority">Size: Priority</option>

@@ -51,5 +51,10 @@ test.describe('SeNARS Explorer Verification Screenshots', () => {
 
         // Take screenshot of selected state
         await page.screenshot({ path: 'screenshots/explorer-selected.png' });
+
+        // 3. Mode Switching
+        await page.click('.mode-btn[data-mode="representation"]');
+        await page.waitForTimeout(500);
+        await page.screenshot({ path: 'screenshots/explorer-mode-data.png' });
     });
 });

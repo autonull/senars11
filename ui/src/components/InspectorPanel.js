@@ -115,7 +115,7 @@ export class InspectorPanel extends Component {
             $('h4').text('Derivation Trace').mount(section);
 
             const widgetContainer = $('div')
-                .style({ height: '200px', border: '1px solid var(--border-color)', borderRadius: '4px', position: 'relative' })
+                .style({ height: '180px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(0, 255, 157, 0.1)', borderRadius: '4px', position: 'relative' })
                 .mount(section);
 
             // Adapt data for DerivationWidget
