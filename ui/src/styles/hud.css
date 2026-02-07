@@ -605,3 +605,49 @@ details[open] summary {
     background: rgba(0, 255, 157, 0.1);
     border-color: rgba(0, 255, 157, 0.3);
 }
+
+/* Task Browser Controls */
+.secondary-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(0, 255, 157, 0.1);
+    margin-bottom: 4px;
+}
+
+.sort-select {
+    background: rgba(0, 0, 0, 0.3);
+    color: #aaccbb;
+    border: 1px solid rgba(0, 255, 157, 0.2);
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-size: 0.8rem;
+    font-family: 'Consolas', monospace;
+    cursor: pointer;
+}
+
+.sort-select:hover {
+    border-color: rgba(0, 255, 157, 0.5);
+    color: #00ff9d;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.page-info {
+    font-size: 0.8rem;
+    color: #aaccbb;
+    font-family: 'Consolas', monospace;
+    min-width: 40px;
+    text-align: center;
+}
+
+.pagination-controls button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
