@@ -10,7 +10,8 @@ test.describe('SeNARS Explorer', () => {
     });
 
     test('should show mode buttons', async ({ page }) => {
-        const modes = ['VIS', 'REP', 'CTL'];
+        // Updated labels: VISUAL, DATA, EDIT
+        const modes = ['VISUAL', 'DATA', 'EDIT'];
         for (const mode of modes) {
             await expect(page.locator(`.mode-btn:has-text("${mode}")`)).toBeVisible();
         }

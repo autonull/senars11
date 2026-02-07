@@ -212,13 +212,14 @@ export class SeNARSGraph extends GraphSystem {
     // Compatibility method for KeyboardNavigation
     _getNodeData(node) {
         // KeyboardNavigation expects this format
+        const data = node.data();
         return {
              type: 'node',
-             label: node.data('label'),
+             label: data.label,
              id: node.id(),
-             term: node.data('term') || node.data('label'),
-             nodeType: node.data('type'),
-             fullData: node.data('fullData')
+             term: data.term || data.label,
+             nodeType: data.type,
+             fullData: data.fullData
         };
     }
 
@@ -651,11 +652,15 @@ export class SeNARSGraph extends GraphSystem {
                 const type = node.data('type');
                 const priority = data.budget?.priority ?? 0;
 
-                let visible = true;
-                if (type === 'task' && !this.filters.showTasks) visible = false;
-                if ((type === 'concept' || !type) && !this.filters.showConcepts) visible = false;
-                if (priority < this.filters.minPriority) visible = false;
-                if (this.filters.hideIsolated && node.degree() === 0) visible = false;
+                const isTask = type === 'task';
+                const isConcept = type === 'concept' || !type;
+                const isIsolated = node.degree() === 0;
+
+                const visible =
+                    (!isTask || this.filters.showTasks) &&
+                    (!isConcept || this.filters.showConcepts) &&
+                    (priority >= this.filters.minPriority) &&
+                    (!isIsolated || !this.filters.hideIsolated);
 
                 node.style('display', visible ? 'element' : 'none');
             });

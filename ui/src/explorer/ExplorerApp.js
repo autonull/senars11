@@ -82,6 +82,28 @@ export class ExplorerApp {
         return this.graphPanel.graphManager;
     }
 
+    _handleNodeClick(node) {
+        const data = node.data();
+        this.graph.flyTo?.(node.id());
+
+        // Extract simple links for inspector
+        const links = node.connectedEdges().map(edge => {
+             const target = edge.target();
+             const source = edge.source();
+             return target.id() === node.id() ? source.id() : target.id();
+        }).slice(0, 5); // Limit to 5
+
+        // Merge fullData to top level for inspector so it sees budget/truth
+        const conceptData = {
+            id: node.id(),
+            links: links,
+            ...data,
+            ...(data.fullData || {})
+        };
+
+        this.showInspector(conceptData);
+    }
+
     async initialize() {
         console.log('ExplorerApp: Initializing...');
 
@@ -96,32 +118,8 @@ export class ExplorerApp {
             console.error("GraphPanel failed to initialize graphManager");
         } else {
             // Bind inspector & AutoZoom
-            this.graph.on('nodeClick', ({ node }) => {
-                const data = node.data();
-
-                this.graph.flyTo?.(node.id());
-
-                // Extract simple links for inspector
-                const links = node.connectedEdges().map(edge => {
-                     const target = edge.target();
-                     const source = edge.source();
-                     return target.id() === node.id() ? source.id() : target.id();
-                }).slice(0, 5); // Limit to 5
-
-                // Merge fullData to top level for inspector so it sees budget/truth
-                const conceptData = {
-                    id: node.id(),
-                    links: links,
-                    ...data,
-                    ...(data.fullData || {})
-                };
-
-                this.showInspector(conceptData);
-            });
-
-            this.graph.on('nodeDblClick', ({ node }) => {
-                this.log(`Focused: ${node.id()}`, 'system');
-            });
+            this.graph.on('nodeClick', ({ node }) => this._handleNodeClick(node));
+            this.graph.on('nodeDblClick', ({ node }) => this.log(`Focused: ${node.id()}`, 'system'));
 
             // Setup Context Menu proxy
             // SeNARSGraph emits 'contextMenu' event
@@ -140,42 +138,7 @@ export class ExplorerApp {
         this._registerCommands();
 
         // Init Layout System
-        this.layoutManager.initialize();
-
-        // === NEW DOCKING SYSTEM: Create temporary containers for  widgets ===
-        // Widgets will set their own IDs and classes during render()
-
-        // 1. Layers Widget (left) - ExplorerInfoPanel
-        const layersContainer = document.createElement('div');
-        this.infoPanel.container = layersContainer;
-        this.infoPanel.render();
-        this.layoutManager.registerWidget('layers', layersContainer, 'left', true);
-
-        // 2. Metrics Widget (right, top) - SystemMetricsPanel
-        const metricsContainer = document.createElement('div');
-        this.metricsPanel = new SystemMetricsPanel(null);
-        this.metricsPanel.container = metricsContainer;
-        this.metricsPanel.initialize();
-        this.metricsPanel.render();
-        this.layoutManager.registerWidget('metrics', metricsContainer, 'right', true);
-
-        // 3. Log Widget (right, bottom) - LogPanel
-        const logContainer = document.createElement('div');
-        this.logPanel.container = logContainer;
-        this.logPanel.render();
-        this.layoutManager.registerWidget('log', logContainer, 'right', true);
-
-        // 4. Inspector Widget (left, bottom) - InspectorPanel
-        const inspectorContainer = document.createElement('div');
-        this.inspectorPanel.container = inspectorContainer;
-        this.inspectorPanel.render();
-        this.layoutManager.registerWidget('inspector', inspectorContainer, 'left', false);
-
-        // 5. Tasks Widget (right, middle) - TaskBrowser
-        const tasksContainer = document.createElement('div');
-        this.taskBrowser.container = tasksContainer;
-        this.taskBrowser.render();
-        this.layoutManager.registerWidget('tasks', tasksContainer, 'right', false);
+        this._initWidgets();
 
         // Init Components (StatusBar with unified controls)
         this.statusBar = new StatusBar('status-bar-container');
@@ -925,10 +888,33 @@ export class ExplorerApp {
         }
     }
 
+    _initWidgets() {
+        this.layoutManager.initialize();
+
+        const createWidget = (id, component, dock, visible) => {
+            const container = document.createElement('div');
+            component.container = container;
+            if (component.initialize) component.initialize();
+            component.render();
+            this.layoutManager.registerWidget(id, container, dock, visible);
+            return component; // return component if we need to store ref
+        };
+
+        createWidget('layers', this.infoPanel, 'left', true);
+
+        // Metrics needs reference stored
+        this.metricsPanel = new SystemMetricsPanel(null);
+        createWidget('metrics', this.metricsPanel, 'right', true);
+
+        createWidget('log', this.logPanel, 'right', true);
+        createWidget('inspector', this.inspectorPanel, 'left', false);
+        createWidget('tasks', this.taskBrowser, 'right', false);
+    }
+
     saveNodeChanges(id, updates) {
         // Fetch existing data to merge
         let existing = {};
-        if (this.graph.bag && this.graph.bag.get(id)) {
+        if (this.graph.bag?.get(id)) {
             existing = this.graph.bag.get(id).data;
         } else if (this.graph.cy) {
             const node = this.graph.cy.$id(id);
@@ -943,7 +929,7 @@ export class ExplorerApp {
 
         this.log(`Updated node ${id}`, 'success');
         // Retrieve updated item from bag or graph to show in inspector
-        const item = this.graph.bag ? this.graph.bag.get(id) : null;
+        const item = this.graph.bag?.get(id);
         if (item) {
             this.showInspector({ id, ...item.data, ...updates });
         }
