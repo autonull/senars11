@@ -140,5 +140,44 @@ export const DEMOS = {
                 }
             });
         }
+    },
+    "Fractal Knowledge": {
+        "description": "Recursive hierarchical structure.",
+        "bagCapacity": 200,
+        "generator": (graph) => {
+            const addNode = (id, label, priority, parentId) => {
+                graph.addNode({
+                    id: id,
+                    term: label,
+                    budget: { priority },
+                    type: 'concept'
+                }, false);
+
+                if (parentId) {
+                    graph.addEdge({
+                        source: parentId,
+                        target: id,
+                        type: 'part-of'
+                    }, false);
+                }
+            };
+
+            const generate = (depth, parentId, prefix) => {
+                if (depth === 0) return;
+
+                const count = 3 + Math.floor(Math.random() * 2);
+                for (let i = 0; i < count; i++) {
+                    const id = `${prefix}_${i}`;
+                    const label = `${prefix.split('_').pop()}.${i}`;
+                    const priority = 0.9 * (depth / 4);
+
+                    addNode(id, label, priority, parentId);
+                    generate(depth - 1, id, id);
+                }
+            };
+
+            addNode('root', 'Root', 1.0, null);
+            generate(3, 'root', 'root');
+        }
     }
 };

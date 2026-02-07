@@ -34,7 +34,7 @@ export class ExplorerApp {
             useBag: true,
             bagCapacity: 50,
             style: themeStyle,
-            showToolbar: false
+            showToolbar: true
         });
 
         // Context menu and other components expect a graph object with certain interface
