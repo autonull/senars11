@@ -20,47 +20,41 @@ export class TaskBrowser extends Component {
     }
 
     addTask(task) {
-        if (!task || !task.term) return;
+        if (!task?.term) return;
 
         const term = task.term.toString();
-
         if (!this.concepts.has(term)) {
-            this.concepts.set(term, {
-                term: term,
-                tasks: []
-            });
+            this.concepts.set(term, { term, tasks: [] });
         }
 
-        const conceptEntry = this.concepts.get(term);
-        const tasks = conceptEntry.tasks;
+        const { tasks } = this.concepts.get(term);
+        const type = task.type || 'concept';
+        const punctuation = task.punctuation || '.';
 
-        // Deduplication or Update logic
         const existingIndex = tasks.findIndex(t =>
-            t.type === (task.type || 'concept') &&
-            t.punctuation === task.punctuation &&
-            (t.derivation?.rule === task.derivation?.rule)
+            t.type === type &&
+            t.punctuation === punctuation &&
+            t.derivation?.rule === task.derivation?.rule
         );
 
-        const taskEntry = {
-            term: term,
-            type: task.type || 'concept',
-            punctuation: task.punctuation || '.',
-            priority: task.budget ? task.budget.priority : 0.5,
-            truth: task.truth, // {f, c}
-            derivation: task.derivation, // { rule, sources }
+        const entry = {
+            term,
+            type,
+            punctuation,
+            priority: task.budget?.priority ?? 0.5,
+            truth: task.truth,
+            derivation: task.derivation,
             timestamp: Date.now(),
             raw: task
         };
 
         if (existingIndex >= 0) {
-            tasks[existingIndex] = { ...tasks[existingIndex], ...taskEntry };
+            tasks[existingIndex] = { ...tasks[existingIndex], ...entry };
         } else {
-            tasks.push(taskEntry);
+            tasks.push(entry);
         }
 
-        // Sort tasks by priority
         tasks.sort((a, b) => b.priority - a.priority);
-
         this.requestRender();
     }
 
@@ -157,107 +151,84 @@ export class TaskBrowser extends Component {
         this.renderList();
     }
 
+    _isTypeVisible(t) {
+        const type = t.type.toLowerCase();
+        if (type.includes('goal')) return this.typeFilters.goal;
+        if (type.includes('question') || type.includes('quest')) return this.typeFilters.question;
+        return this.typeFilters.belief;
+    }
+
     renderList() {
         if (!this.taskListContainer) return;
         this.taskListContainer.clear();
 
-        // Helper to check if task type is visible
-        const isTypeVisible = (t) => {
-            const type = t.type.toLowerCase();
-            if (type.includes('goal')) return this.typeFilters.goal;
-            if (type.includes('question') || type.includes('quest')) return this.typeFilters.question;
-            return this.typeFilters.belief;
-        };
-
-        // Filter concepts and their tasks
-        const filteredConcepts = Array.from(this.concepts.values())
+        const filtered = Array.from(this.concepts.values())
             .map(c => ({
                 ...c,
-                visibleItems: c.tasks.map((t, i) => ({ task: t, index: i })).filter(({ task }) => isTypeVisible(task))
+                visibleItems: c.tasks.map((t, i) => ({ task: t, index: i })).filter(({ task }) => this._isTypeVisible(task))
             }))
             .filter(c => c.visibleItems.length > 0 && c.term.toLowerCase().includes(this.filter));
 
-        if (filteredConcepts.length === 0) {
+        if (filtered.length === 0) {
             $('div').class('empty-state').text(this.concepts.size === 0 ? 'No tasks yet' : 'No matches').mount(this.taskListContainer);
             return;
         }
 
-        // Sort concepts by max priority of their visible tasks
-        filteredConcepts.sort((a, b) => {
+        filtered.sort((a, b) => {
             const maxA = Math.max(...a.visibleItems.map(item => item.task.priority));
             const maxB = Math.max(...b.visibleItems.map(item => item.task.priority));
             return maxB - maxA;
         });
 
-        // Render each concept group
-        filteredConcepts.forEach(concept => {
-            const { term, visibleItems } = concept;
-            const taskCount = visibleItems.length;
-            const maxPrio = Math.max(...visibleItems.map(item => item.task.priority));
-            const prioClass = maxPrio > 0.8 ? 'high' : (maxPrio > 0.5 ? 'med' : 'low');
-            const highlightedTerm = NarseseHighlighter.highlight(term);
+        filtered.forEach(concept => this._renderConceptGroup(concept));
+    }
 
-            const details = $('details').class('concept-group', prioClass);
-            if (this.expandedStates.has(term)) {
-                details.attr('open', 'open');
-            }
+    _renderConceptGroup(concept) {
+        const { term, visibleItems } = concept;
+        const maxPrio = Math.max(...visibleItems.map(item => item.task.priority));
+        const prioClass = maxPrio > 0.8 ? 'high' : (maxPrio > 0.5 ? 'med' : 'low');
 
-            details.on('toggle', (e) => {
-                if (e.target.open) this.expandedStates.add(term);
-                else this.expandedStates.delete(term);
-            });
+        const details = $('details').class('concept-group', prioClass);
+        if (this.expandedStates.has(term)) details.attr('open', 'open');
 
-            // Summary
-            const summary = $('summary').class('concept-summary').attr('title', term).mount(details);
-            $('span').class('concept-term').html(highlightedTerm).mount(summary);
-            $('span').class('concept-badge').text(taskCount).mount(summary);
-
-            // On click summary -> Select Concept
-            summary.on('click', (e) => {
-                // Determine if we should prevent default.
-                // Summary click toggles details.
-                // We also want to fire event.
-                eventBus.emit(EVENTS.CONCEPT_SELECT, { id: term, term });
-            });
-
-            // Tasks Container
-            const tasksContainer = $('div').class('concept-tasks').mount(details);
-
-            // Render Tasks
-            visibleItems.forEach(({ task, index }) => {
-                const itemWrapper = $('div').class('sub-task-wrapper').mount(tasksContainer);
-
-                // Use TaskCard
-                // TaskCard renders into a container.
-                // We pass task.raw if available, or construct a partial task object
-                const taskObj = task.raw || {
-                    term: task.term,
-                    type: task.type,
-                    truth: task.truth,
-                    budget: { priority: task.priority },
-                    punctuation: task.punctuation
-                };
-
-                const card = new TaskCard(itemWrapper.dom, taskObj, { compact: true });
-                card.render();
-
-                // Add delete button overlay
-                const deleteBtn = $('button')
-                    .class('btn-icon', 'delete-task-btn')
-                    .text('×')
-                    .attr('title', 'Delete Task')
-                    .style({ position: 'absolute', right: '5px', top: '5px', opacity: '0.5' })
-                    .on('click', (e) => {
-                        e.stopPropagation();
-                        this.deleteTask(term, index);
-                    });
-
-                // To position delete button, itemWrapper needs relative positioning
-                itemWrapper.style({ position: 'relative' });
-                itemWrapper.child(deleteBtn);
-            });
-
-            details.mount(this.taskListContainer);
+        details.on('toggle', (e) => {
+            if (e.target.open) this.expandedStates.add(term);
+            else this.expandedStates.delete(term);
         });
+
+        const summary = $('summary').class('concept-summary').attr('title', term).mount(details);
+        $('span').class('concept-term').html(NarseseHighlighter.highlight(term)).mount(summary);
+        $('span').class('concept-badge').text(visibleItems.length).mount(summary);
+
+        summary.on('click', () => eventBus.emit(EVENTS.CONCEPT_SELECT, { id: term, term }));
+
+        const tasksContainer = $('div').class('concept-tasks').mount(details);
+        visibleItems.forEach(item => this._renderTaskItem(item, tasksContainer, term));
+
+        details.mount(this.taskListContainer);
+    }
+
+    _renderTaskItem({ task, index }, container, term) {
+        const wrapper = $('div').class('sub-task-wrapper').style({ position: 'relative' }).mount(container);
+        const taskObj = task.raw || {
+            term: task.term,
+            type: task.type,
+            truth: task.truth,
+            budget: { priority: task.priority },
+            punctuation: task.punctuation
+        };
+
+        new TaskCard(wrapper.dom, taskObj, { compact: true }).render();
+
+        $('button')
+            .class('btn-icon', 'delete-task-btn')
+            .text('×')
+            .attr('title', 'Delete Task')
+            .style({ position: 'absolute', right: '5px', top: '5px', opacity: '0.5' })
+            .on('click', (e) => {
+                e.stopPropagation();
+                this.deleteTask(term, index);
+            })
+            .mount(wrapper);
     }
 }
