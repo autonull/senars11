@@ -30,6 +30,19 @@ test.describe('Explorer Complex Graph Verification', () => {
         // Wait a bit for layout to settle
         await page.waitForTimeout(3000);
 
+        // Verify status bar is at the top
+        const statusBarBox = await page.locator('#status-bar-container').boundingBox();
+        expect(statusBarBox.y).toBe(0);
+        expect(statusBarBox.height).toBeGreaterThan(0);
+
+        // Verify Layers HUD widget is visible
+        const layersWidget = page.locator('#layers-widget');
+        await expect(layersWidget).toBeVisible();
+
+        // Check if it's positioned below status bar
+        const layersBox = await layersWidget.boundingBox();
+        expect(layersBox.y).toBeGreaterThan(statusBarBox.height);
+
         // Take screenshot
         await page.screenshot({ path: 'ui/screenshots/complex_graph_verification.png', fullPage: true });
     });
