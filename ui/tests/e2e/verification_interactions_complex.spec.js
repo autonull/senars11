@@ -18,7 +18,7 @@ test.describe('Explorer Complex Graph Interactions Verification', () => {
         await page.waitForTimeout(3000);
 
         // Screenshot 1: Initial State
-        await page.screenshot({ path: 'ui/screenshots/fractal_initial.png', fullPage: true });
+        await page.screenshot({ path: 'screenshots/fractal_initial.png', fullPage: true });
 
         // 3. Zoom In Interaction (Simulated via button)
         // Targeting GraphPanel toolbar button by title="In"
@@ -30,7 +30,7 @@ test.describe('Explorer Complex Graph Interactions Verification', () => {
         await page.waitForTimeout(1000); // Wait for zoom animation
 
         // Screenshot 2: Zoomed In
-        await page.screenshot({ path: 'ui/screenshots/fractal_zoomed.png', fullPage: true });
+        await page.screenshot({ path: 'screenshots/fractal_zoomed.png', fullPage: true });
 
         // 4. Filter by Priority
         // Open View Settings details if not open
@@ -47,7 +47,7 @@ test.describe('Explorer Complex Graph Interactions Verification', () => {
         await page.waitForTimeout(1000); // Wait for filter to apply
 
         // Screenshot 3: Filtered
-        await page.screenshot({ path: 'ui/screenshots/fractal_filtered.png', fullPage: true });
+        await page.screenshot({ path: 'screenshots/fractal_filtered.png', fullPage: true });
 
         // Reset Filter
         await prioritySlider.fill('0');
@@ -69,7 +69,7 @@ test.describe('Explorer Complex Graph Interactions Verification', () => {
         await expect(inspector).toContainText('Root');
 
         // Screenshot 4: Node Selected
-        await page.screenshot({ path: 'ui/screenshots/fractal_selected.png', fullPage: true });
+        await page.screenshot({ path: 'screenshots/fractal_selected.png', fullPage: true });
 
         // 6. Change Layout to Grid
         const layoutSelect = page.locator('#layout-select');
@@ -78,6 +78,6 @@ test.describe('Explorer Complex Graph Interactions Verification', () => {
         await page.waitForTimeout(3000); // Wait for layout animation
 
         // Screenshot 5: Grid Layout
-        await page.screenshot({ path: 'ui/screenshots/fractal_grid.png', fullPage: true });
+        await page.screenshot({ path: 'screenshots/fractal_grid.png', fullPage: true });
     });
 });
