@@ -16,7 +16,6 @@ import { CommandPalette } from '../components/CommandPalette.js';
 import { ToastManager } from '../components/ToastManager.js';
 import { DemoLibraryModal } from '../components/DemoLibraryModal.js';
 import { ShortcutsModal } from '../components/ShortcutsModal.js';
-import { TargetPanel } from './TargetPanel.js';
 import { getTacticalStyle } from '../visualization/ExplorerGraphTheme.js';
 import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
 import { IntrospectionEvents } from '@senars/core';
@@ -118,9 +117,6 @@ export class ExplorerApp {
                 };
 
                 this.showInspector(conceptData);
-                if (this.targetPanel) {
-                    this.targetPanel.update(conceptData);
-                }
             });
 
             this.graph.on('nodeDblClick', ({ node }) => {
@@ -180,14 +176,6 @@ export class ExplorerApp {
         this.taskBrowser.container = tasksContainer;
         this.taskBrowser.render();
         this.layoutManager.registerWidget('tasks', tasksContainer, 'right', false);
-
-        // 6. Target Panel (absolute positioned, not docked)
-        this.targetPanel = new TargetPanel(null);
-        const targetContainer = document.createElement('div');
-        targetContainer.id = 'target-panel-container';
-        document.body.appendChild(targetContainer);
-        this.targetPanel.container = targetContainer;
-        this.targetPanel.render();
 
         // Init Components (StatusBar with unified controls)
         this.statusBar = new StatusBar('status-bar-container');
@@ -313,14 +301,6 @@ export class ExplorerApp {
                     ...data,
                     ...(data.fullData || {})
                 });
-
-                if (this.targetPanel) {
-                    this.targetPanel.update({
-                        id: nodeId,
-                        ...data,
-                        ...(data.fullData || {})
-                    });
-                }
             } else {
                  this.log(`Concept not in view: ${nodeId}`, 'warning');
                  // Still show inspector if we have data?

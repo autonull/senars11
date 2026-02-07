@@ -46,9 +46,8 @@ test.describe('SeNARS Explorer Verification Screenshots', () => {
         // Verify Inspector is visible
         await expect(page.locator('#inspector-panel')).toBeVisible();
 
-        // Verify Target Panel is visible
-        await expect(page.locator('.target-panel')).toBeVisible();
-        await expect(page.locator('#target-term')).toHaveText('ScreenshotNode');
+        // Target Panel should NOT be visible (removed)
+        await expect(page.locator('.target-panel')).not.toBeVisible();
 
         // Take screenshot of selected state
         await page.screenshot({ path: 'screenshots/explorer-selected.png' });
