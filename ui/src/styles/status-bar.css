@@ -8,11 +8,14 @@
     height: 36px;
     padding: 6px 15px;
     width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
     box-sizing: border-box;
     transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease;
     gap: 8px;
     background: rgba(5, 10, 5, 0.95);
-    border-top: 1px solid rgba(0, 255, 157, 0.3);
+    border-bottom: 1px solid rgba(0, 255, 157, 0.3); /* Changed to border-bottom since it's at the top */
+    border-top: none;
 }
 
 .status-bar--expanded {

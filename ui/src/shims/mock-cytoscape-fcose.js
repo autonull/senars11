@@ -13,31 +13,44 @@ export default function(cytoscape) {
         const eles = this.options.eles;
         const nodes = eles.nodes();
 
-        console.log(`MockFcoseLayout running on ${nodes.length} nodes`);
+        console.log(`MockFcoseLayout delegating to COSE on ${nodes.length} nodes`);
 
-        // Simple grid positioning as a fallback
-        nodes.each((ele, i) => {
-            ele.scratch('fcose', {
-                x: (i % 10) * 150, // Increased spacing
-                y: Math.floor(i / 10) * 150
+        // Delegate to built-in COSE layout which provides organic force-directed layout
+        if (eles.layout) {
+            const coseOptions = {
+                name: 'cose',
+                animate: this.options.animate !== false,
+                animationDuration: this.options.animationDuration || 500,
+                fit: this.options.fit !== false,
+                padding: this.options.padding || 30,
+                randomize: this.options.randomize !== false,
+                componentSpacing: 100,
+                nodeRepulsion: 400000,
+                nodeOverlap: 10,
+                idealEdgeLength: 100,
+                edgeElasticity: 100,
+                nestingFactor: 5,
+                gravity: 80,
+                numIter: 1000,
+                initialTemp: 200,
+                coolingFactor: 0.95,
+                minTemp: 1.0
+            };
+
+            // Run the actual layout
+            eles.layout(coseOptions).run();
+        } else {
+            console.warn('Elements do not support layout method, falling back to grid');
+            // Fallback if something is wrong with the cytoscape instance
+            nodes.each((ele, i) => {
+                ele.scratch('fcose', {
+                    x: (i % 10) * 150,
+                    y: Math.floor(i / 10) * 150
+                });
             });
-        });
-
-        nodes.layoutPositions(this, this.options, (ele) => ele.scratch('fcose'));
-
-        if (this.options.fit) {
-            // Use a timeout to ensure positions are applied before fitting
-            setTimeout(() => {
-                if (eles.cy && typeof eles.cy === 'function') {
-                    eles.cy().fit(this.options.padding);
-                } else if (eles.cy && eles.cy.fit) {
-                     eles.cy.fit(this.options.padding);
-                }
-            }, 50);
+            nodes.layoutPositions(this, this.options, (ele) => ele.scratch('fcose'));
+            eles.emit('layoutstop');
         }
-
-        if(this.options.stop) this.options.stop();
-        eles.emit('layoutstop');
 
         return this;
     };
