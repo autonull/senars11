@@ -63,6 +63,12 @@ export class ExplorerInfoPanel extends Component {
                         </div>
                         <input type="range" id="filter-priority" min="0" max="1" step="0.05" value="0" style="width: 100%; cursor: pointer;">
                     </div>
+                    <div class="control-group" style="margin-top: 8px;">
+                        <label class="layer-toggle">
+                            <input type="checkbox" id="check-freeze-layout">
+                            <span class="layer-label">Freeze Layout ❄️</span>
+                        </label>
+                    </div>
                 </details>
 
                 <details>

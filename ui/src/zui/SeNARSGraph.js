@@ -209,17 +209,24 @@ export class SeNARSGraph extends GraphSystem {
         }
     }
 
-    // Compatibility method for KeyboardNavigation
+    // Standardized Data Accessor
     _getNodeData(node) {
-        // KeyboardNavigation expects this format
+        if (!node || node.empty()) return null;
+
         const data = node.data();
+        const fullData = data.fullData || {};
+
+        // Merge live data with stored full data to ensure freshness
         return {
-             type: 'node',
-             label: data.label,
+             ...data,
+             ...fullData,
              id: node.id(),
-             term: data.term || data.label,
-             nodeType: data.type,
-             fullData: data.fullData
+             term: data.term || data.label || node.id(),
+             type: data.type || 'concept',
+             // Ensure critical structures are preserved
+             derivation: fullData.derivation || data.derivation,
+             budget: fullData.budget || data.budget,
+             truth: fullData.truth || data.truth
         };
     }
 
@@ -404,22 +411,35 @@ export class SeNARSGraph extends GraphSystem {
         const node = this.cy.getElementById(data.id);
 
         if (node.length > 0) {
-            const priority = data.budget?.priority ?? 0;
-            const taskCount = data.tasks?.length ?? data.taskCount ?? 0;
-            const weight = this._calculateNodeWeight(priority, data.term);
-
-            const updates = {
-                weight: weight,
-                taskCount: taskCount,
-                fullData: data
+            const existingFullData = node.data('fullData') || {};
+            // Deep merge essential structures
+            const newFullData = {
+                ...existingFullData,
+                ...data,
+                budget: { ...existingFullData.budget, ...data.budget },
+                truth: { ...existingFullData.truth, ...data.truth },
+                derivation: data.derivation || existingFullData.derivation
             };
 
-            if (data.truth) {
-                updates.label = this._calculateNodeLabel(data);
+            const priority = newFullData.budget?.priority ?? 0;
+            const taskCount = newFullData.tasks?.length ?? newFullData.taskCount ?? 0;
+            const weight = this._calculateNodeWeight(priority, newFullData.term);
+
+            const updates = {
+                weight,
+                taskCount,
+                fullData: newFullData,
+                // Update top-level props that might be used by selectors
+                priority,
+                derivation: newFullData.derivation
+            };
+
+            if (newFullData.truth) {
+                updates.label = this._calculateNodeLabel(newFullData);
             }
 
             node.data(updates);
-            this._updateWidget(data.id, data);
+            this._updateWidget(data.id, newFullData);
             this.animateUpdate(data.id);
         } else {
             this.addNode(data, false);

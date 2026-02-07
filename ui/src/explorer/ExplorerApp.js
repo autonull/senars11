@@ -86,19 +86,25 @@ export class ExplorerApp {
         const data = node.data();
         this.graph.flyTo?.(node.id());
 
-        // Extract simple links for inspector
         const links = node.connectedEdges().map(edge => {
              const target = edge.target();
              const source = edge.source();
              return target.id() === node.id() ? source.id() : target.id();
-        }).slice(0, 5); // Limit to 5
+        }).slice(0, 5);
 
-        // Merge fullData to top level for inspector so it sees budget/truth
+        // Ensure fullData is present and merged correctly
+        // Priority: fullData > data > basic props
+        const fullData = data.fullData || {};
+
         const conceptData = {
             id: node.id(),
-            links: links,
+            links,
             ...data,
-            ...(data.fullData || {})
+            ...fullData,
+            // Explicitly preserve critical objects if they exist in either source
+            derivation: fullData.derivation || data.derivation,
+            budget: fullData.budget || data.budget,
+            truth: fullData.truth || data.truth
         };
 
         this.showInspector(conceptData);
@@ -412,7 +418,9 @@ export class ExplorerApp {
              id: term,
              term: term,
              budget: budget,
-             type: 'concept'
+             type: 'concept',
+             // Ensure full task data is passed to preserve metadata like derivation
+             ...task
         }, false);
 
         if (this.graph.animateAttention) {
@@ -547,6 +555,15 @@ export class ExplorerApp {
                 const val = parseFloat(e.target.value);
                 if (prioVal) prioVal.textContent = val.toFixed(2);
                 this.graph.applyFilters({ minPriority: val });
+            };
+        }
+
+        const freezeCheck = document.getElementById('check-freeze-layout');
+        if (freezeCheck) {
+            freezeCheck.onchange = (e) => {
+                const frozen = e.target.checked;
+                this.graph.setUpdatesEnabled(!frozen);
+                this.log(`Layout ${frozen ? 'Frozen' : 'Active'}`, 'system');
             };
         }
     }
@@ -908,7 +925,8 @@ export class ExplorerApp {
 
         createWidget('log', this.logPanel, 'right', true);
         createWidget('inspector', this.inspectorPanel, 'left', false);
-        createWidget('tasks', this.taskBrowser, 'right', false);
+        // Task Browser should be visible by default for better user experience
+        createWidget('tasks', this.taskBrowser, 'right', true);
     }
 
     saveNodeChanges(id, updates) {
