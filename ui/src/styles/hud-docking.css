@@ -86,6 +86,9 @@
 /* Specific Widget Positions */
 #layers-widget {
     top: calc(var(--statusbar-height, 40px) + var(--widget-gap, 10px));
+    left: var(--widget-gap, 10px);
+    width: 25vw;
+    max-width: 400px;
     max-height: calc(50vh - var(--statusbar-height, 40px) - var(--widget-gap, 10px) * 2);
 }
 
