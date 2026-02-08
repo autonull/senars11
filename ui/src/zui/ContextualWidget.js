@@ -166,6 +166,17 @@ export class ContextualWidget {
         const pos = node.position();
         div.style.left = `${pos.x}px`;
         div.style.top = `${pos.y}px`;
+
+        // Calculate vertical offset to position above the node
+        // node.outerHeight() returns the height in model coordinates (unscaled)
+        const nodeHeight = node.outerHeight() || 30;
+        const widgetHeight = div.offsetHeight || 0;
+        const padding = 10;
+        const offset = (nodeHeight / 2) + padding + widgetHeight;
+
+        // Combine centering (-50% X) and lifting by total offset
+        // We use pixel values instead of percentages to avoid issues with display:none layout
+        div.style.transform = `translate(-50%, -${offset}px)`;
     }
 
     remove(nodeId) {
