@@ -91,7 +91,7 @@
     max-width: none;
     border-left: none;
     border-radius: 0 4px 4px 0;
-    max-height: calc(50vh - var(--statusbar-height, 40px) - var(--widget-gap, 10px) * 2);
+    max-height: 80vh;
 }
 
 #metrics-widget {
