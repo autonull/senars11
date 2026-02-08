@@ -413,8 +413,10 @@ button:active {
 
 .zui-widget {
     pointer-events: auto;
+    position: absolute;
     font-family: var(--font-mono, 'Consolas', monospace);
     font-size: 10px;
+    z-index: 100;
 }
 
 .zui-panel {

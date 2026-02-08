@@ -103,7 +103,7 @@ export class ContextualWidget {
         Object.assign(div.style, {
             position: 'absolute',
             pointerEvents: 'auto', // Allow interaction
-            transform: 'translate(-50%, -150%)' // Center horizontally, place above node
+            transform: 'translate(-50%, calc(-100% - 20px))' // Center horizontally, place above node with gap
         });
         div.innerHTML = contentHtml;
 
