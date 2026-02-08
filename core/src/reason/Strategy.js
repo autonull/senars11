@@ -100,14 +100,15 @@ export class Strategy {
      * Select secondary premises for a given primary premise.
      * Uses premise formation strategies with Bag-based priority sampling.
      * @param {Task} primaryPremise - The primary premise
+     * @param {Object} availableTasks - Optional available tasks context with indices
      * @returns {Promise<Array<Task>>} - Array of secondary premises
      */
-    async selectSecondaryPremises(primaryPremise) {
+    async selectSecondaryPremises(primaryPremise, availableTasks = null) {
         try {
             // Clear previous candidates
             this.candidateBag.clear();
 
-            const context = this._getFormationContext();
+            const context = this._getFormationContext(availableTasks);
 
             // Phase 1: Collect candidates from formation strategies
             if (this.formationStrategies.length > 0) {
@@ -180,12 +181,13 @@ export class Strategy {
      * Get context for formation strategies.
      * @private
      */
-    _getFormationContext() {
+    _getFormationContext(availableTasks = null) {
         return {
             termFactory: this.termFactory || this.config.termFactory,
             memory: this.memory,
             focus: this.focus,
-            termLayer: this.memory?.termLayer
+            termLayer: this.memory?.termLayer,
+            availableTasks: availableTasks
         };
     }
 
