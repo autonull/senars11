@@ -153,7 +153,7 @@ export class TestNAR {
             // Run additional reasoning cycles after all inputs to allow for inference
             // Execute multiple steps to make sure processing happens
             if (this.nar.streamReasoner) {
-                for (let i = 0; i < 50; i++) {  // Run additional steps to allow for derivations
+                for (let i = 0; i < 20; i++) {  // Run additional steps to allow for derivations
                     await this.nar.step();
                 }
             }
@@ -161,7 +161,7 @@ export class TestNAR {
             // Collect tasks emitted by the system
             let collectedTasks = [];
 
-            // Get tasks from memory and focus
+            // Get tasks from memory
             if (this.nar.memory) {
                 collectedTasks = this.nar.memory.getAllConcepts().flatMap(c => c.getAllTasks());
             }
@@ -172,20 +172,7 @@ export class TestNAR {
                 collectedTasks = [...collectedTasks, ...focusTasks];
             }
 
-            // Get all tasks from memory and focus to catch derived results
-            let allTasks = [...collectedTasks]; // Start with collected tasks
-
-            // Also get tasks from memory and focus to ensure nothing is missed
-            if (this.nar.memory) {
-                const memoryTasks = this.nar.memory.getAllConcepts().flatMap(c => c.getAllTasks());
-                allTasks = [...allTasks, ...memoryTasks];
-            }
-
-            // Also check focus for tasks that might not be in memory yet
-            if (this.nar._focus) {
-                const focusTasks = this.nar._focus.getTasks(1000);
-                allTasks = [...allTasks, ...focusTasks];
-            }
+            let allTasks = collectedTasks;
 
             // Remove duplicates based on term and stamp
             const uniqueTasks = [];

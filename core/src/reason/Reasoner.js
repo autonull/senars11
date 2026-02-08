@@ -63,6 +63,9 @@ export class Reasoner extends EventEmitter {
             const focusTasks = this.premiseSource.focusComponent?.getTasks(1000) ?? [];
             if (focusTasks.length === 0) return results;
 
+            // Keep a reference to sorted tasks for Strategy
+            const sortedFocusTasks = [...focusTasks];
+
             this._shuffleArray(focusTasks);
             const processedPairs = new Set();
 
@@ -89,7 +92,7 @@ export class Reasoner extends EventEmitter {
 
                 // Dual premise processing using Strategy
                 try {
-                    const secondaryPremises = await this.strategy.selectSecondaryPremises(primaryPremise);
+                    const secondaryPremises = await this.strategy.selectSecondaryPremises(primaryPremise, sortedFocusTasks);
 
                     for (const secondaryPremise of secondaryPremises) {
                         if (Date.now() - startTime > timeoutMs) break;
