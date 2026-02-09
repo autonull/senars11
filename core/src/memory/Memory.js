@@ -205,6 +205,30 @@ export class Memory extends BaseComponent {
         return Array.from(this._concepts.values());
     }
 
+    *getTasksIterator() {
+        for (const concept of this._concepts.values()) {
+            if (concept.getAllTasks) {
+                const tasks = concept.getAllTasks();
+                for (const task of tasks) {
+                    yield task;
+                }
+            }
+        }
+    }
+
+    getTasks(limit = 0) {
+        if (limit <= 0) {
+            return Array.from(this.getTasksIterator());
+        }
+
+        const tasks = [];
+        for (const task of this.getTasksIterator()) {
+            tasks.push(task);
+            if (tasks.length >= limit) break;
+        }
+        return tasks;
+    }
+
     getConceptsByCriteria(criteria = {}) {
         return this.getAllConcepts().filter(c => this._conceptMatchesCriteria(c, criteria));
     }

@@ -280,10 +280,13 @@ export class Strategy {
             return this.focus.getTasks(1000); // Get all tasks in focus to enable fair roulette sampling
         }
         // Get tasks from memory concepts if focus is not available
-        else if (this.memory && typeof this.memory.getAllConcepts === 'function') {
+        else if (this.memory && typeof this.memory.getTasks === 'function') {
+            return this.memory.getTasks(1000); // Get up to 1000 tasks to enable fair sampling
+        } else if (this.memory && typeof this.memory.getAllConcepts === 'function') {
+            // Fallback for memory implementations without getTasks
             return this.memory.getAllConcepts()
-                .flatMap(concept => concept.getTasks ? concept.getTasks() : [])
-                .slice(0, 1000); // Get up to 1000 tasks to enable fair sampling
+                .flatMap(concept => concept.getAllTasks ? concept.getAllTasks() : [])
+                .slice(0, 1000);
         }
 
         return [];
