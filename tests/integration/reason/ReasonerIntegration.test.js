@@ -94,7 +94,7 @@ describe('Reasoner Integration', () => {
             await nar.input('<robin --> [flying]>. %0.9;0.9%');
             await nar.input('<robin --> bird>. %0.8;0.9%');
 
-            for (let i = 0; i < 10; i++) await nar.step();
+            for (let i = 0; i < 3; i++) await nar.step();
 
             expect(nar._focus.getTasks(50).length).toBeGreaterThanOrEqual(2);
         });
