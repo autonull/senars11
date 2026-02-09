@@ -101,15 +101,18 @@ const occursCheck = (varName, term, bindings, adapter) => {
  * @param {*} term - Term to substitute into
  * @param {Object} bindings - Variable bindings
  * @param {Object} adapter - Term operations adapter
+ * @param {Set} visited - Set of visited variables for cycle detection
  * @returns {*} - Substituted term
  */
-export const substitute = (term, bindings, adapter) => {
+export const substitute = (term, bindings, adapter, visited = new Set()) => {
     if (!term) return term;
 
     if (adapter.isVariable(term)) {
         const varName = adapter.getVariableName(term);
         if (bindings[varName]) {
-            return substitute(bindings[varName], bindings, adapter);
+            if (visited.has(varName)) return term; // Cycle detected
+            visited.add(varName);
+            return substitute(bindings[varName], bindings, adapter, visited);
         }
         return term;
     }
@@ -118,7 +121,7 @@ export const substitute = (term, bindings, adapter) => {
         const components = adapter.getComponents(term);
         let changed = false;
         const newComponents = components.map(comp => {
-            const newComp = substitute(comp, bindings, adapter);
+            const newComp = substitute(comp, bindings, adapter, new Set(visited));
             if (newComp !== comp) changed = true;
             return newComp;
         });
