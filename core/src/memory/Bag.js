@@ -100,6 +100,7 @@ export class Bag {
         this._accessTimes = new Map();
         this.setForgetPolicy(forgetPolicy);
         this.onItemRemoved = onItemRemoved;
+        this._cachedOrderedItems = null;
     }
 
     get size() {
@@ -146,6 +147,7 @@ export class Bag {
         const priority = item.budget?.priority ?? 0;
         this._addItemToStorage(item, priority);
         this._itemKeys.set(key, item);
+        this._cachedOrderedItems = null;
 
         return true;
     }
@@ -164,6 +166,7 @@ export class Bag {
 
             this._insertionOrder = this._insertionOrder.filter(i => i !== item);
             this._accessTimes.delete(item);
+            this._cachedOrderedItems = null;
 
             if (this.onItemRemoved) {
                 try {
@@ -196,7 +199,10 @@ export class Bag {
     }
 
     getItemsInPriorityOrder() {
-        return this._forgetPolicy.orderItems(this._items, this._items, this._insertionOrder, this._accessTimes);
+        if (!this._cachedOrderedItems) {
+            this._cachedOrderedItems = this._forgetPolicy.orderItems(this._items, this._items, this._insertionOrder, this._accessTimes);
+        }
+        return this._cachedOrderedItems;
     }
 
     getAveragePriority() {
@@ -245,6 +251,7 @@ export class Bag {
         this._itemKeys.clear();
         this._insertionOrder = [];
         this._accessTimes.clear();
+        this._cachedOrderedItems = null;
     }
 
     serialize() {
