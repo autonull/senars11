@@ -5,7 +5,7 @@ import {Task} from '../task/Task.js';
 import {Logger} from '../util/Logger.js';
 
 const TASK_TYPES = Object.freeze({BELIEF: 'BELIEF', GOAL: 'GOAL', QUESTION: 'QUESTION'});
-const CAPACITY_DISTRIBUTION = Object.freeze({BELIEF: 0.6, GOAL: 0.3, QUESTION: 0.1});
+const CAPACITY_DISTRIBUTION = Object.freeze({[TASK_TYPES.BELIEF]: 0.6, [TASK_TYPES.GOAL]: 0.3, [TASK_TYPES.QUESTION]: 0.1});
 
 export class Concept extends BaseComponent {
     static DEFAULT_CONFIG = {
@@ -53,10 +53,13 @@ export class Concept extends BaseComponent {
         return this._beliefs.size + this._goals.size + this._questions.size;
     }
 
+    get _bags() {
+        return [this._beliefs, this._goals, this._questions];
+    }
+
     get averagePriority() {
         if (!this.totalTasks) return 0;
-        const bags = [this._beliefs, this._goals, this._questions];
-        return bags.reduce((sum, bag) => sum + (bag.getAveragePriority() * bag.size), 0) / this.totalTasks;
+        return this._bags.reduce((sum, bag) => sum + (bag.getAveragePriority() * bag.size), 0) / this.totalTasks;
     }
 
     _getStorage(taskType) {
@@ -86,13 +89,13 @@ export class Concept extends BaseComponent {
 
     enforceCapacity(maxTasksPerType) {
         for (const [type, factor] of Object.entries(CAPACITY_DISTRIBUTION)) {
-            const bag = type === 'BELIEF' ? this._beliefs : (type === 'GOAL' ? this._goals : this._questions);
+            const bag = this._getStorage(type);
             bag.pruneTo(maxTasksPerType * factor);
         }
     }
 
     getTask(taskId) {
-        for (const bag of [this._beliefs, this._goals, this._questions]) {
+        for (const bag of this._bags) {
             const task = bag.find(t => t.stamp.id === taskId);
             if (task) return task;
         }
@@ -119,7 +122,7 @@ export class Concept extends BaseComponent {
     }
 
     applyDecay(decayRate = this.config.defaultDecayRate) {
-        [this._beliefs, this._goals, this._questions].forEach(bag => bag.applyDecay(decayRate));
+        this._bags.forEach(bag => bag.applyDecay(decayRate));
         this._activation *= (1 - decayRate);
         this._updateActivity();
     }
@@ -140,15 +143,13 @@ export class Concept extends BaseComponent {
     }
 
     containsTask(task) {
-        return this._beliefs.contains(task) || this._goals.contains(task) || this._questions.contains(task);
+        return this._bags.some(bag => bag.contains(task));
     }
 
     getAllTasks() {
-        return [
-            ...this._beliefs.getItemsInPriorityOrder(),
-            ...this._goals.getItemsInPriorityOrder(),
-            ...this._questions.getItemsInPriorityOrder()
-        ].sort((a, b) => b.budget.priority - a.budget.priority);
+        return this._bags
+            .flatMap(bag => bag.getItemsInPriorityOrder())
+            .sort((a, b) => b.budget.priority - a.budget.priority);
     }
 
     updateTaskBudget(task, newBudget) {
