@@ -150,7 +150,7 @@ export class Memory extends BaseComponent {
         }
 
         const concept = new Concept(term, this._config);
-        this._concepts.set(term, concept);
+        this._concepts.set(term.name, concept);
         this._index.addConcept(concept);
         this._stats.totalConcepts++;
         this._emitIntrospectionEvent(IntrospectionEvents.MEMORY_CONCEPT_CREATED, () => ({concept: concept.serialize()}));
@@ -160,9 +160,10 @@ export class Memory extends BaseComponent {
     getConcept(term) {
         if (!term) return null;
 
-        // Use Map.get() which relies on object identity (reference equality).
-        // Since terms are interned by TermFactory, this is efficient and correct.
-        const concept = this._concepts.get(term);
+        // Use string name for lookup to support probabilistic interning.
+        // Even if the Term object is different (due to cache eviction), the concept is the same.
+        const name = typeof term === 'string' ? term : term.name;
+        const concept = this._concepts.get(name);
 
         if (concept) {
             this._emitIntrospectionEvent(IntrospectionEvents.MEMORY_CONCEPT_ACCESSED, () => ({concept: concept.serialize()}));
@@ -181,14 +182,15 @@ export class Memory extends BaseComponent {
 
 
     removeConcept(term) {
-        const concept = this._concepts.get(term);
+        const name = typeof term === 'string' ? term : term.name;
+        const concept = this._concepts.get(name);
         if (!concept) return false;
 
         if (this._focusConcepts.has(concept)) {
             this._focusConcepts.delete(concept);
             this._updateFocusConceptsCount();
         }
-        this._concepts.delete(term);
+        this._concepts.delete(name);
         this._index.removeConcept(concept);
         this._stats.totalConcepts--;
         this._stats.totalTasks -= concept.totalTasks;
@@ -298,7 +300,8 @@ export class Memory extends BaseComponent {
     }
 
     boostConceptActivation(term, boostAmount = 0.1) {
-        const concept = this._concepts.get(term);
+        const name = typeof term === 'string' ? term : term.name;
+        const concept = this._concepts.get(name);
         if (concept) {
             concept.boostActivation(boostAmount);
             if (!this._focusConcepts.has(concept)) {
@@ -309,7 +312,8 @@ export class Memory extends BaseComponent {
     }
 
     updateConceptQuality(term, qualityChange) {
-        this._concepts.get(term)?.updateQuality(qualityChange);
+        const name = typeof term === 'string' ? term : term.name;
+        this._concepts.get(name)?.updateQuality(qualityChange);
     }
 
     getDetailedStats() {
@@ -342,7 +346,8 @@ export class Memory extends BaseComponent {
     }
 
     hasConcept(term) {
-        return this._concepts.has(term);
+        const name = typeof term === 'string' ? term : term.name;
+        return this._concepts.has(name);
     }
 
     getTotalTaskCount() {
@@ -499,8 +504,8 @@ export class Memory extends BaseComponent {
     }
 
     serialize() {
-        const conceptsData = Array.from(this._concepts).map(([term, concept]) => ({
-            term: term.serialize ? term.serialize() : term.toString(),
+        const conceptsData = Array.from(this._concepts.values()).map(concept => ({
+            term: concept.term.serialize ? concept.term.serialize() : concept.term.toString(),
             concept: concept.serialize ? concept.serialize() : null
         }));
 
@@ -554,7 +559,7 @@ export class Memory extends BaseComponent {
                         await concept.deserialize(conceptData.concept);
                     }
 
-                    this._concepts.set(term, concept);
+                    this._concepts.set(term.name, concept);
                     this._stats.totalConcepts++;
                     this._stats.totalTasks += concept.totalTasks || 0;
                     this._index.addConcept(concept);
@@ -563,10 +568,7 @@ export class Memory extends BaseComponent {
 
             if (data.focusConcepts) {
                 for (const termStr of data.focusConcepts) {
-                    const concept = this._concepts.get({
-                        toString: () => termStr,
-                        equals: (other) => other.toString && other.toString() === termStr
-                    });
+                    const concept = this._concepts.get(termStr);
                     if (concept) {
                         this._focusConcepts.add(concept);
                     }
