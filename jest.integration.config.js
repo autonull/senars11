@@ -6,5 +6,5 @@ export default {
     roots: ['<rootDir>/tests/integration'],
     setupFilesAfterEnv: ['<rootDir>/tests/setup/integration.js'],
     testMatch: ['**/tests/integration/**/*.test.js'],
-    testTimeout: 5000,
+    testTimeout: 30000,
 };

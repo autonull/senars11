@@ -28,6 +28,7 @@ export class Reasoner extends EventEmitter {
             backpressureInterval: config.backpressureInterval ?? 10,
             executionMode: config.executionMode ?? 'simple',
             executionInterval: config.executionInterval ?? 100,
+            maxDerivationsPerStep: config.maxDerivationsPerStep ?? 1000,
             ...config
         };
 
@@ -71,6 +72,7 @@ export class Reasoner extends EventEmitter {
 
             for (const primaryPremise of focusTasks) {
                 if (Date.now() - startTime > timeoutMs) break;
+                if (results.length >= this.config.maxDerivationsPerStep) break;
 
                 // Single premise processing (e.g. for LM rules)
                 try {
@@ -96,6 +98,7 @@ export class Reasoner extends EventEmitter {
 
                     for (const secondaryPremise of secondaryPremises) {
                         if (Date.now() - startTime > timeoutMs) break;
+                        if (results.length >= this.config.maxDerivationsPerStep) break;
 
                         const primaryTermId = this._getTermId(primaryPremise);
                         const secondaryTermId = this._getTermId(secondaryPremise);
