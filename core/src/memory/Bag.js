@@ -223,6 +223,10 @@ export class Bag {
         for (const [item, priority] of this._items.entries()) {
             this._items.set(item, priority * (1 - decayRate));
         }
+        // Invalidate cache if policy is not priority-based (e.g. random or potentially others)
+        // For standard priority decay, relative order is preserved, so we might skip this.
+        // But to be safe and address potential edge cases or mixed usage:
+        this._cachedOrderedItems = null;
     }
 
     pruneTo(targetSize) {

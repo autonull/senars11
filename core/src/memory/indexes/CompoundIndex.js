@@ -93,37 +93,64 @@ export class CompoundIndex extends BaseIndex {
 
     find(filters = {}) {
         const {operator, category, minComplexity, maxComplexity, component} = filters;
+        let candidates = null;
 
-        // Start with operator search if specified
-        let resultConcepts = operator
-            ? new Set(this._index.get(operator) || [])
-            : new Set();
-
-        // Apply category filter
-        if (category) {
-            const categoryConcepts = this._categoryIndex.get(category) || new Set();
-            resultConcepts = resultConcepts.size > 0
-                ? new Set([...resultConcepts].filter(c => categoryConcepts.has(c)))
-                : categoryConcepts;
+        if (operator !== undefined) {
+            const matches = this._index.get(operator);
+            if (!matches || matches.size === 0) return [];
+            candidates = new Set(matches);
         }
 
-        // Apply component filter
+        if (category !== undefined) {
+            const matches = this._categoryIndex.get(category);
+            if (!matches || matches.size === 0) return [];
+
+            if (candidates === null) {
+                candidates = new Set(matches);
+            } else {
+                const intersection = new Set();
+                for (const c of candidates) {
+                    if (matches.has(c)) intersection.add(c);
+                }
+                candidates = intersection;
+                if (candidates.size === 0) return [];
+            }
+        }
+
         if (component !== undefined) {
-            const componentConcepts = this._componentIndex.get(component) || new Set();
-            resultConcepts = resultConcepts.size > 0
-                ? new Set([...resultConcepts].filter(c => componentConcepts.has(c)))
-                : componentConcepts;
+            const matches = this._componentIndex.get(component);
+            if (!matches || matches.size === 0) return [];
+
+            if (candidates === null) {
+                candidates = new Set(matches);
+            } else {
+                const intersection = new Set();
+                for (const c of candidates) {
+                    if (matches.has(c)) intersection.add(c);
+                }
+                candidates = intersection;
+                if (candidates.size === 0) return [];
+            }
         }
 
-        // Apply complexity range filter
         if (minComplexity !== undefined || maxComplexity !== undefined) {
-            const complexityFiltered = this._getConceptsByComplexityRange(minComplexity, maxComplexity);
-            resultConcepts = resultConcepts.size > 0
-                ? new Set([...resultConcepts].filter(c => complexityFiltered.includes(c)))
-                : new Set(complexityFiltered);
+            const matches = this._getConceptsByComplexityRange(minComplexity, maxComplexity);
+            if (matches.length === 0) return [];
+
+            if (candidates === null) {
+                candidates = new Set(matches);
+            } else {
+                const matchesSet = new Set(matches);
+                const intersection = new Set();
+                for (const c of candidates) {
+                    if (matchesSet.has(c)) intersection.add(c);
+                }
+                candidates = intersection;
+                if (candidates.size === 0) return [];
+            }
         }
 
-        return resultConcepts.size > 0 ? Array.from(resultConcepts) : this.getAll();
+        return candidates ? Array.from(candidates) : this.getAll();
     }
 
     _getConceptsByComplexityRange(minComplexity, maxComplexity) {
