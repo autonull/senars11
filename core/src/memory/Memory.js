@@ -169,7 +169,7 @@ export class Memory extends BaseComponent {
             this._emitIntrospectionEvent(IntrospectionEvents.MEMORY_CONCEPT_ACCESSED, () => ({concept: concept.serialize()}));
         }
 
-        return concept;
+        return concept || null;
     }
 
     _applyConceptForgetting() {

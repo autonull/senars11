@@ -2,7 +2,6 @@ import { TransformersJSProvider } from './TransformersJSProvider.js';
 import { DummyProvider } from './DummyProvider.js';
 import { LangChainProvider } from './LangChainProvider.js';
 import { HuggingFaceProvider } from './HuggingFaceProvider.js';
-import { createRequire } from 'module';
 
 export class LMConfig {
     static PROVIDERS = Object.freeze({
@@ -129,34 +128,6 @@ export class LMConfig {
         }
     }
 
-    save(path = this.persistPath) {
-        if (typeof process !== 'undefined' && process.versions?.node) {
-            const require = createRequire(import.meta.url);
-            const fs = require('fs');
-            fs.writeFileSync(path, JSON.stringify({
-                active: this.active,
-                providers: Object.fromEntries(this.configs)
-            }, null, 2), 'utf-8');
-        } else {
-            console.warn('LMConfig.save: Filesystem unavailable in this environment');
-        }
-    }
-
-    load(path = this.persistPath) {
-        if (typeof process !== 'undefined' && process.versions?.node) {
-            const require = createRequire(import.meta.url);
-            const fs = require('fs');
-            if (!fs.existsSync(path)) return;
-
-            try {
-                const data = JSON.parse(fs.readFileSync(path, 'utf-8'));
-                this.active = data.active;
-                this.configs = new Map(Object.entries(data.providers));
-            } catch (error) {
-                console.warn(`Failed to load LM config from ${path}:`, error.message);
-            }
-        }
-    }
 
     createActiveProvider() {
         return this._createProvider(this.getActive());
