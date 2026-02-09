@@ -89,10 +89,10 @@ export class BaseComponent {
     // Lifecycle operation executor
     async _executeLifecycleOperation(operation, checkCondition, action, metricName = null) {
         if (checkCondition) {
-            const validationError = this._validateLifecycleOperation(operation);
-            if (validationError) {
-                this.logWarn(validationError.message);
-                return validationError.returnValue;
+            const error = this._checkLifecycleCondition(operation);
+            if (error) {
+                this.logWarn(error);
+                return operation !== 'start';
             }
         }
 
@@ -118,10 +118,10 @@ export class BaseComponent {
     }
 
     /**
-     * Validate lifecycle operation conditions
+     * Check lifecycle operation conditions
      * @private
      */
-    _validateLifecycleOperation(operation) {
+    _checkLifecycleCondition(operation) {
         const validations = {
             start: () => !this._initialized && `Cannot start uninitialized component ${this._name}`,
             stop: () => !this._started && `Component ${this._name} not started`,
@@ -129,15 +129,7 @@ export class BaseComponent {
             dispose: () => this._disposed && `Component ${this._name} already disposed`
         };
 
-        const validation = validations[operation]?.();
-        if (validation) {
-            return {
-                message: validation,
-                returnValue: operation === 'start' ? false : true
-            };
-        }
-
-        return null;
+        return validations[operation]?.() || null;
     }
 
     /**

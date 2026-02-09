@@ -107,7 +107,7 @@ export class TermFactory extends BaseComponent {
 
         this._emitIntrospectionEvent(IntrospectionEvents.TERM_CACHE_MISS, () => ({ termName: name }));
         const term = this._createAndCache(operator, normalizedComponents, name);
-        this._calculateComplexityMetrics(term, normalizedComponents);
+        this._calculateComplexityMetrics(term);
         return term;
     }
 
@@ -338,10 +338,9 @@ export class TermFactory extends BaseComponent {
             : `(${op === ',' ? '' : `${op}, `}${comps.map(c => c.toString()).join(', ')})`;
     }
 
-    _calculateComplexityMetrics(term, components) {
+    _calculateComplexityMetrics(term) {
         if (!term) return 0;
-        const complexity = 1 + (components?.length ?? 0) +
-            (components?.reduce((sum, comp) => sum + (this.getComplexity(comp) || 0), 0) ?? 0);
+        const complexity = term.complexity;
         this._complexityCache.set(term.name, complexity);
         return complexity;
     }
