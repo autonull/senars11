@@ -72,7 +72,13 @@ export class TermFactory extends BaseComponent {
     }
 
     _createCompound(operator, components) {
-        const { operator: op, components: comps } = this._normalizeTermData(operator, components);
+        // Step 1: Recursively create components and flatten associative operators
+        const { operator: op, components: flattenedComps } = this._createComponentsAndFlatten(operator, components);
+
+        // Step 2: Canonicalize components (sort commutative, handle equivalence complexity, remove redundancy)
+        const comps = this._canonicalizeComponents(op, flattenedComps);
+
+        // Step 3: Apply simplifications based on canonical form
 
         // Handle reflexive relations (e.g., <-> A A) which are tautologies
         if (RELATIONAL_OPERATORS.includes(op) && comps.length === 2 && comps[0].name === comps[1].name) {
@@ -83,21 +89,24 @@ export class TermFactory extends BaseComponent {
             return comps[0];
         }
 
+        // Double negation: -- (-- A) -> A
         if (op === '--' && comps[0]?.operator === '--' && comps[0].components.length) {
             return comps[0].components[0];
         }
 
+        // Implication negation: (A ==> --B) -> -- (A ==> B)
+        // '==>' is NOT commutative so order is preserved.
         if (op === '==>' && comps.length === 2 && comps[1].operator === '--' && comps[1].components.length) {
             const innerImp = this._createCompound('==>', [comps[0], comps[1].components[0]]);
             return this._createCompound('--', [innerImp]);
         }
 
-        return this._processCanonicalAndCache(op, comps);
+        return this._cacheLookupOrCreate(op, comps);
     }
 
-    _processCanonicalAndCache(operator, components) {
-        const normalizedComponents = this._canonicalizeComponents(operator, components);
-        const name = this._buildCanonicalName(operator, normalizedComponents);
+    _cacheLookupOrCreate(operator, components) {
+        // Components are assumed to be already canonicalized
+        const name = this._buildCanonicalName(operator, components);
         const cachedTerm = this._cache.get(name);
 
         if (cachedTerm) {
@@ -106,9 +115,14 @@ export class TermFactory extends BaseComponent {
         }
 
         this._emitIntrospectionEvent(IntrospectionEvents.TERM_CACHE_MISS, () => ({ termName: name }));
-        const term = this._createAndCache(operator, normalizedComponents, name);
+        const term = this._createAndCache(operator, components, name);
         this._calculateComplexityMetrics(term);
         return term;
+    }
+
+    _processCanonicalAndCache(operator, components) {
+        const normalizedComponents = this._canonicalizeComponents(operator, components);
+        return this._cacheLookupOrCreate(operator, normalizedComponents);
     }
 
     atomic(name) {
@@ -228,28 +242,21 @@ export class TermFactory extends BaseComponent {
         return term;
     }
 
-    _normalizeTermData(operator, components) {
+    // Renamed from _normalizeTermData and simplified
+    _createComponentsAndFlatten(operator, components) {
         if (!Array.isArray(components)) {
-            throw new Error('TermFactory._normalizeTermData: components must be an array');
+            throw new Error('TermFactory._createComponentsAndFlatten: components must be an array');
         }
 
+        // 1. Recursive creation
         let normalizedComponents = components.map(comp => comp instanceof Term ? comp : this.create(comp));
 
         if (operator) {
             this._validateOperator(operator);
 
+            // 2. Flatten associative operators
             if (ASSOCIATIVE_OPERATORS.has(operator)) {
                 normalizedComponents = this._flatten(operator, normalizedComponents);
-            }
-
-            if (COMMUTATIVE_OPERATORS.has(operator)) {
-                normalizedComponents = operator === '='
-                    ? normalizedComponents.sort(this._compareTermsAlphabetically)
-                    : this._normalizeCommutative(normalizedComponents);
-
-                if (IDEMPOTENT_OPERATORS.has(operator)) {
-                    normalizedComponents = this._removeRedundancy(normalizedComponents);
-                }
             }
         }
 
@@ -285,6 +292,7 @@ export class TermFactory extends BaseComponent {
         if (operator === '-->') return this._canonicalizeImplication(components);
 
         if (COMMUTATIVE_OPERATORS.has(operator)) {
+            // Standard commutative normalization (Alphabetical)
             let comps = operator === '='
                 ? [...components].sort(this._compareTermsAlphabetically)
                 : this._normalizeCommutative([...components]);
@@ -301,7 +309,11 @@ export class TermFactory extends BaseComponent {
     _canonicalizeEquivalence(components) {
         if (components.length < 2) return components;
 
+        // If it is binary, we slice.
         const validComponents = components.length > 2 ? components.slice(0, 2) : components;
+
+        // We handle reflexive check in _createCompound separately.
+
         return validComponents.sort((a, b) => {
             const diff = this._getStructuralComplexity(b) - this._getStructuralComplexity(a);
             return diff !== 0 ? diff : a.name.localeCompare(b.name);

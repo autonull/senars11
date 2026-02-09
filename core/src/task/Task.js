@@ -1,8 +1,9 @@
 import { ArrayStamp } from '../Stamp.js';
 import { Truth } from '../Truth.js';
 import { Term } from '../term/Term.js';
-import { freeze } from '../util/common.js';
 import { getOperator, getComponents } from '../term/TermUtils.js';
+
+const freeze = Object.freeze;
 
 export const Punctuation = Object.freeze({ BELIEF: '.', GOAL: '!', QUESTION: '?' });
 
