@@ -4,7 +4,6 @@ import { EVENTS } from '../config/constants.js';
 import { HUDContextMenu } from './HUDContextMenu.js';
 import { Logger } from '../logging/Logger.js';
 import { LMConfigDialog } from '../agent/LMConfigDialog.js';
-import { DEMOS } from '../data/demos.js';
 import { StatusBar } from '../components/StatusBar.js';
 import { SystemMetricsPanel } from '../components/SystemMetricsPanel.js';
 import { HUDLayoutManager } from '../layout/HUDLayoutManager.js';
@@ -14,10 +13,11 @@ import { InspectorPanel } from '../components/InspectorPanel.js';
 import { TaskBrowser } from './TaskBrowser.js';
 import { CommandPalette } from '../components/CommandPalette.js';
 import { ToastManager } from '../components/ToastManager.js';
-import { DemoLibraryModal } from '../components/DemoLibraryModal.js';
-import { ShortcutsModal } from '../components/ShortcutsModal.js';
 import { getTacticalStyle } from '../visualization/ExplorerGraphTheme.js';
-import { IntrospectionEvents } from '@senars/core';
+
+import { InputManager } from './managers/InputManager.js';
+import { ReasoningManager } from './managers/ReasoningManager.js';
+import { FileManager } from './managers/FileManager.js';
 
 /**
  * Main application controller for the Explorer UI.
@@ -25,14 +25,9 @@ import { IntrospectionEvents } from '@senars/core';
  */
 export class ExplorerApp {
     constructor() {
-        this.mappings = {
-            size: 'priority',
-            color: 'hash'
-        };
-
+        this.mappings = { size: 'priority', color: 'hash' };
         const themeStyle = getTacticalStyle(this.mappings, this._getColorFromHash.bind(this));
 
-        // Use GraphPanel instead of ExplorerGraph
         this.graphPanel = new GraphPanel('graph-container', {
             useBag: true,
             bagCapacity: 50,
@@ -40,26 +35,22 @@ export class ExplorerApp {
             showToolbar: true
         });
 
-        // Context menu and other components expect a graph object with certain interface
-        // We'll proxy through graphPanel.graphManager (SeNARSGraph)
-        this.contextMenu = null; // Will be initialized after graph is ready
+        this.contextMenu = null;
         this.commandPalette = new CommandPalette();
         this.toastManager = new ToastManager();
         this.logger = new Logger();
-        this.lmController = null;
-        this.localToolsBridge = null;
         this.mode = 'visualization';
 
-        this.isReasonerRunning = false;
-        this.reasonerDelay = 100;
-        this.reasonerLoopId = null;
         this.statusBar = null;
         this.metricsPanel = null;
-
-        this._narEventsBound = false;
         this.isDecayEnabled = false;
         this.isFocusMode = false;
         this.decayLoopId = null;
+
+        // Managers
+        this.inputManager = new InputManager(this);
+        this.reasoningManager = new ReasoningManager(this);
+        this.fileManager = new FileManager(this);
 
         // Layout & Panels
         this.layoutManager = new HUDLayoutManager('hud-overlay');
@@ -68,419 +59,122 @@ export class ExplorerApp {
         this.inspectorPanel = new InspectorPanel();
         this.taskBrowser = new TaskBrowser();
 
-        // Wire up inspector callbacks
         this.inspectorPanel.onSave = (id, updates) => this.saveNodeChanges(id, updates);
         this.inspectorPanel.onQuery = (term) => this.handleReplCommand(`<${term} ?>?`);
         this.inspectorPanel.onTrace = (id) => this.graph.traceDerivationPath(id);
-
-        // NOTE: We now use EventBus for selections, but keep these for direct callbacks if needed
         this.inspectorPanel.onSelect = (term) => eventBus.emit(EVENTS.CONCEPT_SELECT, { id: term });
     }
 
-    // Convenience accessor for the underlying graph manager
-    get graph() {
-        return this.graphPanel.graphManager;
-    }
+    get graph() { return this.graphPanel.graphManager; }
+    get isReasonerRunning() { return this.reasoningManager.isReasonerRunning; }
+    get lmController() { return this.reasoningManager.lmController; }
+    get localToolsBridge() { return this.reasoningManager.localToolsBridge; }
 
-    /**
-     * Initializes the application, including graph, HUD, and agent connections.
-     */
     async initialize() {
         console.log('ExplorerApp: Initializing...');
-
         this._setupHUD();
-
-        // Init Graph
-        this.graphPanel.initialize(); // GraphPanel init
+        this.graphPanel.initialize();
         this.contextMenu = new HUDContextMenu(this.graph, this);
 
-        // Wait for graphManager to be ready if async
         if (!this.graph) {
             console.error("GraphPanel failed to initialize graphManager");
         } else {
-            // Bind inspector & AutoZoom
             this.graph.on('nodeClick', ({ node }) => this._handleNodeClick(node));
             this.graph.on('nodeDblClick', ({ node }) => this.log(`Focused: ${node.id()}`, 'system'));
-
-            // Setup Context Menu proxy
             this.graph.on('contextMenu', ({ target, originalEvent }) => {
                 const type = target && target !== this.graph.cy ? (target.isNode() ? 'node' : 'edge') : 'background';
                 const evt = originalEvent;
-                if (type === 'background') {
-                    this.contextMenu.show(evt.x, evt.y, null, 'background');
-                } else {
-                    this.contextMenu.show(evt.x, evt.y, target, type);
-                }
+                if (type === 'background') this.contextMenu.show(evt.x, evt.y, null, 'background');
+                else this.contextMenu.show(evt.x, evt.y, target, type);
             });
-
-            // Bind Background Double Click for Creation
-            this.graph.on('backgroundDoubleClick', ({ position }) => {
-                this.handleAddConcept(position);
-            });
+            this.graph.on('backgroundDoubleClick', ({ position }) => this.inputManager.handleAddConcept(position));
         }
 
-        // Register Commands
-        this._registerCommands();
-
-        // Init Layout System
         this._initWidgets();
 
-        // Init Components (StatusBar with unified controls)
         this.statusBar = new StatusBar('status-bar-container');
         this.statusBar.initialize({
             onModeSwitch: () => console.log('Mode Switch'),
             onThemeToggle: () => this._toggleTheme(),
-            onReasonerControl: (action, value) => this.handleReasonerControl(action, value),
+            onReasonerControl: (action, value) => this.reasoningManager.handleReasonerControl(action, value),
             onReplSubmit: (command) => this.handleReplCommand(command),
             onWidgetToggle: (widgetId) => this.toggleWidget(widgetId),
             onConfig: () => this._showLLMConfig(),
-            onMenuAction: (action) => this.handleMenuAction(action)
+            onMenuAction: (action) => this.inputManager.handleMenuAction(action)
         });
 
-        // Start stats update loop
         this._startStatsLoop();
-
-        // Init UI Bindings
-        this._bindControls();
-        this._bindDragDrop();
-        this._bindKeyboardShortcuts();
+        this.inputManager.initialize();
+        this.fileManager.initialize();
         this._restoreTheme();
 
-        // Dynamic import of LLM Controller
-        try {
-            const module = await import('../agent/LMAgentController.js');
-            this.lmController = new module.LMAgentController(this.logger);
-            this._setupLMEvents();
-
-            try {
-                await this.lmController.initialize();
-                this._updateLLMStatus('Ready', 'online');
-                this._updateReasonerStatus('Online (via LLM Bridge)', 'online');
-                this._bindNAREvents();
-            } catch (e) {
-                console.warn('LLM init failed (might need config):', e);
-                // If LLM init fails, check if we have tools bridge (NAR) access
-                if (!this.lmController.toolsBridge) {
-                    await this._initLocalBridge();
-                    this._updateLLMStatus('Config Required', 'warning');
-                } else {
-                    this._updateLLMStatus('Config Required', 'warning');
-                    this._updateReasonerStatus('Offline', 'offline');
-                }
-            }
-        } catch (e) {
-            console.error('Failed to load LMAgentController module:', e);
-            // Fallback to local reasoner
-            await this._initLocalBridge();
-
-            if (this.localToolsBridge) {
-                this._updateLLMStatus('Offline', 'offline');
-                this.toastManager.show('LLM unavailable - Running in Reasoner Only mode', 'info');
-            } else {
-                const errorMsg = e.message || String(e);
-                this._updateLLMStatus('Module Error', 'error');
-                this._updateReasonerStatus('Error', 'error');
-                this.log(`Failed to load LMAgentController: ${errorMsg}`, 'error');
-                this.toastManager.show(`Module Error: ${errorMsg}`, 'error');
-            }
-        }
+        await this.reasoningManager.initialize();
 
         console.log('ExplorerApp: Initialized');
-
-        // Subscribe to Global Events
         this._subscribeToEvents();
-
-        // Show welcome toast
-        setTimeout(() => {
-            this.toastManager.show('Welcome! Press "?" for keyboard shortcuts.', 'info', 5000);
-        }, 1000);
+        setTimeout(() => this.toastManager.show('Welcome! Press "?" for keyboard shortcuts.', 'info', 5000), 1000);
     }
 
-    /**
-     * Handles clicking a node in the graph.
-     * Selects the node, zooms (flyTo), and opens the Inspector panel.
-     */
     _handleNodeClick(node) {
         const data = node.data();
         this.graph.flyTo?.(node.id());
-
         const links = node.connectedEdges().map(edge => {
              const target = edge.target();
              const source = edge.source();
              return target.id() === node.id() ? source.id() : target.id();
         }).slice(0, 5);
 
-        // Ensure fullData is present and merged correctly
-        // Priority: fullData > data > basic props
         const fullData = data.fullData || {};
-
-        const conceptData = {
+        this.showInspector({
             id: node.id(),
             links,
             ...data,
             ...fullData,
-            // Explicitly preserve critical objects if they exist in either source
             derivation: fullData.derivation || data.derivation,
             budget: fullData.budget || data.budget,
             truth: fullData.truth || data.truth
-        };
-
-        this.showInspector(conceptData);
+        });
     }
 
     _subscribeToEvents() {
-        // Handle Task Selection
         eventBus.on(EVENTS.TASK_SELECT, ({ task }) => {
             if (task && task.term) {
                 const term = task.term.toString();
-                // Select in graph if exists
                 const node = this.graph.cy.$id(term);
-
                 if (node.nonempty()) {
-                    this.graph.cy.animate({
-                        center: { eles: node },
-                        zoom: 1.5,
-                        duration: 500
-                    });
+                    this.graph.cy.animate({ center: { eles: node }, zoom: 1.5, duration: 500 });
                     node.select();
-
                     const data = node.data();
-                    this.showInspector({
-                        id: term,
-                        ...data,
-                        ...(data.fullData || {})
-                    });
+                    this.showInspector({ id: term, ...data, ...(data.fullData || {}) });
                 } else {
-                    // Show inspector with just task data
-                    this.showInspector({
-                        id: term,
-                        term: term,
-                        ...task,
-                        // If we have raw task, pass it
-                        ...(task.raw || {})
-                    });
+                    this.showInspector({ id: term, term: term, ...task, ...(task.raw || {}) });
                 }
             }
         });
 
-        // Handle Concept Selection
         eventBus.on(EVENTS.CONCEPT_SELECT, ({ id, term }) => {
             const nodeId = id || term;
             const node = this.graph.cy.$id(nodeId);
-
             if (node.nonempty()) {
-                this.graph.cy.animate({
-                    center: { eles: node },
-                    zoom: 1.5,
-                    duration: 500
-                });
+                this.graph.cy.animate({ center: { eles: node }, zoom: 1.5, duration: 500 });
                 node.select();
                 const data = node.data();
-                this.showInspector({
-                    id: nodeId,
-                    ...data,
-                    ...(data.fullData || {})
-                });
+                this.showInspector({ id: nodeId, ...data, ...(data.fullData || {}) });
             } else {
                  this.log(`Concept not in view: ${nodeId}`, 'warning');
-                 // Still show inspector if we have data?
-                 // The event payload might have concept data
             }
         });
     }
 
-    // --- Reasoning System Integration ---
+    // Proxy methods for Managers
+    toggleReasoner(run) { this.reasoningManager.toggleReasoner(run); }
+    stepReasoner() { this.reasoningManager.stepReasoner(); }
+    showDemoLibrary() { this.inputManager.showDemoLibrary(); }
+    loadDemo(name) { this.inputManager.loadDemo(name); }
+    toggleDecay(forceState) { this.inputManager.toggleDecay(forceState); }
+    setMode(mode) { this.inputManager.setMode(mode); }
 
-    async _initLocalBridge() {
-        try {
-            const module = await import('../agent/AgentToolsBridge.js');
-            this.localToolsBridge = new module.AgentToolsBridge();
-            await this.localToolsBridge.initialize();
-            this.log('Local Reasoner initialized successfully', 'system');
-            this._updateReasonerStatus('Online (Local)', 'online');
-            this._bindNAREvents();
-        } catch (e) {
-            console.error('Failed to load AgentToolsBridge:', e);
-            this.log('Failed to load local reasoner', 'error');
-            this._updateReasonerStatus('Load Failed', 'error');
-        }
-    }
-
-    _getNAR() {
-        if (this.lmController && this.lmController.toolsBridge && this.lmController.toolsBridge.getNAR()) {
-            return this.lmController.toolsBridge.getNAR();
-        }
-        if (this.localToolsBridge) {
-            return this.localToolsBridge.getNAR();
-        }
-        return null;
-    }
-
-    _bindNAREvents() {
-        const nar = this._getNAR();
-        if (!nar || this._narEventsBound) return;
-
-        // Enable tracing to ensure we get derivation events
-        if (nar.hasOwnProperty('traceEnabled')) {
-            nar.traceEnabled = true;
-        }
-
-        // Bind to TASK_ADDED to visualize new concepts/tasks entering the system
-        if (nar.on) {
-            nar.on(IntrospectionEvents.TASK_ADDED, (data) => {
-                console.log('ExplorerApp: TASK_ADDED event received', data);
-                this.log(`INPUT: ${data.task.term}`, 'user');
-                this._onTaskAdded(data.task);
-            });
-
-            // Bind to REASONING_DERIVATION for derived results
-            nar.on(IntrospectionEvents.REASONING_DERIVATION, (data) => {
-                console.log('ExplorerApp: REASONING_DERIVATION event received', data);
-                this.log(`DERIVED: ${data.derivedTask.term} (${data.inferenceRule})`, 'system');
-
-                this._onDerivation(data);
-
-                // Animate reasoning trace
-                const sourceId = data.task?.term?.toString();
-                const beliefId = data.belief?.term?.toString();
-                const derivedId = data.derivedTask?.term?.toString();
-
-                if (this.graph && this.graph.animateReasoning) {
-                     this.graph.animateReasoning(sourceId, beliefId, derivedId);
-                }
-            });
-
-            nar.on(IntrospectionEvents.TASK_ERROR, (data) => {
-                console.error('ExplorerApp: TASK_ERROR event received', data);
-                this.log(`ERROR: ${data.error}`, 'error');
-            });
-
-            this._narEventsBound = true;
-            console.log('ExplorerApp: Bound to NAR events');
-        }
-    }
-
-    _onDerivation(data) {
-        const { task, belief, derivedTask, inferenceRule } = data;
-
-        // Enrich derived task with derivation metadata for Inspector
-        const derivedId = derivedTask.term.toString();
-        const sources = [];
-        if (task?.term) sources.push(task.term.toString());
-        if (belief?.term) sources.push(belief.term.toString());
-
-        derivedTask.derivation = {
-            rule: inferenceRule || 'Inference',
-            sources: sources
-        };
-
-        // Ensure derived task node exists
-        this._onTaskAdded(derivedTask);
-        const rule = inferenceRule || 'Inference';
-
-        // Add derivation edges
-        if (task && task.term) {
-            const sourceId = task.term.toString();
-            // Ensure source node exists (might be just an ID ref if not in bag, but we try)
-            if (this.graph.cy.$id(sourceId).empty()) {
-                this._onTaskAdded(task);
-            }
-
-            this.graph.addEdge({
-                source: sourceId,
-                target: derivedId,
-                type: 'derivation',
-                label: rule
-            }, false);
-        }
-
-        if (belief && belief.term) {
-            const beliefId = belief.term.toString();
-             if (this.graph.cy.$id(beliefId).empty()) {
-                this._onTaskAdded(belief);
-            }
-
-            this.graph.addEdge({
-                source: beliefId,
-                target: derivedId,
-                type: 'derivation',
-                label: rule
-            }, false);
-        }
-
-        if (this.graph.scheduleLayout) {
-             // Debounced layout in real app, but direct here
-             // this.graph.scheduleLayout();
-        }
-    }
-
-    _onTaskAdded(task) {
-        if (!task || !task.term) return;
-
-        // Update Task Browser
-        if (this.taskBrowser) {
-            this.taskBrowser.addTask(task);
-        }
-
-        const term = task.term.toString();
-        console.log(`ExplorerApp: Adding node for term: ${term}`);
-        const budget = task.budget || { priority: 0.5 };
-
-        // Add Node
-        this.graph.addNode({
-             id: term,
-             term: term,
-             budget: budget,
-             type: 'concept',
-             // Ensure full task data is passed to preserve metadata like derivation
-             ...task
-        }, false);
-
-        if (this.graph.animateAttention) {
-            this.graph.animateAttention(term);
-        }
-
-        // Simple relation extraction for visualization
-        // Handle Prefix: (--> , source , target)
-        if (term.startsWith('(-->')) {
-             const parts = term.replace(/^\(-->\s*,?\s*|\)$/g, '').split(',').map(s => s.trim());
-             if (parts.length >= 2) {
-                 const source = parts[0];
-                 const target = parts[1];
-
-                 this.graph.addNode({ id: source, term: source }, false);
-                 this.graph.addNode({ id: target, term: target }, false);
-
-                 this.graph.addEdge({
-                     source, target, type: 'inheritance'
-                 }, false);
-             }
-        }
-        // Handle Infix: <source --> target>
-        else if (term.includes('-->')) {
-             const parts = term.replace(/[<>]/g, '').split('-->');
-             if (parts.length === 2) {
-                 const source = parts[0].trim();
-                 const target = parts[1].trim();
-
-                 // Ensure source/target nodes exist
-                 this.graph.addNode({ id: source, term: source }, false);
-                 this.graph.addNode({ id: target, term: target }, false);
-
-                 this.graph.addEdge({
-                     source, target, type: 'inheritance'
-                 }, false);
-             }
-        }
-
-        // Request layout update to ensure new nodes are positioned correctly
-        if (this.graph.scheduleLayout) {
-            this.graph.scheduleLayout();
-        }
-    }
-
-    // --- UI Logic & Helpers ---
-
+    // UI Helpers used by managers
     _getColorFromHash(str) {
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
@@ -497,361 +191,6 @@ export class ExplorerApp {
         }
     }
 
-    _showShortcuts() {
-        new ShortcutsModal().show();
-    }
-
-    _bindControls() {
-        // Some actions need translation from ExplorerGraph API to SeNARSGraph API
-        const bindings = [
-            { id: 'btn-fit', action: () => this.graph.fit() },
-            { id: 'btn-in', action: () => this.graph.zoomIn() },
-            { id: 'btn-out', action: () => this.graph.zoomOut() },
-            { id: 'btn-layout', action: () => this.graph.scheduleLayout() }, // SeNARSGraph uses scheduleLayout
-            { id: 'btn-clear', action: () => { this.graph.clear(); this.log('Workspace cleared.', 'system'); this._updateStats(); } },
-            { id: 'btn-add-concept', action: () => this.handleAddConcept() },
-            { id: 'btn-add-link', action: () => this.handleAddLink() },
-            { id: 'btn-delete', action: () => this.handleDelete() },
-            { id: 'btn-close-inspector', action: () => document.getElementById('inspector-panel')?.classList.add('hidden') },
-            { id: 'btn-save', action: () => this.handleSaveJSON() },
-            { id: 'btn-load', action: () => this.handleLoadJSON() },
-            { id: 'btn-shortcuts', action: () => this._showShortcuts() }
-        ];
-
-        bindings.forEach(({ id, action }) => this._bindClick(id, action));
-
-        this._bindSearch();
-        this._bindDemoSelect();
-        this._bindModeSwitch();
-        this._bindLayerToggles();
-        this._bindMappingControls();
-        this._bindLayoutControls();
-    }
-
-    _bindLayoutControls() {
-        const layoutSelect = document.getElementById('layout-select');
-        if (layoutSelect) {
-            layoutSelect.onchange = (e) => {
-                const layout = e.target.value;
-                if (layout === 'scatter') {
-                    if (this.graph.applyScatterLayout) {
-                        this.graph.applyScatterLayout('priority', 'confidence');
-                    }
-                } else if (layout === 'sorted-grid') {
-                    if (this.graph.applySortedGridLayout) {
-                        this.graph.applySortedGridLayout('priority');
-                    }
-                } else {
-                    if (this.graph.setLayout) {
-                        this.graph.setLayout(layout);
-                    }
-                }
-                this.log(`Layout switched to: ${layout}`, 'system');
-            };
-        }
-
-        const isolatedCheck = document.getElementById('check-isolated');
-        if (isolatedCheck) {
-            isolatedCheck.onchange = (e) => {
-                const hide = e.target.checked;
-                this.graph.applyFilters({ hideIsolated: hide });
-                this.log(`Isolated nodes ${hide ? 'hidden' : 'shown'}`, 'system');
-            };
-        }
-
-        const prioSlider = document.getElementById('filter-priority');
-        const prioVal = document.getElementById('prio-val');
-        if (prioSlider) {
-            prioSlider.oninput = (e) => {
-                const val = parseFloat(e.target.value);
-                if (prioVal) prioVal.textContent = val.toFixed(2);
-                this.graph.applyFilters({ minPriority: val });
-            };
-        }
-
-        const freezeCheck = document.getElementById('check-freeze-layout');
-        if (freezeCheck) {
-            freezeCheck.onchange = (e) => {
-                const frozen = e.target.checked;
-                this.graph.setUpdatesEnabled(!frozen);
-                this.log(`Layout ${frozen ? 'Frozen' : 'Active'}`, 'system');
-            };
-        }
-    }
-
-    _bindSearch() {
-        const searchInput = document.getElementById('search-input');
-        if (!searchInput) return;
-
-        const clearBtn = document.getElementById('btn-clear-search');
-
-        searchInput.oninput = (e) => {
-            const term = e.target.value.trim();
-            if (clearBtn) clearBtn.style.display = term ? 'block' : 'none';
-
-            // SeNARSGraph doesn't have highlightMatches by default, but GraphViewport does.
-            // SeNARSGraph extends GraphSystem which has access to cy.
-            if (this.graph.highlightMatches) {
-                this.graph.highlightMatches(term);
-            } else {
-                this._highlightMatches(term);
-            }
-        };
-
-        if (clearBtn) {
-            clearBtn.onclick = () => {
-                searchInput.value = '';
-                searchInput.dispatchEvent(new Event('input'));
-                searchInput.focus();
-            };
-        }
-
-        searchInput.onkeydown = (e) => {
-            if (e.key === 'Enter') {
-                const term = searchInput.value.trim();
-                if (term) {
-                    let foundNode;
-                    if (this.graph.findNode) {
-                        foundNode = this.graph.findNode(term);
-                    } else {
-                        foundNode = this._findNode(term);
-                    }
-
-                    if (foundNode) {
-                        this.log(`Found: ${term}`, 'system');
-                        this.showInspector({ id: foundNode.id(), ...foundNode.data() });
-                        foundNode.select();
-                    } else {
-                        this.log(`Not found: ${term}`, 'warning');
-                    }
-                }
-            }
-        };
-    }
-
-    _highlightMatches(term) {
-        if (!this.graph || !this.graph.cy) return;
-        this.graph.cy.batch(() => {
-            const allElements = this.graph.cy.elements();
-            allElements.removeClass('matched dimmed');
-
-            if (!term || term.length < 2) return;
-
-            const termLower = term.toLowerCase();
-            const matches = allElements.filter(ele => {
-                if (!ele.isNode()) return false;
-                const label = (ele.data('label') || '').toLowerCase();
-                return label.includes(termLower);
-            });
-
-            if (matches.nonempty()) {
-                allElements.addClass('dimmed');
-                matches.removeClass('dimmed').addClass('matched');
-                matches.connectedEdges().removeClass('dimmed');
-            }
-        });
-    }
-
-    _findNode(id) {
-        if (!this.graph || !this.graph.cy) return null;
-        const term = id?.toLowerCase();
-        let node = this.graph.cy.$id(id);
-
-        if (node.empty() && term) {
-            node = this.graph.cy.nodes().filter(n =>
-                (n.data('label') || '').toLowerCase().includes(term)
-            ).first();
-        }
-
-        if (node.nonempty()) {
-            this.graph.cy.animate({
-                center: { eles: node },
-                zoom: 1.5,
-                duration: 500
-            });
-            node.addClass('highlighted');
-            setTimeout(() => node.removeClass('highlighted'), 2000);
-            return node;
-        }
-        return null;
-    }
-
-    _bindDemoSelect() {
-        const demoSelect = document.getElementById('demo-select');
-        if (!demoSelect) return;
-
-        const newSelect = demoSelect.cloneNode(false);
-        demoSelect.parentNode.replaceChild(newSelect, demoSelect);
-
-        Object.keys(DEMOS).forEach(name => {
-            const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
-            newSelect.appendChild(opt);
-        });
-
-        newSelect.onchange = (e) => {
-            if (e.target.value) {
-                this.loadDemo(e.target.value);
-                e.target.value = "";
-            }
-        };
-    }
-
-    _bindModeSwitch() {
-        document.querySelectorAll('.mode-btn').forEach(btn => {
-            btn.onclick = (e) => {
-                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-                e.target.classList.add('active');
-                this.setMode(e.target.dataset.mode);
-            };
-        });
-    }
-
-    _bindThrottleSlider() {
-        const slider = document.getElementById('throttle-slider');
-        const label = document.getElementById('throttle-val');
-        if (slider && label) {
-            slider.oninput = (e) => {
-                this.reasonerDelay = parseInt(e.target.value);
-                label.textContent = `${this.reasonerDelay}ms`;
-            };
-        }
-    }
-
-    handleReasonerControl(action, value) {
-        switch (action) {
-            case 'run':
-                this.toggleReasoner(true);
-                break;
-            case 'pause':
-                this.toggleReasoner(false);
-                break;
-            case 'step':
-                this.stepReasoner();
-                break;
-            case 'throttle':
-                this.reasonerDelay = value;
-                break;
-        }
-    }
-
-    handleMenuAction(action) {
-        switch (action) {
-            case 'save':
-                this.handleSaveJSON();
-                break;
-            case 'load':
-                this.handleLoadJSON();
-                break;
-            case 'import-csv':
-                this.handleImportCSV();
-                break;
-            case 'export-png':
-                this.handleExportImage('png');
-                break;
-            case 'export-svg':
-                this.handleExportImage('svg');
-                break;
-            case 'add-concept':
-                this.handleAddConcept();
-                break;
-            case 'add-link':
-                this.handleAddLink();
-                break;
-            case 'delete':
-                this.handleDelete();
-                break;
-            case 'fit':
-                this.graph.fit();
-                break;
-            case 'layout':
-                this.graph.scheduleLayout();
-                break;
-            case 'focus-mode':
-                this.toggleFocusMode();
-                break;
-            case 'fullscreen':
-                this.handleToggleFullscreen();
-                break;
-            case 'clear':
-                this.graph.clear();
-                this.log('Workspace cleared.', 'system');
-                this._updateStats();
-                break;
-            case 'shortcuts':
-                this._showShortcuts();
-                break;
-            default:
-                console.warn('Unknown menu action:', action);
-        }
-    }
-
-    /**
-     * Toggle HUD widget visibility
-     * @param {string} widgetId - Widget identifier (layers, metrics, log, inspector)
-     * @returns {boolean} New visibility state
-     */
-    toggleWidget(widgetId) {
-        const result = this.layoutManager.toggle(widgetId);
-        const widget = this.layoutManager.getWidget(widgetId);
-        if (widget) {
-            const isVisible = !widget.classList.contains('hidden');
-            this.log(`${widgetId} widget ${isVisible ? 'shown' : 'hidden'}`, 'system');
-
-            if (isVisible) {
-                widget.classList.add('active-widget');
-            } else {
-                widget.classList.remove('active-widget');
-            }
-            return isVisible;
-        }
-        return false;
-    }
-
-    _bindLayerToggles() {
-        document.querySelectorAll('input[data-layer]').forEach(input => {
-            input.onchange = (e) => {
-                const layer = e.target.dataset.layer;
-                const visible = e.target.checked;
-
-                if (layer === 'tasks') {
-                    this.graph.applyFilters({ showTasks: visible });
-                } else if (layer === 'concepts') {
-                     this.graph.applyFilters({ showConcepts: visible });
-                } else if (layer === 'trace') {
-                     if (visible) {
-                        this.graph.cy.elements().addClass('trace-dim');
-                     } else {
-                        this.graph.cy.elements().removeClass('trace-dim trace-highlight');
-                     }
-                }
-
-                this.log(`${layer} layer ${visible ? 'visible' : 'hidden'}`, 'system');
-            };
-        });
-    }
-
-    _bindMappingControls() {
-        const sizeSelect = document.getElementById('mapping-size');
-        if (sizeSelect) {
-            sizeSelect.onchange = (e) => {
-                this.mappings.size = e.target.value;
-                this._updateGraphStyle();
-                this.log(`Size mapping: ${e.target.value}`, 'system');
-            };
-        }
-
-        const colorSelect = document.getElementById('mapping-color');
-        if (colorSelect) {
-            colorSelect.onchange = (e) => {
-                this.mappings.color = e.target.value;
-                this._updateGraphStyle();
-                this.log(`Color mapping: ${e.target.value}`, 'system');
-            };
-        }
-    }
-
     _showLLMConfig() {
         new LMConfigDialog(document.body, {
             onSave: async (config) => {
@@ -865,112 +204,45 @@ export class ExplorerApp {
         }).show();
     }
 
-    _bindClick(id, handler) {
-        const el = document.getElementById(id);
-        if (el) el.onclick = handler;
-    }
-
-    async loadDemo(name) {
-        const demo = DEMOS[name];
-        if (!demo) return;
-
-        this.graph.clear();
-        this.log(`Loading demo: ${name}`, 'system');
-
-        // Override Bag Capacity if specified
-        if (demo.bagCapacity && this.graph.bag) {
-            this.graph.bag.capacity = demo.bagCapacity;
-            this.log(`Set Bag Capacity to ${demo.bagCapacity}`, 'system');
-        }
-
-        if (demo.script) {
-            this.toastManager.show(`Running Script: ${name}`, 'info');
-            for (const line of demo.script) {
-                await this.handleReplCommand(line);
-                // Artificial delay for visualization
-                await new Promise(r => setTimeout(r, 800));
-            }
-            this.toastManager.show(`Script completed: ${name}`, 'success');
-        } else if (demo.generator) {
-            this.toastManager.show(`Generating: ${name}`, 'info');
-            // Execute procedural generator
-            try {
-                demo.generator(this.graph);
-                this.graph.scheduleLayout();
-                this.toastManager.show(`Generated: ${name}`, 'success');
-            } catch (e) {
-                this.log(`Generator Error: ${e.message}`, 'error');
-            }
-        } else {
-            this.toastManager.show(`Demo loaded: ${name}`, 'success');
-            demo.concepts.forEach(c => this.graph.addNode({ ...c, id: c.term }, false));
-            demo.relationships.forEach(r => this.graph.addEdge({ source: r[0], target: r[1], type: r[2] }, false));
-            this.graph.scheduleLayout();
-        }
-
-        this._updateStats();
-    }
-
     showInspector(data) {
         this.inspectorPanel.update(data, this.mode);
-        // Ensure widget is visible in docking system
-        if (this.layoutManager) {
-            this.layoutManager.show('inspector');
-        }
+        if (this.layoutManager) this.layoutManager.show('inspector');
     }
 
     _initWidgets() {
         this.layoutManager.initialize();
-
         const createWidget = (id, component, dock, visible) => {
             const container = document.createElement('div');
             component.container = container;
             if (component.initialize) component.initialize();
             component.render();
             this.layoutManager.registerWidget(id, container, dock, visible);
-            return component; // return component if we need to store ref
         };
 
         createWidget('layers', this.infoPanel, 'left', true);
-
-        // Metrics needs reference stored
         this.metricsPanel = new SystemMetricsPanel(null);
         createWidget('metrics', this.metricsPanel, 'right', true);
-
         createWidget('log', this.logPanel, 'right', true);
         createWidget('inspector', this.inspectorPanel, 'left', false);
-        // Task Browser should be visible by default for better user experience
         createWidget('tasks', this.taskBrowser, 'right', true);
     }
 
-    // --- Data Management & File I/O ---
-
     saveNodeChanges(id, updates) {
-        // Fetch existing data to merge
         let existing = {};
-        if (this.graph.bag?.get(id)) {
-            existing = this.graph.bag.get(id).data;
-        } else if (this.graph.cy) {
+        if (this.graph.bag?.get(id)) existing = this.graph.bag.get(id).data;
+        else if (this.graph.cy) {
             const node = this.graph.cy.$id(id);
-            if (node.nonempty()) {
-                existing = node.data('fullData') || node.data();
-            }
+            if (node.nonempty()) existing = node.data('fullData') || node.data();
         }
 
         const payload = this._deepMerge(existing, updates);
-
         this.graph.updateNode(payload);
-
         this.log(`Updated node ${id}`, 'success');
-        // Retrieve updated item from bag or graph to show in inspector
         const item = this.graph.bag?.get(id);
-        if (item) {
-            this.showInspector({ id, ...item.data, ...updates });
-        }
+        if (item) this.showInspector({ id, ...item.data, ...updates });
     }
 
     _setupHUD() {
-        // Inject HUD visual elements
         if (!document.querySelector('.hud-grid-background')) {
             const grid = document.createElement('div');
             grid.className = 'hud-grid-background';
@@ -978,440 +250,21 @@ export class ExplorerApp {
         }
     }
 
-    _registerCommands() {
-        // Navigation
-        this.commandPalette.registerCommand('fit', 'Fit View to Graph', 'F', () => this.graph.fit());
-        this.commandPalette.registerCommand('zoom-in', 'Zoom In', '+', () => this.graph.zoomIn());
-        this.commandPalette.registerCommand('zoom-out', 'Zoom Out', '-', () => this.graph.zoomOut());
-        this.commandPalette.registerCommand('layout', 'Re-calculate Layout', 'L', () => this.graph.scheduleLayout());
-        this.commandPalette.registerCommand('go-back', 'Go Back (History)', 'Esc', () => this.graph.goBack?.());
-
-        // Data
-        this.commandPalette.registerCommand('clear', 'Clear Workspace', null, () => {
-            this.graph.clear();
-            this.log('Workspace cleared', 'system');
-        });
-
-        this.commandPalette.registerCommand('add-concept', 'Add New Concept', 'A', () => this.handleAddConcept());
-        this.commandPalette.registerCommand('link', 'Link Selected Nodes', null, () => this.handleAddLink());
-        this.commandPalette.registerCommand('delete', 'Delete Selected', 'Del', () => this.handleDelete());
-
-        // Attention / Decay
-        this.commandPalette.registerCommand('toggle-decay', 'Toggle Attention Decay', null, () => this.toggleDecay());
-
-        // Reasoner
-        this.commandPalette.registerCommand('run', 'Run Reasoner', 'Space', () => this.toggleReasoner(!this.isReasonerRunning));
-        this.commandPalette.registerCommand('step', 'Step Reasoner', 'S', () => this.stepReasoner());
-
-        // UI
-        this.commandPalette.registerCommand('mode-vis', 'Switch to Visualization Mode', null, () => this.setMode('visualization'));
-        this.commandPalette.registerCommand('mode-ctl', 'Switch to Control Mode', null, () => this.setMode('control'));
-
-        // Demos
-        this.commandPalette.registerCommand('demos', 'Browse Demo Library', 'D', () => this.showDemoLibrary());
-
-        Object.keys(DEMOS).forEach(name => {
-            this.commandPalette.registerCommand(`demo-${name.toLowerCase().replace(/\s/g, '-')}`, `Load Demo: ${name}`, null, () => this.loadDemo(name));
-        });
-    }
-
-    showDemoLibrary() {
-        const modal = new DemoLibraryModal({
-            onSelect: (selection) => {
-                if (typeof selection === 'string') {
-                    this.loadDemo(selection);
-                } else if (selection && selection.path) {
-                    this.loadRemoteFile(selection.path);
-                }
-            }
-        });
-        modal.show();
-    }
-
-    toggleDecay(forceState) {
-        this.isDecayEnabled = forceState !== undefined ? forceState : !this.isDecayEnabled;
-
-        if (this.isDecayEnabled) {
-            this.log('Attention Decay: ON', 'system');
-            this.decayLoopId = setInterval(() => this._processDecay(), 1000);
-        } else {
-            this.log('Attention Decay: OFF', 'system');
-            clearInterval(this.decayLoopId);
+    toggleWidget(widgetId) {
+        this.layoutManager.toggle(widgetId);
+        const widget = this.layoutManager.getWidget(widgetId);
+        if (widget) {
+            const isVisible = !widget.classList.contains('hidden');
+            this.log(`${widgetId} widget ${isVisible ? 'shown' : 'hidden'}`, 'system');
+            if (isVisible) widget.classList.add('active-widget');
+            else widget.classList.remove('active-widget');
+            return isVisible;
         }
+        return false;
     }
 
     toggleFocusMode() {
-        this.isFocusMode = !this.isFocusMode;
-
-        // Widgets to toggle
-        const widgets = ['layers', 'metrics', 'log', 'inspector', 'tasks'];
-
-        widgets.forEach(id => {
-            const widget = this.layoutManager.getWidget(id);
-            if (widget) {
-                if (this.isFocusMode) {
-                    // Hide if currently visible
-                    if (!widget.classList.contains('hidden')) {
-                         this.layoutManager.hide(id);
-                         widget.dataset.wasVisible = 'true';
-                    }
-                } else {
-                    // Restore if it was visible before
-                    if (widget.dataset.wasVisible === 'true') {
-                        this.layoutManager.show(id);
-                        delete widget.dataset.wasVisible;
-                    }
-                }
-            }
-        });
-
-        this.log(`Focus Mode: ${this.isFocusMode ? 'ON' : 'OFF'}`, 'system');
-    }
-
-    _processDecay() {
-        // SeNARSGraph has processDecay if useBag is true
-        if (this.graph.processDecay) {
-            const removed = this.graph.processDecay(0.98, 0.05);
-            if (removed.length > 0) {
-                // _syncFromBag called internally
-            }
-        }
-        this._updateStats();
-    }
-
-    _updateStats() {
-        // Redundant with _startStatsLoop, but kept for immediate feedback
-        // Just clear the old legacy direct manipulation if it exists
-        // The real update happens in _startStatsLoop targeting the InfoPanel
-    }
-
-    async handleReplCommand(command) {
-        this.log(`> ${command}`, 'user');
-
-        if (command === '/clear') {
-            document.getElementById('log-content').innerHTML = '';
-            return;
-        }
-        if (command === '/help') {
-            this.log('Available commands: /clear, /help, !code (MeTTa), <narsese>', 'system');
-            return;
-        }
-
-        // MeTTa Code Execution
-        if (command.startsWith('!')) {
-            const code = command.substring(1).trim();
-            this.log(`Executing MeTTa: ${code}`, 'system');
-
-            // Try via LM Controller bridge if available, else local
-            let bridge = this.localToolsBridge;
-            if (this.lmController && this.lmController.toolsBridge) {
-                bridge = this.lmController.toolsBridge;
-            }
-
-            if (bridge && bridge.hasTool('run_metta')) {
-                try {
-                    const result = await bridge.executeTool('run_metta', { code });
-                    if (result.success) {
-                        this.log(result.data, 'success');
-                    } else {
-                        this.log(`MeTTa Error: ${result.error}`, 'error');
-                    }
-                } catch (e) {
-                    this.log(`Execution Error: ${e.message}`, 'error');
-                }
-            } else {
-                this.log('MeTTa interpreter not available.', 'error');
-            }
-            return;
-        }
-
-        // JSON Input Handling
-        if (command.startsWith('{') && command.endsWith('}')) {
-            try {
-                const data = JSON.parse(command);
-                this.log('Processing JSON input...', 'system');
-                if (data.term || data.id) {
-                    this.graph.updateNode(data);
-                    this.log(`Updated node: ${data.term || data.id}`, 'success');
-                } else if (data.source && data.target) {
-                    this.graph.addEdge(data, true);
-                    this.log(`Added edge: ${data.source} -> ${data.target}`, 'success');
-                } else {
-                    this.log('JSON must contain "term"/"id" for nodes or "source"/"target" for edges.', 'warning');
-                }
-            } catch (e) {
-                this.log(`Invalid JSON: ${e.message}`, 'error');
-            }
-            return;
-        }
-
-        // Direct Narsese input detection (e.g. <A --> B>.)
-        const isNarsese = (command.startsWith('<') || command.startsWith('(')) &&
-                          (command.endsWith('.') || command.endsWith('?') || command.endsWith('!'));
-
-        // If we are offline/Local Mode OR the input is clearly Narsese, bypass LLM
-        const useLocal = !this.lmController || !this.lmController.isInitialized || isNarsese;
-
-        if (useLocal) {
-             const nar = this._getNAR();
-             if (nar) {
-                 try {
-                     nar.input(command);
-                     this.log(`Input to NAR: ${command}`, 'system');
-                     // If it was a query, we might want to see result immediately if synchronous,
-                     // but loop handles stats/updates.
-                 } catch (e) {
-                     this.log(`NAR Error: ${e.message}`, 'error');
-                 }
-             } else {
-                 this.log('Agent offline and no Local Reasoner available.', 'error');
-             }
-             return;
-        }
-
-        if (this.lmController && this.lmController.isInitialized) {
-            try {
-                const response = await this.lmController.chat(command);
-                this.log(response, 'agent');
-            } catch (e) {
-                this.log(`Error: ${e.message}`, 'error');
-            }
-        }
-    }
-
-    log(message, type = 'info') {
-        // Use the new LogPanel API if available
-        if (this.logPanel && this.logPanel.addLog) {
-            this.logPanel.addLog(message, type);
-        } else {
-            // Fallback
-            console.log(`[${type.toUpperCase()}] ${message}`);
-        }
-
-        // Also show toast for important events
-        if (type === 'error' || type === 'warning' || type === 'success') {
-            this.toastManager.show(message, type);
-        }
-    }
-
-    setMode(mode) {
-        this.mode = mode;
-        // SeNARSGraph doesn't have setMode.
-        // Visualization mode in Explorer meant autoungrabify.
-        // GraphSystem has boxSelectionEnabled.
-        if (mode === 'visualization') {
-            this.graph.cy.autoungrabify(true);
-        } else {
-            this.graph.cy.autoungrabify(false);
-        }
-
-        // Show/Hide Control Toolbar via CSS class, though now it's in a wrapper
-        const toolbar = document.getElementById('control-toolbar');
-        const toolbarWidget = document.getElementById('controls-widget');
-
-        if (mode === 'control') {
-            if (toolbar) toolbar.classList.remove('hidden');
-            if (toolbarWidget) toolbarWidget.classList.remove('hidden');
-        } else {
-            if (toolbar) toolbar.classList.add('hidden');
-            if (toolbarWidget) toolbarWidget.classList.add('hidden');
-        }
-
-        console.log(`Mode switched to: ${mode}`);
-    }
-
-    handleAddConcept(position = null) {
-        const input = prompt("Enter concept name (or type:name):");
-        if (input) {
-            let term = input.trim();
-            let type = 'concept';
-
-            // Check for type definition (e.g., "Person:Alice")
-            const colonIndex = term.indexOf(':');
-            if (colonIndex > 0) {
-                 type = term.substring(0, colonIndex).trim();
-                 term = term.substring(colonIndex + 1).trim();
-            }
-
-            if (!term) {
-                 this.log("Invalid concept name.", "warning");
-                 return;
-            }
-
-            // SeNARSGraph addNode: { id: term, term: term, budget: { priority: 0.5 }, type: 'concept' }
-            this.graph.addNode({
-                id: term,
-                term: term,
-                budget: { priority: 0.5 },
-                type: type,
-                position: position // Pass clicked position if available
-            }, true);
-            this.log(`Created ${type}: ${term}`, 'success');
-        }
-    }
-
-    handleAddLink() {
-        if (!this.graph.cy) return;
-        const selected = this.graph.cy.$(':selected');
-
-        if (selected.length !== 2) {
-            alert("Please select exactly two nodes to link.");
-            return;
-        }
-
-        const source = selected[0].id();
-        const target = selected[1].id();
-
-        const type = prompt(`Link ${source} -> ${target} as:`, 'implication');
-        if (type) {
-            this.graph.addEdge({ source, target, type }, true);
-            this.log(`Linked ${source} -> ${target} (${type})`, 'user');
-        }
-    }
-
-    handleImportCSV() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.csv';
-        input.onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            this.loadCSVFile(file);
-        };
-        input.click();
-    }
-
-    loadCSVFile(file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            this.processCSVContent(e.target.result, file.name);
-        };
-        reader.readAsText(file);
-    }
-
-    processCSVContent(content, filename) {
-        this.log(`Loading CSV content: ${filename}`, 'system');
-        const lines = content.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
-
-        if (lines.length === 0) {
-            this.log('CSV is empty', 'warning');
-            return;
-        }
-
-        // Determine format based on header or first line
-        const header = lines[0].toLowerCase().split(',').map(c => c.trim());
-        const hasHeader = header.includes('id') || header.includes('source');
-
-        let startIndex = 0;
-        let columnMap = {}; // Maps logical name to index
-
-        if (hasHeader) {
-            startIndex = 1;
-            header.forEach((h, i) => columnMap[h] = i);
-        } else {
-            // Assume default positions
-            // If 2+ columns: source, target, [type/label]
-            // If 1 column: id
-            const firstLineCols = lines[0].split(',').length;
-            if (firstLineCols >= 2) {
-                columnMap = { source: 0, target: 1, type: 2 };
-            } else {
-                columnMap = { id: 0, type: 1 };
-            }
-        }
-
-        let nodesCount = 0;
-        let edgesCount = 0;
-
-        for (let i = startIndex; i < lines.length; i++) {
-            const cols = lines[i].split(',').map(c => c.trim());
-
-            // Check for edge
-            if (columnMap.hasOwnProperty('source') && columnMap.hasOwnProperty('target') &&
-                cols[columnMap.source] && cols[columnMap.target]) {
-
-                const source = cols[columnMap.source];
-                const target = cols[columnMap.target];
-                const type = columnMap.type !== undefined ? cols[columnMap.type] : 'related';
-
-                // Ensure nodes exist
-                this.graph.addNode({ id: source, term: source, type: 'concept' }, false);
-                this.graph.addNode({ id: target, term: target, type: 'concept' }, false);
-
-                this.graph.addEdge({ source, target, type }, false);
-                edgesCount++;
-            }
-            // Check for node
-            else if (columnMap.hasOwnProperty('id') && cols[columnMap.id]) {
-                const id = cols[columnMap.id];
-                const type = columnMap.type !== undefined ? cols[columnMap.type] : 'concept';
-                this.graph.addNode({ id, term: id, type }, false);
-                nodesCount++;
-            }
-        }
-
-        this.graph.scheduleLayout();
-        this.log(`Imported ${nodesCount} nodes and ${edgesCount} edges from CSV`, 'success');
-        this._updateStats();
-    }
-
-    handleSaveJSON() {
-        if (!this.graph || !this.graph.cy) return;
-        const json = this.graph.cy.json();
-        const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'senars-graph.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        this.log('Graph saved to senars-graph.json', 'system');
-    }
-
-    handleLoadJSON() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        input.onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            this.loadFile(file);
-        };
-        input.click();
-    }
-
-    handleExportImage(format) {
-        if (!this.graph || !this.graph.cy) return;
-
-        let content, type, ext;
-        if (format === 'png') {
-            content = this.graph.cy.png({ full: true, bg: 'transparent' }); // base64 string
-            type = 'image/png';
-            ext = 'png';
-        } else if (format === 'svg') {
-            if (this.graph.cy.svg) {
-                content = this.graph.cy.svg({ full: true });
-                type = 'image/svg+xml';
-                ext = 'svg';
-            } else {
-                this.log('SVG export not supported (extension missing)', 'error');
-                return;
-            }
-        }
-
-        if (format === 'png') {
-            const a = document.createElement('a');
-            a.href = content;
-            a.download = `senars-graph.${ext}`;
-            a.click();
-        } else {
-            const blob = new Blob([content], { type });
-            this._downloadBlob(blob, `senars-graph.${ext}`);
-        }
-
-        this.log(`Graph exported as ${ext.toUpperCase()}`, 'success');
+        this.inputManager.toggleFocusMode(); // Delegating to InputManager
     }
 
     handleToggleFullscreen() {
@@ -1424,181 +277,101 @@ export class ExplorerApp {
         }
     }
 
-    _downloadBlob(blob, filename) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+    async handleReplCommand(command) {
+        this.inputManager.handleReplCommand(command);
     }
 
-    loadFile(file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const data = JSON.parse(e.target.result);
-                this.loadGraphData(data);
-                this.log(`Loaded file: ${file.name}`, 'system');
-            } catch (err) {
-                this.log(`Error parsing JSON: ${err.message}`, 'error');
-            }
-        };
-        reader.readAsText(file);
+    log(message, type = 'info') {
+        if (this.logPanel && this.logPanel.addLog) this.logPanel.addLog(message, type);
+        else console.log(`[${type.toUpperCase()}] ${message}`);
+        if (type === 'error' || type === 'warning' || type === 'success') this.toastManager.show(message, type);
     }
 
-    _bindDragDrop() {
-        const container = document.body;
-
-        container.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            container.classList.add('dragging-over');
-        });
-
-        container.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            container.classList.remove('dragging-over');
-        });
-
-        container.addEventListener('drop', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            container.classList.remove('dragging-over');
-
-            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                const file = e.dataTransfer.files[0];
-
-                // Route file based on extension
-                if (file.name.endsWith('.json')) {
-                    this.loadFile(file);
-                } else if (file.name.endsWith('.csv')) {
-                    this.loadCSVFile(file);
-                } else if (file.name.endsWith('.metta')) {
-                    this.loadMeTTaFile(file);
-                } else if (file.name.endsWith('.nal') || file.name.endsWith('.nars')) {
-                    this.loadNALFile(file);
-                } else {
-                    this.log(`Unsupported file type: ${file.name}`, 'warning');
-                }
-            }
-        });
+    loadGraphData(data) {
+        this.fileManager.loadGraphData(data);
     }
 
-    loadMeTTaFile(file) {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            await this.processMeTTaContent(e.target.result, file.name);
-        };
-        reader.readAsText(file);
-    }
-
-    loadNALFile(file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            this.processNALContent(e.target.result, file.name);
-        };
-        reader.readAsText(file);
-    }
-
-    async loadRemoteFile(path) {
-        try {
-            this.log(`Fetching remote file: ${path}`, 'system');
-            const response = await fetch('/' + path); // Server serves from root
-            if (!response.ok) throw new Error(response.statusText);
-            const content = await response.text();
-
-            if (path.endsWith('.metta')) {
-                await this.processMeTTaContent(content, path);
-            } else if (path.endsWith('.nars') || path.endsWith('.nal')) {
-                this.processNALContent(content, path);
-            } else {
-                this.log(`Unsupported remote file type: ${path}`, 'warning');
-            }
-        } catch (e) {
-            this.log(`Failed to load file: ${e.message}`, 'error');
-        }
-    }
-
-    async processMeTTaContent(code, filename) {
+    processMeTTaContent(code, filename) {
         this.log(`Loading MeTTa content: ${filename}`, 'system');
-        await this.handleReplCommand(`!${code}`);
+        this.handleReplCommand(`!${code}`);
     }
 
     processNALContent(content, filename) {
         this.log(`Loading NAL content: ${filename}`, 'system');
         const lines = content.split('\n');
         let count = 0;
-        const nar = this._getNAR();
-
+        const nar = this.reasoningManager._getNAR();
         lines.forEach(line => {
             const trim = line.trim();
             if (trim && !trim.startsWith('//') && !trim.startsWith(';')) {
-                if (nar) {
-                    try { nar.input(trim); count++; } catch (e) { /* ignore parse errs */ }
-                }
+                if (nar) { try { nar.input(trim); count++; } catch (e) { } }
             }
         });
-
-        if (!nar) {
-            this.log('Reasoner not available to process NAL', 'warning');
-        } else {
-            this.log(`Processed ${count} NAL lines`, 'success');
-        }
+        if (!nar) this.log('Reasoner not available to process NAL', 'warning');
+        else this.log(`Processed ${count} NAL lines`, 'success');
     }
 
-    _bindKeyboardShortcuts() {
-        document.addEventListener('keydown', (e) => {
-            // Shortcuts valid even when focused in input
-            if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-                e.preventDefault();
-                this.toggleWidget('layers');
-                this.toggleWidget('inspector');
-                return;
-            }
+    _deepMerge(target, source) {
+        const isObject = (item) => (item && typeof item === 'object' && !Array.isArray(item));
+        const output = Object.assign({}, target);
+        if (isObject(target) && isObject(source)) {
+            Object.keys(source).forEach(key => {
+                if (isObject(source[key])) {
+                    if (!(key in target)) Object.assign(output, { [key]: source[key] });
+                    else output[key] = this._deepMerge(target[key], source[key]);
+                } else Object.assign(output, { [key]: source[key] });
+            });
+        }
+        return output;
+    }
 
-            if (e.key === 'F1') {
-                e.preventDefault();
-                this.commandPalette.toggle();
-                return;
-            }
+    _startStatsLoop() {
+        setInterval(() => {
+            const nar = this.reasoningManager._getNAR();
+            if (!nar) return;
 
-            // Ignore subsequent shortcuts if typing in an input
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
-                return;
-            }
+            const stats = nar.getStats();
+            const memoryStats = stats.memoryStats || {};
+            const totalConcepts = memoryStats.conceptCount || memoryStats.totalConcepts || (memoryStats.memoryUsage ? memoryStats.memoryUsage.concepts : 0);
+            const maxConcepts = (stats.config && stats.config.memory) ? stats.config.memory.maxConcepts : 1000;
+            const tps = this.isReasonerRunning ? (1000 / Math.max(this.reasoningManager.reasonerDelay, 1)).toFixed(1) : 0;
+            const activeNodes = (this.graph && this.graph.cy) ? this.graph.cy.nodes().length : 0;
 
-            if (e.key === 'Escape') {
-                this.graph.goBack?.();
-            }
+            const statsPayload = { cycles: stats.cycleCount || 0, nodes: totalConcepts, activeNodes, maxNodes: maxConcepts, tps };
 
-            if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
-                e.preventDefault();
-                document.getElementById('log-content').innerHTML = '';
-                this.log('Log cleared', 'system');
-            } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
-                e.preventDefault();
-                const search = document.getElementById('search-input');
-                if (search) search.focus();
-            } else if (e.key === 'Delete' || e.key === 'Backspace') {
-                this.handleDelete();
-            } else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-                e.preventDefault();
-                this.handleSaveJSON();
-            } else if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
-                e.preventDefault();
-                this.handleLoadJSON();
-            } else if (e.key === ' ') {
-                e.preventDefault(); // Prevent scroll
-                this.toggleReasoner(!this.isReasonerRunning);
-            } else if (e.key === '?') {
-                e.preventDefault();
-                this._showShortcuts();
+            if (this.statusBar) this.statusBar.updateStats(statsPayload);
+            if (this.infoPanel && this.infoPanel.updateStats) this.infoPanel.updateStats(statsPayload);
+
+            if (this.metricsPanel) {
+                this.metricsPanel.update({
+                    performance: { throughput: this.isReasonerRunning ? (1000 / Math.max(this.reasoningManager.reasonerDelay, 1)) : 0, avgLatency: 0 },
+                    resourceUsage: { heapUsed: totalConcepts, heapTotal: maxConcepts },
+                    taskProcessing: { totalProcessed: stats.cycleCount, successful: stats.cycleCount },
+                    reasoningSteps: stats.cycleCount,
+                    uptime: Date.now() - (nar._startTime || Date.now())
+                });
             }
-        });
+        }, 500);
+    }
+
+    _updateLLMStatus(text, state) {
+        if (this.statusBar) this.statusBar.setCapability('llm', state, `LLM: ${text}`);
+    }
+
+    _updateReasonerStatus(text, state) {
+        if (this.statusBar) this.statusBar.setCapability('reasoner', state, `Reasoner: ${text}`);
+    }
+
+    _updateStats() {
+        // Handled by loop
+    }
+
+    _highlightMatches(term) {
+        this.inputManager._highlightMatches(term);
+    }
+
+    _findNode(id) {
+        return this.inputManager._findNode(id);
     }
 
     _toggleTheme() {
@@ -1616,230 +389,40 @@ export class ExplorerApp {
 
     _restoreTheme() {
         const theme = localStorage.getItem('senars-theme');
-        if (theme === 'light') {
-            document.body.classList.add('light-theme');
-        }
+        if (theme === 'light') document.body.classList.add('light-theme');
     }
 
-    loadGraphData(json) {
-        if (!this.graph || !this.graph.cy) return;
+    _onTaskAdded(task) {
+        if (!task || !task.term) return;
+        if (this.taskBrowser) this.taskBrowser.addTask(task);
 
-        // Handle Cytoscape JSON export format
-        if (json.elements) {
-            this.graph.clear();
-            const nodes = json.elements.nodes || [];
-            const edges = json.elements.edges || [];
+        const term = task.term.toString();
+        const budget = task.budget || { priority: 0.5 };
 
-            let addedNodes = 0;
-            nodes.forEach(n => {
-                if (this.graph.addNode(n.data, false)) addedNodes++;
-            });
+        this.graph.addNode({ id: term, term: term, budget: budget, type: 'concept', ...task }, false);
+        if (this.graph.animateAttention) this.graph.animateAttention(term);
 
-            let addedEdges = 0;
-            edges.forEach(e => {
-                if (this.graph.addEdge(e.data, false)) addedEdges++;
-            });
-
-            this.graph.scheduleLayout();
-            this.log(`Loaded ${addedNodes} nodes and ${addedEdges} edges`, 'success');
-            this._updateStats();
-        } else {
-            this.log('Invalid graph JSON format (missing "elements")', 'error');
+        if (term.startsWith('(-->')) {
+             const parts = term.replace(/^\(-->\s*,?\s*|\)$/g, '').split(',').map(s => s.trim());
+             if (parts.length >= 2) {
+                 this.graph.addNode({ id: parts[0], term: parts[0] }, false);
+                 this.graph.addNode({ id: parts[1], term: parts[1] }, false);
+                 this.graph.addEdge({ source: parts[0], target: parts[1], type: 'inheritance' }, false);
+             }
+        } else if (term.includes('-->')) {
+             const parts = term.replace(/[<>]/g, '').split('-->');
+             if (parts.length === 2) {
+                 const s = parts[0].trim();
+                 const t = parts[1].trim();
+                 this.graph.addNode({ id: s, term: s }, false);
+                 this.graph.addNode({ id: t, term: t }, false);
+                 this.graph.addEdge({ source: s, target: t, type: 'inheritance' }, false);
+             }
         }
+        if (this.graph.scheduleLayout) this.graph.scheduleLayout();
     }
 
-    handleDelete() {
-        if (!this.graph.cy) return;
-        const selected = this.graph.cy.$(':selected');
-
-        if (selected.empty()) {
-            return;
-        }
-
-        if (confirm(`Delete ${selected.length} items?`)) {
-            const nodeIds = [];
-            selected.forEach(ele => {
-                if (ele.isNode()) {
-                    nodeIds.push(ele.id());
-                } else if (ele.isEdge()) {
-                    ele.remove();
-                }
-            });
-
-            if (nodeIds.length > 0) {
-                if (this.graph.removeNodes) {
-                    this.graph.removeNodes(nodeIds);
-                } else {
-                    // Fallback
-                    nodeIds.forEach(id => {
-                        if (this.graph.removeNode) {
-                            this.graph.removeNode(id);
-                        } else {
-                            if (this.graph.bag) this.graph.bag.remove(id);
-                            else {
-                                const node = this.graph.cy.getElementById(id);
-                                if (node.nonempty()) this.graph.cy.remove(node);
-                            }
-                        }
-                    });
-                    if (this.graph.bag && !this.graph.removeNode) this.graph._syncFromBag();
-                }
-            }
-
-            this.log(`Deleted ${selected.length} items.`, 'user');
-            this._updateStats();
-        }
-    }
-
-    _setupLMEvents() {
-        if (!this.lmController) return;
-        this.lmController.on('model-load-start', () => this._updateLLMStatus('Loading...', 'loading'));
-        this.lmController.on('model-load-complete', () => this._updateLLMStatus('Online', 'online'));
-    }
-
-    _updateLLMStatus(text, state) {
-        if (this.statusBar) {
-            this.statusBar.setCapability('llm', state, `LLM: ${text}`);
-        }
-        // Legacy fallback
-        const el = document.getElementById('llm-status');
-        if (el) {
-            el.textContent = text;
-            el.className = `status-indicator status-${state}`;
-        }
-    }
-
-    _updateReasonerStatus(text, state) {
-        if (this.statusBar) {
-            this.statusBar.setCapability('reasoner', state, `Reasoner: ${text}`);
-        }
-    }
-
-    toggleReasoner(run) {
-        this.isReasonerRunning = run;
-
-        // Update StatusBar
-        if (this.statusBar) {
-            this.statusBar.setReasonerRunning(run);
-        }
-
-        if (run) {
-            this._runReasonerLoop();
-            this.log('Reasoner started', 'system');
-        } else {
-            if (this.reasonerLoopId) {
-                clearTimeout(this.reasonerLoopId);
-                this.reasonerLoopId = null;
-            }
-            this.log('Reasoner paused', 'system');
-        }
-    }
-
-    async stepReasoner() {
-        const nar = this._getNAR();
-        if (!nar) {
-            this.log('Reasoner not available (LLM not connected?)', 'warning');
-            return;
-        }
-
-        try {
-            await nar.step();
-            // Optional: Debug log to console (not UI log) to verify loop is running
-            // console.log('ExplorerApp: step completed');
-        } catch (e) {
-            this.log(`Reasoner step error: ${e.message}`, 'error');
-            this.toggleReasoner(false);
-        }
-    }
-
-    async _runReasonerLoop() {
-        if (!this.isReasonerRunning) return;
-
-        await this.stepReasoner();
-
-        if (this.isReasonerRunning) {
-            this.reasonerLoopId = setTimeout(() => this._runReasonerLoop(), this.reasonerDelay);
-        }
-    }
-
-    _deepMerge(target, source) {
-        const isObject = (item) => (item && typeof item === 'object' && !Array.isArray(item));
-        const output = Object.assign({}, target);
-
-        if (isObject(target) && isObject(source)) {
-            Object.keys(source).forEach(key => {
-                if (isObject(source[key])) {
-                    if (!(key in target))
-                        Object.assign(output, { [key]: source[key] });
-                    else
-                        output[key] = this._deepMerge(target[key], source[key]);
-                } else {
-                    Object.assign(output, { [key]: source[key] });
-                }
-            });
-        }
-        return output;
-    }
-
-    _startStatsLoop() {
-        setInterval(() => {
-            const nar = this._getNAR();
-            if (!nar) return;
-
-            const stats = nar.getStats();
-            const memoryStats = stats.memoryStats || {};
-            const totalConcepts = memoryStats.conceptCount || memoryStats.totalConcepts || (memoryStats.memoryUsage ? memoryStats.memoryUsage.concepts : 0);
-            const maxConcepts = (stats.config && stats.config.memory) ? stats.config.memory.maxConcepts : 1000;
-            const tps = this.isReasonerRunning ? (1000 / Math.max(this.reasonerDelay, 1)).toFixed(1) : 0;
-
-            // Update StatusBar and InfoPanel
-            // Get active (visible) nodes from graph if available
-            const activeNodes = (this.graph && this.graph.cy) ? this.graph.cy.nodes().length : 0;
-            const statsPayload = {
-                cycles: stats.cycleCount || 0,
-                nodes: totalConcepts,
-                activeNodes: activeNodes,
-                maxNodes: maxConcepts,
-                tps: tps
-            };
-
-            if (this.statusBar) {
-                this.statusBar.updateStats(statsPayload);
-            }
-
-            if (this.infoPanel && this.infoPanel.updateStats) {
-                this.infoPanel.updateStats(statsPayload);
-            }
-
-            // Legacy status bar support
-            const legacyBar = this.statusBar;
-            if (legacyBar && legacyBar.updateStats) {
-                legacyBar.updateStats({
-                    cycles: stats.cycleCount || 0,
-                    messages: 0,
-                    latency: 0
-                });
-            }
-
-            // Update metrics panel
-            if (this.metricsPanel) {
-                this.metricsPanel.update({
-                    performance: {
-                        throughput: this.isReasonerRunning ? (1000 / Math.max(this.reasonerDelay, 1)) : 0,
-                        avgLatency: 0
-                    },
-                    resourceUsage: {
-                        heapUsed: totalConcepts,
-                        heapTotal: maxConcepts
-                    },
-                    taskProcessing: {
-                        totalProcessed: stats.cycleCount,
-                        successful: stats.cycleCount
-                    },
-                    reasoningSteps: stats.cycleCount,
-                    uptime: Date.now() - (nar._startTime || Date.now())
-                });
-            }
-        }, 500);
-    }
+    handleAddConcept(pos) { this.inputManager.handleAddConcept(pos); }
+    handleAddLink() { this.inputManager.handleAddLink(); }
+    handleDelete() { this.inputManager.handleDelete(); }
 }
