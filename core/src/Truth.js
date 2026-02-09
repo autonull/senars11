@@ -83,30 +83,27 @@ export class Truth {
 
     // Truth operation methods using a more modular approach
     static deduction(t1, t2) {
-        return Truth.binaryOperation(t1, t2, (t, u) => {
-            const f = t.frequency * u.frequency;
-            const c = t.confidence * u.confidence;
-            return Truth.create(f, c);
-        });
+        if (!t1 || !t2) return null;
+        const f = t1.frequency * t2.frequency;
+        const c = t1.confidence * t2.confidence;
+        return Truth.create(f, c);
     }
 
     static induction(t1, t2) {
-        return Truth.binaryOperation(t1, t2, (t, u) => {
-            const w = u.frequency * t.confidence * u.confidence;
-            return Truth.create(u.frequency, Truth.w2c(w));
-        });
+        if (!t1 || !t2) return null;
+        const w = t2.frequency * t1.confidence * t2.confidence;
+        return Truth.create(t2.frequency, Truth.w2c(w));
     }
 
     static abduction(t1, t2) {
-        return Truth.binaryOperation(t1, t2, (t, u) => {
-            const w = t.frequency * t.confidence * u.confidence;
-            return Truth.create(t.frequency, Truth.w2c(w));
-        });
+        if (!t1 || !t2) return null;
+        const w = t1.frequency * t1.confidence * t2.confidence;
+        return Truth.create(t1.frequency, Truth.w2c(w));
     }
 
     static detachment(t1, t2) {
-        return Truth.binaryOperation(t1, t2, (t, u) =>
-            Truth.create(u.frequency, t.frequency * t.confidence * u.confidence));
+        if (!t1 || !t2) return null;
+        return Truth.create(t2.frequency, t1.frequency * t1.confidence * t2.confidence);
     }
 
     static revision(truth1, truth2) {
@@ -142,14 +139,14 @@ export class Truth {
     }
 
     static negation(truth) {
-        return Truth.unaryOperation(truth, t => {
-            const f = 1 - t.frequency;
-            return Truth.create(f, t.confidence);
-        });
+        if (!truth) return null;
+        const f = 1 - truth.frequency;
+        return Truth.create(f, truth.confidence);
     }
 
     static conversion(truth) {
-        return Truth.unaryOperation(truth, t => Truth.create(t.frequency, t.frequency * t.confidence));
+        if (!truth) return null;
+        return Truth.create(truth.frequency, truth.frequency * truth.confidence);
     }
 
     static expectation(truth) {
@@ -159,63 +156,59 @@ export class Truth {
     }
 
     static comparison(t1, t2) {
-        return Truth.binaryOperation(t1, t2, (t, u) => {
-            const frequencyProduct = t.frequency * u.frequency;
-            const denominator = frequencyProduct + (1 - t.frequency) * (1 - u.frequency);
-            return Truth.create(Truth.safeDiv(frequencyProduct, denominator), t.confidence * u.confidence);
-        });
+        if (!t1 || !t2) return null;
+        const frequencyProduct = t1.frequency * t2.frequency;
+        const denominator = frequencyProduct + (1 - t1.frequency) * (1 - t2.frequency);
+        return Truth.create(Truth.safeDiv(frequencyProduct, denominator), t1.confidence * t2.confidence);
     }
 
     static analogy(t1, t2) {
-        return Truth.binaryOperation(t1, t2, (t, u) =>
-            Truth.create(t.frequency * u.frequency, t.confidence * u.confidence * u.frequency));
+        if (!t1 || !t2) return null;
+        return Truth.create(t1.frequency * t2.frequency, t1.confidence * t2.confidence * t2.frequency);
     }
 
     static resemblance(t1, t2) {
-        return Truth.binaryOperation(t1, t2, (t, u) =>
-            Truth.create((t.frequency + u.frequency) / 2, t.confidence * u.confidence));
+        if (!t1 || !t2) return null;
+        return Truth.create((t1.frequency + t2.frequency) / 2, t1.confidence * t2.confidence);
     }
 
     static contraposition(t1, t2) {
-        return Truth.binaryOperation(t1, t2, (t, u) => {
-            const contraFreq = u.frequency * (1 - t.frequency);
-            const denom = contraFreq + (1 - u.frequency) * t.frequency;
-            return Truth.create(Truth.safeDiv(contraFreq, denom), t.confidence * u.confidence);
-        });
+        if (!t1 || !t2) return null;
+        const contraFreq = t2.frequency * (1 - t1.frequency);
+        const denom = contraFreq + (1 - t2.frequency) * t1.frequency;
+        return Truth.create(Truth.safeDiv(contraFreq, denom), t1.confidence * t2.confidence);
     }
 
     static intersection(t1, t2) {
-        return Truth.binaryOperation(t1, t2, (t, u) =>
-            Truth.create(t.frequency * u.frequency, t.confidence * u.confidence));
+        if (!t1 || !t2) return null;
+        return Truth.create(t1.frequency * t2.frequency, t1.confidence * t2.confidence);
     }
 
     static union(t1, t2) {
-        return Truth.binaryOperation(t1, t2, (t, u) =>
-            Truth.create(1 - (1 - t.frequency) * (1 - u.frequency), t.confidence * u.confidence));
+        if (!t1 || !t2) return null;
+        return Truth.create(1 - (1 - t1.frequency) * (1 - t2.frequency), t1.confidence * t2.confidence);
     }
 
     static subtract(t1, t2) {
-        return Truth.binaryOperation(t1, t2, (t, u) =>
-            Truth.create(Math.max(0, t.frequency - u.frequency), t.confidence * u.confidence));
+        if (!t1 || !t2) return null;
+        return Truth.create(Math.max(0, t1.frequency - t2.frequency), t1.confidence * t2.confidence);
     }
 
     static diff(t1, t2) {
-        return Truth.binaryOperation(t1, t2, (t, u) =>
-            Truth.create(Math.abs(t.frequency - u.frequency), t.confidence * u.confidence));
+        if (!t1 || !t2) return null;
+        return Truth.create(Math.abs(t1.frequency - t2.frequency), t1.confidence * t2.confidence);
     }
 
     static exemplification(t1, t2) {
-        return Truth.binaryOperation(t1, t2, (t, u) => {
-            const w = t.confidence / (t.confidence + 1); // weakening factor
-            return Truth.create(t.frequency * u.frequency, w * t.confidence * u.confidence * t.frequency * u.frequency);
-        });
+        if (!t1 || !t2) return null;
+        const w = t1.confidence / (t1.confidence + 1); // weakening factor
+        return Truth.create(t1.frequency * t2.frequency, w * t1.confidence * t2.confidence * t1.frequency * t2.frequency);
     }
 
     static sameness(t1, t2) {
-        return Truth.binaryOperation(t1, t2, (t, u) => {
-            const diff = Math.abs(t.frequency - u.frequency);
-            return Truth.create(1 - diff, t.confidence * u.confidence);
-        });
+        if (!t1 || !t2) return null;
+        const diff = Math.abs(t1.frequency - t2.frequency);
+        return Truth.create(1 - diff, t1.confidence * t2.confidence);
     }
 
     static deductionWeak(t1, t2) {
@@ -224,14 +217,14 @@ export class Truth {
     }
 
     static structuralDeduction(t) {
-        return Truth.unaryOperation(t, t => {
-             const c = t.confidence / (t.confidence + 1);
-             return Truth.create(t.frequency * t.frequency, c * t.confidence);
-        });
+        if (!t) return null;
+        const c = t.confidence / (t.confidence + 1);
+        return Truth.create(t.frequency * t.frequency, c * t.confidence);
     }
 
     static structuralReduction(t) {
-        return Truth.unaryOperation(t, t => Truth.create(t.frequency, Truth.weak(t.confidence)));
+        if (!t) return null;
+        return Truth.create(t.frequency, Truth.weak(t.confidence));
     }
 
     static isStronger(t1, t2) {

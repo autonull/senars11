@@ -160,7 +160,9 @@ export class Memory extends BaseComponent {
     getConcept(term) {
         if (!term) return null;
 
-        const concept = this._concepts.get(term) || this._findConceptByEquality(term);
+        // Use Map.get() which relies on object identity (reference equality).
+        // Since terms are interned by TermFactory, this is efficient and correct.
+        const concept = this._concepts.get(term);
 
         if (concept) {
             this._emitIntrospectionEvent(IntrospectionEvents.MEMORY_CONCEPT_ACCESSED, () => ({concept: concept.serialize()}));
@@ -192,13 +194,6 @@ export class Memory extends BaseComponent {
         this._stats.totalTasks -= concept.totalTasks;
 
         return true;
-    }
-
-    _findConceptByEquality(term) {
-        for (const concept of this._concepts.values()) {
-            if (concept.term.equals(term)) return concept;
-        }
-        return null;
     }
 
     getAllConcepts() {
