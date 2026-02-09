@@ -138,8 +138,6 @@ export class InputProcessor extends BaseComponent {
         const {truthValue, taskType} = parsed;
         const basePriority = this._inputConfig.defaultPriority || PRIORITY.DEFAULT;
 
-        if (!truthValue) return basePriority;
-
         const priorityConfig = this._inputConfig.priority || {};
         const {
             confidenceMultiplier = 0.3,
@@ -147,13 +145,13 @@ export class InputProcessor extends BaseComponent {
             questionBoost = 0.1
         } = priorityConfig;
 
-        const confidenceBoost = (truthValue.confidence ?? 0) * confidenceMultiplier;
+        const confidenceBoost = truthValue ? (truthValue.confidence ?? 0) * confidenceMultiplier : 0;
         const typeBoost = {
             GOAL: goalBoost,
             QUESTION: questionBoost
         }[taskType] || 0;
 
-        return Math.min(PRIORITY.MAX_PRIORITY, basePriority + confidenceBoost + typeBoost);
+        return Math.min(PRIORITY.MAX, basePriority + confidenceBoost + typeBoost);
     }
 
     /**

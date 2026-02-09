@@ -127,6 +127,11 @@ export class Memory extends BaseComponent {
             this._stats.totalTasks++;
             this._resourceManager.updateResourceUsage(concept, 1);
 
+            // Boost concept activation when a new task is added
+            if (task.budget && task.budget.priority) {
+                concept.boostActivation(task.budget.priority * 0.1);
+            }
+
             if (task.budget.priority >= this._config.priorityThreshold) {
                 this._focusConcepts.add(concept);
                 this._updateFocusConceptsCount();
