@@ -9,18 +9,20 @@ const PRIORITY_BUCKETS = Object.freeze({
     MEDIUM_THRESHOLD: 0.7
 });
 
-const DEFAULT_PRIORITY_THRESHOLD = 0.1;
-const DEFAULT_MIN_PRIORITY = 0.7;
-const DEFAULT_MAX_AGE = 60000;
-const DEFAULT_LIMIT = 20;
+const DEFAULTS = Object.freeze({
+    PRIORITY_THRESHOLD: 0.1,
+    MIN_PRIORITY: 0.7,
+    MAX_AGE: 60000,
+    LIMIT: 20
+});
 
 export class TaskManager extends BaseComponent {
     constructor(memory, focus, config) {
         super(config, 'TaskManager');
         this._memory = memory;
         this._focus = focus;
-        this._config = config;
         this._pendingTasks = new Map();
+
         this._stats = {
             totalTasksCreated: 0,
             totalTasksProcessed: 0,
@@ -29,18 +31,11 @@ export class TaskManager extends BaseComponent {
         };
     }
 
-    get stats() {
-        return {...this._stats};
-    }
-
-    get pendingTasksCount() {
-        return this._pendingTasks.size;
-    }
+    get stats() { return {...this._stats}; }
+    get pendingTasksCount() { return this._pendingTasks.size; }
 
     addTask(task) {
-        if (!(task instanceof Task)) {
-            throw new Error('TaskManager.addTask requires a Task instance');
-        }
+        if (!(task instanceof Task)) throw new Error('TaskManager.addTask requires a Task instance');
 
         this._pendingTasks.set(task.stamp.id, task);
         this._stats.totalTasksCreated++;
@@ -50,19 +45,11 @@ export class TaskManager extends BaseComponent {
 
     processPendingTasks(currentTime = Date.now()) {
         const processedTasks = [];
-
-        const priorityThreshold = this._config?.priorityThreshold ?? DEFAULT_PRIORITY_THRESHOLD;
+        const priorityThreshold = this.config.priorityThreshold ?? DEFAULTS.PRIORITY_THRESHOLD;
 
         for (const [taskId, task] of this._pendingTasks) {
-            const addedToMemory = this._memory.addTask(task, currentTime);
-
-            if (addedToMemory) {
-                if (this._focus && task.budget.priority >= priorityThreshold) {
-                    this._focus.addTaskToFocus(task);
-                }
-
+            if (this._processSingleTask(task, currentTime, priorityThreshold)) {
                 processedTasks.push(task);
-                this._stats.totalTasksProcessed++;
             }
         }
 
@@ -71,35 +58,37 @@ export class TaskManager extends BaseComponent {
         return processedTasks;
     }
 
+    _processSingleTask(task, currentTime, priorityThreshold) {
+        const addedToMemory = this._memory.addTask(task, currentTime);
+        if (addedToMemory) {
+            if (this._focus && task.budget.priority >= priorityThreshold) {
+                this._focus.addTaskToFocus(task);
+            }
+            this._stats.totalTasksProcessed++;
+            return true;
+        }
+        return false;
+    }
+
     _createTask(punctuation, term, truth = null, budget) {
-        // Provide default truth values for BELIEF and GOAL tasks if none provided
         if ((punctuation === '.' || punctuation === '!') && truth === null) {
-            truth = new Truth(1.0, 0.9); // Default truth values for NARS
+            truth = new Truth(1.0, 0.9);
         }
 
         return new Task({
             term,
             truth,
             punctuation,
-            budget: budget ?? this._config?.defaultBudget
+            budget: budget ?? this.config.defaultBudget
         });
     }
 
-    createBelief(term, truth, budget) {
-        return this._createTask('.', term, truth, budget);
-    }
-
-    createGoal(term, truth = null, budget) {
-        return this._createTask('!', term, truth, budget);
-    }
-
-    createQuestion(term, budget) {
-        return this._createTask('?', term, null, budget);
-    }
+    createBelief(term, truth, budget) { return this._createTask('.', term, truth, budget); }
+    createGoal(term, truth = null, budget) { return this._createTask('!', term, truth, budget); }
+    createQuestion(term, budget) { return this._createTask('?', term, null, budget); }
 
     findTasksByTerm(term) {
-        const concept = this._memory.getConcept(term);
-        return concept ? concept.getAllTasks() : [];
+        return this._memory.getConcept(term)?.getAllTasks() ?? [];
     }
 
     findTasksByType(taskType) {
@@ -117,15 +106,18 @@ export class TaskManager extends BaseComponent {
     }
 
     getHighestPriorityTasks(limit = 10) {
-        const allTasks = collectTasksFromAllConcepts(this._memory);
-        return allTasks.sort((a, b) => b.budget.priority - a.budget.priority).slice(0, limit);
+        return collectTasksFromAllConcepts(this._memory)
+            .sort((a, b) => b.budget.priority - a.budget.priority)
+            .slice(0, limit);
     }
 
     updateTaskPriority(task, newPriority) {
         const concept = this._memory.getConcept(task.term);
         if (!concept) return false;
+
         const oldTask = concept.getTask(task.stamp.id);
         if (!oldTask) return false;
+
         const newTask = oldTask.clone({budget: {...oldTask.budget, priority: newPriority}});
         return concept.replaceTask(oldTask, newTask);
     }
@@ -135,21 +127,19 @@ export class TaskManager extends BaseComponent {
         if (!concept) return false;
 
         const removed = concept.removeTask(task);
-        if (removed) this._stats.totalTasksProcessed++;
+        if (removed) this._stats.totalTasksProcessed++; // Interpreting removal as processing? Or creating separate stat? keeping strictly consistent with old code
         return removed;
     }
 
     getTasksNeedingAttention(criteria = {}) {
-        const {minPriority = DEFAULT_MIN_PRIORITY, maxAge = DEFAULT_MAX_AGE, limit = DEFAULT_LIMIT} = criteria;
+        const { minPriority = DEFAULTS.MIN_PRIORITY, maxAge = DEFAULTS.MAX_AGE, limit = DEFAULTS.LIMIT } = criteria;
         const currentTime = Date.now();
 
-        const allTasks = collectTasksFromAllConcepts(this._memory, task =>
+        return collectTasksFromAllConcepts(this._memory, task =>
             task.budget.priority >= minPriority && (currentTime - task.stamp.creationTime) <= maxAge
-        );
-
-        return allTasks
-            .sort((a, b) => b.budget.priority - a.budget.priority || b.stamp.creationTime - a.stamp.creationTime)
-            .slice(0, limit);
+        )
+        .sort((a, b) => b.budget.priority - a.budget.priority || b.stamp.creationTime - a.stamp.creationTime)
+        .slice(0, limit);
     }
 
     getTaskStats() {
@@ -173,19 +163,7 @@ export class TaskManager extends BaseComponent {
         });
 
         const totalTasks = Object.values(stats.tasksByType).reduce((sum, count) => sum + count, 0);
-        const {priorities} = stats;
-
-        // Precompute priority statistics for efficiency
-        const priorityStats = {
-            average: Statistics.mean(priorities),
-            std: Statistics.stdDev(priorities),
-            median: Statistics.median(priorities),
-            percentiles: {
-                p25: Statistics.quantile(priorities, 0.25),
-                p75: Statistics.quantile(priorities, 0.75),
-                p95: Statistics.quantile(priorities, 0.95)
-            }
-        };
+        const priorityStats = this._calculatePriorityStats(stats.priorities);
 
         return {
             ...this._stats,
@@ -199,9 +177,24 @@ export class TaskManager extends BaseComponent {
         };
     }
 
-    _getPriorityBucket = (priority) =>
-        priority < PRIORITY_BUCKETS.LOW_THRESHOLD ? 'low' :
-            priority < PRIORITY_BUCKETS.MEDIUM_THRESHOLD ? 'medium' : 'high';
+    _calculatePriorityStats(priorities) {
+         return {
+            average: Statistics.mean(priorities),
+            std: Statistics.stdDev(priorities),
+            median: Statistics.median(priorities),
+            percentiles: {
+                p25: Statistics.quantile(priorities, 0.25),
+                p75: Statistics.quantile(priorities, 0.75),
+                p95: Statistics.quantile(priorities, 0.95)
+            }
+        };
+    }
+
+    _getPriorityBucket(priority) {
+        if (priority < PRIORITY_BUCKETS.LOW_THRESHOLD) return 'low';
+        if (priority < PRIORITY_BUCKETS.MEDIUM_THRESHOLD) return 'medium';
+        return 'high';
+    }
 
     clearPendingTasks() {
         this._pendingTasks.clear();
@@ -209,8 +202,7 @@ export class TaskManager extends BaseComponent {
     }
 
     hasTask(task) {
-        const concept = this._memory.getConcept(task.term);
-        return concept ? concept.containsTask(task) : false;
+        return this._memory.getConcept(task.term)?.containsTask(task) ?? false;
     }
 
     getPendingTasks() {
@@ -219,9 +211,9 @@ export class TaskManager extends BaseComponent {
 
     serialize() {
         return {
-            config: this._config,
+            config: this.config,
             pendingTasks: Array.from(this._pendingTasks.entries()).map(([id, task]) => ({
-                id: id,
+                id,
                 task: task.serialize ? task.serialize() : null
             })),
             stats: this._stats,
@@ -231,16 +223,11 @@ export class TaskManager extends BaseComponent {
 
     async deserialize(data) {
         try {
-            if (!data) {
-                throw new Error('Invalid task manager data for deserialization');
-            }
+            if (!data) throw new Error('Invalid task manager data for deserialization');
 
-            if (data.config) {
-                this._config = data.config;
-            }
+            if (data.config) this.configure(data.config);
 
             this._pendingTasks.clear();
-
             if (data.pendingTasks) {
                 for (const {id, task: taskData} of data.pendingTasks) {
                     if (taskData) {
@@ -249,9 +236,7 @@ export class TaskManager extends BaseComponent {
                 }
             }
 
-            if (data.stats) {
-                this._stats = {...data.stats};
-            }
+            if (data.stats) this._stats = {...data.stats};
 
             return true;
         } catch (error) {
