@@ -60,9 +60,10 @@ export class GraphPanel extends Component {
     }
 
     createToolbar() {
-        const toolbarContainer = document.createElement('div');
-        toolbarContainer.className = 'graph-toolbar-container';
-        this.container.appendChild(toolbarContainer);
+        const toolbarContainer = FluentUI.create('div')
+            .class('graph-toolbar-container')
+            .mount(this.container)
+            .dom;
 
         new FluentToolbar(toolbarContainer, this._createToolbarItems()).render();
     }
@@ -185,10 +186,11 @@ export class GraphPanel extends Component {
     }
 
     createGraphContainer() {
-        this.graphDiv = document.createElement('div');
-        this.graphDiv.className = 'graph-container';
-        this.graphDiv.id = 'graph-container';
-        this.container.appendChild(this.graphDiv);
+        this.graphDiv = FluentUI.create('div')
+            .class('graph-container')
+            .id('graph-container')
+            .mount(this.container)
+            .dom;
     }
 
     _dispatchFilter() {

@@ -32,17 +32,19 @@ export class FilterToolbar {
         this.element = FluentUI.create('div').class('filter-toolbar');
 
         // Search Input
-        const searchInput = FluentUI.create('input')
+        FluentUI.create('input')
             .attr({ type: 'text', placeholder: '🔍 Search messages...', value: this.messageFilter.searchTerm || '' })
             .class('filter-search-input')
             .on('input', (e) => {
                 this.messageFilter.setSearchTerm(e.target.value);
-            });
-
-        this.element.child(searchInput);
+            })
+            .mount(this.element);
 
         // Category Buttons
-        const catButtons = FluentUI.create('div').class('filter-btn-group');
+        const catButtons = FluentUI.create('div')
+            .class('filter-btn-group')
+            .mount(this.element);
+
         Object.entries(MESSAGE_CATEGORIES).forEach(([id, cat]) => {
             const btn = FluentUI.create('button')
                 .class('filter-btn')
@@ -55,9 +57,8 @@ export class FilterToolbar {
             this.buttons.set(id, btn.dom);
             catButtons.child(btn);
         });
-        this.element.child(catButtons);
 
-        // View Switcher & Actions can be done via FluentToolbar for consistency
+        // View Switcher & Actions via FluentToolbar
         const actionsConfig = [
             {
                 type: 'group',
@@ -111,11 +112,12 @@ export class FilterToolbar {
             }
         ];
 
-        const toolbar = new FluentToolbar(FluentUI.create('div').dom, actionsConfig); // Temp container
-        toolbar.render(); // Renders into temp container
+        // Create a temp div for FluentToolbar to render into
+        const toolbarContainer = FluentUI.create('div');
+        new FluentToolbar(toolbarContainer.dom, actionsConfig).render();
 
-        // Append children of temp container to main element (FluentToolbar replaces innerHTML)
-        Array.from(toolbar.container.children).forEach(c => this.element.child(c));
+        // Append children of temp container to main element
+        Array.from(toolbarContainer.dom.children).forEach(c => this.element.dom.appendChild(c));
 
         return this.element.dom;
     }

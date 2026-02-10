@@ -1,5 +1,6 @@
-import { ReactiveState, div, input, button } from '../core/index.js';
+import { ReactiveState } from '../core/ReactiveState.js';
 import { Component } from './Component.js';
+import { FluentUI } from '../utils/FluentUI.js';
 
 export class AgentChat extends Component {
     constructor(container) {
@@ -36,35 +37,49 @@ export class AgentChat extends Component {
 
     render() {
         if (!this.container) return;
-        this.container.innerHTML = '';
 
-        const ui = div().class('chat-container').child(
-            div().class('messages').id('messages-list'),
-            div().class('input-area').child(
-                this.inputEl = input()
-                    .attr('placeholder', 'Type a message...')
-                    .on('keydown', (e) => {
-                        if (e.key === 'Enter') this.sendMessage();
-                    })
-                    .build(),
-                button('Send').on('click', () => this.sendMessage())
-            )
+        const ui = FluentUI.create(this.container)
+            .clear()
+            .class('chat-container');
+
+        // Messages Area
+        ui.child(
+            FluentUI.create('div')
+                .class('messages')
+                .id('messages-list')
         );
 
-        ui.mount(this.container);
-        this.messagesList = document.getElementById('messages-list');
+        // Input Area
+        const inputArea = FluentUI.create('div').class('input-area').mount(ui);
+
+        this.inputEl = FluentUI.create('input')
+            .attr({ placeholder: 'Type a message...' })
+            .on('keydown', (e) => {
+                if (e.key === 'Enter') this.sendMessage();
+            })
+            .mount(inputArea)
+            .dom;
+
+        FluentUI.create('button')
+            .text('Send')
+            .on('click', () => this.sendMessage())
+            .mount(inputArea);
+
+        this.messagesList = this.container.querySelector('#messages-list');
         this.renderMessages();
     }
 
     renderMessages() {
         if (!this.messagesList) return;
-        this.messagesList.innerHTML = '';
+
+        const container = FluentUI.create(this.messagesList).clear();
 
         this.state.messages.forEach(msg => {
-            div()
-                .class('message', msg.role)
-                .text(`${msg.role === 'agent' ? '🤖' : '👤'} ${msg.text}`)
-                .mount(this.messagesList);
+            container.child(
+                FluentUI.create('div')
+                    .class('message', msg.role)
+                    .text(`${msg.role === 'agent' ? '🤖' : '👤'} ${msg.text}`)
+            );
         });
 
         this.messagesList.scrollTop = this.messagesList.scrollHeight;

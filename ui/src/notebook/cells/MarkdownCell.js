@@ -28,11 +28,17 @@ export class MarkdownCell extends Cell {
         this.previewDiv = FluentUI.create('div')
             .class('markdown-preview')
             .style({ color: '#d4d4d4' })
+            .mount(wrapper)
             .dom;
 
         this.updatePreview();
 
-        this.editorDiv = FluentUI.create('div').style({ display: 'none' }).dom;
+        this.editorDiv = FluentUI.create('div')
+            .style({ display: 'none' })
+            .mount(wrapper)
+            .dom;
+
+        const editorContainer = FluentUI.create(this.editorDiv);
 
         const textarea = FluentUI.create('textarea')
             .val(this.content)
@@ -41,9 +47,10 @@ export class MarkdownCell extends Cell {
                 width: '100%', background: '#1e1e1e', color: '#d4d4d4',
                 border: '1px solid #3c3c3c', padding: '8px', fontFamily: 'monospace'
             })
+            .mount(editorContainer)
             .dom;
 
-        const saveBtn = FluentUI.create('button')
+        FluentUI.create('button')
             .text('Render')
             .style({ marginTop: '5px', padding: '4px 8px', cursor: 'pointer' })
             .on('click', () => {
@@ -51,11 +58,8 @@ export class MarkdownCell extends Cell {
                 this.toggleEdit(false);
                 this.onUpdate?.();
             })
-            .dom;
+            .mount(editorContainer);
 
-        this.editorDiv.append(textarea, saveBtn);
-
-        wrapper.child(this.previewDiv).child(this.editorDiv);
         return this.element;
     }
 

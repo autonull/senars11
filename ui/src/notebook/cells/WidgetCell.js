@@ -25,23 +25,24 @@ export class WidgetCell extends Cell {
                 padding: '10px'
             });
 
-        const header = FluentUI.create('div')
-            .style({
-                display: 'flex',
-                justifyContent: 'space-between',
-                marginBottom: '8px',
-                fontSize: '11px',
-                color: '#888',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-                cursor: 'move'
-            })
-            .html(`<span>🧩 ${this.widgetType}</span>`)
-            .child(this._createActionBtn('✖️', 'Remove', () => this.destroy()));
+        wrapper.child(
+            FluentUI.create('div')
+                .style({
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginBottom: '8px',
+                    fontSize: '11px',
+                    color: '#888',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    cursor: 'move'
+                })
+                .html(`<span>🧩 ${this.widgetType}</span>`)
+                .child(this._createActionBtn('✖️', 'Remove', () => this.destroy()))
+        );
 
-        const content = FluentUI.create('div').style({ position: 'relative' });
+        const content = FluentUI.create('div').style({ position: 'relative' }).mount(wrapper);
 
-        wrapper.child(header).child(content);
         this.element = wrapper.dom;
 
         if (this.widgetType === 'SubNotebook' && this.NotebookManagerClass) {

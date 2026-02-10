@@ -158,7 +158,7 @@ export class ResultCell extends Cell {
         actions.child(copyBtn);
 
         actions.child(this._createActionBtn('ℹ️', 'Details', () => {
-            Modal.alert(`Type: ${catInfo.label}<br>Time: ${new Date(this.timestamp).toLocaleString()}<br>Category: ${this.category}`, 'Cell Info');
+            Modal.alert(`Type: ${catInfo.label}<br>Time: ${new Date().toLocaleString()}<br>Category: ${this.category}`, 'Cell Info');
         }));
 
         return actions.dom;
