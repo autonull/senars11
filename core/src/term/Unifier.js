@@ -25,12 +25,12 @@ export class Unifier {
 
     unify(term1, term2, substitution = {}) {
         const result = UnifyCore.unify(term1, term2, substitution, this.adapter);
-        return result ? { success: true, substitution: result } : FAILURE;
+        return result ? { success: true, substitution: result } : { success: false, substitution: {} };
     }
 
     match(pattern, term, substitution = {}) {
         const result = UnifyCore.match(pattern, term, substitution, this.adapter);
-        return result ? { success: true, substitution: result } : FAILURE;
+        return result ? { success: true, substitution: result } : { success: false, substitution: {} };
     }
 
     applySubstitution(term, substitution) {

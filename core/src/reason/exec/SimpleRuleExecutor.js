@@ -31,28 +31,17 @@ export class SimpleRuleExecutor {
      * @private
      */
     _filterCandidates(candidates, primaryPremise, secondaryPremise, context) {
-        const validRules = [];
-        for (const rule of candidates) {
+        return candidates.filter(rule => {
             try {
-                if (this._canRuleApply(rule, primaryPremise, secondaryPremise, context)) {
-                    validRules.push(rule);
-                }
+                return rule.canApply?.(primaryPremise, secondaryPremise, context) ?? true;
             } catch (error) {
                 logError(error, {
                     ruleId: rule.id ?? rule.name,
                     context: 'rule_candidate_check'
                 }, 'warn');
+                return false;
             }
-        }
-        return validRules;
-    }
-
-    /**
-     * Helper method to determine if a rule can be applied
-     * @private
-     */
-    _canRuleApply(rule, primaryPremise, secondaryPremise, context) {
-        return rule.canApply?.(primaryPremise, secondaryPremise, context) ?? true;
+        });
     }
 
     executeRule(rule, primaryPremise, secondaryPremise, context = {}) {
