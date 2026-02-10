@@ -52,6 +52,16 @@ export class ArrayStamp extends Stamp {
         return other.derivations.some(d => d === this._id || this._derivationsSet.has(d));
     }
 
+    clone(overrides = {}) {
+        return new ArrayStamp({
+            id: overrides.id ?? this._id,
+            creationTime: overrides.creationTime ?? this._creationTime,
+            source: overrides.source ?? this._source,
+            derivations: overrides.derivations ?? this._derivations,
+            depth: overrides.depth ?? this._depth
+        });
+    }
+
     toString() {
         return `Stamp(${this._id},${this._creationTime},${this._source})`;
     }
@@ -89,6 +99,16 @@ export class BloomStamp extends Stamp {
             return other.derivations.some(d => this._filter.test(d));
         }
         return false;
+    }
+
+    clone(overrides = {}) {
+        return new BloomStamp({
+            id: overrides.id ?? this._id,
+            creationTime: overrides.creationTime ?? this._creationTime,
+            source: overrides.source ?? this._source,
+            depth: overrides.depth ?? this._depth,
+            filter: overrides.filter ?? (this._filter ? this._filter.clone() : null)
+        });
     }
 
     toString() {

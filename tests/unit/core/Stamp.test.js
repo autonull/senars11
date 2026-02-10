@@ -68,6 +68,17 @@ describe('Stamp', () => {
             // Bloom overlaps is probabilistic, but self/contained should be true
             expect(s1.overlaps(bloom)).toBe(false); // Likely false
         });
+
+        test('clone', () => {
+            const s1 = new ArrayStamp({id: 's1', derivations: ['d1'], source: 'INPUT'});
+            const s2 = s1.clone({source: 'CLONE'});
+
+            expect(s2).toBeInstanceOf(ArrayStamp);
+            expect(s2.id).toBe(s1.id);
+            expect(s2.source).toBe('CLONE');
+            expect(s2.derivations).toEqual(s1.derivations);
+            expect(s2.creationTime).toBe(s1.creationTime);
+        });
     });
 
     describe('BloomStamp', () => {
@@ -133,6 +144,16 @@ describe('Stamp', () => {
                 expect(overlap).toBe(false);
             }
             expect(s3.overlaps(s1)).toBe(true);
+        });
+
+        test('clone', () => {
+            const s1 = Stamp.createBloomInput();
+            const s2 = s1.clone({source: 'CLONE'});
+
+            expect(s2).toBeInstanceOf(BloomStamp);
+            expect(s2.id).toBe(s1.id);
+            expect(s2.source).toBe('CLONE');
+            expect(s2.filter.equals(s1.filter)).toBe(true);
         });
     });
 });

@@ -35,7 +35,6 @@ export class TermFactory extends BaseComponent {
     constructor(config = {}, eventBus = null) {
         super(config, 'TermFactory', eventBus);
         this._cache = new TermCache({ maxSize: this.config.maxCacheSize ?? 5000 });
-        this._complexityCache = new Map();
     }
 
     /**
@@ -136,7 +135,6 @@ export class TermFactory extends BaseComponent {
 
         this._emitIntrospectionEvent(IntrospectionEvents.TERM_CACHE_MISS, () => ({ termName: name }));
         const term = this._createAndCache(operator, components, name);
-        this._calculateComplexityMetrics(term);
         return term;
     }
 
@@ -173,7 +171,6 @@ export class TermFactory extends BaseComponent {
         if (cached) return cached;
 
         const term = this._createAndCache(null, [], name);
-        this._complexityCache.set(name, 1);
         return term;
     }
 
@@ -188,11 +185,7 @@ export class TermFactory extends BaseComponent {
             operator
         );
 
-        const evictedKey = this._cache.put(name, term);
-        if (evictedKey) {
-            this._complexityCache.delete(evictedKey);
-        }
-
+        this._cache.put(name, term);
         this._emitIntrospectionEvent(IntrospectionEvents.TERM_CREATED, () => ({ termName: name }));
         return term;
     }
@@ -201,23 +194,13 @@ export class TermFactory extends BaseComponent {
         return termA.name.localeCompare(termB.name);
     }
 
-    _getStructuralComplexity(term) {
-        if (!term?.components?.length) return 1;
-        let maxComp = 0;
-        for (const c of term.components) {
-            const comp = this._getStructuralComplexity(c);
-            if (comp > maxComp) maxComp = comp;
-        }
-        return 1 + maxComp;
-    }
-
     _canonicalizeComponents(operator, components) {
         if (!operator) return components;
 
         if (operator === '<->' || operator === '<=>') {
              const comps = components.length > 2 ? components.slice(0, 2) : [...components];
              return comps.sort((a, b) => {
-                const diff = this._getStructuralComplexity(b) - this._getStructuralComplexity(a);
+                const diff = b.complexity - a.complexity;
                 return diff !== 0 ? diff : a.name.localeCompare(b.name);
             });
         }
@@ -259,30 +242,14 @@ export class TermFactory extends BaseComponent {
         return `(${op === ',' ? '' : `${op}, `}${comps.map(c => c.toString()).join(', ')})`;
     }
 
-    _calculateComplexityMetrics(term) {
-        if (!term) return 0;
-        const complexity = term.complexity;
-        this._complexityCache.set(term.name, complexity);
-        return complexity;
-    }
-
     getComplexity(term) {
         if (typeof term !== 'string' && term?.complexity) {
             return term.complexity;
         }
         const name = typeof term === 'string' ? term : term?.name;
 
-        if (this._complexityCache.has(name)) {
-            return this._complexityCache.get(name);
-        }
-
         const cachedTerm = this._cache.get(name);
-        if (cachedTerm) {
-            const complexity = cachedTerm.complexity;
-            this._complexityCache.set(name, complexity);
-            return complexity;
-        }
-        return 1;
+        return cachedTerm ? cachedTerm.complexity : 1;
     }
 
     setMaxCacheSize(size) {
@@ -293,39 +260,38 @@ export class TermFactory extends BaseComponent {
 
     clearCache() {
         this._cache.clear();
-        this._complexityCache.clear();
     }
 
     getStats() {
         const cacheStats = this._cache.stats;
         return {
             cacheSize: this._cache.size,
-            complexityCacheSize: this._complexityCache.size,
             cacheHits: cacheStats.hits,
             cacheMisses: cacheStats.misses,
             cacheHitRate: cacheStats.hitRate,
-            efficiency: cacheStats.hitRate,
             maxCacheSize: cacheStats.maxSize
         };
     }
 
     getMostComplexTerms(limit = 10) {
-        return Array.from(this._complexityCache.entries())
-            .sort((a, b) => b[1] - a[1])
+        // Iterate cache values
+        return Array.from(this._cache.values())
+            .sort((a, b) => b.complexity - a.complexity)
             .slice(0, limit)
-            .map(([name, complexity]) => ({ name, complexity }));
+            .map(term => ({ name: term.name, complexity: term.complexity }));
     }
 
     getSimplestTerms(limit = 10) {
-        return Array.from(this._complexityCache.entries())
-            .sort((a, b) => a[1] - b[1])
+         return Array.from(this._cache.values())
+            .sort((a, b) => a.complexity - b.complexity)
             .slice(0, limit)
-            .map(([name, complexity]) => ({ name, complexity }));
+            .map(term => ({ name: term.name, complexity: term.complexity }));
     }
 
     getAverageComplexity() {
-        return this._complexityCache.size === 0 ? 0
-            : Array.from(this._complexityCache.values()).reduce((sum, c) => sum + c, 0) / this._complexityCache.size;
+        const terms = Array.from(this._cache.values());
+        if (terms.length === 0) return 0;
+        return terms.reduce((sum, term) => sum + term.complexity, 0) / terms.length;
     }
 
     createTrue() { return this._getOrCreateAtomic('True'); }
@@ -339,6 +305,5 @@ export class TermFactory extends BaseComponent {
     async _dispose() {
         this.clearCache();
         this._cache = null;
-        this._complexityCache = null;
     }
 }

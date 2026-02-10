@@ -1,30 +1,15 @@
 import { ConfigManager } from '../config/ConfigManager.js';
-import { EmbeddingLayer } from '../lm/EmbeddingLayer.js';
-import { LM } from '../lm/LM.js';
-import { Focus } from '../memory/Focus.js';
-import { Memory } from '../memory/Memory.js';
-import { TermLayer } from '../memory/TermLayer.js';
-import { InputProcessor } from './InputProcessor.js';
-import { NarseseParser } from '../parser/NarseseParser.js';
-import { EvaluationEngine } from '../reason/EvaluationEngine.js';
-import { MetricsMonitor } from '../reason/MetricsMonitor.js';
-import { ReasonerBuilder } from '../reason/index.js';
-import { ReasoningAboutReasoning } from '../self/ReasoningAboutReasoning.js';
-import { TaskManager } from '../task/TaskManager.js';
-import { TermFactory } from '../term/TermFactory.js';
-import { ExplanationService } from '../tool/ExplanationService.js';
-import { ToolIntegration } from '../tool/ToolIntegration.js';
 import { BaseComponent } from '../util/BaseComponent.js';
-import { ComponentManager } from '../util/ComponentManager.js';
 import { IntrospectionEvents } from '../util/IntrospectionEvents.js';
-import { BudgetManager } from '../util/BudgetManager.js';
 import { Truth } from '../Truth.js';
 import { Stamp } from '../Stamp.js';
 import { Task } from '../task/Task.js';
+import { NARInitializer } from './NARInitializer.js';
 
 export class NAR extends BaseComponent {
     constructor(config = {}) {
         super(config, 'NAR');
+        this._initializer = new NARInitializer(this, config, this._eventBus);
         this._initializeCoreComponents(config);
         this._debugMode = this.config.debug?.pipeline || false;
         this.traceEnabled = false;
@@ -53,19 +38,31 @@ export class NAR extends BaseComponent {
 
     _initializeCoreComponents(config) {
         this._configManager = new ConfigManager(config);
-        this._componentManager = new ComponentManager({}, this._eventBus, this);
 
-        this._initComponents();
+        const components = this._initializer.initialize();
+
+        this._componentManager = components.componentManager;
+        this._termFactory = components.termFactory;
+        this._parser = components.parser;
+        this._lm = components.lm;
+        this._memory = components.memory;
+        this._focus = components.focus;
+        this._termLayer = components.termLayer;
+        this._embeddingLayer = components.embeddingLayer;
+        this._taskManager = components.taskManager;
+        this._evaluator = components.evaluator;
+        this._budgetManager = components.budgetManager;
+        this._inputProcessor = components.inputProcessor;
+        this._reasoningAboutReasoning = components.reasoningAboutReasoning;
+        this._toolIntegration = components.toolIntegration;
+        this._explanationService = components.explanationService;
+        this._metricsMonitor = components.metricsMonitor;
+        this._ruleEngine = null;
 
         this._isRunning = false;
         this._startTime = Date.now();
 
-        this._registerComponents();
         this._initStreamReasoner();
-
-        if (this.config.components) {
-            this._componentManager.loadComponentsFromConfig(this.config.components);
-        }
     }
 
     async initialize() {
@@ -87,63 +84,8 @@ export class NAR extends BaseComponent {
         }
     }
 
-    _initComponents() {
-        this._initBaseSubsystem();
-        this._initMemorySubsystem();
-        this._initReasoningSubsystem();
-        this._initToolSubsystem();
-        this._initMonitoringSubsystem();
-    }
-
-    _initBaseSubsystem() {
-        const { config } = this;
-        this._termFactory = new TermFactory(config.termFactory, this._eventBus);
-        this._parser = new NarseseParser(this._termFactory);
-        this._lm = config.lm?.enabled ? new LM() : null;
-    }
-
-    _initMemorySubsystem() {
-        const { config } = this;
-        this._memory = new Memory(config.memory, this._eventBus, this._termFactory);
-        this._focus = new Focus(config.focus);
-        this._termLayer = new TermLayer({ capacity: config.termLayer?.capacity || 1000, ...config.termLayer });
-        this._embeddingLayer = config.embeddingLayer?.enabled ? new EmbeddingLayer(config.embeddingLayer) : null;
-    }
-
-    _initReasoningSubsystem() {
-        const { config } = this;
-        this._taskManager = new TaskManager(this._memory, null, config.taskManager);
-        this._evaluator = new EvaluationEngine(null, this._termFactory);
-        this._budgetManager = new BudgetManager({
-            total: config.budget?.total ?? 10000,
-            enableComplexityPenalty: false
-        });
-
-        this._inputProcessor = new InputProcessor(config.taskManager || {}, {
-            parser: this._parser,
-            termFactory: this._termFactory
-        });
-
-        this._ruleEngine = null;
-        this._reasoningAboutReasoning = new ReasoningAboutReasoning(this, { ...config.reasoningAboutReasoning });
-    }
-
-    _initToolSubsystem() {
-        const { config } = this;
-        this._toolIntegration = config.tools?.enabled !== false ? new ToolIntegration(config.tools || {}) : null;
-
-        if (this._toolIntegration) {
-            this._toolIntegration.connectToReasoningCore(this);
-            this._explanationService = new ExplanationService({ lm: this._lm || null, ...config.tools?.explanation });
-        }
-    }
-
-    _initMonitoringSubsystem() {
-        this._metricsMonitor = new MetricsMonitor({ eventBus: this._eventBus, nar: this, ...this.config.metricsMonitor });
-    }
-
     _initStreamReasoner() {
-        this._streamReasoner = ReasonerBuilder.build(this.config, {
+        this._streamReasoner = this._initializer.initStreamReasoner({
             focus: this._focus,
             memory: this._memory,
             termFactory: this._termFactory,
@@ -175,24 +117,6 @@ export class NAR extends BaseComponent {
         }
     }
 
-    _registerComponents() {
-        const cm = this._componentManager;
-        cm.registerComponent('termFactory', this._termFactory);
-        cm.registerComponent('memory', this._memory);
-        cm.registerComponent('focus', this._focus, ['memory']);
-        cm.registerComponent('taskManager', this._taskManager, ['memory', 'focus']);
-
-        if (this._ruleEngine) cm.registerComponent('ruleEngine', this._ruleEngine);
-        if (this._lm) cm.registerComponent('lm', this._lm);
-
-        if (this._toolIntegration) {
-            cm.registerComponent('toolIntegration', this._toolIntegration);
-            if (this._explanationService) {
-                cm.registerComponent('explanationService', this._explanationService, ['toolIntegration']);
-            }
-        }
-    }
-
     async _setupDefaultRules() {
         try {
             await this._registerRulesWithStreamReasoner();
@@ -203,7 +127,7 @@ export class NAR extends BaseComponent {
 
     async _registerRulesWithStreamReasoner() {
         if (!this._streamReasoner) return;
-        await ReasonerBuilder.registerDefaultRules(this._streamReasoner, this.config, {
+        await this._initializer.registerDefaultRules(this._streamReasoner, {
             parser: this._parser,
             lm: this._lm,
             embeddingLayer: this._embeddingLayer,
@@ -271,6 +195,10 @@ export class NAR extends BaseComponent {
             }
         }
         return wasAdded;
+    }
+
+    _processPendingTasks(traceId) {
+        return this._taskManager.processPendingTasks(Date.now());
     }
 
     start(options = {}) {
@@ -477,7 +405,28 @@ export class NAR extends BaseComponent {
             if (state.isRunning !== undefined) this._isRunning = state.isRunning;
 
             await this._componentManager.disposeAll();
-            this._initComponents();
+            // Re-initialize using config
+            this._initializer = new NARInitializer(this, this.config, this._eventBus);
+            const components = this._initializer.initialize();
+
+            // Re-assign components
+            this._componentManager = components.componentManager;
+            this._termFactory = components.termFactory;
+            this._parser = components.parser;
+            this._lm = components.lm;
+            this._memory = components.memory;
+            this._focus = components.focus;
+            this._termLayer = components.termLayer;
+            this._embeddingLayer = components.embeddingLayer;
+            this._taskManager = components.taskManager;
+            this._evaluator = components.evaluator;
+            this._budgetManager = components.budgetManager;
+            this._inputProcessor = components.inputProcessor;
+            this._reasoningAboutReasoning = components.reasoningAboutReasoning;
+            this._toolIntegration = components.toolIntegration;
+            this._explanationService = components.explanationService;
+            this._metricsMonitor = components.metricsMonitor;
+
             await this._componentManager.initializeAll();
             await this._setupDefaultRules();
 
@@ -582,10 +531,7 @@ export class NAR extends BaseComponent {
         };
     }
 
-    _withComponentCheck(component, message, operation) {
-        if (!component) throw new Error(message);
-        return operation(component);
-    }
+    // --- LM Integration ---
 
     registerLMProvider(id, provider) {
         return this._withComponentCheck(this._lm, 'Language Model is not enabled', lm => {
@@ -606,9 +552,7 @@ export class NAR extends BaseComponent {
         return this._withComponentCheck(this._lm, 'Language Model is not enabled', lm => lm.translateFromNarsese(narsese));
     }
 
-    _processPendingTasks(traceId) {
-        return this._taskManager.processPendingTasks(Date.now());
-    }
+    // --- Monitoring ---
 
     connectToWebSocketMonitor(monitor) {
         if (!monitor || typeof monitor.listenToNAR !== 'function') throw new Error('Invalid WebSocket monitor provided');
@@ -645,15 +589,6 @@ export class NAR extends BaseComponent {
         return this._reasoningAboutReasoning?.getReasoningState?.() ?? null;
     }
 
-    async initializeTools() {
-        if (this._toolIntegration) {
-            await this._toolIntegration.initializeTools(this);
-            this.logger.info('Tools initialized successfully');
-            return true;
-        }
-        return false;
-    }
-
     getMetrics() {
         return this._metricsMonitor ? this._metricsMonitor.getMetricsSnapshot() : null;
     }
@@ -661,6 +596,8 @@ export class NAR extends BaseComponent {
     performSelfOptimization() {
         this._metricsMonitor?._performSelfOptimization();
     }
+
+    // --- Advanced Reasoning ---
 
     async solveEquation(leftTerm, rightTerm, variableName, context = null) {
         if (this._evaluator) {
@@ -686,6 +623,17 @@ export class NAR extends BaseComponent {
 
     getReasoningTrace() {
         return this._reasoningAboutReasoning?.getReasoningTrace() ?? [];
+    }
+
+    // --- Tool Integration ---
+
+    async initializeTools() {
+        if (this._toolIntegration) {
+            await this._toolIntegration.initializeTools(this);
+            this.logger.info('Tools initialized successfully');
+            return true;
+        }
+        return false;
     }
 
     async executeTool(toolId, params, context = {}) {
@@ -751,5 +699,10 @@ export class NAR extends BaseComponent {
             this.logError('_inputTask failed:', { error: error.message, stack: error.stack, input: 'derived-task', traceId: options.traceId });
             throw error;
         }
+    }
+
+    _withComponentCheck(component, message, operation) {
+        if (!component) throw new Error(message);
+        return operation(component);
     }
 }
