@@ -25,16 +25,22 @@ export class EvaluationEngine {
      */
     _initDefaultOperations() {
         // Register common operations
-        this.operationRegistry.set('+', this._performAddition.bind(this));
-        this.operationRegistry.set('-', this._performSubtraction.bind(this));
-        this.operationRegistry.set('*', this._performMultiplication.bind(this));
-        this.operationRegistry.set('/', this._performDivision.bind(this));
-        this.operationRegistry.set('>', this._performGreaterThan.bind(this));
-        this.operationRegistry.set('<', this._performLessThan.bind(this));
-        this.operationRegistry.set('>=', this._performGreaterEqual.bind(this));
-        this.operationRegistry.set('<=', this._performLessEqual.bind(this));
-        this.operationRegistry.set('==', this._performEquality.bind(this));
-        this.operationRegistry.set('!=', this._performInequality.bind(this));
+        const ops = [
+            ['+', this._performAddition],
+            ['-', this._performSubtraction],
+            ['*', this._performMultiplication],
+            ['/', this._performDivision],
+            ['>', this._performGreaterThan],
+            ['<', this._performLessThan],
+            ['>=', this._performGreaterEqual],
+            ['<=', this._performLessEqual],
+            ['==', this._performEquality],
+            ['!=', this._performInequality]
+        ];
+
+        for (const [symbol, func] of ops) {
+            this.operationRegistry.set(symbol, func.bind(this));
+        }
     }
 
     /**

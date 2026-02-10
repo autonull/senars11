@@ -27,9 +27,11 @@ export class Concept extends BaseComponent {
         this._lastAccessed = Date.now();
         this._lastModified = Date.now();
 
-        this._beliefs = new Bag(this.config.maxBeliefs);
-        this._goals = new Bag(this.config.maxGoals);
-        this._questions = new Bag(this.config.maxQuestions);
+        this._storage = {
+            [TASK_TYPES.BELIEF]: new Bag(this.config.maxBeliefs),
+            [TASK_TYPES.GOAL]: new Bag(this.config.maxGoals),
+            [TASK_TYPES.QUESTION]: new Bag(this.config.maxQuestions)
+        };
 
         this._activation = 0;
         this._useCount = 0;
@@ -45,16 +47,16 @@ export class Concept extends BaseComponent {
     get quality() { return this._quality; }
     get priority() { return this._activation; }
 
-    get beliefs() { return this._beliefs; }
-    get goals() { return this._goals; }
-    get questions() { return this._questions; }
+    get beliefs() { return this._storage[TASK_TYPES.BELIEF]; }
+    get goals() { return this._storage[TASK_TYPES.GOAL]; }
+    get questions() { return this._storage[TASK_TYPES.QUESTION]; }
 
     get totalTasks() {
-        return this._beliefs.size + this._goals.size + this._questions.size;
+        return this.beliefs.size + this.goals.size + this.questions.size;
     }
 
     get _bags() {
-        return [this._beliefs, this._goals, this._questions];
+        return Object.values(this._storage);
     }
 
     get averagePriority() {
@@ -63,12 +65,7 @@ export class Concept extends BaseComponent {
     }
 
     _getStorage(taskType) {
-        const storage = {
-            [TASK_TYPES.BELIEF]: this._beliefs,
-            [TASK_TYPES.GOAL]: this._goals,
-            [TASK_TYPES.QUESTION]: this._questions
-        }[taskType];
-
+        const storage = this._storage[taskType];
         if (!storage) throw new Error(`Unknown task type: ${taskType}`);
         return storage;
     }
@@ -161,9 +158,9 @@ export class Concept extends BaseComponent {
         return {
             term: this._term.toString(),
             totalTasks: this.totalTasks,
-            beliefsCount: this._beliefs.size,
-            goalsCount: this._goals.size,
-            questionsCount: this._questions.size,
+            beliefsCount: this.beliefs.size,
+            goalsCount: this.goals.size,
+            questionsCount: this.questions.size,
             activation: this._activation,
             useCount: this._useCount,
             quality: this._quality,
@@ -181,9 +178,9 @@ export class Concept extends BaseComponent {
             activation: this._activation,
             useCount: this._useCount,
             quality: this._quality,
-            beliefs: this._beliefs.serialize ? this._beliefs.serialize() : null,
-            goals: this._goals.serialize ? this._goals.serialize() : null,
-            questions: this._questions.serialize ? this._questions.serialize() : null,
+            beliefs: this.beliefs.serialize ? this.beliefs.serialize() : null,
+            goals: this.goals.serialize ? this.goals.serialize() : null,
+            questions: this.questions.serialize ? this.questions.serialize() : null,
             config: this.config,
             version: '1.0.0'
         };
@@ -201,10 +198,15 @@ export class Concept extends BaseComponent {
 
             if (data.config) this.configure(data.config);
 
-            const map = { beliefs: '_beliefs', goals: '_goals', questions: '_questions' };
-            await Promise.all(Object.entries(map).map(async ([key, prop]) => {
-                if (data[key] && this[prop].deserialize) {
-                    await this[prop].deserialize(data[key], Task.fromJSON);
+            const map = {
+                beliefs: this.beliefs,
+                goals: this.goals,
+                questions: this.questions
+            };
+
+            await Promise.all(Object.entries(map).map(async ([key, bag]) => {
+                if (data[key] && bag.deserialize) {
+                    await bag.deserialize(data[key], Task.fromJSON);
                 }
             }));
 
