@@ -39,17 +39,15 @@ export class ComparisonRule extends NALRule {
 
         if (!termFactory || !truth1 || !truth2) return [];
 
-        let termA, termB;
-        let substitution = {};
+        let termA, termB, substitution;
 
-        // Pattern 1: Shared Subject (M --> P), (M --> S) -> (S <-> P)
+        // Try match subject then predicate
         const matchS = this.unify(t1.subject, t2.subject, context);
         if (matchS.success) {
             substitution = matchS.substitution;
             termA = t2.predicate;
             termB = t1.predicate;
         } else {
-            // Pattern 2: Shared Predicate (P --> M), (S --> M) -> (S <-> P)
             const matchP = this.unify(t1.predicate, t2.predicate, context);
             if (matchP.success) {
                 substitution = matchP.substitution;
@@ -66,10 +64,10 @@ export class ComparisonRule extends NALRule {
         const derivedTruth = Truth.comparison(truth1, truth2);
         if (!derivedTruth) return [];
 
-        termA = this.applySubstitution(termA, substitution, context);
-        termB = this.applySubstitution(termB, substitution, context);
+        const finalTermA = this.applySubstitution(termA, substitution, context);
+        const finalTermB = this.applySubstitution(termB, substitution, context);
 
-        const conclusionTerm = termFactory.similarity(termA, termB);
+        const conclusionTerm = termFactory.similarity(finalTermA, finalTermB);
         const task = this.createDerivedTask(conclusionTerm, derivedTruth, [primaryPremise, secondaryPremise], context, '.');
 
         return task ? [task] : [];

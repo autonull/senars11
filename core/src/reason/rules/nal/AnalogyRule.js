@@ -78,18 +78,21 @@ export class AnalogyRule extends NALRule {
             if (task) results.push(task);
         };
 
-        // Try all combinations
-        const m1 = this.unify(s1, i1, context);
-        if (m1.success) generate(s2, i2, m1.substitution);
+        // Optimized matching: stop after finding valid matches if necessary,
+        // but analogy can produce multiple results. We process all valid unifications.
 
-        const m2 = this.unify(s1, i2, context);
-        if (m2.success) generate(i1, s2, m2.substitution);
+        const matches = [
+            { match: this.unify(s1, i1, context), args: [s2, i2] },
+            { match: this.unify(s1, i2, context), args: [i1, s2] },
+            { match: this.unify(s2, i1, context), args: [s1, i2] },
+            { match: this.unify(s2, i2, context), args: [i1, s1] }
+        ];
 
-        const m3 = this.unify(s2, i1, context);
-        if (m3.success) generate(s1, i2, m3.substitution);
-
-        const m4 = this.unify(s2, i2, context);
-        if (m4.success) generate(i1, s1, m4.substitution);
+        for (const {match, args} of matches) {
+            if (match.success) {
+                generate(args[0], args[1], match.substitution);
+            }
+        }
 
         return results;
     }
