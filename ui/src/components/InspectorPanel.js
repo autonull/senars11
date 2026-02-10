@@ -1,4 +1,7 @@
 import { Component } from './Component.js';
+import { ConceptCard } from './ConceptCard.js';
+import { DerivationWidget } from './widgets/DerivationWidget.js';
+import { FluentUI, $ } from '../utils/FluentUI.js';
 import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
 
 export class InspectorPanel extends Component {
@@ -14,128 +17,151 @@ export class InspectorPanel extends Component {
     render() {
         if (!this.container) return;
 
-        // Basic shell
-        this.container.innerHTML = `
-            <div id="inspector-panel" class="hud-panel inspector-panel hidden">
-                <h3>Inspector</h3>
-                <div id="inspector-content">
-                    <div class="inspector-empty">Select a node to inspect</div>
-                </div>
-                <button id="btn-close-inspector" class="btn small-btn">Close</button>
-            </div>
-        `;
+        // Using FluentUI
+        const root = $(this.container).clear();
 
-        // Bind close button
-        const btnClose = this.container.querySelector('#btn-close-inspector');
-        if (btnClose) {
-            btnClose.onclick = () => this.hide();
-        }
+        const panel = $('div')
+            .id('inspector-panel')
+            .class('hud-panel', 'inspector-panel', 'hidden')
+            .mount(root);
+
+        $('h3').text('Inspector').mount(panel);
+
+        this.contentContainer = $('div')
+            .id('inspector-content')
+            .mount(panel);
+
+        $('div').class('inspector-empty').text('Select a node to inspect').mount(this.contentContainer);
+
+        $('button')
+            .id('btn-close-inspector')
+            .class('btn', 'small-btn')
+            .text('Close')
+            .on('click', () => this.hide())
+            .mount(panel);
     }
 
     show() {
-        const panel = this.container.querySelector('#inspector-panel');
+        const panel = $(this.container).dom.querySelector('#inspector-panel');
         if (panel) panel.classList.remove('hidden');
     }
 
     hide() {
-        const panel = this.container.querySelector('#inspector-panel');
+        const panel = $(this.container).dom.querySelector('#inspector-panel');
         if (panel) panel.classList.add('hidden');
     }
 
     update(data, mode = 'visualization') {
         this.currentData = data;
-        const content = this.container.querySelector('#inspector-content');
-        if (!content) return;
+        if (!this.contentContainer) return;
 
+        this.contentContainer.clear();
         this.show();
 
         // 1. Quick Actions Toolbar
-        let html = `
-            <div class="inspector-actions">
-                <button class="btn action-btn" title="Query" id="btn-action-query">🔍</button>
-                <button class="btn action-btn" title="Focus in Graph" id="btn-action-focus">🎯</button>
-                ${data.derivation ? `<button class="btn action-btn" title="Trace Derivation" id="btn-action-trace">🔗</button>` : ''}
-            </div>
-        `;
+        const actions = $('div').class('inspector-actions').mount(this.contentContainer);
 
-        // Header (ID)
-        html += `
-            <div class="prop-row">
-                <span class="prop-label">ID</span>
-                <span class="prop-value" title="${data.id}">${this._truncate(data.id)}</span>
-            </div>
-        `;
+        $('button').class('btn', 'action-btn').attr('title', 'Query').text('🔍')
+            .on('click', () => this._handleQuery())
+            .mount(actions);
 
-        // Truth Value (Visual)
+        $('button').class('btn', 'action-btn').attr('title', 'Focus in Graph').text('🎯')
+            .on('click', () => { if (this.onSelect) this.onSelect(data.id); })
+            .mount(actions);
+
+        if (data.derivation) {
+            $('button').class('btn', 'action-btn').attr('title', 'Trace Derivation').text('🔗')
+                .on('click', () => { if (this.onTrace) this.onTrace(data.id); })
+                .mount(actions);
+        }
+
+        // 2. Header using ConceptCard
+        const conceptData = {
+            term: data.term || data.id,
+            budget: data.budget,
+            tasks: data.tasks || [],
+            taskCount: data.taskCount,
+            id: data.id
+        };
+
+        const cardWrapper = $('div').style({ marginBottom: '10px' }).mount(this.contentContainer);
+        new ConceptCard(cardWrapper.dom, conceptData, { compact: false }).render();
+
+        // 3. Truth Value (Visual)
         if (data.truth) {
              const { frequency, confidence } = data.truth;
-             html += `
-                <div class="inspector-section">
-                    <h4>Truth Value</h4>
-                    <div class="prop-row" style="display:block; padding-bottom: 4px;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:2px">
-                             <span class="prop-label small">Frequency</span>
-                             <span class="prop-value small">${(frequency||0).toFixed(2)}</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${(frequency||0) * 100}%; background-color: var(--accent-primary);"></div>
-                        </div>
-                    </div>
-                    <div class="prop-row" style="display:block; padding-bottom: 4px;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:2px">
-                             <span class="prop-label small">Confidence</span>
-                             <span class="prop-value small">${(confidence||0).toFixed(2)}</span>
-                        </div>
-                        <div class="progress-bar">
-                             <div class="progress-fill" style="width: ${(confidence||0) * 100}%; background-color: var(--accent-secondary);"></div>
-                        </div>
-                    </div>
-                </div>
-             `;
+             const section = $('div').class('inspector-section').mount(this.contentContainer);
+             $('h4').text('Truth Value').mount(section);
+
+             const createBar = (label, val, color) => {
+                 const row = $('div').class('prop-row').style({ display: 'block', paddingBottom: '4px' }).mount(section);
+                 const info = $('div').style({ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }).mount(row);
+                 $('span').class('prop-label', 'small').text(label).mount(info);
+                 $('span').class('prop-value', 'small').text((val||0).toFixed(2)).mount(info);
+
+                 const bar = $('div').class('progress-bar').mount(row);
+                 $('div').class('progress-fill')
+                    .style({ width: `${(val||0) * 100}%`, backgroundColor: color })
+                    .mount(bar);
+             };
+
+             createBar('Frequency', frequency, 'var(--accent-primary)');
+             createBar('Confidence', confidence, 'var(--accent-secondary)');
         }
 
-        // Derivation Trace (If available)
+        // 4. Derivation Trace
         if (data.derivation) {
-            const { rule, sources } = data.derivation;
-            html += `
-                <div class="inspector-section">
-                    <h4>Derivation Trace</h4>
-                    <div class="prop-row">
-                        <span class="prop-label">Rule</span>
-                        <span class="prop-value" style="color:var(--accent-secondary)">${rule}</span>
-                    </div>
-                    <div class="related-tags">
-                        ${sources.map(s => `<span class="related-tag clickable-tag" data-term="${this._escapeHtml(s)}" title="Focus ${s}">${this._truncate(s, 15)}</span>`).join('')}
-                    </div>
-                </div>
-            `;
+            const section = $('div').class('inspector-section').mount(this.contentContainer);
+            $('h4').text('Derivation Trace').mount(section);
+
+            const widgetContainer = $('div')
+                .style({ height: '200px', border: '1px solid var(--border-color)', borderRadius: '4px', position: 'relative' })
+                .mount(section);
+
+            // Adapt data for DerivationWidget
+            const widgetData = {
+                rule: data.derivation.rule,
+                derived: { term: data.term || data.id },
+                input: data.derivation.input || (data.derivation.sources && data.derivation.sources[0] ? { term: data.derivation.sources[0] } : null),
+                knowledge: data.derivation.knowledge || (data.derivation.sources && data.derivation.sources[1] ? { term: data.derivation.sources[1] } : null)
+            };
+
+            const widget = new DerivationWidget(widgetContainer.dom, widgetData);
+            requestAnimationFrame(() => widget.render());
         }
 
-        // Related Concepts (Derived from topology or explicit links if available)
+        // 5. Related Concepts
         const related = data.links || [];
-        html += `
-            <div class="inspector-section">
-                <h4>Related</h4>
-                <div class="related-tags">
-                   ${related.length ? related.map(r => `<span class="related-tag clickable-tag" data-term="${this._escapeHtml(r)}" title="Focus ${r}">${this._escapeHtml(r)}</span>`).join('') : '<span class="prop-value-dim">No direct links</span>'}
-                </div>
-            </div>
-        `;
+        const relSection = $('div').class('inspector-section').mount(this.contentContainer);
+        $('h4').text('Related').mount(relSection);
+        const tags = $('div').class('related-tags').mount(relSection);
 
+        if (related.length) {
+            related.forEach(r => {
+                $('span')
+                    .class('related-tag', 'clickable-tag')
+                    .attr('title', `Focus ${r}`)
+                    .text(r)
+                    .on('click', () => { if (this.onSelect) this.onSelect(r); })
+                    .mount(tags);
+            });
+        } else {
+            $('span').class('prop-value-dim').text('No direct links').mount(tags);
+        }
+
+        // 6. Properties & Controls
         const isControl = (mode === 'control');
-
-        // Properties
         const fields = this._getEditableFields(data);
 
-        // Internal State Tab/Section
+        // Internal State Tab
         if (data.fullData) {
-             const internalJson = JSON.stringify(data.fullData, null, 2);
-             html += `
-                <div class="inspector-section collapsed">
-                    <h4 onclick="this.parentNode.classList.toggle('collapsed')">Internal State ▶</h4>
-                    <pre class="internal-state-code">${this._escapeHtml(internalJson)}</pre>
-                </div>
-             `;
+            const section = $('div').class('inspector-section', 'collapsed').mount(this.contentContainer);
+            $('h4').text('Internal State ▶').on('click', (e) => {
+                section.dom.classList.toggle('collapsed');
+            }).mount(section);
+
+            const internalJson = JSON.stringify(data.fullData, null, 2);
+            $('pre').class('internal-state-code').text(internalJson).mount(section);
         }
 
         fields.forEach(field => {
@@ -143,67 +169,37 @@ export class InspectorPanel extends Component {
             let displayVal = value;
             if (typeof value === 'number') displayVal = value.toFixed(3);
 
+            const row = $('div').class('prop-row').mount(this.contentContainer);
+            $('span').class('prop-label').text(key).mount(row);
+
             if (isControl) {
                 const inputType = type === 'number' ? 'number' : 'text';
                 const step = type === 'number' ? '0.01' : '';
-                html += `
-                    <div class="prop-row">
-                        <span class="prop-label">${key}</span>
-                        <input type="${inputType}" class="prop-input" step="${step}" data-path="${path}" value="${value}" />
-                    </div>
-                `;
+                $('input')
+                    .attr('type', inputType)
+                    .class('prop-input')
+                    .attr('step', step)
+                    .data('path', path)
+                    .val(value)
+                    .mount(row);
             } else {
                 let formattedVal = displayVal;
                 if (key === 'term' || key === 'label') {
-                    formattedVal = NarseseHighlighter.highlight(String(value));
+                     $('span').class('prop-value').html(NarseseHighlighter.highlight(String(value))).mount(row);
+                } else {
+                     $('span').class('prop-value').text(String(formattedVal)).mount(row);
                 }
-
-                html += `
-                    <div class="prop-row">
-                        <span class="prop-label">${key}</span>
-                        <span class="prop-value">${formattedVal}</span>
-                    </div>
-                `;
             }
         });
 
         if (isControl) {
-            html += `
-                <div style="margin-top: 10px; text-align: right;">
-                    <button id="btn-inspector-save" class="btn small-btn">Save Changes</button>
-                </div>
-            `;
-        }
-
-        content.innerHTML = html;
-
-        // Bind Actions
-        const btnQuery = content.querySelector('#btn-action-query');
-        if (btnQuery) btnQuery.onclick = () => this._handleQuery();
-
-        const btnFocus = content.querySelector('#btn-action-focus');
-        if (btnFocus) btnFocus.onclick = () => {
-             if (this.onSelect) this.onSelect(this.currentData.id);
-        };
-
-        const btnTrace = content.querySelector('#btn-action-trace');
-        if (btnTrace) btnTrace.onclick = () => {
-             if (this.onTrace) this.onTrace(this.currentData.id);
-        };
-
-        // Bind clickable tags
-        content.querySelectorAll('.clickable-tag').forEach(tag => {
-            tag.onclick = (e) => {
-                const term = e.target.dataset.term;
-                if (this.onSelect && term) this.onSelect(term);
-            };
-        });
-
-        if (isControl) {
-            const btnSave = content.querySelector('#btn-inspector-save');
-            if (btnSave) {
-                btnSave.onclick = () => this._handleSave();
-            }
+            const btnRow = $('div').style({ marginTop: '10px', textAlign: 'right' }).mount(this.contentContainer);
+            $('button')
+                .id('btn-inspector-save')
+                .class('btn', 'small-btn')
+                .text('Save Changes')
+                .on('click', () => this._handleSave())
+                .mount(btnRow);
         }
     }
 
@@ -241,13 +237,12 @@ export class InspectorPanel extends Component {
             });
         }
 
-        // Handle other properties (Generic Support)
+        // Handle other properties
         for (const [key, value] of Object.entries(data)) {
             if (['weight', 'id', 'budget', 'truth', 'fullData', 'tasks', 'links', 'derivation'].includes(key)) continue;
-            if (priorityKeys.includes(key)) continue; // Already added
+            if (priorityKeys.includes(key)) continue;
 
             if (value && typeof value === 'object') {
-                // Show generic objects as JSON string, safe against circular refs
                 let strVal = '[Object]';
                 try {
                     strVal = JSON.stringify(value);
@@ -272,13 +267,9 @@ export class InspectorPanel extends Component {
         inputs.forEach(input => {
             const path = input.dataset.path;
             let value = input.value;
-
-            // Numeric handling
             if (input.type === 'number') {
                 value = parseFloat(value);
             }
-
-            // Reconstruct nested object structure
             this._setDeep(updates, path, value);
         });
 
@@ -293,19 +284,5 @@ export class InspectorPanel extends Component {
             current = current[parts[i]];
         }
         current[parts[parts.length - 1]] = value;
-    }
-
-    _truncate(str, n = 20) {
-        return (str.length > n) ? str.substr(0, n - 1) + '...' : str;
-    }
-
-    _escapeHtml(text) {
-        if (!text) return '';
-        return String(text)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
     }
 }
