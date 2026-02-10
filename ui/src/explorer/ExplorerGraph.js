@@ -34,6 +34,61 @@ export class ExplorerGraph {
         }
     }
 
+    onContextTap(callback) {
+        if (this.viewport.cy) {
+            this.viewport.cy.on('cxttap', (evt) => {
+                const target = evt.target;
+                if (target === this.viewport.cy) {
+                    // Background click
+                    callback(evt.originalEvent, null, 'background');
+                } else if (target.isNode()) {
+                    callback(evt.originalEvent, target, 'node');
+                } else if (target.isEdge()) {
+                    callback(evt.originalEvent, target, 'edge');
+                }
+            });
+        }
+    }
+
+    animateGlow(id, intensity = 1.0) {
+        if (!this.viewport.cy) return;
+        const node = this.viewport.cy.$id(id);
+        if (node.nonempty()) {
+             node.animation({
+                style: {
+                    'border-width': 10 * intensity,
+                    'border-opacity': 0.8,
+                    'shadow-blur': 20 * intensity,
+                    'shadow-color': node.style('border-color'),
+                    'shadow-opacity': 1
+                },
+                duration: 300
+            }).play().promise('complete').then(() => {
+                node.animation({
+                     style: {
+                        'border-width': 2, // Reset to original (approx)
+                        'border-opacity': 1,
+                        'shadow-blur': 0,
+                        'shadow-opacity': 0
+                     },
+                     duration: 500
+                }).play();
+            });
+        }
+    }
+
+    animateFadeIn(id) {
+        if (!this.viewport.cy) return;
+        const ele = this.viewport.cy.$id(id);
+        if (ele.nonempty()) {
+            ele.style('opacity', 0);
+            ele.animate({
+                style: { opacity: 1 },
+                duration: 500
+            });
+        }
+    }
+
     addConcept(term, priority, details = {}) {
         this.bag.add(term, priority, details);
         this._syncGraph();
@@ -56,6 +111,26 @@ export class ExplorerGraph {
                 });
             }
         }
+    }
+
+    updatePriorities() {
+        if (!this.viewport.cy) return;
+
+        this.viewport.cy.batch(() => {
+            this.bag.getAll().forEach(item => {
+                const node = this.viewport.cy.$id(item.id);
+                if (node.nonempty()) {
+                    // Update visual weight based on new priority
+                    // We assume styles are bound to 'weight' or opacity
+                    const newWeight = (item.priority * 30) + 20;
+                    if (node.data('weight') !== newWeight) {
+                        node.data('weight', newWeight);
+                        // Also update opacity?
+                        node.style('opacity', 0.2 + (item.priority * 0.8));
+                    }
+                }
+            });
+        });
     }
 
     _syncGraph() {
@@ -93,6 +168,14 @@ export class ExplorerGraph {
                             ...item.data
                         },
                         position: pos
+                    });
+
+                    // Fade in new node
+                    const newNode = this.viewport.cy.$id(item.id);
+                    newNode.style('opacity', 0);
+                    newNode.animate({
+                         style: { opacity: 0.2 + (item.priority * 0.8) },
+                         duration: 500
                     });
                 }
             });

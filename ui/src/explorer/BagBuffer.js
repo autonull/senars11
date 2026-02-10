@@ -10,6 +10,21 @@ export class BagBuffer {
         this._enforceCapacity();
     }
 
+    decay(factor = 0.99, threshold = 0.05) {
+        const removedIds = [];
+        for (const [id, item] of this.items) {
+            // Apply decay
+            item.priority *= factor;
+
+            // Remove if below threshold
+            if (item.priority < threshold) {
+                this.items.delete(id);
+                removedIds.push(id);
+            }
+        }
+        return removedIds;
+    }
+
     remove(id) {
         this.items.delete(id);
     }

@@ -1,4 +1,5 @@
 import { ExplorerGraph } from './ExplorerGraph.js';
+import { ExplorerContextMenu } from './ExplorerContextMenu.js';
 import { Logger } from '../logging/Logger.js';
 import { LMConfigDialog } from '../agent/LMConfigDialog.js';
 import { DEMOS } from './demos.js';
@@ -9,10 +10,16 @@ import { InfoPanel } from '../components/InfoPanel.js';
 import { ControlToolbar } from '../components/ControlToolbar.js';
 import { LogPanel } from '../components/LogPanel.js';
 import { InspectorPanel } from '../components/InspectorPanel.js';
+import { CommandPalette } from '../components/CommandPalette.js';
+import { ToastManager } from '../components/ToastManager.js';
+import { DemoLibraryModal } from '../components/DemoLibraryModal.js';
 
 export class ExplorerApp {
     constructor() {
         this.graph = new ExplorerGraph('graph-container');
+        this.contextMenu = new ExplorerContextMenu(this.graph, this);
+        this.commandPalette = new CommandPalette();
+        this.toastManager = new ToastManager();
         this.logger = new Logger();
         this.lmController = null;
         this.mode = 'visualization';
@@ -23,12 +30,18 @@ export class ExplorerApp {
         this.statusBar = null;
         this.metricsPanel = null;
 
+        this.isDecayEnabled = false;
+        this.decayLoopId = null;
+
         // Layout & Panels
         this.layoutManager = new HUDLayoutManager('hud-overlay');
         this.infoPanel = new InfoPanel();
         this.controlToolbar = new ControlToolbar();
         this.logPanel = new LogPanel();
         this.inspectorPanel = new InspectorPanel();
+
+        // Wire up inspector save callback
+        this.inspectorPanel.onSave = (id, updates) => this.saveNodeChanges(id, updates);
     }
 
     async initialize() {
@@ -40,26 +53,30 @@ export class ExplorerApp {
 
         this.graph.onNodeTap((data) => this.showInspector(data));
 
+        // Register Commands
+        this._registerCommands();
+
+        this.graph.onContextTap((evt, element, type) => {
+            if (type === 'background') {
+                this.contextMenu.show(evt.x, evt.y, null, 'background');
+            } else {
+                this.contextMenu.show(evt.x, evt.y, element, type);
+            }
+        });
+
         // Init Layout System
         this.layoutManager.initialize();
 
         // Instantiate and Mount Components
-        this.infoPanel.mount();
         this.layoutManager.addComponent(this.infoPanel, 'top');
 
         // Metrics - Mount to top region
         this.metricsPanel = new SystemMetricsPanel(null); // No static container
         this.metricsPanel.initialize();
-        this.metricsPanel.mount(); // prepare
         this.layoutManager.addComponent(this.metricsPanel, 'top');
 
-        this.controlToolbar.mount();
         this.layoutManager.addComponent(this.controlToolbar, 'bottom');
-
-        this.logPanel.mount();
         this.layoutManager.addComponent(this.logPanel, 'left');
-
-        this.inspectorPanel.mount();
         this.layoutManager.addComponent(this.inspectorPanel, 'right');
 
         // Init Components (StatusBar)
@@ -135,17 +152,21 @@ export class ExplorerApp {
             };
         }
 
-        // Demo Select
+        // Demo Select (Deprecated by Command/Modal but kept for legacy UI if present)
         const demoSelect = document.getElementById('demo-select');
         if (demoSelect) {
+            // Remove existing logic to avoid duplicates if re-bound
+            const newSelect = demoSelect.cloneNode(false);
+            demoSelect.parentNode.replaceChild(newSelect, demoSelect);
+
             Object.keys(DEMOS).forEach(name => {
                 const opt = document.createElement('option');
                 opt.value = name;
                 opt.textContent = name;
-                demoSelect.appendChild(opt);
+                newSelect.appendChild(opt);
             });
 
-            demoSelect.onchange = (e) => {
+            newSelect.onchange = (e) => {
                 if (e.target.value) {
                     this.loadDemo(e.target.value);
                     e.target.value = "";
@@ -225,6 +246,7 @@ export class ExplorerApp {
 
         this.graph.clear();
         this.log(`Loading demo: ${name}`, 'system');
+        this.toastManager.show(`Demo loaded: ${name}`, 'success');
 
         demo.concepts.forEach(c => this.graph.addConcept(c.term, c.priority, { type: c.type }));
         demo.relationships.forEach(r => this.graph.addRelationship(r[0], r[1], r[2]));
@@ -234,75 +256,10 @@ export class ExplorerApp {
     }
 
     showInspector(data) {
-        const panel = document.getElementById('inspector-panel');
-        const content = document.getElementById('inspector-content');
-        if (!panel || !content) return;
-
-        panel.classList.remove('hidden');
-
-        let html = `
-            <div class="prop-row">
-                <span class="prop-label">ID</span>
-                <span class="prop-value">${data.id}</span>
-            </div>
-        `;
-
-        const isControl = (this.mode === 'control');
-
-        for (const [key, value] of Object.entries(data)) {
-            if (key === 'weight' || key === 'id') continue;
-
-            let displayVal = value;
-            if (typeof value === 'number') displayVal = value.toFixed(3);
-
-            if (isControl) {
-                html += `
-                    <div class="prop-row">
-                        <span class="prop-label">${key}</span>
-                        <input type="text" class="prop-input" id="insp-input-${key}" value="${value}" />
-                    </div>
-                `;
-            } else {
-                html += `
-                    <div class="prop-row">
-                        <span class="prop-label">${key}</span>
-                        <span class="prop-value">${displayVal}</span>
-                    </div>
-                `;
-            }
-        }
-
-        if (isControl) {
-            html += `
-                <div style="margin-top: 10px; text-align: right;">
-                    <button id="btn-inspector-save" class="btn small-btn">Save</button>
-                </div>
-            `;
-        }
-
-        content.innerHTML = html;
-
-        if (isControl) {
-            this._bindClick('btn-inspector-save', () => this.saveNodeChanges(data.id));
-        }
+        this.inspectorPanel.update(data, this.mode);
     }
 
-    saveNodeChanges(id) {
-        const inputs = document.querySelectorAll('#inspector-content .prop-input');
-        const updates = {};
-
-        inputs.forEach(input => {
-            const key = input.id.replace('insp-input-', '');
-            let value = input.value;
-
-            // Attempt to parse numbers
-            if (!isNaN(parseFloat(value)) && isFinite(value)) {
-                value = parseFloat(value);
-            }
-
-            updates[key] = value;
-        });
-
+    saveNodeChanges(id, updates) {
         // Update Bag
         const item = this.graph.bag.items.get(id);
         if (item) {
@@ -316,8 +273,75 @@ export class ExplorerApp {
             cyNode.data(updates);
         }
 
-        this.log(`Updated node ${id}`, 'user');
-        this.showInspector({ id, ...updates });
+        this.log(`Updated node ${id}`, 'success');
+        this.showInspector({ id, ...item.data, ...updates });
+    }
+
+    _registerCommands() {
+        // Navigation
+        this.commandPalette.registerCommand('fit', 'Fit View to Graph', 'F', () => this.graph.fit());
+        this.commandPalette.registerCommand('zoom-in', 'Zoom In', '+', () => this.graph.zoomIn());
+        this.commandPalette.registerCommand('zoom-out', 'Zoom Out', '-', () => this.graph.zoomOut());
+        this.commandPalette.registerCommand('layout', 'Re-calculate Layout', 'L', () => this.graph.relayout());
+
+        // Data
+        this.commandPalette.registerCommand('clear', 'Clear Workspace', null, () => {
+             this.graph.clear();
+             this.log('Workspace cleared', 'system');
+        });
+
+        this.commandPalette.registerCommand('add-concept', 'Add New Concept', 'A', () => this.handleAddConcept());
+        this.commandPalette.registerCommand('link', 'Link Selected Nodes', null, () => this.handleAddLink());
+        this.commandPalette.registerCommand('delete', 'Delete Selected', 'Del', () => this.handleDelete());
+
+        // Attention / Decay
+        this.commandPalette.registerCommand('toggle-decay', 'Toggle Attention Decay', null, () => this.toggleDecay());
+
+        // Reasoner
+        this.commandPalette.registerCommand('run', 'Run Reasoner', 'Space', () => this.toggleReasoner(!this.isReasonerRunning));
+        this.commandPalette.registerCommand('step', 'Step Reasoner', 'S', () => this.stepReasoner());
+
+        // UI
+        this.commandPalette.registerCommand('mode-vis', 'Switch to Visualization Mode', null, () => this.setMode('visualization'));
+        this.commandPalette.registerCommand('mode-ctl', 'Switch to Control Mode', null, () => this.setMode('control'));
+
+        // Demos
+        this.commandPalette.registerCommand('demos', 'Browse Demo Library', 'D', () => this.showDemoLibrary());
+
+        Object.keys(DEMOS).forEach(name => {
+            this.commandPalette.registerCommand(`demo-${name.toLowerCase().replace(/\s/g, '-')}`, `Load Demo: ${name}`, null, () => this.loadDemo(name));
+        });
+    }
+
+    showDemoLibrary() {
+        const modal = new DemoLibraryModal({
+            onSelect: (name) => this.loadDemo(name)
+        });
+        modal.show();
+    }
+
+    toggleDecay(forceState) {
+        this.isDecayEnabled = forceState !== undefined ? forceState : !this.isDecayEnabled;
+
+        if (this.isDecayEnabled) {
+            this.log('Attention Decay: ON', 'system');
+            this.decayLoopId = setInterval(() => this._processDecay(), 1000);
+        } else {
+            this.log('Attention Decay: OFF', 'system');
+            clearInterval(this.decayLoopId);
+        }
+    }
+
+    _processDecay() {
+        const removed = this.graph.bag.decay(0.98, 0.05); // Decay factor, threshold
+
+        if (removed.length > 0) {
+            this.graph._syncGraph(); // Full sync if removal
+        } else {
+            this.graph.updatePriorities(); // Just visual update
+        }
+
+        this._updateStats();
     }
 
     _updateStats() {
@@ -368,11 +392,17 @@ export class ExplorerApp {
         if (type === 'error') color = '#ff5555';
         if (type === 'warning') color = '#ffbb00';
         if (type === 'system') color = '#cc88ff';
+        if (type === 'success') color = '#55ff55';
 
         entry.innerHTML = `<span style="color:#666">[${timestamp}]</span> <span style="color:${color}">${message}</span>`;
 
         logPanel.appendChild(entry);
         logPanel.scrollTop = logPanel.scrollHeight;
+
+        // Also show toast for important events
+        if (type === 'error' || type === 'warning' || type === 'success') {
+            this.toastManager.show(message, type);
+        }
     }
 
     setMode(mode) {
