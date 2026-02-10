@@ -18,8 +18,6 @@ import { LayoutPresets } from './config/LayoutPresets.js';
 import { Logger } from './logging/Logger.js';
 import { StatusBar } from './components/StatusBar.js';
 
-console.log('--- SeNARS Unified IDE loading ---');
-
 cytoscape.use(fcose);
 window.cytoscape = cytoscape;
 
@@ -49,19 +47,19 @@ class SeNARSIDE {
             this.presetName = 'demo';
         }
 
-        if (!this.presetName) this.presetName = 'ide';
+        this.presetName ||= 'ide';
 
         // Map common aliases
-        if (this.presetName === 'console') this.presetName = 'repl';
-        if (this.presetName === 'online') this.presetName = 'dashboard';
+        const aliases = { console: 'repl', online: 'dashboard' };
+        if (aliases[this.presetName]) this.presetName = aliases[this.presetName];
     }
 
     loadSettings() {
         const saved = localStorage.getItem('senars-ide-settings');
         if (saved) {
             const settings = JSON.parse(saved);
-            this.connectionMode = settings.mode || 'local';
-            this.serverUrl = settings.serverUrl || 'localhost:3000';
+            this.connectionMode = settings.mode ?? 'local';
+            this.serverUrl = settings.serverUrl ?? 'localhost:3000';
         }
     }
 
@@ -73,7 +71,7 @@ class SeNARSIDE {
     }
 
     async initialize() {
-        console.log(`Initializing SeNARS IDE (Layout: ${this.presetName})...`);
+        this.logger.log(`Initializing SeNARS IDE (Layout: ${this.presetName})...`, 'system');
 
         this.statusBar = new StatusBar(document.getElementById('status-bar-root'));
         this.statusBar.initialize({ onModeSwitch: () => this.showConnectionModal() });
@@ -85,7 +83,7 @@ class SeNARSIDE {
         // Listen for concept selection (Global Event Bus)
         document.addEventListener('senars:concept:select', (e) => this.handleConceptSelect(e));
 
-        console.log(`SeNARS IDE initialized in ${this.connectionMode} mode`);
+        this.logger.log(`SeNARS IDE initialized in ${this.connectionMode} mode`, 'success');
     }
 
     handleConceptSelect(e) {
@@ -217,7 +215,7 @@ class SeNARSIDE {
     }
 
     async switchMode(mode) {
-        console.log(`Switching to ${mode} mode...`);
+        this.logger.log(`Switching to ${mode} mode...`, 'system');
         this.connection?.disconnect();
         this.connectionMode = mode;
 

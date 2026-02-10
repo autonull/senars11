@@ -76,7 +76,7 @@ export class REPLPanel extends Component {
         cell.updateMode();
 
         // Execute via app command processor
-        if (this.app && this.app.commandProcessor) {
+        if (this.app?.commandProcessor) {
             this.app.commandProcessor.processCommand(command);
         } else {
             console.warn('Command Processor not available');
@@ -85,47 +85,43 @@ export class REPLPanel extends Component {
     }
 
     controlReasoner(action) {
-        // Forward control actions to app (main-ide.js logic)
-        // Since main-ide.js logic for controlReasoner was coupled with REPLInput,
-        // we should probably expose a method on app or handle it here if we have access to connection.
+        if (!this.app?.connection) return;
 
-        if (this.app?.connection) {
-             console.log('Reasoner control:', action);
-             if (!this.app.connection.isConnected()) {
-                 this.notebookManager.createResultCell('⚠️ Not connected', 'system');
-                 return;
-             }
-             this.app.connection.sendMessage(`control/${action}`, {});
-             this.notebookManager.createResultCell(`🎛️ Reasoner ${action}`, 'system');
-
-             // Update state in app
-             this.app.isRunning = action === 'start';
-             if (action === 'stop' || action === 'pause') this.app.isRunning = false;
-             if (action === 'reset') {
-                 this.app.cycleCount = 0;
-                 this.app.messageCount = 0;
-             }
-
-             // Update UI
-             this.replInput.updateState(this.app.isRunning);
-             this.app.updateStats(); // Update global stats
+        console.log('Reasoner control:', action);
+        if (!this.app.connection.isConnected()) {
+            this.notebookManager.createResultCell('⚠️ Not connected', 'system');
+            return;
         }
+
+        this.app.connection.sendMessage(`control/${action}`, {});
+        this.notebookManager.createResultCell(`🎛️ Reasoner ${action}`, 'system');
+
+        // Update state in app
+        if (action === 'start') this.app.isRunning = true;
+        else if (action === 'stop' || action === 'pause') this.app.isRunning = false;
+        else if (action === 'reset') {
+            this.app.cycleCount = 0;
+            this.app.messageCount = 0;
+        }
+
+        // Update UI
+        this.replInput.updateState(this.app.isRunning);
+        this.app.updateStats(); // Update global stats
     }
 
     handleExtraAction(action) {
-         if (action === 'markdown') {
-             this.notebookManager.createMarkdownCell('Double click to edit...');
-         } else if (action === 'graph') {
-             this.notebookManager.createWidgetCell('GraphWidget', { nodes: [], edges: [] });
-         } else if (action === 'slider') {
-             this.notebookManager.createWidgetCell('TruthSlider', { frequency: 0.5, confidence: 0.9 });
-         } else if (action === 'subnotebook') {
-             this.notebookManager.createWidgetCell('SubNotebook', {});
-         }
+        const actions = {
+            markdown: () => this.notebookManager.createMarkdownCell('Double click to edit...'),
+            graph: () => this.notebookManager.createWidgetCell('GraphWidget', { nodes: [], edges: [] }),
+            slider: () => this.notebookManager.createWidgetCell('TruthSlider', { frequency: 0.5, confidence: 0.9 }),
+            subnotebook: () => this.notebookManager.createWidgetCell('SubNotebook', {})
+        };
+
+        if (actions[action]) actions[action]();
     }
 
     showDemoSelector() {
-        if (this.app && this.app.showDemoLibrary) {
+        if (this.app?.showDemoLibrary) {
             this.app.showDemoLibrary();
         } else {
             this.notebookManager.createResultCell('Demo Library not available', 'info');
@@ -144,7 +140,7 @@ export class REPLPanel extends Component {
     }
 
     setupLoggerAdapter() {
-        if (!this.app || !this.app.logger) return;
+        if (!this.app?.logger) return;
 
         // Adapter to route logs to notebook
         const adapter = {
@@ -153,7 +149,7 @@ export class REPLPanel extends Component {
                 if (type === 'result') category = 'result';
                 else if (type === 'thought') category = 'reasoning';
                 else if (type === 'debug') category = 'debug';
-                else if (type === 'error' || type === 'warning' || type === 'info') category = 'system';
+                else if (['error', 'warning', 'info'].includes(type)) category = 'system';
                 else if (type === 'input') category = 'user-input';
                 else if (type === 'metric') category = 'metric';
                 else if (type.includes('reasoning') || type.includes('inference')) category = 'reasoning';

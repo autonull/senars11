@@ -7,11 +7,11 @@ import { Config } from '../config/Config.js';
 export class REPLInput {
     constructor(container, options = {}) {
         this.container = container;
-        this.onExecute = options.onExecute || (() => {});
-        this.onClear = options.onClear || (() => {});
-        this.onDemo = options.onDemo || (() => {});
-        this.onExtraAction = options.onExtraAction || (() => {});
-        this.onControl = options.onControl || (() => {});
+        this.onExecute = options.onExecute ?? (() => {});
+        this.onClear = options.onClear ?? (() => {});
+        this.onDemo = options.onDemo ?? (() => {});
+        this.onExtraAction = options.onExtraAction ?? (() => {});
+        this.onControl = options.onControl ?? (() => {});
 
         this.history = new CommandHistory('senars-repl-history', Config.getConstants().MAX_HISTORY_SIZE);
         this.element = null;
@@ -184,21 +184,26 @@ export class REPLInput {
             e.preventDefault();
             this.execute();
         } else if (e.key === 'ArrowUp') {
-            if (this.inputBox.selectionStart === 0 && this.inputBox.selectionEnd === 0) {
-                const prev = this.history.getPrevious(this.inputBox.getValue());
-                if (prev !== null) {
-                    e.preventDefault();
-                    this.inputBox.setValue(prev);
-                    this.inputBox.setSelectionRange(0, 0);
-                }
-            }
+            this._handleHistoryNav('up', e);
         } else if (e.key === 'ArrowDown') {
-            if (this.inputBox.selectionStart === this.inputBox.getValue().length) {
-                const next = this.history.getNext();
-                if (next !== null) {
-                    e.preventDefault();
-                    this.inputBox.setValue(next);
-                }
+            this._handleHistoryNav('down', e);
+        }
+    }
+
+    _handleHistoryNav(direction, e) {
+        const isUp = direction === 'up';
+        const atStart = this.inputBox.selectionStart === 0 && this.inputBox.selectionEnd === 0;
+        const atEnd = this.inputBox.selectionStart === this.inputBox.getValue().length;
+
+        if ((isUp && atStart) || (!isUp && atEnd)) {
+            const nextVal = isUp
+                ? this.history.getPrevious(this.inputBox.getValue())
+                : this.history.getNext();
+
+            if (nextVal !== null) {
+                e.preventDefault();
+                this.inputBox.setValue(nextVal);
+                if (isUp) this.inputBox.setSelectionRange(0, 0);
             }
         }
     }

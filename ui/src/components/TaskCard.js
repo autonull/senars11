@@ -5,7 +5,7 @@ export class TaskCard extends Component {
     constructor(container, task, options = {}) {
         super(container);
         this.task = task;
-        this.compact = options.compact || false;
+        this.compact = options.compact ?? false;
     }
 
     render() {
@@ -53,9 +53,11 @@ export class TaskCard extends Component {
         });
 
         div.addEventListener('click', () => {
-            this.task && document.dispatchEvent(new CustomEvent('senars:task:select', {
-                 detail: { task: this.task }
-            }));
+            if (this.task) {
+                document.dispatchEvent(new CustomEvent('senars:task:select', {
+                     detail: { task: this.task }
+                }));
+            }
         });
 
         const term = this.task.term ?? this.task.sentence?.term ?? 'unknown';
@@ -81,8 +83,10 @@ export class TaskCard extends Component {
     }
 
     _dispatchHover(isHovering) {
-        this.task && document.dispatchEvent(new CustomEvent('senars:task:hover', {
-             detail: { task: this.task, hovering: isHovering }
-         }));
+        if (this.task) {
+            document.dispatchEvent(new CustomEvent('senars:task:hover', {
+                detail: { task: this.task, hovering: isHovering }
+            }));
+        }
     }
 }

@@ -5,7 +5,7 @@ export class ConceptCard extends Component {
     constructor(container, concept, options = {}) {
         super(container);
         this.concept = concept;
-        this.compact = options.compact || false;
+        this.compact = options.compact ?? false;
     }
 
     render() {
@@ -47,7 +47,7 @@ export class ConceptCard extends Component {
         div.addEventListener('dblclick', () => document.dispatchEvent(new CustomEvent('senars:concept:center', { detail })));
 
         const term = this.concept.term ?? 'unknown';
-        const budget = this.concept.budget || {};
+        const budget = this.concept.budget ?? {};
         const priority = budget.priority ?? 0;
         const taskCount = this.concept.tasks?.length ?? this.concept.taskCount ?? 0;
 

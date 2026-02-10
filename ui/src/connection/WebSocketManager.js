@@ -20,7 +20,7 @@ export class WebSocketManager extends ConnectionInterface {
 
     connect(url) {
         try {
-            const wsUrl = url || Config.getWebSocketUrl();
+            const wsUrl = url ?? Config.getWebSocketUrl();
             this.ws = new WebSocket(wsUrl);
             this.ws.onopen = () => {
                 this.connectionStatus = 'connected';
@@ -69,14 +69,19 @@ export class WebSocketManager extends ConnectionInterface {
     isConnected() { return this.ws?.readyState === WebSocket.OPEN; }
 
     subscribe(type, handler) {
-        !this.messageHandlers.has(type) && this.messageHandlers.set(type, []);
-        this.messageHandlers.get(type).push(handler);
+        let handlers = this.messageHandlers.get(type);
+        if (!handlers) {
+            handlers = [];
+            this.messageHandlers.set(type, handlers);
+        }
+        handlers.push(handler);
     }
 
     unsubscribe(type, handler) {
         const handlers = this.messageHandlers.get(type);
-        const index = handlers?.indexOf(handler);
-        index > -1 && handlers.splice(index, 1);
+        if (!handlers) return;
+        const index = handlers.indexOf(handler);
+        if (index > -1) handlers.splice(index, 1);
     }
 
     getConnectionStatus() { return this.connectionStatus; }
@@ -110,8 +115,20 @@ export class WebSocketManager extends ConnectionInterface {
 
     dispatchMessage(msg) {
         if (msg.type === 'cycle.start' || msg.type === 'cycle.complete') return;
-        const handlers = [...(this.messageHandlers.get(msg.type) ?? []), ...(this.messageHandlers.get('*') ?? [])];
-        handlers.forEach(h => { try { h(msg); } catch (e) { console.error("WS Handler error", e); } });
+
+        const typeHandlers = this.messageHandlers.get(msg.type);
+        if (typeHandlers) {
+            for (const h of [...typeHandlers]) {
+                try { h(msg); } catch (e) { console.error("WS Handler error", e); }
+            }
+        }
+
+        const globalHandlers = this.messageHandlers.get('*');
+        if (globalHandlers) {
+            for (const h of [...globalHandlers]) {
+                try { h(msg); } catch (e) { console.error("WS Handler error", e); }
+            }
+        }
     }
 
     notifyStatusChange(status) {

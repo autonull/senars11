@@ -119,7 +119,9 @@ export class AutocompleteManager {
 
     renderList() {
         this.element.innerHTML = '';
-        this.matched.forEach((item, index) => {
+
+        for (let index = 0; index < this.matched.length; index++) {
+            const item = this.matched[index];
             const div = document.createElement('div');
             div.style.cssText = `
                 padding: 4px 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;
@@ -158,7 +160,7 @@ export class AutocompleteManager {
             };
 
             this.element.appendChild(div);
-        });
+        }
 
         // Auto-scroll
         const selected = this.element.children[this.selectedIndex];
@@ -176,7 +178,7 @@ export class AutocompleteManager {
             type: '🇹',
             snippet: '✂️'
         };
-        return icons[type] || '📄';
+        return icons[type] ?? '📄';
     }
 
     insert() {
@@ -203,9 +205,11 @@ export class AutocompleteManager {
     updatePosition(cursorPos) {
         // 1. Sync styles to measureDiv
         const styles = window.getComputedStyle(this.textarea);
-        ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'padding', 'border', 'width', 'boxSizing'].forEach(prop => {
+        const props = ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'padding', 'border', 'width', 'boxSizing'];
+
+        for (const prop of props) {
             this.measureDiv.style[prop] = styles[prop];
-        });
+        }
         this.measureDiv.style.width = this.textarea.clientWidth + 'px';
 
         // 2. Set content up to cursor

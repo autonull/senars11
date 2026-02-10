@@ -4,7 +4,6 @@ export class Logger {
     constructor(uiElements = null) {
         this.uiElements = uiElements;
         this.logViewer = null;
-        // uiElements?.logsContainer && (this.logViewer = new LogViewer(uiElements.logsContainer));
         this.messageCounter = 1;
         this.icons = {
             success: UI_CONSTANTS.LOG_ICONS.SUCCESS,
@@ -31,12 +30,12 @@ export class Logger {
 
     setUIElements(uiElements) {
         this.uiElements = uiElements;
-        uiElements?.logsContainer && (this.logViewer = new LogViewer(uiElements.logsContainer));
     }
 
-
     addLogEntry(content, type = 'info', icon = null) {
-        if (this.logViewer && this.logViewer.addLog) return this.logViewer.addLog(content, type, icon);
+        if (this.logViewer?.addLog) {
+            return this.logViewer.addLog(content, type, icon);
+        }
 
         const effectiveIcon = icon ?? this.icons[type] ?? this.icons[UI_CONSTANTS.LOG_TYPES.INFO];
         const timestamp = new Date().toLocaleTimeString();
@@ -49,7 +48,7 @@ export class Logger {
     }
 
     logMarkdown(content) {
-        if (this.logViewer && this.logViewer.logMarkdown) {
+        if (this.logViewer?.logMarkdown) {
             this.logViewer.logMarkdown(content);
         } else {
             console.log('[Markdown Log]', content);
@@ -57,7 +56,7 @@ export class Logger {
     }
 
     logWidget(type, data) {
-        if (this.logViewer && this.logViewer.logWidget) {
+        if (this.logViewer?.logWidget) {
             this.logViewer.logWidget(type, data);
         } else {
             console.log('[Widget Log]', type, data);
@@ -81,7 +80,7 @@ export class Logger {
 
 
     clearLogs() {
-        if (this.logViewer && this.logViewer.clear) {
+        if (this.logViewer?.clear) {
             this.logViewer.clear();
         } else if (this.uiElements?.logsContainer) {
             try {

@@ -138,17 +138,17 @@ export class DerivationTree extends Component {
         if (!this.historyList) return;
         this.historyList.innerHTML = '';
 
-        this.history.forEach(item => {
+        for (const item of this.history) {
             const div = document.createElement('div');
             div.className = `dt-history-item ${this.selectedDerivation === item ? 'active' : ''}`;
             div.innerHTML = `
-                <div class="dt-rule">${item.rule || 'Unknown Rule'}</div>
-                <div class="dt-term" title="${item.derived?.term}">${item.derived?.term || '...'}</div>
+                <div class="dt-rule">${item.rule ?? 'Unknown Rule'}</div>
+                <div class="dt-term" title="${item.derived?.term}">${item.derived?.term ?? '...'}</div>
                 <div class="dt-time">${item.timestamp}</div>
             `;
             div.onclick = () => this.selectDerivation(item);
             this.historyList.appendChild(div);
-        });
+        }
     }
 
     selectDerivation(data) {

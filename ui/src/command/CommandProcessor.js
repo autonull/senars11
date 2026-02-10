@@ -27,20 +27,18 @@ export class CommandProcessor {
             const cmdName = parts[0];
             const args = parts.slice(1);
 
-            if (this.commands.has(cmdName)) {
-                this.commands.get(cmdName).fn({ args, text });
+            const command = this.commands.get(cmdName);
+            if (command) {
+                command.fn({ args, text });
             } else {
                 this.logger.log(`Unknown command: /${cmdName}`, 'error');
             }
         } else {
             // Forward to connection
-             if (this.connection && this.connection.isConnected()) {
-                let type;
-                if (mode === 'agent' || mode === 'metta' || text.startsWith('!')) {
-                    type = 'agent/input';
-                } else {
-                    type = 'narseseInput';
-                }
+            if (this.connection?.isConnected()) {
+                const type = (mode === 'agent' || mode === 'metta' || text.startsWith('!'))
+                    ? 'agent/input'
+                    : 'narseseInput';
                 this.connection.sendMessage(type, { text });
             } else {
                 this.logger.log('Not connected', 'error');
@@ -87,7 +85,7 @@ export class CommandProcessor {
     }
 
     _executeInspect(ctx) {
-        const term = ctx.args && ctx.args[0];
+        const term = ctx.args?.[0];
         if (!term) {
             this.logger.log('Usage: /inspect <term>', 'error');
             return false;
@@ -115,7 +113,7 @@ export class CommandProcessor {
             return false;
         }
 
-        const mode = ctx.args && ctx.args[0];
+        const mode = ctx.args?.[0];
         if (!mode) {
              this.logger.log('Usage: /layout <full-repl|standard>', 'error');
              return false;
@@ -128,7 +126,7 @@ export class CommandProcessor {
             const findItem = (item, name) => {
                 if (item.componentName === name) return item;
                 if (item.contentItems) {
-                    for (let c of item.contentItems) {
+                    for (const c of item.contentItems) {
                         const found = findItem(c, name);
                         if (found) return found;
                     }
@@ -143,21 +141,17 @@ export class CommandProcessor {
             let row = null;
 
             // REPL might be in a Stack, which is in a Row
-            if (currentItem && currentItem.parent && currentItem.parent.type === 'stack') {
+            if (currentItem?.parent?.type === 'stack') {
                 currentItem = currentItem.parent;
             }
 
-            if (currentItem && currentItem.parent && currentItem.parent.type === 'row') {
+            if (currentItem?.parent?.type === 'row') {
                 row = currentItem.parent;
             }
 
             if (row) {
                  const itemIndex = row.contentItems.indexOf(currentItem);
                  // Assuming REPL is on left (index 0) or right.
-                 // If itemIndex is 0, sidebar is 1. If itemIndex is 1, sidebar is 0.
-                 // But we need to be sure we found the main split.
-
-                 // For now, assume a 2-column layout as set up in main-ide.js
                  const sidebarIndex = itemIndex === 0 ? 1 : 0;
                  const sidebarItem = row.contentItems[sidebarIndex];
 

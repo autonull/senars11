@@ -205,17 +205,15 @@ export class SmartTextarea {
         let matchIndex = -1;
         let selfIndex = -1;
 
-        const pairs = { '(': ')', ')': '(', '{': '}', '}': '{', '[': ']', ']': '[' };
-
         // Check character before cursor
         const before = text[cursor - 1];
-        if (pairs[before]) {
+        if (SmartTextarea.PAIRS[before]) {
             selfIndex = cursor - 1;
             matchIndex = this.findMatch(text, selfIndex);
         } else {
             // Check character after cursor
             const after = text[cursor];
-            if (pairs[after]) {
+            if (SmartTextarea.PAIRS[after]) {
                 selfIndex = cursor;
                 matchIndex = this.findMatch(text, selfIndex);
             }
@@ -256,34 +254,17 @@ export class SmartTextarea {
     }
 
     renderBracketHighlight(text, idx1, idx2) {
-        // Construct HTML that has same layout but only spans at indices
-        // Ideally we just replace chars at idx1 and idx2 with spans, and everything else with spaces?
-        // No, spacing/kerning might differ if we replace chars with spaces.
-        // Better: escape everything, then wrap brackets.
-
-        // Actually, easiest is:
-        // Create full text, wrap brackets in span, set color transparent for everything else.
-        // We already set color transparent on layer.
-        // So we just need to wrap matched brackets in a class that gives them background/border.
-
-        let html = '';
-        for (let i = 0; i < text.length; i++) {
-            let char = text[i];
+        const html = text.split('').map((char, i) => {
             if (char === '<') char = '&lt;';
             else if (char === '>') char = '&gt;';
             else if (char === '&') char = '&amp;';
 
-            if (i === idx1 || i === idx2) {
-                html += `<span class="bracket-match">${char}</span>`;
-            } else {
-                html += char;
-            }
-        }
+            return (i === idx1 || i === idx2)
+                ? `<span class="bracket-match">${char}</span>`
+                : char;
+        }).join('');
 
-        // Handle trailing newline
-        if (text.endsWith('\n')) html += '<br>&nbsp;';
-
-        this.bracketLayer.innerHTML = html;
+        this.bracketLayer.innerHTML = html + (text.endsWith('\n') ? '<br>&nbsp;' : '');
     }
 
     syncScroll() {
@@ -310,3 +291,5 @@ export class SmartTextarea {
     get selectionEnd() { return this.textarea.selectionEnd; }
     setSelectionRange(start, end) { this.textarea.setSelectionRange(start, end); }
 }
+
+SmartTextarea.PAIRS = { '(': ')', ')': '(', '{': '}', '}': '{', '[': ']', ']': '[' };

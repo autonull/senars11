@@ -129,24 +129,17 @@ export class MemoryInspector extends Component {
         const listDiv = document.createElement('div');
         listDiv.className = 'mi-list';
 
-        const filtered = this.data.filter(c =>
-            (!this.filterText || c.term.toLowerCase().includes(this.filterText)) &&
-            (!this.filters.hasGoals || c.tasks?.some(t => t.punctuation === '!')) &&
-            (!this.filters.hasQuestions || c.tasks?.some(t => t.punctuation === '?'))
-        ).sort((a, b) => {
-            const valA = this._getValue(a, this.sortField);
-            const valB = this._getValue(b, this.sortField);
-            return (valA < valB ? -1 : 1) * (this.sortDirection === 'asc' ? 1 : -1);
-        });
+        const filtered = this._filterAndSortData();
 
         if (filtered.length === 0) {
             listDiv.innerHTML = '<div style="padding:10px; color:var(--text-muted); text-align:center;">No concepts found</div>';
         } else {
             const limit = 50;
             const isCompact = this.listMode === 'compact';
-            filtered.slice(0, limit).forEach(concept =>
-                new ConceptCard(listDiv, concept, { compact: isCompact }).render()
-            );
+
+            for (const concept of filtered.slice(0, limit)) {
+                new ConceptCard(listDiv, concept, { compact: isCompact }).render();
+            }
 
             if (filtered.length > limit) {
                 const more = document.createElement('div');
@@ -157,6 +150,18 @@ export class MemoryInspector extends Component {
         }
 
         this.contentContainer.appendChild(listDiv);
+    }
+
+    _filterAndSortData() {
+        return this.data.filter(c =>
+            (!this.filterText || c.term.toLowerCase().includes(this.filterText)) &&
+            (!this.filters.hasGoals || c.tasks?.some(t => t.punctuation === '!')) &&
+            (!this.filters.hasQuestions || c.tasks?.some(t => t.punctuation === '?'))
+        ).sort((a, b) => {
+            const valA = this._getValue(a, this.sortField);
+            const valB = this._getValue(b, this.sortField);
+            return (valA < valB ? -1 : 1) * (this.sortDirection === 'asc' ? 1 : -1);
+        });
     }
 
     renderDetails() {

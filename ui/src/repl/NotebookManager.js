@@ -35,11 +35,11 @@ export class NotebookManager {
         if (mode === 'list') {
             this.viewContainer.style.overflowY = 'auto';
             this.viewContainer.style.display = 'block';
-            this.cells.forEach(cell => {
+            for (const cell of this.cells) {
                 const el = cell.render();
                 this._addDnDListeners(el, cell);
                 this.viewContainer.appendChild(el);
-            });
+            }
         } else if (mode === 'grid') {
             this._renderGridView(false);
         } else if (mode === 'icon') {
@@ -115,7 +115,7 @@ export class NotebookManager {
         this.viewContainer.style.gap = '10px';
         this.viewContainer.style.padding = '10px';
 
-        this.cells.forEach(cell => {
+        for (const cell of this.cells) {
             const wrapper = document.createElement('div');
             wrapper.className = 'grid-cell-wrapper';
             wrapper.style.cssText = `
@@ -138,7 +138,7 @@ export class NotebookManager {
 
             const icon = document.createElement('div');
             icon.style.cssText = `font-size: ${isIconMode ? '24px' : '16px'}; text-align: center; margin-bottom: 4px;`;
-            icon.textContent = iconMap[cell.type] || '📄';
+            icon.textContent = iconMap[cell.type] ?? '📄';
 
             wrapper.appendChild(icon);
 
@@ -158,7 +158,7 @@ export class NotebookManager {
 
             wrapper.appendChild(contentPreview);
             this.viewContainer.appendChild(wrapper);
-        });
+        }
     }
 
     _initGraphView() {

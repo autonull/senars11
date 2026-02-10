@@ -22,7 +22,13 @@ export class SystemMetricsPanel extends Component {
     }
 
     update(metrics = {}) {
-        const { performance: perf = {}, resourceUsage: res = {}, taskProcessing: proc = {}, reasoningSteps: steps = 0, uptime = 0 } = metrics;
+        const {
+            performance: perf = {},
+            resourceUsage: res = {},
+            taskProcessing: proc = {},
+            reasoningSteps: steps = 0,
+            uptime = 0
+        } = metrics;
 
         this.metrics = {
             throughput: perf.throughput ?? 0,

@@ -107,17 +107,22 @@ export class GraphPanel extends Component {
     }
 
     update(message) {
-        this.graphManager?.initialized && this.graphManager.updateFromMessage(message);
+        if (this.graphManager?.initialized) {
+            this.graphManager.updateFromMessage(message);
+        }
     }
 
     resize() {
-        if (this.graphManager?.cy) {
-            this.graphManager.cy.resize();
-            this.graphManager.cy.fit();
+        const cy = this.graphManager?.cy;
+        if (cy) {
+            cy.resize();
+            cy.fit();
         }
     }
 
     reset() {
-        this.graphManager?.initialized && this.graphManager.clear();
+        if (this.graphManager?.initialized) {
+            this.graphManager.clear();
+        }
     }
 }

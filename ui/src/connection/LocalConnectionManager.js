@@ -141,15 +141,19 @@ export class LocalConnectionManager extends ConnectionInterface {
     }
 
     subscribe(type, handler) {
-        if (!this.messageHandlers.has(type)) this.messageHandlers.set(type, []);
-        this.messageHandlers.get(type).push(handler);
+        let handlers = this.messageHandlers.get(type);
+        if (!handlers) {
+            handlers = [];
+            this.messageHandlers.set(type, handlers);
+        }
+        handlers.push(handler);
     }
 
     unsubscribe(type, handler) {
         const handlers = this.messageHandlers.get(type);
         if (!handlers) return;
         const index = handlers.indexOf(handler);
-        index > -1 && handlers.splice(index, 1);
+        if (index > -1) handlers.splice(index, 1);
     }
 
     disconnect() {
@@ -158,8 +162,19 @@ export class LocalConnectionManager extends ConnectionInterface {
     }
 
     dispatchMessage(message) {
-        const handlers = [...(this.messageHandlers.get(message.type) || []), ...(this.messageHandlers.get('*') || [])];
-        handlers.forEach(h => { try { h(message); } catch (e) { console.error("Handler error", e); } });
+        const typeHandlers = this.messageHandlers.get(message.type);
+        if (typeHandlers) {
+            for (const h of [...typeHandlers]) {
+                try { h(message); } catch (e) { console.error("Handler error", e); }
+            }
+        }
+
+        const globalHandlers = this.messageHandlers.get('*');
+        if (globalHandlers) {
+            for (const h of [...globalHandlers]) {
+                try { h(message); } catch (e) { console.error("Handler error", e); }
+            }
+        }
     }
 
     updateStatus(status) {
