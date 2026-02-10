@@ -173,6 +173,9 @@ export class ExplorerApp {
     loadDemo(name) { this.inputManager.loadDemo(name); }
     toggleDecay(forceState) { this.inputManager.toggleDecay(forceState); }
     setMode(mode) { this.inputManager.setMode(mode); }
+    handleAddConcept(pos) { this.inputManager.handleAddConcept(pos); }
+    handleAddLink() { this.inputManager.handleAddLink(); }
+    handleDelete() { this.inputManager.handleDelete(); }
 
     // UI Helpers used by managers
     _getColorFromHash(str) {
@@ -264,7 +267,7 @@ export class ExplorerApp {
     }
 
     toggleFocusMode() {
-        this.inputManager.toggleFocusMode(); // Delegating to InputManager
+        this.inputManager.toggleFocusMode();
     }
 
     handleToggleFullscreen() {
@@ -392,6 +395,30 @@ export class ExplorerApp {
         if (theme === 'light') document.body.classList.add('light-theme');
     }
 
+    _onDerivation(data) {
+        const { task, belief, derivedTask, inferenceRule } = data;
+        const derivedId = derivedTask.term.toString();
+        const sources = [];
+        if (task?.term) sources.push(task.term.toString());
+        if (belief?.term) sources.push(belief.term.toString());
+
+        derivedTask.derivation = { rule: inferenceRule || 'Inference', sources: sources };
+        this._onTaskAdded(derivedTask);
+        const rule = inferenceRule || 'Inference';
+
+        if (task && task.term) {
+            const sourceId = task.term.toString();
+            if (this.graph.cy.$id(sourceId).empty()) this._onTaskAdded(task);
+            this.graph.addEdge({ source: sourceId, target: derivedId, type: 'derivation', label: rule }, false);
+        }
+
+        if (belief && belief.term) {
+            const beliefId = belief.term.toString();
+             if (this.graph.cy.$id(beliefId).empty()) this._onTaskAdded(belief);
+            this.graph.addEdge({ source: beliefId, target: derivedId, type: 'derivation', label: rule }, false);
+        }
+    }
+
     _onTaskAdded(task) {
         if (!task || !task.term) return;
         if (this.taskBrowser) this.taskBrowser.addTask(task);
@@ -421,8 +448,4 @@ export class ExplorerApp {
         }
         if (this.graph.scheduleLayout) this.graph.scheduleLayout();
     }
-
-    handleAddConcept(pos) { this.inputManager.handleAddConcept(pos); }
-    handleAddLink() { this.inputManager.handleAddLink(); }
-    handleDelete() { this.inputManager.handleDelete(); }
 }
