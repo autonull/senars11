@@ -12,6 +12,7 @@ import { InspectorPanel } from '../components/InspectorPanel.js';
 import { CommandPalette } from '../components/CommandPalette.js';
 import { ToastManager } from '../components/ToastManager.js';
 import { DemoLibraryModal } from '../components/DemoLibraryModal.js';
+import { ShortcutsModal } from '../components/ShortcutsModal.js';
 import { TargetPanel } from './TargetPanel.js';
 import { getTacticalStyle } from '../visualization/ExplorerGraphTheme.js';
 import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
@@ -63,6 +64,7 @@ export class ExplorerApp {
         // Wire up inspector callbacks
         this.inspectorPanel.onSave = (id, updates) => this.saveNodeChanges(id, updates);
         this.inspectorPanel.onQuery = (term) => this.handleReplCommand(`<${term} ?>?`);
+        this.inspectorPanel.onTrace = (id) => this.graph.traceDerivationPath(id);
     }
 
     // Convenience accessor for the underlying graph manager
@@ -216,6 +218,11 @@ export class ExplorerApp {
         }
 
         console.log('ExplorerApp: Initialized');
+
+        // Show welcome toast
+        setTimeout(() => {
+            this.toastManager.show('Welcome! Press "?" for keyboard shortcuts.', 'info', 5000);
+        }, 1000);
     }
 
     async _initLocalBridge() {
@@ -261,8 +268,9 @@ export class ExplorerApp {
             // Bind to REASONING_DERIVATION for derived results
             nar.on(IntrospectionEvents.REASONING_DERIVATION, (data) => {
                 console.log('ExplorerApp: REASONING_DERIVATION event received', data);
-                this.log(`DERIVED: ${data.derivedTask.term}`, 'system');
-                this._onTaskAdded(data.derivedTask);
+                this.log(`DERIVED: ${data.derivedTask.term} (${data.inferenceRule})`, 'system');
+
+                this._onDerivation(data);
 
                 // Animate reasoning trace
                 const sourceId = data.task?.term?.toString();
@@ -281,6 +289,60 @@ export class ExplorerApp {
 
             this._narEventsBound = true;
             console.log('ExplorerApp: Bound to NAR events');
+        }
+    }
+
+    _onDerivation(data) {
+        const { task, belief, derivedTask, inferenceRule } = data;
+
+        // Enrich derived task with derivation metadata for Inspector
+        const derivedId = derivedTask.term.toString();
+        const sources = [];
+        if (task?.term) sources.push(task.term.toString());
+        if (belief?.term) sources.push(belief.term.toString());
+
+        derivedTask.derivation = {
+            rule: inferenceRule || 'Inference',
+            sources: sources
+        };
+
+        // Ensure derived task node exists
+        this._onTaskAdded(derivedTask);
+        const rule = inferenceRule || 'Inference';
+
+        // Add derivation edges
+        if (task && task.term) {
+            const sourceId = task.term.toString();
+            // Ensure source node exists (might be just an ID ref if not in bag, but we try)
+            if (this.graph.cy.$id(sourceId).empty()) {
+                this._onTaskAdded(task);
+            }
+
+            this.graph.addEdge({
+                source: sourceId,
+                target: derivedId,
+                type: 'derivation',
+                label: rule
+            }, false);
+        }
+
+        if (belief && belief.term) {
+            const beliefId = belief.term.toString();
+             if (this.graph.cy.$id(beliefId).empty()) {
+                this._onTaskAdded(belief);
+            }
+
+            this.graph.addEdge({
+                source: beliefId,
+                target: derivedId,
+                type: 'derivation',
+                label: rule
+            }, false);
+        }
+
+        if (this.graph.scheduleLayout) {
+             // Debounced layout in real app, but direct here
+             // this.graph.scheduleLayout();
         }
     }
 
@@ -360,6 +422,10 @@ export class ExplorerApp {
         }
     }
 
+    _showShortcuts() {
+        new ShortcutsModal().show();
+    }
+
     _bindControls() {
         // Some actions need translation from ExplorerGraph API to SeNARSGraph API
         const bindings = [
@@ -373,7 +439,8 @@ export class ExplorerApp {
             { id: 'btn-delete', action: () => this.handleDelete() },
             { id: 'btn-close-inspector', action: () => document.getElementById('inspector-panel')?.classList.add('hidden') },
             { id: 'btn-save', action: () => this.handleSaveJSON() },
-            { id: 'btn-load', action: () => this.handleLoadJSON() }
+            { id: 'btn-load', action: () => this.handleLoadJSON() },
+            { id: 'btn-shortcuts', action: () => this._showShortcuts() }
         ];
 
         bindings.forEach(({ id, action }) => this._bindClick(id, action));
@@ -608,6 +675,9 @@ export class ExplorerApp {
                 this.log('Workspace cleared.', 'system');
                 this._updateStats();
                 break;
+            case 'shortcuts':
+                this._showShortcuts();
+                break;
             default:
                 console.warn('Unknown menu action:', action);
         }
@@ -814,11 +884,9 @@ export class ExplorerApp {
     }
 
     _updateStats() {
-        const bag = this.graph.bag;
-        const el = document.getElementById('bag-stats');
-        if (el && bag) {
-            el.textContent = `Bag: ${bag.items.size} / ${bag.capacity}`;
-        }
+        // Redundant with _startStatsLoop, but kept for immediate feedback
+        // Just clear the old legacy direct manipulation if it exists
+        // The real update happens in _startStatsLoop targeting the InfoPanel
     }
 
     async handleReplCommand(command) {
@@ -1136,6 +1204,9 @@ export class ExplorerApp {
             } else if (e.key === ' ') {
                 e.preventDefault(); // Prevent scroll
                 this.toggleReasoner(!this.isReasonerRunning);
+            } else if (e.key === '?') {
+                e.preventDefault();
+                this._showShortcuts();
             }
         });
     }
@@ -1312,14 +1383,23 @@ export class ExplorerApp {
             const maxConcepts = (stats.config && stats.config.memory) ? stats.config.memory.maxConcepts : 1000;
             const tps = this.isReasonerRunning ? (1000 / Math.max(this.reasonerDelay, 1)).toFixed(1) : 0;
 
-            // Update StatusBar
+            // Update StatusBar and InfoPanel
+            // Get active (visible) nodes from graph if available
+            const activeNodes = (this.graph && this.graph.cy) ? this.graph.cy.nodes().length : 0;
+            const statsPayload = {
+                cycles: stats.cycleCount || 0,
+                nodes: totalConcepts,
+                activeNodes: activeNodes,
+                maxNodes: maxConcepts,
+                tps: tps
+            };
+
             if (this.statusBar) {
-                this.statusBar.updateStats({
-                    cycles: stats.cycleCount || 0,
-                    nodes: totalConcepts,
-                    maxNodes: maxConcepts,
-                    tps: tps
-                });
+                this.statusBar.updateStats(statsPayload);
+            }
+
+            if (this.infoPanel && this.infoPanel.updateStats) {
+                this.infoPanel.updateStats(statsPayload);
             }
 
             // Legacy status bar support

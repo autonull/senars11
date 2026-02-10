@@ -99,6 +99,26 @@ export class GraphViewport {
                     'curve-style': 'bezier'
                 }
             },
+            {
+                selector: 'edge[type="derivation"]',
+                style: {
+                    'label': 'data(label)',
+                    'color': '#FFaa00',
+                    'font-size': 10,
+                    'text-background-color': '#000',
+                    'text-background-opacity': 0.7,
+                    'text-background-padding': 2,
+                    'line-style': 'dashed',
+                    'line-dash-pattern': [6, 3],
+                    'line-color': '#FFaa00',
+                    'target-arrow-color': '#FFaa00',
+                    'target-arrow-shape': 'vee',
+                    'width': 2,
+                    'curve-style': 'unbundled-bezier',
+                    'control-point-distances': 20,
+                    'control-point-weights': 0.5
+                }
+            },
              {
                 selector: '.highlighted',
                 style: {

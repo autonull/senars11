@@ -134,14 +134,6 @@ export class LogPanel extends Component {
         const div = document.createElement('div');
         div.className = `log-entry log-${entry.type}`;
 
-        let color = '#aaa';
-        if (entry.type === 'user') color = '#00ff9d';
-        if (entry.type === 'agent') color = '#00d4ff';
-        if (entry.type === 'error') color = '#ff5555';
-        if (entry.type === 'warning') color = '#ffbb00';
-        if (entry.type === 'system') color = '#cc88ff';
-        if (entry.type === 'success') color = '#55ff55';
-
         // Highlighting or Escaping
         let msg = entry.message;
         if (entry.type !== 'error' && (msg.includes('<') || msg.includes('-->') || msg.includes('$') || msg.includes('{'))) {
@@ -152,7 +144,7 @@ export class LogPanel extends Component {
              msg = this._escapeHtml(msg);
         }
 
-        div.innerHTML = `<span style="color:#666">[${entry.timestamp}]</span> <span style="color:${color}">${msg}</span>`;
+        div.innerHTML = `<span>[${entry.timestamp}]</span> <span>${msg}</span>`;
         return div;
     }
 

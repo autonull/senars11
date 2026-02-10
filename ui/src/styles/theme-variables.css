@@ -74,3 +74,6 @@ body.light-theme {
     --border-primary-strong: #008855;
     --border-secondary: rgba(0, 136, 85, 0.1);
 }
+
+    /* Additional Status Colors */
+    --status-system: #cc88ff;
