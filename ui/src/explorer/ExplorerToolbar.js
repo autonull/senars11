@@ -7,10 +7,6 @@ export class ExplorerToolbar extends Component {
 
     render() {
         if (!this.container) return;
-        // Set container ID for docking system - these are the old controls
-        // We'll make them a compact corner widget
-        this.container.id = 'controls-widget';
-        this.container.className = 'hud-widget';
 
         this.container.innerHTML = `
             <div id="control-toolbar" class="hud-panel control-toolbar">

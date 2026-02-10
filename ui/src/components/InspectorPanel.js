@@ -6,13 +6,11 @@ export class InspectorPanel extends Component {
         super(container);
         this.currentData = null;
         this.onSave = null;
+        this.onQuery = null;
     }
 
     render() {
         if (!this.container) return;
-        // Set container ID for docking system
-        this.container.id = 'inspector-widget';
-        this.container.className = 'hud-widget dock-right';
 
         // Basic shell
         this.container.innerHTML = `
@@ -119,6 +117,7 @@ export class InspectorPanel extends Component {
         if (isControl) {
             html += `
                 <div style="margin-top: 10px; text-align: right;">
+                    <button id="btn-inspector-query" class="btn small-btn" style="margin-right: 5px;">Query</button>
                     <button id="btn-inspector-save" class="btn small-btn">Save Changes</button>
                 </div>
             `;
@@ -131,6 +130,16 @@ export class InspectorPanel extends Component {
             if (btnSave) {
                 btnSave.onclick = () => this._handleSave();
             }
+            const btnQuery = content.querySelector('#btn-inspector-query');
+            if (btnQuery) {
+                btnQuery.onclick = () => this._handleQuery();
+            }
+        }
+    }
+
+    _handleQuery() {
+        if (this.onQuery && this.currentData) {
+            this.onQuery(this.currentData.id || this.currentData.term);
         }
     }
 

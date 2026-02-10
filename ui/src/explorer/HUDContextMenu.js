@@ -92,7 +92,7 @@ export class HUDContextMenu {
         ];
 
         return element.data().type === 'task'
-            ? [...baseItems, {action: 'execute', icon: '▶️', label: 'Execute Task'}]
+            ? [...baseItems, {action: 'query', icon: '❓', label: 'Query Truth'}]
             : baseItems;
     }
 
@@ -117,11 +117,11 @@ export class HUDContextMenu {
             inspect: () => this._inspectElement(element, type),
             pin: () => this._togglePin(element),
             copy: () => this._copyTerm(element.data()),
-            execute: () => this._executeTask(element.data()),
+            query: () => this._queryTerm(element.data()),
             hide: () => this._hideElement(element),
             remove: () => this._removeElement(element),
             'add-concept': () => this.app.handleAddConcept(),
-            'layout': () => this.app.graph.relayout(),
+            'layout': () => this.app.graph.scheduleLayout(),
             'clear': () => this.app.graph.clear()
         };
 
@@ -181,13 +181,13 @@ export class HUDContextMenu {
         });
     }
 
-    _executeTask(data) {
-        if (this.app.lmController) {
-             this.app.handleReplCommand(`*execute ${data.id}`);
-             this.app.log(`Executing task: ${data.label}`, 'system');
-        } else {
-             this.app.log('Agent offline. Connect LLM to execute.', 'warning');
-        }
+    _queryTerm(data) {
+        const term = data.term || data.id;
+        // Construct basic Narsese query: <term ?>?
+        // Note: term should be wrapped if it's compound, but let's assume valid term string
+        const query = `<${term} ?>?`;
+        this.app.handleReplCommand(query);
+        this.app.log(`Querying: ${query}`, 'system');
     }
 
     _removeElement(element) {
