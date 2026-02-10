@@ -36,7 +36,7 @@ export function createTestTask(termStr, type = 'BELIEF', frequency = 0.9, confid
     }
 
     // Create a proper Term object using TermFactory
-    const termObj = typeof term === 'string' ? termFactory.create({components: [term]}) : term;
+    const termObj = typeof term === 'string' ? termFactory.atomic(term) : term;
 
     // Questions don't have truth values, so only create truth for BELIEF and GOAL
     if (type !== 'QUESTION') {

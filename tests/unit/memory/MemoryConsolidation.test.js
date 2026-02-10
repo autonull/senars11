@@ -33,8 +33,8 @@ describe('MemoryConsolidation', () => {
 
     test('should consolidate memory with all phases', () => {
         // Add some concepts and tasks
-        const term1 = termFactory.create({components: ['A']});
-        const term2 = termFactory.create({components: ['B']});
+        const term1 = termFactory.atomic('A');
+        const term2 = termFactory.atomic('B');
 
         const task1 = new Task({
             term: term1,
@@ -64,9 +64,9 @@ describe('MemoryConsolidation', () => {
     });
 
     test('should propagate activation between related concepts', () => {
-        const term1 = termFactory.create({components: ['dog']});
-        const term2 = termFactory.create({components: ['animal']});
-        const term3 = termFactory.create({components: ['cat']});
+        const term1 = termFactory.atomic('dog');
+        const term2 = termFactory.atomic('animal');
+        const term3 = termFactory.atomic('cat');
 
         const concept1 = new Concept(term1, Concept.DEFAULT_CONFIG);
         const concept2 = new Concept(term2, Concept.DEFAULT_CONFIG);
@@ -86,9 +86,9 @@ describe('MemoryConsolidation', () => {
     });
 
     test('should calculate term similarity correctly', () => {
-        const term1 = termFactory.create({components: ['dog']});
-        const term2 = termFactory.create({components: ['dog']});
-        const term3 = termFactory.create({components: ['cat']});
+        const term1 = termFactory.atomic('dog');
+        const term2 = termFactory.atomic('dog');
+        const term3 = termFactory.atomic('cat');
 
         const similarity1 = consolidation._calculateTermSimilarity(term1, term2);
         const similarity2 = consolidation._calculateTermSimilarity(term1, term3);
@@ -98,9 +98,9 @@ describe('MemoryConsolidation', () => {
     });
 
     test('should calculate compound term similarity correctly', () => {
-        const term1 = termFactory.inheritance(termFactory.create({components: ['A']}), termFactory.create({components: ['B']}));
-        const term2 = termFactory.inheritance(termFactory.create({components: ['A']}), termFactory.create({components: ['B']}));
-        const term3 = termFactory.inheritance(termFactory.create({components: ['C']}), termFactory.create({components: ['D']}));
+        const term1 = termFactory.inheritance(termFactory.atomic('A'), termFactory.atomic('B'));
+        const term2 = termFactory.inheritance(termFactory.atomic('A'), termFactory.atomic('B'));
+        const term3 = termFactory.inheritance(termFactory.atomic('C'), termFactory.atomic('D'));
 
         const similarity1 = consolidation._calculateTermSimilarity(term1, term2);
         const similarity2 = consolidation._calculateTermSimilarity(term1, term3);
@@ -110,8 +110,8 @@ describe('MemoryConsolidation', () => {
     });
 
     test('should apply decay to all concepts', () => {
-        const term1 = termFactory.create({components: ['A']});
-        const term2 = termFactory.create({components: ['B']});
+        const term1 = termFactory.atomic('A');
+        const term2 = termFactory.atomic('B');
 
         const concept1 = new Concept(term1, Concept.DEFAULT_CONFIG);
         const concept2 = new Concept(term2, Concept.DEFAULT_CONFIG);
@@ -130,8 +130,8 @@ describe('MemoryConsolidation', () => {
     });
 
     test('should remove decayed concepts', () => {
-        const term1 = termFactory.create({components: ['A']});
-        const term2 = termFactory.create({components: ['B']});
+        const term1 = termFactory.atomic('A');
+        const term2 = termFactory.atomic('B');
 
         const concept1 = new Concept(term1, Concept.DEFAULT_CONFIG);
         const concept2 = new Concept(term2, Concept.DEFAULT_CONFIG);
@@ -153,7 +153,7 @@ describe('MemoryConsolidation', () => {
     });
 
     test('should calculate health metrics correctly', () => {
-        const term = termFactory.create({components: ['A']});
+        const term = termFactory.atomic('A');
         const concept = new Concept(term, Concept.DEFAULT_CONFIG);
         concept._activation = 0.5;
         concept._quality = 0.7;
@@ -191,7 +191,7 @@ describe('MemoryConsolidation', () => {
 
     test('should handle edge cases in consolidation', () => {
         // Test with concepts having zero activation
-        const term = termFactory.create({components: ['A']});
+        const term = termFactory.atomic('A');
         const concept = new Concept(term, Concept.DEFAULT_CONFIG);
         concept._activation = 0;
 
@@ -210,8 +210,8 @@ describe('MemoryConsolidation', () => {
 
     test('should handle similarity calculation edge cases', () => {
         // Test with different operators
-        const term1 = termFactory.inheritance(termFactory.create({components: ['A']}), termFactory.create({components: ['B']}));
-        const term2 = termFactory.similarity(termFactory.create({components: ['A']}), termFactory.create({components: ['B']}));
+        const term1 = termFactory.inheritance(termFactory.atomic('A'), termFactory.atomic('B'));
+        const term2 = termFactory.similarity(termFactory.atomic('A'), termFactory.atomic('B'));
 
         const similarity = consolidation._calculateTermSimilarity(term1, term2);
         expect(similarity).toBe(0.0); // Different operators

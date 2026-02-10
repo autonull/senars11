@@ -35,7 +35,7 @@ describe('Phase 4 Core Components Integration', () => {
     });
 
     test('Term should have proper ID calculation for atomic terms', () => {
-        const atomicTerm = termFactory.create('test');
+        const atomicTerm = termFactory.atomic('test');
 
         expect(atomicTerm.toString()).toBe('test');
         expect(atomicTerm.id).toBe('test');
@@ -43,7 +43,7 @@ describe('Phase 4 Core Components Integration', () => {
     });
 
     test('Task should be created with proper validation', () => {
-        const testTerm = termFactory.create('dog');
+        const testTerm = termFactory.atomic('dog');
         const testTruth = new Truth(0.9, 0.8);
         const testTask = new Task({term: testTerm, punctuation: '.', truth: testTruth, budget: {priority: 0.8}});
 
@@ -56,7 +56,7 @@ describe('Phase 4 Core Components Integration', () => {
     });
 
     test('Memory should handle proper configuration and task operations', () => {
-        const testTerm = termFactory.create('dog');
+        const testTerm = termFactory.atomic('dog');
         const testTruth = new Truth(0.9, 0.8);
         const testTask = new Task({term: testTerm, punctuation: '.', truth: testTruth, budget: {priority: 0.8}});
 
@@ -95,7 +95,7 @@ describe('Phase 4 Core Components Integration', () => {
 
     test('TermFactory should handle validation and compound terms correctly', () => {
         // Test atomic term creation
-        const validTerm = termFactory.create('simple');
+        const validTerm = termFactory.atomic('simple');
         expect(validTerm).toBeDefined();
         expect(validTerm.toString()).toBe('simple');
 
@@ -113,8 +113,8 @@ describe('Phase 4 Core Components Integration', () => {
 
     test('Integration of all core components should work together', () => {
         // Create terms
-        const subjectTerm = termFactory.create('dog');
-        const predicateTerm = termFactory.create('animal');
+        const subjectTerm = termFactory.atomic('dog');
+        const predicateTerm = termFactory.atomic('animal');
         const inheritanceTerm = termFactory.inheritance(subjectTerm, predicateTerm);
 
         // Create task

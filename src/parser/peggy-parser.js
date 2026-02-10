@@ -273,7 +273,7 @@ function peg$parse(input, options) {
     return options.termFactory.create(operator.name, components || []);
   }
   function peg$f7(components) {
-    return options.termFactory.create(',', components || []);
+    return options.termFactory.tuple(components || []);
   }
   function peg$f8(subject, op, predicate) {
     return options.termFactory.create(op.trim(), [subject, predicate]);
@@ -294,8 +294,8 @@ function peg$parse(input, options) {
     }
     return terms;
   }
-  function peg$f15(chars) {    return options.termFactory.create(chars);  }
-  function peg$f16(varName) {    return options.termFactory.create(varName);  }
+  function peg$f15(chars) {    return options.termFactory.atomic(chars);  }
+  function peg$f16(varName) {    return options.termFactory.atomic(varName);  }
   function peg$f17(val) {    return parseFloat(val);  }
   let peg$currPos = options.peg$currPos | 0;
   let peg$savedPos = peg$currPos;

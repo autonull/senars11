@@ -8,9 +8,9 @@ import {TermFactory} from '../../../term/TermFactory.js';
 const termFactory = new TermFactory();
 
 // Create test terms manually to ensure structure
-const manTerm = termFactory.create('man');
-const mortalTerm = termFactory.create('mortal');
-const socratesTerm = termFactory.create('Socrates');
+const manTerm = termFactory.atomic('man');
+const mortalTerm = termFactory.atomic('mortal');
+const socratesTerm = termFactory.atomic('Socrates');
 
 // Create compound terms
 const manMortalTerm = termFactory.inheritance(manTerm, mortalTerm);

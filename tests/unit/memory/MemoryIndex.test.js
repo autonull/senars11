@@ -23,7 +23,7 @@ describe('MemoryIndex', () => {
     });
 
     test('should add atomic term concepts correctly', () => {
-        const term = termFactory.create({components: ['A']});
+        const term = termFactory.atomic('A');
         const concept = new Concept(term, config);
 
         index.addConcept(concept);
@@ -33,8 +33,8 @@ describe('MemoryIndex', () => {
     });
 
     test('should add inheritance concepts correctly', () => {
-        const subject = termFactory.create({components: ['dog']});
-        const predicate = termFactory.create({components: ['animal']});
+        const subject = termFactory.atomic('dog');
+        const predicate = termFactory.atomic('animal');
         const term = termFactory.inheritance(subject, predicate);
         const concept = new Concept(term, config);
 
@@ -52,8 +52,8 @@ describe('MemoryIndex', () => {
     });
 
     test('should add implication concepts correctly', () => {
-        const premise = termFactory.create({components: ['rain']});
-        const conclusion = termFactory.create({components: ['wet']});
+        const premise = termFactory.atomic('rain');
+        const conclusion = termFactory.atomic('wet');
         const term = termFactory.implication(premise, conclusion);
         const concept = new Concept(term, config);
 
@@ -70,8 +70,8 @@ describe('MemoryIndex', () => {
     });
 
     test('should add similarity concepts correctly', () => {
-        const term1 = termFactory.create({components: ['dog']});
-        const term2 = termFactory.create({components: ['cat']});
+        const term1 = termFactory.atomic('dog');
+        const term2 = termFactory.atomic('cat');
         const term = termFactory.similarity(term1, term2);
         const concept = new Concept(term, config);
 
@@ -92,8 +92,8 @@ describe('MemoryIndex', () => {
     });
 
     test('should find concepts by operator correctly', () => {
-        const term1 = termFactory.inheritance(termFactory.create({components: ['A']}), termFactory.create({components: ['B']}));
-        const term2 = termFactory.inheritance(termFactory.create({components: ['C']}), termFactory.create({components: ['D']}));
+        const term1 = termFactory.inheritance(termFactory.atomic('A'), termFactory.atomic('B'));
+        const term2 = termFactory.inheritance(termFactory.atomic('C'), termFactory.atomic('D'));
 
         const concept1 = new Concept(term1, config);
         const concept2 = new Concept(term2, config);
@@ -106,7 +106,7 @@ describe('MemoryIndex', () => {
     });
 
     test('should remove concepts correctly', () => {
-        const term = termFactory.inheritance(termFactory.create({components: ['A']}), termFactory.create({components: ['B']}));
+        const term = termFactory.inheritance(termFactory.atomic('A'), termFactory.atomic('B'));
         const concept = new Concept(term, config);
 
         index.addConcept(concept);
@@ -118,9 +118,9 @@ describe('MemoryIndex', () => {
     });
 
     test('should handle complex compound terms', () => {
-        const term1 = termFactory.create({components: ['A']});
-        const term2 = termFactory.create({components: ['B']});
-        const term3 = termFactory.create({components: ['C']});
+        const term1 = termFactory.atomic('A');
+        const term2 = termFactory.atomic('B');
+        const term3 = termFactory.atomic('C');
 
         const innerTerm = termFactory.conjunction(term1, term2);
         const complexTerm = termFactory.inheritance(innerTerm, term3);
@@ -134,13 +134,13 @@ describe('MemoryIndex', () => {
 
     test('should provide comprehensive statistics', () => {
         // Add various types of concepts
-        const atomicTerm = termFactory.create({components: ['A']});
+        const atomicTerm = termFactory.atomic('A');
         const atomicConcept = new Concept(atomicTerm, config);
 
-        const inheritanceTerm = termFactory.inheritance(termFactory.create({components: ['dog']}), termFactory.create({components: ['animal']}));
+        const inheritanceTerm = termFactory.inheritance(termFactory.atomic('dog'), termFactory.atomic('animal'));
         const inheritanceConcept = new Concept(inheritanceTerm, config);
 
-        const similarityTerm = termFactory.similarity(termFactory.create({components: ['dog']}), termFactory.create({components: ['wolf']}));
+        const similarityTerm = termFactory.similarity(termFactory.atomic('dog'), termFactory.atomic('wolf'));
         const similarityConcept = new Concept(similarityTerm, config);
 
         index.addConcept(atomicConcept);
@@ -156,7 +156,7 @@ describe('MemoryIndex', () => {
     });
 
     test('should clear all indexes correctly', () => {
-        const term = termFactory.inheritance(termFactory.create({components: ['A']}), termFactory.create({components: ['B']}));
+        const term = termFactory.inheritance(termFactory.atomic('A'), termFactory.atomic('B'));
         const concept = new Concept(term, config);
 
         index.addConcept(concept);
@@ -168,7 +168,7 @@ describe('MemoryIndex', () => {
     });
 
     test('should handle edge cases gracefully', () => {
-        const term = termFactory.create({components: ['A']});
+        const term = termFactory.atomic('A');
         const concept = new Concept(term, config);
 
         // Test removing non-existent concept
@@ -177,14 +177,14 @@ describe('MemoryIndex', () => {
         }).not.toThrow();
 
         // Test finding with non-existent terms
-        const nonExistentTerm = termFactory.create({components: ['Z']});
+        const nonExistentTerm = termFactory.atomic('Z');
         expect(index.findInheritanceConcepts(nonExistentTerm)).toEqual([]);
         expect(index.findImplicationConcepts(nonExistentTerm)).toEqual([]);
         expect(index.findSimilarityConcepts(nonExistentTerm)).toEqual([]);
     });
 
     test('should handle multiple concepts with same terms', () => {
-        const term = termFactory.inheritance(termFactory.create({components: ['A']}), termFactory.create({components: ['B']}));
+        const term = termFactory.inheritance(termFactory.atomic('A'), termFactory.atomic('B'));
 
         const concept1 = new Concept(term, config);
         const concept2 = new Concept(term, config);

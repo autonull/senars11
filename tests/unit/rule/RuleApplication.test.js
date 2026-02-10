@@ -12,9 +12,9 @@ describe('Rule Application Tests', () => {
 
     beforeEach(() => {
         termFactory = new TermFactory();
-        termA = termFactory.create('a');
-        termB = termFactory.create('b');
-        termC = termFactory.create('c');
+        termA = termFactory.atomic('a');
+        termB = termFactory.atomic('b');
+        termC = termFactory.atomic('c');
     });
 
     describe('SyllogisticRule', () => {
@@ -178,8 +178,8 @@ describe('Rule Application Tests', () => {
     describe('Term Comparison Logic', () => {
         test('should correctly compare terms using equals method', () => {
             // Create identical terms
-            const term1 = termFactory.create('a');
-            const term2 = termFactory.create('a');
+            const term1 = termFactory.atomic('a');
+            const term2 = termFactory.atomic('a');
 
             // They should be equal
             expect(term1.equals(term2)).toBe(true);

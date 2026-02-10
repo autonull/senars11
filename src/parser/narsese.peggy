@@ -44,7 +44,7 @@ CompoundTerm
       return options.termFactory.create(operator.name, components || []);
     }
   / "(" _ components:TermList? _ ")" {
-      return options.termFactory.create(',', components || []);
+      return options.termFactory.tuple(components || []);
     }
 
 Statement
@@ -83,10 +83,10 @@ TermList
     }
 
 AtomicTerm "atomic term"
-  = chars:$([^(){}<>.,!%?; \t\n\r=&/|>-]+) { return options.termFactory.create(chars); }
+  = chars:$([^(){}<>.,!%?; \t\n\r=&/|>-]+) { return options.termFactory.atomic(chars); }
 
 Variable "variable"
-  = varName:$([?$#*][^(){}<>.,!%?; \t\n\r=&/|>-]*) { return options.termFactory.create(varName); }
+  = varName:$([?$#*][^(){}<>.,!%?; \t\n\r=&/|>-]*) { return options.termFactory.atomic(varName); }
 
 Float "float"
   = val:$("-"? [0-9]+ ("." [0-9]+)?) { return parseFloat(val); }

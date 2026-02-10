@@ -26,8 +26,8 @@ describe('TermLayer Integration', () => {
 
     test('TermLayer should be used in reasoning cycle to enhance tasks', async () => {
         // Add some associations to the TermLayer
-        const source = termFactory.create('animal');
-        const target = termFactory.create('cat');
+        const source = termFactory.atomic('animal');
+        const target = termFactory.atomic('cat');
         nar.termLayer.add(source, target, {priority: 0.8});
 
         // Add a task that matches the source term using the input method with narsese string
@@ -44,9 +44,9 @@ describe('TermLayer Integration', () => {
 
     test('Associative reasoning with TermLayer should work correctly', async () => {
         // Create and add associations to TermLayer
-        const catTerm = termFactory.create('cat');
-        const animalTerm = termFactory.create('animal');
-        const mammalTerm = termFactory.create('mammal');
+        const catTerm = termFactory.atomic('cat');
+        const animalTerm = termFactory.atomic('animal');
+        const mammalTerm = termFactory.atomic('mammal');
 
         // Add associations: cat -> animal, cat -> mammal
         nar.termLayer.add(catTerm, animalTerm, {priority: 0.9});
@@ -71,12 +71,12 @@ describe('TermLayer Integration', () => {
         // Temporarily set a small capacity for testing
         Object.defineProperty(layer, 'capacity', {value: 2, writable: true});
 
-        const source1 = termFactory.create('source1');
-        const source2 = termFactory.create('source2');
-        const source3 = termFactory.create('source3');
-        const target1 = termFactory.create('target1');
-        const target2 = termFactory.create('target2');
-        const target3 = termFactory.create('target3');
+        const source1 = termFactory.atomic('source1');
+        const source2 = termFactory.atomic('source2');
+        const source3 = termFactory.atomic('source3');
+        const target1 = termFactory.atomic('target1');
+        const target2 = termFactory.atomic('target2');
+        const target3 = termFactory.atomic('target3');
 
         // Add three links with increasing priorities (so lowest priority gets removed)
         layer.add(source1, target1, {priority: 1}); // Should be removed when capacity exceeded

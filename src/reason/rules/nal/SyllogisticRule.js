@@ -6,7 +6,8 @@
 
 import {NALRule} from './NALRule.js';
 import {Truth} from '../../../Truth.js';
-import {Term, TermType} from '../../../term/Term.js';
+import {TermType} from '../../../term/Term.js';
+import {TermFactory} from '../../../term/TermFactory.js';
 
 export class SyllogisticRule extends NALRule {
     /**
@@ -105,13 +106,9 @@ export class SyllogisticRule extends NALRule {
         if (!derivedTruth) return [];
 
         // Create the conclusion term using the Term class with proper structure
-        let conclusionTerm;
-        if (termFactory) {
-            conclusionTerm = termFactory.create(operator, [subject, predicate]);
-        } else {
-            const conclusionName = `(${operator}, ${subject.name || 'subject'}, ${predicate.name || 'predicate'})`;
-            conclusionTerm = new Term(TermType.COMPOUND, conclusionName, [subject, predicate], operator);
-        }
+        // Use provided factory or create a temporary one (less efficient but correct)
+        const factory = termFactory || new TermFactory();
+        const conclusionTerm = factory.create(operator, [subject, predicate]);
 
         // Use base class to create the task with proper stamp and budget
         const task = super.createDerivedTask(

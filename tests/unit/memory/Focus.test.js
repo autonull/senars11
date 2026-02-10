@@ -60,7 +60,7 @@ describe('Focus', () => {
     });
 
     test('should add tasks to current focus set', () => {
-        const term = termFactory.create('A');
+        const term = termFactory.atomic('A');
         const task = new Task({
             term,
             truth: {frequency: 0.9, confidence: 0.8},
@@ -77,7 +77,7 @@ describe('Focus', () => {
     });
 
     test('should not add task with duplicate hash', () => {
-        const term = termFactory.create('A');
+        const term = termFactory.atomic('A');
         const task = new Task({
             term,
             truth: {frequency: 0.9, confidence: 0.8},
@@ -97,9 +97,9 @@ describe('Focus', () => {
         focus.createFocusSet('small-set', 2);
         focus.setFocus('small-set');
 
-        const term1 = termFactory.create('A');
-        const term2 = termFactory.create('B');
-        const term3 = termFactory.create('C');
+        const term1 = termFactory.atomic('A');
+        const term2 = termFactory.atomic('B');
+        const term3 = termFactory.atomic('C');
 
         const task1 = new Task({
             term: term1,
@@ -134,7 +134,7 @@ describe('Focus', () => {
         focus.createFocusSet('set1');
         focus.createFocusSet('set2');
 
-        const term = termFactory.create('A');
+        const term = termFactory.atomic('A');
         const task = new Task({
             term,
             punctuation: '.',

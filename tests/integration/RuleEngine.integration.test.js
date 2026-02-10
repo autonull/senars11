@@ -49,7 +49,7 @@ describe('RuleEngine Integration Tests', () => {
         }
 
         // Verify that derived facts exist
-        const yConcept = nar.memory.getConcept(nar._termFactory.create('y'));
+        const yConcept = nar.memory.getConcept(nar._termFactory.atomic('y'));
         expect(yConcept).toBeDefined();
         if (yConcept) {
             const yTasks = yConcept.getTasksByType('BELIEF');

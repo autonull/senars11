@@ -1,7 +1,8 @@
 import {Task} from '../../../src/task/Task.js';
-import {Term, TermType} from '../../../src/term/Term.js';
+import {TermFactory} from '../../../src/term/TermFactory.js';
 
 describe('Bounded Evaluation Tests', () => {
+    const factory = new TermFactory();
     // Create a minimal Cycle-like object with the methods we need to test
     const createTestCycle = () => ({
         _filterTasksByBudget(tasks) {
@@ -33,7 +34,7 @@ describe('Bounded Evaluation Tests', () => {
 
     test('Task budget includes cycles and depth fields', () => {
         const task = new Task({
-            term: new Term(TermType.ATOM, 'test'),
+            term: factory.atomic('test'),
             budget: {cycles: 50, depth: 5, priority: 0.5, durability: 0.5, quality: 0.5},
             truth: {frequency: 0.9, confidence: 0.8}
         });
@@ -44,7 +45,7 @@ describe('Bounded Evaluation Tests', () => {
 
     test('Default task budget includes cycles and depth fields', () => {
         const task = new Task({
-            term: new Term(TermType.ATOM, 'test'),
+            term: factory.atomic('test'),
             truth: {frequency: 0.9, confidence: 0.8}
         });
 
@@ -56,19 +57,19 @@ describe('Bounded Evaluation Tests', () => {
         const cycle = createTestCycle();
 
         const validTask = new Task({
-            term: new Term(TermType.ATOM, 'valid'),
+            term: factory.atomic('valid'),
             budget: {priority: 0.5, durability: 0.5, quality: 0.5, cycles: 5, depth: 3},
             truth: {frequency: 0.9, confidence: 0.8}
         });
 
         const exhaustedCycleTask = new Task({
-            term: new Term(TermType.ATOM, 'exhausted-cycles'),
+            term: factory.atomic('exhausted-cycles'),
             budget: {priority: 0.5, durability: 0.5, quality: 0.5, cycles: 0, depth: 3},
             truth: {frequency: 0.9, confidence: 0.8}
         });
 
         const exhaustedDepthTask = new Task({
-            term: new Term(TermType.ATOM, 'exhausted-depth'),
+            term: factory.atomic('exhausted-depth'),
             budget: {priority: 0.5, durability: 0.5, quality: 0.5, cycles: 5, depth: 0},
             truth: {frequency: 0.9, confidence: 0.8}
         });
@@ -84,7 +85,7 @@ describe('Bounded Evaluation Tests', () => {
         const cycle = createTestCycle();
 
         const task = new Task({
-            term: new Term(TermType.ATOM, 'test'),
+            term: factory.atomic('test'),
             budget: {priority: 0.5, durability: 0.5, quality: 0.5, cycles: 10, depth: 5},
             truth: {frequency: 0.9, confidence: 0.8}
         });
@@ -99,7 +100,7 @@ describe('Bounded Evaluation Tests', () => {
         const cycle = createTestCycle();
 
         const task = new Task({
-            term: new Term(TermType.ATOM, 'zero-test'),
+            term: factory.atomic('zero-test'),
             budget: {priority: 0.5, durability: 0.5, quality: 0.5, cycles: 1, depth: 1},
             truth: {frequency: 0.9, confidence: 0.8}
         });

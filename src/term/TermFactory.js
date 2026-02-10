@@ -136,6 +136,13 @@ export class TermFactory extends BaseComponent {
         return this._processCompound('\\', [relation, ...comps]);
     }
 
+    predicate(pred, args) { return this._processCompound('^', [pred, args]); }
+
+    tuple(...terms) {
+        const comps = (terms.length === 1 && Array.isArray(terms[0])) ? terms[0] : terms;
+        return this._processCompound(',', comps);
+    }
+
     _getOrCreateAtomic(name) {
         let term = this._cache.get(name);
         const currentTime = Date.now();

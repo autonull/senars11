@@ -9,7 +9,7 @@ describe('Task convenience constructor', () => {
 
     beforeEach(() => {
         termFactory = new TermFactory();
-        term = termFactory.create("test");
+        term = termFactory.atomic("test");
     });
 
     test('should create task with convenience constructor (term, punctuation, truth, priority)', () => {

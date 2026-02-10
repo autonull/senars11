@@ -324,7 +324,9 @@ export class PrologStrategy extends Strategy {
      * @private
      */
     _isCompound(term) {
-        return term && (Array.isArray(term.components) || (term.args && Array.isArray(term.args)));
+        if (!term) return false;
+        if (typeof term.isCompound === 'boolean') return term.isCompound;
+        return !!(term.operator || (term.args && Array.isArray(term.args)));
     }
 
     /**

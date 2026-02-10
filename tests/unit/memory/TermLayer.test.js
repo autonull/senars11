@@ -1,11 +1,13 @@
 import {TermLayer} from '../../../src/memory/TermLayer.js';
-import {Term} from '../../../src/term/Term.js';
+import {TermFactory} from '../../../src/term/TermFactory.js';
 
 describe('TermLayer', () => {
     let termLayer;
+    let factory;
 
     beforeEach(() => {
         termLayer = new TermLayer({capacity: 10});
+        factory = new TermFactory();
     });
 
     test('initializes correctly with capacity', () => {
@@ -14,8 +16,8 @@ describe('TermLayer', () => {
     });
 
     test('adds and retrieves links', () => {
-        const source = new Term('atom', 'A');
-        const target = new Term('atom', 'B');
+        const source = factory.atomic('A');
+        const target = factory.atomic('B');
 
         const result = termLayer.add(source, target, {priority: 5});
         expect(result).toBe(true);
@@ -27,8 +29,8 @@ describe('TermLayer', () => {
     });
 
     test('removes links', () => {
-        const source = new Term('atom', 'A');
-        const target = new Term('atom', 'B');
+        const source = factory.atomic('A');
+        const target = factory.atomic('B');
 
         termLayer.add(source, target);
         expect(termLayer.has(source, target)).toBe(true);
@@ -40,8 +42,8 @@ describe('TermLayer', () => {
     });
 
     test('updates link data', () => {
-        const source = new Term('atom', 'A');
-        const target = new Term('atom', 'B');
+        const source = factory.atomic('A');
+        const target = factory.atomic('B');
 
         termLayer.add(source, target, {priority: 3, confidence: 0.8});
         expect(termLayer.has(source, target)).toBe(true);
@@ -57,12 +59,12 @@ describe('TermLayer', () => {
     test('respects capacity limits', () => {
         const layer = new TermLayer({capacity: 2});
 
-        const source1 = new Term('atom', 'A');
-        const target1 = new Term('atom', 'B');
-        const source2 = new Term('atom', 'C');
-        const target2 = new Term('atom', 'D');
-        const source3 = new Term('atom', 'E');
-        const target3 = new Term('atom', 'F');
+        const source1 = factory.atomic('A');
+        const target1 = factory.atomic('B');
+        const source2 = factory.atomic('C');
+        const target2 = factory.atomic('D');
+        const source3 = factory.atomic('E');
+        const target3 = factory.atomic('F');
 
         layer.add(source1, target1, {priority: 1});
         layer.add(source2, target2, {priority: 2});
@@ -75,8 +77,8 @@ describe('TermLayer', () => {
     });
 
     test('clears all links', () => {
-        const source = new Term('atom', 'A');
-        const target = new Term('atom', 'B');
+        const source = factory.atomic('A');
+        const target = factory.atomic('B');
 
         termLayer.add(source, target);
         expect(termLayer.count).toBe(1);

@@ -55,8 +55,8 @@ describe('Complex Neurosymbolic Synergy: Ancestry & Genetics', () => {
         // Rule: ((&&, <($x * $y) --> ancestor_of>, <$x --> red_hair>) ==> <$y --> red_hair>).
         const $x = termFactory.variable('$x');
         const $y = termFactory.variable('$y');
-        const ancestor_of = termFactory.create('ancestor_of');
-        const red_hair = termFactory.create('red_hair');
+        const ancestor_of = termFactory.atomic('ancestor_of');
+        const red_hair = termFactory.atomic('red_hair');
         const product_xy = termFactory.product($x, $y);
         const cond1 = termFactory.inheritance(product_xy, ancestor_of);
         const cond2 = termFactory.inheritance($x, red_hair);
@@ -82,8 +82,8 @@ describe('Complex Neurosymbolic Synergy: Ancestry & Genetics', () => {
                 if (a.startsWith('?')) return termFactory.variable(a);
                 return termFactory.create(a);
             });
-            const argsTerm = termFactory.create(',', argTerms);
-            return termFactory.create('^', [predTerm, argsTerm]);
+            const argsTerm = termFactory.tuple(argTerms);
+            return termFactory.predicate(predTerm, argsTerm);
         };
 
         const queryTerm = createPrologTerm('ancestor', 'alice', 'charlie');
@@ -95,8 +95,8 @@ describe('Complex Neurosymbolic Synergy: Ancestry & Genetics', () => {
         // Step B: Translation & Injection
         // Prolog Answer: ancestor(alice, charlie).
         // Translation: <(alice * charlie) --> ancestor_of>.
-        const alice = termFactory.create('alice');
-        const charlie = termFactory.create('charlie');
+        const alice = termFactory.atomic('alice');
+        const charlie = termFactory.atomic('charlie');
         const product_ac = termFactory.product(alice, charlie);
         const translatedTerm = termFactory.inheritance(product_ac, ancestor_of);
 

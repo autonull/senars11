@@ -8,8 +8,8 @@ describe('TermFactory Commutative Operator Test', () => {
     });
 
     test('equality operator should preserve both components even if identical', () => {
-        const fiveTerm = termFactory.create('5');
-        const anotherFiveTerm = termFactory.create('5');
+        const fiveTerm = termFactory.atomic('5');
+        const anotherFiveTerm = termFactory.atomic('5');
 
         const equalityTerm = termFactory.create('=', [fiveTerm, anotherFiveTerm]);
 
@@ -18,8 +18,8 @@ describe('TermFactory Commutative Operator Test', () => {
     });
 
     test('equality operator with different components', () => {
-        const fiveTerm = termFactory.create('5');
-        const threeTerm = termFactory.create('3');
+        const fiveTerm = termFactory.atomic('5');
+        const threeTerm = termFactory.atomic('3');
 
         const equalityTerm = termFactory.create('=', [fiveTerm, threeTerm]);
 

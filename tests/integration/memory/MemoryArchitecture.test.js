@@ -55,9 +55,9 @@ describe('Memory Architecture', () => {
     describe('Dual Memory System Integration', () => {
         test('should properly manage concepts between focus and long-term memory', () => {
             // Create terms for testing
-            const termA = termFactory.create('focus_test_A');
-            const termB = termFactory.create('focus_test_B');
-            const termC = termFactory.create('long_term_test_C');
+            const termA = termFactory.atomic('focus_test_A');
+            const termB = termFactory.atomic('focus_test_B');
+            const termC = termFactory.atomic('long_term_test_C');
 
             // Create tasks with different priorities
             const highPriorityTask = new Task({
@@ -98,7 +98,7 @@ describe('Memory Architecture', () => {
         });
 
         test('should handle task promotion from focus to long-term memory', () => {
-            const importantTerm = termFactory.create('important_term');
+            const importantTerm = termFactory.atomic('important_term');
             const importantTask = new Task({
                 term: importantTerm,
                 punctuation: '.',
@@ -128,18 +128,18 @@ describe('Memory Architecture', () => {
         test('should properly index different relationship types', () => {
             // Create various compound terms
             const inheritanceTerm = termFactory.inheritance(
-                    termFactory.create('dog'),
-                    termFactory.create('animal')
+                    termFactory.atomic('dog'),
+                    termFactory.atomic('animal')
                 );
 
             const similarityTerm = termFactory.similarity(
-                    termFactory.create('cat'),
-                    termFactory.create('feline')
+                    termFactory.atomic('cat'),
+                    termFactory.atomic('feline')
                 );
 
             const conjunctionTerm = termFactory.conjunction(
-                    termFactory.create('rain'),
-                    termFactory.create('wet')
+                    termFactory.atomic('rain'),
+                    termFactory.atomic('wet')
                 );
 
             // Create concepts for indexing
@@ -161,8 +161,8 @@ describe('Memory Architecture', () => {
 
         test('should provide fast lookup for related concepts', () => {
             // Create inheritance relationship: bird -> animal
-            const subject = termFactory.create('sparrow');
-            const predicate = termFactory.create('bird');
+            const subject = termFactory.atomic('sparrow');
+            const predicate = termFactory.atomic('bird');
             const inheritanceTerm = termFactory.inheritance(subject, predicate);
 
             const concept = new Concept(inheritanceTerm, {});
@@ -211,7 +211,7 @@ describe('Memory Architecture', () => {
         });
 
         test('should apply appropriate decay to concepts over time', () => {
-            const term = termFactory.create('decay_test');
+            const term = termFactory.atomic('decay_test');
             const task = new Task({
                 term,
                 punctuation: '.',
@@ -245,19 +245,19 @@ describe('Memory Architecture', () => {
 
             // Add tasks to different focus sets
             const taskA = new Task({
-                term: termFactory.create('A'),
+                term: termFactory.atomic('A'),
                 punctuation: '.',
                 budget: {priority: 0.9},
                 truth: {frequency: 0.9, confidence: 0.8}
             });
             const taskB = new Task({
-                term: termFactory.create('B'),
+                term: termFactory.atomic('B'),
                 punctuation: '.',
                 budget: {priority: 0.6},
                 truth: {frequency: 0.9, confidence: 0.8}
             });
             const taskC = new Task({
-                term: termFactory.create('C'),
+                term: termFactory.atomic('C'),
                 punctuation: '.',
                 budget: {priority: 0.4},
                 truth: {frequency: 0.9, confidence: 0.8}

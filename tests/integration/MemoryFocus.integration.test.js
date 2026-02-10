@@ -58,8 +58,8 @@ describe('Memory and Focus Management Integration', () => {
             focus.createFocusSet('secondary', 3);
 
             // Add tasks to different focus sets
-            const term1 = termFactory.create('urgent');
-            const term2 = termFactory.create('normal');
+            const term1 = termFactory.atomic('urgent');
+            const term2 = termFactory.atomic('normal');
 
             const urgentTask = new Task({
                 term: term1,
@@ -96,7 +96,7 @@ describe('Memory and Focus Management Integration', () => {
             focus.createFocusSet('test-set', 5);
             focus.setFocus('test-set');
 
-            const term = termFactory.create('test');
+            const term = termFactory.atomic('test');
             const task = new Task({
                 term,
                 punctuation: '.',
@@ -122,10 +122,10 @@ describe('Memory and Focus Management Integration', () => {
     describe('Advanced Task Selection', () => {
         test('should select tasks using composite scoring algorithm', () => {
             // Create tasks with different characteristics
-            const simpleTerm = termFactory.create({components: ['simple']});
+            const simpleTerm = termFactory.atomic('simple');
             const complexTerm = termFactory.inheritance(
-                    termFactory.create({components: ['A']}),
-                    termFactory.create({components: ['B']})
+                    termFactory.atomic('A'),
+                    termFactory.atomic('B')
                 );
 
             // Note: The convenience constructor doesn't support custom stamps, so keep original for these
@@ -163,13 +163,13 @@ describe('Memory and Focus Management Integration', () => {
 
         test('should respect priority threshold in selection', () => {
             const highPriorityTask = new Task({
-                term: termFactory.create('high'),
+                term: termFactory.atomic('high'),
                 punctuation: '.',
                 budget: {priority: 0.8},
                 truth: {frequency: 0.9, confidence: 0.8}
             });
             const lowPriorityTask = new Task({
-                term: termFactory.create('low'),
+                term: termFactory.atomic('low'),
                 punctuation: '.',
                 budget: {priority: 0.1},
                 truth: {frequency: 0.9, confidence: 0.8}
@@ -185,8 +185,8 @@ describe('Memory and Focus Management Integration', () => {
 
     describe('Memory Indexing', () => {
         test('should index and retrieve inheritance relationships', () => {
-            const subject = termFactory.create({components: ['dog']});
-            const predicate = termFactory.create({components: ['animal']});
+            const subject = termFactory.atomic('dog');
+            const predicate = termFactory.atomic('animal');
             const term = termFactory.inheritance(subject, predicate);
 
             const concept = memory.getConcept(term) || new Concept(term, {});
@@ -199,8 +199,8 @@ describe('Memory and Focus Management Integration', () => {
         });
 
         test('should index and retrieve similarity relationships', () => {
-            const term1 = termFactory.create({components: ['dog']});
-            const term2 = termFactory.create({components: ['wolf']});
+            const term1 = termFactory.atomic('dog');
+            const term2 = termFactory.atomic('wolf');
             const term = termFactory.similarity(term1, term2);
 
             const concept = memory.getConcept(term) || new Concept(term, {});
@@ -216,14 +216,14 @@ describe('Memory and Focus Management Integration', () => {
 
         test('should provide comprehensive index statistics', () => {
             // Add various types of concepts
-            const atomicTerm = termFactory.create({components: ['atom']});
+            const atomicTerm = termFactory.atomic('atom');
             const inheritanceTerm = termFactory.inheritance(
-                    termFactory.create({components: ['cat']}),
-                    termFactory.create({components: ['animal']})
+                    termFactory.atomic('cat'),
+                    termFactory.atomic('animal')
                 );
             const similarityTerm = termFactory.similarity(
-                    termFactory.create({components: ['dog']}),
-                    termFactory.create({components: ['wolf']})
+                    termFactory.atomic('dog'),
+                    termFactory.atomic('wolf')
                 );
 
             const atomicConcept = new Concept(atomicTerm, {});
@@ -248,11 +248,11 @@ describe('Memory and Focus Management Integration', () => {
         test('should integrate all components in realistic scenario', () => {
             // Simulate a realistic reasoning scenario
             const terms = {
-                cat: termFactory.create({components: ['cat']}),
-                dog: termFactory.create({components: ['dog']}),
-                animal: termFactory.create({components: ['animal']}),
-                pet: termFactory.create({components: ['pet']}),
-                mammal: termFactory.create({components: ['mammal']})
+                cat: termFactory.atomic('cat'),
+                dog: termFactory.atomic('dog'),
+                animal: termFactory.atomic('animal'),
+                pet: termFactory.atomic('pet'),
+                mammal: termFactory.atomic('mammal')
             };
 
             // Create inheritance relationships
@@ -373,9 +373,9 @@ describe('Memory and Focus Management Integration', () => {
             focus.createFocusSet('small-set', 2);
             focus.setFocus('small-set');
 
-            const term1 = termFactory.create('A');
-            const term2 = termFactory.create('B');
-            const term3 = termFactory.create('C');
+            const term1 = termFactory.atomic('A');
+            const term2 = termFactory.atomic('B');
+            const term3 = termFactory.atomic('C');
 
             const task1 = new Task({
                 term: term1,

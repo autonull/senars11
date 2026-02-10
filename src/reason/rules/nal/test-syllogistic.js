@@ -13,14 +13,14 @@ const termFactory = new TermFactory();
 
 // Create test tasks for syllogism: <man --> mortal> and <Socrates --> man>
 const manMortalTask = new Task({
-    term: termFactory.create('<man --> mortal>'),
+    term: termFactory.atomic('<man --> mortal>'),
     punctuation: '.',
     truth: new Truth(1.0, 0.9),
     stamp: new ArrayStamp({creationTime: 1})
 });
 
 const socratesManTask = new Task({
-    term: termFactory.create('<Socrates --> man>'),
+    term: termFactory.atomic('<Socrates --> man>'),
     punctuation: '.',
     truth: new Truth(1.0, 0.8),
     stamp: new ArrayStamp({creationTime: 2})

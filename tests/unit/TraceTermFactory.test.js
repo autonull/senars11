@@ -4,8 +4,8 @@ describe('Trace TermFactory Process', () => {
     test('trace the creation of equality term', () => {
         const factory = new TermFactory();
 
-        const fiveTerm = factory.create('5');
-        const anotherFiveTerm = factory.create('5');
+        const fiveTerm = factory.atomic('5');
+        const anotherFiveTerm = factory.atomic('5');
 
         const data = {operator: '=', components: [fiveTerm, anotherFiveTerm]};
         const {operator, components} = factory._normalizeTermData(data);

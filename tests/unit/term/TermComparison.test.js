@@ -10,9 +10,9 @@ describe('Term Comparison Tests', () => {
 
     beforeEach(() => {
         termFactory = new TermFactory();
-        termA = termFactory.create('a');
-        termB = termFactory.create('b');
-        termC = termFactory.create('c');
+        termA = termFactory.atomic('a');
+        termB = termFactory.atomic('b');
+        termC = termFactory.atomic('c');
     });
 
     test('should correctly identify syllogistic patterns in tasks', () => {
@@ -48,9 +48,9 @@ describe('Term Comparison Tests', () => {
 
     test('should properly handle term equality checks', () => {
         // Create identical terms
-        const term1 = termFactory.create('test');
-        const term2 = termFactory.create('test');
-        const term3 = termFactory.create('different');
+        const term1 = termFactory.atomic('test');
+        const term2 = termFactory.atomic('test');
+        const term3 = termFactory.atomic('different');
 
         expect(term1.equals(term2)).toBe(true);
         expect(term1.equals(term3)).toBe(false);
