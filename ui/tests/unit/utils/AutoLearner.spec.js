@@ -1,7 +1,5 @@
-import { jest } from '@jest/globals';
-
-// Import module under test
-const { AutoLearner } = await import('../../../src/utils/AutoLearner.js');
+import { jest, describe, beforeEach, test, expect } from '@jest/globals';
+import { AutoLearner } from '../../../src/utils/AutoLearner.js';
 
 describe('AutoLearner', () => {
     let learner;

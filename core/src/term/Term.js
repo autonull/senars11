@@ -1,4 +1,4 @@
-import { freeze } from '../util/common.js';
+const freeze = Object.freeze;
 
 export const TermType = Object.freeze({
     ATOM: 'atom',

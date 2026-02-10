@@ -1,14 +1,45 @@
 /**
  * @file NarsGPTPrompts.js
- * Prompt templates for NARS-GPT style reasoning with negated belief formatting.
+ * Prompt templates for NARS-GPT style reasoning.
+ * Handles formatting of memory items, truth values, and specific reasoning task prompts.
  */
 
-const formatTruth = (truth) => {
-    const f = truth?.f ?? truth?.frequency ?? 0.5;
-    const c = truth?.c ?? truth?.confidence ?? 0;
-    const isNeg = f < 0.5;
-    return {prefix: isNeg ? 'NOT: ' : '', f: isNeg ? 1 - f : f, c};
-};
+class PromptFormatter {
+    formatTruth(truth) {
+        // Default to neutral confidence if missing
+        const f = truth?.f ?? truth?.frequency ?? 0.5;
+        const c = truth?.c ?? truth?.confidence ?? 0;
+
+        // NARS-GPT uses "NOT: " prefix for negative evidence (f < 0.5)
+        const isNeg = f < 0.5;
+        return {
+            prefix: isNeg ? 'NOT: ' : '',
+            f: isNeg ? 1 - f : f,
+            c
+        };
+    }
+
+    formatTask(task, index = null) {
+        // Handle various input types (Task object, simple object, string)
+        const t = task.task ?? task; // Unwrap if wrapped
+        const termStr = t.term?.toString?.() ?? String(t.term ?? t);
+
+        const {prefix, f, c} = this.formatTruth(t.truth);
+        const truthStr = t.truth ? ` {${f.toFixed(2)} ${c.toFixed(2)}}` : '';
+        const indexStr = index !== null ? `${index + 1}. ` : '';
+
+        return `${indexStr}${prefix}${termStr}${truthStr}`;
+    }
+
+    formatMemoryBuffer(buffer) {
+        if (!buffer || buffer.length === 0) {
+            return '(No relevant memory items found)';
+        }
+        return buffer.map((item, i) => this.formatTask(item, i)).join('\n');
+    }
+}
+
+export const PromptUtils = new PromptFormatter();
 
 export const NarsGPTPrompts = {
     question: (context, question) => `Answer the question according to what the following memory items, which the answer should be based on, suggest:
@@ -57,18 +88,10 @@ The question: ${question}
 Provide your best answer. If using information from the memory items, indicate this.
 If using general knowledge not in the memory, note that as well.`,
 
-    formatBuffer: (buffer) => {
-        if (!buffer?.length) return '(No relevant memory items found)';
-        return buffer.map((item, i) => {
-            const task = item.task ?? item;
-            const term = task.term?.toString?.() ?? String(task.term ?? task);
-            const {prefix, f, c} = formatTruth(task.truth);
-            return `${i + 1}. ${prefix}${term}${task.truth ? ` {${f.toFixed(2)} ${c.toFixed(2)}}` : ''}`;
-        }).join('\n');
-    },
-
+    // Delegated helpers for backward compatibility or direct usage
+    formatBuffer: (buffer) => PromptUtils.formatMemoryBuffer(buffer),
     formatBelief: (termStr, truth) => {
-        const {prefix, f, c} = formatTruth(truth);
+        const {prefix, f, c} = PromptUtils.formatTruth(truth);
         return `${prefix}${termStr} {${f.toFixed(2)} ${c.toFixed(2)}}`;
     }
 };
