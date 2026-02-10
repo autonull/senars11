@@ -61,6 +61,8 @@
             port: '{{WEBSOCKET_PORT}}',
             host: window.location.hostname || 'localhost'
         };
+        // Basic process shim if module shim fails
+        window.process = window.process || { env: { NODE_ENV: 'development' }, platform: 'browser' };
     </script>
 
     <!-- Demo Bundle -->

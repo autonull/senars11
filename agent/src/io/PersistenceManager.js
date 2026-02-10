@@ -1,4 +1,4 @@
-import fs from 'fs/promises';
+import { promises as fs } from 'fs';
 
 class PersistenceAdapter {
     async save(state, identifier) {

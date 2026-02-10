@@ -1,5 +1,6 @@
 import { UIConfig } from '../config/UIConfig.js';
 import { ConsolePanel } from '../components/ConsolePanel.js';
+import { REPLPanel } from '../components/REPLPanel.js';
 import { DerivationTree } from '../components/DerivationTree.js';
 import { MemoryInspector } from '../components/MemoryInspector.js';
 import { SettingsPanel } from '../components/SettingsPanel.js';
@@ -17,6 +18,15 @@ export class LayoutFactory {
             el.className = 'panel-container';
             container.element.appendChild(el);
             const comp = new ConsolePanel(el);
+            comp.initialize(app);
+        });
+
+        // REPL Notebook
+        layout.registerComponentFactoryFunction('replComponent', (container) => {
+            const el = document.createElement('div');
+            el.className = 'panel-container';
+            container.element.appendChild(el);
+            const comp = new REPLPanel(el);
             comp.initialize(app);
         });
 

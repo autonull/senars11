@@ -1,7 +1,7 @@
 
 export const process = {
     cwd: () => '/',
-    env: { NODE_ENV: 'production' },
+    env: { NODE_ENV: 'production', TERM: 'xterm' },
     platform: 'browser',
     argv: [],
     stdout: { write: () => { } },
@@ -12,3 +12,4 @@ export const process = {
     nextTick: (cb) => setTimeout(cb, 0),
 };
 globalThis.process = process;
+export default process;

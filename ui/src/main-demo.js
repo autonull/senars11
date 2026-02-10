@@ -1,3 +1,4 @@
+import './shims/process-shim.js';
 import cytoscape from 'cytoscape';
 import fcose from 'cytoscape-fcose';
 import { GoldenLayout } from 'golden-layout';
@@ -43,8 +44,8 @@ const LAYOUT_CONFIG = {
             content: [
                 {
                     type: 'component',
-                    componentName: 'consoleComponent',
-                    title: 'CONSOLE',
+                    componentName: 'replComponent',
+                    title: 'REPL',
                     height: 50,
                     isClosable: false
                 },

@@ -1,5 +1,7 @@
 import {Component} from './Component.js';
-import {ActionRegistry, ActivityViewModel} from '@senars/agent';
+// Import directly to avoid dragging in Node.js dependencies from agent index
+import {ActionRegistry} from '@senars/agent/src/app/model/ActionRegistry.js';
+import {ActivityViewModel} from '@senars/agent/src/app/model/ActivityViewModel.js';
 
 export class ActivityLogPanel extends Component {
     constructor(containerId) {

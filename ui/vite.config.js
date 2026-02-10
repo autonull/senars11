@@ -61,7 +61,7 @@ export default defineConfig({
 
             // Node.js shims for browser
             'fs': resolve(__dirname, 'src/shims/mock-node.js'),
-            'fs/promises': resolve(__dirname, 'src/shims/mock-node.js'),
+            'fs/promises': resolve(__dirname, 'src/shims/mock-fs-promises.js'),
             'path': resolve(__dirname, 'src/shims/mock-node.js'),
             'child_process': resolve(__dirname, 'src/shims/mock-node.js'),
             'os': resolve(__dirname, 'src/shims/mock-node.js'),
@@ -73,6 +73,7 @@ export default defineConfig({
             'buffer': resolve(__dirname, 'src/shims/mock-node.js'),
             'worker_threads': resolve(__dirname, 'src/shims/mock-node.js'),
             'events': resolve(__dirname, 'src/shims/events-shim.js'),
+            'node:events': resolve(__dirname, 'src/shims/events-shim.js'),
 
             // Node prefixed imports
             'node:readline': resolve(__dirname, 'src/shims/mock-node.js'),
@@ -81,7 +82,8 @@ export default defineConfig({
             'node:os': resolve(__dirname, 'src/shims/mock-node.js'),
             'node:crypto': resolve(__dirname, 'src/shims/mock-node.js'),
             'node:async_hooks': resolve(__dirname, 'src/shims/mock-node.js'),
-            'node:process': resolve(__dirname, 'src/shims/mock-node.js'),
+            'node:process': resolve(__dirname, 'src/shims/process-shim.js'),
+            'process': resolve(__dirname, 'src/shims/process-shim.js'),
             'node:module': resolve(__dirname, 'src/shims/mock-node.js'),
         }
     },
