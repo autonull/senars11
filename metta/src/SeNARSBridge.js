@@ -15,10 +15,12 @@ export class SeNARSBridge extends BaseMeTTaComponent {
         return this.trackOperation('mettaToNars', () => {
             this.emitMeTTaEvent('metta-to-nars', {term: term.toString()});
             // Construct a proper Task object to ensure compatibility with Reasoner
+            // QUESTIONS must not have truth values
+            const truth = (punctuation === '?' || punctuation === 'QUESTION') ? null : new Truth(0.9, 0.9);
             return new Task({
                 term,
                 punctuation,
-                truth: new Truth(0.9, 0.9)
+                truth
             });
         });
     }
