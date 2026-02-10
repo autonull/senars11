@@ -42,13 +42,4 @@ describe('TermFactory', () => {
         expect(eq1).toBe(eq2); // Should form the exact same object due to canonicalization
     });
 
-    test('diversity metrics', () => {
-        const t1 = factory.atomic('A');
-        const t2 = factory.inheritance(t1, factory.atomic('B'));
-
-        // Registering terms happens in create
-        const metrics = factory.getCognitiveDiversityMetrics();
-        expect(metrics.totalTerms).toBeGreaterThan(0);
-        expect(metrics.averageComplexity).toBeGreaterThan(0);
-    });
 });

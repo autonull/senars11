@@ -106,21 +106,14 @@ export class Truth {
         const {f: f1, c: c1} = truth1;
         const {f: f2, c: c2} = truth2;
 
-        // Handle max confidence to avoid division by zero
-        // NAL uses w = c/(1-c)
-        // We cap confidence at 1.0 - epsilon to prevent infinite weight
-        const maxC = 1.0 - Number.EPSILON;
-        const safeC1 = Math.min(c1, maxC);
-        const safeC2 = Math.min(c2, maxC);
-
-        const w1 = safeC1 / (1 - safeC1);
-        const w2 = safeC2 / (1 - safeC2);
+        const w1 = Truth.c2w(c1);
+        const w2 = Truth.c2w(c2);
         const w = w1 + w2;
 
-        if (w <= 0) return new Truth((f1 + f2) / 2, 0); // Should be rare
+        if (w <= 0) return new Truth((f1 + f2) / 2, 0);
 
         const f = (w1 * f1 + w2 * f2) / w;
-        const c = w / (w + 1);
+        const c = Truth.w2c(w);
 
         return new Truth(f, c);
     }
@@ -221,14 +214,14 @@ export class Truth {
     }
 
     static structuralDeduction(t) {
-        if (!t) return null;
-        const c = t.confidence / (t.confidence + 1);
-        return new Truth(t.frequency * t.frequency, c * t.confidence);
+        return Truth.unaryOperation(t, t => {
+             const c = t.confidence / (t.confidence + 1);
+             return new Truth(t.frequency * t.frequency, c * t.confidence);
+        });
     }
 
     static structuralReduction(t) {
-        if (!t) return null;
-        return new Truth(t.frequency, Truth.weak(t.confidence));
+        return Truth.unaryOperation(t, t => new Truth(t.frequency, Truth.weak(t.confidence)));
     }
 
     static isStronger(t1, t2) {
@@ -241,6 +234,12 @@ export class Truth {
 
     static w2c(w) {
         return w / (w + 1);
+    }
+
+    static c2w(c) {
+        const maxC = 1.0 - Number.EPSILON;
+        const safeC = Math.min(c, maxC);
+        return safeC / (1 - safeC);
     }
 
     equals(other) {

@@ -1,4 +1,3 @@
-
 import { freeze } from '../util/common.js';
 
 export const TermType = Object.freeze({
@@ -29,88 +28,31 @@ export class Term {
         return freeze(this);
     }
 
-    get type() {
-        return this._type;
-    }
+    get type() { return this._type; }
+    get name() { return this._name; }
+    get operator() { return this._operator; }
+    get components() { return this._components; }
+    get subject() { return this._components[0]; }
+    get predicate() { return this._components[1]; }
 
-    get name() {
-        return this._name;
-    }
+    get isInheritance() { return this._operator === '-->'; }
+    get isImplication() { return this._operator === '==>'; }
+    get isSimilarity() { return this._operator === '<->'; }
+    get isEquivalence() { return this._operator === '<=>'; }
 
-    get operator() {
-        return this._operator;
-    }
+    get complexity() { return this._complexity; }
+    get hash() { return this._hash; }
+    get id() { return this._id; }
+    get semanticType() { return this._semanticType; }
 
-    get components() {
-        return this._components;
-    }
-
-    get subject() {
-        return this._components[0];
-    }
-
-    get predicate() {
-        return this._components[1];
-    }
-
-    get isInheritance() {
-        return this._operator === '-->';
-    }
-
-    get isImplication() {
-        return this._operator === '==>';
-    }
-
-    get isSimilarity() {
-        return this._operator === '<->';
-    }
-
-    get isEquivalence() {
-        return this._operator === '<=>';
-    }
-
-    get complexity() {
-        return this._complexity;
-    }
-
-    get hash() {
-        return this._hash;
-    }
-
-    get id() {
-        return this._id;
-    }
-
-    get semanticType() {
-        return this._semanticType;
-    }
-
-    get isAtomic() {
-        return this._type === TermType.ATOM;
-    }
-
-    get isCompound() {
-        return this._type === TermType.COMPOUND;
-    }
-
-    get isBoolean() {
-        return this._semanticType === SemanticType.BOOLEAN;
-    }
-
-    get isNumeric() {
-        return this._semanticType === SemanticType.NUMERIC;
-    }
-
-    get isVariable() {
-        return this._semanticType === SemanticType.VARIABLE;
-    }
-
-    get isNALConcept() {
-        return this._semanticType === SemanticType.NAL_CONCEPT;
-    }
+    get isAtomic() { return this._type === TermType.ATOM; }
+    get isCompound() { return this._type === TermType.COMPOUND; }
+    get isBoolean() { return this._semanticType === SemanticType.BOOLEAN; }
+    get isNumeric() { return this._semanticType === SemanticType.NUMERIC; }
+    get isVariable() { return this._semanticType === SemanticType.VARIABLE; }
+    get isNALConcept() { return this._semanticType === SemanticType.NAL_CONCEPT; }
 
     static hash(str) {
-        // Simple FNV-1a hash for browser compatibility without external deps
         let hash = 0x811c9dc5;
         for (let i = 0; i < str.length; i++) {
             hash ^= str.charCodeAt(i);
@@ -125,62 +67,39 @@ export class Term {
         return new Term(type, name, components, operator);
     }
 
-    comp(index) {
-        return this._components[index];
-    }
-
-    compName(index) {
-        return this._components[index]?.name;
-    }
-
-    compEquals(index, term) {
-        return !!(this._components[index]?.equals?.(term));
-    }
-
-    isOp(op) {
-        return this._operator === op;
-    }
-
-    subjectEquals(term) {
-        return this.compEquals(0, term);
-    }
-
-    predicateEquals(term) {
-        return this.compEquals(1, term);
-    }
+    comp(index) { return this._components[index]; }
+    compName(index) { return this._components[index]?.name; }
+    compEquals(index, term) { return !!this._components[index]?.equals?.(term); }
+    isOp(op) { return this._operator === op; }
+    subjectEquals(term) { return this.compEquals(0, term); }
+    predicateEquals(term) { return this.compEquals(1, term); }
 
     _determineSemanticType() {
         if (this._type !== TermType.ATOM) return SemanticType.NAL_CONCEPT;
         if (['True', 'False', 'Null'].includes(this._name)) return SemanticType.BOOLEAN;
         if (this._name?.startsWith('?')) return SemanticType.VARIABLE;
-        if (!isNaN(Number(this._name))) return SemanticType.NUMERIC;
-        return SemanticType.NAL_CONCEPT;
+        return isNaN(Number(this._name)) ? SemanticType.NAL_CONCEPT : SemanticType.NUMERIC;
     }
 
     _calculateComplexity() {
-        return this._type === TermType.ATOM ? 1
-            : 1 + this._components.reduce((sum, c) => sum + (c?.complexity ?? 0), 0);
+        if (this._type === TermType.ATOM) return 1;
+        return 1 + this._components.reduce((sum, c) => sum + (c?.complexity ?? 0), 0);
     }
 
     equals(other) {
         if (this === other) return true;
-
         if (!(other instanceof Term) ||
             this._hash !== other._hash ||
             this._type !== other._type ||
             this._operator !== other._operator ||
             this._name !== other._name) return false;
 
-        if (this._type !== TermType.COMPOUND) return true;
-
-        if (this._components.length !== other._components.length) return false;
-
-        return this._components.every((comp, i) => comp.equals(other._components[i]));
+        return this._type === TermType.COMPOUND
+            ? this._components.length === other._components.length && this._components.every((comp, i) => comp.equals(other._components[i]))
+            : true;
     }
 
-    toString() {
-        return this._name;
-    }
+    toString() { return this._name; }
 
     visit(visitor, order = 'pre-order') {
         if (order === 'pre-order') visitor(this);
