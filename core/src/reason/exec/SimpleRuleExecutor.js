@@ -22,19 +22,19 @@ export class SimpleRuleExecutor {
         return this;
     }
 
-    getCandidateRules(primaryPremise, secondaryPremise) {
-        return this._filterCandidates(this.rules, primaryPremise, secondaryPremise);
+    getCandidateRules(primaryPremise, secondaryPremise, context) {
+        return this._filterCandidates(this.rules, primaryPremise, secondaryPremise, context);
     }
 
     /**
      * Filter candidates using canApply method
      * @private
      */
-    _filterCandidates(candidates, primaryPremise, secondaryPremise) {
+    _filterCandidates(candidates, primaryPremise, secondaryPremise, context) {
         const validRules = [];
         for (const rule of candidates) {
             try {
-                if (this._canRuleApply(rule, primaryPremise, secondaryPremise)) {
+                if (this._canRuleApply(rule, primaryPremise, secondaryPremise, context)) {
                     validRules.push(rule);
                 }
             } catch (error) {
@@ -51,8 +51,8 @@ export class SimpleRuleExecutor {
      * Helper method to determine if a rule can be applied
      * @private
      */
-    _canRuleApply(rule, primaryPremise, secondaryPremise) {
-        return rule.canApply?.(primaryPremise, secondaryPremise) ?? true;
+    _canRuleApply(rule, primaryPremise, secondaryPremise, context) {
+        return rule.canApply?.(primaryPremise, secondaryPremise, context) ?? true;
     }
 
     executeRule(rule, primaryPremise, secondaryPremise, context = {}) {
