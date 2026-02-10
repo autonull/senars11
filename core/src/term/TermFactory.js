@@ -274,24 +274,45 @@ export class TermFactory extends BaseComponent {
     }
 
     getMostComplexTerms(limit = 10) {
-        // Iterate cache values
-        return Array.from(this._cache.values())
-            .sort((a, b) => b.complexity - a.complexity)
-            .slice(0, limit)
-            .map(term => ({ name: term.name, complexity: term.complexity }));
+        if (limit <= 0) return [];
+        const top = [];
+        for (const term of this._cache.values()) {
+            if (top.length < limit) {
+                top.push(term);
+                top.sort((a, b) => b.complexity - a.complexity);
+            } else if (term.complexity > top[top.length - 1].complexity) {
+                top.pop();
+                top.push(term);
+                top.sort((a, b) => b.complexity - a.complexity);
+            }
+        }
+        return top.map(term => ({ name: term.name, complexity: term.complexity }));
     }
 
     getSimplestTerms(limit = 10) {
-         return Array.from(this._cache.values())
-            .sort((a, b) => a.complexity - b.complexity)
-            .slice(0, limit)
-            .map(term => ({ name: term.name, complexity: term.complexity }));
+        if (limit <= 0) return [];
+        const bottom = [];
+        for (const term of this._cache.values()) {
+            if (bottom.length < limit) {
+                bottom.push(term);
+                bottom.sort((a, b) => a.complexity - b.complexity);
+            } else if (term.complexity < bottom[bottom.length - 1].complexity) {
+                bottom.pop();
+                bottom.push(term);
+                bottom.sort((a, b) => a.complexity - b.complexity);
+            }
+        }
+        return bottom.map(term => ({ name: term.name, complexity: term.complexity }));
     }
 
     getAverageComplexity() {
-        const terms = Array.from(this._cache.values());
-        if (terms.length === 0) return 0;
-        return terms.reduce((sum, term) => sum + term.complexity, 0) / terms.length;
+        let sum = 0;
+        let count = 0;
+        for (const term of this._cache.values()) {
+            sum += term.complexity;
+            count++;
+        }
+        return count === 0 ? 0 : sum / count;
     }
 
     createTrue() { return this._getOrCreateAtomic('True'); }
