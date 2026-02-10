@@ -32,6 +32,10 @@ export class LogPanel extends Component {
                             <span class="log-toggle active" data-cat="agent" title="Agent">AGI</span>
                             <span class="log-toggle active" data-cat="error" title="Errors">ERR</span>
                         </div>
+                        <div class="log-actions">
+                            <button id="btn-copy-logs" class="btn-icon small-btn" title="Copy to Clipboard">📋</button>
+                            <button id="btn-clear-logs" class="btn-icon small-btn" title="Clear Logs">🗑️</button>
+                        </div>
                     </div>
                 </div>
                 <div id="log-panel" class="log-area">
@@ -62,6 +66,24 @@ export class LogPanel extends Component {
                 this._renderLogs();
             };
         });
+
+        // Actions
+        const copyBtn = this.container.querySelector('#btn-copy-logs');
+        if (copyBtn) {
+            copyBtn.onclick = () => {
+                const text = this.logs.map(l => `[${l.timestamp}] [${l.type.toUpperCase()}] ${l.raw}`).join('\n');
+                navigator.clipboard.writeText(text).then(() => {
+                    const originalText = copyBtn.textContent;
+                    copyBtn.textContent = '✓';
+                    setTimeout(() => copyBtn.textContent = originalText, 1000);
+                });
+            };
+        }
+
+        const clearBtn = this.container.querySelector('#btn-clear-logs');
+        if (clearBtn) {
+            clearBtn.onclick = () => this.clear();
+        }
     }
 
     addLog(message, type = 'info') {

@@ -68,6 +68,23 @@ export class ExplorerApp {
         this.inspectorPanel.onSave = (id, updates) => this.saveNodeChanges(id, updates);
         this.inspectorPanel.onQuery = (term) => this.handleReplCommand(`<${term} ?>?`);
         this.inspectorPanel.onTrace = (id) => this.graph.traceDerivationPath(id);
+        this.inspectorPanel.onSelect = (term) => {
+             const node = this.graph.cy.$id(term);
+             if (node.nonempty()) {
+                 this.graph.cy.animate({
+                     center: { eles: node },
+                     zoom: 1.5,
+                     duration: 500
+                 });
+                 node.select();
+                 // Inspector update handled by nodeClick/select event or manual update?
+                 // The 'select' event will likely trigger if we have a listener, or we might need to update inspector directly.
+                 // However, nodeClick usually handles it. But animating to it is good.
+             } else {
+                 this.log(`Node not found in view: ${term}`, 'warning');
+                 // Try to create a placeholder or fetch it?
+             }
+        };
 
         // Wire up task browser callbacks
         this.taskBrowser.onSelect = (term) => {
@@ -83,6 +100,7 @@ export class ExplorerApp {
                 this.showInspector({ id: term, ...data, ...(data.fullData || {}) });
             }
         };
+        this.taskBrowser.onTrace = (id) => this.graph.traceDerivationPath(id);
     }
 
     // Convenience accessor for the underlying graph manager

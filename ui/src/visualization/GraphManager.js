@@ -210,17 +210,19 @@ export class GraphManager {
     }
 
     toggleTraceMode(nodeId) {
-        if (!this.cy) return;
+        if (!this.cy || this.cy.destroyed()) return;
 
         if (this.traceMode && this.tracedNode === nodeId) {
             this.traceMode = false;
             this.tracedNode = null;
             this.cy.elements().removeClass('trace-highlight trace-dim');
         } else {
+            const root = this.cy.getElementById(nodeId);
+            if (root.empty()) return;
+
             this.traceMode = true;
             this.tracedNode = nodeId;
 
-            const root = this.cy.getElementById(nodeId);
             const connected = root.union(root.successors()).union(root.predecessors()).union(root.neighborhood());
             const others = this.cy.elements().not(connected);
 
@@ -245,9 +247,9 @@ export class GraphManager {
     }
 
     highlightNode(nodeId) {
-        if (!this.cy) return;
+        if (!this.cy || this.cy.destroyed()) return;
         const node = typeof nodeId === 'string' ? this.cy.getElementById(nodeId) : nodeId;
-        if (!node?.length) return;
+        if (!node || node.empty()) return;
 
         this.cy.elements().removeClass('keyboard-selected');
         node.addClass('keyboard-selected');
@@ -426,15 +428,20 @@ export class GraphManager {
     }
 
     scheduleLayout() {
-        if (this.pendingLayout) return;
+        if (this.pendingLayout || !this.cy || this.cy.destroyed()) return;
         this.pendingLayout = true;
+
+        // Adaptive debounce based on graph size
+        const nodeCount = this.cy.nodes().length;
+        const delay = nodeCount > 100 ? 1000 : 500;
+
         if (this.layoutTimeout) clearTimeout(this.layoutTimeout);
         this.layoutTimeout = setTimeout(() => {
-            if (this.cy) {
+            if (this.cy && !this.cy.destroyed()) {
                 this.cy.layout(Config.getGraphLayout()).run();
             }
             this.pendingLayout = false;
-        }, 500); // Increased debounce to reduce jitter
+        }, delay);
     }
 
     updateStyle() {

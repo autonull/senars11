@@ -84,15 +84,39 @@ export class SystemMetricsPanel extends Component {
                 .child(this.ui.uptime)
         );
 
-        // 6. Sparkline (Last)
-        const svgContainer = FluentUI.create('div').class('metric-compact sparkline-container')
+        // 6. Detailed Graph (Replacing simple sparkline)
+        const graphContainer = FluentUI.create('div').class('metric-graph-container')
             .mount(grid);
 
-        svgContainer.html(`<svg width="80" height="20" viewBox="0 0 80 20" preserveAspectRatio="none">
-            <path id="sm-sparkline" d="" fill="none" stroke="#00ff9d" stroke-width="1.5" />
-        </svg>`);
+        // Expand grid span for graph
+        graphContainer.style({ gridColumn: '1 / -1', height: '40px', marginTop: '4px' });
 
-        this.ui.sparkline = { dom: svgContainer.dom.querySelector('#sm-sparkline') };
+        graphContainer.html(`
+            <svg width="100%" height="100%" viewBox="0 0 300 100" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="tps-gradient" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stop-color="rgba(0, 255, 157, 0.5)"/>
+                        <stop offset="100%" stop-color="rgba(0, 255, 157, 0.0)"/>
+                    </linearGradient>
+                </defs>
+                <path id="sm-graph-area" d="" fill="url(#tps-gradient)" />
+                <path id="sm-graph-line" d="" fill="none" stroke="#00ff9d" stroke-width="1.5" />
+                <text x="2" y="36" fill="#666" font-size="9" font-family="monospace">TPS History</text>
+            </svg>
+        `);
+
+        this.ui.graph = {
+            line: graphContainer.dom.querySelector('#sm-graph-line'),
+            area: graphContainer.dom.querySelector('#sm-graph-area')
+        };
+
+        // Heartbeat Indicator
+        this.ui.heartbeat = FluentUI.create('div').class('metric-heart-indicator')
+            .style({ width: '6px', height: '6px', borderRadius: '50%', background: '#00ff9d', marginLeft: 'auto', marginRight: '4px', opacity: '0.2' });
+
+        // Inject heartbeat into TPS container
+        const tpsContainer = this.ui.throughput.dom.parentNode;
+        tpsContainer.insertBefore(this.ui.heartbeat.dom, this.ui.throughput.dom);
     }
 
     update(metrics = {}) {
@@ -130,6 +154,15 @@ export class SystemMetricsPanel extends Component {
 
         this.ui.throughput.text(throughput.toFixed(1));
 
+        // Heartbeat animation logic
+        if (throughput > 0.1) {
+            this.ui.heartbeat.class('metric-heart-indicator beating');
+            this.ui.heartbeat.style({ opacity: '1', boxShadow: '0 0 5px #00ff9d' });
+        } else {
+            this.ui.heartbeat.class('metric-heart-indicator');
+            this.ui.heartbeat.style({ opacity: '0.2', boxShadow: 'none' });
+        }
+
         this.ui.memoryBar.style({ width: `${memory}%` });
         if (memoryUtilization > 0.8) this.ui.memoryBar.class('progress-fill danger');
         else if (memoryUtilization > 0.6) this.ui.memoryBar.class('progress-fill warning');
@@ -141,21 +174,34 @@ export class SystemMetricsPanel extends Component {
         this.ui.latency.text(avgLatency.toFixed(1));
         this.ui.uptime.text(`${Math.floor(uptime / 1000)}s`);
 
-        if (this.ui.sparkline && this.ui.sparkline.dom) {
-            this.ui.sparkline.dom.setAttribute('d', this.generateSparklinePath(this.history));
+        if (this.ui.graph && this.ui.graph.line) {
+            const { linePath, areaPath } = this.generateGraphPaths(this.history);
+            this.ui.graph.line.setAttribute('d', linePath);
+            this.ui.graph.area.setAttribute('d', areaPath);
         }
     }
 
-    generateSparklinePath(data) {
-        if (data.length < 2) return '';
-        const max = Math.max(...data, 10);
-        const width = 80;
-        const height = 20;
+    generateGraphPaths(data) {
+        if (data.length < 2) return { linePath: '', areaPath: '' };
 
-        return data.map((val, i) => {
-            const x = (i / (data.length - 1)) * width;
-            const y = height - (val / max) * height;
-            return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-        }).join(' ');
+        // Dynamic scale
+        const max = Math.max(...data, 10) * 1.1;
+        const width = 100; // Percentage logic handled by SVG viewbox if defined, here we assume arbitrary units mapped to 100% via CSS?
+        // Actually, SVG usually needs explicit units. The previous code used explicit width 80.
+        // Let's use 100 coordinate space for simplicity and rely on preserveAspectRatio="none"
+
+        const h = 100; // coordinate height
+        const w = 300; // coordinate width (higher res)
+
+        const points = data.map((val, i) => {
+            const x = (i / (data.length - 1)) * w;
+            const y = h - (val / max) * h;
+            return { x, y };
+        });
+
+        const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+        const areaPath = `${linePath} L ${w} ${h} L 0 ${h} Z`;
+
+        return { linePath, areaPath };
     }
 }
