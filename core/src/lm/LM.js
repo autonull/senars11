@@ -6,7 +6,7 @@ import {NarseseTranslator} from './NarseseTranslator.js';
 import {CircuitBreaker} from '../util/CircuitBreaker.js';
 import {LMStats} from './LMStats.js';
 import {ProviderUtils} from './ProviderUtils.js';
-import {EmptyOutputError} from './EmptyOutputError.js';
+import {LMValidator} from './LMValidator.js';
 
 export class LM extends BaseComponent {
     constructor(config = {}, eventBus = null) {
@@ -19,6 +19,7 @@ export class LM extends BaseComponent {
         this.lmMetrics = new Metrics();
         this.activeWorkflows = new Map();
         this.lmStats = new LMStats();
+        this.validator = new LMValidator(config.validation, this.narseseTranslator, eventBus);
     }
 
     get config() {
@@ -94,50 +95,13 @@ export class LM extends BaseComponent {
         const startTime = Date.now();
         const result = await this._executeWithCircuitBreaker(ProviderUtils.standardGenerate, provider, prompt, options);
 
-        this._validateOutput(result, providerId);
+        this.validator.validate(result, providerId);
 
         this.lmStats.update(prompt, result, providerId, startTime);
         this.updateMetric('totalCalls', this.lmStats.totalCalls);
         this.updateMetric('totalTokens', this.lmStats.totalTokens);
         this.updateMetric('avgResponseTime', this.lmStats.avgResponseTime);
         return result;
-    }
-
-    _validateOutput(result, providerId) {
-        const validationConfig = this.config?.validation ?? {};
-        const emptyOutputMode = validationConfig.emptyOutput ?? 'warn';
-        const narseseValidation = validationConfig.narsese ?? false;
-
-        if (typeof result === 'string' && result.trim().length === 0) {
-            const error = new EmptyOutputError('LM returned empty output', providerId);
-            if (emptyOutputMode === 'error') throw error;
-            if (emptyOutputMode === 'warn') {
-                this.logWarn('Empty output detected', {providerId});
-                this.eventBus?.emit('lm:empty-output', {providerId, timestamp: Date.now()});
-            }
-        }
-
-        if (narseseValidation && typeof result === 'string' && this._looksLikeNarsese(result)) {
-            try {
-                this.narseseTranslator.toNarsese(result);
-            } catch (error) {
-                this.logWarn('Narsese-like output failed validation', {
-                    providerId,
-                    output: result.substring(0, 100),
-                    error: error.message
-                });
-                this.eventBus?.emit('lm:invalid-narsese', {
-                    providerId,
-                    output: result,
-                    error: error.message,
-                    timestamp: Date.now()
-                });
-            }
-        }
-    }
-
-    _looksLikeNarsese(text) {
-        return /[<>]|-->|<->|==>|<=>|%/.test(text);
     }
 
     async streamText(prompt, options = {}, providerId = null) {
