@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeNARS Explorer</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="/src/explorer/explorer.css">
+
+    <!-- Styles from agent for components -->
+    <link rel="stylesheet" href="/src/styles/components.css">
+    <link rel="stylesheet" href="/src/styles/effects.css">
+
+    <script type="importmap">
+    {
+        "imports": {
+            "cytoscape": "/node_modules/cytoscape/dist/cytoscape.esm.min.mjs",
+            "cytoscape-fcose": "/src/shims/mock-cytoscape-fcose.js",
+            "golden-layout": "/node_modules/golden-layout/dist/esm/index.js",
+            "marked": "/node_modules/marked/lib/marked.esm.js",
+            "@senars/core": "/core/src/index.js",
+            "@senars/core/": "/core/",
+            "@senars/agent": "/agent/src/index.js",
+            "@senars/agent/": "/agent/",
+            "@mlc-ai/web-llm": "/node_modules/@mlc-ai/web-llm/lib/index.js",
+            "ai": "/node_modules/ai/dist/index.mjs",
+            "@ai-sdk/openai": "/node_modules/@ai-sdk/openai/dist/index.mjs",
+            "@ai-sdk/anthropic": "/node_modules/@ai-sdk/anthropic/dist/index.mjs",
+            "@ai-sdk/gateway": "/node_modules/@ai-sdk/gateway/dist/index.mjs",
+            "@ai-sdk/provider": "/node_modules/@ai-sdk/provider/dist/index.mjs",
+            "@ai-sdk/provider-utils": "/node_modules/@ai-sdk/provider-utils/dist/index.mjs",
+            "@opentelemetry/api": "/node_modules/@opentelemetry/api/build/esm/index.js",
+            "openai": "/node_modules/openai/index.mjs",
+            "ollama-ai-provider": "/node_modules/ollama-ai-provider/dist/index.js",
+            "zod": "/node_modules/zod/index.js",
+            "zod/v4": "/node_modules/zod/v4/index.js",
+            "mitt": "/node_modules/mitt/dist/mitt.mjs",
+            "uuid": "/node_modules/uuid/dist/esm-browser/index.js",
+            "eventemitter3": "/node_modules/eventemitter3/dist/eventemitter3.esm.js",
+            "immer": "/node_modules/immer/dist/immer.mjs",
+            "js-sha256": "/node_modules/js-sha256/src/sha256.js",
+            "danfojs": "/node_modules/danfojs/lib/bundle.esm.js",
+            "module": "/src/shims/mock-node.js",
+            "fs": "/src/shims/mock-node.js",
+            "path": "/src/shims/mock-node.js",
+            "url": "/src/shims/mock-node.js",
+            "crypto": "/src/shims/mock-node.js",
+            "events": "/src/shims/events-shim.js",
+            "util": "/src/shims/mock-node.js",
+            "os": "/src/shims/mock-node.js",
+            "child_process": "/src/shims/mock-node.js",
+            "@langchain/core/messages": "/src/shims/mock-langchain.js",
+            "@langchain/core/tools": "/src/shims/mock-langchain.js",
+            "@langchain/ollama": "/src/shims/mock-langchain.js",
+            "@langchain/openai": "/src/shims/mock-langchain.js",
+            "@langchain/langgraph": "/src/shims/mock-langchain.js",
+            "@langchain/langgraph/prebuilt": "/src/shims/mock-langchain.js",
+            "@langchain/langgraph-checkpoint": "/src/shims/mock-langchain.js",
+            "langchain": "/src/shims/mock-langchain.js",
+            "chart.js/auto": "/node_modules/chart.js/auto/auto.js",
+            "chart.js": "/node_modules/chart.js/dist/chart.js",
+            "@kurkle/color": "/node_modules/@kurkle/color/dist/color.esm.js"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div id="graph-container"></div>
+    <div id="widget-container"></div>
+
+    <!-- HUD -->
+    <div class="hud-panel top-left">
+        <h1>SeNARS Explorer</h1>
+        <p>Gardening Knowledge Interactively</p>
+        <div id="zoom-level">Level: overview</div>
+        <div id="bag-stats">Bag: 0 / 50</div>
+        <div class="mode-controls">
+            <button class="btn mode-btn active" data-mode="visualization">Visualization</button>
+            <button class="btn mode-btn" data-mode="representation">Representation</button>
+            <button class="btn mode-btn" data-mode="control">Control</button>
+        </div>
+    </div>
+
+    <div class="hud-panel top-right">
+        <div class="control-group">
+            <input type="text" id="search-input" placeholder="Search..." class="control-input">
+            <select id="demo-select" class="control-select">
+                <option value="" disabled selected>Load Demo...</option>
+            </select>
+            <button id="btn-clear" class="btn warning-btn">Clear</button>
+        </div>
+        <div class="divider"></div>
+        <button id="btn-llm-config" class="btn">LLM Config</button>
+        <div id="llm-status" class="status-indicator">Offline</div>
+    </div>
+
+    <div id="inspector-panel" class="hud-panel right-center hidden">
+        <h3>Inspector</h3>
+        <div id="inspector-content"></div>
+        <button id="btn-close-inspector" class="btn small-btn">Close</button>
+    </div>
+
+    <div id="log-panel" class="hud-panel bottom-left">
+        <div id="log-content"></div>
+        <div class="repl-container">
+            <span class="repl-prompt">&gt;</span>
+            <input type="text" id="repl-input" placeholder="Enter command or chat..." autocomplete="off">
+        </div>
+    </div>
+
+    <div id="control-toolbar" class="hud-panel bottom-center hidden">
+        <button id="btn-add-concept" class="btn">Add Concept</button>
+        <button id="btn-add-link" class="btn">Link Selected</button>
+        <button id="btn-delete" class="btn warning-btn">Delete</button>
+    </div>
+
+    <div class="hud-panel bottom-right">
+        <button id="btn-fit" class="btn">Fit View</button>
+        <button id="btn-in" class="btn">+</button>
+        <button id="btn-out" class="btn">-</button>
+        <button id="btn-layout" class="btn">Relayout</button>
+    </div>
+
+    <script type="module" src="/src/explorer/main.js"></script>
+</body>
+</html>
