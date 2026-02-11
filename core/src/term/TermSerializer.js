@@ -9,21 +9,22 @@ export class TermSerializer {
 
         const op = term.operator;
 
-        // Handle Sets
-        if (op === '[]' || op === 'SETi') return this.printSet(term, '[', ']');
-        if (op === '{}' || op === 'SETe') return this.printSet(term, '{', '}');
-
-        // Handle specialized operators
-        if (op === '--' || op === 'NEG') return this.printNegation(term);
-        if (op === 'Δ' || op === 'DELTA') return this.printDelta(term);
-
-        // Handle statements
-        if (this.isStatement(term)) {
-            return this.printStatement(term);
+        switch (op) {
+            case '[]':
+            case 'SETi':
+                return this.printSet(term, '[', ']');
+            case '{}':
+            case 'SETe':
+                return this.printSet(term, '{', '}');
+            case '--':
+            case 'NEG':
+                return this.printNegation(term);
+            case 'Δ':
+            case 'DELTA':
+                return this.printDelta(term);
+            default:
+                return this.isStatement(term) ? this.printStatement(term) : this.printCompound(term);
         }
-
-        // Handle general compounds
-        return this.printCompound(term);
     }
 
     isStatement(term) {

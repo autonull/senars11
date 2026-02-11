@@ -41,17 +41,12 @@ const unifyCompounds = (t1, t2, bindings, adapter) => {
 
     // Unify operators instead of identity check to support variable operators
     // (e.g., in lambda patterns like ((λ $x $x) 5) where operator is an expression)
-    let current = bindings;
-    const opResult = unify(op1, op2, current, adapter);
+    const opResult = unify(op1, op2, bindings, adapter);
     if (!opResult) return null;
-    current = opResult;
 
-    for (let i = 0; i < comps1.length; i++) {
-        const result = unify(comps1[i], comps2[i], current, adapter);
-        if (!result) return null;
-        current = result;
-    }
-    return current;
+    return comps1.reduce((current, comp1, i) => {
+        return current ? unify(comp1, comps2[i], current, adapter) : null;
+    }, opResult);
 };
 
 /**
@@ -152,13 +147,9 @@ export const match = (pattern, term, bindings = {}, adapter) => {
         const tComps = adapter.getComponents(term);
         if (pComps.length !== tComps.length) return null;
 
-        let current = bindings;
-        for (let i = 0; i < pComps.length; i++) {
-            const result = match(pComps[i], tComps[i], current, adapter);
-            if (!result) return null;
-            current = result;
-        }
-        return current;
+        return pComps.reduce((current, pComp, i) => {
+            return current ? match(pComp, tComps[i], current, adapter) : null;
+        }, bindings);
     }
 
     return adapter.equals(p, term) ? bindings : null;

@@ -26,16 +26,14 @@ export class Task {
     constructor({ term, punctuation = Punctuation.BELIEF, truth = null, budget = DEFAULT_BUDGET, stamp = null, metadata = null }) {
         if (!(term instanceof Term)) throw new Error('Task must be initialized with a valid Term object.');
 
-        this.term = term;
         this.type = PUNCTUATION_TO_TYPE[punctuation] ?? TaskType.BELIEF;
 
         // Handle negation unwrapping for terms like (-- (A))
-        const { term: unwrappedTerm, truth: adjustedTruth } = this._unwrapNegation(this.term, truth);
-        this.term = unwrappedTerm;
-        const finalTruth = adjustedTruth;
+        const { term: unwrappedTerm, truth: finalTruth } = this._unwrapNegation(term, truth);
 
         this._validateTruth(finalTruth);
 
+        this.term = unwrappedTerm;
         this.truth = this._createTruth(finalTruth);
         this.budget = freeze({ ...budget });
         this.stamp = stamp ?? ArrayStamp.createInput();
@@ -65,21 +63,21 @@ export class Task {
         const op = getOperator(term);
         const comps = getComponents(term);
 
-        if (op === '--' && comps.length === 1) {
-            const unwrapped = comps[0];
-            let newTruth = truth;
-            if (newTruth) {
-                const t = this._createTruth(newTruth);
-                newTruth = t ? Truth.create(1.0 - t.f, t.c) : null;
-            }
-            return { term: unwrapped, truth: newTruth };
+        if (op !== '--' || comps.length !== 1) {
+            return { term, truth };
         }
-        return { term, truth };
+
+        const t = this._createTruth(truth);
+        const newTruth = t ? Truth.create(1.0 - t.f, t.c) : truth;
+
+        return { term: comps[0], truth: newTruth };
     }
 
     _validateTruth(truth) {
-        const expectsTruth = this.type !== TaskType.QUESTION;
-        if (expectsTruth !== (truth !== null)) {
+        const hasTruth = truth !== null;
+        const needsTruth = this.type !== TaskType.QUESTION;
+
+        if (hasTruth !== needsTruth) {
             throw new Error(this.type === TaskType.QUESTION
                 ? 'Questions cannot have truth values'
                 : `${this.type} tasks must have valid truth values`);
@@ -109,9 +107,14 @@ export class Task {
     isQuestion() { return this.type === TaskType.QUESTION; }
 
     equals(other) {
+        if (this === other) return true;
         if (!(other instanceof Task) || this.type !== other.type) return false;
-        if (this.term !== other.term && !this.term.equals(other.term)) return false;
-        return this.truth === other.truth || (!!this.truth && !!other.truth && this.truth.equals(other.truth));
+
+        const termsEqual = this.term === other.term || this.term.equals(other.term);
+        if (!termsEqual) return false;
+
+        const truthsEqual = this.truth === other.truth || (this.truth?.equals(other.truth) ?? false);
+        return truthsEqual;
     }
 
     toString() {
