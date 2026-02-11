@@ -168,12 +168,15 @@ export class StatusBar extends Component {
 
         if (btnRun) {
             btnRun.addEventListener('click', () => {
+                btnRun.classList.add('active-pulse');
                 this.onReasonerControl?.('run');
             });
         }
 
         if (btnPause) {
             btnPause.addEventListener('click', () => {
+                const runBtn = document.getElementById('status-btn-run');
+                if (runBtn) runBtn.classList.remove('active-pulse');
                 this.onReasonerControl?.('pause');
             });
         }

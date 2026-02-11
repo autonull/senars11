@@ -480,6 +480,55 @@ p {
     width: 120px;
 }
 
+/* Related Tags in Inspector */
+.related-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 5px;
+}
+
+.related-tag {
+    background: var(--bg-panel-solid);
+    border: 1px solid var(--border-secondary);
+    color: var(--accent-secondary);
+    padding: 2px 6px;
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.related-tag:hover {
+    border-color: var(--accent-secondary);
+    background: var(--accent-primary-dim);
+    color: var(--accent-primary);
+}
+
+/* Internal State Inspector */
+.internal-state-code {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    background: rgba(0,0,0,0.2);
+    padding: 5px;
+    overflow-x: auto;
+    border: 1px solid var(--border-secondary);
+    display: none;
+}
+
+.inspector-section h4 {
+    cursor: pointer;
+    user-select: none;
+}
+
+.inspector-section:not(.collapsed) .internal-state-code {
+    display: block;
+}
+
+.inspector-section.collapsed h4::after {
+    content: ''; /* handled by arrow in html */
+}
+
 /* Scrollbars */
 ::-webkit-scrollbar {
     width: 6px;
@@ -848,6 +897,18 @@ p {
 
 .hidden {
     display: none !important;
+}
+
+/* Trace Visualization */
+.trace-dim {
+    opacity: 0.1 !important;
+    transition: opacity 0.5s ease;
+}
+
+.trace-highlight {
+    opacity: 1 !important;
+    z-index: 10;
+    box-shadow: 0 0 10px var(--accent-secondary);
 }
 
 /* Narsese Syntax Highlighting */
