@@ -1,4 +1,3 @@
-
 const DEMOS = {
     basicUsage: {
         name: 'Basic Usage Demo',
@@ -41,16 +40,28 @@ const DEMOS = {
     }
 };
 
-export class BuiltinDemos {
-    static getConfigs(managerContext) {
+export class BuiltinDemoSource {
+    async getDemos() {
         return Object.entries(DEMOS).map(([id, config]) => ({
             id,
             name: config.name,
             description: config.description,
             stepDelay: config.stepDelay,
-            handler: async (nar, sendDemoStep, waitIfNotPaused, params = {}) => {
-                await managerContext._executeDemoSteps(nar, sendDemoStep, waitIfNotPaused, id, config.steps, params);
-            }
+            type: 'builtin',
+            path: id // Use ID as path for consistency
         }));
+    }
+
+    async loadDemoSteps(id) {
+        const demo = DEMOS[id];
+        if (!demo) throw new Error(`Builtin demo ${id} not found`);
+        return demo.steps;
+    }
+
+    async getFileContent(id) {
+        const demo = DEMOS[id];
+        if (!demo) return '// Demo not found';
+        // Return a readable representation
+        return `// Builtin Demo: ${demo.name}\n// ${demo.description}\n\n${JSON.stringify(demo.steps, null, 2)}`;
     }
 }

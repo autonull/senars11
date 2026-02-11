@@ -4,7 +4,15 @@ import { TaskMatch } from '../../../../src/testing/TaskMatch.js';
 import { NarseseParser } from '../../../../src/parser/NarseseParser.js';
 import { TermFactory } from '../../../../src/term/TermFactory.js';
 
+/**
+ * TestNARPlaywright - A fluent API for testing SeNARS via Playwright.
+ * Designed for strict Narsese compliance and AI-assisted TDD.
+ */
 export class TestNARPlaywright {
+    /**
+     * @param {import('@playwright/test').Page} page
+     * @param {NarPage} [narPage]
+     */
     constructor(page, narPage = null) {
         this.page = page;
         this.narPage = narPage || new NarPage(page);
@@ -13,38 +21,74 @@ export class TestNARPlaywright {
         this.parser = new NarseseParser(this.termFactory);
     }
 
+    /**
+     * Queues an input command.
+     * @param {string} termStr - The Narsese string (e.g., "<cat --> animal>.").
+     * @param {number} [freq] - Optional frequency.
+     * @param {number} [conf] - Optional confidence.
+     * @returns {TestNARPlaywright}
+     */
     input(termStr, freq, conf) {
+        this._validateNarsese(termStr);
         this.operations.push({ type: 'input', termStr, freq, conf });
         return this;
     }
 
+    /**
+     * Queues a wait for a number of cycles (simulated by timeout).
+     * @param {number} cycles
+     * @returns {TestNARPlaywright}
+     */
     run(cycles = 1) {
         this.operations.push({ type: 'run', cycles });
         return this;
     }
 
+    /**
+     * Queues a step command (clicking the step button).
+     * @param {number} count
+     * @returns {TestNARPlaywright}
+     */
     step(count = 1) {
         this.operations.push({ type: 'step', count });
         return this;
     }
 
+    /**
+     * Queues an expectation for a term to exist in logs.
+     * @param {string|TaskMatch} term - The term string or matcher.
+     * @returns {TestNARPlaywright}
+     */
     expect(term) {
         const matcher = term instanceof TaskMatch ? term : new TaskMatch(term);
         this.operations.push({ type: 'expect', matcher, shouldExist: true });
         return this;
     }
 
+    /**
+     * Queues an expectation for a term NOT to exist in logs.
+     * @param {string|TaskMatch} term
+     * @returns {TestNARPlaywright}
+     */
     expectNot(term) {
         const matcher = term instanceof TaskMatch ? term : new TaskMatch(term);
         this.operations.push({ type: 'expect', matcher, shouldExist: false });
         return this;
     }
 
+    /**
+     * Queues an expectation for a node to exist in the graph.
+     * @param {string} nodeName
+     * @returns {TestNARPlaywright}
+     */
     expectGraph(nodeName) {
         this.operations.push({ type: 'expectGraph', nodeName, shouldExist: true });
         return this;
     }
 
+    /**
+     * Executes all queued operations in order.
+     */
     async execute() {
         for (const op of this.operations) {
             switch (op.type) {
@@ -104,11 +148,7 @@ export class TestNARPlaywright {
             const match = line.match(/[<()].*[>).?!%]/);
             if (!match) continue;
 
-            let narsese = match[0];
-
-            if (narsese.startsWith('(') && narsese.includes(',')) {
-                narsese = this._normalizeLegacyNarsese(narsese);
-            }
+            const narsese = match[0];
 
             try {
                 const parsed = this.parser.parse(narsese);
@@ -120,34 +160,33 @@ export class TestNARPlaywright {
 
                 if (await matcher.matches(taskMock)) return true;
             } catch (e) {
+                // If parsing fails (e.g. partial output), fall back to simple string inclusion
                 if (narsese.includes(matcher.termFilter)) return true;
             }
         }
         return false;
     }
 
-    _normalizeLegacyNarsese(narsese) {
-        if (narsese.endsWith('"') || narsese.endsWith('}')) {
-            narsese = narsese.replace(/["}]+$/, '');
-        }
-
-        const inner = narsese.substring(1, narsese.lastIndexOf(')'));
-        const parts = inner.split(',');
-        if (parts.length >= 2) {
-            const operator = parts[0].trim();
-            const args = parts.slice(1).map(arg => arg.trim());
-
-            if (['-->', '==>', '<->', '<=>'].includes(operator) && args.length === 2) {
-                let normalized = `<${args[0]} ${operator} ${args[1]}>`;
-                if (!normalized.match(/[.?!]/)) normalized += '.';
-                return normalized;
-            }
-        }
-        return narsese;
-    }
-
     async _checkGraphExpectation(op) {
         await this.narPage.sendCommand('/nodes');
         await this.narPage.expectLog(op.nodeName);
+    }
+
+    _validateNarsese(termStr) {
+        if (!termStr) return;
+        // Only validate if it looks like Narsese (starts with < or ()
+        if (termStr.trim().startsWith('<') || termStr.trim().startsWith('(')) {
+            try {
+                this.parser.parse(termStr);
+            } catch (e) {
+                // If it fails, it might be because of missing punctuation which _handleInput adds
+                // Try adding a dot and parsing again
+                try {
+                    this.parser.parse(termStr + '.');
+                } catch (e2) {
+                    throw new Error(`Invalid Narsese input: "${termStr}". Parser error: ${e.message}`);
+                }
+            }
+        }
     }
 }

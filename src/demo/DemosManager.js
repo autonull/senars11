@@ -5,47 +5,53 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { FileSystemDemoSource } from './FileSystemDemoSource.js';
+import { BuiltinDemoSource } from './BuiltinDemoSource.js';
 import { ProcessDemoRunner } from './ProcessDemoRunner.js';
-import { BuiltinDemos } from './BuiltinDemos.js';
 
 export class DemosManager {
     constructor() {
-        this.fsSource = new FileSystemDemoSource();
+        this.sources = [
+            new BuiltinDemoSource(),
+            new FileSystemDemoSource()
+        ];
         this.processRunner = new ProcessDemoRunner();
-        this.fileDemos = new Map();
-        this.demoConfigs = BuiltinDemos.getConfigs(this);
+        this.demos = new Map();
         this.currentRunningDemoId = null;
     }
 
     async initialize() {
-        const fileDemos = await this.fsSource.getDemos();
-        this.fileDemos.clear();
-        for (const demo of fileDemos) {
-            this.fileDemos.set(demo.id, demo);
+        this.demos.clear();
+
+        for (const source of this.sources) {
+            try {
+                const demos = await source.getDemos();
+                for (const demo of demos) {
+                    this.demos.set(demo.id, {
+                        ...demo,
+                        source // Attach source to demo object for later use
+                    });
+                }
+            } catch (error) {
+                console.error(`Error loading demos from source ${source.constructor.name}:`, error);
+            }
         }
     }
 
     getAvailableDemos() {
-        const builtins = this.demoConfigs.map(config => ({
-            ...config,
-            type: 'builtin'
-        }));
-
-        const fileDemos = Array.from(this.fileDemos.values()).map(demo => ({
+        return Array.from(this.demos.values()).map(demo => ({
             id: demo.id,
             name: demo.name,
             description: demo.description,
-            stepDelay: 1000,
+            stepDelay: demo.stepDelay || 1000,
             handler: (nar, sendDemoStep, waitIfNotPaused, params) =>
-                this.runFileDemo(demo.id, nar, sendDemoStep, waitIfNotPaused, params),
-            type: demo.type
+                this.runDemo(demo.id, nar, sendDemoStep, waitIfNotPaused, params),
+            type: demo.type,
+            parameters: demo.parameters
         }));
-
-        return [...builtins, ...fileDemos];
     }
 
-    async runFileDemo(demoId, nar, sendDemoStep, waitIfNotPaused, params = {}) {
-        const demo = this.fileDemos.get(demoId);
+    async runDemo(demoId, nar, sendDemoStep, waitIfNotPaused, params = {}) {
+        const demo = this.demos.get(demoId);
         if (!demo) throw new Error(`Demo ${demoId} not found`);
 
         this.currentRunningDemoId = demoId;
@@ -54,7 +60,7 @@ export class DemosManager {
             if (demo.type === 'process') {
                 await this.runProcessDemo(demo, sendDemoStep);
             } else {
-                const steps = await this.fsSource.loadDemoSteps(demo.path);
+                const steps = await demo.source.loadDemoSteps(demo.path);
                 await this._executeDemoSteps(nar, sendDemoStep, waitIfNotPaused, demoId, steps, params);
             }
         } finally {
@@ -77,10 +83,15 @@ export class DemosManager {
             if (type === 'process') {
                 const tempPath = path.join(os.tmpdir(), `senars_custom_${Date.now()}.js`);
                 await fs.promises.writeFile(tempPath, code);
-                try { await this.runProcessDemo({ path: tempPath, id: 'custom' }, sendDemoStep); }
-                finally { await fs.promises.unlink(tempPath).catch(() => {}); }
+                try {
+                    await this.runProcessDemo({ path: tempPath, id: 'custom' }, sendDemoStep);
+                } finally {
+                    await fs.promises.unlink(tempPath).catch(() => {});
+                }
             } else {
-                await this._executeDemoSteps(nar, sendDemoStep, waitIfNotPaused, 'custom', this.fsSource.parseSteps(code));
+                // Helper to parse steps
+                const parser = new FileSystemDemoSource();
+                await this._executeDemoSteps(nar, sendDemoStep, waitIfNotPaused, 'custom', parser.parseSteps(code));
             }
         } finally {
             this.currentRunningDemoId = null;
@@ -103,7 +114,22 @@ export class DemosManager {
     }
 
     async _executeInputSafely(nar, demoId, step, input, sendDemoStep) {
-        try { await nar.input(input); }
+        try {
+            if (input.startsWith('/')) {
+                const parts = input.substring(1).split(/\s+/);
+                const cmd = parts[0];
+                const args = parts.slice(1);
+
+                // Try executeCommand if available (Agent usually has it via mixins or directly)
+                if (typeof nar.executeCommand === 'function') {
+                    await nar.executeCommand(cmd, ...args);
+                } else {
+                    console.warn(`Command execution not supported by this NAR instance: ${cmd}`);
+                }
+            } else {
+                await nar.input(input);
+            }
+        }
         catch (error) {
             console.error(`Step ${step} error:`, error);
             sendDemoStep?.(demoId, step, `Error: ${error.message}`);
@@ -111,7 +137,10 @@ export class DemosManager {
     }
 
     async getDemoSource(demoId) {
-        const demo = this.fileDemos.get(demoId);
-        return demo ? await this.fsSource.getFileContent(demo.path) : '// Source not available for builtin demo';
+        const demo = this.demos.get(demoId);
+        if (demo && demo.source && demo.source.getFileContent) {
+            return await demo.source.getFileContent(demo.path);
+        }
+        return '// Source not available';
     }
 }

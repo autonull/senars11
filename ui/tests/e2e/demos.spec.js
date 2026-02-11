@@ -22,6 +22,22 @@ test.describe('Demos Verification', () => {
         expect(logs).not.toContain('Error');
     });
 
+    test('Runs Causal Reasoning Demo (File)', async ({productionPage}) => {
+        await productionPage.resetSystem();
+        await productionPage.ensureSidebarOpen();
+
+        const demoSelect = productionPage.page.locator('#demo-select');
+        const runDemoBtn = productionPage.page.locator('#run-demo');
+
+        await demoSelect.selectOption({value: 'causal-reasoning'});
+        await runDemoBtn.click();
+
+        await productionPage.expectLog('Demo completed successfully', 20000);
+
+        const logs = await productionPage.logsContainer.textContent();
+        expect(logs).not.toContain('Error');
+    });
+
     test('Runs Syllogism Demo', async ({productionPage}) => {
         await productionPage.resetSystem();
         await productionPage.ensureSidebarOpen();

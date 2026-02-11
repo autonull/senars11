@@ -37,7 +37,7 @@ Term "term"
   / AtomicTerm
 
 CompoundTerm
-  = "(" _ op:Operator _ components:TermList _ ")" {
+  = "(" _ op:Operator _ ","? _ components:TermList _ ")" {
       return options.termFactory.create({ operator: op, components: components });
     }
   / operator:AtomicTerm "(" _ components:TermList? _ ")" {
@@ -62,10 +62,10 @@ ParenthesizedStatement
     }
 
 Operator
-  = op:("-->" / "<->" / "==>" / "<=>" / "=/>" / "=|" / "=/=" / "=" / "&&" / "||" / "&," / "|," / "-->," / "<->," / "==>," / "<=>,") { return op.endsWith(',') ? op.slice(0, -1) : op; }
+  = op:("-->" / "<->" / "==>" / "<=>" / "=/>" / "=|" / "=/=" / "=" / "&&" / "||" / "&|" / "&/" / "&," / "|," / "-->," / "<->," / "==>," / "<=>,") { return op.endsWith(',') ? op.slice(0, -1) : op; }
 
 InfixOperator
-  = op:("-->" / "<->" / "==>" / "<=>" / "=/>" / "=|" / "=/=" / "=" / "&&" / "||") { return op; }
+  = op:("-->" / "<->" / "==>" / "<=>" / "=/>" / "=|" / "=/=" / "=" / "&&" / "||" / "&|" / "&/") { return op; }
 
 Set
   = "{" _ components:TermList? _ "}" { return options.termFactory.create({ operator: '{}', components: components || [] }); }
