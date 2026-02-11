@@ -105,6 +105,10 @@ export class SmartTextarea {
             .smart-textarea-input.highlight-mode::selection { background: rgba(255, 255, 255, 0.2); color: transparent; }
         `;
 
+        // ResizeObserver to handle scrollbar appearance/disappearance
+        this.resizeObserver = new ResizeObserver(() => this.syncScrollbar());
+        this.resizeObserver.observe(this.textarea);
+
         this.textarea.addEventListener('input', (e) => {
             this.update();
             if (this.autoResize) this.adjustHeight();
@@ -175,10 +179,23 @@ export class SmartTextarea {
         const newHeight = Math.max(this.textarea.scrollHeight, this.rows * 20); // Min height
         this.textarea.style.height = '100%'; // Reset to fill wrapper
         this.wrapper.style.height = newHeight + 'px';
+        this.syncScrollbar();
+    }
+
+    syncScrollbar() {
+        const scrollbarWidth = this.textarea.offsetWidth - this.textarea.clientWidth;
+        if (scrollbarWidth > 0) {
+            this.backdrop.style.paddingRight = `${8 + scrollbarWidth}px`;
+            this.bracketLayer.style.paddingRight = `${8 + scrollbarWidth}px`;
+        } else {
+            this.backdrop.style.paddingRight = '8px';
+            this.bracketLayer.style.paddingRight = '8px';
+        }
     }
 
     destroy() {
         this.autocomplete?.destroy();
+        this.resizeObserver?.disconnect();
         this.wrapper.remove();
     }
 

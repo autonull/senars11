@@ -8,8 +8,9 @@ import { FluentUI } from '../utils/FluentUI.js';
 import { eventBus } from '../core/EventBus.js';
 
 export class NotebookPanel extends Component {
-    constructor(container) {
+    constructor(container, options = {}) {
         super(container);
+        this.options = options;
         this.notebookManager = null;
         this.notebookInput = null;
         this.messageFilter = new MessageFilter();
@@ -48,7 +49,9 @@ export class NotebookPanel extends Component {
             onImport: (file) => this.importNotebookFile(file),
             onRunAll: () => this.notebookManager.runAll(),
             onClearOutputs: () => this.notebookManager.clearOutputs(),
-            onViewChange: (mode) => this.notebookManager.switchView(mode)
+            onViewChange: (mode) => this.notebookManager.switchView(mode),
+            onReset: () => this.controlReasoner('reset'),
+            onUndo: () => this.notebookManager.undo()
         });
 
         FluentUI.create('div').child(this.filterToolbar.render()).mount(this.container);
@@ -62,16 +65,18 @@ export class NotebookPanel extends Component {
         });
         this.notebookManager.loadFromStorage();
 
-        const inputContainer = FluentUI.create('div').mount(this.container);
+        if (!this.options.hideInput) {
+            const inputContainer = FluentUI.create('div').mount(this.container);
 
-        this.notebookInput = new NotebookInput(inputContainer.dom, {
-            onExecute: (cmd) => this.handleExecution(cmd),
-            onClear: () => this.notebookManager.clear(),
-            onDemo: () => this.showDemoSelector(),
-            onExtraAction: (action) => this.handleExtraAction(action),
-            onControl: (action) => this.controlReasoner(action)
-        });
-        this.notebookInput.render();
+            this.notebookInput = new NotebookInput(inputContainer.dom, {
+                onExecute: (cmd) => this.handleExecution(cmd),
+                onClear: () => this.notebookManager.clear(),
+                onDemo: () => this.showDemoSelector(),
+                onExtraAction: (action) => this.handleExtraAction(action),
+                onControl: (action) => this.controlReasoner(action)
+            });
+            this.notebookInput.render();
+        }
     }
 
     handleExecution(command, originCell) {
@@ -79,6 +84,7 @@ export class NotebookPanel extends Component {
             const cell = this.notebookManager.createCodeCell(command);
             cell.isEditing = false;
             cell.updateMode();
+            this.notebookManager.lastInsertionPoint = cell;
         }
 
         if (this.app?.commandProcessor) {
@@ -111,7 +117,7 @@ export class NotebookPanel extends Component {
 
         stateActions[action]?.();
 
-        this.notebookInput.updateState(this.app.isRunning);
+        this.notebookInput?.updateState(this.app.isRunning);
         this.app.updateStats();
     }
 
@@ -120,7 +126,9 @@ export class NotebookPanel extends Component {
             markdown: () => this.notebookManager.createMarkdownCell('Double click to edit...'),
             graph: () => this.notebookManager.createWidgetCell('GraphWidget', { nodes: [], edges: [] }),
             slider: () => this.notebookManager.createWidgetCell('TruthSlider', { frequency: 0.5, confidence: 0.9 }),
-            subnotebook: () => this.notebookManager.createWidgetCell('SubNotebook', {})
+            subnotebook: () => this.notebookManager.createWidgetCell('SubNotebook', {}),
+            timeline: () => this.notebookManager.createWidgetCell('TimelineWidget', { events: [] }),
+            variables: () => this.notebookManager.createWidgetCell('VariableInspector', { bindings: {} })
         };
 
         actions[action]?.();

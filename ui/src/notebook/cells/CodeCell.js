@@ -158,6 +158,7 @@ export class CodeCell extends Cell {
         addBtn('⬆️', 'Move Up', () => this.onMoveUp?.(this));
         addBtn('⬇️', 'Move Down', () => this.onMoveDown?.(this));
         addBtn('➕', 'Insert Code', () => this.onInsertAfter?.('code'));
+        addBtn('📑', 'Duplicate Cell', () => this.onDuplicate?.(this));
 
         // Delete Button (X)
         const delBtn = addBtn('✕', 'Delete Cell', () => this.delete());

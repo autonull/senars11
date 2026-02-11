@@ -5,6 +5,7 @@ import { DerivationTree } from '../components/DerivationTree.js';
 import { SystemMetricsPanel } from '../components/SystemMetricsPanel.js';
 import { NotebookPanel } from '../components/NotebookPanel.js';
 import { ExampleBrowser } from '../components/ExampleBrowser.js';
+import { CodeEditorPanel } from '../components/CodeEditorPanel.js';
 import { LMActivityIndicator } from '../components/LMActivityIndicator.js';
 import { LayoutPresets } from '../config/LayoutPresets.js';
 import { COMPONENTS, STORAGE_KEYS } from '../config/constants.js';
@@ -40,7 +41,8 @@ export class LayoutManager {
             [COMPONENTS.DERIVATION]: (c) => this._createStandard(c, DerivationTree, 'derivation', true),
             [COMPONENTS.METRICS]: (c) => this._createStandard(c, SystemMetricsPanel, 'metrics', false, 'render'),
             [COMPONENTS.SETTINGS]: (c) => this._createSettings(c),
-            [COMPONENTS.EXAMPLES]: (c) => this._createExamples(c)
+            [COMPONENTS.EXAMPLES]: (c) => this._createExamples(c),
+            'editorComponent': (c) => this._createEditor(c)
         };
 
         Object.entries(componentMap).forEach(([name, factory]) => {
@@ -62,10 +64,18 @@ export class LayoutManager {
     }
 
     _createNotebook(container) {
-        const panel = new NotebookPanel(container.element);
+        // Pass component state from GoldenLayout config
+        const options = container._config.componentState || {};
+        const panel = new NotebookPanel(container.element, options);
         panel.initialize(this.app);
         this.app.registerComponent('notebook', panel);
         this.app.updateStats();
+    }
+
+    _createEditor(container) {
+        const panel = new CodeEditorPanel(container.element);
+        panel.initialize(this.app);
+        this.app.registerComponent('editor', panel);
     }
 
     _createGraph(container) {

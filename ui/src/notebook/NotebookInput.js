@@ -24,7 +24,7 @@ export class NotebookInput {
 
     render() {
         this.element = FluentUI.create('div')
-            .class('notebook-input-area')
+            .class('notebook-input-area repl-input-area')
             .style({ padding: '10px', background: '#252526', borderTop: '1px solid #333', display: 'flex', flexDirection: 'column', gap: '8px' });
 
         // Reasoner Controls (Top Bar)
@@ -137,8 +137,7 @@ export class NotebookInput {
                     { type: 'button', label: '❓', onClick: () => this._showHelp(), title: 'Keyboard Shortcuts (F1)' },
                     { type: 'custom', renderer: () => FluentUI.create('div').style({ flex: '1' }).dom },
                     { type: 'button', label: '📝 Text', onClick: () => this.onExtraAction('markdown') },
-                    { type: 'button', label: '🎚️ Slider', onClick: () => this.onExtraAction('slider') },
-                    { type: 'button', label: '📂 Sub-Notebook', onClick: () => this.onExtraAction('subnotebook') }
+                    { type: 'button', label: '🧩 Widget', onClick: (e) => this._showWidgetMenu(e.currentTarget) }
                 ]
             }
         ];
@@ -219,6 +218,19 @@ export class NotebookInput {
         } else if (e.key === 'ArrowDown' && !e.shiftKey && !e.altKey && !e.metaKey) {
             this._handleHistoryNav('down', e);
         }
+    }
+
+    _showWidgetMenu(btn) {
+        import('../components/ui/ContextMenu.js').then(({ ContextMenu }) => {
+            const items = [
+                { label: 'Truth Slider', icon: '🎚️', onClick: () => this.onExtraAction('slider') },
+                { label: 'Graph Widget', icon: '🕸️', onClick: () => this.onExtraAction('graph') },
+                { label: 'Timeline', icon: '⏱️', onClick: () => this.onExtraAction('timeline') },
+                { label: 'Variables', icon: '🔢', onClick: () => this.onExtraAction('variables') },
+                { label: 'Sub-Notebook', icon: '📂', onClick: () => this.onExtraAction('subnotebook') }
+            ];
+            new ContextMenu(items).show(btn.getBoundingClientRect().left, btn.getBoundingClientRect().top - 150);
+        });
     }
 
     _handleHistoryNav(direction, e) {
