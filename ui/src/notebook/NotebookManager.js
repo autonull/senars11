@@ -31,6 +31,7 @@ export class NotebookManager {
 
         this.viewContainer = document.createElement('div');
         this.viewContainer.style.cssText = 'height: 100%; width: 100%; position: relative;';
+        this.viewContainer.id = 'logs-container';
         this.container.appendChild(this.viewContainer);
 
         this.dragSrcEl = null;

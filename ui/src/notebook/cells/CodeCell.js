@@ -187,6 +187,13 @@ export class CodeCell extends Cell {
         this.smartEditor.textarea.addEventListener('focus', () => this.element.style.borderColor = '#007acc');
         this.smartEditor.textarea.addEventListener('blur', () => this.element.style.borderColor = '#3c3c3c');
 
+        this.smartEditor.textarea.addEventListener('keydown', (e) => {
+            if (e.shiftKey && e.key === 'Delete') {
+                e.preventDefault();
+                this.delete();
+            }
+        });
+
         return wrapper;
     }
 

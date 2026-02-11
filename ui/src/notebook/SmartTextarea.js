@@ -140,8 +140,6 @@ export class SmartTextarea {
         this.wrapper.append(style, this.backdrop, this.bracketLayer, this.textarea);
         if (this.container) this.container.appendChild(this.wrapper);
 
-        // this.autocomplete = new AutocompleteManager(this.textarea, this.wrapper);
-
         if (this.autoResize) {
              requestAnimationFrame(() => this.adjustHeight());
         }

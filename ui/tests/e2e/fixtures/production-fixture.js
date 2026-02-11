@@ -98,7 +98,7 @@ export const test = base.extend({
         const {uiPort} = realBackend;
 
         const narPage = new NarPage(page);
-        await page.goto(`http://localhost:${uiPort}`);
+        await page.goto(`http://localhost:${uiPort}/ide.html`);
         await narPage.waitForConnection();
 
         await use(narPage);

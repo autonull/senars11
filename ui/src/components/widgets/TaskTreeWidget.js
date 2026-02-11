@@ -23,7 +23,8 @@ export class TaskTreeWidget extends SimpleGraphWidget {
                     'background-color': '#2d2d2d',
                     'border-width': 1,
                     'border-color': '#555',
-                    'font-size': '11px'
+                    'font-size': '11px',
+                    'label': 'data(label)'
                 })
                 .selector('node[type="goal"]')
                 .style({
@@ -40,11 +41,13 @@ export class TaskTreeWidget extends SimpleGraphWidget {
                 .style({
                     'curve-style': 'taxi',
                     'taxi-direction': 'downward',
-                    'target-arrow-shape': 'triangle'
+                    'target-arrow-shape': 'triangle',
+                    'width': 2,
+                    'line-color': '#555',
+                    'target-arrow-color': '#555'
                 })
                 .update();
 
-            // Apply tree layout
             this.cy.layout({
                 name: 'breadthfirst',
                 directed: true,
@@ -53,5 +56,57 @@ export class TaskTreeWidget extends SimpleGraphWidget {
                 animate: true
             }).run();
         }
+    }
+
+    _convertData(data) {
+        // If data is hierarchical { id, label, children: [...] }
+        if (!Array.isArray(data) && data.children) {
+            return this._flattenTree(data);
+        }
+        // If data is array of hierarchical nodes
+        if (Array.isArray(data) && data.length > 0 && data[0].children) {
+            let elements = [];
+            data.forEach(root => {
+                elements = elements.concat(this._flattenTree(root));
+            });
+            return elements;
+        }
+
+        // Default to SimpleGraphWidget behavior (flat list of nodes/edges)
+        return super._convertData(data);
+    }
+
+    _flattenTree(node, parentId = null) {
+        let elements = [];
+        const nodeId = node.id || `node_${Math.random().toString(36).substr(2, 9)}`;
+
+        elements.push({
+            group: 'nodes',
+            data: {
+                id: nodeId,
+                label: node.label || node.term || nodeId,
+                type: node.type || 'concept'
+            }
+        });
+
+        if (parentId) {
+            elements.push({
+                group: 'edges',
+                data: {
+                    id: `edge_${parentId}_${nodeId}`,
+                    source: parentId,
+                    target: nodeId,
+                    label: node.relation || ''
+                }
+            });
+        }
+
+        if (node.children && Array.isArray(node.children)) {
+            node.children.forEach(child => {
+                elements = elements.concat(this._flattenTree(child, nodeId));
+            });
+        }
+
+        return elements;
     }
 }

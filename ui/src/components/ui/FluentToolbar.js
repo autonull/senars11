@@ -35,6 +35,8 @@ export class FluentToolbar extends Component {
                     .attr({ title: item.title || '' })
                     .on('click', item.onClick);
 
+                if (item.id) btn.id(item.id);
+
                 if (item.icon) {
                     btn.text(item.icon); // Assuming text icon for now, could be SVG
                 } else if (item.label) {

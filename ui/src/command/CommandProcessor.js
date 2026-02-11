@@ -21,6 +21,10 @@ export class CommandProcessor {
         this.layout = layout;
     }
 
+    setGraphManager(graphManager) {
+        this.graphManager = graphManager;
+    }
+
     processCommand(text, isSystem = false, mode = 'narsese') {
         if (!text) return;
 

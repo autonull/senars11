@@ -84,7 +84,8 @@ export class GraphPanel extends Component {
                     { type: 'custom', renderer: () => this.createAxisSelectors() },
                     { type: 'button', icon: '⤢', title: 'Fit', onClick: () => this.graphManager?.fitToScreen() },
                     { type: 'button', icon: '➕', title: 'In', onClick: () => this.graphManager?.zoomIn() },
-                    { type: 'button', icon: '➖', title: 'Out', onClick: () => this.graphManager?.zoomOut() }
+                    { type: 'button', icon: '➖', title: 'Out', onClick: () => this.graphManager?.zoomOut() },
+                    { type: 'button', icon: '↻', title: 'Refresh', onClick: () => this.resize(), id: 'refresh-graph' }
                 ]
             },
             ...this._getFilterControls()
@@ -187,6 +188,7 @@ export class GraphPanel extends Component {
     createGraphContainer() {
         this.graphDiv = document.createElement('div');
         this.graphDiv.className = 'graph-container';
+        this.graphDiv.id = 'graph-container';
         this.container.appendChild(this.graphDiv);
     }
 

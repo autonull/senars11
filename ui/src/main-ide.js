@@ -57,14 +57,18 @@ class SeNARSIDE {
 
     registerComponent(name, instance) {
         this.components.set(name, instance);
-        if (name === 'graph') this.graphManager = instance.graphManager;
+        if (name === 'graph') {
+            this.graphManager = instance.graphManager;
+            this.commandProcessor?.setGraphManager(this.graphManager);
+        }
     }
 
     async initialize() {
-        this.logger.log(`Initializing SeNARS IDE (Layout: ${this.presetName})...`, 'system');
-
         this.statusBar = new StatusBar(document.getElementById('status-bar-root'));
-        this.statusBar.initialize({ onModeSwitch: () => this.showConnectionModal() });
+        this.statusBar.initialize({
+            onModeSwitch: () => this.showConnectionModal(),
+            onThemeToggle: () => this.toggleTheme()
+        });
 
         this.layoutManager.initialize(this.presetName);
 
@@ -81,8 +85,6 @@ class SeNARSIDE {
 
         eventBus.on('concept:select', onConceptSelect);
         document.addEventListener(EVENTS.CONCEPT_SELECT, (e) => onConceptSelect(e.detail?.concept));
-
-        this.logger.log(`SeNARS IDE initialized in ${this.settingsManager.getMode()} mode`, 'success');
     }
 
     getNotebook() {
@@ -90,7 +92,6 @@ class SeNARSIDE {
     }
 
     async switchMode(mode) {
-        this.logger.log(`Switching to ${mode} mode...`, 'system');
         this.connection?.disconnect();
         this.settingsManager.setMode(mode);
 
@@ -112,7 +113,6 @@ class SeNARSIDE {
         this.graphManager?.setCommandProcessor(this.commandProcessor);
 
         this.updateModeIndicator();
-        this.getNotebook()?.createResultCell(`🚀 Connected in ${mode} mode`, 'system');
     }
 
     updateModeIndicator() {
@@ -158,6 +158,10 @@ class SeNARSIDE {
                 this.getNotebook()?.saveToStorage();
                 this.getNotebook()?.createResultCell('💾 Notebook saved', 'system');
             }
+            if (e.ctrlKey && e.key === 'o') {
+                e.preventDefault();
+                this.triggerLoadFile();
+            }
             if (e.ctrlKey && e.key === 'b') {
                 e.preventDefault();
                 this.layoutManager.toggleSidebar();
@@ -180,6 +184,7 @@ class SeNARSIDE {
             { key: 'Shift + Enter', desc: 'Execute & Advance' },
             { key: 'Ctrl + L', desc: 'Clear Notebook' },
             { key: 'Ctrl + S', desc: 'Save Notebook' },
+            { key: 'Ctrl + O', desc: 'Load Notebook File' },
             { key: 'Ctrl + B', desc: 'Toggle Sidebar' },
             { key: 'Ctrl + Shift + F', desc: 'Search Memory' },
             { key: 'Ctrl + Shift + D', desc: 'Demo Library' },
@@ -198,6 +203,30 @@ class SeNARSIDE {
             content,
             width: '450px'
         }).show();
+    }
+
+    triggerLoadFile() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const notebook = this.components.get('notebook');
+                if (notebook) {
+                    notebook.importNotebookFile(file);
+                }
+            }
+        };
+        input.click();
+    }
+
+    toggleTheme() {
+        const themes = ['default', 'light', 'contrast'];
+        const current = this.themeManager.getTheme();
+        const next = themes[(themes.indexOf(current) + 1) % themes.length];
+        this.themeManager.setTheme(next);
+        this.logger.log(`Theme set to: ${next}`, 'system');
     }
 }
 

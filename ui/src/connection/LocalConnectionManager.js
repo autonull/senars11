@@ -62,9 +62,6 @@ export class LocalConnectionManager extends ConnectionInterface {
             }
 
             this.updateStatus('connected');
-            this.logger.log('Connected to Local SeNARS', 'success', '💻');
-
-            setTimeout(() => this.dispatchMessage({ type: 'agent/result', payload: { result: "Welcome to SeNARS Local Mode" } }), 100);
             return true;
         } catch (error) {
             console.error("Local connection failed", error);

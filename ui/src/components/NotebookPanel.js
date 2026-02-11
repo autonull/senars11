@@ -125,6 +125,7 @@ export class NotebookPanel extends Component {
         const actions = {
             markdown: () => this.notebookManager.createMarkdownCell('Double click to edit...'),
             graph: () => this.notebookManager.createWidgetCell('GraphWidget', { nodes: [], edges: [] }),
+            tasktree: () => this.notebookManager.createWidgetCell('TaskTreeWidget', { label: 'Root Goal', type: 'goal', children: [{ label: 'Subgoal 1', type: 'op' }, { label: 'Subgoal 2', type: 'op' }] }),
             slider: () => this.notebookManager.createWidgetCell('TruthSlider', { frequency: 0.5, confidence: 0.9 }),
             subnotebook: () => this.notebookManager.createWidgetCell('SubNotebook', {}),
             timeline: () => this.notebookManager.createWidgetCell('TimelineWidget', { events: [] }),

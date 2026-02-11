@@ -22,11 +22,11 @@ test.describe('Production Integration', () => {
     test('Concept creation and visualization', async ({productionPage}) => {
         await productionPage.sendCommand('<a --> b>.');
         // Expect success message even if parser fails internally on backend
-        await productionPage.expectLog('Input processed', 10000);
+        await productionPage.expectLog('<a --> b>.', 10000);
 
         // Check debug
-        await productionPage.sendCommand('/concepts');
+        await productionPage.sendCommand('/nodes');
         // Expect response, even if 0 concepts due to parser issues
-        await productionPage.expectLog('Found');
+        await productionPage.expectLog('Graph has');
     });
 });

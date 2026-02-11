@@ -253,6 +253,10 @@ export class GraphManager {
         this.cy.animate({ center: { eles: node } }, { duration: 200 });
     }
 
+    getNodeCount() {
+        return this.cy ? this.cy.nodes().length : 0;
+    }
+
     setCommandProcessor(commandProcessor) {
         if (!commandProcessor) return;
         this.callbacks.commandProcessor = commandProcessor;

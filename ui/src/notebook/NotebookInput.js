@@ -38,6 +38,7 @@ export class NotebookInput {
             onExecute: () => this.execute()
         });
         this.smartInput.render();
+        this.smartInput.textarea.id = 'command-input';
         this.inputBox = this.smartInput;
 
         // Mode Badge
@@ -132,7 +133,7 @@ export class NotebookInput {
                 type: 'group',
                 style: { display: 'flex', gap: '8px', alignItems: 'center', background: 'transparent', padding: '0' },
                 items: [
-                    { type: 'button', label: '▶️ Execute (Shift+Enter)', class: 'primary', onClick: () => this.execute() },
+                    { type: 'button', label: '▶️ Execute (Shift+Enter)', class: 'primary', onClick: () => this.execute(), id: 'send-button' },
                     { type: 'button', label: '🗑️ Clear', onClick: () => this.onClear() },
                     { type: 'button', label: '📚 Load Demo', onClick: () => this.onDemo(), title: 'Browse demo library (Ctrl+Shift+D)' },
                     { type: 'button', label: '❓', onClick: () => this._showHelp(), title: 'Keyboard Shortcuts (F1)' },
@@ -226,6 +227,7 @@ export class NotebookInput {
             const items = [
                 { label: 'Truth Slider', icon: '🎚️', onClick: () => this.onExtraAction('slider') },
                 { label: 'Graph Widget', icon: '🕸️', onClick: () => this.onExtraAction('graph') },
+                { label: 'Task Tree', icon: '🌳', onClick: () => this.onExtraAction('tasktree') },
                 { label: 'Timeline', icon: '⏱️', onClick: () => this.onExtraAction('timeline') },
                 { label: 'Variables', icon: '🔢', onClick: () => this.onExtraAction('variables') },
                 { label: 'Sub-Notebook', icon: '📂', onClick: () => this.onExtraAction('subnotebook') }

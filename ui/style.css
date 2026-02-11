@@ -137,6 +137,15 @@ input[type="text"]:focus, select:focus {
     padding: 10px;
 }
 
+.cell-toolbar {
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.code-cell:hover .cell-toolbar, .code-cell:focus-within .cell-toolbar {
+    opacity: 1;
+}
+
 .log-entry {
     border-left: 2px solid transparent;
     padding: 4px 8px;
