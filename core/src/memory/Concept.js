@@ -119,7 +119,9 @@ export class Concept extends BaseComponent {
     }
 
     applyDecay(decayRate = this.config.defaultDecayRate) {
-        this._bags.forEach(bag => bag.applyDecay(decayRate));
+        for (const bag of this._bags) {
+            bag.applyDecay(decayRate);
+        }
         this._activation *= (1 - decayRate);
         this._updateActivity();
     }

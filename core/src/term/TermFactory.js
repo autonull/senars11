@@ -83,20 +83,10 @@ export class TermFactory extends BaseComponent {
         }
 
         const isAssociative = ASSOCIATIVE_OPERATORS.has(operator);
-        const result = [];
-
-        for (const comp of components) {
+        return components.flatMap(comp => {
             const term = comp instanceof Term ? comp : this.create(comp);
-            if (isAssociative && term.operator === operator) {
-                // Flattening
-                for (const subComp of term.components) {
-                    result.push(subComp);
-                }
-            } else {
-                result.push(term);
-            }
-        }
-        return result;
+            return (isAssociative && term.operator === operator) ? term.components : [term];
+        });
     }
 
     _simplify(operator, comps) {
@@ -197,26 +187,18 @@ export class TermFactory extends BaseComponent {
     _canonicalizeComponents(operator, components) {
         if (!operator) return components;
 
-        if (operator === '<->' || operator === '<=>') {
-             const comps = components.length > 2 ? components.slice(0, 2) : [...components];
-             return comps.sort((a, b) => {
-                const diff = b.complexity - a.complexity;
-                return diff !== 0 ? diff : a.name.localeCompare(b.name);
-            });
-        }
-
-        if (operator === '-->') {
-            return components.length > 2 ? components.slice(0, 2) : components;
+        switch (operator) {
+            case '<->':
+            case '<=>':
+                return (components.length > 2 ? components.slice(0, 2) : [...components])
+                    .sort((a, b) => (b.complexity - a.complexity) || a.name.localeCompare(b.name));
+            case '-->':
+                return components.length > 2 ? components.slice(0, 2) : components;
         }
 
         if (COMMUTATIVE_OPERATORS.has(operator)) {
-            const comps = [...components];
-            comps.sort(this._compareTermsAlphabetically);
-
-            if (IDEMPOTENT_OPERATORS.has(operator)) {
-                return this._removeRedundancy(comps);
-            }
-            return comps;
+            const comps = [...components].sort(this._compareTermsAlphabetically);
+            return IDEMPOTENT_OPERATORS.has(operator) ? this._removeRedundancy(comps) : comps;
         }
 
         return components;
