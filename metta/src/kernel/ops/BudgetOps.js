@@ -3,12 +3,13 @@
  */
 
 import { OperationHelpers } from './OperationHelpers.js';
+import { Term } from '../Term.js';
 
 export function registerBudgetOps(registry) {
     // Helper function for binary numeric operations
     const binaryNumOp = fn => (a, b) => {
         const [x, y] = OperationHelpers.requireNums([a, b], 2);
-        return sym(String(fn(x, y)));
+        return Term.sym(String(fn(x, y)));
     };
 
     // Budget priority operations

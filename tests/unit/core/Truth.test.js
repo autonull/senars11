@@ -22,8 +22,10 @@ describe('Truth', () => {
 
     test.each([
         ['deduction', t1, t2, 0.8 * 0.7, 0.9 * 0.6],
-        ['induction', t1, t2, 0.7, 0.9 * 0.6],
-        ['abduction', t1, t2, 0.8, Math.min(0.9 * 0.6, 0.6)],
+        // Induction: w = f2*c1*c2 = 0.7*0.9*0.6 = 0.378; c = 0.378/1.378 = 0.2743
+        ['induction', t1, t2, 0.7, (0.7 * 0.9 * 0.6) / (0.7 * 0.9 * 0.6 + 1)],
+        // Abduction: w = f1*c1*c2 = 0.8*0.9*0.6 = 0.432; c = 0.432/1.432 = 0.3016
+        ['abduction', t1, t2, 0.8, (0.8 * 0.9 * 0.6) / (0.8 * 0.9 * 0.6 + 1)],
         ['detachment', t1, t2, 0.7, 0.8 * 0.9 * 0.6],
         ['analogy', t1, t2, 0.8 * 0.7, 0.9 * 0.6 * 0.7],
         ['resemblance', t1, t2, (0.8 + 0.7) / 2, 0.9 * 0.6]
@@ -33,9 +35,22 @@ describe('Truth', () => {
 
     test('revision', () => {
         const tRev = Truth.revision(t1, t2);
-        const confSum = 0.9 + 0.6;
-        expect(tRev.frequency).toBeCloseTo((0.8 * 0.9 + 0.7 * 0.6) / confSum);
-        expect(tRev.confidence).toBe(Math.min(confSum, 1));
+        // NAL Revision:
+        // w1 = 0.9/(1-0.9) = 9
+        // w2 = 0.6/(1-0.6) = 1.5
+        // w = 10.5
+        // f = (9*0.8 + 1.5*0.7)/10.5 = 8.25/10.5 ≈ 0.7857
+        // c = 10.5/11.5 ≈ 0.9130
+        const w1 = 0.9 / (1 - 0.9);
+        const w2 = 0.6 / (1 - 0.6);
+        const w = w1 + w2;
+        const expectedF = (w1 * 0.8 + w2 * 0.7) / w;
+        const expectedC = w / (w + 1);
+
+        expect(tRev.frequency).toBeCloseTo(expectedF);
+        expect(tRev.confidence).toBeCloseTo(expectedC);
+
+        // Identity checks
         expect(Truth.revision(t1, t1)).toBe(t1);
         expect(Truth.revision(t1, null)).toBe(t1);
     });
@@ -65,8 +80,24 @@ describe('Truth', () => {
     });
 
     test('expectation', () => {
-        expect(Truth.expectation(t1)).toBe(0.8 * 0.9);
-        expect(Truth.expectation(null)).toBe(0);
+        // e = c * (f - 0.5) + 0.5
+        // 0.9 * (0.8 - 0.5) + 0.5 = 0.9 * 0.3 + 0.5 = 0.77
+        expect(Truth.expectation(t1)).toBeCloseTo(0.77);
+        expect(Truth.expectation(null)).toBe(0.5); // Default expectation is 0.5
+    });
+
+    test('choice', () => {
+        const tWeak = new Truth(0.8, 0.1);
+        const tStrong = new Truth(0.8, 0.9);
+
+        // tStrong should have higher expectation
+        expect(Truth.expectation(tStrong)).toBeGreaterThan(Truth.expectation(tWeak));
+
+        const chosen = Truth.choice(tWeak, tStrong);
+        expect(chosen).toBe(tStrong);
+
+        expect(Truth.choice(tStrong, null)).toBe(tStrong);
+        expect(Truth.choice(null, tWeak)).toBe(tWeak);
     });
 
     test('isStronger', () => {
