@@ -6,6 +6,7 @@
 
 // Local imports
 import { isVariable, isExpression, isList, flattenList, constructList, exp } from './Term.js';
+import { getTypeTag, TYPE_SYMBOL, TYPE_VARIABLE, TYPE_EXPRESSION } from './FastPaths.js';
 
 // External imports
 import * as UnifyCore from '../../../core/src/term/UnifyCore.js';
@@ -98,10 +99,22 @@ const mettaAdapter = {
 /**
  * Unified function for unification to avoid circular reference
  */
-const unifiedUnify = (t1, t2, binds = {}) =>
-    (isList(t1) && isList(t2))
-        ? unifyLists(t1, t2, binds)
-        : UnifyCore.unify(t1, t2, binds, mettaAdapter);
+const unifiedUnify = (t1, t2, binds = {}) => {
+    // Fast path: symbol equality (80% of cases)
+    const tag1 = getTypeTag(t1);
+    const tag2 = getTypeTag(t2);
+
+    if (tag1 === TYPE_SYMBOL && tag2 === TYPE_SYMBOL) {
+        return (t1 === t2 || t1.name === t2.name) ? binds : null;
+    }
+
+    // Fast path: lists
+    if (isList(t1) && isList(t2)) {
+        return unifyLists(t1, t2, binds);
+    }
+
+    return UnifyCore.unify(t1, t2, binds, mettaAdapter);
+};
 
 export const Unify = {
     /**

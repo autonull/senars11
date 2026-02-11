@@ -38,9 +38,9 @@ export function* stepYield(atom, space, ground, limit = 10000, cache = null) {
     }
 
     // Handle grounded operations
-    if (opName && ground.has(opName)) {
+    if (opName && ground.has(atom.operator)) {
         let applied = false;
-        for (const res of executeGroundedOpND(atom, opName, space, ground, limit)) {
+        for (const res of executeGroundedOpND(atom, atom.operator, space, ground, limit)) {
             if (res.applied) {
                 applied = true;
                 cache?.set(atom, res.reduced);
@@ -51,8 +51,8 @@ export function* stepYield(atom, space, ground, limit = 10000, cache = null) {
     }
 
     // Handle explicit grounded call (^)
-    if (opName === '^' && comps?.[0]?.name && ground.has(comps[0].name)) {
-        const op = comps[0].name;
+    if (opName === '^' && comps?.[0]?.name && ground.has(comps[0])) {
+        const op = comps[0];
         const args = comps.slice(1);
         let applied = false;
         for (const res of executeGroundedOpWithArgsND(atom, op, args, space, ground, limit)) {
@@ -105,22 +105,23 @@ export const setReduceNDInternalReference = (ndReduceFunc) => {
 /**
  * Execute a grounded operation with non-deterministic evaluation
  */
-export function* executeGroundedOpND(atom, opName, space, ground, limit) {
+export function* executeGroundedOpND(atom, op, space, ground, limit) {
     const args = atom.components;
 
     // If operation is lazy, execute directly without reducing arguments
-    if (ground.isLazy(opName)) {
+    if (ground.isLazy(op)) {
         try {
-            yield { reduced: ground.execute(opName, ...args), applied: true };
+            yield { reduced: ground.execute(op, ...args), applied: true };
         } catch (e) {
-            console.error('Lazy op error', opName, e);
+            console.error('Lazy op error', op, e);
         }
         return;
     }
 
     // Special handling for certain operations that need deterministic evaluation of arguments
     // For example, &if should evaluate the condition deterministically first
-    if (opName === '&if' && args.length >= 3) {
+    const opStr = typeof op === 'string' ? op : op.name;
+    if (opStr === '&if' && args.length >= 3) {
         // Evaluate the condition deterministically first
         const conditionResult = reduceDeterministicInternal(args[0], space, ground, limit, null);
 
@@ -147,9 +148,9 @@ export function* executeGroundedOpND(atom, opName, space, ground, limit) {
     // Generate all combinations of argument values
     for (const combo of cartesianProduct(variants)) {
         try {
-            yield { reduced: ground.execute(opName, ...combo), applied: true };
+            yield { reduced: ground.execute(op, ...combo), applied: true };
         } catch (e) {
-            console.error('Grounded op error', opName, e);
+            console.error('Grounded op error', op, e);
         }
     }
 }
@@ -157,12 +158,12 @@ export function* executeGroundedOpND(atom, opName, space, ground, limit) {
 /**
  * Execute a grounded operation with specific arguments
  */
-export function* executeGroundedOpWithArgsND(atom, opName, args, space, ground, limit) {
-    if (ground.isLazy(opName)) {
+export function* executeGroundedOpWithArgsND(atom, op, args, space, ground, limit) {
+    if (ground.isLazy(op)) {
         try {
-            yield { reduced: ground.execute(opName, ...args), applied: true };
+            yield { reduced: ground.execute(op, ...args), applied: true };
         } catch (e) {
-            console.error('Lazy op args error', opName, e);
+            console.error('Lazy op args error', op, e);
         }
         return;
     }
@@ -172,9 +173,9 @@ export function* executeGroundedOpWithArgsND(atom, opName, args, space, ground, 
 
     for (const combo of cartesianProduct(variants)) {
         try {
-            yield { reduced: ground.execute(opName, ...combo), applied: true };
+            yield { reduced: ground.execute(op, ...combo), applied: true };
         } catch (e) {
-            console.error('Grounded op args error', opName, e);
+            console.error('Grounded op args error', op, e);
         }
     }
 }
@@ -203,9 +204,14 @@ function* cartesianProduct(arrays) {
  */
 export const isGroundedCall = (atom, ground) => {
     if (!isExpression(atom)) return false;
-    const op = atom.operator?.name;
-    return (op && ground.has(op)) ||
-        (op === '^' && atom.components?.[0]?.name && ground.has(atom.components[0].name));
+    const op = atom.operator;
+    if (op && ground.has(op)) return true;
+
+    // Explicit call (^)
+    if (op?.name === '^' && atom.components?.[0]) {
+        return ground.has(atom.components[0]);
+    }
+    return false;
 };
 
 /**
