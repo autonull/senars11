@@ -1,5 +1,6 @@
 import { ConnectionInterface } from './ConnectionInterface.js';
-import { NAR, Config } from '@senars/core';
+import { Agent } from '@senars/agent';
+import { Config } from '@senars/core';
 import { MeTTaInterpreter } from '@senars/metta/MeTTaInterpreter.js';
 import { Logger } from '../logging/Logger.js';
 
@@ -28,10 +29,18 @@ export class LocalConnectionManager extends ConnectionInterface {
                 config.components.LMIntegration && (config.components.LMIntegration.enabled = false);
             }
 
-            if (NAR) {
-                this.nar = new NAR(config);
+            if (Agent) {
+                this.nar = new Agent(config);
                 await this.nar.initialize();
-                this.nar.eventBus.on('*', (type, payload) => this.dispatchMessage({ type, payload, timestamp: Date.now() }));
+                // Agent might use a different event bus or method, but it extends NAR so eventBus should be there.
+                // However, Agent emits via this.emit() which delegates to _eventBus if NAR uses it.
+                // Let's check if Agent exposes eventBus or if we need to hook differently.
+                // NAR.js usually has eventBus. Agent.js emit() calls this._eventBus?.emit().
+                if (this.nar.eventBus) {
+                    this.nar.eventBus.on('*', (type, payload) => this.dispatchMessage({ type, payload, timestamp: Date.now() }));
+                } else if (this.nar._eventBus) {
+                     this.nar._eventBus.on('*', (type, payload) => this.dispatchMessage({ type, payload, timestamp: Date.now() }));
+                }
             }
 
             if (MeTTaInterpreter && this.nar) {
@@ -138,8 +147,18 @@ export class LocalConnectionManager extends ConnectionInterface {
                 this.dispatchMessage({ type: 'error', payload: { message: e.message } });
             }
         } else if (this.nar) {
-            // Fallback to NAR if not explicitly MeTTa
-            await this.nar.input(text);
+            // Fallback to Agent (which extends NAR)
+            // Use processInput to handle commands (like /view)
+            if (this.nar.processInput) {
+                const result = await this.nar.processInput(text);
+                // Agent.processInput returns the result string, or emits events.
+                // If it returns a string (like from a command), we should display it.
+                if (typeof result === 'string') {
+                    this.dispatchMessage({ type: 'agent/result', payload: { result } });
+                }
+            } else {
+                await this.nar.input(text);
+            }
         }
     }
 

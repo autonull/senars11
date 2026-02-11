@@ -739,3 +739,26 @@ export class VolCommand extends AgentCommand {
         return 'Volume set (simulated).';
     }
 }
+
+export class ViewCommand extends AgentCommand {
+    constructor() {
+        super('view', 'Control UI views', 'view <mode|component> [args]');
+    }
+
+    async _executeImpl(agent, ...args) {
+        if (args.length === 0) return 'Usage: view <mode|component> [args]';
+
+        const mode = args[0];
+        if (!agent.uiState) {
+            return '❌ UI State not available in this agent instance.';
+        }
+
+        agent.uiState.viewMode = mode;
+
+        // Notify UI about state change if mechanism exists, but changing state object might be enough
+        // if UI observes it or if we emit event.
+        agent.emit('ui.view.change', {mode, args: args.slice(1)});
+
+        return `👀 View switched to: ${mode}`;
+    }
+}

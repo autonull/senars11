@@ -3,13 +3,15 @@ import {createOpenAI} from '@ai-sdk/openai';
 import {createAnthropic} from '@ai-sdk/anthropic';
 import {createOllama} from 'ollama-ai-provider';
 import {TransformersJSProvider} from '@senars/core/src/lm/TransformersJSProvider.js';
+import {WebLLMProvider} from '@senars/core/src/lm/WebLLMProvider.js';
 
 export class AIClient {
     constructor(config = {}) {
         this.config = config;
         this.providers = new Map();
         this.modelInstances = new Map();
-        this.defaultProvider = config.provider || config.lm?.provider || 'transformers';
+        const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+        this.defaultProvider = config.provider || config.lm?.provider || (isBrowser ? 'webllm' : 'transformers');
         this.defaultModel = config.model || config.modelName || config.lm?.modelName;
         this._initializeProviders(config);
     }
@@ -51,6 +53,85 @@ export class AIClient {
         this.providers.set('ollama', (modelName) => ollama(modelName || 'llama3.2'));
 
         this.providers.set('transformers', (modelName) => this._createTransformersModel(modelName));
+        this.providers.set('webllm', (modelName) => this._createWebLLMModel(modelName));
+    }
+
+    _createWebLLMModel(modelName) {
+        const effectiveModel = modelName || 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
+        const cacheKey = `webllm:${effectiveModel}`;
+
+        if (!this.modelInstances.has(cacheKey)) {
+            this.modelInstances.set(cacheKey, new WebLLMProvider({
+                modelName: effectiveModel
+            }));
+        }
+        const provider = this.modelInstances.get(cacheKey);
+
+        return {
+            specificationVersion: 'v2',
+            provider: 'webllm',
+            modelId: effectiveModel,
+            defaultObjectGenerationMode: undefined,
+
+            async doGenerate(options) {
+                const prompt = AIClient._extractPrompt(options);
+                const text = await provider.generateText(prompt, {
+                    temperature: options.temperature ?? 0.7,
+                    maxTokens: options.maxTokens ?? 256
+                });
+
+                const responseText = text || '';
+
+                return {
+                    text: responseText,
+                    content: [{type: 'text', text: responseText}],
+                    finishReason: 'stop',
+                    usage: {
+                        promptTokens: 0,
+                        completionTokens: 0,
+                        inputTokens: 0,
+                        outputTokens: 0
+                    },
+                    rawCall: {rawPrompt: prompt, rawSettings: {}},
+                    toolCalls: [],
+                    warnings: [],
+                    logprobs: undefined
+                };
+            },
+
+            async doStream(options) {
+                const prompt = AIClient._extractPrompt(options);
+                const controller = new TransformableStream();
+
+                (async () => {
+                    try {
+                        const stream = provider.streamText(prompt, {
+                            temperature: options.temperature ?? 0.7,
+                            maxTokens: options.maxTokens ?? 256
+                        });
+
+                        for await (const chunk of stream) {
+                            controller.enqueue({type: 'text-delta', textDelta: chunk});
+                        }
+
+                        controller.enqueue({
+                            type: 'finish',
+                            finishReason: 'stop',
+                            usage: {promptTokens: 0, completionTokens: 0, inputTokens: 0, outputTokens: 0}
+                        });
+                        controller.close();
+                    } catch (error) {
+                        controller.error(error);
+                    }
+                })();
+
+                return {
+                    stream: controller.readable,
+                    rawCall: {rawPrompt: prompt, rawSettings: {}},
+                    warnings: []
+                };
+            }
+        };
     }
 
     _createTransformersModel(modelName) {
