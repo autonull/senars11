@@ -17,11 +17,10 @@ export const objToBindingsAtom = (bindings = {}) =>
 export const bindingsAtomToObj = (bindingsAtom) => {
     if (bindingsAtom?.operator?.name !== 'Bindings') return {};
 
-    const bindings = {};
-    for (const pair of bindingsAtom.components || []) {
+    return (bindingsAtom.components || []).reduce((bindings, pair) => {
         if (pair?.operator?.name === 'Pair' && pair.components?.length === 2 && pair.components[0]?.name) {
             bindings[pair.components[0].name] = pair.components[1];
         }
-    }
-    return bindings;
+        return bindings;
+    }, {});
 };

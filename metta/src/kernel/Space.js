@@ -72,7 +72,7 @@ export class Space {
      */
     _getRulesAsAtoms() {
         return this.ruleIndex.allRules
-            .filter(r => r.result && typeof r.result !== 'function' && r.pattern) // Only explicit rules with pattern/result structure
+            .filter(r => r.result && typeof r.result !== 'function' && r.pattern)
             .map(r => exp(sym('='), [r.pattern, r.result]));
     }
 

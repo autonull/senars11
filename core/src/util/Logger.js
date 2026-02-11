@@ -12,24 +12,16 @@ class Logger {
     }
 
     _detectTestEnvironment() {
-        // More robust test environment detection
-        return (
-            (typeof process !== 'undefined' && (
-                process.env.NODE_ENV === 'test' ||
-                process.env.JEST_WORKER_ID !== undefined ||
-                process.env.VITEST === 'true'
-            )) ||
-            (typeof window !== 'undefined' && (
-                window.__JEST__ ||
-                window.__VITEST__
-            )) ||
-            (typeof globalThis !== 'undefined' && (
-                globalThis.__JEST__ ||
-                globalThis.__VITEST__
-            )) ||
-            (typeof jest !== 'undefined' && jest.version) ||
-            (typeof vi !== 'undefined' && vi.version)
-        );
+        if (typeof process !== 'undefined' && (
+            process.env.NODE_ENV === 'test' ||
+            process.env.JEST_WORKER_ID !== undefined ||
+            process.env.VITEST === 'true'
+        )) return true;
+
+        if (typeof window !== 'undefined' && (window.__JEST__ || window.__VITEST__)) return true;
+        if (typeof globalThis !== 'undefined' && (globalThis.__JEST__ || globalThis.__VITEST__)) return true;
+
+        return (typeof jest !== 'undefined' && !!jest.version) || (typeof vi !== 'undefined' && !!vi.version);
     }
 
     log(level, message, data = {}) {
