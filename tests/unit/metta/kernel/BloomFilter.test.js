@@ -5,6 +5,7 @@ describe('BloomFilter', () => {
 
     beforeEach(() => {
         bloom = new BloomFilter(100, 3);
+        bloom.enabled = true;
     });
 
     test('adds and checks presence', () => {

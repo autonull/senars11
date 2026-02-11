@@ -9,7 +9,6 @@ import { OperationNotFoundError } from '../../errors/MeTTaErrors.js';
 export class CoreRegistry {
     constructor() {
         this.operations = new Map();
-        this.opCache = new WeakMap();
     }
 
     /**
@@ -23,57 +22,30 @@ export class CoreRegistry {
     /**
      * Check if an operation exists
      */
-    has(nameOrTerm) {
-        const op = this._lookup(nameOrTerm);
-        return !!op;
+    has(name) {
+        const n = typeof name === 'string' ? name : name?.name;
+        return n ? this.operations.has(this._normalize(n)) : false;
     }
 
     /**
      * Check if an operation is lazy
      */
-    isLazy(nameOrTerm) {
-        const op = this._lookup(nameOrTerm);
-        return !!op?.options?.lazy;
+    isLazy(name) {
+        const n = typeof name === 'string' ? name : name?.name;
+        return n ? !!this.operations.get(this._normalize(n))?.options?.lazy : false;
     }
 
     /**
      * Execute an operation
      */
-    execute(nameOrTerm, ...args) {
-        const op = this._lookup(nameOrTerm);
-        if (!op) {
-            const name = typeof nameOrTerm === 'string' ? nameOrTerm : nameOrTerm?.name;
-            throw new OperationNotFoundError(name);
-        }
-        return op.fn(...args);
-    }
+    execute(name, ...args) {
+        const n = typeof name === 'string' ? name : name?.name;
+        if (!n) throw new OperationNotFoundError(String(name));
 
-    /**
-     * Lookup operation object by name or term
-     * Caches results for term objects in WeakMap
-     */
-    _lookup(nameOrTerm) {
-        if (!nameOrTerm) return undefined;
-
-        // Try cache for objects
-        if (typeof nameOrTerm === 'object') {
-            const cached = this.opCache.get(nameOrTerm);
-            if (cached) return cached;
-        }
-
-        // Normal lookup
-        const name = typeof nameOrTerm === 'string' ? nameOrTerm : nameOrTerm.name;
-        if (!name) return undefined;
-
-        const norm = this._normalize(name);
+        const norm = this._normalize(n);
         const op = this.operations.get(norm);
-
-        // Cache result if found and input was object
-        if (op && typeof nameOrTerm === 'object') {
-            this.opCache.set(nameOrTerm, op);
-        }
-
-        return op;
+        if (!op) throw new OperationNotFoundError(n);
+        return op.fn(...args);
     }
 
     /**

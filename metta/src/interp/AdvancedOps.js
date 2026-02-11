@@ -130,12 +130,20 @@ export function registerAdvancedOps(interpreter) {
         { lazy: true }
     );
 
-    reg('&filter-fast', (pred, list) =>
-        interpreter._listify(interpreter.ground._flattenExpr(list).filter(el =>
-            interpreter.ground._truthy(interpreter._reduceDeterministic(exp(pred, [el])))
-        )),
-        { lazy: true }
-    );
+    reg('&filter-fast', (pred, list) => {
+        const elements = interpreter.ground._flattenExpr(list);
+        const filtered = elements.filter(el => {
+            if (!el) return false;
+            try {
+                const expr = exp(pred, [el]);
+                const result = interpreter._reduceDeterministic(expr);
+                return interpreter.ground._truthy(result);
+            } catch (e) {
+                return false;
+            }
+        });
+        return interpreter.ground._listify(filtered);
+    }, { lazy: true });
 
     reg('&foldl-fast', (fn, init, list) =>
         interpreter.ground._flattenExpr(list).reduce((acc, el) =>

@@ -6,6 +6,7 @@ describe('RuleIndex', () => {
 
     beforeEach(() => {
         index = new RuleIndex();
+        index.bloom.enabled = true;
     });
 
     test('indexes by functor', () => {
