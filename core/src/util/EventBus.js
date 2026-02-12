@@ -60,7 +60,6 @@ export class EventBus {
     async emit(eventName, data = {}, options = {}) {
         if (!this._enabled) return;
 
-        // Backpressure: Wait if concurrency limit reached
         if (this._concurrency >= this._maxConcurrency) {
             if (this._queue.length >= this._maxQueueSize) {
                 Logger.warn(`EventBus queue full (${this._maxQueueSize}), dropping event "${eventName}"`);
@@ -73,36 +72,29 @@ export class EventBus {
         try {
             this._stats.eventsEmitted++;
             const traceId = options.traceId ?? TraceId.generate();
-            let processedData = {...data, eventName, traceId};
+            let processedData = { ...data, eventName, traceId };
 
-            // Process middleware in parallel where possible
             for (const middleware of this._middleware) {
                 try {
-                    // Allow middleware to be either sync or async
                     const result = await middleware(processedData);
-
-                    // Allow middleware to cancel event processing by returning null
                     if (result === null) return;
                     processedData = result;
                 } catch (error) {
-                    return this._handleError('middleware', error, {eventName, data, traceId});
+                    return this._handleError('middleware', error, { eventName, data, traceId });
                 }
             }
 
-            // Emit event
             try {
                 this._emitter.emit(eventName, processedData);
                 this._stats.eventsHandled++;
             } catch (error) {
                 this._stats.errors++;
-                this._handleError('listener', error, {eventName, data, traceId});
+                this._handleError('listener', error, { eventName, data, traceId });
             }
         } finally {
             this._concurrency--;
-            if (this._queue.length > 0) {
-                const next = this._queue.shift();
-                next();
-            }
+            const next = this._queue.shift();
+            if (next) next();
         }
     }
 
