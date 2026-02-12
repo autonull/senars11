@@ -1,5 +1,4 @@
 import fs from 'fs';
-import inquirer from 'inquirer';
 import {Logger} from '../../../core/src/util/Logger.js';
 
 class PreferenceCollector {
@@ -23,6 +22,9 @@ class PreferenceCollector {
         Logger.info('\n=== Trajectory B ===');
         Logger.info(this._formatTrajectory(trajectoryB));
         Logger.info('==========================================\n');
+
+        // Dynamic import to avoid loading inquirer in browser environments
+        const inquirer = (await import('inquirer')).default;
 
         const {preference} = await inquirer.prompt([{
             type: 'list',

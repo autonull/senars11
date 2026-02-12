@@ -32,15 +32,22 @@ export class ReactiveState {
         this._currentComputed = null; // Track which computed property is evaluating
         this._isUpdating = false; // Prevent circular updates
 
-        return new Proxy(this, {
+        const proxy = new Proxy(this, {
             get: (target, prop) => {
+                // Access private properties directly from target
+                if (typeof prop === 'string' && prop.startsWith('_')) {
+                    return target[prop];
+                }
+
                 // Intercept method calls
                 if (typeof target[prop] === 'function') {
-                    return target[prop].bind(target);
+                    // Don't bind to target, so 'this' remains the proxy
+                    // enabling dependency tracking within methods
+                    return target[prop];
                 }
 
                 // Track dependency for computed properties
-                if (target._currentComputed && !prop.startsWith('_')) {
+                if (target._currentComputed) {
                     target._recordDependency(target._currentComputed, prop);
                 }
 
@@ -71,6 +78,9 @@ export class ReactiveState {
                 return true;
             }
         });
+
+        this._proxy = proxy;
+        return proxy;
     }
 
     /**
@@ -85,7 +95,8 @@ export class ReactiveState {
 
         // Evaluate and track dependencies
         this._currentComputed = name;
-        this._state[name] = fn.call(this);
+        // Use the proxy as context to ensure property accesses are intercepted for dependency tracking
+        this._state[name] = fn.call(this._proxy || this);
         this._currentComputed = null;
     }
 
@@ -215,13 +226,14 @@ export class ReactiveState {
             this._computedDeps.set(computedProp, new Set());
             this._currentComputed = computedProp;
             const oldValue = this._state[computedProp];
-            const newValue = fn.call(this);
+            const newValue = fn.call(this._proxy || this);
             this._currentComputed = null;
 
             // Update if changed
             if (oldValue !== newValue) {
                 this._state[computedProp] = newValue;
                 this._notify(computedProp, newValue, oldValue);
+                this._updateComputedDependents(computedProp);
             }
         }
     }

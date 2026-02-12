@@ -1,5 +1,6 @@
 import { ConnectionInterface } from './ConnectionInterface.js';
-import { Agent } from '@senars/agent';
+// Dynamic import handled in connect() to avoid circular dependency
+// import { Agent } from '@senars/agent';
 import { Config } from '@senars/core';
 import { MeTTaInterpreter } from '@senars/metta/MeTTaInterpreter.js';
 import { Logger } from '../logging/Logger.js';
@@ -29,17 +30,26 @@ export class LocalConnectionManager extends ConnectionInterface {
                 config.components.LMIntegration && (config.components.LMIntegration.enabled = false);
             }
 
-            if (Agent) {
-                this.nar = new Agent(config);
+            let AgentClass = null;
+            try {
+                // Dynamically import Agent to break circular dependency cycle:
+                // LocalConnectionManager -> Agent -> NAR -> BaseComponent -> Logger -> UI_CONSTANTS -> core
+                // If imported statically, this cycle causes a crash during module evaluation.
+                const module = await import('@senars/agent');
+                AgentClass = module.Agent;
+            } catch (e) {
+                console.warn('Agent module failed to load (Local Agent features unavailable):', e);
+            }
+
+            if (AgentClass) {
+                this.nar = new AgentClass(config);
                 await this.nar.initialize();
-                // Agent might use a different event bus or method, but it extends NAR so eventBus should be there.
-                // However, Agent emits via this.emit() which delegates to _eventBus if NAR uses it.
-                // Let's check if Agent exposes eventBus or if we need to hook differently.
-                // NAR.js usually has eventBus. Agent.js emit() calls this._eventBus?.emit().
+
                 if (this.nar.eventBus) {
-                    this.nar.eventBus.on('*', (type, payload) => this.dispatchMessage({ type, payload, timestamp: Date.now() }));
-                } else if (this.nar._eventBus) {
-                     this.nar._eventBus.on('*', (type, payload) => this.dispatchMessage({ type, payload, timestamp: Date.now() }));
+                    this.nar.eventBus.on('*', (data) => {
+                        const type = data.eventName || data.type;
+                        this.dispatchMessage({ type, payload: data, timestamp: Date.now() });
+                    });
                 }
             }
 
