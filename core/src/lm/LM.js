@@ -22,20 +22,15 @@ export class LM extends BaseComponent {
         this.validator = new LMValidator(config.validation, this.narseseTranslator, eventBus);
     }
 
-    get config() {
-        return {...this._config};
-    }
-
-    get metrics() {
-        return this.lmMetrics;
-    }
+    get config() { return {...this._config}; }
+    get metrics() { return this.lmMetrics; }
 
     _getCircuitBreakerConfig() {
-        const cbConfig = this.config?.circuitBreaker ?? {};
         return {
-            failureThreshold: cbConfig.failureThreshold ?? 5,
-            timeout: cbConfig.timeout ?? 60000,
-            resetTimeout: cbConfig.resetTimeout ?? 30000
+            failureThreshold: 5,
+            timeout: 60000,
+            resetTimeout: 30000,
+            ...this.config?.circuitBreaker
         };
     }
 
@@ -52,11 +47,8 @@ export class LM extends BaseComponent {
 
     registerProvider(id, provider) {
         this.providers.register(id, provider);
-        this.logInfo('Provider registered', {
-            providerId: id,
-            default: id === this.providers.defaultProviderId
-        });
-        // Forward custom events from provider
+        this.logInfo('Provider registered', { providerId: id, default: id === this.providers.defaultProviderId });
+
         if (typeof provider.on === 'function') {
             provider.on('lm:model-dl-progress', (data) => {
                 this.eventBus?.emit('lm:model-dl-progress', {...data, providerId: id});
@@ -65,7 +57,7 @@ export class LM extends BaseComponent {
         return this;
     }
 
-    _getProvider(providerId = null) {
+    _getProvider(providerId) {
         const id = providerId ?? this.providers.defaultProviderId;
         return id && this.providers.has(id) ? this.providers.get(id) : null;
     }
@@ -74,12 +66,12 @@ export class LM extends BaseComponent {
         try {
             return await this.circuitBreaker.execute(() => operation(...args));
         } catch (error) {
-            this._handleCircuitBreakerError(error, args[0] ?? args[1]);
+            this._handleCircuitBreakerError(error);
             throw error;
         }
     }
 
-    _handleCircuitBreakerError(error, fallbackInput) {
+    _handleCircuitBreakerError(error) {
         if (error.message?.includes('Circuit breaker is OPEN')) {
             this.logInfo('Circuit breaker is OPEN, using fallback...');
             return true;
@@ -137,7 +129,7 @@ export class LM extends BaseComponent {
         return this.modelSelector.getAvailableModels();
     }
 
-    _handleFallback(prompt, options = {}) {
+    _handleFallback(prompt) {
         this.logInfo('Using fallback strategy - LM unavailable, degrading to pure NAL reasoning');
         return `FALLBACK: Processed with pure NAL reasoning - ${prompt}`;
     }
@@ -171,8 +163,7 @@ export class LM extends BaseComponent {
 
     async _stop() {
         this.logInfo('Stopping LM component...');
-        const providers = this.providers.getAll();
-        for (const [id, provider] of providers) {
+        for (const [id, provider] of this.providers.getAll()) {
             try {
                 if (typeof provider.destroy === 'function') await provider.destroy();
                 else if (typeof provider.shutdown === 'function') await provider.shutdown();
