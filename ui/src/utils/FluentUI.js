@@ -233,3 +233,7 @@ export const div = (attrs) => $('div', attrs);
 export const span = (attrs) => $('span', attrs);
 export const button = (text, attrs) => $('button', attrs).text(text || '');
 export const input = (type = 'text', attrs) => $('input', { ...attrs, type });
+export const pre = (attrs) => $('pre', attrs);
+export const textarea = (attrs) => $('textarea', attrs);
+export const h3 = (text, attrs) => $('h3', attrs).text(text || '');
+export const h4 = (text, attrs) => $('h4', attrs).text(text || '');
