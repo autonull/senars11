@@ -1,3 +1,6 @@
+import { createElement } from '../utils/dom.js';
+import { FluentUI } from '../utils/FluentUI.js';
+
 /**
  * Base Component class providing common functionality for UI components
  */
@@ -38,5 +41,25 @@ export class Component {
             this.container.innerHTML = '';
         }
         this.elements = {};
+    }
+
+    /**
+     * Helper to create DOM elements
+     * @deprecated Use fluent() instead
+     */
+    createElement(tag, attributes, children) {
+        return createElement(tag, attributes, children);
+    }
+
+    /**
+     * Returns a FluentUI builder.
+     * If tag is provided, creates a new element.
+     * If no tag is provided, wraps the component's container.
+     */
+    fluent(tag, attributes) {
+        if (tag) {
+            return FluentUI.create(tag, attributes);
+        }
+        return new FluentUI(this.container);
     }
 }

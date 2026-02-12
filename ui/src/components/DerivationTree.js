@@ -1,5 +1,6 @@
 import { Component } from './Component.js';
 import { DerivationWidget } from './widgets/DerivationWidget.js';
+import { FluentUI } from '../utils/FluentUI.js';
 
 export class DerivationTree extends Component {
     constructor(container) {
@@ -7,35 +8,56 @@ export class DerivationTree extends Component {
         this.history = [];
         this.selectedDerivation = null;
         this.widget = null;
+        this.ui = {
+            historyList: null,
+            graphContainer: null
+        };
     }
 
     initialize() {
         if (!this.container) return;
 
-        this.container.innerHTML = '';
-        this.container.className = 'dt-wrapper';
+        this.fluent().clear().class('dt-wrapper');
 
-        const wrapper = document.createElement('div');
-        wrapper.className = 'dt-container';
-        wrapper.innerHTML = `
-            <div class="dt-sidebar">
-                <div style="padding: 8px; font-weight: bold; border-bottom: 1px solid var(--border-color); background: var(--bg-header);">HISTORY</div>
-                <div class="dt-history-list" id="dt-history"></div>
-                <div class="dt-toolbar">
-                    <button id="dt-export" title="Export History" style="padding: 2px 6px; font-size:10px; cursor: pointer;">💾 Export</button>
-                </div>
-            </div>
-            <div class="dt-main" id="dt-graph"></div>
-        `;
-        this.container.appendChild(wrapper);
+        const wrapper = FluentUI.create('div')
+            .class('dt-container')
+            .mount(this.container);
 
-        this.historyList = wrapper.querySelector('#dt-history');
-        const graphContainer = wrapper.querySelector('#dt-graph');
+        // Sidebar
+        FluentUI.create('div')
+            .class('dt-sidebar')
+            .child(
+                FluentUI.create('div')
+                    .style({ padding: '8px', fontWeight: 'bold', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-header)' })
+                    .text('HISTORY')
+            )
+            .child(
+                this.ui.historyList = FluentUI.create('div')
+                    .class('dt-history-list')
+                    .id('dt-history')
+            )
+            .child(
+                FluentUI.create('div')
+                    .class('dt-toolbar')
+                    .child(
+                        FluentUI.create('button')
+                            .id('dt-export')
+                            .attr({ title: 'Export History' })
+                            .style({ padding: '2px 6px', fontSize: '10px', cursor: 'pointer' })
+                            .text('💾 Export')
+                            .on('click', () => this.exportHistory())
+                    )
+            )
+            .mount(wrapper);
 
-        wrapper.querySelector('#dt-export').addEventListener('click', () => this.exportHistory());
+        // Main Graph Area
+        this.ui.graphContainer = FluentUI.create('div')
+            .class('dt-main')
+            .id('dt-graph')
+            .mount(wrapper);
 
         // Initialize Widget
-        this.widget = new DerivationWidget(graphContainer, null);
+        this.widget = new DerivationWidget(this.ui.graphContainer.dom, null);
         requestAnimationFrame(() => this.widget.render());
     }
 
@@ -63,19 +85,17 @@ export class DerivationTree extends Component {
     }
 
     renderHistory() {
-        if (!this.historyList) return;
-        this.historyList.innerHTML = '';
+        if (!this.ui.historyList) return;
+        this.ui.historyList.clear();
 
         for (const item of this.history) {
-            const div = document.createElement('div');
-            div.className = `dt-history-item ${this.selectedDerivation === item ? 'active' : ''}`;
-            div.innerHTML = `
-                <div class="dt-rule">${item.rule ?? 'Unknown Rule'}</div>
-                <div class="dt-term" title="${item.derived?.term}">${item.derived?.term ?? '...'}</div>
-                <div class="dt-time">${item.timestamp}</div>
-            `;
-            div.onclick = () => this.selectDerivation(item);
-            this.historyList.appendChild(div);
+            FluentUI.create('div')
+                .class(`dt-history-item ${this.selectedDerivation === item ? 'active' : ''}`)
+                .on('click', () => this.selectDerivation(item))
+                .child(FluentUI.create('div').class('dt-rule').text(item.rule ?? 'Unknown Rule'))
+                .child(FluentUI.create('div').class('dt-term').attr({ title: item.derived?.term }).text(item.derived?.term ?? '...'))
+                .child(FluentUI.create('div').class('dt-time').text(item.timestamp))
+                .mount(this.ui.historyList);
         }
     }
 
@@ -86,9 +106,6 @@ export class DerivationTree extends Component {
     }
 
     resize() {
-        // Widget doesn't have explicit resize method but Cytoscape might need it if container resizes
-        // SimpleGraphWidget doesn't implement resize, but Cytoscape usually handles it if we call resize on it.
-        // DerivationWidget -> SimpleGraphWidget.cy
         if (this.widget?.cy) {
             this.widget.cy.resize();
             this.widget.cy.fit();

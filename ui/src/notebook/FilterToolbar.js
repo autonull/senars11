@@ -1,4 +1,6 @@
 import { MESSAGE_CATEGORIES, VIEW_MODES } from './MessageFilter.js';
+import { FluentUI } from '../utils/FluentUI.js';
+import { FluentToolbar } from '../components/ui/FluentToolbar.js';
 
 export class FilterToolbar {
     constructor(messageFilter, callbacks = {}) {
@@ -15,137 +17,124 @@ export class FilterToolbar {
     }
 
     render() {
-        const toolbar = document.createElement('div');
-        toolbar.className = 'filter-toolbar';
+        this.element = FluentUI.create('div').class('filter-toolbar');
 
         // Search Input
-        const searchInput = document.createElement('input');
-        searchInput.type = 'text';
-        searchInput.placeholder = '🔍 Search messages...';
-        searchInput.className = 'filter-search-input';
-        searchInput.value = this.messageFilter.searchTerm || '';
-        searchInput.oninput = (e) => {
-            this.messageFilter.setSearchTerm(e.target.value);
-            this.onFilterChange();
-        };
+        this.element.child(
+            FluentUI.create('input')
+                .attr({ type: 'text', placeholder: '🔍 Search messages...', value: this.messageFilter.searchTerm || '' })
+                .class('filter-search-input')
+                .on('input', (e) => {
+                    this.messageFilter.setSearchTerm(e.target.value);
+                    this.onFilterChange();
+                })
+        );
 
-        // Category Buttons Container
-        const categoryButtons = document.createElement('div');
-        categoryButtons.className = 'filter-btn-group';
-
+        // Category Buttons
+        const catButtons = FluentUI.create('div').class('filter-btn-group');
         Object.entries(MESSAGE_CATEGORIES).forEach(([id, cat]) => {
-            const btn = document.createElement('button');
-            btn.dataset.category = id;
-            btn.className = 'filter-btn';
+            const btn = FluentUI.create('button')
+                .class('filter-btn')
+                .attr({ 'data-category': id })
+                .on('click', () => {
+                    const newMode = this.messageFilter.cycleCategoryMode(id);
+                    this.updateButtonStyle(btn.dom, id, newMode);
+                    this.onFilterChange();
+                });
 
-            this.updateButtonStyle(btn, id, this.messageFilter.getCategoryMode(id));
-
-            btn.onclick = () => {
-                const newMode = this.messageFilter.cycleCategoryMode(id);
-                this.updateButtonStyle(btn, id, newMode);
-                this.onFilterChange();
-            };
-
-            this.buttons.set(id, btn);
-            categoryButtons.appendChild(btn);
+            this.updateButtonStyle(btn.dom, id, this.messageFilter.getCategoryMode(id));
+            this.buttons.set(id, btn.dom);
+            catButtons.child(btn);
         });
+        this.element.child(catButtons);
 
-        // View Switcher
-        const viewGroup = document.createElement('div');
-        viewGroup.className = 'filter-view-group';
-
-        ['list', 'grid', 'icon', 'graph'].forEach(mode => {
-            const btn = document.createElement('button');
-            const icons = { list: '☰', grid: '⊞', icon: '🧱', graph: '🕸️' };
-            btn.innerHTML = icons[mode];
-            btn.title = `${mode.charAt(0).toUpperCase() + mode.slice(1)} View`;
-            btn.onclick = () => {
-                this.currentView = mode;
-                this.onViewChange(mode);
-                this.updateViewButtons(viewGroup);
-            };
-            btn.dataset.mode = mode;
-            viewGroup.appendChild(btn);
-        });
-        this.updateViewButtons(viewGroup);
-
-        // Action Buttons Group
-        const actionGroup = document.createElement('div');
-        actionGroup.className = 'filter-action-group';
-
-        // Collapse All Button
-        const collapseAllBtn = this._createBtn('🔽', 'Collapse All Results', () => {
-             this.messageFilter.getAllCategories().forEach(cat => {
-                 this.messageFilter.setCategoryMode(cat.id, VIEW_MODES.COMPACT);
-             });
-             this.refresh();
-             this.onFilterChange();
-        });
-
-        // Expand All Button
-        const expandAllBtn = this._createBtn('🔼', 'Expand All Results', () => {
-             this.messageFilter.getAllCategories().forEach(cat => {
-                 this.messageFilter.setCategoryMode(cat.id, VIEW_MODES.FULL);
-             });
-             this.refresh();
-             this.onFilterChange();
-        });
-
-        // Run All Button
-        const runAllBtn = this._createBtn('▶️▶️', 'Run All Cells', () => this.onRunAll(), 'primary');
-
-        // Clear Outputs Button
-        const clearBtn = this._createBtn('🧹', 'Clear Outputs', () => this.onClearOutputs());
-
-        // Import Button
-        const importBtn = this._createBtn('📂 Import', 'Import notebook', null);
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.json';
-        fileInput.style.display = 'none';
-        fileInput.onchange = (e) => {
-            if (e.target.files.length > 0) {
-                this.onImport(e.target.files[0]);
-                e.target.value = ''; // Reset
+        // View Switcher & Actions can be done via FluentToolbar for consistency
+        const actionsConfig = [
+            {
+                type: 'group',
+                class: 'filter-view-group',
+                items: ['list', 'grid', 'icon', 'graph'].map(mode => ({
+                    type: 'button',
+                    label: { list: '☰', grid: '⊞', icon: '🧱', graph: '🕸️' }[mode],
+                    title: `${mode.charAt(0).toUpperCase() + mode.slice(1)} View`,
+                    style: this.getViewBtnStyle(mode),
+                    onClick: (e) => {
+                        this.currentView = mode;
+                        this.onViewChange(mode);
+                        this.updateViewButtons(e.target.parentElement);
+                    },
+                    class: 'view-btn', // marker class
+                    customData: { mode }
+                }))
+            },
+            {
+                type: 'group',
+                class: 'filter-action-group',
+                items: [
+                    { type: 'button', label: '🔽', title: 'Collapse All', onClick: () => {
+                        this.messageFilter.getAllCategories().forEach(cat => this.messageFilter.setCategoryMode(cat.id, VIEW_MODES.COMPACT));
+                        this.refresh();
+                        this.onFilterChange();
+                    }},
+                    { type: 'button', label: '🔼', title: 'Expand All', onClick: () => {
+                        this.messageFilter.getAllCategories().forEach(cat => this.messageFilter.setCategoryMode(cat.id, VIEW_MODES.FULL));
+                        this.refresh();
+                        this.onFilterChange();
+                    }},
+                    { type: 'button', label: '▶️▶️', title: 'Run All', class: 'primary', onClick: () => this.onRunAll() },
+                    { type: 'button', label: '🧹', title: 'Clear Outputs', onClick: () => this.onClearOutputs() },
+                    { type: 'custom', renderer: () => {
+                        const input = FluentUI.create('input').attr({ type: 'file', accept: '.json' }).style({ display: 'none' })
+                            .on('change', (e) => {
+                                if (e.target.files.length > 0) {
+                                    this.onImport(e.target.files[0]);
+                                    e.target.value = '';
+                                }
+                            });
+                        const btn = FluentUI.create('button').class('toolbar-btn').text('📂 Import').attr({ title: 'Import notebook' })
+                            .on('click', () => input.dom.click());
+                        return FluentUI.create('span').child(btn).child(input).dom;
+                    }},
+                    { type: 'button', label: '💾 Export', title: 'Export notebook', onClick: () => this.onExport() }
+                ]
             }
-        };
-        importBtn.onclick = () => fileInput.click();
+        ];
 
-        // Export Button
-        const exportBtn = this._createBtn('💾 Export', 'Export notebook', () => this.onExport());
+        const toolbar = new FluentToolbar(FluentUI.create('div').dom, actionsConfig); // Temp container
+        toolbar.render(); // Renders into temp container
 
-        actionGroup.append(collapseAllBtn, expandAllBtn, runAllBtn, clearBtn, importBtn, exportBtn, fileInput);
+        // Append children of temp container to main element (FluentToolbar replaces innerHTML)
+        Array.from(toolbar.container.children).forEach(c => this.element.child(c));
 
-        toolbar.appendChild(searchInput);
-        toolbar.appendChild(categoryButtons);
-        toolbar.appendChild(viewGroup);
-        toolbar.appendChild(actionGroup);
-
-        this.element = toolbar;
-        return toolbar;
+        return this.element.dom;
     }
 
-    _createBtn(html, title, onClick, extraClass = '') {
-        const btn = document.createElement('button');
-        btn.innerHTML = html;
-        btn.title = title;
-        btn.className = `toolbar-btn ${extraClass}`;
-        if (onClick) btn.onclick = onClick;
-        return btn;
+    getViewBtnStyle(mode) {
+        const isActive = mode === this.currentView;
+        return {
+            background: isActive ? '#333' : 'transparent',
+            color: isActive ? '#fff' : '#888',
+            border: 'none',
+            padding: '4px 8px',
+            cursor: 'pointer',
+            borderRadius: '2px',
+            fontSize: '14px'
+        };
     }
 
     updateViewButtons(container) {
+        // Manually update styles since FluentToolbar doesn't have reactive state binding yet
         Array.from(container.children).forEach(btn => {
-            const isActive = btn.dataset.mode === this.currentView;
-            btn.style.cssText = `
-                background: ${isActive ? '#333' : 'transparent'};
-                color: ${isActive ? '#fff' : '#888'};
-                border: none;
-                padding: 4px 8px;
-                cursor: pointer;
-                border-radius: 2px;
-                font-size: 14px;
-            `;
+            // Find the config item logic... simpler to just check index or attribute if we added one
+            // We added customData via FluentToolbar? No, FluentToolbar doesn't attach generic data attributes from config easily yet
+            // Let's rely on mapping icons or title
+            const modes = { '☰': 'list', '⊞': 'grid', '🧱': 'icon', '🕸️': 'graph' };
+            const mode = modes[btn.innerText];
+            if (mode) {
+                const isActive = mode === this.currentView;
+                btn.style.background = isActive ? '#333' : 'transparent';
+                btn.style.color = isActive ? '#fff' : '#888';
+            }
         });
     }
 
@@ -156,20 +145,19 @@ export class FilterToolbar {
 
         btn.innerHTML = `${cat.icon} ${cat.label} ${isCompact ? '🔹' : isHidden ? '👁️‍🗨️' : ''}`;
 
-        // Dynamic styles for category buttons usually remain inline due to dynamic colors
-        btn.style.cssText = `
-            padding: 4px 8px;
-            background: ${!isHidden ? cat.color : '#333'};
-            color: ${!isHidden ? '#000' : '#888'};
-            border: 1px solid ${!isHidden ? cat.color : '#444'};
-            opacity: ${isHidden ? '0.6' : '1'};
-            cursor: pointer;
-            border-radius: 3px;
-            font-size: 0.85em;
-            font-weight: ${!isHidden ? 'bold' : 'normal'};
-            transition: all 0.2s;
-            text-decoration: ${isHidden ? 'line-through' : 'none'};
-        `;
+        Object.assign(btn.style, {
+            padding: '4px 8px',
+            background: !isHidden ? cat.color : '#333',
+            color: !isHidden ? '#000' : '#888',
+            border: `1px solid ${!isHidden ? cat.color : '#444'}`,
+            opacity: isHidden ? '0.6' : '1',
+            cursor: 'pointer',
+            borderRadius: '3px',
+            fontSize: '0.85em',
+            fontWeight: !isHidden ? 'bold' : 'normal',
+            transition: 'all 0.2s',
+            textDecoration: isHidden ? 'line-through' : 'none'
+        });
     }
 
     refresh() {

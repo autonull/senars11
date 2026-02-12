@@ -1,9 +1,11 @@
 import { Component } from './Component.js';
+import { FluentUI } from '../utils/FluentUI.js';
+import { MODES } from '../config/constants.js';
 
 export class StatusBar extends Component {
     constructor(container) {
         super(container);
-        this.mode = 'local';
+        this.mode = MODES.LOCAL;
         this.status = 'Ready';
         this.stats = {
             cycles: 0,
@@ -12,7 +14,7 @@ export class StatusBar extends Component {
         };
         this.onModeSwitch = null;
 
-        this.els = {
+        this.ui = {
             mode: null,
             status: null,
             cycles: null,
@@ -29,36 +31,33 @@ export class StatusBar extends Component {
     render() {
         if (!this.container) return;
 
-        // Build DOM once
-        if (this.els.mode) return;
+        // Prevent re-rendering if already built (unless we want to support full re-renders)
+        if (this.ui.mode) return;
 
         this.container.innerHTML = '';
-        this.container.className = 'status-bar';
 
-        // Left: Connection Mode & Status
-        const leftSection = document.createElement('div');
-        leftSection.className = 'status-left-section';
-
-        this.els.mode = document.createElement('div');
-        this.els.mode.className = 'status-mode';
-        this.els.mode.title = 'Click to switch connection mode';
-        this.els.mode.onclick = () => this.onModeSwitch?.();
-
-        this.els.status = document.createElement('div');
-
-        leftSection.append(this.els.mode, this.els.status);
-
-        // Right: Stats
-        const rightSection = document.createElement('div');
-        rightSection.className = 'status-right-section';
-
-        this.els.cycles = document.createElement('div');
-        this.els.messages = document.createElement('div');
-        this.els.latency = document.createElement('div');
-
-        rightSection.append(this.els.cycles, this.els.messages, this.els.latency);
-
-        this.container.append(leftSection, rightSection);
+        FluentUI.create(this.container)
+            .class('status-bar')
+            .child(
+                FluentUI.create('div')
+                    .class('status-left-section')
+                    .child(
+                        this.ui.mode = FluentUI.create('div')
+                            .class('status-mode')
+                            .attr({ title: 'Click to switch connection mode' })
+                            .on('click', () => this.onModeSwitch?.())
+                    )
+                    .child(
+                        this.ui.status = FluentUI.create('div')
+                    )
+            )
+            .child(
+                FluentUI.create('div')
+                    .class('status-right-section')
+                    .child(this.ui.cycles = FluentUI.create('div'))
+                    .child(this.ui.messages = FluentUI.create('div'))
+                    .child(this.ui.latency = FluentUI.create('div'))
+            );
 
         this._refreshAll();
     }
@@ -70,24 +69,24 @@ export class StatusBar extends Component {
     }
 
     _updateModeDisplay() {
-        if (!this.els.mode) return;
-        this.els.mode.innerHTML = this.mode === 'local' ? '💻 Local Mode' : '🌐 Remote Mode';
-        if (this.els.latency) {
-            this.els.latency.style.display = this.mode === 'remote' ? 'block' : 'none';
+        if (!this.ui.mode) return;
+        this.ui.mode.text(this.mode === MODES.LOCAL ? '💻 Local Mode' : '🌐 Remote Mode');
+        if (this.ui.latency) {
+            this.ui.latency.style({ display: this.mode === MODES.REMOTE ? 'block' : 'none' });
         }
     }
 
     _updateStatusDisplay() {
-        if (!this.els.status) return;
-        this.els.status.textContent = this.status;
+        if (!this.ui.status) return;
+        this.ui.status.text(this.status);
     }
 
     _updateStatsDisplay() {
-        if (!this.els.cycles) return;
-        this.els.cycles.textContent = `Cycles: ${this.stats.cycles}`;
-        this.els.messages.textContent = `Msgs: ${this.stats.messages}`;
-        if (this.mode === 'remote') {
-            this.els.latency.textContent = `Ping: ${this.stats.latency}ms`;
+        if (!this.ui.cycles) return;
+        this.ui.cycles.text(`Cycles: ${this.stats.cycles}`);
+        this.ui.messages.text(`Msgs: ${this.stats.messages}`);
+        if (this.mode === MODES.REMOTE && this.ui.latency) {
+            this.ui.latency.text(`Ping: ${this.stats.latency}ms`);
         }
     }
 

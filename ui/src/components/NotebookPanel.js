@@ -3,6 +3,8 @@ import { NotebookManager } from '../notebook/NotebookManager.js';
 import { NotebookInput } from '../notebook/NotebookInput.js';
 import { MessageFilter } from '../notebook/MessageFilter.js';
 import { FilterToolbar } from '../notebook/FilterToolbar.js';
+import { EVENTS } from '../config/constants.js';
+import { FluentUI } from '../utils/FluentUI.js';
 
 export class NotebookPanel extends Component {
     constructor(container) {
@@ -23,7 +25,7 @@ export class NotebookPanel extends Component {
     }
 
     setupEventListeners() {
-        document.addEventListener('senars:notebook:add-cell', (e) => {
+        document.addEventListener(EVENTS.NOTEBOOK_ADD_CELL, (e) => {
             const { type, content } = e.detail;
             if (type === 'code') this.notebookManager.createCodeCell(content);
             else if (type === 'markdown') this.notebookManager.createMarkdownCell(content);
@@ -33,11 +35,9 @@ export class NotebookPanel extends Component {
     render() {
         if (!this.container) return;
 
-        this.container.innerHTML = '';
-        this.container.className = 'notebook-panel-container';
+        this.fluent().clear().class('notebook-panel-container');
 
         // 1. Toolbar
-        const toolbarContainer = document.createElement('div');
         this.filterToolbar = new FilterToolbar(this.messageFilter, {
             onFilterChange: () => this.notebookManager.applyFilter(this.messageFilter),
             onExport: () => this.exportNotebook(),
@@ -47,20 +47,22 @@ export class NotebookPanel extends Component {
             onViewChange: (mode) => this.notebookManager.switchView(mode)
         });
 
-        toolbarContainer.appendChild(this.filterToolbar.render());
-        this.container.appendChild(toolbarContainer);
+        const toolbarContainer = FluentUI.create('div')
+            .child(this.filterToolbar.render())
+            .mount(this.container);
 
         // 2. Notebook Container
-        const notebookContainer = document.createElement('div');
-        notebookContainer.className = 'notebook-container';
-        this.container.appendChild(notebookContainer);
+        const notebookContainer = FluentUI.create('div')
+            .class('notebook-container')
+            .mount(this.container);
 
-        this.notebookManager = new NotebookManager(notebookContainer);
+        this.notebookManager = new NotebookManager(notebookContainer.dom);
         this.notebookManager.loadFromStorage();
 
         // 3. Input Area
-        const inputContainer = document.createElement('div');
-        this.notebookInput = new NotebookInput(inputContainer, {
+        const inputContainer = FluentUI.create('div').mount(this.container);
+
+        this.notebookInput = new NotebookInput(inputContainer.dom, {
             onExecute: (cmd) => this.handleExecution(cmd),
             onClear: () => this.notebookManager.clear(),
             onDemo: () => this.showDemoSelector(),
@@ -68,7 +70,6 @@ export class NotebookPanel extends Component {
             onControl: (action) => this.controlReasoner(action)
         });
         this.notebookInput.render();
-        this.container.appendChild(inputContainer);
     }
 
     handleExecution(command) {

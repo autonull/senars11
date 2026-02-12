@@ -1,8 +1,9 @@
 import { CommandHistory } from './CommandHistory.js';
 import { SmartTextarea } from './SmartTextarea.js';
 import { Modal } from '../components/ui/Modal.js';
-import { Toolbar } from '../components/ui/Toolbar.js';
+import { FluentToolbar } from '../components/ui/FluentToolbar.js';
 import { Config } from '../config/Config.js';
+import { FluentUI } from '../utils/FluentUI.js';
 
 export class NotebookInput {
     constructor(container, options = {}) {
@@ -22,97 +23,128 @@ export class NotebookInput {
     }
 
     render() {
-        this.element = document.createElement('div');
-        this.element.className = 'notebook-input-area';
-        this.element.style.cssText = 'padding: 10px; background: #252526; border-top: 1px solid #333; display: flex; flex-direction: column; gap: 8px;';
+        this.element = FluentUI.create('div')
+            .class('notebook-input-area')
+            .style({ padding: '10px', background: '#252526', borderTop: '1px solid #333', display: 'flex', flexDirection: 'column', gap: '8px' });
 
         // Reasoner Controls (Top Bar)
-        const controlBar = this._createControlBar();
-        this.element.appendChild(controlBar);
+        this.element.child(this._createControlBar());
 
         // Input Box (SmartTextarea)
-        const inputContainer = document.createElement('div');
-        inputContainer.style.position = 'relative';
+        const inputContainer = FluentUI.create('div').style({ position: 'relative' });
 
-        this.smartInput = new SmartTextarea(inputContainer, {
+        this.smartInput = new SmartTextarea(inputContainer.dom, {
             onExecute: () => this.execute()
         });
         this.smartInput.render();
         this.inputBox = this.smartInput;
 
         // Mode Badge
-        this.modeBadge = document.createElement('div');
-        this.modeBadge.style.cssText = `
-            position: absolute; bottom: 8px; right: 8px; z-index: 10;
-            font-size: 10px; color: rgba(255,255,255,0.3); font-family: monospace;
-            background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 3px;
-            pointer-events: none; transition: opacity 0.2s;
-        `;
-        this.modeBadge.textContent = 'NARS';
-        inputContainer.appendChild(this.modeBadge);
+        this.modeBadge = FluentUI.create('div')
+            .style({
+                position: 'absolute', bottom: '8px', right: '8px', zIndex: '10',
+                fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace',
+                background: 'rgba(0,0,0,0.3)', padding: '2px 4px', borderRadius: '3px',
+                pointerEvents: 'none', transition: 'opacity 0.2s'
+            })
+            .text('NARS')
+            .mount(inputContainer);
 
         this.smartInput.textarea.addEventListener('keydown', (e) => this._handleKeydown(e));
         this.smartInput.textarea.addEventListener('input', () => this._updateModeBadge());
 
-        // Bottom Toolbar
-        const toolbar = this._createBottomToolbar();
+        this.element.child(inputContainer);
 
-        this.element.appendChild(inputContainer);
-        this.element.appendChild(toolbar);
+        // Bottom Toolbar
+        this.element.child(this._createBottomToolbar());
 
         if (this.container) {
             this.container.innerHTML = '';
-            this.container.appendChild(this.element);
+            this.container.appendChild(this.element.dom);
         }
 
-        return this.element;
+        return this.element.dom;
     }
 
     _createControlBar() {
-        const wrapper = document.createElement('div');
-        const tb = new Toolbar(wrapper, { style: 'display: flex; gap: 6px; align-items: center; margin-bottom: 4px; background: transparent; padding: 0;' });
+        const wrapper = FluentUI.create('div');
 
-        this.controls.playPause = tb.addButton({
-            label: '▶️ Run',
-            onClick: () => this.onControl(this.isRunning ? 'stop' : 'start')
-        });
+        // Note: FluentToolbar currently expects a config array, not a builder style.
+        // We will adapt the configuration to match the FluentToolbar API.
 
-        this.controls.step = tb.addButton({
-            label: '⏭️ Step',
-            onClick: () => this.onControl('step')
-        });
+        const config = [
+            {
+                type: 'group',
+                style: { display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '4px', background: 'transparent', padding: '0' },
+                items: [
+                    {
+                        type: 'button',
+                        label: '▶️ Run',
+                        onClick: (e) => this.onControl(this.isRunning ? 'stop' : 'start'),
+                        renderer: (btn) => { this.controls.playPause = btn; } // Helper to capture ref? No, FluentToolbar doesn't support this yet.
+                    },
+                    {
+                        type: 'button',
+                        label: '⏭️ Step',
+                        onClick: () => this.onControl('step'),
+                        // ref capture workaround
+                    },
+                    {
+                        type: 'button',
+                        label: '🔄 Reset',
+                        onClick: () => Modal.confirm('Reset Memory?').then(yes => yes && this.onControl('reset'))
+                    },
+                    {
+                        type: 'custom',
+                        renderer: () => {
+                            this.controls.cycleDisplay = FluentUI.create('span')
+                                .style({ marginLeft: 'auto', fontFamily: 'monospace', fontSize: '11px', color: '#888' })
+                                .text('Cycles: 0')
+                                .dom;
+                            return this.controls.cycleDisplay;
+                        }
+                    }
+                ]
+            }
+        ];
 
-        this.controls.reset = tb.addButton({
-            label: '🔄 Reset',
-            onClick: () => Modal.confirm('Reset Memory?').then(yes => yes && this.onControl('reset'))
-        });
+        // We need to capture button references for state updates.
+        // The declarative toolbar makes this harder unless we add IDs or refs.
+        // For now, let's use a simpler custom rendering or stick to FluentUI for this specific dynamic bar.
 
-        this.controls.cycleDisplay = document.createElement('span');
-        this.controls.cycleDisplay.style.cssText = 'margin-left: auto; font-family: monospace; font-size: 11px; color: #888;';
-        this.controls.cycleDisplay.textContent = 'Cycles: 0';
+        // Alternative: Use FluentUI directly for fine-grained control
+        const bar = FluentUI.create('div').style({ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '4px' });
 
-        wrapper.firstChild.appendChild(this.controls.cycleDisplay); // Append to toolbar div
+        this.controls.playPause = FluentUI.create('button').class('toolbar-btn').text('▶️ Run').on('click', () => this.onControl(this.isRunning ? 'stop' : 'start')).dom;
+        this.controls.step = FluentUI.create('button').class('toolbar-btn').text('⏭️ Step').on('click', () => this.onControl('step')).dom;
+        this.controls.reset = FluentUI.create('button').class('toolbar-btn').text('🔄 Reset').on('click', () => Modal.confirm('Reset Memory?').then(yes => yes && this.onControl('reset'))).dom;
+        this.controls.cycleDisplay = FluentUI.create('span').style({ marginLeft: 'auto', fontFamily: 'monospace', fontSize: '11px', color: '#888' }).text('Cycles: 0').dom;
 
-        return wrapper;
+        bar.child(this.controls.playPause).child(this.controls.step).child(this.controls.reset).child(this.controls.cycleDisplay);
+
+        return bar;
     }
 
     _createBottomToolbar() {
-        const wrapper = document.createElement('div');
-        const tb = new Toolbar(wrapper, { style: 'display: flex; gap: 8px; align-items: center; background: transparent; padding: 0;' });
+        const config = [
+            {
+                type: 'group',
+                style: { display: 'flex', gap: '8px', alignItems: 'center', background: 'transparent', padding: '0' },
+                items: [
+                    { type: 'button', label: '▶️ Execute (Shift+Enter)', class: 'primary', onClick: () => this.execute() },
+                    { type: 'button', label: '🗑️ Clear', onClick: () => this.onClear() },
+                    { type: 'button', label: '📚 Load Demo', onClick: () => this.onDemo(), title: 'Browse demo library (Ctrl+Shift+D)' },
+                    { type: 'button', label: '❓', onClick: () => this._showHelp(), title: 'Keyboard Shortcuts (F1)' },
+                    { type: 'custom', renderer: () => FluentUI.create('div').style({ flex: '1' }).dom },
+                    { type: 'button', label: '📝 Text', onClick: () => this.onExtraAction('markdown') },
+                    { type: 'button', label: '🎚️ Slider', onClick: () => this.onExtraAction('slider') },
+                    { type: 'button', label: '📂 Sub-Notebook', onClick: () => this.onExtraAction('subnotebook') }
+                ]
+            }
+        ];
 
-        tb.addButton({ label: '▶️ Execute (Shift+Enter)', primary: true, onClick: () => this.execute() });
-        tb.addButton({ label: '🗑️ Clear', onClick: () => this.onClear() });
-        tb.addButton({ label: '📚 Load Demo', onClick: () => this.onDemo(), title: 'Browse demo library (Ctrl+Shift+D)' });
-        tb.addButton({ label: '❓', onClick: () => this._showHelp(), title: 'Keyboard Shortcuts (F1)' });
-
-        const spacer = document.createElement('div');
-        spacer.style.flex = '1';
-        tb.addCustom(spacer);
-
-        tb.addButton({ label: '📝 Text', onClick: () => this.onExtraAction('markdown') });
-        tb.addButton({ label: '🎚️ Slider', onClick: () => this.onExtraAction('slider') });
-        tb.addButton({ label: '📂 Sub-Notebook', onClick: () => this.onExtraAction('subnotebook') });
-
+        const wrapper = FluentUI.create('div');
+        new FluentToolbar(wrapper.dom, config).render();
         return wrapper;
     }
 
@@ -162,9 +194,8 @@ export class NotebookInput {
     _updateModeBadge() {
         const text = this.inputBox.getValue().trim();
         const isMetta = text.startsWith('(') || text.startsWith(';') || text.startsWith('!');
-        this.modeBadge.textContent = isMetta ? 'MeTTa' : 'NARS';
-        this.modeBadge.style.color = isMetta ? 'var(--metta-keyword, #c586c0)' : 'var(--nars-structure, #888)';
-        this.modeBadge.style.opacity = text.length > 0 ? 1 : 0.3;
+        this.modeBadge.text(isMetta ? 'MeTTa' : 'NARS');
+        this.modeBadge.style({ color: isMetta ? 'var(--metta-keyword, #c586c0)' : 'var(--nars-structure, #888)', opacity: text.length > 0 ? 1 : 0.3 });
     }
 
     _handleKeydown(e) {

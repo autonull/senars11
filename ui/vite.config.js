@@ -94,9 +94,7 @@ export default defineConfig({
             input: {
                 main: resolve(__dirname, 'index.html'),
                 ide: resolve(__dirname, 'ide.html'),
-                online: resolve(__dirname, 'online.html'),
                 demo: resolve(__dirname, 'demo.html'),
-                repl: resolve(__dirname, 'repl.html'),
             },
         },
         outDir: 'dist',

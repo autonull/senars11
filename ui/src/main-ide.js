@@ -10,16 +10,18 @@ import { StatusBar } from './components/StatusBar.js';
 import { DemoLibraryModal } from './components/DemoLibraryModal.js';
 import { LayoutManager } from './layout/LayoutManager.js';
 import { MessageRouter } from './messaging/MessageRouter.js';
+import { SettingsManager } from './config/SettingsManager.js';
+import { EVENTS, COMPONENTS, MODES } from './config/constants.js';
 
 cytoscape.use(fcose);
 window.cytoscape = cytoscape;
 
 class SeNARSIDE {
     constructor() {
+        this.settingsManager = new SettingsManager();
         this.layoutManager = new LayoutManager(this, 'layout-root');
         this.messageRouter = new MessageRouter(this);
         this.connection = null;
-        this.connectionMode = 'local';
         this.components = new Map();
         this.graphManager = null;
         this.themeManager = new ThemeManager();
@@ -30,8 +32,6 @@ class SeNARSIDE {
         this.messageCount = 0;
         this.isRunning = false;
         this.statusBar = null;
-
-        this.loadSettings();
 
         // Handle URL params for mode/layout
         const urlParams = new URLSearchParams(window.location.search);
@@ -46,22 +46,6 @@ class SeNARSIDE {
         // Map common aliases
         const aliases = { console: 'repl', online: 'dashboard' };
         if (aliases[this.presetName]) this.presetName = aliases[this.presetName];
-    }
-
-    loadSettings() {
-        const saved = localStorage.getItem('senars-ide-settings');
-        if (saved) {
-            const settings = JSON.parse(saved);
-            this.connectionMode = settings.mode ?? 'local';
-            this.serverUrl = settings.serverUrl ?? 'localhost:3000';
-        }
-    }
-
-    saveSettings() {
-        localStorage.setItem('senars-ide-settings', JSON.stringify({
-            mode: this.connectionMode,
-            serverUrl: this.serverUrl
-        }));
     }
 
     registerComponent(name, instance) {
@@ -79,20 +63,20 @@ class SeNARSIDE {
 
         this.layoutManager.initialize(this.presetName);
 
-        await this.switchMode(this.connectionMode);
+        await this.switchMode(this.settingsManager.getMode());
         this.setupKeyboardShortcuts();
 
         // Listen for concept selection (Global Event Bus)
-        document.addEventListener('senars:concept:select', (e) => this.handleConceptSelect(e));
+        document.addEventListener(EVENTS.CONCEPT_SELECT, (e) => this.handleConceptSelect(e));
 
-        this.logger.log(`SeNARS IDE initialized in ${this.connectionMode} mode`, 'success');
+        this.logger.log(`SeNARS IDE initialized in ${this.settingsManager.getMode()} mode`, 'success');
     }
 
     handleConceptSelect(e) {
         const { concept } = e.detail;
         if (concept) {
              // Open Memory Inspector if available
-             const memoryComponent = this.layoutManager.layout.root.getItemsByFilter(item => item.config.componentName === 'memoryComponent')[0];
+             const memoryComponent = this.layoutManager.layout.root.getItemsByFilter(item => item.config.componentName === COMPONENTS.MEMORY)[0];
              memoryComponent?.parent?.setActiveContentItem?.(memoryComponent);
         }
     }
@@ -104,12 +88,12 @@ class SeNARSIDE {
     async switchMode(mode) {
         this.logger.log(`Switching to ${mode} mode...`, 'system');
         this.connection?.disconnect();
-        this.connectionMode = mode;
+        this.settingsManager.setMode(mode);
 
-        const manager = mode === 'local' ? new LocalConnectionManager() : new WebSocketManager();
+        const manager = mode === MODES.LOCAL ? new LocalConnectionManager() : new WebSocketManager();
         this.connection = new ConnectionManager(manager);
 
-        await this.connection.connect(mode === 'remote' ? this.serverUrl : undefined);
+        await this.connection.connect(mode === MODES.REMOTE ? this.settingsManager.getServerUrl() : undefined);
 
         this.connection.subscribe('*', (message) => this.messageRouter.handleMessage(message));
         this.connection.subscribe('connection.status', (status) => this.statusBar?.updateStatus(status));
@@ -128,28 +112,27 @@ class SeNARSIDE {
         }
 
         this.updateModeIndicator();
-        this.saveSettings();
 
         const notebook = this.getNotebook();
         notebook?.createResultCell(`🚀 Connected in ${mode} mode`, 'system');
     }
 
     updateModeIndicator() {
-        this.statusBar?.updateMode(this.connectionMode);
+        this.statusBar?.updateMode(this.settingsManager.getMode());
         this.statusBar?.updateStatus(this.connection?.isConnected() ? 'Connected' : 'Disconnected');
     }
 
     showConnectionModal() {
-        if (this.connectionMode === 'local') {
-            const defaultUrl = this.serverUrl || 'ws://localhost:3000';
+        if (this.settingsManager.getMode() === MODES.LOCAL) {
+            const defaultUrl = this.settingsManager.getServerUrl() || 'ws://localhost:3000';
             const url = prompt('Enter Remote Server URL:', defaultUrl);
             if (url !== null) {
-                this.serverUrl = url;
-                this.switchMode('remote');
+                this.settingsManager.setServerUrl(url);
+                this.switchMode(MODES.REMOTE);
             }
         } else {
             if (confirm('Switch to Local Mode?')) {
-                this.switchMode('local');
+                this.switchMode(MODES.LOCAL);
             }
         }
     }

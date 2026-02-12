@@ -1,5 +1,6 @@
 import { Component } from './Component.js';
 import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
+import { FluentUI } from '../utils/FluentUI.js';
 
 export class TaskCard extends Component {
     constructor(container, task, options = {}) {
@@ -11,18 +12,6 @@ export class TaskCard extends Component {
     render() {
         if (!this.container) return;
 
-        const card = document.createElement('div');
-        card.className = `task-card ${this.compact ? 'compact' : 'full'}`;
-
-        // Event Listeners
-        card.addEventListener('mouseenter', () => this._dispatchHover(true));
-        card.addEventListener('mouseleave', () => this._dispatchHover(false));
-        card.addEventListener('click', () => {
-            if (this.task) {
-                document.dispatchEvent(new CustomEvent('senars:task:select', { detail: { task: this.task } }));
-            }
-        });
-
         // Data
         const term = this.task.term ?? this.task.sentence?.term ?? 'unknown';
         const truth = this.task.truth ?? this.task.sentence?.truth;
@@ -31,40 +20,69 @@ export class TaskCard extends Component {
         const freq = truth?.frequency ?? 0;
         const conf = truth?.confidence ?? 0;
         const fPercent = Math.round(freq * 100);
-        const cPercent = Math.round(conf * 100);
+
+        const card = FluentUI.create('div')
+            .class(`task-card ${this.compact ? 'compact' : 'full'}`)
+            .mount(this.container);
+
+        // Event Listeners
+        card.on('mouseenter', () => this._dispatchHover(true));
+        card.on('mouseleave', () => this._dispatchHover(false));
+        card.on('click', () => {
+            if (this.task) {
+                document.dispatchEvent(new CustomEvent('senars:task:select', { detail: { task: this.task } }));
+            }
+        });
 
         if (this.compact) {
-            card.innerHTML = `
-                <div class="task-card-row">
-                    <span class="task-icon">📝</span>
-                    <span class="task-term">${NarseseHighlighter.highlight(term)}<span class="nars-punctuation">${punctuation}</span></span>
-                </div>
-                ${truth ? `
-                <div class="truth-mini-bar" title="F:${freq.toFixed(2)} C:${conf.toFixed(2)}">
-                    <div class="truth-fill" style="width: ${fPercent}%; opacity: ${0.3 + conf * 0.7};"></div>
-                </div>` : ''}
-            `;
+            card.child(
+                FluentUI.create('div')
+                    .class('task-card-row')
+                    .child(FluentUI.create('span').class('task-icon').text('📝'))
+                    .child(
+                        FluentUI.create('span')
+                            .class('task-term')
+                            .html(`${NarseseHighlighter.highlight(term)}<span class="nars-punctuation">${punctuation}</span>`)
+                    )
+            );
+
+            if (truth) {
+                card.child(
+                    FluentUI.create('div')
+                        .class('truth-mini-bar')
+                        .attr({ title: `F:${freq.toFixed(2)} C:${conf.toFixed(2)}` })
+                        .child(FluentUI.create('div').class('truth-fill').style({ width: `${fPercent}%`, opacity: 0.3 + conf * 0.7 }))
+                );
+            }
         } else {
-            card.innerHTML = `
-                <div class="task-card-main">
-                    <div class="task-content">
-                        ${NarseseHighlighter.highlight(term)}<span class="nars-punctuation">${punctuation}</span>
-                    </div>
-                    ${truth ? `
-                    <div class="task-meta">
-                        <div class="truth-viz-container" title="Frequency: ${freq.toFixed(2)}, Confidence: ${conf.toFixed(2)}">
-                            <div class="truth-label">T: {${freq.toFixed(2)} ${conf.toFixed(2)}}</div>
-                            <div class="truth-bar-track">
-                                <div class="truth-bar-fill" style="width: ${fPercent}%; opacity: ${0.3 + conf * 0.7};"></div>
-                            </div>
-                        </div>
-                    </div>` : ''}
-                </div>
-            `;
+            const main = FluentUI.create('div').class('task-card-main').mount(card);
+
+            main.child(
+                FluentUI.create('div')
+                    .class('task-content')
+                    .html(`${NarseseHighlighter.highlight(term)}<span class="nars-punctuation">${punctuation}</span>`)
+            );
+
+            if (truth) {
+                main.child(
+                    FluentUI.create('div')
+                        .class('task-meta')
+                        .child(
+                            FluentUI.create('div')
+                                .class('truth-viz-container')
+                                .attr({ title: `Frequency: ${freq.toFixed(2)}, Confidence: ${conf.toFixed(2)}` })
+                                .child(FluentUI.create('div').class('truth-label').text(`T: {${freq.toFixed(2)} ${conf.toFixed(2)}}`))
+                                .child(
+                                    FluentUI.create('div')
+                                        .class('truth-bar-track')
+                                        .child(FluentUI.create('div').class('truth-bar-fill').style({ width: `${fPercent}%`, opacity: 0.3 + conf * 0.7 }))
+                                )
+                        )
+                );
+            }
         }
 
-        this.container.appendChild(card);
-        this.elements.card = card;
+        this.elements.card = card.dom;
     }
 
     _dispatchHover(isHovering) {

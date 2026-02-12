@@ -1,6 +1,7 @@
 import { Component } from './Component.js';
 import { GraphConfig } from '../config/GraphConfig.js';
 import { Modal } from './ui/Modal.js';
+import { FluentUI } from '../utils/FluentUI.js';
 
 export class SettingsPanel extends Component {
     constructor(container) {
@@ -9,9 +10,6 @@ export class SettingsPanel extends Component {
 
     initialize() {
         if (!this.container) return;
-
-        this.container.className = 'settings-container';
-
         this.render();
     }
 
@@ -21,105 +19,103 @@ export class SettingsPanel extends Component {
         const theme = this.app?.themeManager?.getTheme() || 'default';
         const serverUrl = this.app?.serverUrl || '';
 
-        this.container.innerHTML = `
-            <div class="settings-section">
-                <h3 class="settings-header">WORKSPACE</h3>
-                <div class="setting-item" style="display: flex; gap: 8px;">
-                    <button id="save-workspace" class="toolbar-btn primary" style="flex:1;">💾 Save Workspace</button>
-                    <button id="load-workspace" class="toolbar-btn" style="flex:1;">📂 Load Workspace</button>
-                </div>
-            </div>
+        this.fluent().clear().class('settings-container')
+            // Workspace Section
+            .child(this._renderSection('WORKSPACE',
+                FluentUI.create('div').style({ display: 'flex', gap: '8px' })
+                    .child(FluentUI.create('button').class('toolbar-btn primary').style({ flex: '1' }).text('💾 Save Workspace').on('click', () => this._saveWorkspace()))
+                    .child(FluentUI.create('button').class('toolbar-btn').style({ flex: '1' }).text('📂 Load Workspace').on('click', () => this._loadWorkspace()))
+            ))
 
-            <div class="settings-section">
-                <h3 class="settings-header">UI SETTINGS</h3>
-                <div class="setting-item">
-                    <label class="setting-label">Theme</label>
-                    <select id="setting-theme" class="setting-select">
-                        <option value="default" ${theme === 'default' ? 'selected' : ''}>Dark (Default)</option>
-                        <option value="light" ${theme === 'light' ? 'selected' : ''}>Light</option>
-                        <option value="contrast" ${theme === 'contrast' ? 'selected' : ''}>High Contrast</option>
-                    </select>
-                </div>
-                <div class="setting-item">
-                    <button id="reset-layout" class="reset-btn">RESET LAYOUT</button>
-                </div>
-            </div>
+            // UI Settings Section
+            .child(this._renderSection('UI SETTINGS', [
+                FluentUI.create('div').class('setting-item')
+                    .child(FluentUI.create('label').class('setting-label').text('Theme'))
+                    .child(
+                        FluentUI.create('select')
+                            .id('setting-theme')
+                            .class('setting-select')
+                            .on('change', (e) => this.app?.themeManager?.setTheme(e.target.value))
+                            .children([
+                                { v: 'default', l: 'Dark (Default)' },
+                                { v: 'light', l: 'Light' },
+                                { v: 'contrast', l: 'High Contrast' }
+                            ].map(opt => FluentUI.create('option').attr({ value: opt.v }).text(opt.l).prop({ selected: theme === opt.v })))
+                    ),
+                FluentUI.create('div').class('setting-item')
+                    .child(
+                        FluentUI.create('button')
+                            .id('reset-layout')
+                            .class('reset-btn')
+                            .text('RESET LAYOUT')
+                            .on('click', () => {
+                                if(confirm('Reset layout to default? This will reload the page.')) {
+                                    localStorage.removeItem('senars-ide-layout');
+                                    location.reload();
+                                }
+                            })
+                    )
+            ]))
 
-            <div class="settings-section">
-                <h3 class="settings-header">CONNECTION</h3>
-                <div class="setting-item">
-                    <label class="setting-label">Server URL</label>
-                    <input type="text" id="setting-server-url" value="${serverUrl}" placeholder="ws://localhost:3000" class="setting-input">
-                </div>
-            </div>
+            // Connection Section
+            .child(this._renderSection('CONNECTION',
+                FluentUI.create('div').class('setting-item')
+                    .child(FluentUI.create('label').class('setting-label').text('Server URL'))
+                    .child(FluentUI.create('input').attr({ type: 'text', id: 'setting-server-url', value: serverUrl, placeholder: 'ws://localhost:3000' }).class('setting-input'))
+            ))
 
-            <div class="settings-section">
-                <h3 class="settings-header">GRAPH PHYSICS (fCoSE)</h3>
-                ${this._renderSlider('Gravity', 'gravity', 0, 1, 0.05, layout.gravity)}
-                ${this._renderSlider('Repulsion', 'nodeRepulsion', 100000, 1000000, 50000, layout.nodeRepulsion)}
-                ${this._renderSlider('Edge Length', 'idealEdgeLength', 50, 300, 10, layout.idealEdgeLength)}
-            </div>
+            // Graph Physics Section
+            .child(this._renderSection('GRAPH PHYSICS (fCoSE)', [
+                this._createSlider('Gravity', 'gravity', 0, 1, 0.05, layout.gravity),
+                this._createSlider('Repulsion', 'nodeRepulsion', 100000, 1000000, 50000, layout.nodeRepulsion),
+                this._createSlider('Edge Length', 'idealEdgeLength', 50, 300, 10, layout.idealEdgeLength)
+            ]))
 
-            <div class="settings-section">
-                <h3 class="settings-header">COLORS</h3>
-                ${this._renderColorPicker('Concept', 'CONCEPT')}
-                ${this._renderColorPicker('Task', 'TASK')}
-                ${this._renderColorPicker('Question', 'QUESTION')}
-                ${this._renderColorPicker('Highlight', 'HIGHLIGHT')}
-            </div>
+            // Colors Section
+            .child(this._renderSection('COLORS', [
+                this._createColorPicker('Concept', 'CONCEPT'),
+                this._createColorPicker('Task', 'TASK'),
+                this._createColorPicker('Question', 'QUESTION'),
+                this._createColorPicker('Highlight', 'HIGHLIGHT')
+            ]))
 
-            <button id="apply-settings" class="apply-btn">APPLY SETTINGS</button>
-        `;
-
-        // Bind events
-        this.container.querySelectorAll('input[type=range]').forEach(input => {
-             const key = input.id.replace('setting-', '');
-             const valSpan = this.container.querySelector(`#val-${key}`);
-             if(valSpan) valSpan.textContent = input.value;
-
-             input.addEventListener('input', (e) => {
-                 if(valSpan) valSpan.textContent = e.target.value;
-             });
-        });
-
-        this.container.querySelector('#setting-theme').addEventListener('change', (e) => {
-             this.app?.themeManager?.setTheme(e.target.value);
-        });
-
-        this.container.querySelector('#reset-layout').addEventListener('click', () => {
-             if(confirm('Reset layout to default? This will reload the page.')) {
-                 localStorage.removeItem('senars-ide-layout');
-                 location.reload();
-             }
-        });
-
-        this.container.querySelector('#apply-settings').addEventListener('click', () => {
-             this._applySettings();
-        });
-
-        this.container.querySelector('#save-workspace').addEventListener('click', () => this._saveWorkspace());
-        this.container.querySelector('#load-workspace').addEventListener('click', () => this._loadWorkspace());
+            .child(
+                FluentUI.create('button')
+                    .id('apply-settings')
+                    .class('apply-btn')
+                    .text('APPLY SETTINGS')
+                    .on('click', () => this._applySettings())
+            );
     }
 
-    _renderSlider(label, key, min, max, step, value) {
-        return `
-            <div class="setting-item">
-                <label class="setting-label-row">
-                    ${label} <span id="val-${key}">${value}</span>
-                </label>
-                <input type="range" id="setting-${key}" min="${min}" max="${max}" step="${step}" value="${value}" class="setting-input">
-            </div>
-        `;
+    _renderSection(title, content) {
+        return FluentUI.create('div').class('settings-section')
+            .child(FluentUI.create('h3').class('settings-header').text(title))
+            .children(content); // content can be single or array, FluentUI handles it
     }
 
-    _renderColorPicker(label, key) {
+    _createSlider(label, key, min, max, step, value) {
+        const valSpan = FluentUI.create('span').id(`val-${key}`).text(value);
+
+        return FluentUI.create('div').class('setting-item')
+            .child(
+                FluentUI.create('label').class('setting-label-row')
+                    .text(label + ' ')
+                    .child(valSpan)
+            )
+            .child(
+                FluentUI.create('input')
+                    .attr({ type: 'range', id: `setting-${key}`, min, max, step, value })
+                    .class('setting-input')
+                    .on('input', (e) => valSpan.text(e.target.value))
+            );
+    }
+
+    _createColorPicker(label, key) {
         const val = GraphConfig.COLORS[key] || '#ffffff';
-        return `
-            <div class="setting-color-row">
-                <label class="setting-label">${label}</label>
-                <input type="color" id="color-${key}" value="${val}" class="setting-color-input">
-            </div>
-        `;
+        return FluentUI.create('div').class('setting-color-row')
+            .child(FluentUI.create('label').class('setting-label').text(label))
+            .child(FluentUI.create('input').attr({ type: 'color', id: `color-${key}`, value: val }).class('setting-color-input'));
     }
 
     _saveWorkspace() {
@@ -187,9 +183,6 @@ export class SettingsPanel extends Component {
             }
 
             // Restore Layout
-            // Note: Restoring GoldenLayout config usually requires destroying and recreating the layout instance.
-            // For simplicity in this session, we might skip layout restore or require reload.
-            // Here we will just save it to local storage and ask reload
             if (workspace.layout) {
                 localStorage.setItem(`senars-layout-${this.app.presetName || 'ide'}`, JSON.stringify(workspace.layout));
                 Modal.alert('Workspace loaded. Page will reload to apply layout changes.').then(() => location.reload());

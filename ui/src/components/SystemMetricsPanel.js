@@ -1,4 +1,5 @@
 import { Component } from './Component.js';
+import { FluentUI } from '../utils/FluentUI.js';
 
 export class SystemMetricsPanel extends Component {
     constructor(containerId) {
@@ -11,7 +12,7 @@ export class SystemMetricsPanel extends Component {
             avgLatency: 0
         };
         this.history = [];
-        this.els = {};
+        this.ui = {};
         this.initialized = false;
     }
 
@@ -48,77 +49,108 @@ export class SystemMetricsPanel extends Component {
     render() {
         if (!this.container) return;
 
-        const grid = document.createElement('div');
-        grid.className = 'metrics-grid';
-        grid.innerHTML = `
-            <div class="metric-item">
-                <span class="metric-heart">♥</span><span class="metric-label">Heartbeat</span>
-            </div>
-            <div class="metric-item">
-                <span class="metric-label">Throughput</span>
-                <span class="metric-value"><span id="sm-throughput">0.00</span> <small>ops/s</small></span>
-            </div>
-            <div class="metric-item">
-                <span class="metric-label">Memory</span>
-                <div class="progress-bar"><div class="progress-fill" id="sm-memory-bar"></div></div>
-                <span class="metric-sub" id="sm-memory-text">0.0%</span>
-            </div>
-            <div class="metric-item">
-                <span class="metric-label">Success Rate</span>
-                <span class="metric-value" id="sm-success">0.0%</span>
-            </div>
-             <div class="metric-item">
-                <span class="metric-label">Avg Latency</span>
-                <span class="metric-value"><span id="sm-latency">0.00</span> <small>ms</small></span>
-            </div>
-            <div class="metric-item full-width">
-                <span class="metric-label">Throughput History</span>
-                <svg width="100%" height="30" viewBox="0 0 50 30" preserveAspectRatio="none" class="sparkline-svg">
-                    <path id="sm-sparkline" d="" fill="none" stroke="#00ff9d" stroke-width="1" />
-                </svg>
-            </div>
-            <div class="metric-item full-width" style="flex-direction: row; justify-content: space-between; align-items: center;">
-                <span class="metric-label">Uptime</span> <span class="metric-value" id="sm-uptime">0s</span>
-            </div>
-        `;
+        this.fluent().clear();
 
-        const oldGrid = this.container.querySelector('.metrics-grid');
-        if (oldGrid) oldGrid.remove();
+        const grid = FluentUI.create('div')
+            .class('metrics-grid')
+            .mount(this.container);
 
-        this.container.appendChild(grid);
+        // 1. Heartbeat
+        this.ui.heart = FluentUI.create('span').class('metric-heart').text('♥');
+        grid.child(FluentUI.create('div').class('metric-item').child(this.ui.heart).child(FluentUI.create('span').class('metric-label').text('Heartbeat')));
 
-        this.els = {
-            heart: grid.querySelector('.metric-heart'),
-            throughput: grid.querySelector('#sm-throughput'),
-            memoryBar: grid.querySelector('#sm-memory-bar'),
-            memoryText: grid.querySelector('#sm-memory-text'),
-            success: grid.querySelector('#sm-success'),
-            latency: grid.querySelector('#sm-latency'),
-            sparkline: grid.querySelector('#sm-sparkline'),
-            uptime: grid.querySelector('#sm-uptime')
-        };
+        // 2. Throughput
+        this.ui.throughput = FluentUI.create('span').id('sm-throughput').text('0.00');
+        grid.child(
+            FluentUI.create('div').class('metric-item')
+                .child(FluentUI.create('span').class('metric-label').text('Throughput'))
+                .child(
+                    FluentUI.create('span').class('metric-value')
+                        .child(this.ui.throughput)
+                        .child(FluentUI.create('small').text(' ops/s'))
+                )
+        );
+
+        // 3. Memory
+        this.ui.memoryBar = FluentUI.create('div').class('progress-fill').id('sm-memory-bar');
+        this.ui.memoryText = FluentUI.create('span').class('metric-sub').id('sm-memory-text').text('0.0%');
+        grid.child(
+            FluentUI.create('div').class('metric-item')
+                .child(FluentUI.create('span').class('metric-label').text('Memory'))
+                .child(FluentUI.create('div').class('progress-bar').child(this.ui.memoryBar))
+                .child(this.ui.memoryText)
+        );
+
+        // 4. Success Rate
+        this.ui.success = FluentUI.create('span').class('metric-value').id('sm-success').text('0.0%');
+        grid.child(
+            FluentUI.create('div').class('metric-item')
+                .child(FluentUI.create('span').class('metric-label').text('Success Rate'))
+                .child(this.ui.success)
+        );
+
+        // 5. Avg Latency
+        this.ui.latency = FluentUI.create('span').id('sm-latency').text('0.00');
+        grid.child(
+            FluentUI.create('div').class('metric-item')
+                .child(FluentUI.create('span').class('metric-label').text('Avg Latency'))
+                .child(
+                    FluentUI.create('span').class('metric-value')
+                        .child(this.ui.latency)
+                        .child(FluentUI.create('small').text(' ms'))
+                )
+        );
+
+        // 6. Throughput History (Sparkline)
+        this.ui.sparkline = FluentUI.create('path').id('sm-sparkline').attr({ d: '', fill: 'none', stroke: '#00ff9d', 'stroke-width': '1' });
+
+        // Note: SVG must be created with correct namespace usually, but browsers often handle it if inserted via innerHTML or createElementNS
+        // FluentUI uses createElement, which might fail for SVG if not NS aware.
+        // Let's modify FluentUI or use helper. FluentUI doesn't support NS yet.
+        // We will create SVG manually and wrap it or just use innerHTML for the SVG part to be safe and quick.
+
+        const svgContainer = FluentUI.create('div').class('metric-item full-width')
+            .child(FluentUI.create('span').class('metric-label').text('Throughput History'))
+            .mount(grid);
+
+        svgContainer.dom.innerHTML += `<svg width="100%" height="30" viewBox="0 0 50 30" preserveAspectRatio="none" class="sparkline-svg">
+            <path id="sm-sparkline" d="" fill="none" stroke="#00ff9d" stroke-width="1" />
+        </svg>`;
+        this.ui.sparkline = { dom: svgContainer.dom.querySelector('#sm-sparkline') }; // Manual binding
+
+        // 7. Uptime
+        this.ui.uptime = FluentUI.create('span').class('metric-value').id('sm-uptime').text('0s');
+        grid.child(
+            FluentUI.create('div').class('metric-item full-width')
+                .style({ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' })
+                .child(FluentUI.create('span').class('metric-label').text('Uptime'))
+                .child(this.ui.uptime)
+        );
     }
 
     updateView() {
         if (!this.initialized) this.render();
-        if (!this.els.throughput) return;
+        if (!this.ui.throughput) return;
 
         const { throughput, memoryUtilization, successRate, avgLatency, uptime } = this.metrics;
         const memory = (memoryUtilization * 100).toFixed(1);
 
-        this.els.throughput.textContent = throughput.toFixed(2);
+        this.ui.throughput.text(throughput.toFixed(2));
 
-        this.els.heart.classList.toggle('beating', throughput > 0);
+        if (throughput > 0) this.ui.heart.addClass('beating');
+        else this.ui.heart.removeClass('beating');
 
-        this.els.memoryBar.style.width = `${memory}%`;
-        this.els.memoryBar.className = `progress-fill ${this.getMemoryColor(memoryUtilization)}`;
-        this.els.memoryText.textContent = `${memory}%`;
+        this.ui.memoryBar.style({ width: `${memory}%` }).class(`progress-fill ${this.getMemoryColor(memoryUtilization)}`);
+        this.ui.memoryText.text(`${memory}%`);
 
-        this.els.success.textContent = `${(successRate * 100).toFixed(1)}%`;
-        this.els.latency.textContent = avgLatency.toFixed(2);
+        this.ui.success.text(`${(successRate * 100).toFixed(1)}%`);
+        this.ui.latency.text(avgLatency.toFixed(2));
 
-        this.els.sparkline.setAttribute('d', this.generateSparklinePath(this.history));
-        this.els.uptime.textContent = `${Math.floor(uptime / 1000)}s`;
+        if (this.ui.sparkline && this.ui.sparkline.dom) {
+            this.ui.sparkline.dom.setAttribute('d', this.generateSparklinePath(this.history));
+        }
+
+        this.ui.uptime.text(`${Math.floor(uptime / 1000)}s`);
     }
 
     generateSparklinePath(data) {

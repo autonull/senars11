@@ -1,5 +1,7 @@
 import { Component } from './Component.js';
 import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
+import { FluentUI } from '../utils/FluentUI.js';
+import { EVENTS } from '../config/constants.js';
 
 export class ConceptCard extends Component {
     constructor(container, concept, options = {}) {
@@ -11,55 +13,61 @@ export class ConceptCard extends Component {
     render() {
         if (!this.container) return;
 
-        const card = document.createElement('div');
-        card.className = `concept-card ${this.compact ? 'compact' : 'full'}`;
-
-        // Event handling
-        const detail = { concept: this.concept, id: this.concept.id ?? this.concept.term };
-        card.addEventListener('click', () => document.dispatchEvent(new CustomEvent('senars:concept:select', { detail })));
-        card.addEventListener('dblclick', () => document.dispatchEvent(new CustomEvent('senars:concept:center', { detail })));
-
         // Data extraction
         const term = this.concept.term ?? 'unknown';
         const budget = this.concept.budget ?? {};
         const priority = budget.priority ?? 0;
         const taskCount = this.concept.tasks?.length ?? this.concept.taskCount ?? 0;
-
-        // Visuals
         const pColor = this._getPriorityColor(priority);
         const pPercent = Math.round(priority * 100);
 
+        const card = FluentUI.create('div')
+            .class(`concept-card ${this.compact ? 'compact' : 'full'}`)
+            .mount(this.container);
+
+        // Event handling
+        const detail = { concept: this.concept, id: this.concept.id ?? this.concept.term };
+        card.on('click', () => document.dispatchEvent(new CustomEvent(EVENTS.CONCEPT_SELECT, { detail })));
+        card.on('dblclick', () => document.dispatchEvent(new CustomEvent('senars:concept:center', { detail })));
+
         if (this.compact) {
-            card.innerHTML = `
-                <div class="concept-card-header">
-                    <span class="concept-icon">🧠</span>
-                    <span class="concept-term">${NarseseHighlighter.highlight(term)}</span>
-                </div>
-                <div class="concept-card-stats">
-                    <span class="badge" title="Task Count">📚 ${taskCount}</span>
-                    <span class="badge" title="Priority: ${priority.toFixed(2)}" style="color: ${pColor}">P ${pPercent}%</span>
-                </div>
-            `;
+            card.child(
+                FluentUI.create('div')
+                    .class('concept-card-header')
+                    .child(FluentUI.create('span').class('concept-icon').text('🧠'))
+                    .child(FluentUI.create('span').class('concept-term').html(NarseseHighlighter.highlight(term)))
+            ).child(
+                FluentUI.create('div')
+                    .class('concept-card-stats')
+                    .child(FluentUI.create('span').class('badge').attr({ title: 'Task Count' }).text(`📚 ${taskCount}`))
+                    .child(FluentUI.create('span').class('badge').attr({ title: `Priority: ${priority.toFixed(2)}` }).style({ color: pColor }).text(`P ${pPercent}%`))
+            );
         } else {
-            card.innerHTML = `
-                <div class="concept-card-main">
-                    <div class="concept-term-large">${NarseseHighlighter.highlight(term)}</div>
-                    <div class="concept-meta-row">
-                        <div class="priority-meter-container" title="Priority: ${priority.toFixed(2)}">
-                            <div class="priority-meter-bar" style="width: ${pPercent}%; background: ${pColor};"></div>
-                        </div>
-                        <div class="concept-stats">
-                            <span class="stat-item" title="Tasks">📚 ${taskCount}</span>
-                            <span class="stat-item" title="Durability">D: ${(budget.durability ?? 0).toFixed(2)}</span>
-                            <span class="stat-item" title="Quality">Q: ${(budget.quality ?? 0).toFixed(2)}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
+            card.child(
+                FluentUI.create('div')
+                    .class('concept-card-main')
+                    .child(FluentUI.create('div').class('concept-term-large').html(NarseseHighlighter.highlight(term)))
+                    .child(
+                        FluentUI.create('div')
+                            .class('concept-meta-row')
+                            .child(
+                                FluentUI.create('div')
+                                    .class('priority-meter-container')
+                                    .attr({ title: `Priority: ${priority.toFixed(2)}` })
+                                    .child(FluentUI.create('div').class('priority-meter-bar').style({ width: `${pPercent}%`, background: pColor }))
+                            )
+                            .child(
+                                FluentUI.create('div')
+                                    .class('concept-stats')
+                                    .child(FluentUI.create('span').class('stat-item').attr({ title: 'Tasks' }).text(`📚 ${taskCount}`))
+                                    .child(FluentUI.create('span').class('stat-item').attr({ title: 'Durability' }).text(`D: ${(budget.durability ?? 0).toFixed(2)}`))
+                                    .child(FluentUI.create('span').class('stat-item').attr({ title: 'Quality' }).text(`Q: ${(budget.quality ?? 0).toFixed(2)}`))
+                            )
+                    )
+            );
         }
 
-        this.container.appendChild(card);
-        this.elements.card = card;
+        this.elements.card = card.dom;
     }
 
     _getPriorityColor(val) {
