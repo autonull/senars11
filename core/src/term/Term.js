@@ -1,11 +1,11 @@
 const freeze = Object.freeze;
 
-export const TermType = Object.freeze({
+export const TermType = freeze({
     ATOM: 'atom',
     COMPOUND: 'compound',
 });
 
-export const SemanticType = Object.freeze({
+export const SemanticType = freeze({
     BOOLEAN: 'boolean',
     NUMERIC: 'numeric',
     VARIABLE: 'variable',
@@ -91,10 +91,9 @@ export class Term {
     }
 
     _calculateTypeTag() {
-        // Fast path constants matching metta/src/kernel/FastPaths.js
-        if (this._type === TermType.COMPOUND) return 3; // TYPE_EXPRESSION
-        if (this._name?.startsWith('?') || this._name?.startsWith('$')) return 2; // TYPE_VARIABLE
-        return 1; // TYPE_SYMBOL
+        if (this._type === TermType.COMPOUND) return 3;
+        if (this._name?.startsWith('?') || this._name?.startsWith('$')) return 2;
+        return 1;
     }
 
     _calculateComplexity() {

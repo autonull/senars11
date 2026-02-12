@@ -17,7 +17,6 @@ export class InspectorPanel extends Component {
     render() {
         if (!this.container) return;
 
-        // Using FluentUI
         const root = $(this.container).clear();
 
         const panel = $('div')
@@ -58,7 +57,15 @@ export class InspectorPanel extends Component {
         this.contentContainer.clear();
         this.show();
 
-        // 1. Quick Actions Toolbar
+        this._renderActions(data);
+        this._renderHeader(data);
+        this._renderTruth(data);
+        if (data.derivation) this._renderDerivationWidget(data.derivation, data.term || data.id);
+        this._renderRelated(data);
+        this._renderProperties(data, mode);
+    }
+
+    _renderActions(data) {
         const actions = $('div').class('inspector-actions').mount(this.contentContainer);
 
         $('button').class('btn', 'action-btn').attr('title', 'Query').text('🔍')
@@ -66,16 +73,17 @@ export class InspectorPanel extends Component {
             .mount(actions);
 
         $('button').class('btn', 'action-btn').attr('title', 'Focus in Graph').text('🎯')
-            .on('click', () => { if (this.onSelect) this.onSelect(data.id); })
+            .on('click', () => this.onSelect?.(data.id))
             .mount(actions);
 
         if (data.derivation) {
             $('button').class('btn', 'action-btn').attr('title', 'Trace Derivation').text('🔗')
-                .on('click', () => { if (this.onTrace) this.onTrace(data.id); })
+                .on('click', () => this.onTrace?.(data.id))
                 .mount(actions);
         }
+    }
 
-        // 2. Header using ConceptCard
+    _renderHeader(data) {
         const conceptData = {
             term: data.term || data.id,
             budget: data.budget,
@@ -86,35 +94,32 @@ export class InspectorPanel extends Component {
 
         const cardWrapper = $('div').style({ marginBottom: '10px' }).mount(this.contentContainer);
         new ConceptCard(cardWrapper.dom, conceptData, { compact: false }).render();
+    }
 
-        // 3. Truth Value (Visual)
-        if (data.truth) {
-             const { frequency, confidence } = data.truth;
-             const section = $('div').class('inspector-section').mount(this.contentContainer);
-             $('h4').text('Truth Value').mount(section);
+    _renderTruth(data) {
+        if (!data.truth) return;
 
-             const createBar = (label, val, color) => {
-                 const row = $('div').class('prop-row').style({ display: 'block', paddingBottom: '4px' }).mount(section);
-                 const info = $('div').style({ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }).mount(row);
-                 $('span').class('prop-label', 'small').text(label).mount(info);
-                 $('span').class('prop-value', 'small').text((val||0).toFixed(2)).mount(info);
+        const { frequency, confidence } = data.truth;
+        const section = $('div').class('inspector-section').mount(this.contentContainer);
+        $('h4').text('Truth Value').mount(section);
 
-                 const bar = $('div').class('progress-bar').mount(row);
-                 $('div').class('progress-fill')
-                    .style({ width: `${(val||0) * 100}%`, backgroundColor: color })
-                    .mount(bar);
-             };
+        const createBar = (label, val, color) => {
+            const row = $('div').class('prop-row').style({ display: 'block', paddingBottom: '4px' }).mount(section);
+            const info = $('div').style({ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }).mount(row);
+            $('span').class('prop-label', 'small').text(label).mount(info);
+            $('span').class('prop-value', 'small').text((val || 0).toFixed(2)).mount(info);
 
-             createBar('Frequency', frequency, 'var(--accent-primary)');
-             createBar('Confidence', confidence, 'var(--accent-secondary)');
-        }
+            const bar = $('div').class('progress-bar').mount(row);
+            $('div').class('progress-fill')
+                .style({ width: `${(val || 0) * 100}%`, backgroundColor: color })
+                .mount(bar);
+        };
 
-        // 4. Derivation Trace
-        if (data.derivation) {
-            this._renderDerivationWidget(data.derivation, data.term || data.id);
-        }
+        createBar('Frequency', frequency, 'var(--accent-primary)');
+        createBar('Confidence', confidence, 'var(--accent-secondary)');
+    }
 
-        // 5. Related Concepts
+    _renderRelated(data) {
         const related = data.links || [];
         const relSection = $('div').class('inspector-section').mount(this.contentContainer);
         $('h4').text('Related').mount(relSection);
@@ -126,33 +131,26 @@ export class InspectorPanel extends Component {
                     .class('related-tag', 'clickable-tag')
                     .attr('title', `Focus ${r}`)
                     .text(r)
-                    .on('click', () => { if (this.onSelect) this.onSelect(r); })
+                    .on('click', () => this.onSelect?.(r))
                     .mount(tags);
             });
         } else {
             $('span').class('prop-value-dim').text('No direct links').mount(tags);
         }
+    }
 
-        // 6. Properties & Controls
+    _renderProperties(data, mode) {
         const isControl = (mode === 'control');
         const fields = this._getEditableFields(data);
 
-        // Internal State Tab
         if (data.fullData) {
             const section = $('div').class('inspector-section', 'collapsed').mount(this.contentContainer);
-            $('h4').text('Internal State ▶').on('click', (e) => {
-                section.dom.classList.toggle('collapsed');
-            }).mount(section);
-
-            const internalJson = JSON.stringify(data.fullData, null, 2);
-            $('pre').class('internal-state-code').text(internalJson).mount(section);
+            $('h4').text('Internal State ▶').on('click', () => section.dom.classList.toggle('collapsed')).mount(section);
+            $('pre').class('internal-state-code').text(JSON.stringify(data.fullData, null, 2)).mount(section);
         }
 
         fields.forEach(field => {
             const { key, value, type, path } = field;
-            let displayVal = value;
-            if (typeof value === 'number') displayVal = value.toFixed(3);
-
             const row = $('div').class('prop-row').mount(this.contentContainer);
             $('span').class('prop-label').text(key).mount(row);
 
@@ -167,11 +165,11 @@ export class InspectorPanel extends Component {
                     .val(value)
                     .mount(row);
             } else {
-                let formattedVal = displayVal;
                 if (key === 'term' || key === 'label') {
                      $('span').class('prop-value').html(NarseseHighlighter.highlight(String(value))).mount(row);
                 } else {
-                     $('span').class('prop-value').text(String(formattedVal)).mount(row);
+                     const displayVal = typeof value === 'number' ? value.toFixed(3) : value;
+                     $('span').class('prop-value').text(String(displayVal)).mount(row);
                 }
             }
         });
@@ -218,46 +216,34 @@ export class InspectorPanel extends Component {
         }
     }
 
-    _getEditableFields(data, prefix = '') {
+    _getEditableFields(data) {
         let fields = [];
-
-        // Priority fields (flat)
         const priorityKeys = ['term', 'label', 'type'];
+
         priorityKeys.forEach(k => {
-            if (data[k] !== undefined) {
-                fields.push({ key: k, value: data[k], type: typeof data[k], path: k });
-            }
+            if (data[k] !== undefined) fields.push({ key: k, value: data[k], type: typeof data[k], path: k });
         });
 
-        // Nested objects we care about
-        if (data.budget && typeof data.budget === 'object') {
+        if (data.budget) {
             ['priority', 'durability', 'quality'].forEach(k => {
-                if (data.budget[k] !== undefined) {
-                    fields.push({ key: `budget.${k}`, value: data.budget[k], type: 'number', path: `budget.${k}` });
-                }
+                if (data.budget[k] !== undefined) fields.push({ key: `budget.${k}`, value: data.budget[k], type: 'number', path: `budget.${k}` });
             });
         }
 
-        if (data.truth && typeof data.truth === 'object') {
+        if (data.truth) {
             ['frequency', 'confidence'].forEach(k => {
-                if (data.truth[k] !== undefined) {
-                    fields.push({ key: `truth.${k}`, value: data.truth[k], type: 'number', path: `truth.${k}` });
-                }
+                if (data.truth[k] !== undefined) fields.push({ key: `truth.${k}`, value: data.truth[k], type: 'number', path: `truth.${k}` });
             });
         }
 
-        // Handle other properties
+        const ignored = new Set(['weight', 'id', 'budget', 'truth', 'fullData', 'tasks', 'links', 'derivation']);
+
         for (const [key, value] of Object.entries(data)) {
-            if (['weight', 'id', 'budget', 'truth', 'fullData', 'tasks', 'links', 'derivation'].includes(key)) continue;
-            if (priorityKeys.includes(key)) continue;
+            if (ignored.has(key) || priorityKeys.includes(key)) continue;
 
             if (value && typeof value === 'object') {
                 let strVal = '[Object]';
-                try {
-                    strVal = JSON.stringify(value);
-                } catch (e) {
-                    strVal = '[Circular/Error]';
-                }
+                try { strVal = JSON.stringify(value); } catch (e) { strVal = '[Circular/Error]'; }
                 fields.push({ key: key, value: strVal, type: 'object', path: key });
             } else {
                 fields.push({ key, value, type: typeof value, path: key });
@@ -274,11 +260,8 @@ export class InspectorPanel extends Component {
         const updates = {};
 
         inputs.forEach(input => {
-            const path = input.dataset.path;
-            let value = input.value;
-            if (input.type === 'number') {
-                value = parseFloat(value);
-            }
+            const { path } = input.dataset;
+            const value = input.type === 'number' ? parseFloat(input.value) : input.value;
             this._setDeep(updates, path, value);
         });
 
@@ -287,11 +270,8 @@ export class InspectorPanel extends Component {
 
     _setDeep(obj, path, value) {
         const parts = path.split('.');
-        let current = obj;
-        for (let i = 0; i < parts.length - 1; i++) {
-            if (!current[parts[i]]) current[parts[i]] = {};
-            current = current[parts[i]];
-        }
-        current[parts[parts.length - 1]] = value;
+        const last = parts.pop();
+        const target = parts.reduce((acc, part) => acc[part] = acc[part] || {}, obj);
+        target[last] = value;
     }
 }

@@ -116,6 +116,7 @@ export class FluentUI {
     }
 
     val(value) {
+        if (value === undefined) return this.element.value;
         this.element.value = value;
         return this;
     }

@@ -37,12 +37,6 @@ export class TermFactory extends BaseComponent {
         this._cache = new TermCache({ maxSize: this.config.maxCacheSize ?? 5000 });
     }
 
-    /**
-     * Deserialize a term from a JSON object or string.
-     * Guaranteed to return an interned Term instance.
-     * @param {Object|string} data
-     * @returns {Term}
-     */
     fromJSON(data) {
         if (!data) return null;
         if (data instanceof Term) return data;
@@ -64,17 +58,11 @@ export class TermFactory extends BaseComponent {
     }
 
     _createCompound(operator, components) {
-        // Step 1: Recursively create components and flatten associative operators
         const comps = this._processComponents(operator, components);
-
-        // Step 2: Canonicalize components
         const canonicalComps = this._canonicalizeComponents(operator, comps);
-
-        // Step 3: Apply simplifications
         const simplified = this._simplify(operator, canonicalComps);
-        if (simplified) return simplified;
 
-        return this._cacheLookupOrCreate(operator, canonicalComps);
+        return simplified || this._cacheLookupOrCreate(operator, canonicalComps);
     }
 
     _processComponents(operator, components) {
@@ -90,22 +78,18 @@ export class TermFactory extends BaseComponent {
     }
 
     _simplify(operator, comps) {
-        // Tautologies
         if (RELATIONAL_OPERATORS.has(operator) && comps.length === 2 && comps[0].name === comps[1].name) {
              return this.createTrue();
         }
 
-        // Single component commutative (except sets)
         if (COMMUTATIVE_OPERATORS.has(operator) && comps.length === 1 && !SET_OPERATORS.has(operator)) {
             return comps[0];
         }
 
-        // Double negation
         if (operator === '--' && comps[0]?.operator === '--' && comps[0].components.length) {
             return comps[0].components[0];
         }
 
-        // Implication negation
         if (operator === '==>' && comps.length === 2 && comps[1].operator === '--' && comps[1].components.length) {
              const innerImp = this._createCompound('==>', [comps[0], comps[1].components[0]]);
              return this._createCompound('--', [innerImp]);
@@ -124,8 +108,7 @@ export class TermFactory extends BaseComponent {
         }
 
         this._emitIntrospectionEvent(IntrospectionEvents.TERM_CACHE_MISS, () => ({ termName: name }));
-        const term = this._createAndCache(operator, components, name);
-        return term;
+        return this._createAndCache(operator, components, name);
     }
 
     atomic(name) { return this.create(name); }
@@ -157,11 +140,7 @@ export class TermFactory extends BaseComponent {
     }
 
     _getOrCreateAtomic(name) {
-        const cached = this._cache.get(name);
-        if (cached) return cached;
-
-        const term = this._createAndCache(null, [], name);
-        return term;
+        return this._cache.get(name) || this._createAndCache(null, [], name);
     }
 
     _createAndCache(operator, components, name) {
@@ -225,13 +204,9 @@ export class TermFactory extends BaseComponent {
     }
 
     getComplexity(term) {
-        if (typeof term !== 'string' && term?.complexity) {
-            return term.complexity;
-        }
+        if (typeof term !== 'string' && term?.complexity) return term.complexity;
         const name = typeof term === 'string' ? term : term?.name;
-
-        const cachedTerm = this._cache.get(name);
-        return cachedTerm ? cachedTerm.complexity : 1;
+        return this._cache.get(name)?.complexity ?? 1;
     }
 
     setMaxCacheSize(size) {
@@ -239,52 +214,30 @@ export class TermFactory extends BaseComponent {
     }
 
     getCacheSize() { return this._cache.size; }
-
-    clearCache() {
-        this._cache.clear();
-    }
+    clearCache() { this._cache.clear(); }
 
     getStats() {
-        const cacheStats = this._cache.stats;
-        return {
-            cacheSize: this._cache.size,
-            cacheHits: cacheStats.hits,
-            cacheMisses: cacheStats.misses,
-            cacheHitRate: cacheStats.hitRate,
-            maxCacheSize: cacheStats.maxSize
-        };
+        const { hits, misses, hitRate, maxSize } = this._cache.stats;
+        return { cacheSize: this._cache.size, cacheHits: hits, cacheMisses: misses, cacheHitRate: hitRate, maxCacheSize: maxSize };
     }
 
     getMostComplexTerms(limit = 10) {
-        if (limit <= 0) return [];
-        const top = [];
-        for (const term of this._cache.values()) {
-            if (top.length < limit) {
-                top.push(term);
-                top.sort((a, b) => b.complexity - a.complexity);
-            } else if (term.complexity > top[top.length - 1].complexity) {
-                top.pop();
-                top.push(term);
-                top.sort((a, b) => b.complexity - a.complexity);
-            }
-        }
-        return top.map(term => ({ name: term.name, complexity: term.complexity }));
+        return this._topK(limit, (a, b) => b.complexity - a.complexity);
     }
 
     getSimplestTerms(limit = 10) {
+        return this._topK(limit, (a, b) => a.complexity - b.complexity);
+    }
+
+    _topK(limit, compareFn) {
         if (limit <= 0) return [];
-        const bottom = [];
+        const top = [];
         for (const term of this._cache.values()) {
-            if (bottom.length < limit) {
-                bottom.push(term);
-                bottom.sort((a, b) => a.complexity - b.complexity);
-            } else if (term.complexity < bottom[bottom.length - 1].complexity) {
-                bottom.pop();
-                bottom.push(term);
-                bottom.sort((a, b) => a.complexity - b.complexity);
-            }
+            top.push(term);
+            top.sort(compareFn);
+            if (top.length > limit) top.pop();
         }
-        return bottom.map(term => ({ name: term.name, complexity: term.complexity }));
+        return top.map(term => ({ name: term.name, complexity: term.complexity }));
     }
 
     getAverageComplexity() {
