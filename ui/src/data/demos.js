@@ -48,5 +48,19 @@ export const DEMOS = {
         "description": "High volume of random nodes to test the Bag limit.",
         "concepts": [],
         "relationships": []
+    },
+    "Complex Interaction": {
+        "description": "Simulated reasoning session via Narsese script.",
+        "concepts": [],
+        "relationships": [],
+        "script": [
+            "<cat --> animal>.",
+            "<animal --> living>.",
+            "<dog --> animal>.",
+            "(-->, cat, meow).",
+            "<cat --> ?x>?",
+            "<tiger --> cat>.",
+            "<tiger --> ?x>?"
+        ]
     }
 };

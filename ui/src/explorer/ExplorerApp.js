@@ -192,6 +192,7 @@ export class ExplorerApp {
         this._bindControls();
         this._bindDragDrop();
         this._bindKeyboardShortcuts();
+        this._restoreTheme();
 
         // Dynamic import of LLM Controller
         try {
@@ -365,12 +366,14 @@ export class ExplorerApp {
         console.log(`ExplorerApp: Adding node for term: ${term}`);
         const budget = task.budget || { priority: 0.5 };
 
-        // Add Node
+        // Add Node with random initial position to prevent straight-line layouts
+        const pos = { x: Math.random() * 800, y: Math.random() * 600 };
         this.graph.addNode({
              id: term,
              term: term,
              budget: budget,
-             type: 'concept'
+             type: 'concept',
+             position: pos
         }, false);
 
         if (this.graph.animateAttention) {
@@ -679,6 +682,12 @@ export class ExplorerApp {
             case 'load':
                 this.handleLoadJSON();
                 break;
+            case 'export-png':
+                this.handleExportImage('png');
+                break;
+            case 'export-svg':
+                this.handleExportImage('svg');
+                break;
             case 'add-concept':
                 this.handleAddConcept();
                 break;
@@ -693,6 +702,9 @@ export class ExplorerApp {
                 break;
             case 'layout':
                 this.graph.scheduleLayout();
+                break;
+            case 'fullscreen':
+                this.handleToggleFullscreen();
                 break;
             case 'clear':
                 this.graph.clear();
@@ -798,22 +810,28 @@ export class ExplorerApp {
         if (el) el.onclick = handler;
     }
 
-    loadDemo(name) {
+    async loadDemo(name) {
         const demo = DEMOS[name];
         if (!demo) return;
 
         this.graph.clear();
         this.log(`Loading demo: ${name}`, 'system');
-        this.toastManager.show(`Demo loaded: ${name}`, 'success');
 
-        demo.concepts.forEach(c => this.graph.addNode({ ...c, id: c.term }, false));
-        // SeNARSGraph addNode takes object with id/term/budget
-        // addConcept was: addConcept(term, priority, details)
-        // SeNARSGraph addNode: { id, term, budget: { priority }, ...details }
+        if (demo.script) {
+            this.toastManager.show(`Running Script: ${name}`, 'info');
+            for (const line of demo.script) {
+                await this.handleReplCommand(line);
+                // Artificial delay for visualization
+                await new Promise(r => setTimeout(r, 800));
+            }
+            this.toastManager.show(`Script completed: ${name}`, 'success');
+        } else {
+            this.toastManager.show(`Demo loaded: ${name}`, 'success');
+            demo.concepts.forEach(c => this.graph.addNode({ ...c, id: c.term }, false));
+            demo.relationships.forEach(r => this.graph.addEdge({ source: r[0], target: r[1], type: r[2] }, false));
+            this.graph.scheduleLayout();
+        }
 
-        demo.relationships.forEach(r => this.graph.addEdge({ source: r[0], target: r[1], type: r[2] }, false));
-
-        this.graph.scheduleLayout();
         this._updateStats();
     }
 
@@ -892,7 +910,13 @@ export class ExplorerApp {
 
     showDemoLibrary() {
         const modal = new DemoLibraryModal({
-            onSelect: (name) => this.loadDemo(name)
+            onSelect: (selection) => {
+                if (typeof selection === 'string') {
+                    this.loadDemo(selection);
+                } else if (selection && selection.path) {
+                    this.loadRemoteFile(selection.path);
+                }
+            }
         });
         modal.show();
     }
@@ -1116,6 +1140,59 @@ export class ExplorerApp {
         input.click();
     }
 
+    handleExportImage(format) {
+        if (!this.graph || !this.graph.cy) return;
+
+        let content, type, ext;
+        if (format === 'png') {
+            content = this.graph.cy.png({ full: true, bg: 'transparent' }); // base64 string
+            type = 'image/png';
+            ext = 'png';
+        } else if (format === 'svg') {
+            if (this.graph.cy.svg) {
+                content = this.graph.cy.svg({ full: true });
+                type = 'image/svg+xml';
+                ext = 'svg';
+            } else {
+                this.log('SVG export not supported (extension missing)', 'error');
+                return;
+            }
+        }
+
+        if (format === 'png') {
+            const a = document.createElement('a');
+            a.href = content;
+            a.download = `senars-graph.${ext}`;
+            a.click();
+        } else {
+            const blob = new Blob([content], { type });
+            this._downloadBlob(blob, `senars-graph.${ext}`);
+        }
+
+        this.log(`Graph exported as ${ext.toUpperCase()}`, 'success');
+    }
+
+    handleToggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                this.log(`Error enabling fullscreen: ${err.message}`, 'error');
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+    _downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
     loadFile(file) {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -1170,9 +1247,7 @@ export class ExplorerApp {
     loadMeTTaFile(file) {
         const reader = new FileReader();
         reader.onload = async (e) => {
-            const code = e.target.result;
-            this.log(`Loading MeTTa file: ${file.name}`, 'system');
-            await this.handleReplCommand(`!${code}`);
+            await this.processMeTTaContent(e.target.result, file.name);
         };
         reader.readAsText(file);
     }
@@ -1180,25 +1255,55 @@ export class ExplorerApp {
     loadNALFile(file) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            const content = e.target.result;
-            this.log(`Loading NAL file: ${file.name}`, 'system');
-            const lines = content.split('\n');
-            let count = 0;
-            lines.forEach(line => {
-                const trim = line.trim();
-                if (trim && !trim.startsWith('//') && !trim.startsWith(';')) {
-                    // Send to REPL/NAR
-                    // We bypass handleReplCommand to avoid async flood if we want bulk
-                    // But for simplicity reuse it or direct NAR input
-                    const nar = this._getNAR();
-                    if (nar) {
-                        try { nar.input(trim); count++; } catch (e) { /* ignore parse errs */ }
-                    }
-                }
-            });
-            this.log(`Processed ${count} NAL lines`, 'success');
+            this.processNALContent(e.target.result, file.name);
         };
         reader.readAsText(file);
+    }
+
+    async loadRemoteFile(path) {
+        try {
+            this.log(`Fetching remote file: ${path}`, 'system');
+            const response = await fetch('/' + path); // Server serves from root
+            if (!response.ok) throw new Error(response.statusText);
+            const content = await response.text();
+
+            if (path.endsWith('.metta')) {
+                await this.processMeTTaContent(content, path);
+            } else if (path.endsWith('.nars') || path.endsWith('.nal')) {
+                this.processNALContent(content, path);
+            } else {
+                this.log(`Unsupported remote file type: ${path}`, 'warning');
+            }
+        } catch (e) {
+            this.log(`Failed to load file: ${e.message}`, 'error');
+        }
+    }
+
+    async processMeTTaContent(code, filename) {
+        this.log(`Loading MeTTa content: ${filename}`, 'system');
+        await this.handleReplCommand(`!${code}`);
+    }
+
+    processNALContent(content, filename) {
+        this.log(`Loading NAL content: ${filename}`, 'system');
+        const lines = content.split('\n');
+        let count = 0;
+        const nar = this._getNAR();
+
+        lines.forEach(line => {
+            const trim = line.trim();
+            if (trim && !trim.startsWith('//') && !trim.startsWith(';')) {
+                if (nar) {
+                    try { nar.input(trim); count++; } catch (e) { /* ignore parse errs */ }
+                }
+            }
+        });
+
+        if (!nar) {
+            this.log('Reasoner not available to process NAL', 'warning');
+        } else {
+            this.log(`Processed ${count} NAL lines`, 'success');
+        }
     }
 
     _bindKeyboardShortcuts() {
@@ -1252,10 +1357,19 @@ export class ExplorerApp {
         const body = document.body;
         if (body.classList.contains('light-theme')) {
             body.classList.remove('light-theme');
+            localStorage.setItem('senars-theme', 'dark');
             this.log('Switched to Dark Theme', 'system');
         } else {
             body.classList.add('light-theme');
+            localStorage.setItem('senars-theme', 'light');
             this.log('Switched to Light Theme', 'system');
+        }
+    }
+
+    _restoreTheme() {
+        const theme = localStorage.getItem('senars-theme');
+        if (theme === 'light') {
+            document.body.classList.add('light-theme');
         }
     }
 

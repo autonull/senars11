@@ -184,6 +184,13 @@
           "extension": ".nars"
         },
         {
+          "id": "examples-scripts-complex-interaction.nars",
+          "name": "complex-interaction.nars",
+          "path": "examples/scripts/complex-interaction.nars",
+          "type": "file",
+          "extension": ".nars"
+        },
+        {
           "id": "examples-scripts-basic-reasoning.nars",
           "name": "basic-reasoning.nars",
           "path": "examples/scripts/basic-reasoning.nars",
