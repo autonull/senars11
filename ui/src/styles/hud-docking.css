@@ -22,15 +22,20 @@
 /* Widget Base Styles */
 .hud-widget {
     position: fixed;
-    background: rgba(5, 20, 15, 0.85);
-    border: 1px solid rgba(0, 255, 157, 0.3);
-    padding: var(--widget-padding);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(8px);
+    background: rgba(5, 20, 15, 0.6);
+    border: 1px solid rgba(0, 255, 157, 0.1);
+    padding: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(4px);
     z-index: 10;
     transition: all 0.3s ease;
     overflow-y: auto;
     overflow-x: hidden;
+}
+
+.hud-widget:hover, .hud-widget.active-widget {
+    background: rgba(5, 20, 15, 0.9);
+    border-color: rgba(0, 255, 157, 0.4);
 }
 
 .hud-widget::-webkit-scrollbar {
@@ -49,6 +54,14 @@
     opacity: 0;
     pointer-events: none;
     transform: scale(0.95);
+}
+
+/* Active Widget State */
+.hud-widget.active-widget {
+    border-color: #00ff9d;
+    box-shadow: 0 0 12px rgba(0, 255, 157, 0.25);
+    background: rgba(5, 25, 20, 0.9);
+    z-index: 15;
 }
 
 /* Docking Zones */
@@ -206,4 +219,33 @@
     height: 20px;
     background: rgba(0, 255, 157, 0.2);
     margin: 0 8px;
+}
+
+/* Simple Mobile Responsiveness */
+@media (max-width: 768px) {
+    :root {
+        --widget-border-width: 0px;
+        --widget-max-width: 100%;
+        --widget-padding: 4px;
+    }
+    .hud-widget {
+        max-width: 96%;
+        left: 2% !important;
+        right: 2% !important;
+        width: 96% !important;
+    }
+    .hud-widget.dock-left, .hud-widget.dock-right {
+        position: fixed;
+        width: 96%;
+    }
+    #graph-container {
+        top: var(--statusbar-height);
+        bottom: 0;
+        left: 0;
+        right: 0;
+    }
+    /* Stack widgets vertically if visible */
+    #layers-widget { top: 50px; }
+    #metrics-widget { top: 250px; }
+    #log-widget { display: none; } /* Hide logs on mobile by default */
 }

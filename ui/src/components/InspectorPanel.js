@@ -178,7 +178,7 @@ export class InspectorPanel extends Component {
         });
 
         // Nested objects we care about
-        if (data.budget) {
+        if (data.budget && typeof data.budget === 'object') {
             ['priority', 'durability', 'quality'].forEach(k => {
                 if (data.budget[k] !== undefined) {
                     fields.push({ key: `budget.${k}`, value: data.budget[k], type: 'number', path: `budget.${k}` });
@@ -186,7 +186,7 @@ export class InspectorPanel extends Component {
             });
         }
 
-        if (data.truth) {
+        if (data.truth && typeof data.truth === 'object') {
             ['frequency', 'confidence'].forEach(k => {
                 if (data.truth[k] !== undefined) {
                     fields.push({ key: `truth.${k}`, value: data.truth[k], type: 'number', path: `truth.${k}` });
@@ -194,13 +194,23 @@ export class InspectorPanel extends Component {
             });
         }
 
-        // Handle other flat properties
+        // Handle other properties (Generic Support)
         for (const [key, value] of Object.entries(data)) {
-            if (['weight', 'id', 'budget', 'truth', 'fullData', 'tasks'].includes(key)) continue;
+            if (['weight', 'id', 'budget', 'truth', 'fullData', 'tasks', 'links', 'derivation'].includes(key)) continue;
             if (priorityKeys.includes(key)) continue; // Already added
-            if (typeof value === 'object') continue; // Skip generic objects
 
-            fields.push({ key, value, type: typeof value, path: key });
+            if (value && typeof value === 'object') {
+                // Show generic objects as JSON string, safe against circular refs
+                let strVal = '[Object]';
+                try {
+                    strVal = JSON.stringify(value);
+                } catch (e) {
+                    strVal = '[Circular/Error]';
+                }
+                fields.push({ key: key, value: strVal, type: 'object', path: key });
+            } else {
+                fields.push({ key, value, type: typeof value, path: key });
+            }
         }
 
         return fields;
