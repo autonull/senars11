@@ -1,3 +1,5 @@
+import { FluentUI } from '../utils/FluentUI.js';
+
 export class CommandPalette {
     constructor() {
         this.commands = [];
@@ -14,43 +16,41 @@ export class CommandPalette {
 
     _createUI() {
         // Overlay
-        const overlay = document.createElement('div');
-        overlay.id = 'command-palette-overlay';
-        overlay.className = 'palette-overlay hidden';
+        const overlay = FluentUI.create('div')
+            .id('command-palette-overlay')
+            .class('palette-overlay', 'hidden')
+            .mount(document.body);
 
         // Palette Container
-        const container = document.createElement('div');
-        container.className = 'palette-container';
+        const container = FluentUI.create('div')
+            .class('palette-container')
+            .mount(overlay);
 
         // Input Wrapper
-        const inputWrapper = document.createElement('div');
-        inputWrapper.className = 'palette-input-wrapper';
+        const inputWrapper = FluentUI.create('div')
+            .class('palette-input-wrapper')
+            .mount(container);
 
         // Icon
-        const icon = document.createElement('span');
-        icon.className = 'palette-icon';
-        icon.innerHTML = '>';
+        FluentUI.create('span')
+            .class('palette-icon')
+            .html('>')
+            .mount(inputWrapper);
 
         // Input
-        this.input = document.createElement('input');
-        this.input.type = 'text';
-        this.input.className = 'palette-input';
-        this.input.placeholder = 'Type a command...';
-        this.input.setAttribute('autocomplete', 'off');
-
-        inputWrapper.appendChild(icon);
-        inputWrapper.appendChild(this.input);
+        this.input = FluentUI.create('input')
+            .attr({ type: 'text', placeholder: 'Type a command...', autocomplete: 'off' })
+            .class('palette-input')
+            .mount(inputWrapper);
 
         // Results List
-        this.resultsContainer = document.createElement('div');
-        this.resultsContainer.className = 'palette-results';
+        this.resultsContainer = FluentUI.create('div')
+            .class('palette-results')
+            .mount(container);
 
-        container.appendChild(inputWrapper);
-        container.appendChild(this.resultsContainer);
-        overlay.appendChild(container);
-
-        document.body.appendChild(overlay);
-        this.element = overlay;
+        this.element = overlay.dom;
+        this.input = this.input.dom; // Keep reference to raw element for events
+        this.resultsContainer = this.resultsContainer.dom;
     }
 
     _bindEvents() {
@@ -144,45 +144,43 @@ export class CommandPalette {
         this.resultsContainer.innerHTML = '';
 
         if (this.filteredCommands.length === 0) {
-            const empty = document.createElement('div');
-            empty.className = 'palette-empty';
-            empty.textContent = 'No commands found';
-            this.resultsContainer.appendChild(empty);
+            FluentUI.create('div')
+                .class('palette-empty')
+                .text('No commands found')
+                .mount(this.resultsContainer);
             return;
         }
 
         this.filteredCommands.forEach((cmd, index) => {
-            const item = document.createElement('div');
-            item.className = `palette-item ${index === this.selectedIndex ? 'selected' : ''}`;
-            item.onclick = () => {
-                this.selectedIndex = index;
-                this._executeSelected();
-            };
+            const item = FluentUI.create('div')
+                .class('palette-item', index === this.selectedIndex ? 'selected' : '')
+                .on('click', () => {
+                    this.selectedIndex = index;
+                    this._executeSelected();
+                })
+                .mount(this.resultsContainer);
 
-            const left = document.createElement('div');
-            left.className = 'palette-item-left';
+            const left = FluentUI.create('div')
+                .class('palette-item-left')
+                .mount(item);
 
-            const label = document.createElement('span');
-            label.className = 'palette-item-label';
-            label.textContent = cmd.description; // Main text
+            FluentUI.create('span')
+                .class('palette-item-label')
+                .text(cmd.description)
+                .mount(left);
 
-            const sub = document.createElement('span');
-            sub.className = 'palette-item-sub';
-            sub.textContent = cmd.id; // Subtitle (technical id)
+            FluentUI.create('span')
+                .class('palette-item-sub')
+                .text(cmd.id)
+                .mount(left);
 
-            left.appendChild(label);
-            left.appendChild(sub);
+            const right = FluentUI.create('div')
+                .class('palette-item-shortcut')
+                .mount(item);
 
-            const right = document.createElement('div');
-            right.className = 'palette-item-shortcut';
             if (cmd.shortcut) {
-                // Format shortcut (e.g., "Ctrl+K" -> "⌃K" visually)
-                right.textContent = cmd.shortcut;
+                right.text(cmd.shortcut);
             }
-
-            item.appendChild(left);
-            item.appendChild(right);
-            this.resultsContainer.appendChild(item);
         });
     }
 

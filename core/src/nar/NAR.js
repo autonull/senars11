@@ -38,26 +38,28 @@ export class NAR extends BaseComponent {
 
     _initializeCoreComponents(config) {
         this._configManager = new ConfigManager(config);
-
         const components = this._initializer.initialize();
 
-        this._componentManager = components.componentManager;
-        this._termFactory = components.termFactory;
-        this._parser = components.parser;
-        this._lm = components.lm;
-        this._memory = components.memory;
-        this._focus = components.focus;
-        this._termLayer = components.termLayer;
-        this._embeddingLayer = components.embeddingLayer;
-        this._taskManager = components.taskManager;
-        this._evaluator = components.evaluator;
-        this._budgetManager = components.budgetManager;
-        this._inputProcessor = components.inputProcessor;
-        this._reasoningAboutReasoning = components.reasoningAboutReasoning;
-        this._toolIntegration = components.toolIntegration;
-        this._explanationService = components.explanationService;
-        this._metricsMonitor = components.metricsMonitor;
-        this._ruleEngine = null;
+        // Destructure components into private properties
+        Object.assign(this, {
+             _componentManager: components.componentManager,
+             _termFactory: components.termFactory,
+             _parser: components.parser,
+             _lm: components.lm,
+             _memory: components.memory,
+             _focus: components.focus,
+             _termLayer: components.termLayer,
+             _embeddingLayer: components.embeddingLayer,
+             _taskManager: components.taskManager,
+             _evaluator: components.evaluator,
+             _budgetManager: components.budgetManager,
+             _inputProcessor: components.inputProcessor,
+             _reasoningAboutReasoning: components.reasoningAboutReasoning,
+             _toolIntegration: components.toolIntegration,
+             _explanationService: components.explanationService,
+             _metricsMonitor: components.metricsMonitor,
+             _ruleEngine: null
+        });
 
         this._isRunning = false;
         this._startTime = Date.now();
@@ -142,34 +144,38 @@ export class NAR extends BaseComponent {
             const task = this._inputProcessor.processInput(input, options);
             if (!task) throw new Error('Input processing failed to create task');
 
-            const originalInput = typeof input === 'string' ? input : task.toString();
             const parsed = {
                 term: task.term,
                 punctuation: task.punctuation,
                 taskType: task.type,
                 truthValue: task.truth ? { frequency: task.truth.f, confidence: task.truth.c } : null
             };
+            const originalInput = typeof input === 'string' ? input : task.toString();
 
             return await this._processNewTask(task, 'user', originalInput, parsed, options);
         } catch (error) {
-            const inputError = new Error(`Input processing failed: ${error.message}`);
-            inputError.cause = error;
-            inputError.input = typeof input === 'string' ? input : 'Task Object';
-
-            this._eventBus.emit(IntrospectionEvents.TASK_ERROR, {
-                error: inputError.message,
-                input: inputError.input,
-                originalError: error
-            }, { traceId: options.traceId });
-
-            this.logError('Input processing error', {
-                input: inputError.input,
-                error: error.message,
-                stack: error.stack
-            });
-
-            throw inputError;
+            this._handleInputError(error, input, options);
         }
+    }
+
+    _handleInputError(error, input, options) {
+        const inputError = new Error(`Input processing failed: ${error.message}`);
+        inputError.cause = error;
+        inputError.input = typeof input === 'string' ? input : 'Task Object';
+
+        this._eventBus.emit(IntrospectionEvents.TASK_ERROR, {
+            error: inputError.message,
+            input: inputError.input,
+            originalError: error
+        }, { traceId: options.traceId });
+
+        this.logError('Input processing error', {
+            input: inputError.input,
+            error: error.message,
+            stack: error.stack
+        });
+
+        throw inputError;
     }
 
     async _processNewTask(task, source, originalInput, parsed, options = {}) {
@@ -409,23 +415,24 @@ export class NAR extends BaseComponent {
             this._initializer = new NARInitializer(this, this.config, this._eventBus);
             const components = this._initializer.initialize();
 
-            // Re-assign components
-            this._componentManager = components.componentManager;
-            this._termFactory = components.termFactory;
-            this._parser = components.parser;
-            this._lm = components.lm;
-            this._memory = components.memory;
-            this._focus = components.focus;
-            this._termLayer = components.termLayer;
-            this._embeddingLayer = components.embeddingLayer;
-            this._taskManager = components.taskManager;
-            this._evaluator = components.evaluator;
-            this._budgetManager = components.budgetManager;
-            this._inputProcessor = components.inputProcessor;
-            this._reasoningAboutReasoning = components.reasoningAboutReasoning;
-            this._toolIntegration = components.toolIntegration;
-            this._explanationService = components.explanationService;
-            this._metricsMonitor = components.metricsMonitor;
+            Object.assign(this, {
+                 _componentManager: components.componentManager,
+                 _termFactory: components.termFactory,
+                 _parser: components.parser,
+                 _lm: components.lm,
+                 _memory: components.memory,
+                 _focus: components.focus,
+                 _termLayer: components.termLayer,
+                 _embeddingLayer: components.embeddingLayer,
+                 _taskManager: components.taskManager,
+                 _evaluator: components.evaluator,
+                 _budgetManager: components.budgetManager,
+                 _inputProcessor: components.inputProcessor,
+                 _reasoningAboutReasoning: components.reasoningAboutReasoning,
+                 _toolIntegration: components.toolIntegration,
+                 _explanationService: components.explanationService,
+                 _metricsMonitor: components.metricsMonitor
+            });
 
             await this._componentManager.initializeAll();
             await this._setupDefaultRules();
@@ -458,45 +465,52 @@ export class NAR extends BaseComponent {
         if (!beliefData?.term || !beliefData?.truth) return false;
 
         try {
-            let term;
-            if (this._parser && typeof beliefData.term === 'string') {
-                const parsed = this._parser.parse(beliefData.term.endsWith('.') ? beliefData.term : beliefData.term + '.');
-                term = parsed.term;
-            } else {
-                term = this._termFactory.create(beliefData.term);
-            }
-
-            const incomingTruth = new Truth(beliefData.truth.frequency, beliefData.truth.confidence);
-            const concept = this._memory.getConcept(term);
-            let finalTruth = incomingTruth;
-
-            if (concept) {
-                const beliefs = concept.getTasksByType('BELIEF');
-                if (beliefs.length > 0) {
-                    const revised = Truth.revision(beliefs[0].truth, incomingTruth);
-                    if (revised) finalTruth = revised;
-                }
-            }
-
-            const expectation = Truth.expectation(finalTruth);
-            const task = new Task({
-                term: term,
-                truth: finalTruth,
-                stamp: Stamp.createInput(),
-                punctuation: '.',
-                budget: {
-                    priority: Math.max(0.1, expectation),
-                    durability: 0.9,
-                    quality: finalTruth.confidence
-                }
-            });
+            const term = this._resolveTerm(beliefData.term);
+            const finalTruth = this._calculateReconciledTruth(term, beliefData.truth);
+            const task = this._createReconciliationTask(term, finalTruth);
 
             return await this._processNewTask(task, 'reconcile', beliefData.term, null, {traceId: 'gossip'});
-
         } catch (error) {
             this.logError('Reconciliation failed:', error);
             return false;
         }
+    }
+
+    _resolveTerm(termInput) {
+        if (this._parser && typeof termInput === 'string') {
+             const parsed = this._parser.parse(termInput.endsWith('.') ? termInput : termInput + '.');
+             return parsed.term;
+        }
+        return this._termFactory.create(termInput);
+    }
+
+    _calculateReconciledTruth(term, incomingTruthData) {
+        const incomingTruth = new Truth(incomingTruthData.frequency, incomingTruthData.confidence);
+        const concept = this._memory.getConcept(term);
+
+        if (concept) {
+            const beliefs = concept.getTasksByType('BELIEF');
+            if (beliefs.length > 0) {
+                const revised = Truth.revision(beliefs[0].truth, incomingTruth);
+                if (revised) return revised;
+            }
+        }
+        return incomingTruth;
+    }
+
+    _createReconciliationTask(term, truth) {
+        const expectation = Truth.expectation(truth);
+        return new Task({
+            term,
+            truth,
+            stamp: Stamp.createInput(),
+            punctuation: '.',
+            budget: {
+                priority: Math.max(0.1, expectation),
+                durability: 0.9,
+                quality: truth.confidence
+            }
+        });
     }
 
     async ask(task) {
@@ -630,7 +644,7 @@ export class NAR extends BaseComponent {
     async initializeTools() {
         if (this._toolIntegration) {
             await this._toolIntegration.initializeTools(this);
-            this.logger.info('Tools initialized successfully');
+            this.logInfo('Tools initialized successfully');
             return true;
         }
         return false;
@@ -678,13 +692,13 @@ export class NAR extends BaseComponent {
             const result = await operation();
             const duration = Date.now() - startTime;
             if (duration > 1000) {
-                this.logger.warn(`Slow tool execution: ${toolId} took ${duration}ms`, {
+                this.logWarn(`Slow tool execution: ${toolId} took ${duration}ms`, {
                     toolId, duration, paramsSize: JSON.stringify(params).length
                 });
             }
             return result;
         } catch (error) {
-            this.logger.error(`Tool execution failed: ${toolId}`, {
+            this.logError(`Tool execution failed: ${toolId}`, {
                 toolId, error: error?.message || error, duration: Date.now() - startTime
             });
             throw error;
