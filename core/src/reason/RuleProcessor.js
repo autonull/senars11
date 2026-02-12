@@ -2,7 +2,7 @@ import {mergeConfig, processDerivation, sleep} from './utils/common.js';
 import {Logger} from '../util/Logger.js';
 import {logError, ReasonerError} from './utils/error.js';
 import {Queue} from '../util/Queue.js';
-import {Stamp, ArrayStamp, BloomStamp} from '../Stamp.js';
+import {Stamp, ArrayStamp} from '../Stamp.js';
 import {isSynchronousRule} from './RuleHelpers.js';
 import {RuleCompiler} from './exec/RuleCompiler.js';
 import {RuleExecutor as PatternRuleExecutor} from './exec/RuleExecutor.js';
@@ -28,149 +28,107 @@ export class RuleProcessor {
         }, config);
 
         this.asyncResultsQueue = new Queue(100);
-
         this.syncRuleExecutions = 0;
         this.asyncRuleExecutions = 0;
-
         this.maxQueueSize = 0;
 
-        // Initialize Pattern-based Rule Engine
-        const termFactory = this.config.termFactory;
-        if (termFactory) {
-            this.unifier = new Unifier(termFactory);
-            this.ruleCompiler = new RuleCompiler(termFactory, StandardDiscriminators);
+        this._initPatternEngine();
+    }
 
-            // Compile NAL-4 and NAL-5 rules
-            const rules = [...NAL4, ...NAL5];
-            const decisionTree = this.ruleCompiler.compile(rules);
-            this.patternExecutor = new PatternRuleExecutor(decisionTree, this.unifier, StandardDiscriminators);
-        }
+    _initPatternEngine() {
+        const termFactory = this.config.termFactory;
+        if (!termFactory) return;
+
+        this.unifier = new Unifier(termFactory);
+        this.ruleCompiler = new RuleCompiler(termFactory, StandardDiscriminators);
+
+        const rules = [...NAL4, ...NAL5];
+        const decisionTree = this.ruleCompiler.compile(rules);
+        this.patternExecutor = new PatternRuleExecutor(decisionTree, this.unifier, StandardDiscriminators);
     }
 
     async* process(premisePairStream, timeoutMs = 0, signal = null) {
         const startTime = Date.now();
+
         try {
             for await (const [primaryPremise, secondaryPremise] of premisePairStream) {
-                if (signal?.aborted) break;
-
-                if (this._isTimeoutExceeded(startTime, timeoutMs)) {
-                    Logger.debug(`RuleProcessor: timeout reached after ${timeoutMs}ms`);
-                    break;
-                }
+                if (signal?.aborted || this._isTimeout(startTime, timeoutMs)) break;
 
                 await this._checkAndApplyBackpressure();
-
-                const context = this._createRuleContext();
-
-                // 1. Execute Legacy Rules
-                const candidateRules = this.ruleExecutor.getCandidateRules(primaryPremise, secondaryPremise, context);
-
-                for (const rule of candidateRules) {
-                    if (signal?.aborted) break;
-
-                    if (this._isTimeoutExceeded(startTime, timeoutMs)) {
-                        Logger.debug(`RuleProcessor: timeout reached after ${timeoutMs}ms`);
-                        break;
-                    }
-
-                    try {
-                        if (isSynchronousRule(rule)) {
-                            yield* this._processSyncRule(rule, primaryPremise, secondaryPremise);
-                        } else {
-                            this._dispatchAsyncRule(rule, primaryPremise, secondaryPremise);
-                        }
-                    } catch (error) {
-                        logError(error, {
-                            ruleId: rule.id ?? rule.name,
-                            context: 'rule_processing'
-                        }, 'warn');
-                    }
-                }
-
-                // 2. Execute Pattern Rules (NAL-4+)
-                if (this.patternExecutor) {
-                    try {
-                        const context = this._createRuleContext();
-                        const results = this.patternExecutor.execute(primaryPremise, secondaryPremise, context);
-
-                        for (const result of results) {
-                            const derivedTask = this._createDerivedTask(result, primaryPremise, secondaryPremise, 'PatternRule');
-                            if (derivedTask) {
-                                yield this._processDerivation(derivedTask);
-                            }
-                        }
-                    } catch (error) {
-                        logError(error, {context: 'pattern_rule_processing'}, 'warn');
-                    }
-                }
-
+                yield* this._processPair(primaryPremise, secondaryPremise, signal, startTime, timeoutMs);
                 yield* this._yieldAsyncResults();
             }
 
-            yield* this._processRemainingAsyncResults(timeoutMs, startTime, signal);
+            yield* this._drainAsyncResults(timeoutMs, startTime, signal);
         } catch (error) {
             logError(error, {context: 'rule_processor_stream'});
-            throw new ReasonerError(`Error in RuleProcessor process: ${error.message}`, 'STREAM_ERROR', {originalError: error});
+            throw new ReasonerError(`RuleProcessor error: ${error.message}`, 'STREAM_ERROR', {originalError: error});
         }
     }
 
-    _createDerivedTask(result, p1, p2, ruleName) {
-        if (!result || !result.term) return null;
-
-        // We need to construct a Task object.
-        // Since we are in RuleProcessor, we might not have Task class imported directly?
-        // It's usually passed in premises.
-        const TaskClass = p1.constructor;
-
-        // Create new stamp
-        const newStamp = Stamp.derive([p1.stamp, p2.stamp], {
-            source: `DERIVED:${ruleName}`
-        });
-
-        return new TaskClass({
-            term: result.term,
-            truth: result.truth,
-            punctuation: result.punctuation,
-            stamp: newStamp,
-            budget: p1.budget // Simplify budget for now
-        });
+    _isTimeout(startTime, timeoutMs) {
+        if (timeoutMs > 0 && (Date.now() - startTime) > timeoutMs) {
+            Logger.debug(`RuleProcessor: timeout reached after ${timeoutMs}ms`);
+            return true;
+        }
+        return false;
     }
 
-    _isTimeoutExceeded(startTime, timeoutMs) {
-        return timeoutMs > 0 && (Date.now() - startTime) > timeoutMs;
-    }
+    async* _processPair(p1, p2, signal, startTime, timeoutMs) {
+        const context = this._createContext();
 
-    async* _processSyncRule(rule, primaryPremise, secondaryPremise) {
-        const results = this.processSyncRule(rule, primaryPremise, secondaryPremise);
-        for (const result of results) {
-            yield result;
+        // 1. Legacy Rules
+        const candidateRules = this.ruleExecutor.getCandidateRules(p1, p2, context);
+        for (const rule of candidateRules) {
+            if (signal?.aborted || this._isTimeout(startTime, timeoutMs)) break;
+
+            try {
+                if (isSynchronousRule(rule)) {
+                    // Execute sync rule
+                    const results = this.processSyncRule(rule, p1, p2);
+                    for (const res of results) yield res;
+                } else {
+                    this._dispatchAsyncRule(rule, p1, p2);
+                }
+            } catch (error) {
+                logError(error, { ruleId: rule.id ?? rule.name, context: 'rule_processing' }, 'warn');
+            }
+        }
+
+        // 2. Pattern Rules
+        if (this.patternExecutor) {
+            yield* this._executePatternRules(p1, p2);
         }
     }
 
-    processSyncRule(rule, primaryPremise, secondaryPremise) {
+    processSyncRule(rule, p1, p2) {
         this.syncRuleExecutions++;
-        const ruleContext = this._createRuleContext();
-        const results = this.ruleExecutor.executeRule(rule, primaryPremise, secondaryPremise, ruleContext);
+        const results = this.ruleExecutor.executeRule(rule, p1, p2, this._createContext());
 
-        return results.map(result => {
-            const enrichedResult = this.enrichResult(result, rule);
-            return this._processDerivation(enrichedResult);
-        }).filter(Boolean);
+        return results.map(r => this._processDerivation(this._enrichResult(r, rule))).filter(Boolean);
     }
 
-    async executeAsyncRule(rule, primaryPremise, secondaryPremise) {
-        this.asyncRuleExecutions++;
-        const context = this._createRuleContext();
-
+    async* _executePatternRules(p1, p2) {
         try {
-            const results = await (rule.applyAsync?.(primaryPremise, secondaryPremise, context) ??
-                rule.apply?.(primaryPremise, secondaryPremise, context)) ?? [];
+            const results = this.patternExecutor.execute(p1, p2, this._createContext());
+            for (const result of results) {
+                const task = this._createDerivedTask(result, p1, p2, 'PatternRule');
+                if (task) yield this._processDerivation(task);
+            }
+        } catch (error) {
+            logError(error, {context: 'pattern_rule_processing'}, 'warn');
+        }
+    }
 
-            const resultsArray = Array.isArray(results) ? results : [results];
+    async executeAsyncRule(rule, p1, p2) {
+        this.asyncRuleExecutions++;
+        try {
+            const context = this._createContext();
+            const results = await (rule.applyAsync?.(p1, p2, context) ?? rule.apply?.(p1, p2, context)) ?? [];
 
-            return resultsArray
-                .map(result => this.enrichResult(result, rule))
-                .map(this._processDerivation.bind(this))
+            return (Array.isArray(results) ? results : [results])
+                .map(r => this._enrichResult(r, rule))
+                .map(r => this._processDerivation(r))
                 .filter(Boolean);
         } catch (error) {
             logError(error, {ruleId: rule.id ?? rule.name, context: 'async_rule_execution'}, 'error');
@@ -178,31 +136,34 @@ export class RuleProcessor {
         }
     }
 
-    enrichResult(result, rule) {
-        if (!result || !result.stamp) return result;
-        const ruleName = rule.id || rule.name || 'UnknownRule';
-        const s = result.stamp;
+    _createDerivedTask(result, p1, p2, ruleName) {
+        if (!result?.term) return null;
 
-        let newStamp;
-        if (typeof s.clone === 'function') {
-            newStamp = s.clone({ source: `DERIVED:${ruleName}` });
-        } else {
-            // Fallback: Try to convert plain objects to ArrayStamp (backward compatibility)
-            newStamp = new ArrayStamp({
-                id: s.id,
-                creationTime: s.creationTime,
-                source: `DERIVED:${ruleName}`,
-                derivations: s.derivations,
-                depth: s.depth
-            });
-        }
+        const TaskClass = p1.constructor;
+        const newStamp = Stamp.derive([p1.stamp, p2.stamp], { source: `DERIVED:${ruleName}` });
 
-        return result.clone({
-            stamp: newStamp
+        return new TaskClass({
+            term: result.term,
+            truth: result.truth,
+            punctuation: result.punctuation,
+            stamp: newStamp,
+            budget: p1.budget
         });
     }
 
-    _createRuleContext() {
+    _enrichResult(result, rule) {
+        if (!result?.stamp) return result;
+        const ruleName = rule.id || rule.name || 'UnknownRule';
+        const s = result.stamp;
+
+        const newStamp = typeof s.clone === 'function'
+            ? s.clone({ source: `DERIVED:${ruleName}` })
+            : new ArrayStamp({ ...s, source: `DERIVED:${ruleName}` }); // Fallback
+
+        return result.clone({ stamp: newStamp });
+    }
+
+    _createContext() {
         return {
             termFactory: this.config.termFactory ?? this.config.context?.termFactory ?? null,
             unifier: this.unifier,
@@ -210,70 +171,50 @@ export class RuleProcessor {
         };
     }
 
+    _dispatchAsyncRule(rule, p1, p2) {
+        this.executeAsyncRule(rule, p1, p2).then(results => {
+            results.forEach(r => this.asyncResultsQueue.enqueue(r));
+        });
+    }
+
     async* _yieldAsyncResults() {
-        while (this._getAsyncResultsCount() > 0) {
+        while (this.asyncResultsQueue.size > 0) {
             await this._checkAndApplyBackpressure();
             const result = this.asyncResultsQueue.dequeue();
-            if (result !== undefined) {
-                yield result;
-            }
+            if (result !== undefined) yield result;
         }
     }
 
-    _getAsyncResultsCount() {
-        return this.asyncResultsQueue.size;
-    }
-
-    _enqueueAsyncResult(result) {
-        this.asyncResultsQueue.enqueue(result);
-    }
-
-    _dispatchAsyncRule(rule, primaryPremise, secondaryPremise) {
-        this.executeAsyncRule(rule, primaryPremise, secondaryPremise)
-            .then(results => {
-                for (const result of results) {
-                    this._enqueueAsyncResult(result);
-                }
-            })
-            .catch(error => {
-                // Already logged in executeAsyncRule
-            });
-    }
-
-    _processDerivation(result) {
-        return processDerivation(result, this.config.maxDerivationDepth, this.config.budgetManager);
-    }
-
+    // Renamed back to _checkAndApplyBackpressure to match test expectation/previous name
     async _checkAndApplyBackpressure() {
-        const currentQueueSize = this._getAsyncResultsCount();
-        this.maxQueueSize = Math.max(this.maxQueueSize, currentQueueSize);
+        const size = this.asyncResultsQueue.size;
+        this.maxQueueSize = Math.max(this.maxQueueSize, size);
 
-        if (currentQueueSize > this.config.backpressureThreshold) {
+        if (size > this.config.backpressureThreshold) {
             await sleep(this.config.backpressureInterval);
         }
     }
 
-    async* _processRemainingAsyncResults(timeoutMs, startTime, signal = null) {
+    async* _drainAsyncResults(timeoutMs, startTime, signal) {
         let checkCount = 0;
-        const initialRemainingTime = timeoutMs > 0 ? timeoutMs - (Date.now() - startTime) : 0;
+        const hasTimeLimit = timeoutMs > 0;
 
-        while (checkCount < this.config.maxChecks && (timeoutMs === 0 || initialRemainingTime > 0)) {
-            if (signal?.aborted) break;
-
-            if (this._isTimeoutExceeded(startTime, timeoutMs)) {
-                Logger.debug(`RuleProcessor: timeout reached after ${timeoutMs}ms (in async results loop)`);
-                break;
-            }
+        while (checkCount < this.config.maxChecks) {
+            if (signal?.aborted || (hasTimeLimit && this._isTimeout(startTime, timeoutMs))) break;
 
             checkCount++;
             await sleep(this.config.asyncWaitInterval);
 
-            if (this._getAsyncResultsCount() > 0) {
+            if (this.asyncResultsQueue.size > 0) {
                 yield* this._yieldAsyncResults();
             } else if (checkCount >= this.config.maxChecks) {
                 break;
             }
         }
+    }
+
+    _processDerivation(result) {
+        return processDerivation(result, this.config.maxDerivationDepth, this.config.budgetManager);
     }
 
     getStats() {
@@ -284,21 +225,21 @@ export class RuleProcessor {
     }
 
     getStatus() {
-        const currentQueueSize = this._getAsyncResultsCount();
+        const size = this.asyncResultsQueue.size;
         return {
             ruleExecutor: this.ruleExecutor.constructor.name,
             config: this.config,
             stats: this.getStats(),
             internalState: {
-                asyncResultsQueueLength: currentQueueSize,
+                asyncResultsQueueLength: size,
                 maxQueueSize: this.maxQueueSize,
                 syncRuleExecutions: this.syncRuleExecutions,
                 asyncRuleExecutions: this.asyncRuleExecutions
             },
             backpressure: {
-                queueLength: currentQueueSize,
+                queueLength: size,
                 threshold: this.config.backpressureThreshold,
-                isApplyingBackpressure: currentQueueSize > this.config.backpressureThreshold
+                isApplyingBackpressure: size > this.config.backpressureThreshold
             },
             timestamp: Date.now()
         };
