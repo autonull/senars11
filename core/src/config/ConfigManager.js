@@ -40,8 +40,8 @@ const DEFAULT_CONFIG = deepFreeze({
         performanceTracking: true
     },
     lm: {
-        enabled: false,
-        defaultProvider: 'dummy',
+        enabled: true,
+        defaultProvider: 'ollama',
         maxConcurrentRequests: 5,
         timeout: 10000,
         retryAttempts: 2,

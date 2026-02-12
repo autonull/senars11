@@ -230,9 +230,19 @@ class SeNARSIDE {
 }
 
 async function start() {
-    const ide = new SeNARSIDE();
-    window.SeNARSIDE = ide;
-    await ide.initialize();
+    try {
+        console.log('[SeNARS IDE] Starting initialization...');
+        const ide = new SeNARSIDE();
+        window.SeNARSIDE = ide;
+        await ide.initialize();
+        console.log('[SeNARS IDE] Initialization complete.');
+    } catch (error) {
+        console.error('[SeNARS IDE] Initialization failed:', error);
+        // Ensure window.SeNARSIDE is available for debugging even if init failed
+        if (!window.SeNARSIDE) {
+             try { window.SeNARSIDE = new SeNARSIDE(); } catch(e) { console.error('Failed fallback instantiation', e); }
+        }
+    }
 }
 
 window.addEventListener('DOMContentLoaded', start);

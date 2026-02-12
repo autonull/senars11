@@ -15,8 +15,8 @@ export class LMAgentController extends EventEmitter {
         this.toolsBridge = null;
         this.conversationHistory = [];
         this.config = {
-            provider: 'webllm',
-            modelName: 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
+            provider: 'ollama',
+            modelName: 'llama3.2:1b',
             apiKey: '',
             baseUrl: ''
         };

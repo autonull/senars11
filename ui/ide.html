@@ -7,8 +7,8 @@
     <title>SeNARS Unified IDE</title>
 
     <!-- GoldenLayout Styles -->
-    <link type="text/css" rel="stylesheet" href="libs/goldenlayout-base.css" />
-    <link type="text/css" rel="stylesheet" href="libs/goldenlayout-dark-theme.css" />
+    <link type="text/css" rel="stylesheet" href="/node_modules/golden-layout/dist/css/goldenlayout-base.css" />
+    <link type="text/css" rel="stylesheet" href="/node_modules/golden-layout/dist/css/themes/goldenlayout-dark-theme.css" />
 
     <!-- Main UI Styles -->
     <link rel="stylesheet" href="style.css">
@@ -58,9 +58,16 @@
 </head>
 
 <body>
-    <div id="layout-root"></div>
     <div id="status-bar-root"></div>
+    <div id="layout-root"></div>
     <div id="notification-container"></div>
+
+    <script>
+        window.WEBSOCKET_CONFIG = {
+            port: parseInt('{{WEBSOCKET_PORT}}' || '8081', 10),
+            host: '{{WEBSOCKET_HOST}}' !== 'undefined' ? '{{WEBSOCKET_HOST}}' : 'localhost'
+        };
+    </script>
 
     <script type="importmap">
     {
