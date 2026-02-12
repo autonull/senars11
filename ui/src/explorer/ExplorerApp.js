@@ -209,7 +209,11 @@ export class ExplorerApp {
 
     showInspector(data) {
         this.inspectorPanel.update(data, this.mode);
-        if (this.layoutManager) this.layoutManager.show('inspector');
+        if (this.layoutManager) {
+            this.layoutManager.show('inspector');
+            const widget = this.layoutManager.getWidget('inspector');
+            if (widget) widget.classList.add('active-widget');
+        }
     }
 
     _initWidgets() {
