@@ -5,22 +5,22 @@ import { getOperator, getComponents } from '../term/TermUtils.js';
 
 const freeze = Object.freeze;
 
-export const Punctuation = Object.freeze({ BELIEF: '.', GOAL: '!', QUESTION: '?' });
-const TaskType = Object.freeze({ BELIEF: 'BELIEF', GOAL: 'GOAL', QUESTION: 'QUESTION' });
+export const Punctuation = freeze({ BELIEF: '.', GOAL: '!', QUESTION: '?' });
+const TaskType = freeze({ BELIEF: 'BELIEF', GOAL: 'GOAL', QUESTION: 'QUESTION' });
 
-const PUNCTUATION_TO_TYPE = Object.freeze({
+const PUNCTUATION_TO_TYPE = freeze({
     [Punctuation.BELIEF]: TaskType.BELIEF,
     [Punctuation.GOAL]: TaskType.GOAL,
     [Punctuation.QUESTION]: TaskType.QUESTION
 });
 
-const TYPE_TO_PUNCTUATION = Object.freeze({
+const TYPE_TO_PUNCTUATION = freeze({
     [TaskType.BELIEF]: Punctuation.BELIEF,
     [TaskType.GOAL]: Punctuation.GOAL,
     [TaskType.QUESTION]: Punctuation.QUESTION
 });
 
-const DEFAULT_BUDGET = Object.freeze({ priority: 0.5, durability: 0.5, quality: 0.5, cycles: 100, depth: 10 });
+const DEFAULT_BUDGET = freeze({ priority: 0.5, durability: 0.5, quality: 0.5, cycles: 100, depth: 10 });
 
 export class Task {
     constructor({ term, punctuation = Punctuation.BELIEF, truth = null, budget = DEFAULT_BUDGET, stamp = null, metadata = null }) {
@@ -48,7 +48,7 @@ export class Task {
         if (!data) throw new Error('Task.fromJSON requires valid data object');
 
         const term = typeof data.term === 'string'
-            ? { toString: () => data.term, equals: (o) => o?.toString?.() === data.term } // Minimal mock for string terms
+            ? { toString: () => data.term, equals: (o) => o?.toString?.() === data.term }
             : data.term;
 
         return new Task({
@@ -110,11 +110,8 @@ export class Task {
         if (this === other) return true;
         if (!(other instanceof Task) || this.type !== other.type) return false;
 
-        const termsEqual = this.term === other.term || this.term.equals(other.term);
-        if (!termsEqual) return false;
-
-        const truthsEqual = this.truth === other.truth || (this.truth?.equals(other.truth) ?? false);
-        return truthsEqual;
+        return (this.term === other.term || this.term.equals(other.term)) &&
+               (this.truth === other.truth || (this.truth?.equals(other.truth) ?? false));
     }
 
     toString() {
@@ -126,7 +123,7 @@ export class Task {
             term: this.term.serialize ? this.term.serialize() : this.term.toString(),
             punctuation: this.punctuation,
             type: this.type,
-            truth: this.truth ? (this.truth.serialize ? this.truth.serialize() : { f: this.truth.f, c: this.truth.c }) : null,
+            truth: this.truth?.serialize ? this.truth.serialize() : (this.truth ? { f: this.truth.f, c: this.truth.c } : null),
             budget: this.budget,
             stamp: this.stamp.serialize ? this.stamp.serialize() : null,
             version: '1.0.0'
