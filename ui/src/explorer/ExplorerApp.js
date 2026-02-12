@@ -121,9 +121,11 @@ export class ExplorerApp {
         if (!this.graph) {
             console.error("GraphPanel failed to initialize graphManager");
         } else {
-            // Bind inspector
+            // Bind inspector & AutoZoom
             this.graph.on('nodeClick', ({ node }) => {
                 const data = node.data();
+
+                this.graph.flyTo?.(node.id());
 
                 // Extract simple links for inspector
                 const links = node.connectedEdges().map(edge => {
@@ -141,16 +143,8 @@ export class ExplorerApp {
                 });
             });
 
-            // Double-click to focus
             this.graph.on('nodeDblClick', ({ node }) => {
-                if (this.graph.cy) {
-                    this.graph.cy.animate({
-                        center: { eles: node },
-                        zoom: 1.5,
-                        duration: 500
-                    });
-                    this.log(`Focused: ${node.id()}`, 'system');
-                }
+                this.log(`Focused: ${node.id()}`, 'system');
             });
 
             // Setup Context Menu proxy
@@ -934,6 +928,7 @@ export class ExplorerApp {
         this.commandPalette.registerCommand('zoom-in', 'Zoom In', '+', () => this.graph.zoomIn());
         this.commandPalette.registerCommand('zoom-out', 'Zoom Out', '-', () => this.graph.zoomOut());
         this.commandPalette.registerCommand('layout', 'Re-calculate Layout', 'L', () => this.graph.scheduleLayout());
+        this.commandPalette.registerCommand('go-back', 'Go Back (History)', 'Esc', () => this.graph.goBack?.());
 
         // Data
         this.commandPalette.registerCommand('clear', 'Clear Workspace', null, () => {
@@ -1516,6 +1511,10 @@ export class ExplorerApp {
             // Ignore subsequent shortcuts if typing in an input
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
                 return;
+            }
+
+            if (e.key === 'Escape') {
+                this.graph.goBack?.();
             }
 
             if ((e.ctrlKey || e.metaKey) && e.key === 'l') {

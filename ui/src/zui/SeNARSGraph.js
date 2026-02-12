@@ -34,6 +34,7 @@ export class SeNARSGraph extends GraphSystem {
         this._layoutTimeout = null;
         this.currentLayout = 'fcose';
         this.bag = null;
+        this.historyStack = [];
 
         this._setupGlobalListeners();
     }
@@ -104,8 +105,7 @@ export class SeNARSGraph extends GraphSystem {
             node.neighborhood().addClass('neighbor-edge');
             node.neighborhood('node').addClass('neighbor');
 
-            // Optional: Show simplified widget immediately on hover
-            // this.contextualWidget.showHoverWidget(node);
+            this.contextualWidget?.showHoverFrame(node);
         });
 
         this.cy.on('mouseout', 'node', (evt) => {
@@ -113,6 +113,55 @@ export class SeNARSGraph extends GraphSystem {
             node.removeClass('hovered');
             node.neighborhood().removeClass('neighbor-edge');
             node.neighborhood('node').removeClass('neighbor');
+
+            this.contextualWidget?.hideHoverFrame();
+        });
+    }
+
+    flyTo(nodeId) {
+        if (!this.cy) return;
+        const node = this.cy.getElementById(nodeId);
+        if (node.empty()) return;
+
+        this.historyStack.push({
+            zoom: this.cy.zoom(),
+            pan: { ...this.cy.pan() },
+            time: Date.now()
+        });
+
+        if (this.historyStack.length > 20) this.historyStack.shift();
+
+        const targetZoom = 2.5;
+
+        this.cy.animate({
+            zoom: targetZoom,
+            center: { eles: node },
+            duration: 800,
+            easing: 'ease-in-out-cubic'
+        });
+
+        // Also trigger selection/focus logic
+        this.highlightNode(nodeId);
+
+        // Notify selection
+        const data = this._getNodeData(node);
+        eventBus.emit(EVENTS.CONCEPT_SELECT, {
+            concept: data.fullData,
+            id: nodeId,
+            showDetails: true
+        });
+    }
+
+    goBack() {
+        if (!this.cy || this.historyStack.length === 0) return;
+
+        const state = this.historyStack.pop();
+
+        this.cy.animate({
+            zoom: state.zoom,
+            pan: state.pan,
+            duration: 600,
+            easing: 'ease-in-out-cubic'
         });
     }
 
