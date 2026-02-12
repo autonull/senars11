@@ -13,11 +13,16 @@ export const SemanticType = freeze({
     UNKNOWN: 'unknown'
 });
 
+/**
+ * Term represents a Narsese term (Atomic or Compound).
+ * Immutable.
+ */
 export class Term {
     constructor(type, name, components = [], operator = null) {
         this._type = type;
         this._name = name;
         this._operator = operator;
+        // Ensure components are frozen and immutable array
         this._components = freeze(type === TermType.ATOM && !components.length ? [name] : components);
 
         this._complexity = this._calculateComplexity();
@@ -26,7 +31,7 @@ export class Term {
         this._semanticType = this._determineSemanticType();
         this._typeTag = this._calculateTypeTag();
 
-        return freeze(this);
+        freeze(this);
     }
 
     get type() { return this._type; }
@@ -53,6 +58,7 @@ export class Term {
     get isVariable() { return this._semanticType === SemanticType.VARIABLE; }
     get isNALConcept() { return this._semanticType === SemanticType.NAL_CONCEPT; }
 
+    // FNV-1a hash implementation
     static hash(str) {
         let hash = 0x811c9dc5;
         for (let i = 0; i < str.length; i++) {
@@ -78,41 +84,51 @@ export class Term {
     _determineSemanticType() {
         if (this._type !== TermType.ATOM) return SemanticType.NAL_CONCEPT;
 
-        switch (true) {
-            case ['True', 'False', 'Null'].includes(this._name):
-                return SemanticType.BOOLEAN;
-            case this._name?.startsWith('?'):
-                return SemanticType.VARIABLE;
-            case !isNaN(Number(this._name)):
-                return SemanticType.NUMERIC;
-            default:
-                return SemanticType.NAL_CONCEPT;
+        // Optimized check order
+        if (this._name.length > 0) {
+            const firstChar = this._name[0];
+            if (firstChar === '?') return SemanticType.VARIABLE;
+            if (this._name === 'True' || this._name === 'False' || this._name === 'Null') return SemanticType.BOOLEAN;
+            if (!isNaN(Number(this._name))) return SemanticType.NUMERIC;
         }
+        return SemanticType.NAL_CONCEPT;
     }
 
     _calculateTypeTag() {
         if (this._type === TermType.COMPOUND) return 3;
-        if (this._name?.startsWith('?') || this._name?.startsWith('$')) return 2;
+        if (this._name.length > 0 && (this._name[0] === '?' || this._name[0] === '$')) return 2;
         return 1;
     }
 
     _calculateComplexity() {
-        return this._type === TermType.ATOM
-            ? 1
-            : 1 + this._components.reduce((sum, c) => sum + (c?.complexity ?? 0), 0);
+        if (this._type === TermType.ATOM) return 1;
+        // Reduce overhead: loop instead of reduce for large compounds
+        let sum = 1;
+        for (const c of this._components) {
+            sum += c?.complexity ?? 0;
+        }
+        return sum;
     }
 
     equals(other) {
         if (this === other) return true;
-        if (!(other instanceof Term) ||
-            this._hash !== other._hash ||
-            this._type !== other._type ||
-            this._operator !== other._operator ||
-            this._name !== other._name) return false;
+        if (!(other instanceof Term)) return false;
 
-        return this._type === TermType.COMPOUND
-            ? this._components.length === other._components.length && this._components.every((comp, i) => comp.equals(other._components[i]))
-            : true;
+        // Fail fast checks
+        if (this._hash !== other._hash) return false;
+        if (this._type !== other._type) return false;
+        if (this._operator !== other._operator) return false;
+        if (this._name !== other._name) return false;
+
+        // If simple properties match, verify deep structure for compounds
+        if (this._type === TermType.COMPOUND) {
+            const len = this._components.length;
+            if (len !== other._components.length) return false;
+            for (let i = 0; i < len; i++) {
+                if (!this._components[i].equals(other._components[i])) return false;
+            }
+        }
+        return true;
     }
 
     toString() { return this._name; }

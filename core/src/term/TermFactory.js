@@ -5,13 +5,13 @@ import { TermCache } from './TermCache.js';
 
 export { Term };
 
-const COMMUTATIVE_OPERATORS = new Set(['&', '|', '+', '<->', '||', '&&', '<~>', '{}', '[]', '=', '<=>']);
-const ASSOCIATIVE_OPERATORS = new Set(['&', '|', '||', '&&']);
-const RELATIONAL_OPERATORS = new Set(['-->', '<->', '==>', '<=>']);
-const SET_OPERATORS = new Set(['{}', '[]']);
-const IDEMPOTENT_OPERATORS = new Set(['&', '|', '||', '&&', '{}', '[]']);
+const COMMUTATIVE_OPERATORS = Object.freeze(new Set(['&', '|', '+', '<->', '||', '&&', '<~>', '{}', '[]', '=', '<=>']));
+const ASSOCIATIVE_OPERATORS = Object.freeze(new Set(['&', '|', '||', '&&']));
+const RELATIONAL_OPERATORS = Object.freeze(new Set(['-->', '<->', '==>', '<=>']));
+const SET_OPERATORS = Object.freeze(new Set(['{}', '[]']));
+const IDEMPOTENT_OPERATORS = Object.freeze(new Set(['&', '|', '||', '&&', '{}', '[]']));
 
-const CANONICAL_NAME_PATTERNS = {
+const CANONICAL_NAME_PATTERNS = Object.freeze({
     '--': (n) => `(--, ${n[0]})`,
     '&': (n) => `(&, ${n.join(', ')})`,
     '|': (n) => `(|, ${n.join(', ')})`,
@@ -29,14 +29,23 @@ const CANONICAL_NAME_PATTERNS = {
     '{}': (n) => `{${n.join(', ')}}`,
     '[]': (n) => `[${n.join(', ')}]`,
     ',': (n) => `(${n.join(', ')})`
-};
+});
 
+/**
+ * Factory for creating and managing Term instances.
+ * Handles canonicalization, caching, and simplification of terms.
+ */
 export class TermFactory extends BaseComponent {
     constructor(config = {}, eventBus = null) {
         super(config, 'TermFactory', eventBus);
         this._cache = new TermCache({ maxSize: this.config.maxCacheSize ?? 5000 });
     }
 
+    /**
+     * Creates a Term from JSON or string representation.
+     * @param {Object|string} data
+     * @returns {Term|null}
+     */
     fromJSON(data) {
         if (!data) return null;
         if (data instanceof Term) return data;
@@ -44,11 +53,19 @@ export class TermFactory extends BaseComponent {
         return this.create(data);
     }
 
+    /**
+     * Creates a term.
+     * @param {string|Object} data - Name or term object
+     * @param {Array<Term>} [components] - Optional components for compound terms
+     * @returns {Term}
+     */
     create(data, components) {
+        if (!data) throw new Error('TermFactory.create: data is required');
+
         if (typeof data === 'string' && Array.isArray(components)) {
             return this._createCompound(data, components);
         }
-        if (!data) throw new Error('TermFactory.create: data is required');
+
         if (data instanceof Term) return data;
 
         const isAtomic = typeof data === 'string' || (data.name && !data.components && !data.operator);
@@ -58,6 +75,8 @@ export class TermFactory extends BaseComponent {
     }
 
     _createCompound(operator, components) {
+        if (!operator) throw new Error('TermFactory: Operator is required for compound terms');
+
         const comps = this._processComponents(operator, components);
         const canonicalComps = this._canonicalizeComponents(operator, comps);
         const simplified = this._simplify(operator, canonicalComps);
@@ -71,10 +90,17 @@ export class TermFactory extends BaseComponent {
         }
 
         const isAssociative = ASSOCIATIVE_OPERATORS.has(operator);
-        return components.flatMap(comp => {
+        // Optimization: Single pass map + flatMap equivalent
+        const result = [];
+        for (const comp of components) {
             const term = comp instanceof Term ? comp : this.create(comp);
-            return (isAssociative && term.operator === operator) ? term.components : [term];
-        });
+            if (isAssociative && term.operator === operator) {
+                for (const c of term.components) result.push(c);
+            } else {
+                result.push(term);
+            }
+        }
+        return result;
     }
 
     _simplify(operator, comps) {
@@ -111,6 +137,7 @@ export class TermFactory extends BaseComponent {
         return this._createAndCache(operator, components, name);
     }
 
+    // Fluent API helpers
     atomic(name) { return this.create(name); }
     variable(name) { return this.create(name.startsWith('?') ? name : `?${name}`); }
     inheritance(sub, pred) { return this._createCompound('-->', [sub, pred]); }
@@ -144,6 +171,7 @@ export class TermFactory extends BaseComponent {
     }
 
     _createAndCache(operator, components, name) {
+        // Double check cache in case of race/recursion (though JS is single threaded, recursion can happen)
         const existing = this._cache.get(name);
         if (existing) return existing;
 
@@ -166,13 +194,14 @@ export class TermFactory extends BaseComponent {
     _canonicalizeComponents(operator, components) {
         if (!operator) return components;
 
-        switch (operator) {
-            case '<->':
-            case '<=>':
-                return (components.length > 2 ? components.slice(0, 2) : [...components])
-                    .sort((a, b) => (b.complexity - a.complexity) || a.name.localeCompare(b.name));
-            case '-->':
-                return components.length > 2 ? components.slice(0, 2) : components;
+        if (operator === '<->' || operator === '<=>') {
+             // Sort by complexity then name for canonical ordering of symmetric relations
+             return (components.length > 2 ? components.slice(0, 2) : [...components])
+                .sort((a, b) => (b.complexity - a.complexity) || a.name.localeCompare(b.name));
+        }
+
+        if (operator === '-->') {
+             return components.length > 2 ? components.slice(0, 2) : components;
         }
 
         if (COMMUTATIVE_OPERATORS.has(operator)) {
@@ -213,10 +242,14 @@ export class TermFactory extends BaseComponent {
         if (typeof size === 'number' && size > 0) this._cache.setMaxSize(size);
     }
 
-    getCacheSize() { return this._cache.size; }
-    clearCache() { this._cache.clear(); }
+    getCacheSize() { return this._cache ? this._cache.size : 0; }
+
+    clearCache() {
+        if (this._cache) this._cache.clear();
+    }
 
     getStats() {
+        if (!this._cache) return { cacheSize: 0, cacheHits: 0, cacheMisses: 0, cacheHitRate: 0, maxCacheSize: 0 };
         const { hits, misses, hitRate, maxSize } = this._cache.stats;
         return { cacheSize: this._cache.size, cacheHits: hits, cacheMisses: misses, cacheHitRate: hitRate, maxCacheSize: maxSize };
     }
@@ -230,7 +263,7 @@ export class TermFactory extends BaseComponent {
     }
 
     _topK(limit, compareFn) {
-        if (limit <= 0) return [];
+        if (limit <= 0 || !this._cache) return [];
         const top = [];
         for (const term of this._cache.values()) {
             top.push(term);
@@ -241,13 +274,14 @@ export class TermFactory extends BaseComponent {
     }
 
     getAverageComplexity() {
+        if (!this._cache || this._cache.size === 0) return 0;
         let sum = 0;
         let count = 0;
         for (const term of this._cache.values()) {
             sum += term.complexity;
             count++;
         }
-        return count === 0 ? 0 : sum / count;
+        return sum / count;
     }
 
     createTrue() { return this._getOrCreateAtomic('True'); }
@@ -261,5 +295,6 @@ export class TermFactory extends BaseComponent {
     async _dispose() {
         this.clearCache();
         this._cache = null;
+        super._dispose();
     }
 }
