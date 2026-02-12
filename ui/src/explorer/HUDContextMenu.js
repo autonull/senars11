@@ -112,23 +112,27 @@ export class HUDContextMenu {
     }
 
     _handleAction(action, element, type) {
-        const actions = {
-            focus: () => this._focusNode(element),
-            inspect: () => this._inspectElement(element, type),
-            pin: () => this._togglePin(element),
-            copy: () => this._copyTerm(element.data()),
-            query: () => this._queryTerm(element.data()),
-            hide: () => this._hideElement(element),
-            remove: () => this._removeElement(element),
-            'add-concept': () => this.app.handleAddConcept(),
-            'layout': () => this.app.graph.scheduleLayout(),
-            'clear': () => this.app.graph.clear()
-        };
-
-        if (actions[action]) {
-            actions[action]();
+        const handler = this._getActionHandler(action, element, type);
+        if (handler) {
+            handler();
         } else {
             console.warn(`Unknown action: ${action}`);
+        }
+    }
+
+    _getActionHandler(action, element, type) {
+        switch (action) {
+            case 'focus': return () => this._focusNode(element);
+            case 'inspect': return () => this._inspectElement(element, type);
+            case 'pin': return () => this._togglePin(element);
+            case 'copy': return () => this._copyTerm(element.data());
+            case 'query': return () => this._queryTerm(element.data());
+            case 'hide': return () => this._hideElement(element);
+            case 'remove': return () => this._removeElement(element);
+            case 'add-concept': return () => this.app.handleAddConcept();
+            case 'layout': return () => this.app.graph.scheduleLayout();
+            case 'clear': return () => this.app.graph.clear();
+            default: return null;
         }
     }
 

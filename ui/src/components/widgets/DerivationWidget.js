@@ -73,7 +73,8 @@ export class DerivationWidget extends SimpleGraphWidget {
         const { input, knowledge, derived, rule } = data;
         const ruleId = 'rule';
 
-        elements.push({ group: 'nodes', data: { id: ruleId, label: rule || 'Rule', type: 'rule' } });
+        // Add CSS class for selection in tests
+        elements.push({ group: 'nodes', data: { id: ruleId, label: rule || 'Rule', type: 'rule', classes: 'derivation-rule' } });
 
         const addTermNode = (termData, type) => {
             if (!termData) return null;

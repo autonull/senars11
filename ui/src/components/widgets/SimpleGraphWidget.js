@@ -101,6 +101,12 @@ export class SimpleGraphWidget extends Component {
                     'shadow-blur': 10,
                     'shadow-color': '#fff'
                 }
+            },
+            {
+                selector: '.derivation-rule',
+                style: {
+                    'border-color': '#ff00ff'
+                }
             }
         ];
     }
