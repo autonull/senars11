@@ -83,7 +83,11 @@ TermList
     }
 
 AtomicTerm "atomic term"
-  = chars:$([^(){}<>.,!%?; \t\n\r=&/|>-]+) { return options.termFactory.atomic(chars); }
+  = StringLiteral
+  / chars:$([^(){}<>.,!%?; \t\n\r=&/|>-]+) { return options.termFactory.atomic(chars); }
+
+StringLiteral
+  = '"' chars:$([^"]*) '"' { return options.termFactory.atomic('"' + chars + '"'); }
 
 Variable "variable"
   = varName:$([?$#*][^(){}<>.,!%?; \t\n\r=&/|>-]*) { return options.termFactory.atomic(varName); }

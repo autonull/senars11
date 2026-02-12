@@ -1,5 +1,5 @@
 import {ConfigManager} from '../config/ConfigManager.js';
-import {TermFactory} from '../term/TermFactory.js';
+import {TermFactory, Term} from '../term/TermFactory.js';
 import {Memory} from '../memory/Memory.js';
 import {TaskManager} from '../task/TaskManager.js';
 import {NarseseParser} from '../parser/NarseseParser.js';
@@ -158,7 +158,8 @@ export class NAR extends BaseComponent {
         this._streamReasoner = ReasonerBuilder.build(this.config, {
             focus: this._focus,
             memory: this._memory,
-            termFactory: this._termFactory
+            termFactory: this._termFactory,
+            parser: this._parser
         });
 
         // Subscribe to output events from the reasoner
@@ -229,7 +230,12 @@ export class NAR extends BaseComponent {
 
     async _registerRulesWithStreamReasoner() {
         if (!this._streamReasoner) return;
-        await ReasonerBuilder.registerDefaultRules(this._streamReasoner, this.config);
+        await ReasonerBuilder.registerDefaultRules(this._streamReasoner, this.config, {
+            parser: this._parser,
+            lm: this._lm,
+            embeddingLayer: this._embeddingLayer,
+            memory: this._memory
+        });
     }
 
     async input(input, options = {}) {
@@ -240,13 +246,24 @@ export class NAR extends BaseComponent {
 
             const narseseString = input;
             const parsed = this._parser.parse(narseseString);
-            if (!parsed?.term) {
+
+            let task;
+            if (parsed instanceof Term || (!parsed.term && parsed.name)) {
+                // If it parsed as a raw Term (e.g. natural language string), treat as a Belief
+                task = this._createTask({
+                    term: parsed,
+                    punctuation: '.',
+                    truthValue: null,
+                    taskType: 'BELIEF',
+                    originalInput: narseseString
+                });
+            } else if (parsed?.term) {
+                task = this._createTask(parsed);
+            } else {
                 const error = new Error('Invalid parse result');
                 error.input = narseseString;
                 throw error;
             }
-
-            const task = this._createTask(parsed);
             return await this._processNewTask(task, 'user', narseseString, parsed, options);
         } catch (error) {
             const inputError = new Error(`Input processing failed: ${error.message}`);

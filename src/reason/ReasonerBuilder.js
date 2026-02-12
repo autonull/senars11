@@ -142,7 +142,7 @@ export class ReasonerBuilder {
             .build();
     }
 
-    static async registerDefaultRules(streamReasoner, config) {
+    static async registerDefaultRules(streamReasoner, config, dependencies = {}) {
         const ruleExecutor = streamReasoner.ruleProcessor.ruleExecutor;
 
         // Import and register new stream reasoner rules
@@ -163,6 +163,24 @@ export class ReasonerBuilder {
                 const rule = new RuleClass();
                 ruleExecutor.register(rule);
             }
+        }
+
+        // Register LM rules if enabled
+        if (config.lm?.enabled && dependencies.lm) {
+             const {createNarseseTranslationRule} = await import('./rules/lm/LMNarseseTranslationRule.js');
+             const rule = createNarseseTranslationRule({
+                 lm: dependencies.lm,
+                 termFactory: streamReasoner.ruleProcessor.termFactory,
+                 parser: dependencies.parser
+             });
+             ruleExecutor.register(rule);
+
+             const {createConceptElaborationRule} = await import('./rules/lm/LMConceptElaborationRule.js');
+             const elaborationRule = createConceptElaborationRule({
+                 lm: dependencies.lm,
+                 parser: dependencies.parser
+             });
+             ruleExecutor.register(elaborationRule);
         }
     }
 }

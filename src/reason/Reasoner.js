@@ -78,10 +78,30 @@ export class Reasoner extends EventEmitter {
             for (let i = 0; i < taskCount; i++) {
                 if (Date.now() - startTime > timeoutMs) break;
 
+                const primaryPremise = focusTasks[i];
+
+                // Single premise processing (e.g. for LM rules)
+                try {
+                    const candidateRules = this.ruleProcessor.ruleExecutor.getCandidateRules(primaryPremise, null);
+
+                    const forwardResults = await this._processRuleBatch(
+                        candidateRules,
+                        primaryPremise,
+                        null,
+                        startTime,
+                        timeoutMs,
+                        suppressEvents
+                    );
+                    if (forwardResults.length > 0) {
+                        results.push(...forwardResults.filter(Boolean));
+                    }
+                } catch (error) {
+                    console.debug('Error processing single premise:', error.message);
+                }
+
                 for (let j = i + 1; j < taskCount; j++) {
                     if (Date.now() - startTime > timeoutMs) break;
 
-                    const primaryPremise = focusTasks[i];
                     const secondaryPremise = focusTasks[j];
 
                     const primaryTermId = this._getTermId(primaryPremise);
@@ -150,6 +170,16 @@ export class Reasoner extends EventEmitter {
                     const processedResult = this._processDerivation(task, suppressEvents);
                     if (processedResult) results.push(processedResult);
                 }
+            } else if (this._isAsyncRule(rule) && rule.apply) {
+                try {
+                    const derivedTasks = await rule.apply(primaryPremise, secondaryPremise);
+                    for (const task of derivedTasks) {
+                        const processedResult = this._processDerivation(task, suppressEvents);
+                        if (processedResult) results.push(processedResult);
+                    }
+                } catch (error) {
+                    console.error(`Error executing async rule ${rule.id}:`, error);
+                }
             }
         }
 
@@ -158,6 +188,10 @@ export class Reasoner extends EventEmitter {
 
     _isSynchronousRule(rule) {
         return (rule.type ?? '').toLowerCase().includes('nal');
+    }
+
+    _isAsyncRule(rule) {
+        return (rule.type ?? '').toLowerCase().includes('lm');
     }
 
     _processDerivation(derivation, suppressEvents = false) {

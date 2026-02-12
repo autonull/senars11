@@ -145,10 +145,26 @@ describe('NAR Parser Integration', () => {
         test('rejects malformed input', async () => {
             const invalidInputs = [
                 'unclosed(',
-                'missing_punct',
                 'invalid%truth%value.',
             ];
             await patterns.testErrorHandling(nar(), invalidInputs);
+        });
+
+        test('accepts missing punctuation as belief', async () => {
+            await nar().input('implicit_belief');
+            const beliefs = nar().getBeliefs();
+            const belief = beliefs.find(b => b.term.name === 'implicit_belief');
+            expect(belief).toBeDefined();
+            expect(belief.type).toBe('BELIEF');
+        });
+
+        test('accepts quoted natural language as belief', async () => {
+            const input = '"birds can fly"';
+            await nar().input(input);
+            const beliefs = nar().getBeliefs();
+            const belief = beliefs.find(b => b.term.name === input);
+            expect(belief).toBeDefined();
+            expect(belief.type).toBe('BELIEF');
         });
 
         test('handles edge cases', async () => {

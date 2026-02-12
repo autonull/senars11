@@ -26,7 +26,6 @@ export class LMRule extends Rule {
         this.name = config.name ?? id;
         this.description = config.description ?? 'Language Model Rule for generating inferences using neural models';
 
-        // Store template separately if provided for test/debugging purposes
         if (config.promptTemplate) {
             this.promptTemplate = config.promptTemplate;
         }

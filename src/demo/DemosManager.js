@@ -127,15 +127,6 @@ export class DemosManager {
                 } else {
                     console.warn(`Command execution not supported by this NAR instance: ${cmd}`);
                 }
-            } else if (input.startsWith('"')) {
-                const text = input.slice(1).replace(/"$/, '');
-                if (typeof nar.translateToNarsese === 'function') {
-                    const narsese = await nar.translateToNarsese(text);
-                    sendDemoStep?.(demoId, step, `Translated: ${text} -> ${narsese}`);
-                    await nar.input(narsese);
-                } else {
-                    throw new Error('Natural language input requires NAR with translation capability');
-                }
             } else {
                 await nar.input(input);
             }
