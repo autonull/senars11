@@ -368,24 +368,27 @@ export class MemoryIndex {
      * Calculate structural similarity between two terms
      */
     _calculateStructuralSimilarity(term1, term2) {
-        // For atomic terms with same name, return maximum similarity
-        if (!term1?.operator && !term2?.operator && term1?.name === term2?.name) {
-            return 1.0;
+        if (!term1 || !term2) return 0;
+
+        // Atomic terms
+        if (!term1.operator && !term2.operator) {
+            return term1.name === term2.name ? 1.0 : 0.1;
         }
 
-        // For compound terms, calculate similarity based on shared components
-        if (term1?.components && term2?.components) {
-            const components1 = new Set(term1.components.map(c => c.name));
-            const components2 = new Set(term2.components.map(c => c.name));
+        // Compound terms
+        if (term1.components && term2.components) {
+            const comps1 = new Set(term1.components.map(c => c.name));
+            const comps2 = new Set(term2.components.map(c => c.name));
 
-            // Calculate Jaccard similarity coefficient
-            const intersection = [...components1].filter(x => components2.has(x)).length;
-            const union = new Set([...components1, ...components2]).size;
+            let intersection = 0;
+            for (const c of comps1) {
+                if (comps2.has(c)) intersection++;
+            }
 
+            const union = comps1.size + comps2.size - intersection;
             return union > 0 ? intersection / union : 0;
         }
 
-        // For terms with different structures, return low similarity
         return 0.1;
     }
 
@@ -399,39 +402,21 @@ export class MemoryIndex {
     }
 
     getAllConcepts() {
+        const indexes = [
+            this._atomicIndex,
+            this._compoundIndex,
+            this._activationIndex,
+            this._temporalIndex,
+            this._relationshipIndex
+        ];
+
         const allConcepts = new Set();
-
-        // Use direct access to avoid creating and iterating an array
-        if (this._atomicIndex && typeof this._atomicIndex.getAll === 'function') {
-            for (const concept of this._atomicIndex.getAll()) {
-                allConcepts.add(concept);
+        for (const index of indexes) {
+            if (index?.getAll) {
+                const items = index.getAll();
+                for (const concept of items) allConcepts.add(concept);
             }
         }
-
-        if (this._compoundIndex && typeof this._compoundIndex.getAll === 'function') {
-            for (const concept of this._compoundIndex.getAll()) {
-                allConcepts.add(concept);
-            }
-        }
-
-        if (this._activationIndex && typeof this._activationIndex.getAll === 'function') {
-            for (const concept of this._activationIndex.getAll()) {
-                allConcepts.add(concept);
-            }
-        }
-
-        if (this._temporalIndex && typeof this._temporalIndex.getAll === 'function') {
-            for (const concept of this._temporalIndex.getAll()) {
-                allConcepts.add(concept);
-            }
-        }
-
-        if (this._relationshipIndex && typeof this._relationshipIndex.getAll === 'function') {
-            for (const concept of this._relationshipIndex.getAll()) {
-                allConcepts.add(concept);
-            }
-        }
-
         return Array.from(allConcepts);
     }
 
@@ -452,62 +437,41 @@ export class MemoryIndex {
             temporalEntries: this._temporalIndex.getAll().length,
             activationEntries: this._activationIndex.getAll().length,
             compoundTermsByOperator: {},
-            indexDetails: {
-                atomic: this._atomicIndex.constructor.name,
-                compound: this._compoundIndex.constructor.name,
-                activation: this._activationIndex.constructor.name,
-                temporal: this._temporalIndex.constructor.name,
-                relationship: this._relationshipIndex.constructor.name
-            }
+            indexDetails: Object.fromEntries(
+                ['atomic', 'compound', 'activation', 'temporal', 'relationship']
+                    .map(name => [name, this[`_${name}Index`].constructor.name])
+            )
         };
 
-        // Count by operator types efficiently in a single pass
         const relationshipCounters = {
             '-->': () => stats.inheritanceEntries++,
             '==>': () => stats.implicationEntries++,
-            '<->': () => stats.similarityEntries += 2 // bidirectional
+            '<->': () => stats.similarityEntries += 2
         };
 
         for (const concept of allConcepts) {
-            if (concept.term) {
-                if (concept.term.isAtomic) {
-                    stats.atomicEntries++;
-                } else {
-                    stats.operatorEntries++;
+            if (!concept.term) continue;
 
-                    if (concept.term.operator) {
-                        // Count by operator
-                        stats.compoundTermsByOperator[concept.term.operator] =
-                            (stats.compoundTermsByOperator[concept.term.operator] || 0) + 1;
+            if (concept.term.isAtomic) {
+                stats.atomicEntries++;
+            } else {
+                stats.operatorEntries++;
+                const op = concept.term.operator;
+                if (op) {
+                    stats.compoundTermsByOperator[op] = (stats.compoundTermsByOperator[op] || 0) + 1;
+                    relationshipCounters[op]?.();
+                }
 
-                        // Count by relationship type
-                        const counter = relationshipCounters[concept.term.operator];
-                        if (counter) counter();
-                    }
-
-                    // Count nested operators for compound terms
-                    if (concept.term.components) {
-                        for (const component of concept.term.components) {
-                            if (component?.operator) {
-                                stats.operatorEntries++; // Increment for each nested operator
-                            }
-                        }
+                if (concept.term.components) {
+                    for (const component of concept.term.components) {
+                        if (component?.operator) stats.operatorEntries++;
                     }
                 }
             }
         }
 
-        // For compoundByOpEntries, count unique operators
         stats.compoundByOpEntries = Object.keys(stats.compoundTermsByOperator).length;
-
-        // For component entries, count concepts that have components (subterms) more efficiently
-        const compoundConcepts = this._compoundIndex.getAll();
-        stats.componentEntries = 0;
-        for (const concept of compoundConcepts) {
-            if (concept.term && concept.term.components) {
-                stats.componentEntries++;
-            }
-        }
+        stats.componentEntries = this._compoundIndex.getAll().filter(c => c.term?.components).length;
 
         return stats;
     }
