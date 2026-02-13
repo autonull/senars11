@@ -56,7 +56,7 @@ export class CommandPalette {
     _bindEvents() {
         // Global shortcut (handled by App usually, but we can add listener here too)
         document.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            if (((e.ctrlKey || e.metaKey) && e.key === 'k') || e.key === 'F1') {
                 e.preventDefault();
                 this.toggle();
             }

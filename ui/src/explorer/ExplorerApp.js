@@ -15,6 +15,7 @@ import { ToastManager } from '../components/ToastManager.js';
 import { DemoLibraryModal } from '../components/DemoLibraryModal.js';
 import { TargetPanel } from './TargetPanel.js';
 import { getTacticalStyle } from '../visualization/ExplorerGraphTheme.js';
+import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
 
 export class ExplorerApp {
     constructor() {
@@ -34,11 +35,12 @@ export class ExplorerApp {
 
         // Context menu and other components expect a graph object with certain interface
         // We'll proxy through graphPanel.graphManager (SeNARSGraph)
-        this.contextMenu = new HUDContextMenu(this.graphPanel.graphManager, this);
+        this.contextMenu = null; // Will be initialized after graph is ready
         this.commandPalette = new CommandPalette();
         this.toastManager = new ToastManager();
         this.logger = new Logger();
         this.lmController = null;
+        this.localToolsBridge = null;
         this.mode = 'visualization';
 
         this.isReasonerRunning = false;
@@ -73,6 +75,7 @@ export class ExplorerApp {
 
         // Init Graph
         this.graphPanel.initialize(); // GraphPanel init
+        this.contextMenu = new HUDContextMenu(this.graph, this);
 
         // Wait for graphManager to be ready if async
         if (!this.graph) {
@@ -160,7 +163,7 @@ export class ExplorerApp {
         this.statusBar = new StatusBar('status-bar-container');
         this.statusBar.initialize({
             onModeSwitch: () => console.log('Mode Switch'),
-            onThemeToggle: () => console.log('Theme Toggle'),
+            onThemeToggle: () => this._toggleTheme(),
             onReasonerControl: (action, value) => this.handleReasonerControl(action, value),
             onReplSubmit: (command) => this.handleReplCommand(command),
             onWidgetToggle: (widgetId) => this.toggleWidget(widgetId)
@@ -185,14 +188,53 @@ export class ExplorerApp {
                 this._updateLLMStatus('Ready', 'ready');
             } catch (e) {
                 console.warn('LLM init failed (might need config):', e);
-                this._updateLLMStatus('Config Required', 'error');
+                // If LLM init fails, check if we have tools bridge (NAR) access
+                if (!this.lmController.toolsBridge) {
+                    await this._initLocalBridge();
+                    this._updateLLMStatus('Config Required (Local)', 'warning');
+                } else {
+                    this._updateLLMStatus('Config Required', 'warning');
+                }
             }
         } catch (e) {
             console.error('Failed to load LMAgentController module:', e);
-            this._updateLLMStatus('Module Error', 'error');
+            // Fallback to local reasoner
+            await this._initLocalBridge();
+
+            if (this.localToolsBridge) {
+                this._updateLLMStatus('Reasoner Only', 'warning');
+                this.toastManager.show('LLM unavailable - Running in Reasoner Only mode', 'info');
+            } else {
+                const errorMsg = e.message || String(e);
+                this._updateLLMStatus('Module Error', 'error');
+                this.log(`Failed to load LMAgentController: ${errorMsg}`, 'error');
+                this.toastManager.show(`Module Error: ${errorMsg}`, 'error');
+            }
         }
 
         console.log('ExplorerApp: Initialized');
+    }
+
+    async _initLocalBridge() {
+        try {
+            const module = await import('../agent/AgentToolsBridge.js');
+            this.localToolsBridge = new module.AgentToolsBridge();
+            await this.localToolsBridge.initialize();
+            this.log('Local Reasoner initialized successfully', 'system');
+        } catch (e) {
+            console.error('Failed to load AgentToolsBridge:', e);
+            this.log('Failed to load local reasoner', 'error');
+        }
+    }
+
+    _getNAR() {
+        if (this.lmController && this.lmController.toolsBridge && this.lmController.toolsBridge.getNAR()) {
+            return this.lmController.toolsBridge.getNAR();
+        }
+        if (this.localToolsBridge) {
+            return this.localToolsBridge.getNAR();
+        }
+        return null;
     }
 
     _getColorFromHash(str) {
@@ -610,7 +652,7 @@ export class ExplorerApp {
             return;
         }
 
-        if (this.lmController) {
+        if (this.lmController && this.lmController.isInitialized) {
             try {
                 const response = await this.lmController.chat(command);
                 this.log(response, 'agent');
@@ -618,6 +660,7 @@ export class ExplorerApp {
                 this.log(`Error: ${e.message}`, 'error');
             }
         } else {
+            // Basic fallback for REPL if LLM is down but we have NAR
             this.log('Agent offline. Connect LLM to chat.', 'warning');
         }
     }
@@ -640,7 +683,13 @@ export class ExplorerApp {
         if (type === 'system') color = '#cc88ff';
         if (type === 'success') color = '#55ff55';
 
-        entry.innerHTML = `<span style="color:#666">[${timestamp}]</span> <span style="color:${color}">${message}</span>`;
+        // Apply highlighting if message contains Narsese-like structure
+        let content = String(message);
+        if (type !== 'error' && (content.includes('<') || content.includes('-->') || content.includes('$') || content.includes('{'))) {
+            content = NarseseHighlighter.highlight(content);
+        }
+
+        entry.innerHTML = `<span style="color:#666">[${timestamp}]</span> <span style="color:${color}">${content}</span>`;
 
         logPanel.appendChild(entry);
         logPanel.scrollTop = logPanel.scrollHeight;
@@ -777,12 +826,34 @@ export class ExplorerApp {
 
     _bindKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
-            // Ignore if typing in an input
+            // Shortcuts valid even when focused in input
+            if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+                e.preventDefault();
+                this.toggleWidget('layers');
+                this.toggleWidget('inspector');
+                return;
+            }
+
+            if (e.key === 'F1') {
+                e.preventDefault();
+                this.commandPalette.toggle();
+                return;
+            }
+
+            // Ignore subsequent shortcuts if typing in an input
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
                 return;
             }
 
-            if (e.key === 'Delete' || e.key === 'Backspace') {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+                e.preventDefault();
+                document.getElementById('log-content').innerHTML = '';
+                this.log('Log cleared', 'system');
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+                e.preventDefault();
+                const search = document.getElementById('search-input');
+                if (search) search.focus();
+            } else if (e.key === 'Delete' || e.key === 'Backspace') {
                 this.handleDelete();
             } else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                 e.preventDefault();
@@ -795,6 +866,17 @@ export class ExplorerApp {
                 this.toggleReasoner(!this.isReasonerRunning);
             }
         });
+    }
+
+    _toggleTheme() {
+        const body = document.body;
+        if (body.classList.contains('light-theme')) {
+            body.classList.remove('light-theme');
+            this.log('Switched to Dark Theme', 'system');
+        } else {
+            body.classList.add('light-theme');
+            this.log('Switched to Light Theme', 'system');
+        }
     }
 
     loadGraphData(json) {
@@ -833,18 +915,35 @@ export class ExplorerApp {
         }
 
         if (confirm(`Delete ${selected.length} items?`)) {
+            const nodeIds = [];
             selected.forEach(ele => {
                 if (ele.isNode()) {
-                    if (this.graph.bag) this.graph.bag.remove(ele.id());
-                    else this.graph.cy.remove(ele); // Fallback
-                }
-
-                if (ele.isEdge()) {
+                    nodeIds.push(ele.id());
+                } else if (ele.isEdge()) {
                     ele.remove();
                 }
             });
 
-            if (this.graph.bag) this.graph._syncFromBag();
+            if (nodeIds.length > 0) {
+                if (this.graph.removeNodes) {
+                    this.graph.removeNodes(nodeIds);
+                } else {
+                    // Fallback
+                    nodeIds.forEach(id => {
+                        if (this.graph.removeNode) {
+                            this.graph.removeNode(id);
+                        } else {
+                            if (this.graph.bag) this.graph.bag.remove(id);
+                            else {
+                                const node = this.graph.cy.getElementById(id);
+                                if (node.nonempty()) this.graph.cy.remove(node);
+                            }
+                        }
+                    });
+                    if (this.graph.bag && !this.graph.removeNode) this.graph._syncFromBag();
+                }
+            }
+
             this.log(`Deleted ${selected.length} items.`, 'user');
             this._updateStats();
         }
@@ -886,14 +985,9 @@ export class ExplorerApp {
     }
 
     async stepReasoner() {
-        if (!this.lmController || !this.lmController.toolsBridge) {
-            this.log('Reasoner not available (LLM not connected?)', 'warning');
-            return;
-        }
-
-        const nar = this.lmController.toolsBridge.getNAR();
+        const nar = this._getNAR();
         if (!nar) {
-            this.log('NAR instance not found', 'error');
+            this.log('Reasoner not available (LLM not connected?)', 'warning');
             return;
         }
 
@@ -936,8 +1030,7 @@ export class ExplorerApp {
 
     _startStatsLoop() {
         setInterval(() => {
-            if (!this.lmController || !this.lmController.toolsBridge) return;
-            const nar = this.lmController.toolsBridge.getNAR();
+            const nar = this._getNAR();
             if (!nar) return;
 
             const stats = nar.getStats();

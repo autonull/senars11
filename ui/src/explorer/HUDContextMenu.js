@@ -133,10 +133,12 @@ export class HUDContextMenu {
     }
 
     _focusNode(element) {
-        this.graph.animateGlow(element.id(), 1.0);
+        if (this.graph.highlightNode) {
+            this.graph.highlightNode(element.id());
+        }
         element.select();
 
-        this.graph.viewport.cy.animate({
+        this.graph.cy.animate({
             center: {eles: element},
             zoom: 1.5,
             duration: 300
@@ -164,11 +166,11 @@ export class HUDContextMenu {
     }
 
     _hideElement(element) {
-        element.style('display', 'none'); // Cytoscape style
-        // Or remove from bag? removing from bag is better but this is just visual
-        // Let's actually remove it from bag for consistency with sync
-        this.graph.bag.remove(element.id());
-        this.graph._syncGraph();
+        if (this.graph.removeNode) {
+            this.graph.removeNode(element.id());
+        } else {
+            element.style('display', 'none');
+        }
         this.app.log(`Hidden: ${element.id()}`, 'system');
     }
 
@@ -190,11 +192,14 @@ export class HUDContextMenu {
 
     _removeElement(element) {
         if (element.isNode()) {
-            this.graph.bag.remove(element.id());
+            if (this.graph.removeNode) {
+                this.graph.removeNode(element.id());
+            } else {
+                element.remove();
+            }
         } else {
             element.remove();
         }
-        this.graph._syncGraph();
         this.app.log('Element removed', 'system');
     }
 }
