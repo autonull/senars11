@@ -7,7 +7,6 @@ import { StatusBar } from '../components/StatusBar.js';
 import { SystemMetricsPanel } from '../components/SystemMetricsPanel.js';
 import { HUDLayoutManager } from '../layout/HUDLayoutManager.js';
 import { ExplorerInfoPanel } from './ExplorerInfoPanel.js';
-import { ExplorerToolbar } from './ExplorerToolbar.js';
 import { LogPanel } from '../components/LogPanel.js';
 import { InspectorPanel } from '../components/InspectorPanel.js';
 import { CommandPalette } from '../components/CommandPalette.js';
@@ -31,7 +30,8 @@ export class ExplorerApp {
         this.graphPanel = new GraphPanel('graph-container', {
             useBag: true,
             bagCapacity: 50,
-            style: themeStyle
+            style: themeStyle,
+            showToolbar: false
         });
 
         // Context menu and other components expect a graph object with certain interface
@@ -57,7 +57,6 @@ export class ExplorerApp {
         // Layout & Panels
         this.layoutManager = new HUDLayoutManager('hud-overlay');
         this.infoPanel = new ExplorerInfoPanel();
-        this.controlToolbar = new ExplorerToolbar();
         this.logPanel = new LogPanel();
         this.inspectorPanel = new InspectorPanel();
 
@@ -140,23 +139,17 @@ export class ExplorerApp {
         this.metricsPanel.render();
         this.layoutManager.registerWidget('metrics', metricsContainer, 'right', true);
 
-        // 3. Log Widget (bottom) - LogPanel
+        // 3. Log Widget (right, bottom) - LogPanel
         const logContainer = document.createElement('div');
         this.logPanel.container = logContainer;
         this.logPanel.render();
-        this.layoutManager.registerWidget('log', logContainer, 'bottom', true);
+        this.layoutManager.registerWidget('log', logContainer, 'right', true);
 
-        // 4. Inspector Widget (right, bottom) - InspectorPanel
+        // 4. Inspector Widget (left, bottom) - InspectorPanel
         const inspectorContainer = document.createElement('div');
         this.inspectorPanel.container = inspectorContainer;
         this.inspectorPanel.render();
-        this.layoutManager.registerWidget('inspector', inspectorContainer, 'right', false);
-
-        // 5. Controls Widget (bottom-right corner) - ExplorerToolbar
-        const controlsContainer = document.createElement('div');
-        this.controlToolbar.container = controlsContainer;
-        this.controlToolbar.render();
-        this.layoutManager.registerWidget('controls', controlsContainer, 'none', true);
+        this.layoutManager.registerWidget('inspector', inspectorContainer, 'left', false);
 
         // 6. Target Panel (absolute positioned, not docked)
         this.targetPanel = new TargetPanel(null);
@@ -174,7 +167,8 @@ export class ExplorerApp {
             onReasonerControl: (action, value) => this.handleReasonerControl(action, value),
             onReplSubmit: (command) => this.handleReplCommand(command),
             onWidgetToggle: (widgetId) => this.toggleWidget(widgetId),
-            onConfig: () => this._showLLMConfig()
+            onConfig: () => this._showLLMConfig(),
+            onMenuAction: (action) => this.handleMenuAction(action)
         });
 
         // Start stats update loop
@@ -271,8 +265,6 @@ export class ExplorerApp {
                 this._onTaskAdded(data.derivedTask);
 
                 // Animate reasoning trace
-                // data might contain: task, belief, derivedTask
-                // or similar structure depending on core version
                 const sourceId = data.task?.term?.toString();
                 const beliefId = data.belief?.term?.toString();
                 const derivedId = data.derivedTask?.term?.toString();
@@ -306,6 +298,10 @@ export class ExplorerApp {
              budget: budget,
              type: 'concept'
         }, false);
+
+        if (this.graph.animateAttention) {
+            this.graph.animateAttention(term);
+        }
 
         // Simple relation extraction for visualization
         // Handle Prefix: (--> , source , target)
@@ -387,7 +383,51 @@ export class ExplorerApp {
         this._bindModeSwitch();
         this._bindLayerToggles();
         this._bindMappingControls();
+        this._bindLayoutControls();
         // Note: REPL and reasoner controls now in StatusBar
+    }
+
+    _bindLayoutControls() {
+        const layoutSelect = document.getElementById('layout-select');
+        if (layoutSelect) {
+            layoutSelect.onchange = (e) => {
+                const layout = e.target.value;
+                if (layout === 'scatter') {
+                    // Default scatter args or prompt? Using defaults for now.
+                    if (this.graph.applyScatterLayout) {
+                        this.graph.applyScatterLayout('priority', 'confidence');
+                    }
+                } else if (layout === 'sorted-grid') {
+                    if (this.graph.applySortedGridLayout) {
+                        this.graph.applySortedGridLayout('priority');
+                    }
+                } else {
+                    if (this.graph.setLayout) {
+                        this.graph.setLayout(layout);
+                    }
+                }
+                this.log(`Layout switched to: ${layout}`, 'system');
+            };
+        }
+
+        const isolatedCheck = document.getElementById('check-isolated');
+        if (isolatedCheck) {
+            isolatedCheck.onchange = (e) => {
+                const hide = e.target.checked;
+                this.graph.applyFilters({ hideIsolated: hide });
+                this.log(`Isolated nodes ${hide ? 'hidden' : 'shown'}`, 'system');
+            };
+        }
+
+        const prioSlider = document.getElementById('filter-priority');
+        const prioVal = document.getElementById('prio-val');
+        if (prioSlider) {
+            prioSlider.oninput = (e) => {
+                const val = parseFloat(e.target.value);
+                if (prioVal) prioVal.textContent = val.toFixed(2);
+                this.graph.applyFilters({ minPriority: val });
+            };
+        }
     }
 
     _bindSearch() {
@@ -537,6 +577,39 @@ export class ExplorerApp {
             case 'throttle':
                 this.reasonerDelay = value;
                 break;
+        }
+    }
+
+    handleMenuAction(action) {
+        switch (action) {
+            case 'save':
+                this.handleSaveJSON();
+                break;
+            case 'load':
+                this.handleLoadJSON();
+                break;
+            case 'add-concept':
+                this.handleAddConcept();
+                break;
+            case 'add-link':
+                this.handleAddLink();
+                break;
+            case 'delete':
+                this.handleDelete();
+                break;
+            case 'fit':
+                this.graph.fit();
+                break;
+            case 'layout':
+                this.graph.scheduleLayout();
+                break;
+            case 'clear':
+                this.graph.clear();
+                this.log('Workspace cleared.', 'system');
+                this._updateStats();
+                break;
+            default:
+                console.warn('Unknown menu action:', action);
         }
     }
 

@@ -14,8 +14,8 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
         const priority = ele.data('priority') || 0;
 
         return mode === 'complexity'
-            ? Math.min(30 + (label.length * 2), 80)
-            : 30 + (priority * 50); // Default: priority
+            ? Math.min(40 + (label.length * 2), 90)
+            : 40 + (priority * 50); // Default: priority
     };
 
     const getColor = (ele, prop = 'background') => {
@@ -26,20 +26,20 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
 
         if (mode === 'type') {
             const base = type === 'task' ? [255, 187, 0] : [0, 255, 157]; // Amber or Green
-            const alpha = prop === 'background' ? (0.1 + (priority * 0.4)) : 1;
+            const alpha = prop === 'background' ? (0.6 + (priority * 0.4)) : 1;
             return `rgba(${base[0]}, ${base[1]}, ${base[2]}, ${alpha})`;
         }
 
         if (mode === 'priority') {
             // Heatmap style: Low (Blue) -> High (Red)
             const hue = 240 - (priority * 240);
-            const alpha = prop === 'background' ? 0.4 : 1;
+            const alpha = prop === 'background' ? 0.6 : 1;
             return `hsla(${hue}, 80%, 50%, ${alpha})`;
         }
 
         // Default: hash
         const { hue } = getColorFromHash(label);
-        const alpha = prop === 'background' ? (0.1 + (priority * 0.4)) : 1;
+        const alpha = prop === 'background' ? (0.6 + (priority * 0.4)) : 1;
         return `hsla(${hue}, 70%, 50%, ${alpha})`;
     };
 
@@ -55,18 +55,19 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
                 },
                 'text-valign': 'center',
                 'text-halign': 'center',
-                'color': (ele) => getColor(ele, 'border'),
+                'color': '#ffffff',
+                'text-outline-color': '#000000',
+                'text-outline-width': 2,
                 'text-background-color': 'rgba(0,0,0,0.5)',
-                'text-background-opacity': 1,
-                'text-background-padding': 2,
+                'text-background-opacity': 0,
                 'background-color': (ele) => getColor(ele, 'background'),
-                'border-width': 1,
+                'border-width': 2,
                 'border-color': (ele) => getColor(ele, 'border'),
                 'width': getSize,
                 'height': getSize,
                 'font-family': 'Consolas, monospace',
-                'font-size': 10,
-                'text-transform': 'uppercase',
+                'font-size': 12,
+                'font-weight': 'bold',
                 'transition-property': 'border-width, border-color, width, height, opacity, background-color',
                 'transition-duration': '0.3s'
             }
@@ -207,6 +208,22 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
                 'overlay-color': '#00d4ff',
                 'overlay-padding': 2,
                 'overlay-opacity': 0.2
+            }
+        },
+        {
+            selector: '.reasoning-active',
+            style: {
+                'border-width': 10,
+                'border-color': '#FFaa00',
+                'transition-duration': '0.1s'
+            }
+        },
+        {
+            selector: '.attention-active',
+            style: {
+                'border-width': 6,
+                'border-color': '#00d4ff',
+                'transition-duration': '0.1s'
             }
         }
     ];

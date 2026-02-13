@@ -43,7 +43,9 @@ export class GraphPanel extends Component {
     initialize() {
         if (this.initialized || !this.container) return;
 
-        this.createToolbar();
+        if (this.graphOptions.showToolbar !== false) {
+            this.createToolbar();
+        }
         this.createGraphContainer();
 
         try {

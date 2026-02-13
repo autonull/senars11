@@ -2,7 +2,7 @@ import { ConnectionInterface } from './ConnectionInterface.js';
 // Dynamic import handled in connect() to avoid circular dependency
 // import { Agent } from '@senars/agent';
 import { Config } from '@senars/core';
-import { MeTTaInterpreter } from '@senars/metta/MeTTaInterpreter.js';
+import { MeTTaInterpreter } from '@senars/metta';
 import { Logger } from '../logging/Logger.js';
 
 export class LocalConnectionManager extends ConnectionInterface {

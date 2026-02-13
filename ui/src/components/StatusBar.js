@@ -34,13 +34,14 @@ export class StatusBar extends Component {
         );
     }
 
-    initialize({ onModeSwitch, onThemeToggle, onReasonerControl, onReplSubmit, onWidgetToggle, onConfig }) {
+    initialize({ onModeSwitch, onThemeToggle, onReasonerControl, onReplSubmit, onWidgetToggle, onConfig, onMenuAction }) {
         this.onModeSwitch = onModeSwitch;
         this.onThemeToggle = onThemeToggle;
         this.onReasonerControl = onReasonerControl;
         this.onReplSubmit = onReplSubmit;
         this.onWidgetToggle = onWidgetToggle;
         this.onConfig = onConfig;
+        this.onMenuAction = onMenuAction;
         this.render();
     }
 
@@ -49,14 +50,38 @@ export class StatusBar extends Component {
 
         this.container.innerHTML = `
             <div class="status-bar">
-                <!-- Left section: REPL -->
-                <div class="status-repl-section">
-                    <span class="repl-prompt">&gt;</span>
-                    <textarea id="status-repl-input" 
-                              class="status-repl-input" 
-                              rows="1"
-                              placeholder="Command or chat..."
-                              autocomplete="off"></textarea>
+                <!-- Left section: Menus & REPL -->
+                <div class="status-left-section">
+                    <div class="status-menus">
+                        <div class="status-menu-item">
+                            <button class="status-menu-btn">File</button>
+                            <div class="status-menu-dropdown">
+                                <button data-action="save">Save Graph...</button>
+                                <button data-action="load">Load Graph...</button>
+                            </div>
+                        </div>
+                        <div class="status-menu-item">
+                            <button class="status-menu-btn">Edit</button>
+                            <div class="status-menu-dropdown">
+                                <button data-action="add-concept">Add Node</button>
+                                <button data-action="add-link">Link Nodes</button>
+                                <button data-action="delete">Delete Selected</button>
+                                <div class="menu-divider"></div>
+                                <button data-action="fit">Fit View</button>
+                                <button data-action="layout">Auto Layout</button>
+                                <div class="menu-divider"></div>
+                                <button data-action="clear" class="danger">Clear All</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="status-repl-wrapper">
+                        <span class="repl-prompt">&gt;</span>
+                        <textarea id="status-repl-input"
+                                  class="status-repl-input"
+                                  rows="1"
+                                  placeholder="Command or chat..."
+                                  autocomplete="off"></textarea>
+                    </div>
                 </div>
 
                 <!-- Center section: Reasoner Controls -->
@@ -158,6 +183,39 @@ export class StatusBar extends Component {
                     repl.value = '';
                 }
             }
+        });
+    }
+
+    _bindMenuEvents() {
+        // Toggle dropdowns
+        const menuBtns = this.container.querySelectorAll('.status-menu-btn');
+        menuBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Close others
+                this.container.querySelectorAll('.status-menu-item.active').forEach(item => {
+                    if (item !== btn.parentNode) item.classList.remove('active');
+                });
+                btn.parentNode.classList.toggle('active');
+            });
+        });
+
+        // Close dropdowns on click outside
+        document.addEventListener('click', () => {
+            this.container.querySelectorAll('.status-menu-item.active').forEach(item => {
+                item.classList.remove('active');
+            });
+        });
+
+        // Menu actions
+        const actionBtns = this.container.querySelectorAll('.status-menu-dropdown button[data-action]');
+        actionBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const action = e.target.dataset.action;
+                if (this.onMenuAction) this.onMenuAction(action);
+                // Close menu
+                btn.closest('.status-menu-item').classList.remove('active');
+            });
         });
     }
 
