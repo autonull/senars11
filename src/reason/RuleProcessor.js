@@ -222,6 +222,14 @@ export class RuleProcessor {
         }
     }
 
+    dispatchAsyncRule(rule, primaryPremise, secondaryPremise) {
+        this._dispatchAsyncRule(rule, primaryPremise, secondaryPremise);
+    }
+
+    async *yieldAsyncResults() {
+        yield* this._yieldAsyncResults();
+    }
+
     getStats() {
         return {
             syncRuleExecutions: this.syncRuleExecutions,

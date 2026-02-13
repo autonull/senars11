@@ -116,6 +116,13 @@ export class Reasoner extends EventEmitter {
                     }
                 }
             }
+
+            // Collect async results
+            for await (const asyncResult of this.ruleProcessor.yieldAsyncResults()) {
+                 const processedResult = this._processDerivation(asyncResult, suppressEvents);
+                 if (processedResult) results.push(processedResult);
+            }
+
         } catch (error) {
             console.debug('Error in step method:', error.message);
         }
@@ -150,6 +157,8 @@ export class Reasoner extends EventEmitter {
                     const processedResult = this._processDerivation(task, suppressEvents);
                     if (processedResult) results.push(processedResult);
                 }
+            } else {
+                this.ruleProcessor.dispatchAsyncRule(rule, primaryPremise, secondaryPremise);
             }
         }
 
