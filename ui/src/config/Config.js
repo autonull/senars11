@@ -12,8 +12,17 @@ export class Config {
     static getWebSocketConfig() {
         // Get WebSocket configuration from the injected global variable
         const wsConfig = window.WEBSOCKET_CONFIG;
+
+        let host = wsConfig?.host;
+
+        // If host is explicitly localhost, but we are running on a different hostname, use that instead.
+        // This fixes issues where the server injects 'localhost' (default) but the user is accessing via IP/hostname.
+        if ((!host || host === 'localhost') && window.location.hostname && window.location.hostname !== 'localhost') {
+            host = window.location.hostname;
+        }
+
         return {
-            host: wsConfig?.host || window.location.hostname || 'localhost',
+            host: host || 'localhost',
             port: wsConfig?.port || WebSocketConfig.DEFAULT_PORT
         };
     }

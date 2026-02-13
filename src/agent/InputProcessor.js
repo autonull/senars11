@@ -110,7 +110,10 @@ export class InputProcessor {
             /%[\d.]*(?:;[\d.]*)?%/,
 
             // Legacy patterns for safety
-            /<[\w\s\-'"()[\]]*\s*\^[\w\s\-'"()[\]]*>/
+            /<[\w\s\-'"()[\]]*\s*\^[\w\s\-'"()[\]]*>/,
+
+            // Simple atomic term with punctuation: e.g. "a." or "word?" or "term!"
+            /^[\w\-]+\s*[.!?]$/
         ];
 
         // Also check if it looks like a simple term followed by punctuation

@@ -28,7 +28,8 @@ export class TaskBagPremiseSource extends PremiseSource {
             novelty: false,
             targetTime: null,  // Default to current time when used
             weights: {},
-            dynamic: false
+            dynamic: false,
+            samplingInterval: 10 // Throttle sampling to prevent CPU spinning
         }, samplingObjectives);
 
         super(memory, defaults);
@@ -95,6 +96,9 @@ export class TaskBagPremiseSource extends PremiseSource {
                 const task = await this._sampleTask();
                 if (task) {
                     yield task;
+                    if (this.samplingObjectives.samplingInterval > 0) {
+                        await sleep(this.samplingObjectives.samplingInterval);
+                    }
                 } else {
                     if (signal?.aborted) break;
                     // If no task is available, wait a bit before trying again

@@ -163,14 +163,24 @@ export class Agent extends NAR {
             this.emit(AGENT_EVENTS.NAR_TRACE_ENABLE, {reason: 'auto-step session'});
         }
 
-        this.runState.intervalId = setInterval(async () => {
+        const runLoop = async () => {
+            if (!this.runState.isRunning) return;
+
             try {
                 await this.step();
             } catch (error) {
                 console.error(`❌ Error during run: ${error.message}`);
                 this._stopRun();
+                return;
             }
-        }, interval);
+
+            if (this.runState.isRunning) {
+                this.runState.intervalId = setTimeout(runLoop, interval);
+            }
+        };
+
+        // Start the loop
+        runLoop();
 
         this.emit(AGENT_EVENTS.NAR_CYCLE_RUNNING, {interval});
         return `🏃 Auto-stepping every ${interval}ms... Use "/stop" or input to stop.`;
@@ -182,7 +192,7 @@ export class Agent extends NAR {
 
     _stopRun() {
         if (this.runState.intervalId) {
-            clearInterval(this.runState.intervalId);
+            clearTimeout(this.runState.intervalId);
             this.runState.intervalId = null;
         }
         this.runState.isRunning = false;
