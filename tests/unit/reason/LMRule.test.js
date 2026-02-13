@@ -409,3 +409,55 @@ describe('LMRuleUtils', () => {
         expect(numberProcessor('The value is 0.75')).toBe(0.75);
     });
 });
+describe('Analogical Reasoning with Embeddings', () => {
+    let mockLM;
+    let mockEmbeddingLayer;
+    let mockMemory;
+
+    beforeEach(() => {
+        mockLM = new MockLM({
+            "Analogy": "Solution based on similar problem",
+        });
+        mockEmbeddingLayer = {
+            findSimilar: async (input, candidates) => {
+                if (input.includes("problem")) {
+                    return [{item: "similar problem", similarity: 0.9}];
+                }
+                return [];
+            }
+        };
+        mockMemory = {
+            getAllConcepts: () => [
+                {term: "similar problem"},
+                {term: "unrelated concept"}
+            ]
+        };
+    });
+
+    test('should include similar concepts in prompt', async () => {
+        const rule = createAnalogicalReasoningRule({
+            lm: mockLM,
+            embeddingLayer: mockEmbeddingLayer,
+            memory: mockMemory
+        });
+
+        const goalTask = new Task('solve_problem', Punctuation.GOAL);
+        goalTask.priority = 0.9;
+
+        // Mock executeLM to inspect prompt
+        const executeSpy = jest.spyOn(rule, 'executeLM').mockImplementation(async (prompt) => {
+             if (prompt.includes('similar known concepts')) {
+                 return "Analogy found";
+             }
+             return "No analogy";
+        });
+
+        await rule.apply(goalTask, null, {});
+
+        expect(executeSpy).toHaveBeenCalled();
+        const call = executeSpy.mock.calls[0];
+        const prompt = call[0];
+        expect(prompt).toContain('similar known concepts');
+        expect(prompt).toContain('"similar problem"');
+    });
+});

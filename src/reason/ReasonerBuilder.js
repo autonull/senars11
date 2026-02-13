@@ -181,6 +181,17 @@ export class ReasonerBuilder {
                  parser: dependencies.parser
              });
              ruleExecutor.register(elaborationRule);
+
+             // Register Analogy Rule if embedding layer is present
+             if (dependencies.embeddingLayer) {
+                 const {createAnalogicalReasoningRule} = await import('./rules/lm/LMAnalogicalReasoningRule.js');
+                 const analogyRule = createAnalogicalReasoningRule({
+                     lm: dependencies.lm,
+                     embeddingLayer: dependencies.embeddingLayer,
+                     memory: dependencies.memory
+                 });
+                 ruleExecutor.register(analogyRule);
+             }
         }
     }
 }

@@ -36,15 +36,19 @@ export const createNarseseTranslationRule = (dependencies) => {
             const termStr = primaryPremise.term.name || primaryPremise.term.toString();
             const content = termStr.slice(1, -1); // Remove quotes
 
-            return `Translate the following natural language sentence into Narsese (NARS Logic).
-The output must be a valid Narsese task (Term followed by punctuation).
-Example: "Cats are mammals." -> (cat --> mammal).
-
-Sentence: "${content}"`;
+            return `Translate English to Narsese Logic.
+English: "Cats are animals."
+Narsese: (cat --> animal).
+English: "The sun is hot."
+Narsese: (sun --> [hot]).
+English: "${content}"
+Narsese:`;
         },
 
         process: (lmResponse) => {
-             return lmResponse?.trim() || '';
+             // Extract potential Narsese string (simple heuristic: starts with (, <, {, [)
+             const match = lmResponse?.match(/[\(<\[\{].*?[\)>\]\}][\.\!\?]?/s);
+             return match ? match[0].trim() : lmResponse?.trim() || '';
         },
 
         generate: (processedOutput, primaryPremise, secondaryPremise, context) => {

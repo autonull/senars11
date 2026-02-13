@@ -16,7 +16,7 @@ import {hasPattern, isGoal, isQuestion, KeywordPatterns} from '../../RuleHelpers
  * @returns {LMRule} A new LMRule instance for analogical reasoning.
  */
 export const createAnalogicalReasoningRule = (dependencies) => {
-    const {lm} = dependencies;
+    const {lm, embeddingLayer, memory} = dependencies;
     return LMRule.create({
         id: 'analogical-reasoning',
         lm,
@@ -34,9 +34,31 @@ export const createAnalogicalReasoningRule = (dependencies) => {
             return isGoalOrQuestion && priority > 0.6 && hasPattern(primaryPremise, KeywordPatterns.problemSolving);
         },
 
-        prompt: (primaryPremise, secondaryPremise, context) => {
+        prompt: async (primaryPremise, secondaryPremise, context) => {
             const termStr = primaryPremise.term?.toString?.() || String(primaryPremise.term || 'unknown');
-            return `Here is a problem: "${termStr}".
+            let contextStr = '';
+
+            if (embeddingLayer && memory) {
+                try {
+                    const concepts = memory.getAllConcepts();
+                    const candidates = concepts
+                        .map(c => c.term.toString())
+                        .filter(t => t !== termStr && !t.includes('solution_proposal'));
+
+                    if (candidates.length > 0) {
+                        const similar = await embeddingLayer.findSimilar(termStr, candidates, 0.6);
+                        const topMatches = similar.slice(0, 3).map(m => `"${m.item}"`);
+
+                        if (topMatches.length > 0) {
+                            contextStr = `\nRecall these similar known concepts: ${topMatches.join(', ')}.`;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Error fetching analogies:', e);
+                }
+            }
+
+            return `Here is a problem: "${termStr}".${contextStr}
 
 Think of a similar, well-understood problem. What is the analogy?
 Based on that analogy, describe a step-by-step solution for the original problem.`;

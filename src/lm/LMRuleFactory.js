@@ -1,7 +1,22 @@
 import {LMRule} from '../reason/LMRule.js';
 import {LMRuleUtils} from '../reason/utils/LMRuleUtils.js';
+import {createNarseseTranslationRule} from '../reason/rules/lm/LMNarseseTranslationRule.js';
+import {createConceptElaborationRule} from '../reason/rules/lm/LMConceptElaborationRule.js';
+import {createAnalogicalReasoningRule} from '../reason/rules/lm/LMAnalogicalReasoningRule.js';
 
 export class LMRuleFactory {
+    static createNarseseTranslationRule(dependencies) {
+        return createNarseseTranslationRule(dependencies);
+    }
+
+    static createConceptElaborationRule(dependencies) {
+        return createConceptElaborationRule(dependencies);
+    }
+
+    static createAnalogicalReasoningRule(dependencies) {
+        return createAnalogicalReasoningRule(dependencies);
+    }
+
     static create(config) {
         const {id, lm, ...rest} = config;
         if (!id || !lm) {
