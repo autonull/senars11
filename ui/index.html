@@ -216,42 +216,39 @@
     <div class="app-grid">
         <a href="/ide.html" class="app-card">
             <span class="app-icon">💻</span>
-            <h2 class="app-title">Local IDE</h2>
+            <h2 class="app-title">Unified IDE</h2>
             <p class="app-description">
-                Fully offline browser-based IDE. Runs the entire SeNARS engine (NAR + MeTTa) directly in your browser.
-                Perfect for experimentation, learning, and development.
+                The complete integrated development environment. Features Knowledge Graph, Memory Inspector, and REPL.
+                Supports both local (offline) and remote modes.
             </p>
-            <span class="app-badge badge-local">Offline • No Server</span>
+            <span class="app-badge badge-local">Primary</span>
         </a>
 
-        <a href="/online.html" class="app-card">
+        <a href="/ide.html?layout=dashboard&mode=remote" class="app-card">
             <span class="app-icon">🌐</span>
-            <h2 class="app-title">Online UI</h2>
+            <h2 class="app-title">Dashboard</h2>
             <p class="app-description">
-                Connect to a remote SeNARS server via WebSocket. Enables cloud-hosted instances, multi-user scenarios,
-                and production deployments.
+                Monitoring dashboard layout optimized for remote server connections. Focuses on metrics and logs.
             </p>
-            <span class="app-badge badge-online">WebSocket • Server Required</span>
+            <span class="app-badge badge-online">Remote • Monitoring</span>
         </a>
 
         <a href="/demo.html" class="app-card">
             <span class="app-icon">🎯</span>
             <h2 class="app-title">Demo Runner</h2>
             <p class="app-description">
-                Pre-configured demonstrations showcasing SeNARS capabilities. Explore reasoning examples, cognitive
-                patterns, and system features interactively.
+                Interactive graph of system demonstrations. Explore capabilities through guided examples.
             </p>
             <span class="app-badge badge-demo">Examples • Interactive</span>
         </a>
 
-        <a href="/repl.html" class="app-card">
+        <a href="/ide.html?layout=repl" class="app-card">
             <span class="app-icon">⚡</span>
-            <h2 class="app-title">REPL</h2>
+            <h2 class="app-title">REPL Only</h2>
             <p class="app-description">
-                Read-Eval-Print Loop for direct interaction with the reasoning engine. Execute Narsese commands and
-                MeTTa expressions with instant feedback.
+                Distraction-free console interface. Optimized for keyboard-heavy workflows and quick experiments.
             </p>
-            <span class="app-badge badge-dev">Developer Tool</span>
+            <span class="app-badge badge-dev">Console Mode</span>
         </a>
     </div>
 

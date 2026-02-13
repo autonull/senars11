@@ -1,5 +1,4 @@
 import {WebSocketConfig} from './WebSocketConfig.js';
-import {UIConfig} from './UIConfig.js';
 import {GraphConfig} from './GraphConfig.js';
 
 /**

@@ -22,13 +22,16 @@ export class MemoryInspector extends Component {
     initialize() {
         if (!this.container) return;
 
+        this.container.innerHTML = '';
+        this.container.style.cssText = 'height: 100%; display: flex; flex-direction: column; overflow: hidden;';
+
         const style = document.createElement('style');
         style.textContent = `
-            .mi-toolbar { padding: 8px; background: var(--bg-header); border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 5px; }
+            .mi-toolbar { padding: 8px; background: var(--bg-header); border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
             .mi-filter-row { display: flex; gap: 5px; align-items: center; }
-            .mi-list { padding: 8px; overflow-y: auto; height: calc(100% - 70px); }
+            .mi-list { padding: 8px; overflow-y: auto; flex: 1; }
             .mi-details { height: 100%; display: flex; flex-direction: column; }
-            .mi-details-header { padding: 8px; background: var(--bg-header); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px; }
+            .mi-details-header { padding: 8px; background: var(--bg-header); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
             .mi-details-content { flex: 1; overflow-y: auto; padding: 8px; }
             .mi-checkbox-label { font-size: 10px; color: var(--text-muted); display: flex; align-items: center; gap: 3px; cursor: pointer; user-select: none; }
             .mi-checkbox-label input { margin: 0; }
@@ -58,7 +61,7 @@ export class MemoryInspector extends Component {
 
         this.contentContainer = document.createElement('div');
         this.contentContainer.id = 'mi-content';
-        this.contentContainer.style.height = '100%';
+        this.contentContainer.style.cssText = 'flex: 1; overflow: hidden; position: relative;';
         this.container.appendChild(this.contentContainer);
 
         this._setupListeners();

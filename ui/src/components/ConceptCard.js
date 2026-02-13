@@ -1,6 +1,6 @@
 import { Component } from './Component.js';
 import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
-import { contextMenu } from './GlobalContextMenu.js';
+// import { contextMenu } from './GlobalContextMenu.js';
 
 export class ConceptCard extends Component {
     constructor(container, concept, options = {}) {
@@ -53,10 +53,10 @@ export class ConceptCard extends Component {
         div.addEventListener('click', () => document.dispatchEvent(new CustomEvent('senars:concept:select', { detail })));
         div.addEventListener('dblclick', () => document.dispatchEvent(new CustomEvent('senars:concept:center', { detail })));
 
-        div.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            this._showContextMenu(e);
-        });
+        // div.addEventListener('contextmenu', (e) => {
+        //     e.preventDefault();
+        //     this._showContextMenu(e);
+        // });
 
         const term = this.concept.term ?? 'unknown';
         const priority = this.concept.budget?.priority ?? 0;
@@ -116,28 +116,7 @@ export class ConceptCard extends Component {
     }
 
     _showContextMenu(e) {
-        const term = this.concept.term || this.concept.id || 'unknown';
-        const items = [
-            {
-                label: 'Copy Term',
-                icon: '📋',
-                action: () => navigator.clipboard.writeText(term)
-            },
-            {
-                label: 'Focus in Graph',
-                icon: '🎯',
-                action: () => document.dispatchEvent(new CustomEvent('senars:concept:center', {
-                    detail: { concept: this.concept, id: term }
-                }))
-            },
-            { separator: true },
-            {
-                label: 'Inspect (JSON)',
-                icon: 'ℹ️',
-                action: () => console.log('Concept:', this.concept)
-            }
-        ];
-
-        contextMenu.show(e.clientX, e.clientY, items);
+        // Deprecated: GlobalContextMenu removed.
+        // Logic to be reimplemented if needed.
     }
 }

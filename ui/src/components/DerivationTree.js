@@ -11,13 +11,17 @@ export class DerivationTree extends Component {
     initialize() {
         if (!this.container) return;
 
+        // Use standard component pattern - create elements instead of innerHTML where feasible or cleaner
+        this.container.innerHTML = '';
+        this.container.style.cssText = 'width: 100%; height: 100%; overflow: hidden;';
+
         const style = document.createElement('style');
         style.textContent = `
             .dt-container { display: flex; width: 100%; height: 100%; }
-            .dt-sidebar { width: 200px; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background: var(--bg-panel); }
-            .dt-main { flex: 1; position: relative; }
+            .dt-sidebar { width: 200px; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background: var(--bg-panel); flex-shrink: 0; }
+            .dt-main { flex: 1; position: relative; background: var(--bg-graph, #1e1e1e); }
             .dt-history-list { overflow-y: auto; flex: 1; }
-            .dt-history-item { padding: 8px; border-bottom: 1px solid var(--border-color); cursor: pointer; font-size: 11px; font-family: var(--font-mono); color: var(--text-muted); }
+            .dt-history-item { padding: 8px; border-bottom: 1px solid var(--border-color); cursor: pointer; font-size: 11px; font-family: var(--font-mono); color: var(--text-muted); transition: background 0.1s; }
             .dt-history-item:hover { background: rgba(255,255,255,0.05); }
             .dt-history-item.active { background: rgba(0,255,157,0.1); border-left: 2px solid var(--accent-primary); color: var(--text-main); }
             .dt-rule { color: var(--accent-secondary); font-weight: bold; margin-bottom: 2px; }
@@ -27,23 +31,24 @@ export class DerivationTree extends Component {
         `;
         this.container.appendChild(style);
 
-        this.container.innerHTML += `
-            <div class="dt-container">
-                <div class="dt-sidebar">
-                    <div style="padding: 8px; font-weight: bold; border-bottom: 1px solid var(--border-color); background: var(--bg-header);">HISTORY</div>
-                    <div class="dt-history-list" id="dt-history"></div>
-                    <div class="dt-toolbar">
-                        <button id="dt-export" title="Export History" style="font-size:10px;">💾 Export</button>
-                    </div>
+        const wrapper = document.createElement('div');
+        wrapper.className = 'dt-container';
+        wrapper.innerHTML = `
+            <div class="dt-sidebar">
+                <div style="padding: 8px; font-weight: bold; border-bottom: 1px solid var(--border-color); background: var(--bg-header);">HISTORY</div>
+                <div class="dt-history-list" id="dt-history"></div>
+                <div class="dt-toolbar">
+                    <button id="dt-export" title="Export History" style="padding: 2px 6px; font-size:10px; cursor: pointer;">💾 Export</button>
                 </div>
-                <div class="dt-main" id="dt-graph"></div>
             </div>
+            <div class="dt-main" id="dt-graph"></div>
         `;
+        this.container.appendChild(wrapper);
 
-        this.historyList = this.container.querySelector('#dt-history');
-        this.graphContainer = this.container.querySelector('#dt-graph');
+        this.historyList = wrapper.querySelector('#dt-history');
+        this.graphContainer = wrapper.querySelector('#dt-graph');
 
-        this.container.querySelector('#dt-export').addEventListener('click', () => this.exportHistory());
+        wrapper.querySelector('#dt-export').addEventListener('click', () => this.exportHistory());
 
         this._initCytoscape();
     }

@@ -3,76 +3,67 @@
  * @description Unit tests for Logger class functionality
  */
 
-import {Logger} from '../../../src/logging/Logger.js';
+import { jest } from '@jest/globals';
+
+// Mock @senars/core to avoid uuid issues
+jest.unstable_mockModule('@senars/core', () => ({
+    UI_CONSTANTS: {
+        LOG_ICONS: { INFO: 'ℹ️' },
+        LOG_TYPES: { INFO: 'info' }
+    }
+}));
+
+// Dynamic import to use mock
+const { Logger } = await import('../../../src/logging/Logger.js');
 
 describe('Logger', () => {
     let logger;
-    let mockUIElements;
+    let mockLogViewer;
 
     beforeEach(() => {
-        // Create real DOM elements
-        const mockLogsContainer = document.createElement('div');
-        mockLogsContainer.id = 'logs-container';
-
-        const mockNotificationContainer = document.createElement('div');
-        mockNotificationContainer.id = 'notification-container';
-
-        mockUIElements = {
-            logsContainer: mockLogsContainer,
-            notificationContainer: mockNotificationContainer
+        logger = new Logger();
+        mockLogViewer = {
+            addLog: jest.fn(),
+            logMarkdown: jest.fn(),
+            logWidget: jest.fn(),
+            clear: jest.fn()
         };
-
-        logger = new Logger(mockUIElements);
+        logger.logViewer = mockLogViewer;
     });
 
-    test('should create log entry with correct structure', () => {
+    test('should delegate log entry to logViewer', () => {
         logger.addLogEntry('Test message', 'info');
-
-        const logEntry = mockUIElements.logsContainer.querySelector('.log-entry');
-        expect(logEntry).toBeTruthy();
-        expect(logEntry.classList.contains('type-info')).toBe(true);
-        expect(logEntry.querySelector('.log-entry-content').textContent).toBe('Test message');
-        expect(logEntry.querySelector('.log-entry-icon')).toBeTruthy();
+        expect(mockLogViewer.addLog).toHaveBeenCalledWith('Test message', 'info', null);
     });
 
-    test('should clear logs and add cleared message', () => {
-        logger.addLogEntry('Existing message', 'info');
-        expect(mockUIElements.logsContainer.querySelectorAll('.log-entry')).toHaveLength(1);
-
+    test('should delegate clear logs to logViewer', () => {
         logger.clearLogs();
-
-        const logEntries = mockUIElements.logsContainer.querySelectorAll('.log-entry');
-        expect(logEntries).toHaveLength(1);
-        expect(logEntries[0].querySelector('.log-entry-content').textContent).toBe('Cleared logs');
+        expect(mockLogViewer.clear).toHaveBeenCalled();
     });
 
-    test('should set UI elements correctly', () => {
-        const newUIElements = {logsContainer: document.createElement('div')};
-        logger.setUIElements(newUIElements);
+    test('should delegate logMarkdown to logViewer', () => {
+        logger.logMarkdown('# Title');
+        expect(mockLogViewer.logMarkdown).toHaveBeenCalledWith('# Title');
+    });
 
-        expect(logger.uiElements).toBe(newUIElements);
+    test('should delegate logWidget to logViewer', () => {
+        const data = { foo: 'bar' };
+        logger.logWidget('testWidget', data);
+        expect(mockLogViewer.logWidget).toHaveBeenCalledWith('testWidget', data);
     });
 
     test('should handle notification display', () => {
+        const mockContainer = document.createElement('div');
+        mockContainer.id = 'notification-container';
+        document.body.appendChild(mockContainer);
+
         logger.showNotification('Test notification', 'info');
 
-        const notification = mockUIElements.notificationContainer.querySelector('.notification');
+        const notification = mockContainer.querySelector('.notification');
         expect(notification).toBeTruthy();
         expect(notification.textContent).toBe('Test notification');
         expect(notification.classList.contains('notification-info')).toBe(true);
-    });
 
-    test('should use provided icon when available', () => {
-        logger.addLogEntry('Test message', 'info', '🎯');
-
-        const logIcon = mockUIElements.logsContainer.querySelector('.log-entry-icon');
-        expect(logIcon.textContent).toBe('🎯');
-    });
-
-    test('should use type-based icon when no custom icon provided', () => {
-        logger.addLogEntry('Test message', 'error');
-
-        const logIcon = mockUIElements.logsContainer.querySelector('.log-entry-icon');
-        expect(logIcon.textContent).toBeTruthy(); // Should have some error icon defined
+        document.body.removeChild(mockContainer);
     });
 });

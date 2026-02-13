@@ -61,7 +61,8 @@ export class REPLPanel extends Component {
             onExecute: (cmd) => this.handleExecution(cmd),
             onClear: () => this.notebookManager.clear(),
             onDemo: () => this.showDemoSelector(),
-            onExtraAction: (action) => this.handleExtraAction(action)
+            onExtraAction: (action) => this.handleExtraAction(action),
+            onControl: (action) => this.controlReasoner(action)
         });
         this.replInput.render();
         this.container.appendChild(inputContainer);
@@ -83,6 +84,34 @@ export class REPLPanel extends Component {
         }
     }
 
+    controlReasoner(action) {
+        // Forward control actions to app (main-ide.js logic)
+        // Since main-ide.js logic for controlReasoner was coupled with REPLInput,
+        // we should probably expose a method on app or handle it here if we have access to connection.
+
+        if (this.app && this.app.connection) {
+             console.log('Reasoner control:', action);
+             if (!this.app.connection.isConnected()) {
+                 this.notebookManager.createResultCell('⚠️ Not connected', 'system');
+                 return;
+             }
+             this.app.connection.sendMessage(`control/${action}`, {});
+             this.notebookManager.createResultCell(`🎛️ Reasoner ${action}`, 'system');
+
+             // Update state in app
+             this.app.isRunning = action === 'start';
+             if (action === 'stop' || action === 'pause') this.app.isRunning = false;
+             if (action === 'reset') {
+                 this.app.cycleCount = 0;
+                 this.app.messageCount = 0;
+             }
+
+             // Update UI
+             this.replInput.updateState(this.app.isRunning);
+             this.app.updateStats(); // Update global stats
+        }
+    }
+
     handleExtraAction(action) {
          if (action === 'markdown') {
              this.notebookManager.createMarkdownCell('Double click to edit...');
@@ -90,17 +119,17 @@ export class REPLPanel extends Component {
              this.notebookManager.createWidgetCell('GraphWidget', { nodes: [], edges: [] });
          } else if (action === 'slider') {
              this.notebookManager.createWidgetCell('TruthSlider', { frequency: 0.5, confidence: 0.9 });
-         } else if (action === 'simulation') {
-             this.notebookManager.createResultCell('Starting simulation...', 'system');
-             // Trigger simulation logic (placeholder)
+         } else if (action === 'subnotebook') {
+             this.notebookManager.createWidgetCell('SubNotebook', {});
          }
     }
 
     showDemoSelector() {
-        console.log('Open demo selector');
-        // Dispatch event to open sidebar or modal if implemented
-        // For now, just log instructions
-        this.notebookManager.createResultCell('To load a demo, use the Demo Browser panel or type /load <demo>', 'info');
+        if (this.app && this.app.showDemoLibrary) {
+            this.app.showDemoLibrary();
+        } else {
+            this.notebookManager.createResultCell('Demo Library not available', 'info');
+        }
     }
 
     exportNotebook() {
@@ -120,10 +149,7 @@ export class REPLPanel extends Component {
         // Adapter to route logs to notebook
         const adapter = {
             addLog: (content, type, icon) => {
-                // Map Logger types to MessageFilter categories
                 let category = 'system';
-
-                // Heuristic mapping
                 if (type === 'result') category = 'result';
                 else if (type === 'thought') category = 'reasoning';
                 else if (type === 'debug') category = 'debug';
@@ -132,16 +158,19 @@ export class REPLPanel extends Component {
                 else if (type === 'metric') category = 'metric';
                 else if (type.includes('reasoning') || type.includes('inference')) category = 'reasoning';
 
-                // Determine view mode
-                // Construct a fake message object for MessageFilter if needed, but we used category directly here
-                // MessageFilter.getCategoryMode expects a category ID.
                 const viewMode = this.messageFilter.getCategoryMode(category);
-
                 this.notebookManager.createResultCell(content, category, viewMode);
-                return true; // Return something to indicate success
+                return true;
+            },
+            logMarkdown: (content) => {
+                this.notebookManager.createMarkdownCell(content);
+            },
+            logWidget: (type, data) => {
+                // Map widget types if necessary
+                const widgetType = type === 'graph' ? 'GraphWidget' : type;
+                this.notebookManager.createWidgetCell(widgetType, data);
             },
             clear: () => this.notebookManager.clear(),
-            // Maintain compatibility with LogViewer
             messageCounter: 0,
             icons: this.app.logger.icons || {}
         };

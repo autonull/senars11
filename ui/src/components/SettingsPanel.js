@@ -10,6 +10,7 @@ export class SettingsPanel extends Component {
         if (!this.container) return;
 
         this.container.className = 'settings-container';
+        this.container.style.height = '100%'; // Ensure full height scrolling
 
         this.render();
     }

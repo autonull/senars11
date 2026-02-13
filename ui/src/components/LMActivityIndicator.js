@@ -1,16 +1,15 @@
 export class LMActivityIndicator {
-    constructor(containerElement) {
-        this.container = containerElement;
+    constructor(container) {
+        this.container = container;
         this.overlay = null;
         this.isActive = false;
-        this._createOverlay();
+        this._init();
     }
 
-    get active() {
-        return this.isActive;
-    }
+    get active() { return this.isActive; }
 
-    _createOverlay() {
+    _init() {
+        if (!this.container) return;
         this.overlay = document.createElement('div');
         this.overlay.className = 'lm-activity-overlay hidden';
         this.overlay.innerHTML = `
@@ -20,49 +19,45 @@ export class LMActivityIndicator {
             </div>
             <div class="lm-error-container hidden">
                 <div class="lm-error-icon">⚠️</div>
-                <div class="lm-error-text">LM Error</div>
+                <div class="lm-error-text"></div>
             </div>
         `;
-        this.container?.appendChild(this.overlay);
+        this.container.appendChild(this.overlay);
     }
 
     show() {
-        if (!this.overlay) return;
-        this.isActive = true;
-        this._toggleView('lm-spinner-container', true);
+        this._setState(true, false);
     }
 
     hide() {
-        if (!this.overlay) return;
-        this.isActive = false;
-        this.overlay.classList.add('hidden');
+        this._setState(false);
     }
 
-    showError(errorMessage = 'LM Error') {
-        if (!this.overlay) return;
-        this.isActive = true;
-        this._toggleView('lm-error-container', false);
-        this.overlay.querySelector('.lm-error-text').textContent = errorMessage;
-
+    showError(msg = 'LM Error') {
+        this._setState(true, true, msg);
         setTimeout(() => this.hide(), 3000);
     }
 
-    _toggleView(containerClass, isSpinner) {
-        this.overlay.classList.remove('hidden');
-        const spinnerContainer = this.overlay.querySelector('.lm-spinner-container');
-        const errorContainer = this.overlay.querySelector('.lm-error-container');
+    _setState(visible, isError = false, msg = '') {
+        if (!this.overlay) return;
+        this.isActive = visible;
+        this.overlay.classList.toggle('hidden', !visible);
 
-        if (isSpinner) {
-            spinnerContainer.classList.remove('hidden');
-            errorContainer.classList.add('hidden');
-        } else {
-            spinnerContainer.classList.add('hidden');
-            errorContainer.classList.remove('hidden');
+        if (visible) {
+            const spinner = this.overlay.querySelector('.lm-spinner-container');
+            const error = this.overlay.querySelector('.lm-error-container');
+
+            spinner.classList.toggle('hidden', isError);
+            error.classList.toggle('hidden', !isError);
+
+            if (isError) {
+                this.overlay.querySelector('.lm-error-text').textContent = msg;
+            }
         }
     }
 
     destroy() {
-        this.overlay?.parentNode?.removeChild(this.overlay);
+        this.overlay?.remove();
         this.overlay = null;
     }
 }

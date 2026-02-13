@@ -4,7 +4,7 @@ import { MeTTaInterpreter } from '../../../metta/src/MeTTaInterpreter.js';
 import { Config } from '../../../core/src/config/Config.js';
 import { Logger } from '../logging/Logger.js';
 
-import { BROWSER_STDLIB } from '../BrowserStdlib.js';
+// import { BROWSER_STDLIB } from '../BrowserStdlib.js';
 
 export class LocalConnectionManager extends ConnectionInterface {
     constructor() {
@@ -36,7 +36,7 @@ export class LocalConnectionManager extends ConnectionInterface {
 
             this.metta = new MeTTaInterpreter(this.nar, {
                 ...config,
-                virtualFiles: BROWSER_STDLIB,
+                // virtualFiles: BROWSER_STDLIB,
                 fs: null, path: null, url: null
             });
             await this.metta.initialize();

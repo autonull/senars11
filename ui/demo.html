@@ -12,6 +12,9 @@
 
     <!-- Main UI Styles -->
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="src/styles/components.css">
+    <link rel="stylesheet" href="src/styles/effects.css">
+    <link rel="stylesheet" href="src/styles/lm-activity.css">
 
     <style>
         body,
@@ -40,33 +43,22 @@
 
 <body>
     <div id="layout-root"></div>
+    <div id="notification-container"></div>
 
-    <div class="notification-container" id="notification-container"></div>
-
-    <!-- Confirmation Modal -->
-    <div class="modal hidden" id="confirmation-modal">
-        <div class="modal-content">
-            <h3>Confirm Reset</h3>
-            <p>Are you sure you want to reset the system? This cannot be undone.</p>
-            <div class="modal-buttons">
-                <button class="primary-btn" id="btn-confirm-reset">Yes, Reset</button>
-                <button class="secondary-btn" id="btn-cancel-reset">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Inject WebSocket configuration from server
-        window.WEBSOCKET_CONFIG = {
-            port: '{{WEBSOCKET_PORT}}',
-            host: window.location.hostname || 'localhost'
-        };
-        // Basic process shim if module shim fails
-        window.process = window.process || { env: { NODE_ENV: 'development' }, platform: 'browser' };
+    <script type="importmap">
+    {
+        "imports": {
+            "cytoscape": "https://cdn.jsdelivr.net/npm/cytoscape@3.30.0/dist/cytoscape.esm.min.js",
+            "cytoscape-fcose": "https://cdn.jsdelivr.net/npm/cytoscape-fcose@2.2.0/cytoscape-fcose.js",
+            "golden-layout": "https://cdn.jsdelivr.net/npm/golden-layout@2.6.0/dist/golden-layout.js",
+            "marked": "https://cdn.jsdelivr.net/npm/marked@12.0.0/lib/marked.esm.js",
+            "@senars/core": "/core/src/index.js"
+        }
+    }
     </script>
 
-    <!-- Demo Bundle -->
-    <script type="module" src="/src/main-demo.js"></script>
+    <!-- Unified IDE Bundle (Demo Mode) -->
+    <script type="module" src="/src/main-ide.js"></script>
 </body>
 
 </html>

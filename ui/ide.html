@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SeNARS 1.0 Offline IDE</title>
+    <title>SeNARS Unified IDE</title>
 
     <!-- GoldenLayout Styles -->
     <link type="text/css" rel="stylesheet" href="libs/goldenlayout-base.css" />
@@ -13,6 +13,8 @@
     <!-- Main UI Styles -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="src/styles/components.css">
+    <link rel="stylesheet" href="src/styles/effects.css">
+    <link rel="stylesheet" href="src/styles/lm-activity.css">
 
     <style>
         body,
@@ -36,11 +38,17 @@
         .lm_content {
             background: #1e1e1e;
         }
+
+        .lm_header .lm_tab {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 12px;
+        }
     </style>
 </head>
 
 <body>
     <div id="layout-root"></div>
+    <div id="notification-container"></div>
 
     <script type="importmap">
     {

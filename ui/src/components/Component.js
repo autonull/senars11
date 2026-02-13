@@ -3,23 +3,40 @@
  */
 export class Component {
     constructor(container) {
-        this.container = typeof container === 'string' ? document.getElementById(container) : container;
-        if (!this.container) {
-            console.warn(`Container not found for ${this.constructor.name}`);
-        }
+        this.container = this._resolveContainer(container);
         this.elements = {};
     }
 
+    _resolveContainer(container) {
+        if (typeof container === 'string') {
+            const el = document.getElementById(container);
+            if (!el) {
+                console.warn(`[${this.constructor.name}] Container ID "${container}" not found in DOM.`);
+            }
+            return el;
+        }
+        return container;
+    }
+
     render() {
-        // To be implemented by subclasses
+        throw new Error(`${this.constructor.name} must implement render()`);
     }
 
     mount(parent) {
         if (parent) {
-            this.container = parent;
+            this.container = this._resolveContainer(parent);
         }
         if (this.container) {
             this.render();
+        } else {
+            console.error(`[${this.constructor.name}] Cannot mount: Invalid container.`);
         }
+    }
+
+    destroy() {
+        if (this.container) {
+            this.container.innerHTML = '';
+        }
+        this.elements = {};
     }
 }
