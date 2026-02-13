@@ -35,10 +35,7 @@ export class DemoManager {
      * Initialize and request available demos
      */
     initialize() {
-        // Load static demos first
-        this.processDemoList([]);
-
-        // Request demo list from backend
+        this.processDemoList();
         this.requestDemoList();
     }
 
@@ -116,24 +113,16 @@ export class DemoManager {
 
         try {
             const response = await fetch(`/${demo.path}`);
-            if (!response.ok) {
-                throw new Error(`Failed to load demo file: ${response.statusText}`);
-            }
+            if (!response.ok) throw new Error(`Failed to load demo file: ${response.statusText}`);
 
             const text = await response.text();
-            const lines = text.split('\n');
-            const stepDelay = 1000; // ms between steps
-
-            // Helper for delay
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith(';'));
+            const stepDelay = 1000;
             const delay = ms => new Promise(res => setTimeout(res, ms));
 
-            for (let line of lines) {
-                line = line.trim();
-                if (!line || line.startsWith(';')) continue; // Skip empty lines and comments
-
+            for (const line of lines) {
                 await delay(stepDelay);
 
-                // Check connection before processing
                 if (!this.commandProcessor.webSocketManager.isConnected()) {
                     this.logger.log('Demo execution paused: System disconnected', 'warning', '⚠️');
                     return false;
@@ -144,12 +133,11 @@ export class DemoManager {
             }
 
             this.logger.log(`Demo ${demo.name} finished.`, 'success', '🏁');
-
+            return true;
         } catch (error) {
             this.logger.log(`Error running static demo: ${error.message}`, 'error', '❌');
+            return false;
         }
-
-        return true;
     }
 
     /**

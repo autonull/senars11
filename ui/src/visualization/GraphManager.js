@@ -20,6 +20,9 @@ export class GraphManager {
 
         // Will be initialized later with command processor
         this.contextMenu = null;
+
+        // Keyboard navigation state
+        this.kbState = { index: 0, selectedNode: null };
     }
 
     /**
@@ -36,100 +39,101 @@ export class GraphManager {
 
     /**
      * Initialize keyboard navigation for accessibility
-     * - Tab: Cycle through nodes
-     * - Arrow keys: Navigate between connected nodes
-     * - Enter: Select/focus node and show details
      */
     initializeKeyboardNavigation() {
-        if (!this.uiElements?.graphContainer) return;
+        const container = this.uiElements?.graphContainer;
+        if (!container) return;
 
-        let currentNodeIndex = 0;
-        let selectedNode = null;
+        container.setAttribute('tabindex', '0');
+        container.setAttribute('role', 'application');
+        container.setAttribute('aria-label', 'SeNARS concept graph visualization');
+        container.addEventListener('keydown', (e) => this._handleKeyboardEvent(e));
+    }
 
-        // Make graph container focusable
-        this.uiElements.graphContainer.setAttribute('tabindex', '0');
-        this.uiElements.graphContainer.setAttribute('role', 'application');
-        this.uiElements.graphContainer.setAttribute('aria-label', 'SeNARS concept graph visualization');
+    _handleKeyboardEvent(e) {
+        if (!this.cy) return;
+        const nodes = this.cy.nodes();
+        if (nodes.length === 0) return;
 
-        this.uiElements.graphContainer.addEventListener('keydown', (e) => {
-            if (!this.cy) return;
+        switch (e.key) {
+            case 'Tab':
+                e.preventDefault();
+                this._cycleNodes(nodes, e.shiftKey);
+                break;
+            case 'ArrowUp':
+            case 'ArrowDown':
+            case 'ArrowLeft':
+            case 'ArrowRight':
+                e.preventDefault();
+                this._navigateNeighbors(nodes);
+                break;
+            case 'Enter':
+                e.preventDefault();
+                this._selectCurrentNode();
+                break;
+            case 'Escape':
+                e.preventDefault();
+                this._clearSelection();
+                break;
+        }
+    }
 
-            const nodes = this.cy.nodes();
-            if (nodes.length === 0) return;
+    _cycleNodes(nodes, reverse) {
+        const delta = reverse ? -1 : 1;
+        this.kbState.index = (this.kbState.index + delta + nodes.length) % nodes.length;
+        this.kbState.selectedNode = nodes[this.kbState.index];
+        this.highlightNode(this.kbState.selectedNode);
+    }
 
-            switch (e.key) {
-                case 'Tab':
-                    e.preventDefault();
-                    // Cycle through nodes
-                    if (e.shiftKey) {
-                        currentNodeIndex = (currentNodeIndex - 1 + nodes.length) % nodes.length;
-                    } else {
-                        currentNodeIndex = (currentNodeIndex + 1) % nodes.length;
-                    }
-                    selectedNode = nodes[currentNodeIndex];
-                    this.highlightNode(selectedNode);
-                    break;
+    _navigateNeighbors(nodes) {
+        const { selectedNode } = this.kbState;
+        if (selectedNode) {
+            const connected = selectedNode.neighborhood('node');
+            if (connected.length > 0) {
+                const nextNode = connected[0];
+                this.kbState.selectedNode = nextNode;
+                // Note: assuming nodes collection order is stable for index search, or strictly use array if needed.
+                // For performance with large graphs, this might need optimization, but keeping it simple for now.
+                // nodes.indexOf might not exist on collection, using array conversion check if needed or manual search?
+                // Actually Cytoscape collections are array-like but don't have indexOf.
+                // We'll rely on index maintenance or simple search.
+                // For now, let's reset index to 0 or find it if we really need consistent Tab cycling order after navigation.
+                // Finding index in full list:
+                let idx = -1;
+                for(let i=0; i<nodes.length; i++) { if(nodes[i].id() === nextNode.id()) { idx = i; break; } }
+                this.kbState.index = idx >= 0 ? idx : 0;
 
-                case 'ArrowUp':
-                case 'ArrowDown':
-                case 'ArrowLeft':
-                case 'ArrowRight':
-                    e.preventDefault();
-                    if (selectedNode) {
-                        const connectedNodes = selectedNode.neighborhood('node');
-                        if (connectedNodes.length > 0) {
-                            // Simple navigation: pick first connected node
-                            const nextNode = connectedNodes[0];
-                            selectedNode = nextNode;
-                            currentNodeIndex = nodes.indexOf(nextNode);
-                            this.highlightNode(nextNode);
-                        }
-                    } else {
-                        // No node selected, select first node
-                        selectedNode = nodes[0];
-                        currentNodeIndex = 0;
-                        this.highlightNode(selectedNode);
-                    }
-                    break;
-
-                case 'Enter':
-                    e.preventDefault();
-                    if (selectedNode) {
-                        // Trigger node selection (same as clicking)
-                        this.updateGraphDetails({
-                            type: 'node',
-                            label: selectedNode.data('label'),
-                            id: selectedNode.id(),
-                            term: selectedNode.data('fullData')?.term || selectedNode.data('label'),
-                            nodeType: selectedNode.data('type') || 'unknown',
-                            weight: selectedNode.data('weight') || 0,
-                            fullData: selectedNode.data('fullData')
-                        });
-
-                        if (this.callbacks.onNodeClick) {
-                            this.callbacks.onNodeClick({
-                                type: 'node',
-                                label: selectedNode.data('label'),
-                                id: selectedNode.id(),
-                                term: selectedNode.data('fullData')?.term || selectedNode.data('label'),
-                                nodeType: selectedNode.data('type') || 'unknown',
-                                weight: selectedNode.data('weight') || 0,
-                                fullData: selectedNode.data('fullData')
-                            });
-                        }
-                    }
-                    break;
-
-                case 'Escape':
-                    e.preventDefault();
-                    // Clear selection
-                    if (selectedNode) {
-                        this.cy.elements().removeClass('keyboard-selected');
-                        selectedNode = null;
-                    }
-                    break;
+                this.highlightNode(nextNode);
             }
-        });
+        } else {
+            this.kbState.selectedNode = nodes[0];
+            this.kbState.index = 0;
+            this.highlightNode(this.kbState.selectedNode);
+        }
+    }
+
+    _selectCurrentNode() {
+        const node = this.kbState.selectedNode;
+        if (node) {
+            const data = {
+                type: 'node',
+                label: node.data('label'),
+                id: node.id(),
+                term: node.data('fullData')?.term || node.data('label'),
+                nodeType: node.data('type') || 'unknown',
+                weight: node.data('weight') || 0,
+                fullData: node.data('fullData')
+            };
+            this.updateGraphDetails(data);
+            this.callbacks.onNodeClick?.(data);
+        }
+    }
+
+    _clearSelection() {
+        if (this.kbState.selectedNode) {
+            this.cy.elements().removeClass('keyboard-selected');
+            this.kbState.selectedNode = null;
+        }
     }
 
     /**
@@ -293,50 +297,33 @@ export class GraphManager {
     addNode(nodeData, runLayout = true) {
         if (!this.cy) return false;
 
-        const {id, label, term, type: nodeType, nodeType: nodeTypeOverride} = nodeData;
-        const nodeId = id || `concept_${Date.now()}`;
+        const { id, label, term, type, nodeType, truth, weight } = nodeData;
+        const nodeId = id ?? `concept_${Date.now()}`;
 
-        // Don't add duplicate nodes
-        if (this.cy.getElementById(nodeId).length) {
-            return false;
+        if (this.cy.getElementById(nodeId).length) return false;
+
+        let displayLabel = label ?? term ?? id;
+        if (truth) {
+            const { frequency = 0, confidence = 0 } = truth;
+            displayLabel += `\n{${frequency.toFixed(2)}, ${confidence.toFixed(2)}}`;
         }
 
-        // Create node data object efficiently
-        let displayLabel = label || term || id;
-        if (nodeData.truth) {
-            const {frequency, confidence} = nodeData.truth;
-            const freq = typeof frequency === 'number' ? frequency.toFixed(2) : '0.00';
-            const conf = typeof confidence === 'number' ? confidence.toFixed(2) : '0.00';
-            displayLabel += `\n{${freq}, ${conf}}`;
-        }
+        const typeValue = nodeType ?? type ?? 'concept';
 
-        const newNode = {
+        this.cy.add({
             group: 'nodes',
             data: {
                 id: nodeId,
                 label: displayLabel,
-                type: nodeTypeOverride || nodeType || 'concept',
-                weight: this.getNodeWeight(nodeData),
+                type: typeValue,
+                weight: weight ?? (truth?.confidence ? truth.confidence * 100 : Config.getConstants().DEFAULT_NODE_WEIGHT),
                 fullData: nodeData
             },
-            // ARIA support for accessibility
-            ariaLabel: `${nodeTypeOverride || nodeType || 'concept'} node: ${displayLabel.split('\n')[0]}`
-        };
+            ariaLabel: `${typeValue} node: ${displayLabel.split('\n')[0]}`
+        });
 
-        this.cy.add(newNode);
-
-        if (runLayout) {
-            this.scheduleLayout();
-        }
+        if (runLayout) this.scheduleLayout();
         return true;
-    }
-
-    /**
-     * Calculate node weight based on input data
-     */
-    getNodeWeight(nodeData) {
-        const {truth, weight} = nodeData;
-        return weight || (truth?.confidence ? truth.confidence * 100 : Config.getConstants().DEFAULT_NODE_WEIGHT);
     }
 
     /**
@@ -345,30 +332,23 @@ export class GraphManager {
     addEdge(edgeData, runLayout = true) {
         if (!this.cy) return false;
 
-        const {id, source, target, label, type: edgeType, edgeType: edgeTypeOverride} = edgeData;
-        const edgeId = id || `edge_${Date.now()}_${source}_${target}`;
+        const { id, source, target, label, type, edgeType } = edgeData;
+        const edgeId = id ?? `edge_${Date.now()}_${source}_${target}`;
 
-        // Don't add duplicate edges
-        if (this.cy.getElementById(edgeId).length) {
-            return false;
-        }
+        if (this.cy.getElementById(edgeId).length) return false;
 
-        const newEdge = {
+        this.cy.add({
             group: 'edges',
             data: {
                 id: edgeId,
                 source,
                 target,
-                label: label || 'Relationship',
-                type: edgeTypeOverride || edgeType || 'relationship'
+                label: label ?? 'Relationship',
+                type: edgeType ?? type ?? 'relationship'
             }
-        };
+        });
 
-        this.cy.add(newEdge);
-
-        if (runLayout) {
-            this.scheduleLayout();
-        }
+        if (runLayout) this.scheduleLayout();
         return true;
     }
 

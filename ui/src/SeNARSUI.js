@@ -13,6 +13,11 @@ import { LMActivityIndicator } from './components/LMActivityIndicator.js';
 import { ExampleBrowser } from './components/ExampleBrowser.js';
 
 export class SeNARSUI {
+    static CYCLE_EXTRACTORS = {
+        'nar.cycle.step': (p) => p?.cycle,
+        'narInstance': (p) => p?.cycleCount
+    };
+
     constructor(connectionAdapter = null) {
         this.uiElements = new UIElements();
         this.logger = new Logger();
@@ -45,6 +50,7 @@ export class SeNARSUI {
     initialize() {
         this.logger.setUIElements(this.uiElements.getAll());
         this.graphManager.initialize(this.uiElements.get('graphContainer'));
+        this.controlPanel.initialize();
 
         // Use correct IDs from Config (or hardcoded to match HTML/UIConfig)
         // ui/src/config/UIConfig.js defines: tracePanel: 'trace-panel', metricsPanel: 'metrics-panel'
@@ -148,23 +154,19 @@ export class SeNARSUI {
 
             if (this._handleSpecializedMessages(message)) return;
 
-            // The messageHandler and its logic are removed as per the diff.
-            // The specific message types are now handled in _setupWebSocketHandlers or directly here.
+            const handlers = {
+                'metrics.updated': (payload) => this.metricsPanel?.update(payload),
+                'metrics.anomaly': () => {}, // No-op
+                'activity.new': (payload) => this.activityLogPanel?.addActivity(payload)
+            };
 
-            if (message.type === 'metrics.updated' && this.metricsPanel) {
-                this.metricsPanel.update(message.payload);
-                return;
+            const handler = handlers[message.type];
+            if (handler) {
+                handler(message.payload);
+            } else {
+                this.graphManager.updateFromMessage(message);
             }
 
-            if (message.type === 'metrics.anomaly') return;
-
-            if (message.type === 'activity.new' && this.activityLogPanel) {
-                this.activityLogPanel.addActivity(message.payload);
-            }
-
-            // The generic logger.addLogEntry for content, type, icon is removed.
-            // Specific logging is now handled by individual handlers.
-            this.graphManager.updateFromMessage(message);
         } catch (error) {
             this.logger.log(`Error handling message of type ${message?.type ?? 'unknown'}: ${error.message}`, 'error', '❌');
             process?.env?.NODE_ENV !== 'production' && console.error('Full error details:', error, message);
@@ -194,12 +196,7 @@ export class SeNARSUI {
     }
 
     _updateSystemState(message) {
-        const cycleExtractors = {
-            'nar.cycle.step': (p) => p?.cycle,
-            'narInstance': (p) => p?.cycleCount
-        };
-
-        const extractor = cycleExtractors[message.type];
+        const extractor = SeNARSUI.CYCLE_EXTRACTORS[message.type];
         const cycleValue = extractor?.(message.payload);
         cycleValue !== undefined && this.controlPanel.updateCycleCount(cycleValue);
     }

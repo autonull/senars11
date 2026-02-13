@@ -47,11 +47,11 @@ export class ExampleBrowser extends Component {
     }
 
     renderNode(node, parentElement) {
-        if (node.type === 'directory') {
-            // Don't render the root directory itself, just its children
-            // unless it's a subdirectory
-            if (node.id === 'examples') {
-                 node.children.forEach(child => this.renderNode(child, parentElement));
+        const { type, id, name, path, children } = node;
+
+        if (type === 'directory') {
+            if (id === 'examples') {
+                 children.forEach(child => this.renderNode(child, parentElement));
                  return;
             }
 
@@ -59,31 +59,27 @@ export class ExampleBrowser extends Component {
             li.className = 'tree-directory';
 
             const details = document.createElement('details');
-            // details.open = true; // Optional: default open
-
             const summary = document.createElement('summary');
-            summary.innerHTML = `<span class="icon">📁</span> <span class="label">${node.name}</span>`;
+            summary.innerHTML = `<span class="icon">📁</span> <span class="label">${name}</span>`;
 
             const ul = document.createElement('ul');
-            node.children.forEach(child => this.renderNode(child, ul));
+            children.forEach(child => this.renderNode(child, ul));
 
-            details.appendChild(summary);
-            details.appendChild(ul);
+            details.append(summary, ul);
             li.appendChild(details);
             parentElement.appendChild(li);
 
-        } else if (node.type === 'file') {
+        } else if (type === 'file') {
             const li = document.createElement('li');
             li.className = 'tree-file';
 
             const button = document.createElement('button');
             button.className = 'tree-item-btn';
-            button.innerHTML = `<span class="icon">📄</span> <span class="label">${node.name}</span>`;
-            button.title = node.path;
-            button.dataset.path = node.path;
-            button.dataset.id = node.id;
+            button.innerHTML = `<span class="icon">📄</span> <span class="label">${name}</span>`;
+            Object.assign(button.dataset, { path, id });
+            button.title = path;
 
-            button.addEventListener('click', (e) => this.handleSelect(node));
+            button.addEventListener('click', () => this.handleSelect(node));
 
             li.appendChild(button);
             parentElement.appendChild(li);
@@ -91,15 +87,9 @@ export class ExampleBrowser extends Component {
     }
 
     handleSelect(node) {
-        // Highlight selection
-        const prev = this.container.querySelector('.selected');
-        if (prev) prev.classList.remove('selected');
-
-        const btn = this.container.querySelector(`button[data-id="${node.id}"]`);
-        if (btn) btn.classList.add('selected');
-
-        if (this.options.onSelect) {
-            this.options.onSelect(node);
-        }
+        const { id } = node;
+        this.container.querySelector('.selected')?.classList.remove('selected');
+        this.container.querySelector(`button[data-id="${id}"]`)?.classList.add('selected');
+        this.options.onSelect?.(node);
     }
 }

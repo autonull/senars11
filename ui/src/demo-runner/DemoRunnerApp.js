@@ -10,6 +10,12 @@ import { DemoClient } from './DemoClient.js';
  * DemoRunnerApp - Main application logic for the demo runner UI.
  */
 export class DemoRunnerApp {
+    static VIEW_TITLES = {
+        source: 'Source Code',
+        graph: 'Graph View',
+        metrics: 'Demo Metrics'
+    };
+
     constructor() {
         this.wsManager = new WebSocketManager();
         this.client = new DemoClient(this.wsManager);
@@ -95,8 +101,7 @@ export class DemoRunnerApp {
         if (this.metricsView) this.metricsView.classList.toggle('hidden', view !== 'metrics');
 
         if (this.sidebarTitle) {
-            const titles = { source: 'Source Code', graph: 'Graph View', metrics: 'Demo Metrics' };
-            this.sidebarTitle.textContent = titles[view] || 'View';
+            this.sidebarTitle.textContent = DemoRunnerApp.VIEW_TITLES[view] || 'View';
         }
 
         if (view === 'graph') {
@@ -185,16 +190,26 @@ export class DemoRunnerApp {
 
         this.graphPanel.update(msg);
 
-        if (msg.type === 'narsese.output') {
-            this.console.log(msg.payload, 'reasoning');
-        } else if (msg.type === 'reasoning.derivation' || msg.type === 'reasoning.step') {
-            this.console.log(msg.payload || 'Processing...', 'reasoning');
-        } else if (msg.type === 'task.added' || msg.type.includes('task')) {
-            this.console.log(msg.payload || 'Task processed', 'task');
+        const handlers = {
+            'narsese.output': (m) => this.console.log(m.payload, 'reasoning'),
+            'reasoning.derivation': (m) => this.console.log(m.payload || 'Processing...', 'reasoning'),
+            'reasoning.step': (m) => this.console.log(m.payload || 'Processing...', 'reasoning'),
+            'task.added': (m) => this.console.log(m.payload || 'Task processed', 'task')
+        };
+
+        const handler = handlers[msg.type];
+        if (handler) {
+            handler(msg);
+            return;
+        }
+
+        // Fallback checks for partial matches
+        if (msg.type.includes('task')) {
+             this.console.log(msg.payload || 'Task processed', 'task');
         } else if (msg.type.includes('question') || msg.type.includes('answer')) {
-            this.console.log(msg.payload || 'Question processed', 'question');
+             this.console.log(msg.payload || 'Question processed', 'question');
         } else if (msg.type.includes('concept')) {
-            this.console.log(msg.payload || 'Concept processed', 'concept');
+             this.console.log(msg.payload || 'Concept processed', 'concept');
         }
     }
 
