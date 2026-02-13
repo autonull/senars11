@@ -28,7 +28,7 @@ export class NarseseTranslator {
         };
     }
 
-    toNarsese(text) {
+    toNarsese(text, confidence = null) {
         if (typeof text !== 'string') {
             throw new Error('Input must be a string');
         }
@@ -39,16 +39,32 @@ export class NarseseTranslator {
             cleanText = cleanText.slice(0, -1);
         }
 
+        let narsese = '';
+        let found = false;
+
         for (const pattern of this.patterns.forward) {
             const match = cleanText.match(pattern.regex);
             if (match) {
-                return pattern.replacement
+                narsese = pattern.replacement
                     .replace('$1', match[1].trim())
                     .replace('$2', match[2].trim());
+                found = true;
+                break;
             }
         }
 
-        return `(${cleanText.replace(/\s+/g, '_')} --> statement).`;
+        if (!found) {
+            narsese = `(${cleanText.replace(/\s+/g, '_')} --> statement).`;
+        }
+
+        if (confidence !== null) {
+            // Append truth value if provided
+            // Narsese truth format: %frequency;confidence%
+            // We assume frequency 1.0 for positive statements
+            narsese = `${narsese} %1.0;${confidence.toFixed(2)}%`;
+        }
+
+        return narsese;
     }
 
     fromNarsese(narsese) {

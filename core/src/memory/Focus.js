@@ -1,6 +1,7 @@
 import {clamp} from '../util/common.js';
 import {BaseComponent} from '../util/BaseComponent.js';
 import {Logger} from '../util/Logger.js';
+import {Task} from '../task/Task.js';
 
 const DEFAULT_CONFIG = Object.freeze({
     maxFocusSets: 5,

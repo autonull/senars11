@@ -41,6 +41,11 @@ export class Stamp {
     };
 }
 
+/**
+ * ArrayStamp implements explicit evidence tracking using a list of derivation IDs.
+ * This effectively acts as a vector clock/causality tracker to prevent circular reasoning.
+ * If two stamps share any derivation ID (overlap), the inference is rejected.
+ */
 export class ArrayStamp extends Stamp {
     constructor({id = uuidv4(), creationTime = Date.now(), source = 'DERIVED', derivations = [], depth = 0} = {}) {
         super();

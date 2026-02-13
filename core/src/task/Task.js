@@ -50,7 +50,7 @@ export class Task {
         this.truth = this._createTruth(finalTruth);
         this.budget = freeze({ ...budget });
         this.stamp = stamp ?? ArrayStamp.createInput();
-        this.metadata = metadata;
+        this.metadata = metadata ? freeze(metadata) : null;
         freeze(this);
     }
 

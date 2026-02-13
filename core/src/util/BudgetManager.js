@@ -104,6 +104,20 @@ export class BudgetManager {
         return this.history.slice(-limit);
     }
 
+    checkCost(cost) {
+        return this.budget >= cost;
+    }
+
+    checkDerivationDepth(depth, maxDepth) {
+        return depth < maxDepth;
+    }
+
+    calculateComplexityPenalty(complexity) {
+        // Logarithmic penalty: higher complexity costs more, but diminishing returns
+        // Base cost + log2(complexity)
+        return 1 + Math.log2(Math.max(1, complexity));
+    }
+
     reset() {
         this.budget = this.getAvailable() + this.getTotalAllocated();
         this.allocations.clear();

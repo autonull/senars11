@@ -231,7 +231,7 @@ export class RuleProcessor {
     }
 
     _processDerivation(result) {
-        return processDerivation(result, this.config.maxDerivationDepth);
+        return processDerivation(result, this.config.maxDerivationDepth, this.config.budgetManager);
     }
 
     async _checkAndApplyBackpressure() {

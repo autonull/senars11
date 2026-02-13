@@ -119,7 +119,27 @@ export class MemoryConsolidation extends ConfigurableComponent {
         const relatedConcepts = [];
         const term = concept.term;
 
-        // Find concepts with similar terms (structural similarity)
+        // Use MemoryIndex if available for O(log n) lookup instead of O(n) scan
+        if (memory.index && typeof memory.index.findRelatedConcepts === 'function') {
+            const candidates = memory.index.findRelatedConcepts(term, {
+                maxResults: 50,
+                minActivation: 0.01,
+                useSemanticSimilarity: true
+            });
+
+            for (const candidate of candidates) {
+                if (candidate === concept) continue;
+
+                // Verify with rigorous similarity check
+                const similarity = this._calculateTermSimilarity(term, candidate.term);
+                if (similarity > 0.3) {
+                    relatedConcepts.push(candidate);
+                }
+            }
+            return relatedConcepts;
+        }
+
+        // Fallback to O(N) scan if index is not available
         for (const otherConcept of memory.getAllConcepts()) {
             if (otherConcept === concept) continue;
 

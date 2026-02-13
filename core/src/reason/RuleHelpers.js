@@ -62,15 +62,34 @@ export function cleanText(text) {
 export const isValidText = (text, minLength = 1, maxLength = 1000) =>
     isValidLength(text, minLength, maxLength) && !hasInvalidPattern(text, INVALID_TEXT_PATTERNS);
 
-export function processDerivation(result, maxDerivationDepth) {
+export function processDerivation(result, maxDerivationDepth, budgetManager = null) {
     if (!result?.stamp) return result;
 
     try {
         const derivationDepth = result.stamp.depth ?? 0;
 
-        if (derivationDepth > maxDerivationDepth) {
+        // Use BudgetManager if available for depth check
+        if (budgetManager && typeof budgetManager.checkDerivationDepth === 'function') {
+            if (!budgetManager.checkDerivationDepth(derivationDepth, maxDerivationDepth)) {
+                Logger.debug(`Discarding derivation - BudgetManager rejected depth (${derivationDepth} > ${maxDerivationDepth})`);
+                return null;
+            }
+        } else if (derivationDepth > maxDerivationDepth) {
             Logger.debug(`Discarding derivation - exceeds max depth (${derivationDepth} > ${maxDerivationDepth})`);
             return null;
+        }
+
+        // Apply complexity penalty if BudgetManager is available
+        if (budgetManager && typeof budgetManager.calculateComplexityPenalty === 'function' && result.term?.complexity) {
+             const penalty = budgetManager.calculateComplexityPenalty(result.term.complexity);
+             // Apply penalty to task budget (priority/durability)
+             if (result.budget) {
+                 result.budget = {
+                     ...result.budget,
+                     priority: result.budget.priority / penalty,
+                     durability: result.budget.durability / penalty
+                 };
+             }
         }
 
         return result;
