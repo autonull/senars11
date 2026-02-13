@@ -1,4 +1,4 @@
-export class ExplorerContextMenu {
+export class HUDContextMenu {
     constructor(graph, app) {
         this.graph = graph;
         this.app = app;
@@ -12,8 +12,8 @@ export class ExplorerContextMenu {
 
     _createMenuElement() {
         const menu = document.createElement('div');
-        menu.id = 'explorer-context-menu';
-        menu.className = 'context-menu hidden';
+        menu.id = 'hud-context-menu';
+        menu.className = 'context-menu hud-panel hidden';
         document.body.appendChild(menu);
         this.menuElement = menu;
     }
@@ -48,9 +48,9 @@ export class ExplorerContextMenu {
 
         // Animation
         this.menuElement.animate([
-            { opacity: 0, transform: 'scale(0.95)' },
-            { opacity: 1, transform: 'scale(1)' }
-        ], { duration: 150, easing: 'ease-out' });
+            { opacity: 0, transform: 'scaleY(0.5)' },
+            { opacity: 1, transform: 'scaleY(1)' }
+        ], { duration: 100, easing: 'ease-out' });
 
         this.menuElement.querySelectorAll('.context-menu-item').forEach(item => {
             item.addEventListener('click', () => {

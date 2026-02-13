@@ -1,5 +1,5 @@
 import { ExplorerGraph } from './ExplorerGraph.js';
-import { ExplorerContextMenu } from './ExplorerContextMenu.js';
+import { HUDContextMenu } from '../components/HUDContextMenu.js';
 import { Logger } from '../logging/Logger.js';
 import { LMConfigDialog } from '../agent/LMConfigDialog.js';
 import { DEMOS } from './demos.js';
@@ -13,11 +13,12 @@ import { InspectorPanel } from '../components/InspectorPanel.js';
 import { CommandPalette } from '../components/CommandPalette.js';
 import { ToastManager } from '../components/ToastManager.js';
 import { DemoLibraryModal } from '../components/DemoLibraryModal.js';
+import { TargetPanel } from '../components/TargetPanel.js';
 
 export class ExplorerApp {
     constructor() {
         this.graph = new ExplorerGraph('graph-container');
-        this.contextMenu = new ExplorerContextMenu(this.graph, this);
+        this.contextMenu = new HUDContextMenu(this.graph, this);
         this.commandPalette = new CommandPalette();
         this.toastManager = new ToastManager();
         this.logger = new Logger();
@@ -47,6 +48,8 @@ export class ExplorerApp {
     async initialize() {
         console.log('ExplorerApp: Initializing...');
 
+        this._setupHUD();
+
         // Init Graph
         await this.graph.initialize();
         this.loadDemo('Solar System');
@@ -74,6 +77,13 @@ export class ExplorerApp {
         this.metricsPanel = new SystemMetricsPanel(null); // No static container
         this.metricsPanel.initialize();
         this.layoutManager.addComponent(this.metricsPanel, 'top');
+
+        this.targetPanel = new TargetPanel(null); // Will be absolute
+        const targetContainer = document.createElement('div');
+        targetContainer.id = 'target-panel-container';
+        document.body.appendChild(targetContainer);
+        this.targetPanel.container = targetContainer; // Manual mount
+        this.targetPanel.render();
 
         this.layoutManager.addComponent(this.controlToolbar, 'bottom');
         this.layoutManager.addComponent(this.logPanel, 'left');
@@ -114,73 +124,82 @@ export class ExplorerApp {
     }
 
     _bindControls() {
-        // Navigation Controls
-        this._bindClick('btn-fit', () => this.graph.fit());
-        this._bindClick('btn-in', () => this.graph.zoomIn());
-        this._bindClick('btn-out', () => this.graph.zoomOut());
-        this._bindClick('btn-layout', () => this.graph.relayout());
+        const bindings = [
+            { id: 'btn-fit', action: () => this.graph.fit() },
+            { id: 'btn-in', action: () => this.graph.zoomIn() },
+            { id: 'btn-out', action: () => this.graph.zoomOut() },
+            { id: 'btn-layout', action: () => this.graph.relayout() },
+            { id: 'btn-clear', action: () => { this.graph.clear(); this.log('Workspace cleared.', 'system'); this._updateStats(); } },
+            { id: 'btn-add-concept', action: () => this.handleAddConcept() },
+            { id: 'btn-add-link', action: () => this.handleAddLink() },
+            { id: 'btn-delete', action: () => this.handleDelete() },
+            { id: 'btn-run', action: () => this.toggleReasoner(true) },
+            { id: 'btn-pause', action: () => this.toggleReasoner(false) },
+            { id: 'btn-step', action: () => this.stepReasoner() },
+            { id: 'btn-llm-config', action: () => this._showLLMConfig() },
+            { id: 'btn-close-inspector', action: () => document.getElementById('inspector-panel')?.classList.add('hidden') }
+        ];
 
-        // Data Controls
-        this._bindClick('btn-clear', () => {
-            this.graph.clear();
-            this.log('Cleared workspace.', 'system');
-            this._updateStats();
-        });
+        bindings.forEach(({ id, action }) => this._bindClick(id, action));
 
-        // Search
+        this._bindSearch();
+        this._bindDemoSelect();
+        this._bindModeSwitch();
+        this._bindThrottleSlider();
+        this._bindRepl();
+        this._bindLayerToggles();
+        this._bindMappingControls();
+    }
+
+    _bindSearch() {
         const searchInput = document.getElementById('search-input');
-        if (searchInput) {
-            searchInput.onkeydown = (e) => {
-                if (e.key === 'Enter') {
-                    const term = searchInput.value.trim();
-                    if (term) {
-                        const foundNode = this.graph.findNode(term);
-                        if (foundNode) {
-                            this.log(`Found: ${term}`, 'system');
-                            searchInput.value = '';
+        if (!searchInput) return;
 
-                            this.showInspector({
-                                id: foundNode.id(),
-                                ...foundNode.data()
-                            });
-                            foundNode.select();
-                        } else {
-                            this.log(`Not found: ${term}`, 'warning');
-                        }
+        searchInput.oninput = (e) => {
+            const term = e.target.value.trim();
+            this.graph.highlightMatches(term);
+        };
+
+        searchInput.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                const term = searchInput.value.trim();
+                if (term) {
+                    const foundNode = this.graph.findNode(term);
+                    if (foundNode) {
+                        this.log(`Found: ${term}`, 'system');
+                        this.showInspector({ id: foundNode.id(), ...foundNode.data() });
+                        foundNode.select();
+                    } else {
+                        this.log(`Not found: ${term}`, 'warning');
                     }
                 }
-            };
-        }
+            }
+        };
+    }
 
-        // Demo Select (Deprecated by Command/Modal but kept for legacy UI if present)
+    _bindDemoSelect() {
         const demoSelect = document.getElementById('demo-select');
-        if (demoSelect) {
-            // Remove existing logic to avoid duplicates if re-bound
-            const newSelect = demoSelect.cloneNode(false);
-            demoSelect.parentNode.replaceChild(newSelect, demoSelect);
+        if (!demoSelect) return;
 
-            Object.keys(DEMOS).forEach(name => {
-                const opt = document.createElement('option');
-                opt.value = name;
-                opt.textContent = name;
-                newSelect.appendChild(opt);
-            });
+        const newSelect = demoSelect.cloneNode(false);
+        demoSelect.parentNode.replaceChild(newSelect, demoSelect);
 
-            newSelect.onchange = (e) => {
-                if (e.target.value) {
-                    this.loadDemo(e.target.value);
-                    e.target.value = "";
-                }
-            };
-        }
-
-        // Inspector
-        this._bindClick('btn-close-inspector', () => {
-             const panel = document.getElementById('inspector-panel');
-             if(panel) panel.classList.add('hidden');
+        Object.keys(DEMOS).forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            newSelect.appendChild(opt);
         });
 
-        // Mode Switching
+        newSelect.onchange = (e) => {
+            if (e.target.value) {
+                this.loadDemo(e.target.value);
+                e.target.value = "";
+            }
+        };
+    }
+
+    _bindModeSwitch() {
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.onclick = (e) => {
                 document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
@@ -188,17 +207,9 @@ export class ExplorerApp {
                 this.setMode(e.target.dataset.mode);
             };
         });
+    }
 
-        // Gardening Tools
-        this._bindClick('btn-add-concept', () => this.handleAddConcept());
-        this._bindClick('btn-add-link', () => this.handleAddLink());
-        this._bindClick('btn-delete', () => this.handleDelete());
-
-        // Reasoner Controls
-        this._bindClick('btn-run', () => this.toggleReasoner(true));
-        this._bindClick('btn-pause', () => this.toggleReasoner(false));
-        this._bindClick('btn-step', () => this.stepReasoner());
-
+    _bindThrottleSlider() {
         const slider = document.getElementById('throttle-slider');
         const label = document.getElementById('throttle-val');
         if (slider && label) {
@@ -207,22 +218,9 @@ export class ExplorerApp {
                 label.textContent = `${this.reasonerDelay}ms`;
             };
         }
+    }
 
-        // LLM Config
-        this._bindClick('btn-llm-config', () => {
-            new LMConfigDialog(document.body, {
-                onSave: async (config) => {
-                    if (this.lmController) {
-                        await this.lmController.reconfigure(config);
-                        this._updateLLMStatus('Ready', 'ready');
-                    } else {
-                        alert('LLM Controller not available.');
-                    }
-                }
-            }).show();
-        });
-
-        // REPL
+    _bindRepl() {
         const input = document.getElementById('repl-input');
         if (input) {
             input.onkeydown = async (e) => {
@@ -233,6 +231,50 @@ export class ExplorerApp {
                 }
             };
         }
+    }
+
+    _bindLayerToggles() {
+        document.querySelectorAll('input[data-layer]').forEach(input => {
+            input.onchange = (e) => {
+                const layer = e.target.dataset.layer;
+                const visible = e.target.checked;
+                this.graph.toggleLayer(layer, visible);
+                this.log(`${layer} layer ${visible ? 'visible' : 'hidden'}`, 'system');
+            };
+        });
+    }
+
+    _bindMappingControls() {
+        const sizeSelect = document.getElementById('mapping-size');
+        if (sizeSelect) {
+            sizeSelect.onchange = (e) => {
+                this.graph.setSizeMapping(e.target.value);
+                this.log(`Size mapping: ${e.target.value}`, 'system');
+            };
+        }
+
+        const colorSelect = document.getElementById('mapping-color');
+        if (colorSelect) {
+            colorSelect.onchange = (e) => {
+                this.graph.setColorMapping(e.target.value);
+                this.log(`Color mapping: ${e.target.value}`, 'system');
+            };
+        }
+    }
+
+    _showLLMConfig() {
+        new LMConfigDialog(document.body, {
+            onSave: async (config) => {
+                if (this.lmController) {
+                    await this.lmController.reconfigure(config);
+                    this._updateLLMStatus('Ready', 'ready');
+                } else {
+                    alert('LLM Controller not available.');
+                }
+            }
+        }).show();
+    }
+
     }
 
     _bindClick(id, handler) {
@@ -275,6 +317,15 @@ export class ExplorerApp {
 
         this.log(`Updated node ${id}`, 'success');
         this.showInspector({ id, ...item.data, ...updates });
+    }
+
+    _setupHUD() {
+        // Inject HUD visual elements
+        if (!document.querySelector('.hud-grid-background')) {
+            const grid = document.createElement('div');
+            grid.className = 'hud-grid-background';
+            document.body.prepend(grid);
+        }
     }
 
     _registerCommands() {

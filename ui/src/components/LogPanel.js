@@ -1,6 +1,4 @@
 import { Component } from './Component.js';
-import { DEMOS } from '../explorer/demos.js';
-import { LMConfigDialog } from '../agent/LMConfigDialog.js';
 
 export class LogPanel extends Component {
     constructor(container) {

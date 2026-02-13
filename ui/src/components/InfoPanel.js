@@ -22,6 +22,32 @@ export class InfoPanel extends Component {
                     <button class="btn mode-btn" data-mode="representation">REP</button>
                     <button class="btn mode-btn" data-mode="control">CTL</button>
                 </div>
+                <h3>LAYERS</h3>
+                <div class="layer-controls">
+                    <label class="layer-toggle">
+                        <input type="checkbox" checked data-layer="concepts">
+                        <span class="layer-label">CONCEPTS 🧠</span>
+                    </label>
+                    <label class="layer-toggle">
+                        <input type="checkbox" checked data-layer="tasks">
+                        <span class="layer-label">TASKS ⚡</span>
+                    </label>
+                </div>
+                <h3>VISUAL MAPPINGS</h3>
+                <div class="control-group">
+                    <select id="mapping-size" class="control-select small-btn">
+                        <option value="priority">SIZE: PRIORITY</option>
+                        <option value="complexity">SIZE: COMPLEXITY</option>
+                        <option value="fixed">SIZE: FIXED</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <select id="mapping-color" class="control-select small-btn">
+                        <option value="hash">COLOR: HASH</option>
+                        <option value="type">COLOR: TYPE</option>
+                        <option value="priority">COLOR: PRIORITY</option>
+                    </select>
+                </div>
             </div>
         `;
     }
