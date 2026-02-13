@@ -308,15 +308,6 @@
   - Demo progress tracking
   - Export demo results
 
-### 5.3 Collaboration (Future)
-
-- [ ] **Real-time collaboration** (optional, remote mode)
-  - Multiple users connect to same server
-  - Shared notebook editing (like Google Docs)
-  - Cursor presence indicators
-  - Chat sidebar
-  - Permissions (read-only, edit, admin)
-
 ---
 
 ## Phase 6: Developer Experience & Testing
@@ -442,6 +433,18 @@ npm run ui:preview          # Preview build locally
   - Debounced scroll/resize handlers
   - Virtual scrolling for long lists
   - Lazy loading for images/widgets
+
+
+## Phase 8: Networking
+
+### 8.1 Collaboration
+
+- [ ] **Real-time collaboration** (optional, remote mode)
+  - Multiple users connect to same server
+  - Shared notebook editing (like Google Docs)
+  - Cursor presence indicators
+  - Chat sidebar
+  - Permissions (read-only, edit, admin)
 
 ---
 

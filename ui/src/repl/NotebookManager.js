@@ -210,15 +210,15 @@ export class ResultCell extends REPLCell {
         const collapseBtn = this._createActionBtn('🔽', 'Collapse', () => this.updateViewMode(VIEW_MODES.COMPACT));
 
         const copyBtn = this._createActionBtn('📋', 'Copy', (e) => {
-             const text = typeof this.content === 'object' ? JSON.stringify(this.content, null, 2) : this.content;
-             navigator.clipboard.writeText(text);
-             copyBtn.innerHTML = '✅';
-             setTimeout(() => copyBtn.innerHTML = '📋', 1500);
+            const text = typeof this.content === 'object' ? JSON.stringify(this.content, null, 2) : this.content;
+            navigator.clipboard.writeText(text);
+            copyBtn.innerHTML = '✅';
+            setTimeout(() => copyBtn.innerHTML = '📋', 1500);
         });
 
         // Info tooltip or popover could go here
         const infoBtn = this._createActionBtn('ℹ️', 'Details', () => {
-             alert(`Type: ${catInfo.label}\nTime: ${new Date(this.timestamp).toLocaleString()}\nCategory: ${this.category}`);
+            alert(`Type: ${catInfo.label}\nTime: ${new Date(this.timestamp).toLocaleString()}\nCategory: ${this.category}`);
         });
 
         actions.append(copyBtn, infoBtn, collapseBtn);
@@ -309,5 +309,49 @@ export class NotebookManager {
             if (d.type === 'code') this.createCodeCell(d.content);
             else if (d.type === 'result') this.createResultCell(d.content, d.category);
         });
+    }
+
+    /**
+     * Load a demo file into the notebook
+     * @param {string} path - Path to demo file (e.g., 'examples/metta/basics/arithmetic.metta')
+     * @param {Object} options - Loading options
+     * @param {boolean} options.clearFirst - Clear existing cells before loading
+     * @param {boolean} options.autoRun - Execute cell automatically after loading
+     */
+    async loadDemoFile(path, options = {}) {
+        const { clearFirst = false, autoRun = false } = options;
+
+        if (clearFirst) this.clear();
+
+        try {
+            // Fetch demo file content
+            const response = await fetch(`/${path}`);
+            if (!response.ok) throw new Error(`Failed to load demo: ${path}`);
+            const content = await response.text();
+
+            // Create single cell with entire demo content
+            const cell = this.createCodeCell(content.trim());
+
+            // Auto-run if requested
+            if (autoRun) {
+                // Small delay to ensure cell is rendered
+                await new Promise(resolve => setTimeout(resolve, 100));
+                cell.execute();
+            }
+
+            // Add success message
+            const fileName = path.split('/').pop();
+            const lineCount = content.trim().split('\n').length;
+            this.createResultCell(
+                `📚 Loaded demo: ${fileName} (${lineCount} lines)`,
+                'system'
+            );
+        } catch (error) {
+            this.createResultCell(
+                `❌ Failed to load demo: ${error.message}`,
+                'system'
+            );
+            throw error;
+        }
     }
 }

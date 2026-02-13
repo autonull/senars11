@@ -6,47 +6,29 @@ export class GraphManager {
         this.cy = null;
         this.uiElements = uiElements;
         this.callbacks = callbacks;
-        this.graphData = {
-            nodes: new Map(),
-            edges: new Map()
-        };
-
-        // Debouncing for layout updates
+        this.graphData = { nodes: new Map(), edges: new Map() };
         this.layoutTimeout = null;
         this.pendingLayout = false;
         this.layoutDebounceTime = 300;
         this.updatesEnabled = false;
-
-        // Trace Mode State
         this.traceMode = false;
         this.tracedNode = null;
-
-        // Filter State
-        this.filters = {
-            minPriority: 0,
-            showTasks: true,
-            showConcepts: true
-        };
-
+        this.filters = { minPriority: 0, showTasks: true, showConcepts: true };
         this.contextMenu = null;
         this.kbState = { index: 0, selectedNode: null };
 
-        // Listen for integration events
         document.addEventListener('senars:concept:select', (e) => {
             const { id } = e.detail;
-            if(id) {
+            if (id) {
                 const node = this.cy?.getElementById(id);
-                if(node && node.length) {
+                if (node?.length) {
                     this.highlightNode(node);
                     this.animateGlow(id, 1.0);
                 }
             }
         });
 
-        // Listen for filter events
-        document.addEventListener('senars:graph:filter', (e) => {
-            this.applyFilters(e.detail);
-        });
+        document.addEventListener('senars:graph:filter', (e) => this.applyFilters(e.detail));
     }
 
     setUpdatesEnabled(enabled) {
@@ -60,31 +42,22 @@ export class GraphManager {
 
     setLayout(name) {
         if (!this.cy) return;
-        const layoutConfig = Config.getGraphLayout(name); // Assumes Config delegates to GraphConfig which now accepts name
-        this.cy.layout(layoutConfig).run();
+        this.cy.layout(Config.getGraphLayout(name)).run();
     }
 
     toggleTraceMode(nodeId) {
         if (!this.cy) return;
 
         if (this.traceMode && this.tracedNode === nodeId) {
-            // Disable Trace Mode
             this.traceMode = false;
             this.tracedNode = null;
             this.cy.elements().removeClass('trace-highlight trace-dim');
         } else {
-            // Enable Trace Mode
             this.traceMode = true;
             this.tracedNode = nodeId;
 
             const root = this.cy.getElementById(nodeId);
-
-            // Get all successors and predecessors
-            const successors = root.successors();
-            const predecessors = root.predecessors();
-            const neighborhood = root.neighborhood();
-
-            const connected = root.union(successors).union(predecessors).union(neighborhood);
+            const connected = root.union(root.successors()).union(root.predecessors()).union(root.neighborhood());
             const others = this.cy.elements().not(connected);
 
             this.cy.batch(() => {
@@ -92,17 +65,13 @@ export class GraphManager {
                 connected.addClass('trace-highlight').removeClass('trace-dim');
             });
 
-            this.cy.animate({
-                fit: { eles: connected, padding: 50 },
-                duration: 500
-            });
+            this.cy.animate({ fit: { eles: connected, padding: 50 }, duration: 500 });
         }
     }
 
     initializeKeyboardNavigation() {
         const container = this.uiElements?.graphContainer;
         if (!container) return;
-
         container.setAttribute('tabindex', '0');
         container.setAttribute('role', 'application');
         container.setAttribute('aria-label', 'SeNARS concept graph visualization');
@@ -115,25 +84,11 @@ export class GraphManager {
         if (nodes.length === 0) return;
 
         switch (e.key) {
-            case 'Tab':
-                e.preventDefault();
-                this._cycleNodes(nodes, e.shiftKey);
-                break;
-            case 'ArrowUp':
-            case 'ArrowDown':
-            case 'ArrowLeft':
-            case 'ArrowRight':
-                e.preventDefault();
-                this._navigateNeighbors(nodes);
-                break;
-            case 'Enter':
-                e.preventDefault();
-                this._selectCurrentNode();
-                break;
-            case 'Escape':
-                e.preventDefault();
-                this._clearSelection();
-                break;
+            case 'Tab': e.preventDefault(); this._cycleNodes(nodes, e.shiftKey); break;
+            case 'ArrowUp': case 'ArrowDown': case 'ArrowLeft': case 'ArrowRight':
+                e.preventDefault(); this._navigateNeighbors(nodes); break;
+            case 'Enter': e.preventDefault(); this._selectCurrentNode(); break;
+            case 'Escape': e.preventDefault(); this._clearSelection(); break;
         }
     }
 
@@ -151,11 +106,9 @@ export class GraphManager {
             if (connected.length > 0) {
                 const nextNode = connected[0];
                 this.kbState.selectedNode = nextNode;
-                // Simple index sync (could be optimized)
                 let idx = -1;
                 for(let i=0; i<nodes.length; i++) { if(nodes[i].id() === nextNode.id()) { idx = i; break; } }
                 this.kbState.index = idx >= 0 ? idx : 0;
-
                 this.highlightNode(nextNode);
             }
         } else {
@@ -197,12 +150,7 @@ export class GraphManager {
         if (!this.cy || !node) return;
         this.cy.elements().removeClass('keyboard-selected');
         node.addClass('keyboard-selected');
-        this.cy.animate({
-            center: {elt: node},
-            zoom: this.cy.zoom()
-        }, { duration: 200 });
-
-        console.log(`Selected ${node.data('type')} node: ${node.data('label')}`);
+        this.cy.animate({ center: {elt: node}, zoom: this.cy.zoom() }, { duration: 200 });
     }
 
     initialize() {
@@ -215,12 +163,11 @@ export class GraphManager {
             this.cy = cytoscape({
                 container: this.uiElements.graphContainer,
                 style: Config.getGraphStyle(),
-                layout: Config.getGraphLayout() // Default layout
+                layout: Config.getGraphLayout()
             });
         } catch (error) {
             console.error('Failed to initialize Cytoscape:', error);
-            // Fallback
-             this.cy = cytoscape({
+            this.cy = cytoscape({
                 container: this.uiElements.graphContainer,
                 style: Config.getGraphStyle(),
                 layout: {name: 'grid'}
@@ -233,25 +180,18 @@ export class GraphManager {
             this.contextMenu = new ContextMenu(this, this.callbacks.commandProcessor);
         }
 
-        // Setup Overlay Controls (if present)
         this._setupOverlayControls();
 
-        // Settings Event
         document.addEventListener('senars:settings:updated', () => {
             this.updateStyle();
             this.runLayout();
         });
 
-        // Graph Events
         this.cy.on('tap', 'node', (event) => {
             const data = this._getNodeData(event.target);
             this.updateGraphDetails(data);
             this.callbacks.onNodeClick?.(data);
-
-            // Auto-trace if shift clicked
-            if (event.originalEvent.shiftKey) {
-                this.toggleTraceMode(data.id);
-            }
+            if (event.originalEvent.shiftKey) this.toggleTraceMode(data.id);
         });
 
         this.cy.on('tap', 'edge', (event) => {
@@ -272,7 +212,7 @@ export class GraphManager {
             const node = event.target;
             this.cy.animate({ center: {eles: node}, zoom: 2, duration: 300 });
             this.animateGlow(node.id(), 1.0);
-            this.toggleTraceMode(node.id()); // Double tap toggles trace
+            this.toggleTraceMode(node.id());
         });
 
         return true;
@@ -287,17 +227,11 @@ export class GraphManager {
     }
 
     _setupOverlayControls() {
-        const container = this.uiElements.graphContainer.parentElement; // Assumes wrapper
+        const container = this.uiElements.graphContainer.parentElement;
         if (!container) return;
-
-        // Layout buttons
-        const btnFcose = container.querySelector('#btn-layout-fcose');
-        const btnGrid = container.querySelector('#btn-layout-grid');
-        const btnCircle = container.querySelector('#btn-layout-circle');
-
-        if (btnFcose) btnFcose.addEventListener('click', () => this.setLayout('fcose'));
-        if (btnGrid) btnGrid.addEventListener('click', () => this.setLayout('grid'));
-        if (btnCircle) btnCircle.addEventListener('click', () => this.setLayout('circle'));
+        container.querySelector('#btn-layout-fcose')?.addEventListener('click', () => this.setLayout('fcose'));
+        container.querySelector('#btn-layout-grid')?.addEventListener('click', () => this.setLayout('grid'));
+        container.querySelector('#btn-layout-circle')?.addEventListener('click', () => this.setLayout('circle'));
     }
 
     addNode(nodeData, runLayout = true) {
@@ -310,11 +244,12 @@ export class GraphManager {
 
         let displayLabel = label ?? term ?? id;
         if (truth) {
-            const { frequency = 0, confidence = 0 } = truth;
-            displayLabel += `\n{${frequency.toFixed(2)}, ${confidence.toFixed(2)}}`;
+            displayLabel += `\n{${(truth.frequency ?? 0).toFixed(2)}, ${(truth.confidence ?? 0).toFixed(2)}}`;
         }
 
         const typeValue = nodeType ?? type ?? 'concept';
+        const priority = nodeData.budget?.priority ?? 0;
+        const taskCount = nodeData.tasks?.length ?? nodeData.taskCount ?? 0;
 
         this.cy.add({
             group: 'nodes',
@@ -322,7 +257,8 @@ export class GraphManager {
                 id: nodeId,
                 label: displayLabel,
                 type: typeValue,
-                weight: weight ?? (truth?.confidence ? truth.confidence * 100 : 50),
+                weight: weight ?? (priority * 100),
+                taskCount: taskCount,
                 fullData: nodeData
             }
         });
@@ -390,9 +326,7 @@ export class GraphManager {
         const updateFn = messageUpdates[message.type];
         if (updateFn) {
             updateFn();
-            if (this.shouldRunLayoutAfterMessage(message.type)) {
-                this.scheduleLayout();
-            }
+            if (this.shouldRunLayoutAfterMessage(message.type)) this.scheduleLayout();
         }
     }
 
@@ -420,10 +354,6 @@ export class GraphManager {
         if (this.layoutTimeout) clearTimeout(this.layoutTimeout);
         this.layoutTimeout = setTimeout(() => {
             if (this.pendingLayout && this.cy) {
-                // Respect current layout if changed?
-                // Currently always defaults to fcose from config or whatever was set.
-                // Ideally we track current layout name.
-                // For now, simple re-run.
                 this.cy.layout(Config.getGraphLayout()).run();
                 this.pendingLayout = false;
             }
@@ -431,54 +361,32 @@ export class GraphManager {
     }
 
     updateStyle() {
-        if (this.cy) this.cy.style(Config.getGraphStyle());
+        this.cy?.style(Config.getGraphStyle());
     }
 
     updateGraphDetails(details) {
-        const graphDetailsElement = this.uiElements?.graphDetails; // Might be null in new layout if not registered
-        // In new layout we might not have a dedicated details panel registered here yet.
-        // But let's keep it safe.
-        if (!graphDetailsElement) return;
-
-        // ... existing detail logic ...
-        // (For brevity, skipping full implementation unless requested, but ideally I should keep it or delegate)
+        // Implementation delegated or empty
     }
 
     clear() {
-        if (this.cy) this.cy.elements().remove();
+        this.cy?.elements().remove();
     }
 
-    animateNode(nodeId, effect = 'pulse') {
-        if (!this.cy) return;
-        const node = this.cy.getElementById(nodeId);
-        if (!node.length) return;
-
-        // Simple pulse using built-in style changes
+    animateNode(nodeId) {
+        const node = this.cy?.getElementById(nodeId);
+        if (!node?.length) return;
         const originalWidth = node.style('border-width');
-        node.animate({
-            style: { 'border-width': 10 },
-            duration: 200
-        }).animate({
-            style: { 'border-width': originalWidth },
-            duration: 200
-        });
+        node.animate({ style: { 'border-width': 10 }, duration: 200 })
+            .animate({ style: { 'border-width': originalWidth }, duration: 200 });
     }
 
     animateGlow(nodeId, intensity = 1.0) {
-        if (!this.cy) return;
-        const node = this.cy.getElementById(nodeId);
-        if (!node.length) return;
-
-        node.animate({
-            style: { 'opacity': 0.5 + intensity * 0.5 },
-            duration: 300
-        });
+        this.cy?.getElementById(nodeId)?.animate({ style: { 'opacity': 0.5 + intensity * 0.5 }, duration: 300 });
     }
 
     animateFadeIn(nodeId) {
-        if (!this.cy) return;
-        const node = this.cy.getElementById(nodeId);
-        if (node.length) {
+        const node = this.cy?.getElementById(nodeId);
+        if (node?.length) {
             node.style('opacity', 0);
             node.animate({ style: {'opacity': 1} }, { duration: 500 });
         }
@@ -490,7 +398,7 @@ export class GraphManager {
 
     destroy() {
         if (this.layoutTimeout) clearTimeout(this.layoutTimeout);
-        if (this.contextMenu) this.contextMenu.destroy();
-        if (this.cy) this.cy.destroy();
+        this.contextMenu?.destroy();
+        this.cy?.destroy();
     }
 }

@@ -1,12 +1,47 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
+
+// Plugin to serve demo files from parent examples directory
+const serveExamplesPlugin = () => ({
+    name: 'serve-examples',
+    configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+            // Serve examples.json from ui directory
+            if (req.url === '/examples.json') {
+                const filePath = resolve(__dirname, 'examples.json');
+                if (fs.existsSync(filePath)) {
+                    res.setHeader('Content-Type', 'application/json');
+                    fs.createReadStream(filePath).pipe(res);
+                    return;
+                }
+            }
+
+            // Serve example files from parent examples directory
+            if (req.url.startsWith('/examples/')) {
+                const filePath = resolve(__dirname, '..', req.url.slice(1));
+                if (fs.existsSync(filePath)) {
+                    const ext = filePath.split('.').pop();
+                    const contentType = ext === 'metta' || ext === 'nars' ? 'text/plain' : 'application/octet-stream';
+                    res.setHeader('Content-Type', contentType);
+                    fs.createReadStream(filePath).pipe(res);
+                    return;
+                }
+            }
+
+            next();
+        });
+    }
+});
 
 export default defineConfig({
     root: '.',
     publicDir: 'libs',
+
+    plugins: [serveExamplesPlugin()],
 
     resolve: {
         alias: {
