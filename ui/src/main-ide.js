@@ -5,8 +5,9 @@ import { LocalConnectionManager } from './connection/LocalConnectionManager.js';
 import { WebSocketManager } from './connection/WebSocketManager.js';
 import { ConnectionManager } from './connection/ConnectionManager.js';
 import { GraphManager } from './visualization/GraphManager.js';
-import { MessageFilter, MESSAGE_CATEGORIES, categorizeMessage } from './repl/MessageFilter.js';
-import { NotebookManager, CodeCell, ResultCell } from './repl/NotebookManager.js';
+import { MessageFilter, categorizeMessage } from './repl/MessageFilter.js';
+import { NotebookManager } from './repl/NotebookManager.js';
+import { FilterToolbar } from './repl/FilterToolbar.js';
 
 console.log('--- SeNARS IDE loading ---');
 
@@ -26,6 +27,7 @@ class SeNARSIDE {
         this.graphManager = null;
         this.messageFilter = new MessageFilter();
         this.notebook = null; // Initialized when REPL is created
+        this.filterToolbar = null;
 
         // State
         this.cycleCount = 0;
@@ -182,51 +184,14 @@ class SeNARSIDE {
         replContainer.appendChild(statusBar);
 
         // Filter toolbar
-        const filterToolbar = document.createElement('div');
-        filterToolbar.className = 'filter-toolbar';
-        filterToolbar.style.cssText = 'padding: 8px; background: #2d2d2d; border-bottom: 1px solid #333; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;';
-
-        // Search input
-        const searchInput = document.createElement('input');
-        searchInput.type = 'text';
-        searchInput.placeholder = '🔍 Search messages...';
-        searchInput.style.cssText = 'flex: 1; min-width: 150px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3c3c3c; padding: 4px 8px; border-radius: 3px; font-size: 0.9em;';
-        searchInput.oninput = (e) => {
-            this.messageFilter.setSearchTerm(e.target.value);
-            this.filterMessages();
-        };
-
-        // Category filter buttons
-        const categoryButtons = document.createElement('div');
-        categoryButtons.style.cssText = 'display: flex; gap: 4px; flex-wrap: wrap;';
-
-
-        Object.entries(MESSAGE_CATEGORIES).forEach(([id, cat]) => {
-            const btn = document.createElement('button');
-            btn.dataset.category = id;
-            btn.innerHTML = `${cat.icon} ${cat.label}`;
-            btn.style.cssText = `
-                padding: 4px 8px;
-                background: ${this.messageFilter.isCategoryVisible(id) ? cat.color : '#333'};
-                color: ${this.messageFilter.isCategoryVisible(id) ? '#000' : '#888'};
-                border: none;
-                cursor: pointer;
-                border-radius: 3px;
-                font-size: 0.85em;
-                font-weight: ${this.messageFilter.isCategoryVisible(id) ? 'bold' : 'normal'};
-                transition: all 0.2s;
-            `;
-            btn.onclick = () => {
-                this.messageFilter.toggleCategory(id);
-                this.updateFilterButtons();
-                this.filterMessages();
-            };
-            categoryButtons.appendChild(btn);
-        });
-
-        filterToolbar.appendChild(searchInput);
-        filterToolbar.appendChild(categoryButtons);
-        replContainer.appendChild(filterToolbar);
+        this.filterToolbar = new FilterToolbar(
+            this.messageFilter,
+            {
+                onFilterChange: () => this.filterMessages(),
+                onExport: () => this.exportLogs()
+            }
+        );
+        replContainer.appendChild(this.filterToolbar.render());
 
         // Notebook container (cells go here)
         const notebookContainer = document.createElement('div');
@@ -261,41 +226,22 @@ class SeNARSIDE {
         const reasonerControls = document.createElement('div');
         reasonerControls.style.cssText = 'display: flex; gap: 4px; margin-right: 12px; padding-right: 12px; border-right: 1px solid #444;';
 
-        const startBtn = document.createElement('button');
-        startBtn.innerHTML = '▶️';
-        startBtn.title = 'Start reasoner';
-        startBtn.onclick = () => this.controlReasoner('start');
-        startBtn.style.cssText = 'padding: 6px 10px; background: #0e639c; color: white; border: none; cursor: pointer; border-radius: 3px;';
+        const createControlBtn = (icon, title, action, bg = '#333', color = 'white') => {
+            const btn = document.createElement('button');
+            btn.innerHTML = icon;
+            btn.title = title;
+            btn.onclick = () => this.controlReasoner(action);
+            btn.style.cssText = `padding: 6px 10px; background: ${bg}; color: ${color}; border: none; cursor: pointer; border-radius: 3px;`;
+            return btn;
+        };
 
-        const pauseBtn = document.createElement('button');
-        pauseBtn.innerHTML = '⏸️';
-        pauseBtn.title = 'Pause reasoner';
-        pauseBtn.onclick = () => this.controlReasoner('pause');
-        pauseBtn.style.cssText = 'padding: 6px 10px; background: #333; color: white; border: none; cursor: pointer; border-radius: 3px;';
-
-        const stopBtn = document.createElement('button');
-        stopBtn.innerHTML = '⏹️';
-        stopBtn.title = 'Stop reasoner';
-        stopBtn.onclick = () => this.controlReasoner('stop');
-        stopBtn.style.cssText = 'padding: 6px 10px; background: #b30000; color: white; border: none; cursor: pointer; border-radius: 3px;';
-
-        const stepBtn = document.createElement('button');
-        stepBtn.innerHTML = '⏭️';
-        stepBtn.title = 'Step reasoner';
-        stepBtn.onclick = () => this.controlReasoner('step');
-        stepBtn.style.cssText = 'padding: 6px 10px; background: #333; color: white; border: none; cursor: pointer; border-radius: 3px;';
-
-        const resetBtn = document.createElement('button');
-        resetBtn.innerHTML = '🔄';
-        resetBtn.title = 'Reset reasoner';
-        resetBtn.onclick = () => this.controlReasoner('reset');
-        resetBtn.style.cssText = 'padding: 6px 10px; background: #333; color: white; border: none; cursor: pointer; border-radius: 3px;';
-
-        reasonerControls.appendChild(startBtn);
-        reasonerControls.appendChild(pauseBtn);
-        reasonerControls.appendChild(stopBtn);
-        reasonerControls.appendChild(stepBtn);
-        reasonerControls.appendChild(resetBtn);
+        reasonerControls.append(
+            createControlBtn('▶️', 'Start reasoner', 'start', '#0e639c'),
+            createControlBtn('⏸️', 'Pause reasoner', 'pause'),
+            createControlBtn('⏹️', 'Stop reasoner', 'stop', '#b30000'),
+            createControlBtn('⏭️', 'Step reasoner', 'step'),
+            createControlBtn('🔄', 'Reset reasoner', 'reset')
+        );
 
         // Input controls
         const runButton = document.createElement('button');
@@ -411,7 +357,8 @@ class SeNARSIDE {
         if (this.notebook) {
             const category = categorizeMessage(message);
             const content = message.payload?.result || message.content || JSON.stringify(message.payload);
-            this.notebook.createResultCell(content, category);
+            const viewMode = this.messageFilter.getMessageViewMode(message);
+            this.notebook.createResultCell(content, category, viewMode);
         }
 
         // Update cycle count
@@ -419,6 +366,23 @@ class SeNARSIDE {
             this.cycleCount = message.payload.cycle;
             this.updateStats();
         }
+    }
+
+    filterMessages() {
+        this.notebook?.applyFilter(this.messageFilter);
+    }
+
+    exportLogs() {
+        if (!this.notebook) return;
+        const data = this.notebook.exportNotebook();
+        const json = JSON.stringify(data, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `senars-logs-${new Date().toISOString().replace(/:/g, '-')}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
     }
 
     executeInput() {
