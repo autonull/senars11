@@ -61,6 +61,8 @@ export class ArrayStamp extends Stamp {
         this._creationTime = creationTime;
         this._source = source;
         this._derivations = Object.freeze([...new Set(derivations)]);
+        // Cache derivations as Set for O(1) lookups
+        this._derivationsSet = new Set(this._derivations);
         this._depth = depth;
         Object.freeze(this);
     }
@@ -83,10 +85,13 @@ export class ArrayStamp extends Stamp {
 
         if (this._id === other.id) return true;
 
-        const thisSet = new Set(this._derivations);
-        if (thisSet.has(other.id)) return true;
+        // Use cached Set for O(1) checks
+        if (this._derivationsSet.has(other.id)) return true;
 
-        return other.derivations.some(d => d === this._id || thisSet.has(d));
+        // Check if other's derivations overlap with ours
+        // We iterate over the smaller set if possible, but here we just iterate other
+        // because we have this._derivationsSet ready.
+        return other.derivations.some(d => d === this._id || this._derivationsSet.has(d));
     }
 
     toString() {

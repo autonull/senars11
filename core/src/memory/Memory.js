@@ -20,7 +20,7 @@ export class Memory extends BaseComponent {
         minTasksForDecay: 2
     });
 
-    constructor(config = {}, eventBus = null) {
+    constructor(config = {}, eventBus = null, termFactory = null) {
         const defaultConfig = Object.freeze({
             priorityThreshold: 0.5,
             priorityDecayRate: 0.01,
@@ -40,6 +40,7 @@ export class Memory extends BaseComponent {
         const mergedConfig = {...defaultConfig, ...config};
 
         super(mergedConfig, 'Memory', eventBus);
+        this._termFactory = termFactory;
 
         this._concepts = new Map();
         this._conceptBag = new Bag(this._config.maxConcepts, this._config.forgetPolicy);
@@ -508,8 +509,11 @@ export class Memory extends BaseComponent {
             for (const conceptData of data.concepts) {
                 if (conceptData.concept) {
                     let term;
-                    if (typeof conceptData.term === 'string') {
-                        term = {
+                    if (this._termFactory) {
+                        term = this._termFactory.fromJSON(conceptData.term);
+                    } else if (typeof conceptData.term === 'string') {
+                        // Fallback for legacy/testing without factory
+                         term = {
                             toString: () => conceptData.term,
                             equals: (other) => other.toString && other.toString() === conceptData.term,
                             name: conceptData.term,
@@ -517,6 +521,7 @@ export class Memory extends BaseComponent {
                             isTerm: true
                         };
                     } else {
+                        // Fallback to deprecated method if no factory provided
                         term = conceptData.term instanceof Term ? conceptData.term : Term.fromJSON(conceptData.term);
                     }
 

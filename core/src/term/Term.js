@@ -83,7 +83,15 @@ export class Term {
 
     _calculateComplexity() {
         if (this._type === TermType.ATOM) return 1;
-        return 1 + this._components.reduce((sum, c) => sum + (c?.complexity ?? 0), 0);
+
+        let sum = 0;
+        // Iterative-ish: Relies on components having complexity calculated (recursion)
+        // But prevents stack overflow if components are lazy? No, they are eagerly created.
+        // Safety: Limit depth implicitly by budget elsewhere, but here we just sum.
+        for (const c of this._components) {
+            sum += c ? c.complexity : 0;
+        }
+        return 1 + sum;
     }
 
     equals(other) {

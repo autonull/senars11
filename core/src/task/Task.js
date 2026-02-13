@@ -2,6 +2,7 @@ import { ArrayStamp } from '../Stamp.js';
 import { Truth } from '../Truth.js';
 import { Term } from '../term/Term.js';
 import { freeze } from '../util/common.js';
+import { getOperator, getComponents } from '../term/TermUtils.js';
 
 export const Punctuation = Object.freeze({ BELIEF: '.', GOAL: '!', QUESTION: '?' });
 
@@ -27,11 +28,14 @@ export class Task {
         let finalTruth = truth;
 
         // Handle negation unwrapping for terms like (-- (A))
-        if (this.term.operator === '--' && this.term.components.length === 1) {
-            this.term = this.term.components[0];
+        const op = getOperator(this.term);
+        const comps = getComponents(this.term);
+
+        if (op === '--' && comps.length === 1) {
+            this.term = comps[0];
             if (finalTruth) {
                 const t = this._createTruth(finalTruth);
-                finalTruth = t ? new Truth(1.0 - t.f, t.c) : null;
+                finalTruth = t ? Truth.create(1.0 - t.f, t.c) : null;
             }
         }
 
@@ -59,7 +63,7 @@ export class Task {
         return new Task({
             term,
             punctuation: data.punctuation,
-            truth: data.truth ? new Truth(data.truth.frequency ?? data.truth.f, data.truth.confidence ?? data.truth.c) : null,
+            truth: data.truth ? Truth.create(data.truth.frequency ?? data.truth.f, data.truth.confidence ?? data.truth.c) : null,
             budget: data.budget ?? { priority: 0.5, durability: 0.5, quality: 0.5, cycles: 100, depth: 10 }
         });
     }
@@ -67,7 +71,7 @@ export class Task {
     _createTruth(truth) {
         if (truth instanceof Truth) return truth;
         return (truth?.frequency != null && truth?.confidence != null)
-            ? new Truth(truth.frequency, truth.confidence)
+            ? Truth.create(truth.frequency, truth.confidence)
             : null;
     }
 

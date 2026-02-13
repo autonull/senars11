@@ -5,6 +5,7 @@
 
 import {Logger} from '../util/Logger.js';
 import {Punctuation} from '../task/Task.js';
+import {cleanText as commonCleanText, isValidLength as commonIsValidLength} from '../util/common.js';
 
 export function extractPrimaryTask(primaryPremise, secondaryPremise, context) {
     return primaryPremise ?? null;
@@ -39,14 +40,16 @@ export function parseListFromResponse(lmResponse, options = {}) {
     return removeEmpty ? lines.filter(item => item.length > 0) : lines;
 }
 
-// Alias for backward compatibility - use parseListFromResponse instead
+/**
+ * @deprecated Use parseListFromResponse instead
+ */
 export const parseSubGoals = (lmResponse) => parseListFromResponse(lmResponse, {removeEmpty: false});
 
 const INVALID_PATTERNS = ['sorry', 'cannot', 'unable'];
 const INVALID_TEXT_PATTERNS = [...INVALID_PATTERNS, 'no information'];
 
-const isValidLength = (text, min, max) =>
-    text && text.length >= min && text.length <= max;
+// Re-export common utilities or use them
+const isValidLength = commonIsValidLength;
 
 const hasInvalidPattern = (text, patterns) =>
     patterns.some(pattern => text.toLowerCase().includes(pattern));
@@ -55,8 +58,7 @@ export const isValidSubGoal = (goal, minLength, maxLength) =>
     isValidLength(goal, minLength, maxLength) && !hasInvalidPattern(goal, INVALID_PATTERNS);
 
 export function cleanText(text) {
-    if (!text) return '';
-    return text.replace(/^["']|["']$/g, '').replace(/[.,;!?]+$/, '').trim();
+    return commonCleanText(text);
 }
 
 export const isValidText = (text, minLength = 1, maxLength = 1000) =>
