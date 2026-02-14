@@ -29,9 +29,8 @@ export class SystemMetricsPanel extends Component {
     render() {
         if (!this.container) return;
 
-        // Set container ID for docking system
-        this.container.id = 'metrics-widget';
-        this.container.className = 'hud-widget dock-right';
+        // Note: Container ID and class are now managed by HUDWidget/HUDLayoutManager
+        // We just render the content grid
 
         const grid = FluentUI.create(this.container)
             .clear()

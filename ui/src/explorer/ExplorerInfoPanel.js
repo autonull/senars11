@@ -21,12 +21,6 @@ export class ExplorerInfoPanel {
         el.style.flexDirection = 'column';
         el.style.height = '100%';
 
-        // Header
-        const header = document.createElement('h3');
-        header.textContent = 'Explorer Info';
-        header.style.marginBottom = '10px';
-        el.appendChild(header);
-
         // Tabs
         const tabs = document.createElement('div');
         tabs.className = 'panel-tabs';
