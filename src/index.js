@@ -2,6 +2,7 @@
 
 import {WebSocketMonitor} from './server/WebSocketMonitor.js';
 import {App} from './app/App.js';
+import {ReplMessageHandler} from './repl/ReplMessageHandler.js';
 
 const DEFAULT_CONFIG = Object.freeze({
     nar: {
@@ -20,12 +21,52 @@ const DEFAULT_CONFIG = Object.freeze({
 async function main() {
     console.log('SeNARS starting...');
 
-    const app = new App(DEFAULT_CONFIG);
+    let config = {...DEFAULT_CONFIG};
+    if (process.env.NODE_ENV === 'test') {
+        // Use optimized config for tests
+        config = {
+            ...config,
+            subsystems: {
+                metrics: false,
+                tools: false,
+                lm: false,
+                embeddingLayer: false
+            },
+            nar: {
+                ...config.nar,
+                performance: {
+                    useOptimizedCycle: true,
+                    cycle: {
+                        maxTaskCacheSize: 1000,
+                        maxInferenceCacheSize: 500,
+                        batchProcessingEnabled: false
+                    }
+                },
+                reasoning: {
+                    ...config.nar.reasoning,
+                    useStreamReasoner: true,
+                    cpuThrottleInterval: 0,
+                    maxCombinations: 25,
+                    maxRuleApplications: 50,
+                    maxTasksPerBatch: 5,
+                    maxDerivationDepth: 5
+                },
+                cycle: {
+                    delay: 1
+                }
+            }
+        };
+    }
+
+    const app = new App(config);
     // Create and start the agent (which extends NAR)
     const agent = await app.start({startAgent: true, setupSignals: false});
 
     const monitor = new WebSocketMonitor(DEFAULT_CONFIG.webSocket);
     await monitor.start();
+
+    const messageHandler = new ReplMessageHandler(agent);
+    monitor.attachReplMessageHandler(messageHandler);
 
     // Connect monitor to the agent (which is a NAR)
     agent.connectToWebSocketMonitor(monitor);

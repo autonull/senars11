@@ -1,5 +1,5 @@
 import {Component} from './Component.js';
-import {UI_CONSTANTS} from '../utils/Constants.js';
+import {UI_CONSTANTS} from '../../../src/util/UIConstants.js';
 
 /**
  * LogViewer component for displaying log entries with icons and formatting

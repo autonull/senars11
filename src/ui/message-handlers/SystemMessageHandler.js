@@ -49,6 +49,7 @@ export class SystemMessageHandler extends BaseMessageHandler {
      * Create an error message
      */
     handleErrorMessage(message) {
-        return this._formatMessage(message.payload, JSON.stringify(message.payload), 'error', '🚨');
+        const content = message.payload || message.message || message.error || JSON.stringify(message);
+        return {content, type: 'error', icon: '🚨'};
     }
 }

@@ -5,7 +5,7 @@ import {Logger} from './logging/Logger.js';
 import {CommandProcessor} from './command/CommandProcessor.js';
 import {DemoManager} from './demo/DemoManager.js';
 import {UIEventHandlers} from './ui/UIEventHandlers.js';
-import {MessageHandler} from './message-handlers/MessageHandler.js';
+import {MessageHandler} from '../../src/ui/message-handlers/MessageHandler.js';
 import {capitalizeFirst} from './utils/Helpers.js';
 import {ControlPanel} from './ui/ControlPanel.js';
 

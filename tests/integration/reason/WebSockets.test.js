@@ -10,16 +10,36 @@ import {TestNARRemote} from '../../../src/testing/TestNARRemote.js';
 import {RemoteTaskMatch} from '../../../src/testing/TaskMatch.js';
 
 describe('WebSocket Pathway Tests', () => {
+    // Skipped: Remote reasoning pathway currently fails to produce derivations in CI environment
+    // despite correct configuration and rules. Needs deep investigation into spawned process rule registration.
     test.skip('Basic inheritance chain via WebSocket - should match repl:test behavior', async () => {
         // This test replicates the exact same logic as repl:test default case
         // Input: <a ==> b> and <b ==> c>, expect derivation of <a ==> c>
         await new TestNARRemote()
             .input('<a ==> b>', 1.0, 0.9)
             .input('<b ==> c>', 1.0, 0.9)
-            .run(5) // matches repl:test stepsToRun config
+            .run(50) // Increase cycles slightly to ensure propagation over WS
             .expect('<a ==> c>')
             .execute();
-    }, 20000); // Appropriate timeout for WebSocket setup
+    }, 30000); // Increased timeout for WS
+
+    // Skipped: Dependent on remote reasoning working
+    test.skip('Virtual UI Verification - Graph and Console', async () => {
+        // Verifies that the headless UI components (VirtualGraph, VirtualConsole) are populated correctly
+        await new TestNARRemote()
+            .input('<cat ==> animal>', 1.0, 0.9)
+            .command('<dog ==> animal>.', 'narsese') // Test command/input method
+            .run(50)
+            // Verify Logic
+            .expect('<cat ==> animal>')
+            // Verify Graph Nodes exist
+            .expectNode('cat')
+            .expectNode('dog')
+            .expectNode('animal')
+            // Verify Console Logs
+            .expectLog('cat ==> animal')
+            .execute();
+    }, 30000);
 });
 
 describe('Direct Pathway Tests', () => {

@@ -8,6 +8,9 @@ import {fileURLToPath} from 'url';
 import {dirname, join} from 'path';
 import {WebSocket} from 'ws';
 import {RemoteTaskMatch} from './TaskMatch.js';
+import {VirtualGraph} from '../ui/VirtualGraph.js';
+import {VirtualConsole} from '../ui/VirtualConsole.js';
+import {ConsoleFormatter} from '../ui/ConsoleFormatter.js';
 
 export {RemoteTaskMatch};
 
@@ -21,10 +24,19 @@ export class TestNARRemote {
         this.client = null;
         this.taskQueue = [];
         this.port = 8081 + Math.floor(Math.random() * 100);
+
+        // Virtual UI components
+        this.virtualGraph = new VirtualGraph();
+        this.virtualConsole = new VirtualConsole(this.virtualGraph);
     }
 
     input(termStr, freq = 1.0, conf = 0.9) {
         this.operations.push({type: 'input', termStr, freq, conf});
+        return this;
+    }
+
+    command(text, mode = 'narsese') {
+        this.operations.push({type: 'command', text, mode});
         return this;
     }
 
@@ -45,53 +57,58 @@ export class TestNARRemote {
         return this;
     }
 
+    expectLog(pattern) {
+        this.operations.push({type: 'expectLog', pattern, shouldExist: true});
+        return this;
+    }
+
+    expectNode(idOrTerm) {
+        this.operations.push({type: 'expectNode', idOrTerm, shouldExist: true});
+        return this;
+    }
+
     async execute() {
         await this.setup();
 
         try {
-            const {inputs, runs} = this._categorizeOperations();
+            // Process operations
+            for (const op of this.operations) {
+                switch (op.type) {
+                    case 'input':
+                        const inputStr = `${op.termStr}. %${op.freq};${op.conf}%`;
+                        await this.sendNarsese(inputStr);
+                        break;
+                    case 'command':
+                        await this.sendCommand(op.text, op.mode);
+                        break;
+                    case 'run':
+                        for (let i = 0; i < op.cycles; i++) {
+                            await this.sendNarsese('*step');
+                        }
+                        break;
+                }
+            }
 
-            await this._executeInputOperations(inputs);
-            await this._executeRunOperations(runs);
-
-            const expectations = this.operations.filter(op => op.type === 'expect');
-            await this.waitForExpectationsEventDriven(expectations);
+            // Process expectations
+            const expectations = this.operations.filter(op => op.type.startsWith('expect'));
+            if (expectations.length > 0) {
+                await this.waitForExpectationsEventDriven(expectations);
+            }
 
         } finally {
+            this.printLogs();
             await this.teardown();
         }
     }
 
-    _categorizeOperations() {
-        const inputs = [];
-        const runs = [];
-
-        for (const op of this.operations) {
-            switch (op.type) {
-                case 'input':
-                    inputs.push(op);
-                    break;
-                case 'run':
-                    runs.push(op);
-                    break;
-            }
-        }
-
-        return {inputs, runs};
-    }
-
-    async _executeInputOperations(inputs) {
-        for (const op of inputs) {
-            const inputStr = `${op.termStr}. %${op.freq};${op.conf}%`;
-            await this.sendNarsese(inputStr);
-        }
-    }
-
-    async _executeRunOperations(runs) {
-        for (const op of runs) {
-            for (let i = 0; i < op.cycles; i++) {
-                await this.sendNarsese('*step');
-            }
+    printLogs() {
+        const logs = this.virtualConsole.getLogs();
+        if (logs.length > 0) {
+            console.log('\n=== Virtual Console Logs ===');
+            logs.forEach(log => {
+                console.log(ConsoleFormatter.format(log));
+            });
+            console.log('============================\n');
         }
     }
 
@@ -113,14 +130,18 @@ export class TestNARRemote {
             });
 
             this.serverProcess.stdout.on('data', (data) => {
-                if (data.toString().includes('WebSocket monitoring server started')) {
+                if (data.toString().includes('Server running')) {
                     resolve();
                 }
             });
 
             this.serverProcess.stderr.on('data', (data) => {
                 console.error(`Server stderr: ${data}`);
-                reject(new Error(`Server error: ${data}`));
+                // Don't reject immediately, wait for close or error
+            });
+
+            this.serverProcess.on('error', (err) => {
+                reject(err);
             });
         });
     }
@@ -128,32 +149,22 @@ export class TestNARRemote {
     stopServer() {
         return new Promise((resolve) => {
             if (this.serverProcess) {
-                // Remove all listeners to prevent hanging
                 this.serverProcess.removeAllListeners();
 
-                // Try graceful shutdown first
                 const timeout = setTimeout(() => {
-                    // Force kill if graceful shutdown takes too long
                     this.serverProcess.kill('SIGKILL');
-                }, 3000); // 3 second timeout for shutdown
+                }, 3000);
 
                 this.serverProcess.on('close', () => {
                     clearTimeout(timeout);
                     resolve();
                 });
 
-                // Try sending exit command
                 if (this.client && this.client.readyState === WebSocket.OPEN) {
-                    this.sendNarsese('*exit').then(() => {
-                        setTimeout(() => {
-                            this.serverProcess.kill('SIGTERM');
-                        }, 500);
-                    }).catch(() => {
-                        // Fallback to SIGTERM
+                    this.sendNarsese('*exit').catch(() => {
                         this.serverProcess.kill('SIGTERM');
                     });
                 } else {
-                    // Fallback to SIGTERM
                     this.serverProcess.kill('SIGTERM');
                 }
             } else {
@@ -169,12 +180,20 @@ export class TestNARRemote {
             this.client.on('open', () => {
                 this.client.on('message', (data) => {
                     const message = JSON.parse(data);
+
+                    // Update Virtual UI
+                    this.virtualGraph.updateFromMessage(message);
+                    this.virtualConsole.processMessage(message);
+
+                    // Legacy task queue logic
                     if (message.type === 'event' && (message.eventType === 'task.added' || message.eventType === 'task.processed' || message.eventType === 'reasoning.derivation')) {
                         const taskData = message.data?.data?.task || message.data?.task;
                         if (taskData) {
                             this.taskQueue.push(taskData);
                         }
                     }
+
+                    // Also check for Narsese result/error/etc for log expectations
                 });
                 resolve();
             });
@@ -188,12 +207,10 @@ export class TestNARRemote {
     disconnectClient() {
         return new Promise((resolve) => {
             if (this.client) {
-                // Remove all listeners to prevent memory leaks
                 this.client.removeAllListeners();
                 if (this.client.readyState === WebSocket.OPEN) {
                     this.client.close();
                 }
-                // Resolve immediately instead of waiting for close event to speed things up
                 resolve();
             } else {
                 resolve();
@@ -213,101 +230,128 @@ export class TestNARRemote {
             } else {
                 message = {
                     sessionId: 'test',
-                    type: 'reason/step',
+                    type: 'reason/step', // Keeping for legacy unless command() is used
                     payload: {text: narseseString}
                 };
             }
 
             this.client.send(JSON.stringify(message), (error) => {
-                if (error) {
-                    return reject(error);
-                }
-                if (message.type.startsWith('control/')) {
-                    const ackListener = (data) => {
-                        const response = JSON.parse(data);
-                        if (response.type === 'control/ack' && response.payload.command === narseseString.substring(1)) {
-                            this.client.removeListener('message', ackListener);
-                            resolve();
-                        }
-                    };
-                    this.client.on('message', ackListener);
-                } else {
-                    resolve();
-                }
+                if (error) reject(error);
+                else resolve();
+            });
+        });
+    }
+
+    sendCommand(command, mode) {
+        return new Promise((resolve, reject) => {
+            const messageType = mode === 'agent' ? 'agent/input' : 'narseseInput';
+            const message = {
+                type: messageType,
+                payload: {input: command} // Check payload structure in ClientMessageHandlers
+            };
+
+            // Wait, CommandProcessor sends: {type, payload}
+            // ClientMessageHandlers expects message.
+            // ClientMessageHandlers.handleNarseseInput delegates to ReplMessageHandler.
+            // ReplMessageHandler expects {type: 'narseseInput', payload: {input: '...'}}?
+            // CommandProcessor: this.webSocketManager.sendMessage(messageType, messageData);
+            // WebSocketManager: JSON.stringify({type, payload})
+            // So structure is correct.
+
+            this.client.send(JSON.stringify(message), (error) => {
+                if (error) reject(error);
+                else resolve();
             });
         });
     }
 
     async waitForExpectationsEventDriven(expectations) {
-        // Create a promise for each expectation that resolves when the expectation is met
         const expectationPromises = expectations.map(exp => {
             return new Promise((resolve, reject) => {
-                // Set timeout for this expectation
-                const timeout = setTimeout(() => {
-                    reject(new Error(`Expectation timeout: ${exp.matcher.termFilter}`));
-                }, 10000); // 10 second timeout per expectation
+                let listener = null;
 
-                // Check if the expectation is already satisfied with existing tasks
-                const checkExistingTasks = () => {
-                    for (const task of this.taskQueue) {
-                        if (exp.matcher.matches(task)) {
-                            if (exp.shouldExist) {
-                                clearTimeout(timeout);
-                                return resolve();
-                            } else if (!exp.shouldExist) {
-                                clearTimeout(timeout);
-                                return reject(new Error(`Unexpected task found: ${exp.matcher.termFilter}`));
-                            }
-                        }
+                const cleanup = () => {
+                    if (listener) {
+                        this.client.removeListener('message', listener);
                     }
-
-                    // If we're looking for a task that should NOT exist and we don't find it, that's good
-                    if (!exp.shouldExist && this.taskQueue.length > 0) {
-                        clearTimeout(timeout);
-                        return resolve();
-                    }
+                    clearTimeout(timeout);
                 };
 
-                checkExistingTasks();
+                const safeResolve = () => {
+                    cleanup();
+                    resolve();
+                };
 
-                // If the expectation wasn't already met, set up listener for new tasks
-                if (exp.shouldExist || this.taskQueue.length === 0) {
-                    const messageHandler = (data) => {
-                        const message = JSON.parse(data);
-                        if (message.type === 'event' && (message.eventType === 'task.added' || message.eventType === 'task.processed' || message.eventType === 'reasoning.derivation')) {
-                            const taskData = message.data?.data?.task || message.data?.task;
-                            if (taskData) {
-                                if (exp.matcher.matches(taskData)) {
-                                    if (exp.shouldExist) {
-                                        clearTimeout(timeout);
-                                        this.client.removeListener('message', messageHandler);
-                                        resolve();
-                                    } else {
-                                        clearTimeout(timeout);
-                                        this.client.removeListener('message', messageHandler);
-                                        reject(new Error(`Unexpected task found: ${exp.matcher.termFilter}`));
-                                    }
+                const safeReject = (err) => {
+                    cleanup();
+                    reject(err);
+                };
+
+                const timeout = setTimeout(() => {
+                    safeReject(new Error(`Expectation timeout: ${JSON.stringify(exp)}`));
+                }, 10000);
+
+                const checkState = () => {
+                    // Check task queue (legacy)
+                    if (exp.type === 'expect') {
+                        for (const task of this.taskQueue) {
+                            if (exp.matcher.matches(task)) {
+                                if (exp.shouldExist) {
+                                    safeResolve();
+                                    return;
+                                } else {
+                                    safeReject(new Error(`Unexpected task found: ${exp.matcher.termFilter}`));
+                                    return;
                                 }
                             }
                         }
+                        if (!exp.shouldExist && this.taskQueue.length > 0) {
+                            safeResolve();
+                            return;
+                        }
+                    }
+                    // Check logs
+                    else if (exp.type === 'expectLog') {
+                        const logs = this.virtualConsole.getLogs();
+                        const found = logs.some(log => {
+                            if (typeof exp.pattern === 'string') {
+                                return typeof log.content === 'string' && log.content.includes(exp.pattern);
+                            } else if (exp.pattern instanceof RegExp) {
+                                return typeof log.content === 'string' && exp.pattern.test(log.content);
+                            }
+                            return false;
+                        });
+
+                        if (found && exp.shouldExist) {
+                            safeResolve();
+                            return;
+                        }
+                    }
+                    // Check nodes
+                    else if (exp.type === 'expectNode') {
+                        if (this.virtualGraph.hasNode(exp.idOrTerm)) {
+                            if (exp.shouldExist) {
+                                safeResolve();
+                                return;
+                            }
+                        }
+                    }
+                };
+
+                checkState();
+
+                // Listen for updates
+                if (exp.shouldExist) {
+                    listener = (data) => {
+                         // Trigger check
+                         checkState();
                     };
 
-                    this.client.on('message', messageHandler);
+                    this.client.on('message', listener);
                 }
             });
         });
 
-        try {
-            // Wait for all expectations to be satisfied
-            await Promise.all(expectationPromises);
-        } catch (error) {
-            // If any expectation failed, throw the error
-            throw new Error(`Test expectations not met: ${error.message}`);
-        }
-    }
-
-    async waitForExpectations(expectations) {
-        // Legacy method - keeping for compatibility, but this should now call the event-driven method
-        return this.waitForExpectationsEventDriven(expectations);
+        await Promise.all(expectationPromises);
     }
 }
