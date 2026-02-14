@@ -15,6 +15,7 @@ import { registerListOps } from './ops/ListOps.js';
 import { registerStringOps } from './ops/StringOps.js';
 import { registerIOOps } from './ops/IOOps.js';
 import { registerSpaceOps } from './ops/SpaceOps.js';
+import { registerStateOps } from './ops/StateOps.js';
 import { registerIntrospectionOps } from './ops/IntrospectionOps.js';
 import { registerTypeOps } from './ops/TypeOps.js';
 import { registerBudgetOps } from './ops/BudgetOps.js';
@@ -25,8 +26,9 @@ import { registerHOFOps } from './ops/HOFOps.js';
 import { registerMetaprogrammingOps } from './ops/MetaprogrammingOps.js';
 
 export class Ground extends CoreRegistry {
-    constructor() {
+    constructor(context = {}) {
         super();
+        this.context = context;
         this._registerCoreOperations();
     }
 
@@ -103,7 +105,8 @@ export class Ground extends CoreRegistry {
      * Register advanced operations
      */
     _registerAdvancedOps() {
-        registerSpaceOps(this);
+        registerSpaceOps(this, this.context);
+        registerStateOps(this);
         registerIntrospectionOps(this);
         registerTypeOps(this);
         registerBudgetOps(this);

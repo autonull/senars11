@@ -7,6 +7,9 @@
 // Standard library imports
 import { TermFactory } from '@senars/core/src/term/TermFactory.js';
 
+// Module Loader
+import { ModuleLoader } from './kernel/ModuleLoader.js';
+
 // Local imports grouped by category
 // Core components
 import { BaseMeTTaComponent } from './helpers/BaseMeTTaComponent.js';
@@ -55,7 +58,9 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
 
         this.reasoner = reasoner;
         this.space = new ReactiveSpace();
-        this.ground = new Ground();
+        this.spaces = new Map();
+        this.moduleLoader = new ModuleLoader(this);
+        this.ground = new Ground(this);
         this.parser = new Parser();
         this.typeSystem = new TypeSystem();
         this.typeChecker = new TypeChecker(this.typeSystem);

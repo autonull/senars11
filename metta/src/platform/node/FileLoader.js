@@ -74,4 +74,16 @@ export class FileLoader {
             this.searchPaths.push(path);
         }
     }
+
+    /**
+     * Static helper to load a file directly
+     */
+    static load(filePath) {
+        const require = createRequire(import.meta.url);
+        const fs = require('fs');
+        if (fs.existsSync(filePath)) {
+             return fs.readFileSync(filePath, 'utf-8');
+        }
+        throw new Error(`File not found: ${filePath}`);
+    }
 }

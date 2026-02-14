@@ -41,11 +41,11 @@ describe('Superpose Non-Determinism', () => {
         expect(results).toHaveLength(2);
     });
 
-    test('collapse-bind collects results', () => {
-        // (collapse-bind (superpose (A B))) -> (A B)
-        // using run() because collapse-bind is registered in Interpreter and uses reduceND internally
-        // Note: collapse-bind returns a list atom.
-        const results = run('!(collapse-bind (superpose (A B)))');
+    test('collapse collects results', () => {
+        // (collapse (superpose (A B))) -> (A B)
+        // using run() because collapse is registered in Interpreter and uses reduceND internally
+        // Note: collapse returns a list atom.
+        const results = run('!(collapse (superpose (A B)))');
         expect(results).toHaveLength(1);
         const listStr = results[0];
         // Expect (: A (: B ())) or similar list structure string representation

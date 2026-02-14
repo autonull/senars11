@@ -17,5 +17,6 @@ export { registerMathOps } from './MathOps.js';
 export { registerMetaprogrammingOps } from './MetaprogrammingOps.js';
 export { registerSetOps } from './SetOps.js';
 export { registerSpaceOps } from './SpaceOps.js';
+export { registerStateOps } from './StateOps.js';
 export { registerStringOps } from './StringOps.js';
 export { registerTypeOps } from './TypeOps.js';

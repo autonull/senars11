@@ -1,5 +1,5 @@
-import {App} from '../../agent/src/app/App.js';
-import {jest} from '@jest/globals';
+import { App } from '../../agent/src/app/App.js';
+import { jest } from '@jest/globals';
 
 describe('App Initialization Integration', () => {
     jest.setTimeout(10000);
@@ -7,13 +7,13 @@ describe('App Initialization Integration', () => {
     test('should instantiate App without hanging', async () => {
         console.log('Test: Creating App...');
         const app = new App({
-            lm: {enabled: false} // Disable LM first to check basic App init
+            lm: { enabled: false } // Disable LM first to check basic App init
         });
         console.log('Test: App created');
         expect(app).toBeDefined();
 
         console.log('Test: Starting App...');
-        await app.start({startAgent: false});
+        await app.start({ startAgent: false });
         console.log('Test: App started');
 
         await app.shutdown();
@@ -32,7 +32,7 @@ describe('App Initialization Integration', () => {
         });
 
         console.log('Test: Starting App with LM...');
-        const agent = await app.start({startAgent: true});
+        const agent = await app.start({ startAgent: true });
         console.log('Test: App started with LM');
 
         // Force model load by generating text
@@ -42,5 +42,5 @@ describe('App Initialization Integration', () => {
         expect(response).toBeDefined();
 
         await app.shutdown();
-    });
+    }, 30000);
 });

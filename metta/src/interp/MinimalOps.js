@@ -4,7 +4,7 @@
 
 import { Term } from '../kernel/Term.js';
 import { Unify } from '../kernel/Unify.js';
-import { step, reduce, reduceND } from '../kernel/Reduce.js';
+import { step, reduce, reduceND, reduceNDGenerator } from '../kernel/Reduce.js';
 
 export function registerMinimalOps(interpreter) {
     const { sym, exp, isExpression } = Term;
@@ -16,8 +16,16 @@ export function registerMinimalOps(interpreter) {
     reg('unify', createUnifyOp(interpreter), { lazy: true });
     reg('function', createFunctionOp(interpreter), { lazy: true });
     reg('return', createReturnOp(interpreter), { lazy: true });
-    reg('collapse-bind', createCollapseBindOp(interpreter), { lazy: true });
-    reg('superpose-bind', createSuperposeBindOp(interpreter), { lazy: true });
+    reg('import!', createImportOp(interpreter), { lazy: true, async: true });
+    reg('include!', createIncludeOp(interpreter), { lazy: true, async: true });
+    reg('bind!', createBindOp(interpreter), { lazy: true });
+
+    // Updated/New ops
+    reg('collapse', createCollapseOp(interpreter), { lazy: true });
+    reg('superpose', createSuperposeOp(interpreter), { lazy: true });
+    reg('superpose-weighted', createSuperposeWeightedOp(interpreter), { lazy: true });
+    reg('collapse-n', createCollapseNOp(interpreter), { lazy: true });
+
     reg('context-space', createContextSpaceOp(interpreter), { lazy: true });
     reg('noeval', createNoEvalOp(interpreter), { lazy: true });
 }
@@ -92,22 +100,111 @@ function createReturnOp(interpreter) {
 }
 
 /**
- * Create the collapse-bind operation
+ * Create the import! operation
  */
-function createCollapseBindOp(interpreter) {
+function createImportOp(interpreter) {
+    const { sym, exp } = Term;
+    return async (moduleName) => {
+        const module = await interpreter.moduleLoader.import(moduleName.name);
+        // Merge exported symbols into current space
+        if (module.exports) {
+            for (const [name, atom] of Object.entries(module.exports)) {
+                interpreter.space.add(exp(sym('='), [sym(name), atom]));
+            }
+        }
+        return sym('ok');
+    };
+}
+
+/**
+ * Create the include! operation
+ */
+function createIncludeOp(interpreter) {
+    const { sym } = Term;
+    return async (filePath) => {
+        await interpreter.moduleLoader.include(filePath.name);
+        return sym('ok');
+    };
+}
+
+/**
+ * Create the bind! operation
+ */
+function createBindOp(interpreter) {
+    const { sym, exp } = Term;
+    return (name, value) => {
+        interpreter.space.add(exp(sym('='), [name, value]));
+        return sym('ok');
+    };
+}
+
+/**
+ * Create the collapse operation
+ */
+function createCollapseOp(interpreter) {
     return (atom) =>
         interpreter._listify(reduceND(atom, interpreter.space, interpreter.ground, interpreter.config.maxReductionSteps));
 }
 
+const extractElements = (atom) => {
+    const { isList, flattenList, isExpression } = Term;
+    if (isList(atom)) return flattenList(atom).elements;
+    if (isExpression(atom)) return [atom.operator, ...atom.components];
+    return [atom];
+};
+
 /**
- * Create the superpose-bind operation
+ * Create the superpose operation
  */
-function createSuperposeBindOp(interpreter) {
+function createSuperposeOp(interpreter) {
     const { sym, exp } = Term;
 
-    return (collapsed) => {
-        const items = interpreter.ground._flattenExpr(collapsed);
-        return items.length === 1 ? items[0] : exp(sym('superpose'), items);
+    return (listAtom) => {
+        const elements = extractElements(listAtom);
+        // Handle empty list: (superpose ()) should produce no results
+        if (elements.length === 0 || (elements.length === 1 && elements[0].name === '()')) {
+            return exp(sym('superpose-internal'), [sym('()')]);
+        }
+        if (elements.length === 1) return elements[0];
+        return exp(sym('superpose-internal'), elements);
+    };
+}
+
+/**
+ * Create the superpose-weighted operation
+ */
+function createSuperposeWeightedOp(interpreter) {
+    return (weightedList) => {
+        const items = extractElements(weightedList);
+        const weighted = items.map(item => ({
+            weight: parseFloat(item.components?.[0]?.name) || 1,
+            value: item.components?.[1] || item
+        }));
+
+        const totalWeight = weighted.reduce((s, w) => s + w.weight, 0);
+        let random = Math.random() * totalWeight;
+        for (const { weight, value } of weighted) {
+            random -= weight;
+            if (random <= 0) return value;
+        }
+        return weighted[weighted.length - 1].value;
+    };
+}
+
+/**
+ * Create the collapse-n operation
+ */
+function createCollapseNOp(interpreter) {
+    return (atom, n) => {
+        const limit = parseInt(n.name) || 10;
+        const results = [];
+        const gen = reduceNDGenerator(atom, interpreter.space, interpreter.ground);
+        for (let i = 0; i < limit; i++) {
+            const { value, done } = gen.next();
+            if (done) break;
+            results.push(value);
+        }
+        return interpreter._listify(results);
     };
 }
 

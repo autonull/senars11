@@ -4,14 +4,16 @@
  * Following AGENTS.md: Elegant, Consolidated, Consistent, Organized, Deeply deduplicated
  */
 
-import {isExpression, isSymbol, exp, sym} from './Term.js';
+import { isExpression, isSymbol, exp, sym, isVariable } from './Term.js';
 
 export class Space {
     constructor() {
         this.atoms = new Set();
         this.rules = [];
         this.functorIndex = new Map();
-        this._stats = {adds: 0, removes: 0, queries: 0, indexedLookups: 0};
+        this.arityIndex = new Map();
+        this.signatureIndex = new Map();
+        this._stats = { adds: 0, removes: 0, queries: 0, indexedLookups: 0, fullScans: 0 };
     }
 
     /**
@@ -21,7 +23,7 @@ export class Space {
         if (!atom) throw new Error("Cannot add null/undefined atom");
         if (!this.atoms.has(atom)) {
             this.atoms.add(atom);
-            this._indexAtom(atom);
+            this._indexItem(atom, atom);
             this._stats.adds++;
         }
         return this;
@@ -33,7 +35,7 @@ export class Space {
     remove(atom) {
         if (this.atoms.has(atom)) {
             this.atoms.delete(atom);
-            this._deindexAtom(atom);
+            this._deindexItem(atom, atom);
             this._stats.removes++;
             return true;
         }
@@ -68,7 +70,7 @@ export class Space {
      */
     addRule(pattern, result) {
         if (!pattern) throw new Error("Pattern cannot be null");
-        const rule = {pattern, result};
+        const rule = { pattern, result };
         this.rules.push(rule);
         this._indexItem(rule, pattern);
         return this;
@@ -81,13 +83,39 @@ export class Space {
         return [...this.rules];
     }
 
-    /**
-     * Get rules for a specific functor
-     */
-    rulesFor(functor) {
+    rulesFor(term) {
         this._stats.indexedLookups++;
-        const name = this._getFunctorName(functor);
-        return name ? (this.functorIndex.get(name) || []) : [...this.rules];
+
+        if (!isExpression(term)) {
+            const functorName = this._getFunctorName(term);
+            if (functorName) return this.functorIndex.get(functorName) || [];
+            this._stats.fullScans++;
+            return [...this.rules];
+        }
+
+        const functor = this._getFunctorName(term.operator);
+        const arity = term.components?.length || 0;
+
+        // Try most specific index first (Level 3: Signature)
+        const sigKey = this._getSignatureKey(term);
+        if (sigKey && this.signatureIndex.has(sigKey)) {
+            return this.signatureIndex.get(sigKey);
+        }
+
+        // Fall back to arity index (Level 2: Functor+Arity)
+        const arityKey = `${functor}/${arity}`;
+        if (this.arityIndex.has(arityKey)) {
+            return this.arityIndex.get(arityKey);
+        }
+
+        // Fall back to functor index (Level 1: Functor)
+        if (functor && this.functorIndex.has(functor)) {
+            return this.functorIndex.get(functor);
+        }
+
+        // Last resort: full scan
+        this._stats.fullScans++;
+        return [...this.rules];
     }
 
     /**
@@ -139,7 +167,9 @@ export class Space {
         this.atoms.clear();
         this.rules = [];
         this.functorIndex.clear();
-        this._stats = {adds: 0, removes: 0, queries: 0, indexedLookups: 0};
+        this.arityIndex.clear();
+        this.signatureIndex.clear();
+        this._stats = { adds: 0, removes: 0, queries: 0, indexedLookups: 0, fullScans: 0 };
     }
 
     // === Private Methods ===
@@ -154,38 +184,72 @@ export class Space {
         return null;
     }
 
-    /**
-     * Index an atom
-     */
-    _indexAtom(atom) {
-        this._indexItem(atom, atom);
+    _indexItem(item, pattern) {
+        if (!isExpression(pattern)) return;
+
+        const functor = this._getFunctorName(pattern.operator);
+        const arity = pattern.components?.length || 0;
+
+        if (!functor) return;
+
+        // Level 1: Functor index
+        this.functorIndex.set(functor, [...(this.functorIndex.get(functor) || []), item]);
+
+        // Level 2: Functor+Arity index
+        const arityKey = `${functor}/${arity}`;
+        this.arityIndex.set(arityKey, [...(this.arityIndex.get(arityKey) || []), item]);
+
+        // Level 3: Signature index (first 2 constant args)
+        const sigKey = this._getSignatureKey(pattern);
+        if (sigKey) {
+            this.signatureIndex.set(sigKey, [...(this.signatureIndex.get(sigKey) || []), item]);
+        }
+    }
+
+    _getSignatureKey(pattern) {
+        const functor = this._getFunctorName(pattern.operator);
+        const args = pattern.components || [];
+
+        const constArgs = args.slice(0, 2)
+            .filter(a => !isVariable(a))
+            .map(a => a.name || a.toString());
+
+        return constArgs.length > 0 ? `${functor}/${constArgs.join('/')}` : null;
     }
 
     /**
-     * Remove an atom from the index
+     * Remove an item from the index
      */
-    _deindexAtom(atom) {
-        if (!isExpression(atom)) return;
-        const name = this._getFunctorName(atom.operator);
-        if (name && this.functorIndex.has(name)) {
-            const items = this.functorIndex.get(name);
-            const idx = items.indexOf(atom);
-            if (idx !== -1) {
-                items.splice(idx, 1);
-                if (items.length === 0) this.functorIndex.delete(name);
-            }
+    _deindexItem(item, pattern) {
+        if (!isExpression(pattern)) return;
+
+        const functor = this._getFunctorName(pattern.operator);
+        const arity = pattern.components?.length || 0;
+
+        if (!functor) return;
+
+        this._removeFromMap(this.functorIndex, functor, item);
+
+        const arityKey = `${functor}/${arity}`;
+        this._removeFromMap(this.arityIndex, arityKey, item);
+
+        const sigKey = this._getSignatureKey(pattern);
+        if (sigKey) {
+            this._removeFromMap(this.signatureIndex, sigKey, item);
         }
     }
 
     /**
-     * Index an item with a pattern
+     * Helper to remove item from a map entry
      */
-    _indexItem(item, pattern) {
-        if (!isExpression(pattern)) return;
-        const name = this._getFunctorName(pattern.operator);
-        if (name) {
-            if (!this.functorIndex.has(name)) this.functorIndex.set(name, []);
-            this.functorIndex.get(name).push(item);
+    _removeFromMap(map, key, item) {
+        if (map.has(key)) {
+            const list = map.get(key);
+            const idx = list.indexOf(item);
+            if (idx !== -1) {
+                list.splice(idx, 1);
+                if (list.length === 0) map.delete(key);
+            }
         }
     }
 }

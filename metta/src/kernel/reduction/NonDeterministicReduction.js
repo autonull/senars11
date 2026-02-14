@@ -57,6 +57,52 @@ export const reduceND = (atom, space, ground, limit = 100) => {
 };
 
 /**
+ * Generator for non-deterministic reduction
+ */
+export function* reduceNDGenerator(atom, space, ground, limit = 100) {
+    const visited = new Set();
+    const queue = [{ atom, steps: 0 }];
+
+    while (queue.length) {
+        const { atom: curr, steps } = queue.shift();
+
+        if (!curr) continue;
+
+        const str = curr.toString();
+
+        if (visited.has(str)) continue;
+        visited.add(str);
+
+        if (steps >= limit) {
+            yield curr;
+            continue;
+        }
+
+        let any = false;
+        const reds = [...stepYieldInternal(curr, space, ground, limit)];
+
+        if (reds.length) {
+            for (const { reduced, deadEnd } of reds) {
+                any = true;
+                if (!deadEnd) queue.push({ atom: reduced, steps: steps + 1 });
+            }
+        } else if (isExpression(curr) && curr.components?.length) {
+            const sub = reduceSubcomponentsND(curr, space, ground, limit - steps);
+            if (sub?.length) {
+                for (const expr of sub) {
+                    if (!expr.equals(curr)) {
+                        queue.push({ atom: expr, steps: steps + 1 });
+                        any = true;
+                    }
+                }
+            }
+        }
+
+        if (!any) yield curr;
+    }
+}
+
+/**
  * Reduce subcomponents of an expression
  */
 const reduceSubcomponentsND = (expr, space, ground, limit) => {

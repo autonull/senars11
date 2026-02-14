@@ -19,4 +19,4 @@ setReduceNDInternalReference(reduceNDInternalFunc);
 
 export { stepYield, step, executeGroundedOpND, executeGroundedOpWithArgsND, isGroundedCall, match } from './StepFunctions.js';
 export { reduce, reduceAsync } from './DeterministicReduction.js';
-export { reduceND, reduceNDAsync } from './NonDeterministicReduction.js';
+export { reduceND, reduceNDAsync, reduceNDGenerator } from './NonDeterministicReduction.js';

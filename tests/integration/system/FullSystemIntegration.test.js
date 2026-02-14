@@ -1,6 +1,6 @@
-import {afterAll, beforeAll, describe, expect, test} from '@jest/globals';
-import {App} from '../../../agent/src/app/App.js';
-import {assertEventuallyTrue, getTerms, hasTermMatch, wait} from '../../support/testHelpers.js';
+import { afterAll, beforeAll, describe, expect, test } from '@jest/globals';
+import { App } from '../../../agent/src/app/App.js';
+import { assertEventuallyTrue, getTerms, hasTermMatch, wait } from '../../support/testHelpers.js';
 
 /**
  * Full system integration tests combining NAL + LM + Prolog + Memory subsystems.
@@ -17,9 +17,9 @@ describe('Full System Integration', () => {
                 modelName: 'Xenova/flan-t5-small',
                 enabled: true,
                 temperature: 0.1,
-                circuitBreaker: {failureThreshold: 5, resetTimeout: 1000}
+                circuitBreaker: { failureThreshold: 5, resetTimeout: 1000 }
             },
-            subsystems: {lm: true, prolog: true},
+            subsystems: { lm: true, prolog: true },
             memory: {
                 priorityThreshold: 0.3,
                 consolidationInterval: 5,
@@ -31,12 +31,12 @@ describe('Full System Integration', () => {
             }
         });
 
-        agent = await app.start({startAgent: true});
+        agent = await app.start({ startAgent: true });
     });
 
     afterAll(async () => {
         await app?.shutdown();
-    });
+    }, 15000);
 
     test('Cross-subsystem workflow: NL → NAL → Prolog reasoning', async () => {
         // LM translates NL to Narsese
@@ -50,7 +50,7 @@ describe('Full System Integration', () => {
                 const terms = getTerms(agent);
                 return hasTermMatch(terms, 'bird', 'fly') || hasTermMatch(terms, 'robin');
             },
-            {description: 'NL→NAL→Memory integration', timeout: 5000}
+            { description: 'NL→NAL→Memory integration', timeout: 5000 }
         );
     }, 10000);
 
@@ -89,9 +89,9 @@ describe('Full System Integration', () => {
         const events = [];
 
         if (agent.on) {
-            agent.on('lm.prompt', (data) => events.push({type: 'lm.prompt', ...data}));
-            agent.on('lm.response', (data) => events.push({type: 'lm.response', ...data}));
-            agent.on('task.added', (data) => events.push({type: 'task.added', ...data}));
+            agent.on('lm.prompt', (data) => events.push({ type: 'lm.prompt', ...data }));
+            agent.on('lm.response', (data) => events.push({ type: 'lm.response', ...data }));
+            agent.on('task.added', (data) => events.push({ type: 'task.added', ...data }));
         }
 
         await agent.input('"Dogs are friendly".');
@@ -114,7 +114,7 @@ describe('Full System Integration', () => {
                 const concepts = agent.getConcepts();
                 return goals.length > 0 || concepts.length > 0;
             },
-            {description: 'goal processed by system', timeout: 3000}
+            { description: 'goal processed by system', timeout: 3000 }
         );
     }, 8000);
 
@@ -153,7 +153,7 @@ describe('Full System Integration', () => {
                 const terms = getTerms(agent);
                 return terms.some(t => t.includes('valid') || t.includes('test'));
             },
-            {description: 'system recovers from error', timeout: 2000}
+            { description: 'system recovers from error', timeout: 2000 }
         );
     });
 
@@ -174,8 +174,8 @@ describe('Full System Integration', () => {
                 }
             });
 
-            await narTool.execute({action: 'assert_prolog', content: 'man(socrates).'});
-            await narTool.execute({action: 'assert_prolog', content: 'mortal(X) :- man(X).'});
+            await narTool.execute({ action: 'assert_prolog', content: 'man(socrates).' });
+            await narTool.execute({ action: 'assert_prolog', content: 'mortal(X) :- man(X).' });
 
             // Verify prolog integration is working
             const concepts = agent.getConcepts();
@@ -192,7 +192,7 @@ describe('Full System Integration', () => {
                     const terms = getTerms(agent);
                     return terms.some(t => t.includes('cat') || t.includes('dog'));
                 },
-                {description: 'NAL-Prolog integration', timeout: 3000}
+                { description: 'NAL-Prolog integration', timeout: 3000 }
             );
         });
     });

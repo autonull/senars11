@@ -21,32 +21,20 @@ export function* stepYield(atom, space, ground, limit = 10000, cache = null) {
     const opName = atom.operator?.name;
     const comps = atom.components;
 
-    // Handle superposition
-    if (opName === 'superpose' && comps?.length > 0) {
-        const arg = comps[0];
-        if (isExpression(arg)) {
-            let alts = [];
-
-            // If it's a list structure, flatten it
-            if (isList(arg)) {
-                const flattened = flattenList(arg);
-                alts = flattened.elements;
-            } else {
-                // If it's a simple expression, treat operator and components as alternatives
-                alts = [arg.operator, ...arg.components];
-            }
-
-            if (alts.length === 0) {
-                yield { reduced: null, applied: true, deadEnd: true };
-                return;
-            }
-            for (const alt of alts) yield { reduced: alt, applied: true };
-            return;
-        }
-        if (arg.name === '()') {
+    // Handle superposition (internal primitive)
+    // superpose creates (superpose-internal A B C...) where each component is an alternative
+    if (opName === 'superpose-internal' && comps?.length > 0) {
+        // Handle empty superpose
+        if (comps.length === 1 && comps[0].name === '()') {
             yield { reduced: null, applied: true, deadEnd: true };
             return;
         }
+
+        // Each component is an alternative - yield them all
+        for (const alt of comps) {
+            yield { reduced: alt, applied: true };
+        }
+        return;
     }
 
     // Handle grounded operations
@@ -138,9 +126,11 @@ export function* executeGroundedOpND(atom, opName, space, ground, limit) {
 
         // Then evaluate the appropriate branch based on the condition
         if (conditionResult.name === 'True') {
-            yield { reduced: reduceDeterministicInternal(args[1], space, ground, limit, null), applied: true };
+            // TCO: Return branch unreduced to allow outer loop to handle it without stack growth
+            yield { reduced: args[1], applied: true };
         } else if (conditionResult.name === 'False') {
-            yield { reduced: reduceDeterministicInternal(args[2], space, ground, limit, null), applied: true };
+            // TCO: Return branch unreduced
+            yield { reduced: args[2], applied: true };
         } else {
             // If condition is not clearly True/False, return the original expression
             yield { reduced: atom, applied: false };
@@ -229,3 +219,24 @@ export const match = (space, pattern, template) => {
     }
     return res;
 };
+
+/**
+ * Trampolined reduction for tail calls
+ */
+export function reduceWithTCO(atom, space, ground, limit, cache) {
+    let current = atom;
+    let steps = 0;
+
+    while (steps < limit) {
+        const result = step(current, space, ground, limit, cache);
+
+        if (!result.applied) {
+            return current;
+        }
+
+        current = result.reduced;
+        steps++;
+    }
+
+    throw new Error(`TCO limit exceeded: ${limit} steps`);
+}

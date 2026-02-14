@@ -14,6 +14,7 @@ export {
     executeGroundedOpWithArgsND,
     reduce,
     reduceND,
+    reduceNDGenerator,
     reduceAsync,
     reduceNDAsync,
     isGroundedCall,
