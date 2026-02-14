@@ -410,8 +410,10 @@ export class ExplorerApp {
         if (task?.term) sources.push(task.term.toString());
         if (belief?.term) sources.push(belief.term.toString());
 
-        derivedTask.derivation = { rule: inferenceRule || 'Inference', sources: sources };
-        this._onTaskAdded(derivedTask);
+        const derivation = { rule: inferenceRule || 'Inference', sources: sources };
+        const derivedTaskCopy = { ...derivedTask, derivation };
+
+        this._onTaskAdded(derivedTaskCopy);
         const rule = inferenceRule || 'Inference';
 
         if (task && task.term) {

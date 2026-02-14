@@ -78,6 +78,37 @@ export class InputManager {
 
     // --- Core Logic Methods ---
 
+    async handleReplCommand(command) {
+        if (!command) return;
+        this.app.log(`> ${command}`, 'user');
+
+        if (command.startsWith('!')) {
+            const code = command.slice(1);
+            if (this.app.localToolsBridge) {
+                const res = await this.app.localToolsBridge.executeTool('run_metta', { code });
+                if (res.success) {
+                    this.app.log(`MeTTa Result: ${res.data}`, 'success');
+                } else {
+                    this.app.log(`MeTTa Error: ${res.error}`, 'error');
+                }
+            } else {
+                this.app.log('MeTTa bridge not available', 'error');
+            }
+            return;
+        }
+
+        const nar = this.app.reasoningManager._getNAR();
+        if (nar) {
+            try {
+                nar.input(command);
+            } catch (e) {
+                this.app.log(`NAL Error: ${e.message}`, 'error');
+            }
+        } else {
+            this.app.log('Reasoner not available', 'error');
+        }
+    }
+
     handleAddConcept(position = null) {
         const input = prompt("Enter concept name (or type:name):");
         if (input) {
