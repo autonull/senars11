@@ -1,5 +1,4 @@
 import { Component } from './Component.js';
-import { GraphConfig } from '../config/GraphConfig.js';
 import { Modal } from './ui/Modal.js';
 import { FluentUI } from '../utils/FluentUI.js';
 import { EVENTS } from '../config/constants.js';
@@ -20,8 +19,6 @@ export class SettingsPanel extends Component {
             .child(this._renderWorkspaceSection())
             .child(this._renderUISettingsSection())
             .child(this._renderConnectionSection())
-            .child(this._renderPhysicsSection())
-            .child(this._renderColorsSection())
             .child(
                 FluentUI.create('button')
                     .id('apply-settings')
@@ -80,52 +77,10 @@ export class SettingsPanel extends Component {
         );
     }
 
-    _renderPhysicsSection() {
-        const layout = GraphConfig.getGraphLayout('fcose');
-        return this._renderSection('GRAPH PHYSICS (fCoSE)', [
-            this._createSlider('Gravity', 'gravity', 0, 1, 0.05, layout.gravity),
-            this._createSlider('Repulsion', 'nodeRepulsion', 100000, 1000000, 50000, layout.nodeRepulsion),
-            this._createSlider('Edge Length', 'idealEdgeLength', 50, 300, 10, layout.idealEdgeLength)
-        ]);
-    }
-
-    _renderColorsSection() {
-        return this._renderSection('COLORS', [
-            this._createColorPicker('Concept', 'CONCEPT'),
-            this._createColorPicker('Task', 'TASK'),
-            this._createColorPicker('Question', 'QUESTION'),
-            this._createColorPicker('Highlight', 'HIGHLIGHT')
-        ]);
-    }
-
     _renderSection(title, content) {
         return FluentUI.create('div').class('settings-section')
             .child(FluentUI.create('h3').class('settings-header').text(title))
             .children(content); // content can be single or array, FluentUI handles it
-    }
-
-    _createSlider(label, key, min, max, step, value) {
-        const valSpan = FluentUI.create('span').id(`val-${key}`).text(value);
-
-        return FluentUI.create('div').class('setting-item')
-            .child(
-                FluentUI.create('label').class('setting-label-row')
-                    .text(label + ' ')
-                    .child(valSpan)
-            )
-            .child(
-                FluentUI.create('input')
-                    .attr({ type: 'range', id: `setting-${key}`, min, max, step, value })
-                    .class('setting-input')
-                    .on('input', (e) => valSpan.text(e.target.value))
-            );
-    }
-
-    _createColorPicker(label, key) {
-        const val = GraphConfig.COLORS[key] || '#ffffff';
-        return FluentUI.create('div').class('setting-color-row')
-            .child(FluentUI.create('label').class('setting-label').text(label))
-            .child(FluentUI.create('input').attr({ type: 'color', id: `color-${key}`, value: val }).class('setting-color-input'));
     }
 
     _saveWorkspace() {
@@ -210,28 +165,6 @@ export class SettingsPanel extends Component {
             this.app.serverUrl = urlInput.value;
             this.app.saveSettings();
         }
-
-        // Update Colors
-        const colors = ['CONCEPT', 'TASK', 'QUESTION', 'HIGHLIGHT'];
-
-        colors.forEach(key => {
-            const input = this.container.querySelector(`#color-${key}`);
-            if (input && GraphConfig.COLORS[key] !== input.value) {
-                GraphConfig.COLORS[key] = input.value;
-            }
-        });
-
-        const physics = {};
-        ['gravity', 'nodeRepulsion', 'idealEdgeLength'].forEach(key => {
-             const input = this.container.querySelector(`#setting-${key}`);
-             if(input) physics[key] = parseFloat(input.value);
-        });
-
-        if (!GraphConfig.OVERRIDES) GraphConfig.OVERRIDES = {};
-        Object.assign(GraphConfig.OVERRIDES, physics);
-
-        // Save to persistence (handled in GraphConfig now)
-        if (GraphConfig.save) GraphConfig.save();
 
         eventBus.emit(EVENTS.SETTINGS_UPDATED);
     }

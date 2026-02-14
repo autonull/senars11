@@ -10,6 +10,7 @@ import { SystemMetricsPanel } from '../components/SystemMetricsPanel.js';
 import { HUDLayoutManager } from '../layout/HUDLayoutManager.js';
 import { HUDWidget } from '../components/HUDWidget.js';
 import { ExplorerInfoPanel } from './ExplorerInfoPanel.js';
+import { VisualizationPanel } from '../components/VisualizationPanel.js';
 import { LogPanel } from '../components/LogPanel.js';
 import { InspectorPanel } from '../components/InspectorPanel.js';
 import { TaskBrowser } from './TaskBrowser.js';
@@ -57,6 +58,7 @@ export class ExplorerApp {
         // Layout & Panels
         this.layoutManager = new HUDLayoutManager('hud-overlay');
         this.infoPanel = new ExplorerInfoPanel();
+        this.visualizationPanel = new VisualizationPanel();
         this.logPanel = new LogPanel();
         this.inspectorPanel = new InspectorPanel();
         this.taskBrowser = new TaskBrowser();
@@ -247,6 +249,7 @@ export class ExplorerApp {
         };
 
         createWidget('layers', 'Explorer Info', '📐', this.infoPanel, 'left', true, { width: '300px' });
+        createWidget('visualization', 'Visualization', '👁️', this.visualizationPanel, 'left', false, { width: '300px' });
 
         this.metricsPanel = new SystemMetricsPanel(null);
         createWidget('metrics', 'Metrics', '📊', this.metricsPanel, 'right', true, { height: '300px' });
