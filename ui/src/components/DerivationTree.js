@@ -1,4 +1,5 @@
 import { Component } from './Component.js';
+import cytoscape from 'cytoscape';
 
 export class DerivationTree extends Component {
     constructor(container) {
@@ -11,7 +12,6 @@ export class DerivationTree extends Component {
     initialize() {
         if (!this.container) return;
 
-        // Use standard component pattern - create elements instead of innerHTML where feasible or cleaner
         this.container.innerHTML = '';
         this.container.style.cssText = 'width: 100%; height: 100%; overflow: hidden;';
 
@@ -50,7 +50,8 @@ export class DerivationTree extends Component {
 
         wrapper.querySelector('#dt-export').addEventListener('click', () => this.exportHistory());
 
-        this._initCytoscape();
+        // Defer Cytoscape init to ensure container has dimensions
+        requestAnimationFrame(() => this._initCytoscape());
     }
 
     exportHistory() {
@@ -69,6 +70,13 @@ export class DerivationTree extends Component {
 
     _initCytoscape() {
         if (!this.graphContainer) return;
+
+        // Ensure container has size
+        if (this.graphContainer.clientWidth === 0 || this.graphContainer.clientHeight === 0) {
+            // Retry later
+            requestAnimationFrame(() => this._initCytoscape());
+            return;
+        }
 
         try {
             this.cy = cytoscape({
@@ -102,11 +110,9 @@ export class DerivationTree extends Component {
             this.cy.on('tap', 'node', (evt) => {
                 const data = evt.target.data();
                 if (data.type === 'conclusion' || data.type === 'premise') {
-                     // Dispatch select event to open in Memory Inspector
-                     // We need to construct a concept-like object or at least ID/Term
                      const concept = {
                          term: data.fullTerm || data.label,
-                         id: data.id // This ID is random, so MemoryInspector needs to match by term
+                         id: data.id
                      };
                      document.dispatchEvent(new CustomEvent('senars:concept:select', {
                         detail: { concept }

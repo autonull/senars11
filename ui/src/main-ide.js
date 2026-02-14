@@ -16,6 +16,7 @@ import { ThemeManager } from './components/ThemeManager.js';
 import { LMActivityIndicator } from './components/LMActivityIndicator.js';
 import { LayoutPresets } from './config/LayoutPresets.js';
 import { Logger } from './logging/Logger.js';
+import { StatusBar } from './components/StatusBar.js';
 
 console.log('--- SeNARS Unified IDE loading ---');
 
@@ -36,6 +37,7 @@ class SeNARSIDE {
         this.cycleCount = 0;
         this.messageCount = 0;
         this.isRunning = false;
+        this.statusBar = null;
 
         this.loadSettings();
 
@@ -72,15 +74,16 @@ class SeNARSIDE {
 
     async initialize() {
         console.log(`Initializing SeNARS IDE (Layout: ${this.presetName})...`);
+
+        this.statusBar = new StatusBar(document.getElementById('status-bar-root'));
+        this.statusBar.initialize({ onModeSwitch: () => this.showConnectionModal() });
+
         this.setupLayout();
         await this.switchMode(this.connectionMode);
         this.setupKeyboardShortcuts();
 
         // Listen for concept selection (Global Event Bus)
         document.addEventListener('senars:concept:select', (e) => this.handleConceptSelect(e));
-
-        // Listen for connection status changes if not handled by ConnectionManager events
-        // (ConnectionManager usually emits via its own subscriptions)
 
         console.log(`SeNARS IDE initialized in ${this.connectionMode} mode`);
     }
@@ -221,12 +224,10 @@ class SeNARSIDE {
         const manager = mode === 'local' ? new LocalConnectionManager() : new WebSocketManager();
         this.connection = new ConnectionManager(manager);
 
-        // Setup logger adapter for ConnectionManager if needed,
-        // but ConnectionManager usually dispatches events or calls callbacks.
-
         await this.connection.connect(mode === 'remote' ? this.serverUrl : undefined);
 
         this.connection.subscribe('*', (message) => this.handleMessage(message));
+        this.connection.subscribe('connection.status', (status) => this.statusBar?.updateStatus(status));
 
         // Update CommandProcessor with new connection
         if (this.commandProcessor) {
@@ -245,16 +246,8 @@ class SeNARSIDE {
     }
 
     updateModeIndicator() {
-        // REPLPanel handles UI, but we need to tell it or update a shared state
-        // Currently REPLPanel doesn't expose a mode indicator directly,
-        // but main-ide.js previously created it manually.
-        // We should probably rely on the StatusBar or let REPLPanel handle it if it had one.
-        // The previous main-ide.js created a status bar inside createREPLComponent.
-        // REPLPanel also creates a Toolbar but maybe not the status bar with mode switcher.
-
-        // HACK: Access REPLPanel's container to inject/update status bar if needed
-        // Or better, trigger an event or call a method on REPLPanel if we added one.
-        // For now, let's just log it. The UI update might need to be added to REPLPanel.
+        this.statusBar?.updateMode(this.connectionMode);
+        this.statusBar?.updateStatus(this.connection?.isConnected() ? 'Connected' : 'Disconnected');
     }
 
     showConnectionModal() {
@@ -370,7 +363,10 @@ class SeNARSIDE {
         const repl = this.components.get('repl');
         repl?.replInput?.updateCycles(this.cycleCount);
 
-        // If we had a global status bar, update it here
+        this.statusBar?.updateStats({
+            cycles: this.cycleCount,
+            messages: this.messageCount
+        });
     }
 
     setupKeyboardShortcuts() {

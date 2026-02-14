@@ -89,7 +89,7 @@ export class REPLPanel extends Component {
         // Since main-ide.js logic for controlReasoner was coupled with REPLInput,
         // we should probably expose a method on app or handle it here if we have access to connection.
 
-        if (this.app && this.app.connection) {
+        if (this.app?.connection) {
              console.log('Reasoner control:', action);
              if (!this.app.connection.isConnected()) {
                  this.notebookManager.createResultCell('⚠️ Not connected', 'system');

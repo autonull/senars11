@@ -1,10 +1,8 @@
 import { ConnectionInterface } from './ConnectionInterface.js';
-import { NAR } from '../../../core/src/nar/NAR.js'; // Adjust path if needed or use aliases
+import { NAR } from '../../../core/src/nar/NAR.js';
 import { MeTTaInterpreter } from '../../../metta/src/MeTTaInterpreter.js';
 import { Config } from '../../../core/src/config/Config.js';
 import { Logger } from '../logging/Logger.js';
-
-// import { BROWSER_STDLIB } from '../BrowserStdlib.js';
 
 export class LocalConnectionManager extends ConnectionInterface {
     constructor() {
@@ -36,7 +34,6 @@ export class LocalConnectionManager extends ConnectionInterface {
 
             this.metta = new MeTTaInterpreter(this.nar, {
                 ...config,
-                // virtualFiles: BROWSER_STDLIB,
                 fs: null, path: null, url: null
             });
             await this.metta.initialize();
@@ -55,17 +52,13 @@ export class LocalConnectionManager extends ConnectionInterface {
         }
     }
 
-    isConnected() {
-        return this.connectionStatus === 'connected';
-    }
+    isConnected() { return this.connectionStatus === 'connected'; }
 
     sendMessage(type, payload) {
-        if (this.connectionStatus !== 'connected') {
+        if (!this.isConnected()) {
             console.warn("LocalConnectionManager: Not connected. Message dropped:", type);
             return false;
         }
-
-        // Handle standard messages
         this.processLocalMessage(type, payload);
         return true;
     }
@@ -81,9 +74,8 @@ export class LocalConnectionManager extends ConnectionInterface {
                     await this.handleReset();
                     break;
                 case 'control/step':
-                    // this.nar.step() or similar
+                    // TODO: Implement step logic if needed
                     break;
-                // Add other command handlers as needed
                 default:
                     console.log("LocalConnectionManager: Unhandled message type", type);
             }
@@ -95,22 +87,17 @@ export class LocalConnectionManager extends ConnectionInterface {
     async handleInput(payload, type) {
         const text = payload.text || payload.input || payload;
 
-        // Explicit routing based on type
         if (type === 'narseseInput') {
              this.nar && await this.nar.input(text);
              return;
         }
 
-        // Handle MeTTa input (agent/input)
         if (this.metta && (type === 'agent/input' || /^(!|\(|=\s)/.test(text))) {
             try {
                 const results = await this.metta.run(text);
                 if (results?.length) {
                     const output = results.map(r => r.toString()).join('\n');
-
-                    // Check for visualization magic string
                     const vizMatch = output.match(/__VIZ__:(\w+):(.+)/s);
-                    // Check for UI command magic string: __UI__:command args...
                     const uiMatch = output.match(/__UI__:(\S+)(?:\s+(.+))?/);
 
                     if (vizMatch) {
@@ -147,7 +134,7 @@ export class LocalConnectionManager extends ConnectionInterface {
     async handleReset() {
         if (this.nar) await this.nar.reset();
         if (this.metta) {
-            this.metta = new MeTTaInterpreter(this.nar, this.nar.config); // Re-create?
+            this.metta = new MeTTaInterpreter(this.nar, this.nar.config);
             await this.metta.initialize();
         }
         this.dispatchMessage({ type: 'system/reset', payload: {} });
@@ -170,7 +157,6 @@ export class LocalConnectionManager extends ConnectionInterface {
         this.notifyStatusChange('disconnected');
     }
 
-    // Helper to dispatch to internal subscribers (UI)
     dispatchMessage(message) {
         const handlers = [...(this.messageHandlers.get(message.type) || []), ...(this.messageHandlers.get('*') || [])];
         handlers.forEach(h => { try { h(message); } catch (e) { console.error("Handler error", e); } });

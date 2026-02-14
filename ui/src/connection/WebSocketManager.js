@@ -18,7 +18,6 @@ export class WebSocketManager extends ConnectionInterface {
         this.processSliceMs = 12;
     }
 
-
     connect(url) {
         try {
             const wsUrl = url || Config.getWebSocketUrl();
@@ -35,7 +34,9 @@ export class WebSocketManager extends ConnectionInterface {
                 if (this.reconnectAttempts < this.maxReconnectAttempts) {
                     this.reconnectAttempts++;
                     setTimeout(() => this.connect(), this.reconnectDelay);
-                } else this.logger.log(`Max reconnection attempts (${this.maxReconnectAttempts}) reached`, 'error', '🚨');
+                } else {
+                    this.logger.log(`Max reconnection attempts (${this.maxReconnectAttempts}) reached`, 'error', '🚨');
+                }
             };
 
             this.ws.onerror = () => {
@@ -59,7 +60,6 @@ export class WebSocketManager extends ConnectionInterface {
         this.notifyStatusChange(status);
     }
 
-
     sendMessage(type, payload) {
         if (!this.isConnected()) return false;
         this.ws.send(JSON.stringify({ type, payload }));
@@ -68,12 +68,10 @@ export class WebSocketManager extends ConnectionInterface {
 
     isConnected() { return this.ws?.readyState === WebSocket.OPEN; }
 
-
     subscribe(type, handler) {
         !this.messageHandlers.has(type) && this.messageHandlers.set(type, []);
         this.messageHandlers.get(type).push(handler);
     }
-
 
     unsubscribe(type, handler) {
         const handlers = this.messageHandlers.get(type);
@@ -81,10 +79,7 @@ export class WebSocketManager extends ConnectionInterface {
         index > -1 && handlers.splice(index, 1);
     }
 
-
-    getConnectionStatus() {
-        return this.connectionStatus;
-    }
+    getConnectionStatus() { return this.connectionStatus; }
 
     handleMessage(msg) {
         if (!msg) return;
@@ -119,11 +114,9 @@ export class WebSocketManager extends ConnectionInterface {
         handlers.forEach(h => { try { h(msg); } catch (e) { console.error("WS Handler error", e); } });
     }
 
-
     notifyStatusChange(status) {
         this.messageHandlers.get('connection.status')?.forEach(h => h(status));
     }
-
 
     disconnect() { this.ws?.close(); }
 }

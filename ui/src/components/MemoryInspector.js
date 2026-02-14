@@ -129,12 +129,11 @@ export class MemoryInspector extends Component {
         const listDiv = document.createElement('div');
         listDiv.className = 'mi-list';
 
-        const filtered = this.data.filter(c => {
-            if (this.filterText && !c.term.toLowerCase().includes(this.filterText)) return false;
-            if (this.filters.hasGoals && (!c.tasks || !c.tasks.some(t => t.punctuation === '!'))) return false;
-            if (this.filters.hasQuestions && (!c.tasks || !c.tasks.some(t => t.punctuation === '?'))) return false;
-            return true;
-        }).sort((a, b) => {
+        const filtered = this.data.filter(c =>
+            (!this.filterText || c.term.toLowerCase().includes(this.filterText)) &&
+            (!this.filters.hasGoals || c.tasks?.some(t => t.punctuation === '!')) &&
+            (!this.filters.hasQuestions || c.tasks?.some(t => t.punctuation === '?'))
+        ).sort((a, b) => {
             const valA = this._getValue(a, this.sortField);
             const valB = this._getValue(b, this.sortField);
             return (valA < valB ? -1 : 1) * (this.sortDirection === 'asc' ? 1 : -1);

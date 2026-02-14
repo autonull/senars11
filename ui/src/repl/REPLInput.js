@@ -2,6 +2,7 @@ import { CommandHistory } from './CommandHistory.js';
 import { SmartTextarea } from './SmartTextarea.js';
 import { Modal } from '../components/ui/Modal.js';
 import { Toolbar } from '../components/ui/Toolbar.js';
+import { Config } from '../config/Config.js';
 
 export class REPLInput {
     constructor(container, options = {}) {
@@ -12,7 +13,7 @@ export class REPLInput {
         this.onExtraAction = options.onExtraAction || (() => {});
         this.onControl = options.onControl || (() => {});
 
-        this.history = new CommandHistory();
+        this.history = new CommandHistory('senars-repl-history', Config.getConstants().MAX_HISTORY_SIZE);
         this.element = null;
         this.inputBox = null;
         this.controls = {};
