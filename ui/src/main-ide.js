@@ -10,6 +10,7 @@ import { DerivationTree } from './components/DerivationTree.js';
 import { MessageFilter, categorizeMessage } from './repl/MessageFilter.js';
 import { NotebookManager } from './repl/NotebookManager.js';
 import { FilterToolbar } from './repl/FilterToolbar.js';
+import { REPLInput } from './repl/REPLInput.js';
 import { DemoLibrary } from './components/DemoLibrary.js';
 
 console.log('--- SeNARS IDE loading ---');
@@ -54,6 +55,12 @@ class SeNARSIDE {
         this.setupLayout();
         await this.switchMode(this.connectionMode);
         this.setupKeyboardShortcuts();
+
+        // Load persisted state or show welcome
+        if (this.notebook && !this.notebook.loadFromStorage()) {
+            this.notebook.createMarkdownCell("# Welcome to SeNARS IDE v1.0\n\nDouble-click this cell to edit.\n- **Local Mode**: Runs entirely in browser\n- **Remote Mode**: Connects to backend\n- **Widgets**: Interactive tools");
+        }
+
         console.log(`SeNARS IDE initialized in ${this.connectionMode} mode`);
     }
 
@@ -81,11 +88,12 @@ class SeNARSIDE {
             root: {
                 type: 'row',
                 content: [
-                    { type: 'component', componentName: 'replComponent', title: 'REPL', width: 60 },
+                    { type: 'component', componentName: 'replComponent', title: 'REPL', width: 95 },
                     {
-                        type: 'stack', width: 40,
+                        type: 'stack', width: 5,
+                        isClosable: true,
                         content: [
-                            { type: 'component', componentName: 'graphComponent', title: 'KNOWLEDGE GRAPH', isClosable: false },
+                            { type: 'component', componentName: 'graphComponent', title: 'KNOWLEDGE GRAPH', isClosable: true },
                             { type: 'component', componentName: 'memoryComponent', title: 'MEMORY INSPECTOR' },
                             { type: 'component', componentName: 'derivationComponent', title: 'DERIVATION TRACER' }
                         ]
@@ -93,6 +101,10 @@ class SeNARSIDE {
                 ]
             }
         });
+
+        // Minimize the sidebar stack after initialization if possible, or rely on 95/5 split
+        // GoldenLayout doesn't have a simple 'startMinimized' config in the tree structure easily accessible
+        // without complex state. 5% width is effectively collapsed.
 
         window.addEventListener('resize', () => this.layout.updateRootSize());
     }
@@ -128,63 +140,21 @@ class SeNARSIDE {
 
         this.notebook = new NotebookManager(notebookContainer);
 
-        const inputArea = document.createElement('div');
-        inputArea.style.cssText = 'padding: 10px; background: #252526; border-top: 1px solid #333;';
+        const inputContainer = document.createElement('div');
+        replContainer.appendChild(inputContainer);
 
-        const inputBox = document.createElement('textarea');
-        inputBox.id = 'repl-input';
-        inputBox.placeholder = 'Enter Narsese or MeTTa...';
-        inputBox.rows = 3;
-        inputBox.style.cssText = 'width: 100%; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3c3c3c; padding: 8px; font-family: monospace; resize: vertical;';
-        inputBox.addEventListener('keydown', (e) => (e.ctrlKey && e.key === 'Enter') && (e.preventDefault(), this.executeInput()));
-
-        const buttonBar = document.createElement('div');
-        buttonBar.style.cssText = 'display: flex; gap: 8px; margin-top: 8px; align-items: center;';
-
-        const reasonerControls = document.createElement('div');
-        reasonerControls.style.cssText = 'display: flex; gap: 4px; margin-right: 12px; padding-right: 12px; border-right: 1px solid #444;';
-
-        const createControlBtn = (icon, title, action, bg = '#333', color = 'white') => {
-            const btn = document.createElement('button');
-            btn.innerHTML = icon;
-            btn.title = title;
-            btn.onclick = () => this.controlReasoner(action);
-            btn.style.cssText = `padding: 6px 10px; background: ${bg}; color: ${color}; border: none; cursor: pointer; border-radius: 3px;`;
-            return btn;
-        };
-
-        reasonerControls.append(
-            createControlBtn('▶️', 'Start reasoner', 'start', '#0e639c'),
-            createControlBtn('⏸️', 'Pause reasoner', 'pause'),
-            createControlBtn('⏹️', 'Stop reasoner', 'stop', '#b30000'),
-            createControlBtn('⏭️', 'Step reasoner', 'step'),
-            createControlBtn('🔄', 'Reset reasoner', 'reset')
-        );
-
-        const runButton = document.createElement('button');
-        runButton.textContent = '▶️ Run (Ctrl+Enter)';
-        runButton.onclick = () => this.executeInput();
-        runButton.style.cssText = 'padding: 6px 12px; background: #0e639c; color: white; border: none; cursor: pointer; border-radius: 3px;';
-
-        const clearButton = document.createElement('button');
-        clearButton.textContent = '🗑️ Clear';
-        clearButton.onclick = () => this.clearREPL();
-        clearButton.style.cssText = 'padding: 6px 12px; background: #333; color: white; border: none; cursor: pointer; border-radius: 3px;';
-
-        const demoButton = document.createElement('button');
-        demoButton.innerHTML = '📚 Load Demo';
-        demoButton.title = 'Browse demo library (Ctrl+Shift+D)';
-        demoButton.onclick = () => this.showDemoLibrary();
-        demoButton.style.cssText = 'padding: 6px 12px; background: #5c2d91; color: white; border: none; cursor: pointer; border-radius: 3px;';
-
-        buttonBar.append(reasonerControls, runButton, clearButton, demoButton);
-        inputArea.append(inputBox, buttonBar);
-        replContainer.appendChild(inputArea);
+        this.replInput = new REPLInput(inputContainer, {
+            onExecute: (text) => this.executeInput(text),
+            onClear: () => this.clearREPL(),
+            onDemo: () => this.showDemoLibrary(),
+            onExtraAction: (action) => this.handleExtraAction(action)
+        });
+        this.replInput.render();
 
         this.components.set('repl', {
             container: replContainer,
             notebook: notebookContainer,
-            input: inputBox,
+            input: this.replInput,
             modeIndicator,
             cycleCount: document.getElementById('cycle-count'),
             messageCount: document.getElementById('message-count')
@@ -299,16 +269,11 @@ class SeNARSIDE {
         URL.revokeObjectURL(url);
     }
 
-    executeInput() {
-        const repl = this.components.get('repl');
-        const input = repl?.input.value.trim();
-        if (!input) return;
-
-        this.notebook.createCodeCell(input, (content) => {
+    executeInput(text) {
+        if (!text) return;
+        this.notebook.createCodeCell(text, (content) => {
             this.connection?.isConnected() && this.connection.sendMessage('agent/input', { text: content });
         }).execute();
-
-        repl.input.value = '';
     }
 
     clearREPL() {
@@ -353,6 +318,80 @@ class SeNARSIDE {
                 this.showDemoLibrary();
             }
         });
+    }
+
+    handleExtraAction(action) {
+        switch (action) {
+            case 'markdown':
+                this.notebook.createMarkdownCell('Double-click to edit...');
+                break;
+            case 'graph':
+                this.notebook.createWidgetCell('GraphWidget', [
+                    { id: 'a', label: 'Concept A' },
+                    { id: 'b', label: 'Concept B' },
+                    { source: 'a', target: 'b', label: 'relates' }
+                ]);
+                break;
+            case 'slider':
+                this.notebook.createWidgetCell('TruthSlider', { frequency: 0.5, confidence: 0.9 });
+                break;
+            case 'simulation':
+                this.runEpicSimulation();
+                break;
+        }
+    }
+
+    runEpicSimulation() {
+        this.notebook.clear();
+        this.notebook.createMarkdownCell('# 🚀 System Simulation: Cognitive Load Test\n\nInitiating high-frequency inference simulation...');
+
+        // 1. Add Chart Widget
+        const chartCell = this.notebook.createWidgetCell('ChartWidget', {
+            type: 'line',
+            options: {
+                plugins: { title: { display: true, text: 'Real-time Inference Metrics' } }
+            }
+        });
+
+        // 2. Add Graph Widget
+        const graphCell = this.notebook.createWidgetCell('GraphWidget', [
+            { id: 'SELF', type: 'concept', val: 100, label: 'SELF' }
+        ]);
+
+        // 3. Simulate Activity
+        let tick = 0;
+        const interval = setInterval(() => {
+            tick++;
+
+            // Update Chart
+            const val = Math.sin(tick * 0.1) * 20 + 50 + Math.random() * 10;
+            const widget = chartCell.element.querySelector('canvas')?.__chartWidget; // Hack or need better way to get instance
+            // Actually, we don't have reference to widget instance from cell easily.
+            // Let's modify NotebookManager to return instance or allow access.
+            // For now, let's look up by cell ID or assume the cell has a way.
+
+            // Accessing the widget instance stored on the element (we need to update WidgetCell to store it)
+            if (chartCell.widgetInstance) {
+                chartCell.widgetInstance.updateData(new Date().toLocaleTimeString(), val);
+            }
+
+            // Update Graph
+            if (tick % 5 === 0 && graphCell.widgetInstance) {
+                const id = `NODE_${tick}`;
+                const source = tick > 5 ? `NODE_${tick-5}` : 'SELF';
+                graphCell.widgetInstance.updateData([
+                    { group: 'nodes', data: { id, label: `Concept ${tick}`, val: Math.random() * 50 + 10 } },
+                    { group: 'edges', data: { source, target: id, label: 'implies' } }
+                ]);
+            }
+
+            // Log messages
+            if (tick % 10 === 0) {
+                 this.notebook.createResultCell(`[SIM] Cycle ${tick}: Inference completed with confidence ${(Math.random()).toFixed(2)}`, 'reasoning', 'compact');
+            }
+
+            if (tick > 100) clearInterval(interval);
+        }, 200);
     }
 
     showDemoLibrary() {
