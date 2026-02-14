@@ -17,6 +17,11 @@ export class VisualizationPanel extends Component {
             viewMode: savedLayout,
             scatterAxes: { x: 'priority', y: 'confidence' },
 
+            // Mappings (for Tactical Theme)
+            mappingSize: 'priority',
+            mappingColor: 'hash',
+            bagCapacity: 50,
+
             // Filters
             showTasks: true,
             minPriority: 0,
@@ -58,6 +63,7 @@ export class VisualizationPanel extends Component {
         this.fluent().clear().class('visualization-panel').style({ padding: '10px', color: '#ccc', fontSize: '12px', overflowY: 'auto', height: '100%' });
 
         this._renderLayoutSection();
+        this._renderMappingSection();
         this._renderFilterSection();
         this._renderPhysicsSection();
         this._renderAppearanceSection();
@@ -121,6 +127,49 @@ export class VisualizationPanel extends Component {
         return container;
     }
 
+    _renderMappingSection() {
+        this._renderSectionHeader('Node Mappings');
+        const container = this.fluent().child(FluentUI.create('div').class('panel-section'));
+
+        const createSelect = (label, prop, options) => {
+            const row = FluentUI.create('div').class('control-row').style({ marginBottom: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' });
+            row.child(FluentUI.create('label').text(label));
+
+            const select = FluentUI.create('select')
+                .class('panel-select-mini')
+                .style({ background: '#222', color: '#ccc', border: '1px solid #333', fontSize: '11px', padding: '2px', width: '100px' })
+                .on('change', (e) => this.state[prop] = e.target.value)
+                .children(options.map(opt =>
+                    FluentUI.create('option').attr({ value: opt.v }).text(opt.l).prop({ selected: this.state[prop] === opt.v })
+                ));
+
+            row.child(select);
+            container.child(row);
+        };
+
+        createSelect('Size By:', 'mappingSize', [
+            { v: 'priority', l: 'Priority' },
+            { v: 'confidence', l: 'Confidence' },
+            { v: 'complexity', l: 'Complexity' },
+            { v: 'fixed', l: 'Fixed' }
+        ]);
+
+        createSelect('Color By:', 'mappingColor', [
+            { v: 'hash', l: 'Hash (ID)' },
+            { v: 'type', l: 'Type' },
+            { v: 'priority', l: 'Priority' },
+            { v: 'confidence', l: 'Confidence' }
+        ]);
+
+        // Bag Capacity
+        const bagRow = FluentUI.create('div').class('control-row').style({ marginBottom: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' });
+        bagRow.child(FluentUI.create('label').text('Bag Capacity:'));
+        bagRow.child(FluentUI.create('input').attr({ type: 'number', min: 10, max: 200, step: 10, value: this.state.bagCapacity })
+            .style({ background: '#222', color: '#ccc', border: '1px solid #333', fontSize: '11px', padding: '2px', width: '60px' })
+            .on('change', (e) => this.state.bagCapacity = parseInt(e.target.value)));
+        container.child(bagRow);
+    }
+
     _renderFilterSection() {
         this._renderSectionHeader('Filters');
         const container = this.fluent().child(FluentUI.create('div').class('panel-section'));
@@ -137,6 +186,19 @@ export class VisualizationPanel extends Component {
         this._createSlider(container, 'Gravity', 'gravity', 0, 1, 0.05);
         this._createSlider(container, 'Repulsion', 'nodeRepulsion', 100000, 1000000, 50000);
         this._createSlider(container, 'Edge Length', 'idealEdgeLength', 50, 300, 10);
+
+        // Reset Button
+        FluentUI.create('button')
+            .text('Reset Physics')
+            .class('btn-small')
+            .style({ width: '100%', marginTop: '5px', background: '#444', border: 'none', padding: '4px', cursor: 'pointer', color: '#eee' })
+            .on('click', () => {
+                this.state.gravity = 0.25;
+                this.state.nodeRepulsion = 450000;
+                this.state.idealEdgeLength = 100;
+                this.render(); // Re-render to update sliders
+            })
+            .mount(container);
     }
 
     _renderAppearanceSection() {
@@ -229,7 +291,6 @@ export class VisualizationPanel extends Component {
         if (key === 'viewMode') {
             localStorage.setItem('senars-graph-layout', val);
             // Re-render if switching to scatter to show/hide axes
-            // Only re-render layout section ideally, but full render is fine for now
             this.render();
         }
 

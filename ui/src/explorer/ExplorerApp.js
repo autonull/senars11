@@ -168,6 +168,26 @@ export class ExplorerApp {
                  this.log(`Concept not in view: ${nodeId}`, 'warning');
             }
         });
+
+        eventBus.on('visualization.settings', (settings) => {
+            let mappingsChanged = false;
+            if (settings.mappingSize && settings.mappingSize !== this.mappings.size) {
+                this.mappings.size = settings.mappingSize;
+                mappingsChanged = true;
+            }
+            if (settings.mappingColor && settings.mappingColor !== this.mappings.color) {
+                this.mappings.color = settings.mappingColor;
+                mappingsChanged = true;
+            }
+
+            if (mappingsChanged) {
+                this._updateGraphStyle();
+            }
+
+            if (settings.bagCapacity && this.graph && this.graph.bag) {
+                this.graph.bag.capacity = settings.bagCapacity;
+            }
+        });
     }
 
     // Proxy methods for Managers

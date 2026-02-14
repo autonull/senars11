@@ -12,12 +12,19 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
 
         const label = ele.data('label') || '';
         const priority = ele.data('priority') || 0;
+        const fullData = ele.data('fullData') || {};
+        const confidence = fullData.truth?.confidence || 0.5;
 
         // Base size logic
-        let size = 40 + (priority * 40);
+        let size = 40;
 
         if (mode === 'complexity') {
             size = Math.min(40 + (label.length * 2), 100);
+        } else if (mode === 'confidence') {
+            size = 30 + (confidence * 50);
+        } else {
+             // Default: Priority
+             size = 40 + (priority * 40);
         }
 
         return size;
@@ -28,6 +35,8 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
         const type = ele.data('type');
         const priority = ele.data('priority') || 0;
         const label = ele.data('label') || '';
+        const fullData = ele.data('fullData') || {};
+        const confidence = fullData.truth?.confidence || 0.5;
 
         if (mode === 'type') {
             let base = [0, 255, 157]; // Default Green (Concept/Belief)
@@ -46,6 +55,15 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
             const lightness = 30 + (priority * 40); // 30% to 70%
             const alpha = prop === 'background' ? (0.6 + (priority * 0.4)) : 1;
             return `hsla(${hue}, 80%, ${lightness}%, ${alpha})`;
+        }
+
+        if (mode === 'confidence') {
+            // Low (Grey/Transparent) -> High (Bright Cyan)
+            const hue = 180; // Cyan
+            const saturation = confidence * 100;
+            const lightness = 20 + (confidence * 60);
+            const alpha = prop === 'background' ? (0.4 + (confidence * 0.6)) : 1;
+            return `hsla(${hue}, ${saturation}%, ${lightness}%, ${alpha})`;
         }
 
         // Default: hash
