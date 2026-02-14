@@ -8,7 +8,6 @@ import { LMConfigDialog } from '../agent/LMConfigDialog.js';
 import { StatusBar } from '../components/StatusBar.js';
 import { SystemMetricsPanel } from '../components/SystemMetricsPanel.js';
 import { HUDLayoutManager } from '../layout/HUDLayoutManager.js';
-import { HUDWidget } from '../components/HUDWidget.js';
 import { ExplorerInfoPanel } from './ExplorerInfoPanel.js';
 import { VisualizationPanel } from '../components/VisualizationPanel.js';
 import { LogPanel } from '../components/LogPanel.js';
@@ -243,47 +242,69 @@ export class ExplorerApp {
     _initWidgets() {
         this.layoutManager.initialize();
 
-        const createWidget = (id, title, icon, component, dock, visible, options = {}) => {
-            const container = document.createElement('div');
+        this.layoutManager.createWidget('layers', {
+            title: 'Explorer Info',
+            icon: '📐',
+            component: this.infoPanel,
+            dock: 'left',
+            visible: true,
+            width: '300px'
+        });
 
-            // Wrap in HUDWidget
-            const widget = new HUDWidget(container, {
-                title,
-                icon,
-                dock,
-                ...options
-            });
-            widget.render();
-
-            // Mount component into widget content
-            // NOTE: components expect 'container' to be set.
-            // We need to pass the widget's content container.
-            if (widget.contentContainer && widget.contentContainer.dom) {
-                component.container = widget.contentContainer.dom;
-                if (component.initialize) component.initialize();
-                component.render();
-            }
-
-            this.layoutManager.registerWidget(id, container, dock, visible);
-            return widget;
-        };
-
-        createWidget('layers', 'Explorer Info', '📐', this.infoPanel, 'left', true, { width: '300px' });
-        createWidget('visualization', 'Visualization', '👁️', this.visualizationPanel, 'left', false, { width: '300px' });
+        this.layoutManager.createWidget('visualization', {
+            title: 'Visualization',
+            icon: '👁️',
+            component: this.visualizationPanel,
+            dock: 'left',
+            visible: false,
+            width: '300px'
+        });
 
         this.metricsPanel = new SystemMetricsPanel(null);
-        createWidget('metrics', 'Metrics', '📊', this.metricsPanel, 'right', true, { height: '300px' });
+        this.layoutManager.createWidget('metrics', {
+            title: 'Metrics',
+            icon: '📊',
+            component: this.metricsPanel,
+            dock: 'right',
+            visible: true,
+            height: '300px'
+        });
 
-        createWidget('log', 'Log', '📝', this.logPanel, 'right', true, { height: '300px' });
-        createWidget('inspector', 'Inspector', '🔍', this.inspectorPanel, 'left', false);
-        createWidget('tasks', 'Tasks', '✅', this.taskBrowser, 'right', true);
+        this.layoutManager.createWidget('log', {
+            title: 'Log',
+            icon: '📝',
+            component: this.logPanel,
+            dock: 'right',
+            visible: true,
+            height: '300px'
+        });
+
+        this.layoutManager.createWidget('inspector', {
+            title: 'Inspector',
+            icon: '🔍',
+            component: this.inspectorPanel,
+            dock: 'left',
+            visible: false
+        });
+
+        this.layoutManager.createWidget('tasks', {
+            title: 'Tasks',
+            icon: '✅',
+            component: this.taskBrowser,
+            dock: 'right',
+            visible: true
+        });
 
         this.toolbar = new ExplorerToolbar(this);
-        // Toolbar is special - might not need full HUD chrome, or maybe it does for consistency?
-        // Let's wrap it but maybe disable collapse if it feels weird.
-        // Actually, toolbar is usually just buttons. Let's keep it raw for now or wrap it lightly.
-        // For consistency, let's wrap it but make it minimal.
-        createWidget('controls', 'Controls', '🎮', this.toolbar, 'none', true, { width: 'auto', collapsible: true });
+        this.layoutManager.createWidget('controls', {
+            title: 'Controls',
+            icon: '🎮',
+            component: this.toolbar,
+            dock: 'none',
+            visible: true,
+            width: 'auto',
+            collapsible: true
+        });
     }
 
     saveNodeChanges(id, updates) {
