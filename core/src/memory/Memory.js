@@ -20,7 +20,7 @@ export class Memory extends BaseComponent {
         minTasksForDecay: 2
     });
 
-    constructor(config = {}) {
+    constructor(config = {}, eventBus = null) {
         const defaultConfig = Object.freeze({
             priorityThreshold: 0.5,
             priorityDecayRate: 0.01,
@@ -39,7 +39,7 @@ export class Memory extends BaseComponent {
         // Merge configs using object spread for performance and clarity
         const mergedConfig = {...defaultConfig, ...config};
 
-        super(mergedConfig, 'Memory');
+        super(mergedConfig, 'Memory', eventBus);
 
         this._concepts = new Map();
         this._conceptBag = new Bag(this._config.maxConcepts, this._config.forgetPolicy);

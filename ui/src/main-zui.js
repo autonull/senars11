@@ -25,7 +25,7 @@ window.onload = async () => {
 
         setupEventListeners();
         bindControls();
-        _addDemoData(graph);
+        // _addDemoData(graph);
         await _setupConnection();
     }
 };
@@ -62,6 +62,23 @@ function setupEventListeners() {
         closeBtn.onclick = () => {
             document.getElementById('detail-panel').classList.remove('visible');
         };
+    }
+}
+
+function updateLog(text, type) {
+    const logContent = document.getElementById('log-content');
+    if (!logContent) return;
+
+    const entry = document.createElement('div');
+    entry.style.marginBottom = '4px';
+    entry.style.color = type === 'input' ? '#00ff9d' : '#00bcd4';
+    entry.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+
+    logContent.prepend(entry);
+
+    // Limit log size
+    if (logContent.children.length > 50) {
+        logContent.lastElementChild.remove();
     }
 }
 
@@ -197,6 +214,16 @@ async function _setupConnection() {
 
     connectionManager.subscribe('*', (message) => {
         graph.updateFromMessage(message);
+
+        if (message.type === 'task.input' || message.type === 'task.added') {
+            const task = message.payload?.task || message.payload;
+            const term = task?.term?.name || task?.term?.toString() || task?.toString();
+            if (term) updateLog(`IN: ${term}`, 'input');
+        } else if (message.type === 'reasoning.derivation') {
+            const task = message.payload?.task || message.payload;
+            const term = task?.term?.name || task?.term?.toString() || task?.toString();
+            if (term) updateLog(`OUT: ${term}`, 'output');
+        }
     });
 
     try {

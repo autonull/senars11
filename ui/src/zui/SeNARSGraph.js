@@ -361,9 +361,19 @@ export class SeNARSGraph extends GraphSystem {
     }
 
     _calculateNodeLabel(data) {
-        const { label, term, id, truth } = data;
-        let displayLabel = label ?? term ?? id;
-        return displayLabel;
+        const { label, term, id } = data;
+        let displayLabel = label;
+
+        if (!displayLabel && term) {
+            if (typeof term === 'string') {
+                displayLabel = term;
+            } else if (typeof term === 'object') {
+                // Try common term properties
+                displayLabel = term.name || term.term || (term.toString && term.toString()) || JSON.stringify(term);
+            }
+        }
+
+        return displayLabel || id || 'Unknown';
     }
 
     _calculateNodeWeight(priority, term) {
@@ -379,8 +389,10 @@ export class SeNARSGraph extends GraphSystem {
         const truth = data.truth;
 
         let html = '';
-        if (priority !== undefined) html += `<div>Prio: ${priority.toFixed(2)}</div>`;
-        if (truth) html += `<div>{${truth.frequency.toFixed(2)}, ${truth.confidence.toFixed(2)}}</div>`;
+        if (priority !== undefined && typeof priority === 'number') html += `<div>Prio: ${priority.toFixed(2)}</div>`;
+        if (truth && truth.frequency !== undefined && truth.confidence !== undefined) {
+             html += `<div>{${Number(truth.frequency).toFixed(2)}, ${Number(truth.confidence).toFixed(2)}}</div>`;
+        }
 
         if (html) {
             this.contextualWidget.attach(nodeId, html);

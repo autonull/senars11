@@ -125,7 +125,7 @@ export class NAR extends BaseComponent {
         const lmEnabled = config.lm?.enabled === true;
 
         this._termFactory = new TermFactory(config.termFactory, this._eventBus);
-        this._memory = new Memory(config.memory);
+        this._memory = new Memory(config.memory, this._eventBus);
         this._parser = new NarseseParser(this._termFactory);
         this._focus = new Focus(config.focus);
         this._taskManager = new TaskManager(this._memory, null, config.taskManager);
