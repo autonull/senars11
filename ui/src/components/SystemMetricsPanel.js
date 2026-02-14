@@ -17,9 +17,84 @@ export class SystemMetricsPanel extends Component {
     }
 
     initialize() {
-        if (this.initialized || !this.container) return;
-        this.render();
+        if (this.initialized) return;
+        // If container exists (passed in constructor), render.
+        // If not, render will be called by mount() later.
+        if (this.container) {
+            this.render();
+        }
         this.initialized = true;
+    }
+
+    render() {
+        if (!this.container) return;
+
+        // Ensure container has hud-panel class if not present (when created dynamically)
+        if (!this.container.classList.contains('hud-panel')) {
+            this.container.classList.add('hud-panel');
+            this.container.classList.add('metrics-panel');
+        }
+
+        const grid = FluentUI.create(this.container)
+            .clear()
+            .child(FluentUI.create('div').class('metrics-grid'));
+
+        // 1. Throughput (TPS)
+        this.ui.throughput = FluentUI.create('span').class('metric-val-mono').text('0.00');
+        grid.child(
+            FluentUI.create('div').class('metric-compact')
+                .child(FluentUI.create('span').class('metric-label-small').text('TPS'))
+                .child(this.ui.throughput)
+        );
+
+        // 2. Memory (MEM)
+        this.ui.memoryBar = FluentUI.create('div').class('progress-fill').style({width: '0%'});
+        this.ui.memoryText = FluentUI.create('span').class('metric-val-mono').text('0%');
+
+        grid.child(
+            FluentUI.create('div').class('metric-compact')
+                .child(FluentUI.create('span').class('metric-label-small').text('MEM'))
+                .child(
+                    FluentUI.create('div').class('mini-progress-track')
+                        .child(this.ui.memoryBar)
+                )
+                .child(this.ui.memoryText)
+        );
+
+        // 3. Success (ACC)
+        this.ui.success = FluentUI.create('span').class('metric-val-mono').text('0%');
+        grid.child(
+            FluentUI.create('div').class('metric-compact')
+                .child(FluentUI.create('span').class('metric-label-small').text('ACC'))
+                .child(this.ui.success)
+        );
+
+        // 4. Latency (LAT)
+        this.ui.latency = FluentUI.create('span').class('metric-val-mono').text('0.00');
+        grid.child(
+            FluentUI.create('div').class('metric-compact')
+                .child(FluentUI.create('span').class('metric-label-small').text('LAT'))
+                .child(this.ui.latency)
+                .child(FluentUI.create('span').class('metric-unit').text('ms'))
+        );
+
+        // 5. Uptime (UP)
+        this.ui.uptime = FluentUI.create('span').class('metric-val-mono').text('0s');
+        grid.child(
+            FluentUI.create('div').class('metric-compact')
+                .child(FluentUI.create('span').class('metric-label-small').text('UP'))
+                .child(this.ui.uptime)
+        );
+
+        // 6. Sparkline (Last)
+        const svgContainer = FluentUI.create('div').class('metric-compact sparkline-container')
+            .mount(grid);
+
+        svgContainer.html(`<svg width="80" height="20" viewBox="0 0 80 20" preserveAspectRatio="none">
+            <path id="sm-sparkline" d="" fill="none" stroke="#00ff9d" stroke-width="1.5" />
+        </svg>`);
+
+        this.ui.sparkline = { dom: svgContainer.dom.querySelector('#sm-sparkline') };
     }
 
     update(metrics = {}) {
@@ -46,124 +121,43 @@ export class SystemMetricsPanel extends Component {
         this.updateView();
     }
 
-    render() {
-        if (!this.container) return;
-
-        const grid = FluentUI.create(this.container)
-            .clear()
-            .child(FluentUI.create('div').class('metrics-grid'));
-
-        // 1. Heartbeat
-        this.ui.heart = FluentUI.create('span').class('metric-heart').text('♥');
-        grid.child(
-            FluentUI.create('div').class('metric-item')
-                .child(this.ui.heart)
-                .child(FluentUI.create('span').class('metric-label').text('Heartbeat'))
-        );
-
-        // 2. Throughput
-        this.ui.throughput = FluentUI.create('span').id('sm-throughput').text('0.00');
-        grid.child(
-            FluentUI.create('div').class('metric-item')
-                .child(FluentUI.create('span').class('metric-label').text('Throughput'))
-                .child(
-                    FluentUI.create('span').class('metric-value')
-                        .child(this.ui.throughput)
-                        .child(FluentUI.create('small').text(' ops/s'))
-                )
-        );
-
-        // 3. Memory
-        this.ui.memoryBar = FluentUI.create('div').class('progress-fill').id('sm-memory-bar');
-        this.ui.memoryText = FluentUI.create('span').class('metric-sub').id('sm-memory-text').text('0.0%');
-        grid.child(
-            FluentUI.create('div').class('metric-item')
-                .child(FluentUI.create('span').class('metric-label').text('Memory'))
-                .child(FluentUI.create('div').class('progress-bar').child(this.ui.memoryBar))
-                .child(this.ui.memoryText)
-        );
-
-        // 4. Success Rate
-        this.ui.success = FluentUI.create('span').class('metric-value').id('sm-success').text('0.0%');
-        grid.child(
-            FluentUI.create('div').class('metric-item')
-                .child(FluentUI.create('span').class('metric-label').text('Success Rate'))
-                .child(this.ui.success)
-        );
-
-        // 5. Avg Latency
-        this.ui.latency = FluentUI.create('span').id('sm-latency').text('0.00');
-        grid.child(
-            FluentUI.create('div').class('metric-item')
-                .child(FluentUI.create('span').class('metric-label').text('Avg Latency'))
-                .child(
-                    FluentUI.create('span').class('metric-value')
-                        .child(this.ui.latency)
-                        .child(FluentUI.create('small').text(' ms'))
-                )
-        );
-
-        // 6. Throughput History (Sparkline)
-        const svgContainer = FluentUI.create('div').class('metric-item full-width')
-            .child(FluentUI.create('span').class('metric-label').text('Throughput History'))
-            .mount(grid);
-
-        // SVG needs manual creation for namespace or innerHTML
-        svgContainer.html(svgContainer.dom.innerHTML + `<svg width="100%" height="30" viewBox="0 0 50 30" preserveAspectRatio="none" class="sparkline-svg">
-            <path id="sm-sparkline" d="" fill="none" stroke="#00ff9d" stroke-width="1" />
-        </svg>`);
-
-        this.ui.sparkline = { dom: svgContainer.dom.querySelector('#sm-sparkline') };
-
-        // 7. Uptime
-        this.ui.uptime = FluentUI.create('span').class('metric-value').id('sm-uptime').text('0s');
-        grid.child(
-            FluentUI.create('div').class('metric-item full-width')
-                .style({ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' })
-                .child(FluentUI.create('span').class('metric-label').text('Uptime'))
-                .child(this.ui.uptime)
-        );
-    }
-
     updateView() {
-        if (!this.initialized) this.render();
+        if (!this.container && !this.initialized) return;
+        // If rendered but references lost or not created yet
+        if (!this.ui.throughput) this.render();
         if (!this.ui.throughput) return;
 
         const { throughput, memoryUtilization, successRate, avgLatency, uptime } = this.metrics;
         const memory = (memoryUtilization * 100).toFixed(1);
 
-        this.ui.throughput.text(throughput.toFixed(2));
+        this.ui.throughput.text(throughput.toFixed(1));
 
-        if (throughput > 0) this.ui.heart.addClass('beating');
-        else this.ui.heart.removeClass('beating');
+        this.ui.memoryBar.style({ width: `${memory}%` });
+        if(memoryUtilization > 0.8) this.ui.memoryBar.class('progress-fill danger');
+        else if(memoryUtilization > 0.6) this.ui.memoryBar.class('progress-fill warning');
+        else this.ui.memoryBar.class('progress-fill success');
 
-        this.ui.memoryBar.style({ width: `${memory}%` }).class(`progress-fill ${this.getMemoryColor(memoryUtilization)}`);
-        this.ui.memoryText.text(`${memory}%`);
+        this.ui.memoryText.text(`${Math.round(memory)}%`);
 
-        this.ui.success.text(`${(successRate * 100).toFixed(1)}%`);
-        this.ui.latency.text(avgLatency.toFixed(2));
+        this.ui.success.text(`${Math.round(successRate * 100)}%`);
+        this.ui.latency.text(avgLatency.toFixed(1));
+        this.ui.uptime.text(`${Math.floor(uptime / 1000)}s`);
 
         if (this.ui.sparkline && this.ui.sparkline.dom) {
             this.ui.sparkline.dom.setAttribute('d', this.generateSparklinePath(this.history));
         }
-
-        this.ui.uptime.text(`${Math.floor(uptime / 1000)}s`);
     }
 
     generateSparklinePath(data) {
         if (data.length < 2) return '';
         const max = Math.max(...data, 10);
-        const width = 50;
-        const height = 30;
+        const width = 80;
+        const height = 20;
 
         return data.map((val, i) => {
             const x = (i / (data.length - 1)) * width;
             const y = height - (val / max) * height;
             return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
         }).join(' ');
-    }
-
-    getMemoryColor(usage) {
-        return usage > 0.8 ? 'danger' : usage > 0.6 ? 'warning' : 'success';
     }
 }

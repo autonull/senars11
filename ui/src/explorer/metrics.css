@@ -1,0 +1,61 @@
+.metrics-panel {
+    display: flex;
+    align-items: center;
+    min-width: 400px;
+}
+
+.metrics-grid {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    width: 100%;
+    justify-content: space-between;
+}
+
+.metric-compact {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.metric-label-small {
+    font-size: 0.7rem;
+    color: #00aa66;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.metric-val-mono {
+    font-family: 'Consolas', monospace;
+    font-size: 0.9rem;
+    color: #00ff9d;
+    font-weight: 700;
+}
+
+.metric-unit {
+    font-size: 0.7rem;
+    color: #666;
+}
+
+.mini-progress-track {
+    width: 40px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #00ff9d;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.progress-fill.warning { background: #ffbb00; }
+.progress-fill.danger { background: #ff5555; }
+
+.sparkline-container {
+    padding-left: 10px;
+    border-left: 1px solid rgba(0, 255, 157, 0.2);
+}

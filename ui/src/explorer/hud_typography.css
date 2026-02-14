@@ -1,0 +1,31 @@
+.hud-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid rgba(0, 255, 157, 0.2);
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+}
+
+.hud-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #00ff9d;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.hud-subtitle {
+    font-size: 0.7rem;
+    color: #00aa66;
+    font-weight: 600;
+}
+
+.hud-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 0.8rem;
+    font-family: 'Consolas', monospace;
+    color: #aaa;
+}
