@@ -62,18 +62,63 @@ export class VisualizationPanel extends Component {
     render() {
         this.fluent().clear().class('visualization-panel').style({ padding: '10px', color: '#ccc', fontSize: '12px', overflowY: 'auto', height: '100%' });
 
-        this._renderLayoutSection();
-        this._renderMappingSection();
-        this._renderFilterSection();
-        this._renderPhysicsSection();
-        this._renderAppearanceSection();
-        this._renderReasoningSection();
+        this._renderCollapsibleSection('Layout & View', false, (c) => this._renderLayoutSection(c));
+        this._renderCollapsibleSection('Node Mappings', false, (c) => this._renderMappingSection(c));
+        this._renderCollapsibleSection('Filters', false, (c) => this._renderFilterSection(c));
+        this._renderCollapsibleSection('Graph Physics (Force)', true, (c) => this._renderPhysicsSection(c));
+        this._renderCollapsibleSection('Appearance', true, (c) => this._renderAppearanceSection(c));
+        this._renderCollapsibleSection('Reasoning Visualization', true, (c) => this._renderReasoningSection(c));
     }
 
-    _renderLayoutSection() {
-        this._renderSectionHeader('Layout & View');
-        const container = this.fluent().child(FluentUI.create('div').class('panel-section'));
+    _renderCollapsibleSection(title, defaultCollapsed, renderContent) {
+        // Section Container
+        const section = FluentUI.create('div').class('panel-section-wrapper').style({ marginBottom: '10px' }).mount(this.container);
 
+        // Header
+        const header = FluentUI.create('div')
+            .class('panel-section-header')
+            .style({
+                display: 'flex',
+                alignItems: 'center',
+                cursor: 'pointer',
+                userSelect: 'none',
+                padding: '5px 0',
+                borderBottom: '1px solid #333',
+                marginBottom: '5px'
+            })
+            .mount(section);
+
+        const icon = FluentUI.create('span')
+            .text(defaultCollapsed ? '▶' : '▼')
+            .style({ marginRight: '8px', fontSize: '10px', width: '12px', color: '#888' })
+            .mount(header);
+
+        FluentUI.create('h3')
+            .text(title)
+            .style({ margin: '0', fontSize: '13px', color: '#00ff9d', fontWeight: 'normal' })
+            .mount(header);
+
+        // Content Container
+        const content = FluentUI.create('div')
+            .class('panel-section-content')
+            .style({
+                display: defaultCollapsed ? 'none' : 'block',
+                paddingLeft: '8px'
+            })
+            .mount(section);
+
+        // Render content into container
+        renderContent(content);
+
+        // Toggle Logic
+        header.on('click', () => {
+            const isHidden = content.dom.style.display === 'none';
+            content.style({ display: isHidden ? 'block' : 'none' });
+            icon.text(isHidden ? '▼' : '▶');
+        });
+    }
+
+    _renderLayoutSection(container) {
         // Layout Selector
         const layoutRow = FluentUI.create('div').class('control-row').style({ marginBottom: '8px', display: 'flex', alignItems: 'center' });
         layoutRow.child(FluentUI.create('label').text('Layout: ').style({ marginRight: '8px' }));
@@ -127,10 +172,7 @@ export class VisualizationPanel extends Component {
         return container;
     }
 
-    _renderMappingSection() {
-        this._renderSectionHeader('Node Mappings');
-        const container = this.fluent().child(FluentUI.create('div').class('panel-section'));
-
+    _renderMappingSection(container) {
         const createSelect = (label, prop, options) => {
             const row = FluentUI.create('div').class('control-row').style({ marginBottom: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' });
             row.child(FluentUI.create('label').text(label));
@@ -170,19 +212,13 @@ export class VisualizationPanel extends Component {
         container.child(bagRow);
     }
 
-    _renderFilterSection() {
-        this._renderSectionHeader('Filters');
-        const container = this.fluent().child(FluentUI.create('div').class('panel-section'));
-
+    _renderFilterSection(container) {
         this._createToggle(container, 'Show Tasks', 'showTasks');
         this._createToggle(container, 'Hide Isolated Nodes', 'hideIsolated');
         this._createSlider(container, 'Min Priority', 'minPriority', 0, 1, 0.05);
     }
 
-    _renderPhysicsSection() {
-        this._renderSectionHeader('Graph Physics (Force)');
-        const container = this.fluent().child(FluentUI.create('div').class('panel-section'));
-
+    _renderPhysicsSection(container) {
         this._createSlider(container, 'Gravity', 'gravity', 0, 1, 0.05);
         this._createSlider(container, 'Repulsion', 'nodeRepulsion', 100000, 1000000, 50000);
         this._createSlider(container, 'Edge Length', 'idealEdgeLength', 50, 300, 10);
@@ -201,10 +237,7 @@ export class VisualizationPanel extends Component {
             .mount(container);
     }
 
-    _renderAppearanceSection() {
-        this._renderSectionHeader('Appearance');
-        const container = this.fluent().child(FluentUI.create('div').class('panel-section'));
-
+    _renderAppearanceSection(container) {
         const colors = ['CONCEPT', 'TASK', 'QUESTION', 'HIGHLIGHT'];
         colors.forEach(key => {
             const val = GraphConfig.COLORS[key] || '#ffffff';
@@ -223,10 +256,7 @@ export class VisualizationPanel extends Component {
         });
     }
 
-    _renderReasoningSection() {
-        this._renderSectionHeader('Reasoning Visualization');
-        const container = this.fluent().child(FluentUI.create('div').class('panel-section'));
-
+    _renderReasoningSection(container) {
         this._createToggle(container, 'Show Derivations', 'showDerivations');
         this._createToggle(container, 'Color Code Rules', 'colorCodeRules');
         this._createToggle(container, 'Attention Spotlight', 'attentionSpotlight');
@@ -248,14 +278,6 @@ export class VisualizationPanel extends Component {
                 container.child(row);
             });
         }
-    }
-
-    _renderSectionHeader(title) {
-        this.fluent().child(
-            FluentUI.create('h3')
-                .text(title)
-                .style({ margin: '10px 0 5px 0', fontSize: '13px', color: '#00ff9d', borderBottom: '1px solid #333', paddingBottom: '2px' })
-        );
     }
 
     _createToggle(parent, label, prop) {

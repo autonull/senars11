@@ -73,14 +73,50 @@ export class SettingsPanel extends Component {
         return this._renderSection('CONNECTION',
             FluentUI.create('div').class('setting-item')
                 .child(FluentUI.create('label').class('setting-label').text('Server URL'))
-                .child(FluentUI.create('input').attr({ type: 'text', id: 'setting-server-url', value: serverUrl, placeholder: 'ws://localhost:3000' }).class('setting-input'))
+                .child(FluentUI.create('input').attr({ type: 'text', id: 'setting-server-url', value: serverUrl, placeholder: 'ws://localhost:3000' }).class('setting-input')),
+            true // Collapsed by default for connection
         );
     }
 
-    _renderSection(title, content) {
-        return FluentUI.create('div').class('settings-section')
-            .child(FluentUI.create('h3').class('settings-header').text(title))
-            .children(content); // content can be single or array, FluentUI handles it
+    _renderSection(title, content, defaultCollapsed = false) {
+        const wrapper = FluentUI.create('div').class('settings-section-wrapper').style({ marginBottom: '10px' });
+
+        // Header
+        const header = FluentUI.create('div').class('settings-section-header')
+            .style({ display: 'flex', alignItems: 'center', cursor: 'pointer', padding: '5px 0', borderBottom: '1px solid #444' })
+            .mount(wrapper);
+
+        const icon = FluentUI.create('span')
+            .text(defaultCollapsed ? '▶' : '▼')
+            .style({ marginRight: '8px', fontSize: '10px', width: '12px', color: '#888' })
+            .mount(header);
+
+        FluentUI.create('h3')
+            .class('settings-header')
+            .text(title)
+            .style({ margin: '0' })
+            .mount(header);
+
+        // Content
+        const contentContainer = FluentUI.create('div').class('settings-section-content')
+            .style({ display: defaultCollapsed ? 'none' : 'block', marginTop: '10px' })
+            .mount(wrapper);
+
+        // Append content children
+        if (Array.isArray(content)) {
+            content.forEach(c => contentContainer.child(c));
+        } else {
+            contentContainer.child(content);
+        }
+
+        // Toggle logic
+        header.on('click', () => {
+            const isHidden = contentContainer.dom.style.display === 'none';
+            contentContainer.style({ display: isHidden ? 'block' : 'none' });
+            icon.text(isHidden ? '▼' : '▶');
+        });
+
+        return wrapper;
     }
 
     _saveWorkspace() {
