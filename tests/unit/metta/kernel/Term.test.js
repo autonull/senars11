@@ -58,7 +58,8 @@ describe('Kernel Term', () => {
             const expr = Term.exp('+', [a, b]);
 
             expect(expr.type).toBe('compound');
-            expect(expr.operator).toBe('+');
+            // operator is now an atom, check its name or verify it's an atom with correct name
+            expect(expr.operator.name).toBe('+');
             expect(expr.components).toEqual([a, b]);
         });
 
@@ -77,7 +78,7 @@ describe('Kernel Term', () => {
             const inner = Term.exp('*', [x, y]);
             const outer = Term.exp('+', [inner, Term.sym('z')]);
 
-            expect(outer.operator).toBe('+');
+            expect(outer.operator.name).toBe('+');
             expect(outer.components[0]).toBe(inner);
             expect(outer.name).toBe('(+, (*, x, y), z)');
         });

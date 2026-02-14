@@ -13,11 +13,18 @@ export class MeTTaTestUtils {
      */
     static createInterpreter(options = {}) {
         const termFactory = new TermFactory();
-        return new MeTTaInterpreter(null, {
+        // The previous call was new MeTTaInterpreter(null, { ... })
+        // But MeTTaInterpreter constructor is (options = {})
+        // So we should merge options and pass as first argument.
+
+        // Handle if options contains termFactory, etc.
+        const interpreterOptions = {
             termFactory,
             typeChecking: false,
             ...options
-        });
+        };
+
+        return new MeTTaInterpreter(interpreterOptions);
     }
 
     /**

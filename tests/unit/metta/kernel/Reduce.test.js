@@ -23,7 +23,7 @@ describe('Kernel Reduce', () => {
             const { reduced, applied } = Reduce.step(query, space, ground);
 
             expect(applied).toBe(true);
-            expect(reduced.operator).toBe('*');
+            expect(reduced.operator.name).toBe('*');
             expect(reduced.components[0].name).toBe('2');
             expect(reduced.components[1].name).toBe('5');
         });
@@ -45,7 +45,7 @@ describe('Kernel Reduce', () => {
             const { reduced, applied } = Reduce.step(query, space, ground);
 
             expect(applied).toBe(true);
-            expect(reduced.operator).toBe('+');
+            expect(reduced.operator.name).toBe('+');
             expect(reduced.components[0].name).toBe('10');
         });
 

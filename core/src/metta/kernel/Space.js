@@ -3,7 +3,7 @@
  * Core storage and retrieval mechanism for MeTTa programs
  */
 
-import { isExpression, isSymbol } from './Term.js';
+import { isExpression, isSymbol, exp, sym } from './Term.js';
 
 export class Space {
     constructor() {
@@ -69,11 +69,26 @@ export class Space {
     }
 
     /**
-     * Get all atoms in the space
+     * Get all atoms in the space (including rules)
      * @returns {Array} Array of all atoms
      */
     all() {
-        return Array.from(this.atoms);
+        const atoms = Array.from(this.atoms);
+        // Reconstruct rules as atoms (= pattern result)
+        // We need to import exp/sym, but since this is kernel, maybe pass factory or use structure?
+        // We can't easily import exp here without circular dep potential or changing Term.js?
+        // Term.js is leaf. Space.js imports Term.js? Yes.
+        // So we can use exp/sym.
+
+        // Dynamic import or assume exp imported at top
+        // Checking imports... "import { isExpression, isSymbol } from './Term.js';"
+        // Need to add exp to imports.
+
+        const rulesAsAtoms = this.rules.map(rule => {
+             return exp(sym('='), [rule.pattern, rule.result]);
+        });
+
+        return [...atoms, ...rulesAsAtoms];
     }
 
     /**
@@ -229,6 +244,7 @@ export class Space {
             ...this.stats,
             atomCount: this.atoms.size,
             functorCount: this.functorIndex.size,
+            indexedFunctors: this.functorIndex.size, // Alias for tests
             ruleCount: this.rules.length
         };
     }
@@ -238,12 +254,9 @@ export class Space {
      * @returns {Object} Statistics object
      */
     stats() {
-        const baseStats = this.getStats();
-        // Add indexedFunctors property as expected by tests
-        return {
-            ...baseStats,
-            indexedFunctors: this.functorIndex.size
-        };
+        // Just alias to getStats, but ensure indexedFunctors is present there or here
+        // The test expects stats() to return object with indexedFunctors
+        return this.getStats();
     }
 
     /**

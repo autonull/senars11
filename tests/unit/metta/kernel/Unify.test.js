@@ -164,7 +164,7 @@ describe('Kernel Unify', () => {
             const bindings = { '$x': Term.sym('5') };
 
             const result = Unify.subst(term, bindings);
-            expect(result.operator).toBe('+');
+            expect(result.operator.name).toBe('+');
             expect(result.components[0].name).toBe('5');
             expect(result.components[1].name).toBe('1');
         });

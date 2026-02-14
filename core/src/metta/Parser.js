@@ -155,13 +155,10 @@ class InternalParser {
             const operator = components[0];
             const args = components.slice(1);
 
-            if (operator.type === 'atom' && operator.operator === null) {
-                // It is a symbol (or variable)
-                return exp(operator.name, args);
-            } else {
-                 // Head is not a simple symbol/atom.
-                 return exp(operator, args);
-            }
+            // Pass the operator atom directly to exp
+            // This ensures variables in head position (like $f) are preserved as atoms
+            // and can be substituted during unification
+            return exp(operator, args);
         }
 
         // Fallback for empty list (should be handled earlier)

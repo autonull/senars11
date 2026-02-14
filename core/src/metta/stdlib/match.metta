@@ -9,29 +9,20 @@
 ; Returns: all instances where $pattern matches atoms in $space,
 ;          with $template instantiated by the bindings
 
-; Basic match - uses kernel unification
-; This delegates to the kernel's Unify module and MatchEngine
-(= (match $space $pattern $template)
-   (let $atoms (get-atoms $space)
-      (match-against $atoms $pattern $template)))
-
-; Helper: match pattern against list of atoms
-(= (match-against () $pattern $template) ())
-(= (match-against (: $atom $rest) $pattern $template)
-   (let $bindings (unify $pattern $atom)
-      (if (ok? $bindings)
-          (: (subst $template $bindings) (match-against $rest $pattern $template))
-          (match-against $rest $pattern $template))))
+; Use grounded &match for performance and to avoid stack overflow
+; (recursion on get-atoms list is too deep without TCO)
+(= (match $space $pattern $template) (^ &match $space $pattern $template))
 
 ; ===== Unification Wrappers =====
 
 ; unify: expose kernel unification
-; (unify $pattern $term) → bindings map or failure
-; This is typically a grounded operation implemented in kernel/Unify.js
+(= (unify $p $t) (^ &unify $p $t))
 
 ; subst: expose kernel substitution
-; (subst $template $bindings) → instantiated term
-; This is typically a grounded operation implemented in kernel/Unify.js
+(= (subst $t $b) (^ &subst $t $b))
+
+; ok?: check if unification succeeded
+(= (ok? $b) (not (== $b False)))
 
 ; ===== Match Utilities =====
 

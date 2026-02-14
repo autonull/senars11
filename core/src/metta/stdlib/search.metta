@@ -13,7 +13,7 @@
       (if (member $state $visited)
           (dfs-helper $goal $rest $visited $parent)
           (let $result (dfs $goal $state (: $state $visited))
-            (if (not (equal $result ())) 
+            (if (not (== $result ()))
                 $result
                 (dfs-helper $goal $rest (: $state $visited) $parent))))
       ()))
@@ -35,74 +35,88 @@
       ()))
 
 ; A* Search Algorithm
+; Uses a list of pairs for the frontier: (: (: node cost) (: (: node2 cost2) ...))
+; Actually, standard list is (: head tail). So a list of pairs is (: (: n c) (: (: n2 c2) ()))
+
 (= (astar $goal $start $heuristic)
-   (astar-loop $goal (: (cons $start 0)) () $heuristic))
+   (astar-loop $goal (: (: $start 0) ()) () $heuristic))
 
 ; A* loop helper
 (= (astar-loop $goal $frontier $visited $heuristic)
    (if (empty? $frontier)
        ()
-       (let $current (best-node $frontier $heuristic)
-         (let $node (car $current)
+       (let $current-pair (best-node-pair $frontier $heuristic)
+         (let $node (first $current-pair)
            (if ($goal $node)
                $node
                (if (member $node $visited)
-                   (astar-loop $goal (remove-best $frontier) $visited $heuristic)
-                   (let $new-frontier (expand-frontier $current (successors $node) $heuristic)
-                     (astar-loop $goal $new-frontier (: $node $visited) $heuristic))))))))
+                   (astar-loop $goal (remove-node $node $frontier) $visited $heuristic)
+                   (let $successors (successors $node)
+                     (let $new-frontier (expand-frontier $current-pair $successors $heuristic $frontier)
+                        (astar-loop $goal (remove-node $node $new-frontier) (: $node $visited) $heuristic)))))))))
 
-; Find the best node based on heuristic
-(= (best-node (: $node $cost) $heuristic)
-   $node)
+; Find the best node pair (: node cost) from frontier
+(= (best-node-pair (: $pair $rest) $heuristic)
+   (if (empty? $rest)
+       $pair
+       (let $best-rest (best-node-pair $rest $heuristic)
+         (if (< (total-cost $pair $heuristic) (total-cost $best-rest $heuristic))
+             $pair
+             $best-rest))))
 
-(= (best-node (: $node $cost $rest) $heuristic)
-   (let $best-rest (best-node $rest $heuristic)
-     (if (< (+ $cost ($heuristic $node)) (+ (cost-of $best-rest) ($heuristic $best-rest)))
-         $node
-         $best-rest)))
+(= (total-cost (: $node $g) $heuristic)
+   (+ $g ($heuristic $node)))
 
 ; Expand frontier with new nodes
-(= (expand-frontier $current $successors $heuristic)
-   (fold (lambda ($frontier $succ)
-           (cons (cons $succ (+ (cdr $current) 1)) $frontier))
-         $successors
-         $current))
+; $current-pair is (: node g-cost)
+; $successors is list of nodes
+; Returns new frontier
+(= (expand-frontier $current-pair $successors $heuristic $frontier)
+   (fold (lambda ($acc-frontier $succ)
+           (add-to-frontier $succ (+ (second $current-pair) 1) $acc-frontier))
+         $frontier
+         $successors))
+
+(= (add-to-frontier $node $cost $frontier)
+   (: (: $node $cost) $frontier))
+
+; Remove node from frontier (simplified: just removes first occurrence)
+(= (remove-node $node (: $pair $rest))
+   (if (== (first $pair) $node)
+       $rest
+       (: $pair (remove-node $node $rest))))
+(= (remove-node $node ()) ())
+
 
 ; Helper functions
-(= (member $x ())
-   False)
 
+; List membership
+(= (member $x ()) False)
 (= (member $x (: $h $t))
-   (if (equal $x $h) 
-       True 
-       (member $x $t)))
+   (if (== $x $h) True (member $x $t)))
 
-(= (empty? ())
-   True)
+; Empty check
+(= (empty? ()) True)
+(= (empty? (: $h $t)) False)
 
-(= (empty? $x)
-   False)
+; Append
+(= (append () $ys) $ys)
+(= (append (: $x $xs) $ys) (: $x (append $xs $ys)))
 
-(= (append () $ys)
-   $ys)
+; Pair accessors (assuming (: a b) style pairs where b is atom, not list)
+; Wait, (: a b) is a list (a b).
+; If we want strict pairs, we use (pair a b) or just (: a (: b ())).
+; The code above uses (: $start 0) which is a list (start 0) -> exp(':', [start, 0]) ??
+; No, (: a b) is usually interpreted as cons.
+; If b is not a list, it's a dotted pair in Lisp.
+; In MeTTa stdlib list.metta, lists are (: h t).
+; So [1, 2] is (: 1 (: 2 ())).
+; So a pair (a, b) should be (: a (: b ())).
 
-(= (append (: $x $xs) $ys)
-   (: $x (append $xs $ys)))
+(= (first (: $x $xs)) $x)
+(= (second (: $x (: $y $ys))) $y)
 
-(= (cost-of (cons $node $cost))
-   $cost)
+; Standard fold
+(= (fold $f $z ()) $z)
+(= (fold $f $z (: $h $t)) (fold $f ($f $z $h) $t))
 
-(= (car (cons $a $b))
-   $a)
-
-(= (cdr (cons $a $b))
-   $b)
-
-(= (not True)
-   False)
-
-(= (not False)
-   True)
-
-(= (remove-best (: $head $tail))
-   $tail)

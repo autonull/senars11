@@ -26,8 +26,9 @@
 ; ===== Lambda (Anonymous Functions) =====
 
 ; Lambda application: ((λ $x $body) $value)
-; Implementation delegated to kernel's Reduce module
-; The substitution is handled by kernel/Reduce.js
+; Use &subst grounded op to perform substitution
+(= ((λ $x $body) $v) (^ &subst $x $v $body))
+(= ((lambda $x $body) $v) (^ &subst $x $v $body))
 
 ; Multiple argument lambda (curried)
 ; (λ ($x $y) $body) → (λ $x (λ $y $body))
@@ -76,3 +77,24 @@
 ; compose: function composition
 ; (compose $f $g $x) → ($f ($g $x))
 (= (compose $f $g $x) ($f ($g $x)))
+
+; ===== Grounded Operations Mapping =====
+; Map standard operators to grounded functions
+(= (+ $a $b) (^ &+ $a $b))
+(= (+ $a $b $c) (^ &+ $a $b $c))
+(= (- $a $b) (^ &- $a $b))
+(= (- $a) (^ &- $a))
+(= (* $a $b) (^ &* $a $b))
+(= (* $a $b $c) (^ &* $a $b $c))
+(= (/ $a $b) (^ &/ $a $b))
+(= (< $a $b) (^ &< $a $b))
+(= (> $a $b) (^ &> $a $b))
+(= (== $a $b) (^ &== $a $b))
+(= (% $a $b) (^ &% $a $b))
+(= (and $a $b) (^ &and $a $b))
+(= (or $a $b) (^ &or $a $b))
+(= (not $a) (^ &not $a))
+(= (empty? $x) (^ &empty? $x))
+(= (get-atoms $s) (^ &get-atoms $s))
+(= (add-atom $x) (^ &add-atom $x))
+(= (rm-atom $x) (^ &rm-atom $x))

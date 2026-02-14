@@ -77,6 +77,11 @@ export function exp(operator, components) {
         throw new Error('Components must be an array');
     }
 
+    // Normalize operator to atom if it's a string
+    if (typeof operator === 'string') {
+        operator = sym(operator);
+    }
+
     const opString = typeof operator === 'string' ? operator : (operator.toString ? operator.toString() : String(operator));
 
     // Create a unique key for the expression
@@ -101,13 +106,20 @@ export function exp(operator, components) {
             }
 
             // Check operator equality
+            let match = false;
             if (typeof this.operator === 'string' && typeof other.operator === 'string') {
-                if (this.operator !== other.operator) return false;
+                if (this.operator === other.operator) match = true;
             } else if (this.operator && this.operator.equals && other.operator && other.operator.equals) {
-                if (!this.operator.equals(other.operator)) return false;
-            } else if (this.operator !== other.operator) {
-                return false;
+                if (this.operator.equals(other.operator)) match = true;
+            } else if (this.operator && this.operator.name && typeof other.operator === 'string') {
+                if (this.operator.name === other.operator) match = true;
+            } else if (typeof this.operator === 'string' && other.operator && other.operator.name) {
+                if (this.operator === other.operator.name) match = true;
+            } else if (this.operator === other.operator) {
+                match = true;
             }
+
+            if (!match) return false;
 
             for (let i = 0; i < this.components.length; i++) {
                 if (!this.components[i].equals(other.components[i])) {
@@ -189,6 +201,46 @@ export function isExpression(atom) {
     return atom && atom.type === 'compound';
 }
 
+// === List Optimization Utilities ===
+
+/**
+ * Check if atom is a List (Cons) expression (: head tail)
+ */
+export function isList(atom) {
+    if (!isExpression(atom)) return false;
+    // Check operator ':'
+    return atom.operator && atom.operator.name === ':' && atom.components.length === 2;
+}
+
+/**
+ * Flatten a Cons list into an array of elements + tail
+ * @param {Object} list - The list atom
+ * @returns {Object} { elements: Array, tail: Atom }
+ */
+export function flattenList(list) {
+    const elements = [];
+    let curr = list;
+    while (isList(curr)) {
+        elements.push(curr.components[0]);
+        curr = curr.components[1];
+    }
+    return { elements, tail: curr };
+}
+
+/**
+ * Reconstruct a Cons list from elements and tail
+ * @param {Array} elements - Array of atoms
+ * @param {Object} tail - Tail atom
+ * @returns {Object} Cons list atom
+ */
+export function constructList(elements, tail) {
+    let res = tail;
+    for (let i = elements.length - 1; i >= 0; i--) {
+        res = exp(sym(':'), [elements[i], res]);
+    }
+    return res;
+}
+
 // Export a Term object that matches the expected API in tests
 export const Term = {
     sym: sym,
@@ -199,6 +251,11 @@ export const Term = {
     isVar: isVariable,
     isSymbol: isSymbol,
     isExpression: isExpression,
+
+    // List utils
+    isList,
+    flattenList,
+    constructList,
 
     // Additional helper for test compatibility
     clearSymbolTable: () => {

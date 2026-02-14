@@ -1,138 +1,144 @@
-; Adaptive Reasoning Demo using MeTTa
-;
-; This demo shows how MeTTa can switch between different reasoning strategies
-; based on the confidence level of the input task. It demonstrates:
-; 1. Conservative strategy for high-confidence tasks
-; 2. Exploratory strategy for low-confidence tasks
-; 3. Dynamic strategy selection based on task characteristics
+; Adaptive Reasoning Demo - Strategy switching based on confidence
+; Demonstrates: Meta-reasoning, strategy selection, adaptive behavior
 
-; Define task types with different confidence levels
-(= (task high-confidence-task (Inh cat animal) 0.9))
-(= (task medium-confidence-task (Implication (Raining) (Wet)) 0.6))
-(= (task low-confidence-task (Predict (StockPriceUp)) 0.3))
+; Define two reasoning strategies
+; Conservative: Only use high-confidence premises
+; Exploratory: Allow low-confidence premises for creative reasoning
 
-; Get confidence of a task
-(= (confidence-of (task $name $content $conf))
+; Sample knowledge base with varying confidence levels
+(Inh bird animal :conf 0.95)
+(Inh penguin bird :conf 0.85)
+(Inh penguin swimmer :conf 0.90)
+(Inh bird flyer :conf 0.70)  ; Lower confidence due to exceptions like penguins
+(Inh penguin flyer :conf 0.10)  ; Very low confidence
+(Repr bird wings :conf 0.88)
+(Repr penguin wings :conf 0.82)
+(Similar bird penguin :conf 0.65)  ; Moderate similarity
+
+; Task set with different confidence requirements
+(task classify-animal-1 (Inh tweety bird) :difficulty medium :expected-conf 0.8)
+(task classify-animal-2 (Inh daffy duck) :difficulty easy :expected-conf 0.9)
+(task classify-animal-3 (Inh penguin flyer) :difficulty hard :expected-conf 0.2)  ; Conflicting info
+
+; Strategy definitions
+(conservative-strategy)
+(exploratory-strategy)
+
+; Adaptive strategy selector based on task confidence
+(= (select-strategy $task)
+   (let $conf (expected-confidence $task)
+     (if (< $conf 0.5)
+         exploratory-strategy
+         conservative-strategy)))
+
+; Get expected confidence for a task
+(= (expected-confidence (task $id $query :difficulty $diff :expected-conf $conf))
    $conf)
 
-; Get content of a task
-(= (content-of (task $name $content $conf))
-   $content)
+; Premise selection based on strategy
+(= (select-premises conservative-strategy $query)
+   (filter (λ $p (high-confidence-premise $p)) (get-all-premises $query)))
 
-; Adaptive strategy selector
-(= (adaptive-strategy $task)
-   (let $conf (confidence-of $task)
-     (if (< $conf 0.5)
-         (exploratory-strategy $task)
-         (conservative-strategy $task))))
+(= (select-premises exploratory-strategy $query)
+   (get-all-premises $query))
 
-; Conservative strategy - use well-established rules
-(= (conservative-strategy $task)
-   (let $content (content-of $task)
-     (apply-rules $content (well-established-rules))))
+; Check if premise has high confidence
+(= (high-confidence-premise (Inh $s $p :conf $c)) (> $c 0.6))
+(= (high-confidence-premise (Repr $s $p :conf $c)) (> $c 0.6))
+(= (high-confidence-premise (Similar $s $p :conf $c)) (> $c 0.6))
 
-; Exploratory strategy - try multiple approaches
-(= (exploratory-strategy $task)
-   (let $content (content-of $task)
-     (try-multiple-approaches $content (experimental-rules))))
+; Get all premises related to a query
+(= (get-all-premises (Inh $subj $pred))
+   (: (match &self (Inh $subj $any :conf $c_any) (Inh $subj $any :conf $c_any))
+      (match &self (Inh $any $subj :conf $c_any) (Inh $any $subj :conf $c_any))
+      (match &self (Similar $subj $any :conf $c_any) (Similar $subj $any :conf $c_any))
+      (match &self (Similar $any $subj :conf $c_any) (Similar $any $subj :conf $c_any))))
 
-; Well-established rules (high confidence)
-(= (well-established-rules)
-   ((= (Inh $x $y) (Inh $y $z) (Inh $x $z) :conf 0.95)
-    (= (Sim $x $y) (Sim $y $x) :conf 0.90)
-    (= (Implication $a $b) (Implication $b $c) (Implication $a $c) :conf 0.85)))
+; Simple inference engine that uses selected premises
+(= (infer-with-strategy $strategy $query)
+   (let $premises (select-premises $strategy $query)
+     (apply-inference-rules $premises $query)))
 
-; Experimental rules (lower confidence)
-(= (experimental-rules)
-   ((= (Predict $event) (based-on $past-events $event) :conf 0.4)
-    (= (Analogous $a $b) (Similar $a $c) (Analogous $c $b) :conf 0.3)
-    (= (Hypothetical $x) (Possible $x) :conf 0.2)))
+; Apply inference rules to derive conclusions
+(= (apply-inference-rules (: $p $rest) $query)
+   (let $result (single-inference $p $query)
+     (if (not (= $result ()))
+         $result
+         (apply-inference-rules $rest $query))))
 
-; Apply rules to content
-(= (apply-rules $content $rules)
-   (map (λ ($rule) (attempt-match $content $rule)) $rules))
+(= (apply-inference-rules () $query) ())
 
-; Try multiple approaches
-(= (try-multiple-approaches $content $rules)
-   (let $results (map (λ ($rule) (attempt-match $content $rule)) $rules)
-     (filter non-empty? $results)))
+; Simple inheritance transitivity rule
+(= (single-inference (Inh $a $b :conf $ca) (Inh $a $c))
+   (match &self (Inh $b $c :conf $cb)
+          (Inh $a $c :conf (combine-confidence $ca $cb))))
 
-; Attempt to match content with a rule
-(= (attempt-match $content (= $pattern $conclusion :conf $conf))
-   (let $bindings (unify $content $pattern)
-     (if (successful-unification? $bindings)
-         (subst $conclusion $bindings)
-         ())))
+; Confidence combination function
+(= (combine-confidence $c1 $c2) (* $c1 $c2))
 
-; Check if unification was successful
-(= (successful-unification? $bindings)
-   (not (equal $bindings failure)))
+; Main adaptive reasoning loop
+(println "Starting adaptive reasoning demo...")
+(println "Demonstrating strategy switching based on task confidence requirements")
 
-; Placeholder for unify function (would be implemented in core)
-(= (unify $a $b)
-   (if (equal $a $b) (empty-bindings) (failure)))
+; Process each task with adaptive strategy selection
+(= $tasks (get-tasks))
+(= $results (process-tasks-adaptively $tasks))
 
-; Placeholder for subst function (would be implemented in core)
-(= (subst $template $bindings)
-   $template)
+(= (get-tasks)
+   (: (task classify-animal-1 (Inh tweety bird) :difficulty medium :expected-conf 0.8)
+      (: (task classify-animal-2 (Inh daffy duck) :difficulty easy :expected-conf 0.9)
+         (: (task classify-animal-3 (Inh penguin flyer) :difficulty hard :expected-conf 0.2) ()))))
 
-; Empty bindings
-(= (empty-bindings)
-   ())
+(= (process-tasks-adaptively (: $task $rest))
+   (: (process-single-task $task)
+      (process-tasks-adaptively $rest)))
 
-; Non-empty check
-(= (non-empty? $x)
-   (if (equal $x ()) False True))
+(= (process-tasks-adaptively ()) ())
 
-; Test the adaptive reasoning system
-(println "Testing adaptive reasoning strategies...")
+(= (process-single-task (task $id $query :difficulty $diff :expected-conf $exp-conf))
+   (do (println "")
+       (println "Processing task:" $id)
+       (println "Query:" $query)
+       (println "Expected confidence:" $exp-conf)
+       (let $strategy (select-strategy (task $id $query :difficulty $diff :expected-conf $exp-conf))
+         (println "Selected strategy:" $strategy)
+         (let $result (infer-with-strategy $strategy $query)
+           (println "Result:" $result)
+           (if (not (= $result ()))
+               (println "✓ Inference successful")
+               (println "✗ No inference found"))
+           (task-result $id $strategy $result))))))
 
-; Test with high confidence task
-(= $high-conf-result (adaptive-strategy high-confidence-task))
-(println "High confidence task result:" $high-conf-result)
+; Track strategy selection statistics
+(= (task-result $id $strategy $result)
+   (add-atom (selected $id $strategy))
+   $result)
 
-; Test with low confidence task
-(= $low-conf-result (adaptive-strategy low-confidence-task))
-(println "Low confidence task result:" $low-conf-result)
+; Show strategy selection patterns
+(= (show-patterns)
+   (do (println "")
+       (println "Strategy selection patterns:")
+       (println "Tasks processed with conservative strategy:")
+       (show-strategy-uses conservative-strategy)
+       (println "Tasks processed with exploratory strategy:")
+       (show-strategy-uses exploratory-strategy)))
 
-; Task evaluation metrics
-(= (evaluate-task-effectiveness $task $strategy-result)
-   (let $input-conf (confidence-of $task)
-     (let $output-conf (estimate-confidence $strategy-result)
-       (abs (- $input-conf $output-conf)))))
+(= (show-strategy-uses $strategy)
+   (map (λ $record (show-record $record $strategy))
+        (match &self (selected $task-id $strategy) (selected $task-id $strategy))))
 
-; Estimate confidence of result (simplified)
-(= (estimate-confidence $result)
-   (if (equal $result ()) 0.0 0.7))
+(= (show-record (selected $task-id $used-strat) $looking-for)
+   (if (= $used-strat $looking-for)
+       (println "  -" $task-id)
+       ()))
 
-; Learning to improve strategy selection
-(= (update-strategy-selection $task $result $feedback)
-   (let $current-strategy (adaptive-strategy $task)
-     (if (> $feedback 0.8)  ; Positive feedback
-         (reinforce (strategy-for-task-type $task) 0.1)
-         (adjust-strategy-threshold $task -0.05))))
+; Run the adaptive reasoning demo
+(time
+  (process-tasks-adaptively (get-tasks))
+  (show-patterns)
+)
 
-; Get strategy for task type
-(= (strategy-for-task-type (task $name $content $conf))
-   (if (< $conf 0.5) exploratory-strategy conservative-strategy))
-
-; Adjust strategy threshold
-(= (adjust-strategy-threshold $task $delta)
-   (update-threshold! 0.5 $delta))  ; Update global threshold
-
-; Global threshold (simplified representation)
-(= (update-threshold! $old-value $delta)
-   (+ $old-value $delta))
-
-; Demonstrate learning from experience
-(= (learn-from-experience $tasks $results $feedbacks)
-   (map (λ ($t $r $f) (update-strategy-selection $t $r $f)) 
-        $tasks $results $feedbacks))
-
-; Example usage of learning
-(= $tasks (high-confidence-task medium-confidence-task low-confidence-task))
-(= $results (: result1 (: result2 (: result3 ()))))
-(= $feedbacks (: 0.9 (: 0.6 (: 0.4 ()))))
-
-(= $learning-outcome (learn-from-experience $tasks $results $feedbacks))
-(println "Learning outcome:" $learning-outcome)
+(println "")
+(println "Adaptive reasoning demo completed!")
+(println "Note how lower-confidence tasks trigger exploratory strategy")
+(println "while high-confidence tasks use conservative strategy.")

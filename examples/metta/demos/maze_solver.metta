@@ -1,144 +1,66 @@
-; Maze Solver Demo using MeTTa Search Algorithms
+; Maze Solver Demo using A* Search
 ;
-; This demo implements a maze solver using the search algorithms
-; defined in search.metta. It demonstrates A* pathfinding on a 
-; 10x10 grid with obstacles.
+; Solves a grid-based maze finding path from Start to Goal.
+; Grid is 10x10.
+;
+; Representation:
+; (Wall $x $y) - wall at x,y
+; (Goal $x $y) - goal at x,y
+; (Start $x $y) - start at x,y
 
-; Define the maze (10x10 grid)
-; '#' represents walls, '.' represents free space
-; 'S' is start, 'G' is goal
+; Define grid size
+(= (grid-size) 10)
 
-; Maze representation as a list of rows
-(= (maze)
-   ((. . . # . . . . . .)
-    (. # . # . # # # . .)
-    (. # . . . . . . . .)
-    (. # # # # . # . # .)
-    (. . . . . . # . # .)
-    (# # # # . . # . . .)
-    (. . . . . # # . # .)
-    (. # . # . . . . # .)
-    (. # . . . # . . . .)
-    (S . . . . . . # . G)))
+; Define goal
+(= (goal-node) (8 8))
+(Goal 8 8)
 
-; Check if a position is walkable
-(= (walkable $row $col)
-   (and (>= $row 0) (< $row 10)
-        (>= $col 0) (< $col 10)
-        (not (= (get-cell $row $col) #))))
+; Define start
+(= (start-node) (1 1))
+(Start 1 1)
 
-; Get cell value at position
-(= (get-cell $row $col)
-   (get-element $col (get-row $row (maze))))
+; Define walls (simple layout)
+(Wall 2 1) (Wall 2 2) (Wall 2 3)
+(Wall 4 4) (Wall 4 5) (Wall 4 6)
+(Wall 6 2) (Wall 6 3) (Wall 6 4)
+(Wall 8 5) (Wall 8 6) (Wall 8 7)
 
-; Get a specific row from the maze
-(= (get-row 0 (: $h $t))
-   $h)
+; Check if position is valid (in bounds and not wall)
+(= (valid? ($x $y))
+   (and (and (> $x 0) (<= $x (grid-size)))
+        (and (and (> $y 0) (<= $y (grid-size)))
+             (not (is-wall? $x $y)))))
 
-(= (get-row $n (: $h $t))
-   (if (> $n 0)
-       (get-row (- $n 1) $t)
-       ()))
+(= (is-wall? $x $y)
+   (match &self (Wall $x $y) True))
 
-; Get element at index from a list
-(= (get-element 0 (: $h $t))
-   $h)
+; Generate successors (up, down, left, right)
+(= (successors ($x $y))
+   (filter valid?
+           (: ($x (+ $y 1))
+           (: ($x (- $y 1))
+           (: ((+ $x 1) $y)
+           (: ((- $x 1) $y) ()))))))
 
-(= (get-element $n (: $h $t))
-   (if (> $n 0)
-       (get-element (- $n 1) $t)
-       ()))
+; Heuristic: Manhattan distance
+(= (heuristic ($x $y))
+   (let ($gx $gy) (goal-node)
+     (+ (abs (- $gx $x)) (abs (- $gy $y)))))
 
-; Get successors of a position (up, down, left, right)
-(= (successors ($row $col))
-   (let $candidates (: (: (+ $row 1) $col)      ; Down
-                      (: (: (- $row 1) $col)    ; Up
-                         (: (: $row (+ $col 1)) ; Right
-                            (: (: $row (- $col 1)) ; Left
-                               ())))))          ; End of list
-     (filter (λ ($pos) (walkable (fst $pos) (snd $pos))) $candidates)))
-
-; Helper to get first element of pair
-(= (fst ($a $b))
-   $a)
-
-; Helper to get second element of pair
-(= (snd ($a $b))
-   $b)
-
-; Manhattan distance heuristic
-(= (manhattan-distance ($r1 $c1) ($r2 $c2))
-   (+ (abs (- $r1 $r2)) (abs (- $c1 $c2))))
+(= (abs $n) (if (< $n 0) (- 0 $n) $n))
 
 ; Goal check
-(= (goal-state ($row $col))
-   (= (get-cell $row $col) G))
+(= (is-goal? $node) (== $node (goal-node)))
 
-; Start position
-(= (start-pos)
-   (0 9))  ; Starting at S position
+; Run A*
+(println "Starting Maze Solver...")
+(println "Start:" (start-node))
+(println "Goal:" (goal-node))
 
-; Solve the maze using A*
-(= (solve-maze)
-   (astar goal-state (start-pos) (lambda ($pos) (manhattan-distance $pos (9 9)))))
+(= $path (astar is-goal? (start-node) heuristic))
 
-; Print solution path
-(= (print-path $path)
-   (if (= $path ())
-       (println "No path found")
-       (println "Path found:" $path)))
+(println "Path found:")
+(println $path)
 
-; Run the maze solver
-(solve-maze)
-
-; Additional utility functions for path reconstruction
-; (These would be needed in a complete implementation)
-
-; Check if two positions are adjacent
-(= (adjacent? ($r1 $c1) ($r2 $c2))
-   (or (= (abs (- $r1 $r2)) 1) (= (abs (- $c1 $c2)) 1)))
-
-; Validate path
-(= (valid-path $path)
-   (if (= (length $path) 1)
-       True
-       (and (adjacent? (first $path) (second $path))
-            (valid-path (rest $path)))))
-
-; Helper functions for list processing
-(= (first (: $h $t))
-   $h)
-
-(= (second (: $h (: $s $t)))
-   $s)
-
-(= (rest (: $h $t))
-   $t)
-
-; Length of a list
-(= (length ())
-   0)
-
-(= (length (: $h $t))
-   (+ 1 (length $t)))
-
-; Filter function
-(= (filter $pred ())
-   ())
-
-(= (filter $pred (: $h $t))
-   (let $filtered-tail (filter $pred $t)
-     (if ($pred $h)
-         (: $h $filtered-tail)
-         $filtered-tail)))
-
-; Map function
-(= (map $func ())
-   ())
-
-(= (map $func (: $h $t))
-   (: ($func $h) (map $func $t)))
-
-; Absolute value
-(= (abs $x)
-   (if (< $x 0) (- 0 $x) $x))
+(println "Path length:" (length $path))
+(println "Maze solver completed.")

@@ -105,7 +105,7 @@ describe('MeTTa Standard Library Tests', () => {
         test('cdr returns tail of list', () => {
             const result = interpreter.run('(cdr (: 1 (: 2 ())))');
             // Should return (: 2 ())
-            expect(result[0].operator).toBe(':');
+            expect(result[0].operator.name).toBe(':');
         });
 
         test('length counts list elements', () => {
@@ -118,7 +118,7 @@ describe('MeTTa Standard Library Tests', () => {
             // Result should be a list with 4 elements
             expect(result).toHaveLength(1);
             const list = result[0];
-            expect(list.operator).toBe(':');
+            expect(list.operator.name).toBe(':');
         });
     });
 
@@ -130,11 +130,11 @@ describe('MeTTa Standard Library Tests', () => {
 
             // Result should be (: 2 (: 4 ()))
             const list = result[0];
-            expect(list.operator).toBe(':');
+            expect(list.operator.name).toBe(':');
             expect(list.components[0].name).toBe('2');
 
             const tail = list.components[1];
-            expect(tail.operator).toBe(':');
+            expect(tail.operator.name).toBe(':');
             expect(tail.components[0].name).toBe('4');
         });
 
@@ -194,7 +194,7 @@ describe('MeTTa Standard Library Tests', () => {
 
             // Type should be a function type
             const typeExpr = results[0];
-            expect(typeExpr.operator).toBe('->');
+            expect(typeExpr.operator.name).toBe('->');
         });
 
         test('is-bool? identifies boolean values', () => {
