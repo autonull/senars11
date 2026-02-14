@@ -195,14 +195,11 @@ class SeNARSIDE {
     }
 
     createExamplesComponent(container) {
-         // Create a unique container ID
-         const id = 'example-browser-' + Math.random().toString(36).substr(2, 9);
-         container.element.id = id;
-         const panel = new ExampleBrowser(id, {
+         const panel = new ExampleBrowser(container.element, {
              onSelect: (node) => {
                  if (node.type === 'file') {
                      // Pass to REPL
-                     this.getNotebook()?.loadDemoFile(node.path);
+                     this.getNotebook()?.loadDemoFile(node.path, { autoRun: true, clearFirst: true });
                  }
              }
          });

@@ -153,13 +153,23 @@ export const LayoutPresets = {
             headerHeight: 24
         },
         root: {
-            type: 'stack',
-            content: [{
-                type: 'component',
-                componentName: 'examplesComponent',
-                title: 'DEMO GRAPH',
-                isClosable: false
-            }]
+            type: 'row',
+            content: [
+                {
+                    type: 'component',
+                    componentName: 'examplesComponent',
+                    title: 'DEMO LIBRARY',
+                    width: 30,
+                    isClosable: false
+                },
+                {
+                    type: 'component',
+                    componentName: 'replComponent',
+                    title: 'REPL',
+                    width: 70,
+                    isClosable: false
+                }
+            ]
         }
     }
 };

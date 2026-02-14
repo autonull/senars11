@@ -17,14 +17,38 @@ console.log(`UI Server configuration:
 
 const server = http.createServer((req, res) => {
     let filePath = req.url === '/' || req.url === '/index.html' ? './index.html' : req.url;
-    !path.extname(filePath) && (filePath += '.html');
 
-    const localPath = path.join(__dirname, filePath);
-    const fullPath = fs.existsSync(localPath) && fs.statSync(localPath).isFile()
-        ? localPath
-        : (filePath.startsWith('/core/') || filePath.startsWith('/agent/') || filePath.startsWith('/examples/'))
-            ? path.join(__dirname, '..', filePath)
-            : localPath;
+    let localPath = path.join(__dirname, filePath);
+    let fullPath = path.join(__dirname, '..', filePath); // Default to repo root for modules
+
+    // Determine base path logic
+    const isModule = filePath.startsWith('/core/') || filePath.startsWith('/agent/') || filePath.startsWith('/examples/') || filePath.startsWith('/metta/') || filePath.startsWith('/node_modules/');
+
+    if (!isModule) {
+        fullPath = localPath; // UI local files
+    }
+
+    // Resolution logic
+    if (!path.extname(filePath)) {
+        if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+            // Exact match (unlikely for no extension but possible)
+        } else if (fs.existsSync(fullPath + '.js') && fs.statSync(fullPath + '.js').isFile()) {
+            fullPath += '.js';
+            filePath += '.js';
+        } else if (fs.existsSync(path.join(fullPath, 'index.js'))) {
+            fullPath = path.join(fullPath, 'index.js');
+            filePath += '/index.js';
+        } else if (!isModule) {
+             filePath += '.html';
+             fullPath += '.html';
+        }
+    } else {
+        // Has extension, check if directory (e.g. some imports might end in /)
+        if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
+             fullPath = path.join(fullPath, 'index.js');
+             filePath += '/index.js';
+        }
+    }
 
     fs.readFile(fullPath, 'utf8', (err, content) => {
         if (err) {
@@ -41,6 +65,7 @@ const server = http.createServer((req, res) => {
 
             const contentTypeMap = {
                 '.js': 'application/javascript',
+                '.mjs': 'application/javascript',
                 '.css': 'text/css',
                 '.json': 'application/json'
             };
