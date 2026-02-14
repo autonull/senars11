@@ -45,7 +45,14 @@ export class StatusBar extends Component {
                         this.ui.mode = FluentUI.create('div')
                             .class('status-mode')
                             .attr({ title: 'Click to switch connection mode' })
-                            .on('click', () => this.onModeSwitch?.())
+                            .on('click', (e) => {
+                                console.log('[StatusBar] Mode switch clicked');
+                                if (this.onModeSwitch) {
+                                    this.onModeSwitch();
+                                } else {
+                                    console.warn('[StatusBar] No onModeSwitch handler defined');
+                                }
+                            })
                     )
                     .child(
                         this.ui.status = FluentUI.create('div')

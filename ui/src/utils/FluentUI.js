@@ -155,6 +155,16 @@ export class FluentUI {
     }
 
     /**
+     * Set value property
+     * @param {string} value - Value to set
+     * @returns {FluentUI}
+     */
+    val(value) {
+        this.element.value = value;
+        return this;
+    }
+
+    /**
      * Set HTML content
      * @param {string} content - HTML content
      * @returns {FluentUI}

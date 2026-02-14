@@ -13,7 +13,7 @@ export default {
         '/tests/websocket/'
     ],
     setupFilesAfterEnv: [],
-    // setupFiles: ['<rootDir>/tests/setup.js'],
+    setupFiles: ['<rootDir>/tests/setup.js'],
     coveragePathIgnorePatterns: [
         '/node_modules/',
         '/tests/advanced/',
@@ -28,5 +28,8 @@ export default {
     transform: {
         '^.+\\.(js|jsx|mjs)$': 'babel-jest'
     },
+    transformIgnorePatterns: [
+        '/node_modules/(?!.*(uuid|ollama-ai-provider|@senars|@langchain|langsmith))'
+    ],
     moduleFileExtensions: ['js', 'jsx', 'json', 'mjs', 'cjs']
 };

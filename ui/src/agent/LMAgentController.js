@@ -14,41 +14,72 @@ export class LMAgentController extends EventEmitter {
         this.aiClient = null;
         this.toolsBridge = null;
         this.conversationHistory = [];
-        this.modelName = 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
+        this.config = {
+            provider: 'webllm',
+            modelName: 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
+            apiKey: '',
+            baseUrl: ''
+        };
         this.isInitialized = false;
     }
 
-    async initialize() {
-        this.logger.log('Initializing LM Agent Controller...', 'system');
-        this.emit('model-load-start', { modelName: this.modelName });
+    async initialize(config = {}) {
+        this.config = { ...this.config, ...config };
+
+        this.logger.log(`Initializing LM Agent Controller (${this.config.provider}: ${this.config.modelName})...`, 'system');
+        this.emit('model-load-start', { modelName: this.config.modelName });
 
         try {
-            // Initialize AIClient with WebLLM provider
-            this.aiClient = new AIClient({
-                provider: 'webllm',
-                modelName: this.modelName
-            });
-
-            // Set up event forwarding from WebLLM provider
-            const provider = this.aiClient.modelInstances.get(`webllm:${this.modelName}`);
-            if (provider) {
-                provider.on('lm:model-dl-progress', (data) => {
-                    this.emit('model-dl-progress', data);
-                });
-
-                provider.on('lm:model-load-complete', (data) => {
-                    this.emit('model-load-complete', data);
-                    this.isInitialized = true;
-                });
-
-                provider.on('lm:model-load-error', (data) => {
-                    this.emit('model-load-error', data);
-                });
+            // Teardown existing client if any
+            if (this.aiClient) {
+                // Assuming AIClient has destroy or we just drop it
+                if (typeof this.aiClient.destroy === 'function') {
+                    await this.aiClient.destroy();
+                }
             }
 
-            // Initialize tools bridge
-            this.toolsBridge = new AgentToolsBridge();
-            await this.toolsBridge.initialize();
+            // Initialize AIClient
+            this.aiClient = this._createAIClient({
+                provider: this.config.provider,
+                modelName: this.config.modelName,
+                apiKey: this.config.apiKey,
+                baseUrl: this.config.baseUrl
+            });
+
+            // Set up event forwarding from WebLLM provider if applicable
+            if (this.config.provider === 'webllm') {
+                const provider = this.aiClient.modelInstances.get(`webllm:${this.config.modelName}`);
+                if (provider) {
+                    provider.on('lm:model-dl-progress', (data) => {
+                        this.emit('model-dl-progress', data);
+                    });
+
+                    provider.on('lm:model-load-complete', (data) => {
+                        this.emit('model-load-complete', data);
+                        this.isInitialized = true;
+                    });
+
+                    provider.on('lm:model-load-error', (data) => {
+                        this.emit('model-load-error', data);
+                    });
+                } else {
+                    // If provider instance not immediately available (synch issue?), assume ready or wait
+                    // For WebLLM, it usually emits events during load.
+                    // If it's another provider, we might just be ready immediately.
+                    this.isInitialized = true;
+                    this.emit('model-load-complete', { modelName: this.config.modelName, elapsedMs: 0 });
+                }
+            } else {
+                // For API providers, initialization is instant
+                this.isInitialized = true;
+                this.emit('model-load-complete', { modelName: this.config.modelName, elapsedMs: 0 });
+            }
+
+            // Initialize tools bridge if not already
+            if (!this.toolsBridge) {
+                this.toolsBridge = new AgentToolsBridge();
+                await this.toolsBridge.initialize();
+            }
 
             this.logger.log('LM Agent Controller initialized', 'success');
 
@@ -57,6 +88,10 @@ export class LMAgentController extends EventEmitter {
             this.emit('model-load-error', { error: error.message });
             throw error;
         }
+    }
+
+    async reconfigure(newConfig) {
+        return this.initialize(newConfig);
     }
 
     /**
@@ -80,18 +115,13 @@ export class LMAgentController extends EventEmitter {
             // Build system prompt with tool information
             const systemPrompt = this.buildSystemPrompt();
 
-            // Prepare messages
-            const messages = [
-                { role: 'system', content: systemPrompt },
-                ...this.conversationHistory
-            ];
-
-            // Generate response
             const result = await this.aiClient.generate(userMessage, {
-                provider: 'webllm',
-                model: this.modelName,
+                provider: this.config.provider,
+                model: this.config.modelName,
                 temperature: options.temperature ?? 0.7,
-                maxTokens: options.maxTokens ?? 512
+                maxTokens: options.maxTokens ?? 512,
+                systemPrompt: systemPrompt,
+                messages: [...this.conversationHistory]
             });
 
             const assistantMessage = result.text || '';
@@ -102,8 +132,17 @@ export class LMAgentController extends EventEmitter {
                 content: assistantMessage
             });
 
-            // Check if response includes tool calls (simple parsing for now)
-            await this.handleToolCalls(assistantMessage);
+            // Check if response includes tool calls
+            const toolResults = await this.handleToolCalls(assistantMessage);
+
+            // If tools were executed, we might want to return that info or trigger another generation
+            // For now, let's just log it and potentially return the augmented history if needed
+            if (toolResults && toolResults.length > 0) {
+                 this.logger.log(`Tools executed: ${toolResults.length}`, 'system');
+                 // In a full agent loop, we would feed this back to the LM.
+                 // For now, we rely on the UI or next user message to see the result
+                 // because the results are added to history in handleToolCalls
+            }
 
             return assistantMessage;
 
@@ -132,16 +171,14 @@ export class LMAgentController extends EventEmitter {
 
         try {
             const systemPrompt = this.buildSystemPrompt();
-            const messages = [
-                { role: 'system', content: systemPrompt },
-                ...this.conversationHistory
-            ];
 
             const result = await this.aiClient.stream(userMessage, {
-                provider: 'webllm',
-                model: this.modelName,
+                provider: this.config.provider,
+                model: this.config.modelName,
                 temperature: options.temperature ?? 0.7,
-                maxTokens: options.maxTokens ?? 512
+                maxTokens: options.maxTokens ?? 512,
+                systemPrompt: systemPrompt,
+                messages: [...this.conversationHistory]
             });
 
             let fullResponse = '';
@@ -167,11 +204,22 @@ export class LMAgentController extends EventEmitter {
     }
 
     buildSystemPrompt() {
-        const tools = this.toolsBridge.getToolDescriptions();
+        const tools = this.toolsBridge ? this.toolsBridge.getToolDescriptions() : [];
 
         return `You are an AI assistant integrated with the SeNARS cognitive architecture. You have access to the following tools:
 
-${tools.map(t => `- ${t.name}: ${t.description}`).join('\n')}
+${tools.map(t => `- ${t.name}: ${t.description} (Args: ${JSON.stringify(t.parameters)})`).join('\n')}
+
+To use a tool, you MUST output a JSON object in a Markdown code block like this:
+
+\`\`\`json
+{
+    "tool": "tool_name",
+    "parameters": {
+        "arg_name": "value"
+    }
+}
+\`\`\`
 
 You can help users:
 1. Query and manipulate the NAR (Non-Axiomatic Reasoning) system
@@ -180,22 +228,44 @@ You can help users:
 4. Configure system parameters
 5. Generate and execute MeTTa code for self-programming
 
-When users ask you to perform actions that require tools, explain what you would do and mention the relevant tool. Be helpful and educational about the system's capabilities.`;
+When users ask you to perform actions that require tools, explain what you would do and then output the tool call JSON.`;
     }
 
     /**
-     * Simple tool call detection and handling
-     * Future: Implement proper function calling with AI SDK
+     * Tool call detection and handling
+     * Parses the response for JSON code blocks specifying a tool.
      */
     async handleToolCalls(response) {
-        // For now, this is a placeholder
-        // In future iterations, we'll use AI SDK's tool calling feature
-        // to properly integrate with the tools
+        if (!this.toolsBridge) return null;
 
-        // Example: detect patterns like "I'll use the nar_control tool..."
-        // and actually execute the tool
+        const toolRegex = /```json\s*({[\s\S]*?"tool"\s*:\s*"[^"]+"[\s\S]*?})\s*```/g;
+        let match;
+        const results = [];
 
-        return null;
+        while ((match = toolRegex.exec(response)) !== null) {
+            try {
+                const toolJson = JSON.parse(match[1]);
+                if (toolJson.tool) {
+                    this.logger.log(`Executing tool: ${toolJson.tool}`, 'system');
+
+                    const result = await this.toolsBridge.executeTool(toolJson.tool, toolJson.parameters || {});
+
+                    const resultMessage = {
+                        role: 'system',
+                        content: `Tool '${toolJson.tool}' execution result:\n${JSON.stringify(result, null, 2)}`
+                    };
+
+                    this.conversationHistory.push(resultMessage);
+                    results.push({ tool: toolJson.tool, result });
+
+                    this.emit('tool-executed', { tool: toolJson.tool, result });
+                }
+            } catch (e) {
+                this.logger.log(`Failed to parse tool call: ${e.message}`, 'error');
+            }
+        }
+
+        return results;
     }
 
     getAvailableTools() {
@@ -206,8 +276,12 @@ When users ask you to perform actions that require tools, explain what you would
         this.conversationHistory = [];
     }
 
+    _createAIClient(config) {
+        return new AIClient(config);
+    }
+
     async destroy() {
-        if (this.aiClient) {
+        if (this.aiClient && typeof this.aiClient.destroy === 'function') {
             await this.aiClient.destroy();
         }
         this.removeAllListeners();
