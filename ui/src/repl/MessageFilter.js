@@ -67,6 +67,20 @@ export const MESSAGE_CATEGORIES = {
         color: '#ff6b9d',
         defaultMode: VIEW_MODES.FULL
     },
+    concept: {
+        id: 'concept',
+        label: 'Concept',
+        icon: '🧠',
+        color: '#00d4ff',
+        defaultMode: VIEW_MODES.FULL
+    },
+    task: {
+        id: 'task',
+        label: 'Task',
+        icon: '📝',
+        color: '#ffcc00',
+        defaultMode: VIEW_MODES.FULL
+    },
     unknown: {
         id: 'unknown',
         label: 'Other',
@@ -83,6 +97,12 @@ export function categorizeMessage(message) {
     const type = message.type || 'unknown';
 
     // Map message types to categories
+    if (type.includes('concept')) {
+        return 'concept';
+    }
+    if (type.includes('task')) {
+        return 'task';
+    }
     if (type.includes('reasoning') || type.includes('inference') || type.includes('derivation')) {
         return 'reasoning';
     }

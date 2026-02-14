@@ -75,7 +75,7 @@ export class LocalConnectionManager extends ConnectionInterface {
             switch (type) {
                 case 'agent/input':
                 case 'narseseInput':
-                    await this.handleInput(payload);
+                    await this.handleInput(payload, type);
                     break;
                 case 'control/reset':
                     await this.handleReset();
@@ -92,11 +92,17 @@ export class LocalConnectionManager extends ConnectionInterface {
         }
     }
 
-    async handleInput(payload) {
+    async handleInput(payload, type) {
         const text = payload.text || payload.input || payload;
-        this.nar && await this.nar.input(text);
 
-        if (this.metta && /^(!|\(|=\s)/.test(text)) {
+        // Explicit routing based on type
+        if (type === 'narseseInput') {
+             this.nar && await this.nar.input(text);
+             return;
+        }
+
+        // Handle MeTTa input (agent/input)
+        if (this.metta && (type === 'agent/input' || /^(!|\(|=\s)/.test(text))) {
             try {
                 const results = await this.metta.run(text);
                 if (results?.length) {

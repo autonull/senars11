@@ -242,6 +242,12 @@ input[type="text"]:focus, select:focus {
 .nars-operator { color: var(--accent-primary); font-weight: bold; }
 .nars-punctuation { color: var(--accent-warn); font-size: 1.2em; font-weight: bold; }
 
+/* MeTTa Syntax Highlighting */
+.metta-comment { color: #6a9955; font-style: italic; }
+.metta-paren { color: #888; font-weight: bold; }
+.metta-variable { color: #9cdcfe; }
+.metta-keyword { color: #c586c0; font-weight: bold; }
+
 /* Interactive Embedded Graph */
 .embedded-graph-wrapper {
     background: rgba(0,0,0,0.3);

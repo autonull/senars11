@@ -85,7 +85,7 @@ export class REPLInput {
         const toolbar = document.createElement('div');
         toolbar.style.cssText = 'display: flex; gap: 8px; align-items: center; flex-wrap: wrap;';
 
-        const runBtn = this._createButton('▶️ Execute (Ctrl+Enter)', '#0e639c', () => this.execute());
+        const runBtn = this._createButton('▶️ Execute (Shift+Enter)', '#0e639c', () => this.execute());
         const clearBtn = this._createButton('🗑️ Clear', '#333', () => this.onClear());
         const demoBtn = this._createButton('📚 Load Demo', '#5c2d91', () => this.onDemo());
         demoBtn.title = 'Browse demo library (Ctrl+Shift+D)';
@@ -94,13 +94,10 @@ export class REPLInput {
         extraTools.style.cssText = 'display: flex; gap: 4px; border-left: 1px solid #444; padding-left: 12px; margin-left: auto;';
 
         const addMdBtn = this._createButton('📝 Text', '#333', () => this.onExtraAction('markdown'));
-        const addGraphBtn = this._createButton('🧩 Graph', '#333', () => this.onExtraAction('graph'));
         const addSliderBtn = this._createButton('🎚️ Slider', '#333', () => this.onExtraAction('slider'));
-        const simBtn = this._createButton('⚡ Simulation', '#00ff9d', () => this.onExtraAction('simulation'));
-        simBtn.style.color = '#000';
-        simBtn.style.fontWeight = 'bold';
+        const addSubNbBtn = this._createButton('📂 Sub-Notebook', '#333', () => this.onExtraAction('subnotebook'));
 
-        extraTools.append(addMdBtn, addGraphBtn, addSliderBtn, simBtn);
+        extraTools.append(addMdBtn, addSliderBtn, addSubNbBtn);
         toolbar.append(runBtn, clearBtn, demoBtn, extraTools);
         return toolbar;
     }
@@ -171,6 +168,13 @@ export class REPLInput {
         this.history.add(content);
         this.onExecute(content);
         this.inputBox.setValue('');
+
+        // Auto-scroll to bottom of notebook when executing from REPL input
+        // This is a bit of a hack reaching into DOM, but simple
+        const notebook = document.getElementById('repl-notebook');
+        if (notebook) {
+            setTimeout(() => notebook.scrollTop = notebook.scrollHeight, 100);
+        }
     }
 
     setValue(value) {

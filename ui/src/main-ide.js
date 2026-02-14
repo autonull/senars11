@@ -66,6 +66,14 @@ class SeNARSIDE {
             this.notebook.createMarkdownCell("# Welcome to SeNARS IDE v1.0\n\nDouble-click this cell to edit.\n- **Local Mode**: Runs entirely in browser\n- **Remote Mode**: Connects to backend\n- **Widgets**: Interactive tools");
         }
 
+        // Listen for concept selection to log in REPL
+        document.addEventListener('senars:concept:select', (e) => {
+            const { concept } = e.detail;
+            if (concept) {
+                this.notebook?.createResultCell(concept, 'concept', 'compact');
+            }
+        });
+
         console.log(`SeNARS IDE initialized in ${this.connectionMode} mode`);
     }
 
@@ -133,7 +141,14 @@ class SeNARSIDE {
         statusBar.append(modeIndicator, stats);
         replContainer.appendChild(statusBar);
 
-        this.filterToolbar = new FilterToolbar(this.messageFilter, { onFilterChange: () => this.filterMessages(), onExport: () => this.exportLogs() });
+        this.filterToolbar = new FilterToolbar(this.messageFilter, {
+            onFilterChange: () => this.filterMessages(),
+            onExport: () => this.exportLogs(),
+            onImport: (file) => this.importLogs(file),
+            onRunAll: () => this.notebook?.runAll(),
+            onClearOutputs: () => this.notebook?.clearOutputs(),
+            onViewChange: (mode) => this.notebook?.switchView(mode)
+        });
         replContainer.appendChild(this.filterToolbar.render());
 
         const notebookContainer = document.createElement('div');
@@ -141,7 +156,9 @@ class SeNARSIDE {
         notebookContainer.style.cssText = 'flex: 1; overflow-y: auto; padding: 10px;';
         replContainer.appendChild(notebookContainer);
 
-        this.notebook = new NotebookManager(notebookContainer);
+        this.notebook = new NotebookManager(notebookContainer, {
+            onExecute: (text) => this.processCellExecution(text)
+        });
         this.notebookLogger = new NotebookLogger(this.notebook);
 
         const inputContainer = document.createElement('div');
@@ -289,7 +306,12 @@ class SeNARSIDE {
                 });
             } else {
                 const category = categorizeMessage(message);
-                const content = message.payload?.result || message.content || JSON.stringify(message.payload);
+                let content;
+                if (category === 'concept' || category === 'task') {
+                    content = message.payload;
+                } else {
+                    content = message.payload?.result || message.content || JSON.stringify(message.payload);
+                }
                 const viewMode = this.messageFilter.getMessageViewMode(message);
                 this.notebook.createResultCell(content, category, viewMode);
             }
@@ -330,20 +352,44 @@ class SeNARSIDE {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `senars-logs-${new Date().toISOString().replace(/:/g, '-')}.json`;
+        a.download = `senars-notebook-${new Date().toISOString().replace(/:/g, '-')}.json`;
         a.click();
         URL.revokeObjectURL(url);
     }
 
+    importLogs(file) {
+        if (!this.notebook || !file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                this.notebook.importNotebook(data);
+                this.notebook.createResultCell('📂 Notebook imported successfully', 'system');
+            } catch (err) {
+                console.error('Import error', err);
+                this.notebook.createResultCell(`❌ Import failed: ${err.message}`, 'system');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    processCellExecution(content) {
+        // Detect language
+        const trimmed = content.trim();
+        const isMetta = trimmed.startsWith('(') || trimmed.startsWith(';') || trimmed.startsWith('!');
+        const mode = isMetta ? 'metta' : 'narsese';
+
+        if (this.commandProcessor) {
+            this.commandProcessor.processCommand(content, false, mode);
+        } else if (this.connection?.isConnected()) {
+            const type = mode === 'metta' ? 'agent/input' : 'narseseInput';
+            this.connection.sendMessage(type, { text: content });
+        }
+    }
+
     executeInput(text) {
         if (!text) return;
-        this.notebook.createCodeCell(text, (content) => {
-            if (this.commandProcessor) {
-                this.commandProcessor.processCommand(content, false, 'narsese');
-            } else if (this.connection?.isConnected()) {
-                this.connection.sendMessage('agent/input', { text: content });
-            }
-        }).execute();
+        this.notebook.createCodeCell(text).execute();
     }
 
     clearREPL() {
@@ -413,6 +459,9 @@ class SeNARSIDE {
                 break;
             case 'simulation':
                 this.runEpicSimulation();
+                break;
+            case 'subnotebook':
+                this.notebook.createWidgetCell('SubNotebook', {});
                 break;
         }
     }

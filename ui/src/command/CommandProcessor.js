@@ -35,7 +35,12 @@ export class CommandProcessor {
         } else {
             // Forward to connection
              if (this.connection && this.connection.isConnected()) {
-                const type = mode === 'agent' || text.startsWith('!') ? 'agent/input' : 'narseseInput';
+                let type;
+                if (mode === 'agent' || mode === 'metta' || text.startsWith('!')) {
+                    type = 'agent/input';
+                } else {
+                    type = 'narseseInput';
+                }
                 this.connection.sendMessage(type, { text });
             } else {
                 this.logger.log('Not connected', 'error');

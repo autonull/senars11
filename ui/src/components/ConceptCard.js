@@ -13,22 +13,21 @@ export class ConceptCard extends Component {
         const div = document.createElement('div');
         div.className = 'concept-card';
         div.style.cssText = `
-            border-left: 4px solid var(--concept-color);
-            background: rgba(255, 255, 255, 0.05);
-            padding: 10px;
-            margin-bottom: 8px;
-            border-radius: 0 4px 4px 0;
+            border-left: 3px solid var(--concept-color);
+            background: rgba(255, 255, 255, 0.04);
+            padding: 4px 8px;
+            margin-bottom: 4px;
+            border-radius: 0 3px 3px 0;
             cursor: pointer;
             transition: all 0.2s;
+            font-size: 11px;
         `;
 
         div.addEventListener('mouseenter', () => {
-            div.style.background = 'rgba(255, 255, 255, 0.08)';
-            div.style.transform = 'translateX(2px)';
+            div.style.background = 'rgba(255, 255, 255, 0.07)';
         });
         div.addEventListener('mouseleave', () => {
-            div.style.background = 'rgba(255, 255, 255, 0.05)';
-            div.style.transform = 'translateX(0)';
+            div.style.background = 'rgba(255, 255, 255, 0.04)';
         });
 
         const id = this.concept.id ?? this.concept.term;
@@ -44,19 +43,16 @@ export class ConceptCard extends Component {
         const taskCount = this.concept.tasks?.length ?? this.concept.taskCount ?? 0;
 
         div.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
-                <div style="font-weight: bold; font-family: var(--font-mono); font-size: 12px; word-break: break-all;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                <div style="font-weight: 500; font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">
                     ${NarseseHighlighter.highlight(term)}
                 </div>
-                <div style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 10px; font-size: 10px; color: var(--text-muted);">
-                    ${taskCount} tasks
+                <div style="display: flex; gap: 6px; align-items: center; font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); opacity: 0.8;">
+                    <span title="Tasks">📚${taskCount}</span>
+                    <span title="Priority" style="color:${this._getPriorityColor(priority)}">P:${priority.toFixed(2)}</span>
+                    <span title="Durability">D:${durability.toFixed(2)}</span>
+                    <span title="Quality">Q:${quality.toFixed(2)}</span>
                 </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 9px; color: var(--text-muted);">
-                ${this._renderBudgetBar('P', priority)}
-                ${this._renderBudgetBar('D', durability)}
-                ${this._renderBudgetBar('Q', quality)}
             </div>
         `;
 

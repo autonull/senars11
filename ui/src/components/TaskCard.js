@@ -15,9 +15,9 @@ export class TaskCard extends Component {
         div.style.cssText = `
             border-left: 3px solid var(--task-color);
             background: rgba(255, 255, 255, 0.03);
-            padding: 8px;
-            margin-bottom: 5px;
-            border-radius: 0 4px 4px 0;
+            padding: 4px 8px;
+            margin-bottom: 2px;
+            border-radius: 0 3px 3px 0;
             font-family: var(--font-mono);
             font-size: 11px;
             display: flex;
@@ -25,6 +25,7 @@ export class TaskCard extends Component {
             justify-content: space-between;
             cursor: pointer;
             transition: background 0.2s;
+            line-height: 1.4;
         `;
 
         div.addEventListener('mouseenter', () => {

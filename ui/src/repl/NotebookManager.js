@@ -3,6 +3,9 @@ import { TruthSlider } from '../components/widgets/TruthSlider.js';
 import { SimpleGraphWidget } from '../components/widgets/SimpleGraphWidget.js';
 import { ChartWidget } from '../components/widgets/ChartWidget.js';
 import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
+import { SmartTextarea } from './SmartTextarea.js';
+import { ConceptCard } from '../components/ConceptCard.js';
+import { TaskCard } from '../components/TaskCard.js';
 import { marked } from 'marked';
 
 /**
@@ -46,6 +49,12 @@ export class CodeCell extends REPLCell {
         super('code', content);
         this.onExecute = onExecute;
         this.isEditing = true;
+        this.executionCount = null;
+    }
+
+    destroy() {
+        this.smartEditor?.destroy();
+        super.destroy();
     }
 
     render() {
@@ -59,15 +68,40 @@ export class CodeCell extends REPLCell {
             background: #1e1e1e;
             overflow: hidden;
             transition: border-color 0.2s;
+            position: relative;
         `;
 
         this.element.appendChild(this._createToolbar());
 
+        const body = document.createElement('div');
+        body.style.display = 'flex';
+
+        // Execution Count Gutter
+        this.gutter = document.createElement('div');
+        this.gutter.className = 'cell-gutter';
+        this.gutter.style.cssText = `
+            width: 50px; flex-shrink: 0; background: #252526; color: #888;
+            font-family: monospace; font-size: 0.85em; text-align: right; padding: 10px 5px;
+            border-right: 1px solid #3c3c3c; user-select: none;
+        `;
+        this._updateGutter();
+        body.appendChild(this.gutter);
+
         this.editorContainer = document.createElement('div');
-        this.element.appendChild(this.editorContainer);
+        this.editorContainer.style.flex = '1';
+        body.appendChild(this.editorContainer);
+
+        this.element.appendChild(body);
         this.updateMode();
 
         return this.element;
+    }
+
+    _updateGutter() {
+        if (this.gutter) {
+            this.gutter.textContent = this.executionCount ? `[${this.executionCount}]` : '[ ]';
+            if (this.executionCount) this.gutter.style.color = '#00ff9d';
+        }
     }
 
     updateMode() {
@@ -83,7 +117,13 @@ export class CodeCell extends REPLCell {
     _createPreview() {
         const preview = document.createElement('div');
         preview.className = 'code-preview';
-        preview.innerHTML = NarseseHighlighter.highlight(this.content);
+
+        // Simple heuristic for language detection
+        const trimmed = this.content.trim();
+        const isMetta = trimmed.startsWith('(') || trimmed.startsWith(';') || trimmed.startsWith('!');
+        const language = isMetta ? 'metta' : 'narsese';
+
+        preview.innerHTML = NarseseHighlighter.highlight(this.content, language);
         preview.style.cssText = `
             padding: 10px; font-family: monospace; font-size: 0.95em;
             color: #d4d4d4; white-space: pre-wrap; cursor: pointer;
@@ -120,10 +160,16 @@ export class CodeCell extends REPLCell {
             toggleBtn.innerHTML = this.isEditing ? '👁️' : '✏️';
         });
 
+        const upBtn = this._createButton('⬆️', 'Move Up', '#333', () => this.onMoveUp?.(this));
+        const downBtn = this._createButton('⬇️', 'Move Down', '#333', () => this.onMoveDown?.(this));
+        const dupBtn = this._createButton('📑', 'Duplicate', '#333', () => this.onDuplicate?.(this));
+        const addCodeBtn = this._createButton('➕ Code', 'Insert Code Below', '#333', () => this.onInsertAfter?.('code'));
+        const addMdBtn = this._createButton('➕ Text', 'Insert Text Below', '#333', () => this.onInsertAfter?.('markdown'));
+
         const deleteBtn = this._createButton('🗑️', 'Delete', '#b30000', () => this.delete());
         deleteBtn.style.marginLeft = 'auto';
 
-        toolbar.append(label, runBtn, toggleBtn, deleteBtn);
+        toolbar.append(label, runBtn, toggleBtn, upBtn, downBtn, dupBtn, addCodeBtn, addMdBtn, deleteBtn);
         return toolbar;
     }
 
@@ -137,42 +183,35 @@ export class CodeCell extends REPLCell {
     }
 
     _createEditor() {
-        const editor = document.createElement('textarea');
-        editor.className = 'cell-editor';
-        editor.value = this.content;
-        editor.placeholder = 'Enter Narsese or MeTTa...';
-        editor.rows = Math.max(3, this.content.split('\n').length);
-        editor.style.cssText = `
-            width: 100%; background: #1e1e1e; color: #d4d4d4; border: none; padding: 10px;
-            font-family: monospace; font-size: 0.95em; resize: vertical; outline: none; display: block;
-        `;
+        const wrapper = document.createElement('div');
+        // wrapper.style.padding = '10px'; // SmartTextarea handles padding
 
-        editor.addEventListener('input', (e) => {
-            this.content = e.target.value;
-            // Auto resize
-            editor.style.height = 'auto';
-            editor.style.height = editor.scrollHeight + 'px';
+        this.smartEditor = new SmartTextarea(wrapper, {
+            rows: Math.max(3, this.content.split('\n').length),
+            autoResize: true,
+            onExecute: (text, opts) => this.execute(opts ? { advance: opts.shiftKey } : {})
         });
 
-        editor.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'Enter') {
-                e.preventDefault();
-                this.execute();
-            }
+        this.smartEditor.render();
+        this.smartEditor.setValue(this.content);
+
+        this.smartEditor.textarea.addEventListener('input', () => {
+             this.content = this.smartEditor.getValue();
         });
 
-        editor.addEventListener('focus', () => this.element.style.borderColor = '#007acc');
-        editor.addEventListener('blur', () => this.element.style.borderColor = '#3c3c3c');
+        // Border highlighting
+        this.smartEditor.textarea.addEventListener('focus', () => this.element.style.borderColor = '#007acc');
+        this.smartEditor.textarea.addEventListener('blur', () => this.element.style.borderColor = '#3c3c3c');
 
-        this.editor = editor;
-        return editor;
+        return wrapper;
     }
 
-    execute() {
+    execute(options = {}) {
         if (this.onExecute && this.content.trim()) {
             this.isEditing = false;
             this.updateMode();
-            this.onExecute(this.content, this);
+            this.onExecute(this.content, this, options);
+            this._updateGutter();
         }
     }
 
@@ -184,7 +223,7 @@ export class CodeCell extends REPLCell {
     }
 
     focus() {
-        this.editor?.focus();
+        this.smartEditor?.focus();
     }
 }
 
@@ -314,7 +353,15 @@ export class ResultCell extends REPLCell {
         const preview = document.createElement('span');
         preview.style.cssText = 'color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; opacity: 0.8;';
 
-        let previewText = typeof this.content === 'string' ? this.content : JSON.stringify(this.content);
+        let previewText = '';
+        if (this.category === 'concept' && typeof this.content === 'object') {
+            previewText = `Concept: ${this.content.term || this.content.id}`;
+        } else if (this.category === 'task' && typeof this.content === 'object') {
+            previewText = `Task: ${this.content.term || '...' }`;
+        } else {
+            previewText = typeof this.content === 'string' ? this.content : JSON.stringify(this.content);
+        }
+
         if (previewText.length > 80) previewText = previewText.substring(0, 80) + '...';
         preview.textContent = previewText;
 
@@ -332,7 +379,7 @@ export class ResultCell extends REPLCell {
         actions.className = 'cell-actions';
         actions.style.cssText = `
             position: absolute; top: 4px; right: 4px; opacity: 0; transition: opacity 0.2s;
-            display: flex; gap: 6px; background: rgba(0,0,0,0.5); padding: 2px 4px; border-radius: 3px;
+            display: flex; gap: 6px; background: rgba(0,0,0,0.5); padding: 2px 4px; border-radius: 3px; z-index: 10;
         `;
 
         this.element.onmouseenter = () => actions.style.opacity = '1';
@@ -357,7 +404,11 @@ export class ResultCell extends REPLCell {
         const contentDiv = document.createElement('div');
         contentDiv.style.cssText = 'white-space: pre-wrap; font-family: monospace; color: #d4d4d4; overflow-x: auto; font-size: 0.95em;';
 
-        if (typeof this.content === 'string') {
+        if (this.category === 'concept' && typeof this.content === 'object') {
+            new ConceptCard(contentDiv, this.content).render();
+        } else if (this.category === 'task' && typeof this.content === 'object') {
+            new TaskCard(contentDiv, this.content).render();
+        } else if (typeof this.content === 'string') {
             contentDiv.innerHTML = NarseseHighlighter.highlight(this.content);
         } else {
             contentDiv.textContent = JSON.stringify(this.content, null, 2);
@@ -483,6 +534,18 @@ export class WidgetCell extends REPLCell {
         } else if (this.widgetType === 'ChartWidget') {
             this.widgetInstance = new ChartWidget(content, this.content);
             this.widgetInstance.render();
+        } else if (this.widgetType === 'SubNotebook') {
+             // Create a nested notebook
+             const nestedManager = new NotebookManager(content, {
+                 onExecute: (text, cell, options) => {
+                     // Pass through execution or handle locally?
+                     // For now, simple logging
+                     console.log('Nested execution:', text);
+                 }
+             });
+             this.widgetInstance = nestedManager;
+             // Add initial cell
+             nestedManager.createCodeCell('(print "Hello Nested World")');
         } else {
             content.innerHTML = `<div style="color:red">Unknown widget: ${this.widgetType}</div>`;
         }
@@ -495,24 +558,336 @@ export class WidgetCell extends REPLCell {
  * Notebook manager for REPL cells
  */
 export class NotebookManager {
-    constructor(container) {
+    constructor(container, options = {}) {
         this.container = container;
         this.cells = [];
+        this.executionCount = 0;
         this.saveTimeout = null;
         this.storageKey = 'senars-notebook-content';
+        this.defaultOnExecute = options.onExecute || null;
+        this.viewMode = 'list'; // list, grid, graph
+        this.viewContainer = document.createElement('div');
+        this.viewContainer.style.cssText = 'height: 100%; width: 100%; position: relative;';
+        this.container.appendChild(this.viewContainer);
+        this.switchView('list');
+    }
+
+    switchView(mode) {
+        this.viewMode = mode;
+        this.viewContainer.innerHTML = '';
+        this.viewContainer.className = `view-mode-${mode}`;
+
+        if (mode === 'list') {
+            this.viewContainer.style.overflowY = 'auto';
+            this.viewContainer.style.display = 'block';
+            this.cells.forEach(cell => this.viewContainer.appendChild(cell.render()));
+        } else if (mode === 'grid') {
+            this._renderGridView(false);
+        } else if (mode === 'icon') {
+            this._renderGridView(true);
+        } else if (mode === 'graph') {
+             this.viewContainer.style.overflow = 'hidden';
+             // Graph logic will be initialized here or via a dedicated method
+             this._initGraphView();
+        }
+    }
+
+    _renderGridView(isIconMode) {
+        this.viewContainer.style.overflowY = 'auto';
+        this.viewContainer.style.display = 'grid';
+
+        const size = isIconMode ? '100px' : '200px';
+        this.viewContainer.style.gridTemplateColumns = `repeat(auto-fill, minmax(${size}, 1fr))`;
+        this.viewContainer.style.gap = '10px';
+        this.viewContainer.style.padding = '10px';
+
+        this.cells.forEach(cell => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'grid-cell-wrapper';
+            wrapper.style.cssText = `
+                background: #252526; border: 1px solid #3c3c3c; border-radius: 4px;
+                padding: 8px; height: ${isIconMode ? '100px' : '150px'}; overflow: hidden; position: relative;
+                cursor: pointer; transition: transform 0.2s; display: flex; flex-direction: column;
+            `;
+            wrapper.onmouseenter = () => wrapper.style.transform = 'scale(1.02)';
+            wrapper.onmouseleave = () => wrapper.style.transform = 'scale(1)';
+            wrapper.onclick = () => {
+                 this.switchView('list');
+                 cell.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                 cell.element.style.borderColor = '#00ff9d';
+                 setTimeout(() => cell.element.style.borderColor = '#3c3c3c', 1000);
+            };
+
+            const iconMap = {
+                code: '💻', result: '✨', markdown: '📝', widget: '🧩', prompt: '🤖'
+            };
+
+            const icon = document.createElement('div');
+            icon.style.cssText = `font-size: ${isIconMode ? '24px' : '16px'}; text-align: center; margin-bottom: 4px;`;
+            icon.textContent = iconMap[cell.type] || '📄';
+
+            wrapper.appendChild(icon);
+
+            if (!isIconMode) {
+                const typeBadge = document.createElement('div');
+                typeBadge.style.cssText = 'font-size: 10px; color: #888; text-transform: uppercase; text-align: center; margin-bottom: 4px;';
+                typeBadge.textContent = cell.type;
+                wrapper.appendChild(typeBadge);
+            }
+
+            const contentPreview = document.createElement('div');
+            contentPreview.style.cssText = 'font-size: 10px; color: #ccc; word-break: break-all; flex: 1; overflow: hidden; opacity: 0.8;';
+
+            let text = typeof cell.content === 'string' ? cell.content : JSON.stringify(cell.content);
+            if (text.length > 200) text = text.substring(0, 200) + '...';
+            contentPreview.textContent = text;
+
+            wrapper.appendChild(contentPreview);
+            this.viewContainer.appendChild(wrapper);
+        });
+    }
+
+    _initGraphView() {
+        if (!window.cytoscape) {
+            this.viewContainer.innerHTML = 'Cytoscape library not loaded.';
+            return;
+        }
+
+        const cyContainer = document.createElement('div');
+        cyContainer.style.cssText = 'width: 100%; height: 100%; background: #1e1e1e;';
+        this.viewContainer.appendChild(cyContainer);
+
+        // Nodes for Cells
+        const cellNodes = this.cells.map((cell, index) => ({
+            group: 'nodes',
+            data: {
+                id: cell.id,
+                label: `[${index}] ${cell.type}`,
+                type: cell.type,
+                content: cell.content,
+                isCell: true
+            }
+        }));
+
+        // Parse content to find shared terms
+        const termNodes = new Map();
+        const termEdges = [];
+
+        this.cells.forEach(cell => {
+            const text = typeof cell.content === 'string' ? cell.content : JSON.stringify(cell.content);
+            if (!text) return;
+
+            // Heuristic extraction of terms
+            // Matches Narsese: <term --> term> or MeTTa: (Concept "term")
+            // Simple approach: word tokens > 3 chars
+            // Better: use regex for common patterns
+
+            const narsTerms = text.match(/<([^>]+)>/g) || [];
+            narsTerms.forEach(t => {
+                const term = t.replace(/[<>]/g, '');
+                if (!termNodes.has(term)) {
+                    termNodes.set(term, { group: 'nodes', data: { id: `term_${term}`, label: term, type: 'term', isCell: false } });
+                }
+                termEdges.push({ group: 'edges', data: { source: cell.id, target: `term_${term}`, label: 'refs', type: 'ref' } });
+            });
+
+            // MeTTa symbols (heuristic)
+            const mettaSymbols = text.match(/\(([^)\s]+)/g) || [];
+            mettaSymbols.forEach(s => {
+                const sym = s.substring(1);
+                if (sym.length > 2 && !['match', 'let', 'type', 'print'].includes(sym)) {
+                    if (!termNodes.has(sym)) {
+                        termNodes.set(sym, { group: 'nodes', data: { id: `term_${sym}`, label: sym, type: 'term', isCell: false } });
+                    }
+                    termEdges.push({ group: 'edges', data: { source: cell.id, target: `term_${sym}`, label: 'refs', type: 'ref' } });
+                }
+            });
+        });
+
+        const edges = [];
+        // Sequential edges
+        for (let i = 0; i < this.cells.length - 1; i++) {
+            edges.push({
+                group: 'edges',
+                data: {
+                    source: this.cells[i].id,
+                    target: this.cells[i+1].id,
+                    label: 'next',
+                    type: 'flow'
+                }
+            });
+        }
+
+        const elements = [...cellNodes, ...Array.from(termNodes.values()), ...edges, ...termEdges];
+
+        this.cy = window.cytoscape({
+            container: cyContainer,
+            elements: elements,
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'background-color': '#444',
+                        'label': 'data(label)',
+                        'color': '#fff',
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'font-size': '10px',
+                        'width': '40px',
+                        'height': '40px'
+                    }
+                },
+                {
+                    selector: 'node[type="term"]',
+                    style: { 'background-color': '#5c2d91', 'shape': 'ellipse', 'width': '30px', 'height': '30px', 'font-size': '8px' }
+                },
+                {
+                    selector: 'node[type="code"]',
+                    style: { 'background-color': '#0e639c', 'shape': 'rectangle', 'width': '60px' }
+                },
+                {
+                    selector: 'node[type="result"]',
+                    style: { 'background-color': '#00ff9d', 'color': '#000', 'shape': 'round-rectangle', 'width': '60px' }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 2,
+                        'line-color': '#555',
+                        'target-arrow-color': '#555',
+                        'target-arrow-shape': 'triangle',
+                        'curve-style': 'bezier',
+                        'opacity': 0.5
+                    }
+                },
+                {
+                    selector: 'edge[type="ref"]',
+                    style: { 'line-color': '#5c2d91', 'width': 1, 'line-style': 'dashed', 'target-arrow-shape': 'none' }
+                },
+                {
+                    selector: 'edge[type="flow"]',
+                    style: { 'line-color': '#888', 'width': 2, 'target-arrow-color': '#888' }
+                }
+            ],
+            layout: {
+                name: 'fcose', // Use force-directed if available
+                animate: true
+            }
+        });
+
+        // Fallback layout if fcose not registered or fails
+        try {
+            this.cy.layout({ name: 'fcose', animate: true }).run();
+        } catch (e) {
+            this.cy.layout({ name: 'grid' }).run();
+        }
+
+        this.cy.on('tap', 'node', (evt) => {
+            const data = evt.target.data();
+            if (data.isCell) {
+                this.switchView('list');
+                const cell = this.cells.find(c => c.id === data.id);
+                if (cell) {
+                    setTimeout(() => {
+                        cell.element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        cell.element.style.borderColor = '#00ff9d';
+                        setTimeout(() => cell.element.style.borderColor = '#3c3c3c', 1000);
+                    }, 100);
+                }
+            } else {
+                // It's a term node, maybe filter list view?
+                // For now, highlight connected cells
+                const connected = evt.target.neighborhood();
+                this.cy.elements().removeClass('highlight');
+                connected.addClass('highlight');
+                evt.target.addClass('highlight');
+            }
+        });
+
+        // Add hover effects for details?
+        this.cy.on('mouseover', 'node', (evt) => {
+            const container = this.viewContainer;
+            const data = evt.target.data();
+
+            // Simple tooltip
+            const tip = document.createElement('div');
+            tip.className = 'graph-tooltip';
+            tip.style.cssText = `
+                position: absolute; background: #252526; color: white; padding: 5px;
+                border: 1px solid #444; border-radius: 3px; font-size: 11px; z-index: 100;
+                pointer-events: none; max-width: 200px; word-break: break-all;
+            `;
+
+            let content = data.label;
+            if (data.isCell) {
+                 const text = typeof data.content === 'string' ? data.content : JSON.stringify(data.content);
+                 content = `${data.type.toUpperCase()}:\n${text.substring(0, 100)}${text.length>100?'...':''}`;
+            }
+            tip.textContent = content;
+
+            container.appendChild(tip);
+
+            const moveHandler = (e) => {
+                 // Mouse relative to container?
+                 const rect = container.getBoundingClientRect();
+                 tip.style.left = (e.clientX - rect.left + 10) + 'px';
+                 tip.style.top = (e.clientY - rect.top + 10) + 'px';
+            };
+
+            container.addEventListener('mousemove', moveHandler);
+
+            evt.target.once('mouseout', () => {
+                tip.remove();
+                container.removeEventListener('mousemove', moveHandler);
+            });
+        });
+    }
+
+    _updateGraphData() {
+        // Debounce update or just full re-render for prototype
+        if (this.viewMode === 'graph') {
+             this.switchView('graph'); // Re-init for now
+        }
     }
 
     addCell(cell) {
         this.cells.push(cell);
-        this.container.appendChild(cell.render());
-        this.scrollToBottom();
+
+        if (this.viewMode === 'list') {
+            this.viewContainer.appendChild(cell.render());
+            this.scrollToBottom();
+        } else {
+             // For Grid/Icon/Graph, easier to just re-render or append.
+             // But _renderGridView clears container.
+             // Let's just trigger a refresh of current view logic
+             this.switchView(this.viewMode);
+        }
+
         this.triggerSave();
         return cell;
     }
 
-    createCodeCell(content = '', onExecute = null) {
-        const cell = new CodeCell(content, onExecute);
+    _bindCellEvents(cell) {
         cell.onDelete = (c) => this.removeCell(c);
+        cell.onMoveUp = (c) => this.moveCellUp(c);
+        cell.onMoveDown = (c) => this.moveCellDown(c);
+        cell.onDuplicate = (c) => this.duplicateCell(c);
+    }
+
+    createCodeCell(content = '', onExecute = null) {
+        // Use provided handler or default
+        const executeHandler = onExecute || this.defaultOnExecute;
+
+        // Wrap execute to update execution count and handle focus
+        const wrappedExecute = (content, cellInstance, options) => {
+            this.executionCount++;
+            cellInstance.executionCount = this.executionCount;
+            if (executeHandler) executeHandler(content, cellInstance);
+            this.handleCellExecution(cellInstance, options);
+        };
+        const cell = new CodeCell(content, wrappedExecute);
+        this._bindCellEvents(cell);
+        cell.onInsertAfter = (type) => this.insertCellAfter(cell, type);
         return this.addCell(cell);
     }
 
@@ -552,8 +927,152 @@ export class NotebookManager {
     removeCell(cell) {
         const index = this.cells.indexOf(cell);
         if (index > -1) this.cells.splice(index, 1);
+
+        if (this.viewMode === 'list') {
+            cell.element?.remove(); // Just remove element, destroy is called below
+        } else {
+             // Re-render whole view for grid/graph simplicity for now
+             this.switchView(this.viewMode);
+        }
+
         cell.destroy();
         this.triggerSave();
+    }
+
+    moveCellUp(cell) {
+        const index = this.cells.indexOf(cell);
+        if (index > 0) {
+            // Swap in array
+            this.cells.splice(index, 1);
+            this.cells.splice(index - 1, 0, cell);
+
+            if (this.viewMode === 'list') {
+                const prev = cell.element.previousElementSibling;
+                if (prev) {
+                    this.viewContainer.insertBefore(cell.element, prev);
+                }
+            } else {
+                this.switchView(this.viewMode);
+            }
+            this.triggerSave();
+        }
+    }
+
+    focusNextCell(cell) {
+        const index = this.cells.indexOf(cell);
+        if (index > -1 && index < this.cells.length - 1) {
+            const next = this.cells[index + 1];
+            if (next instanceof CodeCell) next.focus();
+        }
+    }
+
+    focusPrevCell(cell) {
+        const index = this.cells.indexOf(cell);
+        if (index > 0) {
+            const prev = this.cells[index - 1];
+            if (prev instanceof CodeCell) prev.focus();
+        }
+    }
+
+    handleCellExecution(cell, options = {}) {
+        if (options.advance) {
+            const index = this.cells.indexOf(cell);
+            // Check if there is a next code cell (skip results)
+            let nextIndex = index + 1;
+            while(nextIndex < this.cells.length && !(this.cells[nextIndex] instanceof CodeCell)) {
+                nextIndex++;
+            }
+
+            if (nextIndex < this.cells.length) {
+                this.cells[nextIndex].focus();
+            } else {
+                // Create new cell if at end
+                const newCell = this.createCodeCell('', cell.onExecute);
+                // createCodeCell calls addCell which appends, so focus it
+                newCell.focus();
+            }
+        }
+    }
+
+    moveCellDown(cell) {
+        const index = this.cells.indexOf(cell);
+        if (index > -1 && index < this.cells.length - 1) {
+            // Swap in array
+            this.cells.splice(index, 1);
+            this.cells.splice(index + 1, 0, cell);
+
+            if (this.viewMode === 'list') {
+                const next = cell.element.nextElementSibling;
+                if (next) {
+                    this.viewContainer.insertBefore(cell.element, next.nextElementSibling);
+                }
+            } else {
+                this.switchView(this.viewMode);
+            }
+            this.triggerSave();
+        }
+    }
+
+    duplicateCell(cell) {
+        if (cell instanceof CodeCell) {
+            const newCell = this.createCodeCell(cell.content, cell.onExecute);
+            this.removeCell(newCell); // Remove from end
+
+            const index = this.cells.indexOf(cell);
+            this.cells.splice(index + 1, 0, newCell);
+
+            if (this.viewMode === 'list') {
+                if (cell.element.nextElementSibling) {
+                    this.viewContainer.insertBefore(newCell.render(), cell.element.nextElementSibling);
+                } else {
+                    this.viewContainer.appendChild(newCell.render());
+                }
+            } else {
+                this.switchView(this.viewMode);
+            }
+            this.triggerSave();
+        }
+    }
+
+    insertCellAfter(referenceCell, type = 'code') {
+        let newCell;
+        if (type === 'code') {
+            newCell = this.createCodeCell('', referenceCell.onExecute);
+        } else if (type === 'markdown') {
+            newCell = this.createMarkdownCell('');
+        }
+
+        if (newCell) {
+            this.removeCell(newCell);
+            const index = this.cells.indexOf(referenceCell);
+            this.cells.splice(index + 1, 0, newCell);
+
+            if (this.viewMode === 'list') {
+                if (referenceCell.element.nextElementSibling) {
+                    this.viewContainer.insertBefore(newCell.render(), referenceCell.element.nextElementSibling);
+                } else {
+                    this.viewContainer.appendChild(newCell.render());
+                }
+                newCell.focus();
+            } else {
+                this.switchView(this.viewMode);
+            }
+            this.triggerSave();
+        }
+    }
+
+    runAll() {
+        this.cells.forEach(cell => {
+            if (cell instanceof CodeCell) {
+                cell.execute();
+            }
+        });
+    }
+
+    clearOutputs() {
+        // Filter out result and widget cells
+        const toRemove = this.cells.filter(c => c instanceof ResultCell || c instanceof WidgetCell);
+        toRemove.forEach(c => this.removeCell(c));
     }
 
     clear() {

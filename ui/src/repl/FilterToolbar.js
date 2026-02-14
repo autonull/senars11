@@ -5,6 +5,11 @@ export class FilterToolbar {
         this.messageFilter = messageFilter;
         this.onFilterChange = callbacks.onFilterChange || (() => {});
         this.onExport = callbacks.onExport || (() => {});
+        this.onImport = callbacks.onImport || (() => {});
+        this.onRunAll = callbacks.onRunAll || (() => {});
+        this.onClearOutputs = callbacks.onClearOutputs || (() => {});
+        this.onViewChange = callbacks.onViewChange || (() => {});
+        this.currentView = 'list';
         this.element = null;
         this.buttons = new Map();
     }
@@ -46,19 +51,92 @@ export class FilterToolbar {
             categoryButtons.appendChild(btn);
         });
 
+        // View Switcher
+        const viewGroup = document.createElement('div');
+        viewGroup.style.cssText = 'display: flex; gap: 2px; margin: 0 4px; background: #1e1e1e; padding: 2px; border-radius: 4px;';
+
+        ['list', 'grid', 'icon', 'graph'].forEach(mode => {
+            const btn = document.createElement('button');
+            const icons = { list: '☰', grid: '⊞', icon: '🧱', graph: '🕸️' };
+            btn.innerHTML = icons[mode];
+            btn.title = `${mode.charAt(0).toUpperCase() + mode.slice(1)} View`;
+            btn.onclick = () => {
+                this.currentView = mode;
+                this.onViewChange(mode);
+                this.updateViewButtons(viewGroup);
+            };
+            btn.dataset.mode = mode;
+            viewGroup.appendChild(btn);
+        });
+        this.updateViewButtons(viewGroup);
+
+        // Action Buttons Group
+        const actionGroup = document.createElement('div');
+        actionGroup.style.cssText = 'display: flex; gap: 4px; margin-left: 4px; border-left: 1px solid #444; padding-left: 4px;';
+
+        // Run All Button
+        const runAllBtn = document.createElement('button');
+        runAllBtn.innerHTML = '▶️▶️';
+        runAllBtn.title = 'Run All Cells';
+        runAllBtn.style.cssText = 'padding: 4px 8px; background: #0e639c; color: #fff; border: 1px solid #444; cursor: pointer; border-radius: 3px; font-size: 0.85em;';
+        runAllBtn.onclick = () => this.onRunAll();
+
+        // Clear Outputs Button
+        const clearBtn = document.createElement('button');
+        clearBtn.innerHTML = '🧹';
+        clearBtn.title = 'Clear Outputs';
+        clearBtn.style.cssText = 'padding: 4px 8px; background: #333; color: #ccc; border: 1px solid #444; cursor: pointer; border-radius: 3px; font-size: 0.85em;';
+        clearBtn.onclick = () => this.onClearOutputs();
+
+        // Import Button
+        const importBtn = document.createElement('button');
+        importBtn.innerHTML = '📂 Import';
+        importBtn.title = 'Import notebook';
+        importBtn.style.cssText = 'padding: 4px 8px; background: #333; color: #ccc; border: 1px solid #444; cursor: pointer; border-radius: 3px; font-size: 0.85em;';
+
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.json';
+        fileInput.style.display = 'none';
+        fileInput.onchange = (e) => {
+            if (e.target.files.length > 0) {
+                this.onImport(e.target.files[0]);
+                e.target.value = ''; // Reset
+            }
+        };
+        importBtn.onclick = () => fileInput.click();
+
         // Export Button
         const exportBtn = document.createElement('button');
         exportBtn.innerHTML = '💾 Export';
-        exportBtn.title = 'Export filtered logs';
-        exportBtn.style.cssText = 'padding: 4px 8px; background: #333; color: #ccc; border: 1px solid #444; cursor: pointer; border-radius: 3px; font-size: 0.85em; margin-left: 4px;';
+        exportBtn.title = 'Export notebook';
+        exportBtn.style.cssText = 'padding: 4px 8px; background: #333; color: #ccc; border: 1px solid #444; cursor: pointer; border-radius: 3px; font-size: 0.85em;';
         exportBtn.onclick = () => this.onExport();
+
+        actionGroup.append(runAllBtn, clearBtn, importBtn, exportBtn, fileInput);
 
         toolbar.appendChild(searchInput);
         toolbar.appendChild(categoryButtons);
-        toolbar.appendChild(exportBtn);
+        toolbar.appendChild(viewGroup);
+        toolbar.appendChild(actionGroup);
 
         this.element = toolbar;
         return toolbar;
+    }
+
+    updateViewButtons(container) {
+        Array.from(container.children).forEach(btn => {
+            const isActive = btn.dataset.mode === this.currentView;
+            btn.style.cssText = `
+                background: ${isActive ? '#333' : 'transparent'};
+                color: ${isActive ? '#fff' : '#888'};
+                border: none;
+                padding: 4px 8px;
+                cursor: pointer;
+                border-radius: 2px;
+                font-size: 14px;
+            `;
+        });
     }
 
     updateButtonStyle(btn, categoryId, mode) {
