@@ -38,7 +38,10 @@ export class SessionServerAdapter {
             'log',
 
             // Metrics
-            'metrics.updated', 'metrics.anomaly', 'metrics.threshold_alert', 'metrics.optimization_recommendations'
+            'metrics.updated', 'metrics.anomaly', 'metrics.threshold_alert', 'metrics.optimization_recommendations',
+
+            // Interactive UI & Bidirectional Communication
+            'ui-command', 'agent/prompt', 'visualization'
         ];
 
         forwardedEvents.forEach(event => {

@@ -59,6 +59,7 @@ export class ReplMessageHandler extends EventEmitter {
         this.messageHandlers.set('control/stop', this._handleControlCommand.bind(this));
         this.messageHandlers.set('control/step', this._handleControlCommand.bind(this));
         this.messageHandlers.set('agent/input', this._handleAgentInput.bind(this));
+        this.messageHandlers.set('agent/response', this._handleAgentResponse.bind(this));
     }
 
     async processMessage(message) {
@@ -84,6 +85,8 @@ export class ReplMessageHandler extends EventEmitter {
                     return await this._handleCommandExecute(message);
                 case 'agent/input':
                     return await this._handleAgentInput(message);
+                case 'agent/response':
+                    return await this._handleAgentResponse(message);
             }
 
             // Handle control commands
@@ -140,6 +143,30 @@ export class ReplMessageHandler extends EventEmitter {
         } catch (error) {
             Logger.error('Error in agent input handler:', error);
             return {error: error.message, type: MESSAGE_TYPES.ERROR};
+        }
+    }
+
+    async _handleAgentResponse(message) {
+        try {
+            const { id, response } = message.payload || {};
+            if (!id || response === undefined) {
+                return { error: 'Invalid agent response format', type: MESSAGE_TYPES.ERROR };
+            }
+
+            // Emit event so the Agent/NAR can pick it up
+            if (this.engine.emit) {
+                this.engine.emit('agent.response', { id, response });
+            } else {
+                 Logger.warn('Engine does not support emitting agent.response');
+            }
+
+            return {
+                type: 'ack',
+                payload: { id, success: true, timestamp: Date.now() }
+            };
+        } catch (error) {
+            Logger.error('Error in agent response handler:', error);
+            return { error: error.message, type: MESSAGE_TYPES.ERROR };
         }
     }
 
