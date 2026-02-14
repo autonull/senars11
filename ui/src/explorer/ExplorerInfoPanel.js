@@ -1,104 +1,103 @@
-import { Component } from '../components/Component.js';
+import { ReasoningSettingsPanel } from '../components/ReasoningSettingsPanel.js';
 
-export class ExplorerInfoPanel extends Component {
+export class ExplorerInfoPanel {
     constructor(container) {
-        super(container);
+        this.container = container;
+        this.settingsPanel = null;
+        this.statsContent = null;
+        this.activeTab = 'stats';
+    }
+
+    initialize() {
+        this.render();
     }
 
     render() {
         if (!this.container) return;
 
-        const maxNodes = 50;
-        const zoom = '1.0x';
+        const el = document.createElement('div');
+        el.className = 'info-panel';
+        el.style.display = 'flex';
+        el.style.flexDirection = 'column';
+        el.style.height = '100%';
 
-        this.container.classList.add('info-panel');
+        // Header
+        const header = document.createElement('h3');
+        header.textContent = 'Explorer Info';
+        header.style.marginBottom = '10px';
+        el.appendChild(header);
 
-        this.container.innerHTML = `
-            <div class="hud-row">
-                <span id="zoom-level">ZOOM: ${zoom}</span>
-                <span id="bag-stats">NODES: 0/${maxNodes}</span>
+        // Tabs
+        const tabs = document.createElement('div');
+        tabs.className = 'panel-tabs';
+        tabs.style.display = 'flex';
+        tabs.style.marginBottom = '10px';
+        tabs.style.borderBottom = '1px solid #444';
+
+        const createTab = (id, label) => {
+            const btn = document.createElement('button');
+            btn.textContent = label;
+            btn.style.flex = '1';
+            btn.style.background = 'transparent';
+            btn.style.border = 'none';
+            btn.style.color = '#888';
+            btn.style.padding = '5px';
+            btn.style.cursor = 'pointer';
+
+            if (this.activeTab === id) {
+                btn.style.color = '#00ff9d';
+                btn.style.borderBottom = '2px solid #00ff9d';
+            }
+
+            btn.onclick = () => {
+                this.activeTab = id;
+                this.render(); // Re-render whole panel (simple)
+            };
+            tabs.appendChild(btn);
+        };
+
+        createTab('stats', 'Stats');
+        createTab('settings', 'Visuals');
+        el.appendChild(tabs);
+
+        // Content Area
+        const content = document.createElement('div');
+        content.style.flex = '1';
+        content.style.overflowY = 'auto';
+
+        if (this.activeTab === 'stats') {
+            this.statsContent = document.createElement('div');
+            this.statsContent.innerHTML = '<div style="color: #666; font-style: italic;">Waiting for stats...</div>';
+            content.appendChild(this.statsContent);
+        } else if (this.activeTab === 'settings') {
+            const settingsContainer = document.createElement('div');
+            this.settingsPanel = new ReasoningSettingsPanel(settingsContainer);
+            this.settingsPanel.render();
+            content.appendChild(settingsContainer);
+        }
+
+        el.appendChild(content);
+
+        this.container.innerHTML = '';
+        this.container.appendChild(el);
+    }
+
+    updateStats(stats) {
+        if (!this.statsContent || this.activeTab !== 'stats') return;
+
+        this.statsContent.innerHTML = `
+            <div style="margin-bottom: 8px;">
+                <div style="color: #aaa; font-size: 11px;">CYCLES</div>
+                <div style="color: #00ff9d; font-size: 14px;">${stats.cycles}</div>
             </div>
-            <div class="mode-controls" style="display: flex; gap: 2px; margin-bottom: 12px;">
-                ${this._renderModeBtn('visualization', 'VISUAL', true)}
-                ${this._renderModeBtn('representation', 'DATA')}
-                ${this._renderModeBtn('control', 'EDIT')}
+            <div style="margin-bottom: 8px;">
+                <div style="color: #aaa; font-size: 11px;">CONCEPTS (Active/Total)</div>
+                <div style="color: #00d4ff; font-size: 14px;">${stats.activeNodes} / ${stats.nodes}</div>
             </div>
-
-            <details open>
-                <summary style="font-size: 0.85rem; padding: 4px 0;">LAYERS</summary>
-                <div class="layer-controls">
-                    <label class="layer-toggle">
-                        <input type="checkbox" checked data-layer="concepts">
-                        <span class="layer-label">Concepts 🧠</span>
-                    </label>
-                    <label class="layer-toggle">
-                        <input type="checkbox" checked data-layer="tasks">
-                        <span class="layer-label">Tasks ⚡</span>
-                    </label>
-                    <label class="layer-toggle">
-                        <input type="checkbox" data-layer="trace">
-                        <span class="layer-label">Reasoning 🔗</span>
-                    </label>
-                    <label class="layer-toggle">
-                        <input type="checkbox" id="check-isolated">
-                        <span class="layer-label">Hide Isolated</span>
-                    </label>
-                </div>
-            </details>
-
-            <details>
-                <summary style="font-size: 0.85rem; padding: 4px 0;">VIEW SETTINGS</summary>
-                <div class="control-group" style="margin-bottom: 8px;">
-                    <select id="layout-select" class="control-select small-btn" style="width: 100%; margin-bottom: 4px;">
-                        <option value="fcose" selected>Organic (Force)</option>
-                        <option value="grid">Grid</option>
-                        <option value="circle">Circle</option>
-                        <option value="scatter">Scatter Plot</option>
-                        <option value="sorted-grid">Sorted Grid</option>
-                    </select>
-                </div>
-                <div class="control-group" style="padding: 0 2px;">
-                    <div class="hud-subtitle" style="margin-bottom: 4px; display: flex; justify-content: space-between;">
-                        <span>Min Priority</span>
-                        <span id="prio-val" style="color: #fff;">0.0</span>
-                    </div>
-                    <input type="range" id="filter-priority" min="0" max="1" step="0.05" value="0" style="width: 100%; cursor: pointer;">
-                </div>
-                <div class="control-group" style="margin-top: 8px;">
-                    <label class="layer-toggle">
-                        <input type="checkbox" id="check-freeze-layout">
-                        <span class="layer-label">Freeze Layout ❄️</span>
-                    </label>
-                </div>
-            </details>
-
-            <details>
-                <summary style="font-size: 0.85rem; padding: 4px 0;">VISUAL MAPPINGS</summary>
-                <div class="control-group">
-                    <select id="mapping-size" class="control-select small-btn">
-                        <option value="priority">Size: Priority</option>
-                        <option value="complexity">Size: Complexity</option>
-                        <option value="fixed">Size: Fixed</option>
-                    </select>
-                </div>
-                <div class="control-group">
-                    <select id="mapping-color" class="control-select small-btn">
-                        <option value="hash">Color: Hash</option>
-                        <option value="type">Color: Type</option>
-                        <option value="priority">Color: Priority</option>
-                    </select>
-                </div>
-            </details>
+            <div style="margin-bottom: 8px;">
+                <div style="color: #aaa; font-size: 11px;">TPS</div>
+                <div style="color: #ffcc00; font-size: 14px;">${stats.tps}</div>
+            </div>
         `;
-    }
-
-    _renderModeBtn(mode, label, active = false) {
-        const cls = active ? 'active' : '';
-        return `<button class="btn mode-btn ${cls}" data-mode="${mode}" title="${label} Mode" style="flex: 1;">${label}</button>`;
-    }
-
-    updateStats({ activeNodes = 0, maxNodes = 50 } = {}) {
-        const el = this.container?.querySelector('#bag-stats');
-        if (el) el.textContent = `NODES: ${activeNodes}/${maxNodes}`;
     }
 }
