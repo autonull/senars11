@@ -10,7 +10,6 @@ export class InputManager {
 
     initialize() {
         this._registerCommands();
-        this._bindControls();
         this._bindSearch();
         this._bindDemoSelect();
         this._bindModeSwitch();
@@ -75,25 +74,6 @@ export class InputManager {
         Object.keys(DEMOS).forEach(name => {
             this.commandPalette.registerCommand(`demo-${name.toLowerCase().replace(/\s/g, '-')}`, `Load Demo: ${name}`, null, () => this.loadDemo(name), 'Demos');
         });
-    }
-
-    _bindControls() {
-        const bindings = [
-            { id: 'btn-fit', action: () => this.app.graph.fit() },
-            { id: 'btn-in', action: () => this.app.graph.zoomIn() },
-            { id: 'btn-out', action: () => this.app.graph.zoomOut() },
-            { id: 'btn-layout', action: () => this.app.graph.scheduleLayout() },
-            { id: 'btn-clear', action: () => { this.app.graph.clear(); this.app.log('Workspace cleared.', 'system'); this._updateStats(); } },
-            { id: 'btn-add-concept', action: () => this.handleAddConcept() },
-            { id: 'btn-add-link', action: () => this.handleAddLink() },
-            { id: 'btn-delete', action: () => this.handleDelete() },
-            { id: 'btn-close-inspector', action: () => document.getElementById('inspector-panel')?.classList.add('hidden') },
-            { id: 'btn-save', action: () => this.app.fileManager.handleSaveJSON() },
-            { id: 'btn-load', action: () => this.app.fileManager.handleLoadJSON() },
-            { id: 'btn-shortcuts', action: () => new ShortcutsModal().show() }
-        ];
-
-        bindings.forEach(({ id, action }) => this._bindClick(id, action));
     }
 
     // --- Core Logic Methods ---
@@ -339,11 +319,6 @@ export class InputManager {
     }
 
     // --- Helpers ---
-
-    _bindClick(id, handler) {
-        const el = document.getElementById(id);
-        if (el) el.onclick = handler;
-    }
 
     _bindSearch() {
         const searchInput = document.getElementById('search-input');

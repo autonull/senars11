@@ -2,6 +2,7 @@ import { GraphPanel } from '../components/GraphPanel.js';
 import { eventBus } from '../core/EventBus.js';
 import { EVENTS } from '../config/constants.js';
 import { HUDContextMenu } from './HUDContextMenu.js';
+import { ExplorerToolbar } from './ExplorerToolbar.js';
 import { Logger } from '../logging/Logger.js';
 import { LMConfigDialog } from '../agent/LMConfigDialog.js';
 import { StatusBar } from '../components/StatusBar.js';
@@ -37,7 +38,7 @@ export class ExplorerApp {
 
         this.contextMenu = null;
         this.commandPalette = new CommandPalette();
-        this.toastManager = new ToastManager();
+        this.toastManager = ToastManager;
         this.logger = new Logger();
         this.mode = 'visualization';
 
@@ -232,6 +233,9 @@ export class ExplorerApp {
         createWidget('log', this.logPanel, 'right', true);
         createWidget('inspector', this.inspectorPanel, 'left', false);
         createWidget('tasks', this.taskBrowser, 'right', true);
+
+        this.toolbar = new ExplorerToolbar(this);
+        createWidget('controls', this.toolbar, 'none', true);
     }
 
     saveNodeChanges(id, updates) {
