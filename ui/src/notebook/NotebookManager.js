@@ -328,12 +328,12 @@ export class NotebookManager {
         }
     }
 
-    runAll() {
-        this.cells.forEach(cell => {
-            if (cell instanceof CodeCell) {
-                cell.execute();
-            }
-        });
+    async runAll() {
+        const codeCells = this.cells.filter(cell => cell instanceof CodeCell);
+        for (const cell of codeCells) {
+            await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for visual feedback
+            cell.execute();
+        }
     }
 
     clearOutputs() {

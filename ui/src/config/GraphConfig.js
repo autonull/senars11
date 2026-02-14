@@ -53,11 +53,6 @@ export const GraphConfig = {
                 CONCEPT: '#00ffff', TASK: '#ffff00', QUESTION: '#ff00ff',
                 EDGE: '#ffffff', TEXT: '#ffffff'
             };
-             // Helper to use correct color map
-             const getC = (k) => contrastColors[k] || c[k];
-
-             // ... construct style using getC ...
-             // For simplicity, we just mutate c clone
              Object.assign(c, contrastColors);
         }
 
@@ -94,7 +89,6 @@ export const GraphConfig = {
                     'border-color': c.CONCEPT
                 }
             },
-            // High priority concepts get a distinct look (simulating "prominence" in bag)
             {
                 selector: 'node[weight >= 80]',
                 style: {
@@ -139,6 +133,8 @@ export const GraphConfig = {
             circle: { name: 'circle', ...common },
             concentric: { name: 'concentric', ...common }
         };
+        // For custom modes like scatter, we return a basic preset or allow null,
+        // but here we just return default if not found to avoid errors
         return layouts[layoutName] ?? layouts.fcose;
     }
 };

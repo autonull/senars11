@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { CommandHistory } from '../../../src/repl/CommandHistory.js';
+import { CommandHistory } from '../../../src/notebook/CommandHistory.js';
 
 describe('CommandHistory', () => {
     let history;

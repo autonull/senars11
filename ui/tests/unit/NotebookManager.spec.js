@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
-import { NotebookManager } from '../../src/repl/NotebookManager.js';
-import { MarkdownCell } from '../../src/repl/cells/MarkdownCell.js';
-import { WidgetCell } from '../../src/repl/cells/WidgetCell.js';
+import { NotebookManager } from '../../src/notebook/NotebookManager.js';
+import { MarkdownCell } from '../../src/notebook/cells/MarkdownCell.js';
+import { WidgetCell } from '../../src/notebook/cells/WidgetCell.js';
 
 describe('NotebookManager', () => {
     let container;

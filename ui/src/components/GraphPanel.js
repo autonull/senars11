@@ -9,8 +9,11 @@ export class GraphPanel extends Component {
         this.initialized = false;
         this.filters = {
             showTasks: true,
-            minPriority: 0
+            minPriority: 0,
+            hideIsolated: false
         };
+        this.viewMode = 'fcose'; // 'fcose', 'grid', 'scatter', etc.
+        this.scatterAxes = { x: 'priority', y: 'confidence' };
     }
 
     initialize() {
@@ -39,27 +42,91 @@ export class GraphPanel extends Component {
 
         const tb = new Toolbar(toolbarContainer);
 
-        // Row 1: Controls
+        // Row 1: Layout & Controls
         const controlRow = document.createElement('div');
         controlRow.className = 'graph-control-row';
         const controlTb = new Toolbar(controlRow);
 
-        controlTb.addButton({ icon: '⤢', title: 'Fit View', onClick: () => this.graphManager?.fitToScreen(), className: 'toolbar-btn' });
-        controlTb.addButton({ icon: '🔭', title: 'Focus Center', onClick: () => this.graphManager?.cy?.center(), className: 'toolbar-btn' });
-        controlTb.addButton({ icon: '➕', title: 'Zoom In', onClick: () => this.graphManager?.zoomIn(), className: 'toolbar-btn' });
-        controlTb.addButton({ icon: '➖', title: 'Zoom Out', onClick: () => this.graphManager?.zoomOut(), className: 'toolbar-btn' });
+        // View Mode Selector
+        const layoutSelect = document.createElement('select');
+        layoutSelect.className = 'graph-layout-select toolbar-select';
+        layoutSelect.style.cssText = 'background: #333; color: #eee; border: 1px solid #444; border-radius: 3px; padding: 2px; margin-right: 4px;';
+
+        const layouts = [
+            {v: 'fcose', l: 'Force Graph'},
+            {v: 'grid', l: 'Grid'},
+            {v: 'circle', l: 'Circle'},
+            {v: 'scatter', l: 'Scatter Plot'},
+            {v: 'sorted-grid', l: 'Sorted Grid'}
+        ];
+
+        layouts.forEach(l => {
+            const opt = document.createElement('option');
+            opt.value = l.v;
+            opt.textContent = l.l;
+            layoutSelect.appendChild(opt);
+        });
+
+        layoutSelect.onchange = (e) => this.setLayout(e.target.value);
+        controlTb.addCustom(layoutSelect);
+
+        // Axis Selectors (Initially Hidden)
+        this.axisSelectors = document.createElement('span');
+        this.axisSelectors.style.display = 'none';
+        this.axisSelectors.style.fontSize = '10px';
+        this.axisSelectors.style.color = '#888';
+
+        const createAxisSel = (label, axis) => {
+            const sel = document.createElement('select');
+            sel.className = 'toolbar-select-mini';
+            sel.style.cssText = 'background: #222; color: #ccc; border: 1px solid #333; margin: 0 2px; font-size: 10px;';
+            ['priority', 'confidence', 'frequency', 'durability', 'quality', 'taskCount'].forEach(opt => {
+                const o = document.createElement('option');
+                o.value = opt;
+                o.textContent = opt.charAt(0).toUpperCase() + opt.slice(1);
+                if (opt === this.scatterAxes[axis]) o.selected = true;
+                sel.appendChild(o);
+            });
+            sel.onchange = (e) => {
+                this.scatterAxes[axis] = e.target.value;
+                this.setLayout('scatter');
+            };
+            return sel;
+        };
+
+        this.axisSelectors.innerHTML = ' X: ';
+        this.axisSelectors.appendChild(createAxisSel('X', 'x'));
+        this.axisSelectors.innerHTML += ' Y: ';
+        this.axisSelectors.appendChild(createAxisSel('Y', 'y'));
+
+        controlTb.addCustom(this.axisSelectors);
+
+        controlTb.addButton({ icon: '⤢', title: 'Fit', onClick: () => this.graphManager?.fitToScreen(), className: 'toolbar-btn' });
+        controlTb.addButton({ icon: '➕', title: 'In', onClick: () => this.graphManager?.zoomIn(), className: 'toolbar-btn' });
+        controlTb.addButton({ icon: '➖', title: 'Out', onClick: () => this.graphManager?.zoomOut(), className: 'toolbar-btn' });
 
         tb.addCustom(controlRow);
 
         // Filter: Show Tasks
         const taskToggle = document.createElement('label');
         taskToggle.className = 'graph-filter-toggle';
-        taskToggle.innerHTML = `<input type="checkbox" checked style="margin:0;"> Show Tasks`;
+        taskToggle.innerHTML = `<input type="checkbox" checked style="margin:0;"> Tasks`;
         taskToggle.querySelector('input').onchange = (e) => {
             this.filters.showTasks = e.target.checked;
             this._dispatchFilter();
         };
         tb.addCustom(taskToggle);
+
+        // Filter: Hide Isolated
+        const isolatedToggle = document.createElement('label');
+        isolatedToggle.className = 'graph-filter-toggle';
+        isolatedToggle.style.marginLeft = '8px';
+        isolatedToggle.innerHTML = `<input type="checkbox" style="margin:0;"> Isolated`;
+        isolatedToggle.querySelector('input').onchange = (e) => {
+            this.filters.hideIsolated = e.target.checked;
+            this._dispatchFilter();
+        };
+        tb.addCustom(isolatedToggle);
 
         // Filter: Priority Slider
         const sliderContainer = document.createElement('div');
@@ -67,7 +134,7 @@ export class GraphPanel extends Component {
 
         const sliderLabel = document.createElement('div');
         sliderLabel.className = 'graph-slider-label';
-        sliderLabel.innerHTML = '<span>Min Prio</span><span id="gp-prio-val">0.0</span>';
+        sliderLabel.innerHTML = '<span>Prio></span><span id="gp-prio-val">0.0</span>';
 
         const slider = document.createElement('input');
         slider.type = 'range';
@@ -89,6 +156,21 @@ export class GraphPanel extends Component {
         this.container.appendChild(toolbarContainer);
     }
 
+    setLayout(layout) {
+        this.viewMode = layout;
+
+        // Toggle Axis Selectors
+        this.axisSelectors.style.display = layout === 'scatter' ? 'inline' : 'none';
+
+        if (layout === 'scatter') {
+            this.graphManager?.applyScatterLayout(this.scatterAxes.x, this.scatterAxes.y);
+        } else if (layout === 'sorted-grid') {
+             this.graphManager?.applySortedGridLayout('priority');
+        } else {
+            this.graphManager?.setLayout(layout);
+        }
+    }
+
     createGraphContainer() {
         this.graphDiv = document.createElement('div');
         this.graphDiv.className = 'graph-container';
@@ -96,15 +178,9 @@ export class GraphPanel extends Component {
     }
 
     _dispatchFilter() {
-        document.dispatchEvent(new CustomEvent('senars:graph:filter', {
-            detail: { ...this.filters }
-        }));
-    }
-
-    _inspectNode(node) {
-        document.dispatchEvent(new CustomEvent('senars:concept:select', {
-            detail: { concept: { term: node.id(), ...node.data() } }
-        }));
+        if (this.graphManager) {
+            this.graphManager.applyFilters(this.filters);
+        }
     }
 
     update(message) {
@@ -120,6 +196,6 @@ export class GraphPanel extends Component {
     }
 
     reset() {
-        this.graphManager?.initialized && this.graphManager.clear();
+        this.graphManager?.clear();
     }
 }

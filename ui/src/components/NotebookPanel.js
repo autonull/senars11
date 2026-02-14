@@ -40,8 +40,13 @@ export class NotebookPanel extends Component {
         const toolbarContainer = document.createElement('div');
         this.filterToolbar = new FilterToolbar(this.messageFilter, {
             onFilterChange: () => this.notebookManager.applyFilter(this.messageFilter),
-            onExport: () => this.exportNotebook()
+            onExport: () => this.exportNotebook(),
+            onImport: (file) => this.importNotebookFile(file),
+            onRunAll: () => this.notebookManager.runAll(),
+            onClearOutputs: () => this.notebookManager.clearOutputs(),
+            onViewChange: (mode) => this.notebookManager.switchView(mode)
         });
+
         toolbarContainer.appendChild(this.filterToolbar.render());
         this.container.appendChild(toolbarContainer);
 
@@ -132,6 +137,19 @@ export class NotebookPanel extends Component {
         a.download = `notebook-${new Date().toISOString()}.json`;
         a.click();
         URL.revokeObjectURL(url);
+    }
+
+    importNotebookFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                this.notebookManager.importNotebook(data);
+            } catch (err) {
+                console.error('Failed to import notebook', err);
+            }
+        };
+        reader.readAsText(file);
     }
 
     setupLoggerAdapter() {

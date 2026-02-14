@@ -1,7 +1,7 @@
 import { ConnectionInterface } from './ConnectionInterface.js';
-import { NAR } from '../../../core/src/nar/NAR.js';
-import { MeTTaInterpreter } from '../../../metta/src/MeTTaInterpreter.js';
-import { Config } from '../../../core/src/config/Config.js';
+import { NAR } from '@senars/core/nar/NAR.js';
+import { MeTTaInterpreter } from '@senars/metta/MeTTaInterpreter.js';
+import { Config } from '@senars/core/config/Config.js';
 import { Logger } from '../logging/Logger.js';
 
 export class LocalConnectionManager extends ConnectionInterface {
@@ -17,28 +17,31 @@ export class LocalConnectionManager extends ConnectionInterface {
     async connect() {
         try {
             this.updateStatus('connecting');
-            const config = Config.parse([]);
-            config.system = { ...config.system, enableLogging: false };
+            // Try to load default config if available, else empty
+            const config = Config ? Config.parse([]) : {};
+            if (config.system) config.system.enableLogging = false;
 
             if (typeof window !== 'undefined') {
                 config.components = {};
             } else {
                 config.components ??= {};
                 if (config.components.Metacognition) config.components.Metacognition.enabled = false;
-                else config.components.Metacognition = { enabled: false };
                 config.components.LMIntegration && (config.components.LMIntegration.enabled = false);
             }
 
-            this.nar = new NAR(config);
-            await this.nar.initialize();
+            if (NAR) {
+                this.nar = new NAR(config);
+                await this.nar.initialize();
+                this.nar.eventBus.on('*', (type, payload) => this.dispatchMessage({ type, payload, timestamp: Date.now() }));
+            }
 
-            this.metta = new MeTTaInterpreter(this.nar, {
-                ...config,
-                fs: null, path: null, url: null
-            });
-            await this.metta.initialize();
-
-            this.nar.eventBus.on('*', (type, payload) => this.dispatchMessage({ type, payload, timestamp: Date.now() }));
+            if (MeTTaInterpreter && this.nar) {
+                this.metta = new MeTTaInterpreter(this.nar, {
+                    ...config,
+                    fs: null, path: null, url: null
+                });
+                await this.metta.initialize();
+            }
 
             this.updateStatus('connected');
             this.logger.log('Connected to Local SeNARS', 'success', '💻');
@@ -74,7 +77,14 @@ export class LocalConnectionManager extends ConnectionInterface {
                     await this.handleReset();
                     break;
                 case 'control/step':
-                    // TODO: Implement step logic if needed
+                    if (this.nar) await this.nar.cycle();
+                    break;
+                case 'control/start':
+                    if (this.nar) this.nar.run();
+                    break;
+                case 'control/stop':
+                case 'control/pause':
+                    if (this.nar) this.nar.stop();
                     break;
                 default:
                     console.log("LocalConnectionManager: Unhandled message type", type);
@@ -128,6 +138,9 @@ export class LocalConnectionManager extends ConnectionInterface {
             } catch (e) {
                 this.dispatchMessage({ type: 'error', payload: { message: e.message } });
             }
+        } else if (this.nar) {
+            // Fallback to NAR if not explicitly MeTTa
+            await this.nar.input(text);
         }
     }
 

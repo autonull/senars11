@@ -72,12 +72,17 @@ describe('GraphManager', () => {
         }));
     });
 
-    test('should update an existing node when concept.updated message is received', () => {
+    test('should update an existing node when concept.updated message is received', async () => {
         // Setup: Mock that node exists
         const mockNode = {
             length: 1,
             data: jest.fn(),
-            animate: jest.fn().mockReturnThis()
+            animate: jest.fn().mockReturnThis(),
+            animation: jest.fn().mockReturnValue({
+                play: jest.fn().mockReturnValue({
+                    promise: jest.fn().mockResolvedValue()
+                })
+            })
         };
         mockCy.getElementById.mockReturnValue(mockNode);
 
@@ -89,8 +94,12 @@ describe('GraphManager', () => {
             weight: 90,
             fullData: payload
         }));
+
+        // Wait for animation promise chain
+        await new Promise(resolve => setTimeout(resolve, 0));
+
         // Verify animation (pulse)
-        expect(mockNode.animate).toHaveBeenCalledTimes(2);
+        expect(mockNode.animation).toHaveBeenCalledTimes(2);
     });
 
     test('should add a node if concept.updated message is received for non-existent node', () => {

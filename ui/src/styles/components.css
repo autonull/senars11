@@ -142,3 +142,261 @@
     cursor: pointer;
     margin-top: 10px;
 }
+
+/* ConceptCard & TaskCard Enhanced Styles */
+.concept-card, .task-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-bottom: 8px;
+    overflow: hidden;
+    transition: transform 0.1s, box-shadow 0.1s;
+    cursor: pointer;
+}
+
+.concept-card:hover, .task-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    border-color: var(--text-muted);
+}
+
+.concept-card { border-left: 3px solid var(--accent-primary); }
+.task-card { border-left: 3px solid var(--accent-secondary); }
+
+.concept-card.compact, .task-card.compact { padding: 4px 8px; font-size: 0.9em; }
+.concept-card.full, .task-card.full { padding: 10px; }
+
+.concept-card-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.concept-term-large { font-size: 1.1em; font-weight: bold; margin-bottom: 8px; color: var(--text-main); }
+.concept-meta-row { display: flex; flex-direction: column; gap: 4px; }
+.priority-meter-container { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+.priority-meter-bar { height: 100%; transition: width 0.3s; }
+.concept-stats { display: flex; gap: 8px; font-size: 0.8em; color: var(--text-muted); }
+
+.task-card-row { display: flex; align-items: center; gap: 6px; }
+.truth-mini-bar { height: 2px; background: rgba(255,255,255,0.1); margin-top: 4px; border-radius: 1px; }
+.truth-fill { height: 100%; background: var(--accent-primary); }
+.task-content { font-family: monospace; color: var(--text-main); margin-bottom: 6px; }
+.truth-viz-container { font-size: 0.8em; color: var(--text-muted); }
+.truth-bar-track { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-top: 2px; }
+.truth-bar-fill { height: 100%; background: var(--accent-secondary); }
+
+/* Graph Toolbar Enhancements */
+.graph-toolbar-container {
+    padding: 8px;
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.graph-control-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.graph-layout-select {
+    min-width: 120px;
+    height: 24px;
+}
+
+.toolbar-select-mini {
+    height: 20px;
+    padding: 0 4px;
+    border-radius: 2px;
+}
+
+.graph-filter-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.graph-slider-container {
+    display: flex;
+    flex-direction: column;
+    width: 100px;
+    margin-left: 8px;
+}
+
+.graph-slider-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+}
+
+.graph-slider-input {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    background: #444;
+    border-radius: 2px;
+    outline: none;
+}
+
+.graph-slider-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    cursor: pointer;
+}
+
+/* SystemMetricsPanel Styles */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 10px;
+}
+
+.metric-item {
+    background: var(--bg-input);
+    padding: 8px;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60px;
+    border: 1px solid var(--border-color);
+}
+
+.metric-item.full-width {
+    grid-column: span 2;
+    min-height: 40px;
+}
+
+.metric-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.metric-value {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--accent-primary);
+}
+
+.metric-value small {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: normal;
+}
+
+.metric-heart {
+    font-size: 24px;
+    color: #444;
+    transition: color 0.2s, transform 0.1s;
+}
+
+.metric-heart.beating {
+    color: #ff4444;
+    animation: heartbeat 1s infinite;
+}
+
+@keyframes heartbeat {
+    0% { transform: scale(1); }
+    15% { transform: scale(1.15); }
+    30% { transform: scale(1); }
+    45% { transform: scale(1.15); }
+    60% { transform: scale(1); }
+}
+
+.progress-bar {
+    width: 100%;
+    height: 4px;
+    background: #333;
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 4px 0;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--accent-primary);
+    transition: width 0.3s ease;
+}
+
+.progress-fill.warning { background: var(--accent-warn); }
+.progress-fill.danger { background: var(--accent-error); }
+
+.sparkline-svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* UX Polish & Animations */
+
+/* Smooth transitions for panels */
+.lm_content {
+    transition: background-color 0.2s ease;
+}
+
+/* Modal styling */
+.modal-overlay {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+    animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    border: 1px solid var(--border-color);
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Button hover effects */
+button {
+    transition: all 0.1s ease;
+}
+
+button:active {
+    transform: scale(0.97);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1e1e1e;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Tooltip hints */
+[title] {
+    position: relative;
+    cursor: help;
+}

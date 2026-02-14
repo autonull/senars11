@@ -180,8 +180,8 @@ class SeNARSIDE {
 
 async function start() {
     const ide = new SeNARSIDE();
-    await ide.initialize();
     window.SeNARSIDE = ide;
+    await ide.initialize();
 }
 
 window.addEventListener('DOMContentLoaded', start);

@@ -1,5 +1,6 @@
 import { Component } from './Component.js';
 import { GraphConfig } from '../config/GraphConfig.js';
+import { Modal } from './ui/Modal.js';
 
 export class SettingsPanel extends Component {
     constructor(container) {
@@ -21,6 +22,14 @@ export class SettingsPanel extends Component {
         const serverUrl = this.app?.serverUrl || '';
 
         this.container.innerHTML = `
+            <div class="settings-section">
+                <h3 class="settings-header">WORKSPACE</h3>
+                <div class="setting-item" style="display: flex; gap: 8px;">
+                    <button id="save-workspace" class="toolbar-btn primary" style="flex:1;">💾 Save Workspace</button>
+                    <button id="load-workspace" class="toolbar-btn" style="flex:1;">📂 Load Workspace</button>
+                </div>
+            </div>
+
             <div class="settings-section">
                 <h3 class="settings-header">UI SETTINGS</h3>
                 <div class="setting-item">
@@ -87,6 +96,9 @@ export class SettingsPanel extends Component {
         this.container.querySelector('#apply-settings').addEventListener('click', () => {
              this._applySettings();
         });
+
+        this.container.querySelector('#save-workspace').addEventListener('click', () => this._saveWorkspace());
+        this.container.querySelector('#load-workspace').addEventListener('click', () => this._loadWorkspace());
     }
 
     _renderSlider(label, key, min, max, step, value) {
@@ -108,6 +120,83 @@ export class SettingsPanel extends Component {
                 <input type="color" id="color-${key}" value="${val}" class="setting-color-input">
             </div>
         `;
+    }
+
+    _saveWorkspace() {
+        if (!this.app) return;
+
+        const notebookData = this.app.getNotebook()?.exportNotebook() || [];
+        const layoutConfig = this.app.layoutManager?.layout?.toConfig();
+
+        const workspace = {
+            version: 1,
+            timestamp: new Date().toISOString(),
+            notebook: notebookData,
+            layout: layoutConfig,
+            settings: {
+                theme: this.app.themeManager?.getTheme(),
+                serverUrl: this.app.serverUrl
+            }
+        };
+
+        const blob = new Blob([JSON.stringify(workspace, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `senars-workspace-${new Date().toISOString()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    _loadWorkspace() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const workspace = JSON.parse(e.target.result);
+                    this._restoreWorkspace(workspace);
+                } catch (err) {
+                    console.error('Failed to load workspace', err);
+                    Modal.alert('Invalid workspace file.');
+                }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    }
+
+    _restoreWorkspace(workspace) {
+        if (!this.app) return;
+
+        if (confirm('Load workspace? Current state will be overwritten.')) {
+            // Restore Settings
+            if (workspace.settings) {
+                if (workspace.settings.theme) this.app.themeManager?.setTheme(workspace.settings.theme);
+                if (workspace.settings.serverUrl) this.app.serverUrl = workspace.settings.serverUrl;
+            }
+
+            // Restore Notebook
+            if (workspace.notebook && this.app.getNotebook()) {
+                this.app.getNotebook().importNotebook(workspace.notebook);
+            }
+
+            // Restore Layout
+            // Note: Restoring GoldenLayout config usually requires destroying and recreating the layout instance.
+            // For simplicity in this session, we might skip layout restore or require reload.
+            // Here we will just save it to local storage and ask reload
+            if (workspace.layout) {
+                localStorage.setItem(`senars-layout-${this.app.presetName || 'ide'}`, JSON.stringify(workspace.layout));
+                Modal.alert('Workspace loaded. Page will reload to apply layout changes.').then(() => location.reload());
+            } else {
+                Modal.alert('Workspace loaded (Notebook and Settings).');
+            }
+        }
     }
 
     _applySettings() {
