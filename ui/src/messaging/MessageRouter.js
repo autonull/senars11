@@ -91,6 +91,11 @@ export class MessageRouter {
 
     _handleComponents(message) {
         try {
+            const zuiComp = this.app.components.get('zui');
+            if (zuiComp) {
+                zuiComp.onMessage(message);
+            }
+
             const graphComp = this.app.components.get('graph');
             if (graphComp) {
                 if (message.type === 'reasoning:concept') graphComp.graphManager?.updateGraph(message);

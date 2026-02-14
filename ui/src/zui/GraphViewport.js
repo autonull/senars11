@@ -1,22 +1,30 @@
 /**
  * GraphViewport handles the Cytoscape instance and rendering for ZUI.
  */
+import cytoscape from 'cytoscape';
+
 export class GraphViewport {
-    constructor(containerId) {
-        this.containerId = containerId;
+    constructor(container) {
+        this.container = container;
         this.cy = null;
         this.callbacks = {};
     }
 
     initialize() {
-        const container = document.getElementById(this.containerId);
+        const container = typeof this.container === 'string'
+            ? document.getElementById(this.container)
+            : this.container;
+
         if (!container) {
-            console.error(`GraphViewport: Container #${this.containerId} not found`);
+            console.error(`GraphViewport: Container not found`, this.container);
             return false;
         }
 
+        // Use global cytoscape if available (with extensions), otherwise local
+        const cyFactory = window.cytoscape || cytoscape;
+
         try {
-            this.cy = cytoscape({
+            this.cy = cyFactory({
                 container: container,
                 style: this._getDefaultStyle(),
                 layout: {

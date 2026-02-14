@@ -4,6 +4,9 @@ import { TaskTreeWidget } from './TaskTreeWidget.js';
 import { TruthSlider } from './TruthSlider.js';
 import { MetricsWidget } from './MetricsWidget.js';
 import { DerivationWidget } from './DerivationWidget.js';
+import { TimelineWidget } from './TimelineWidget.js';
+import { VariableInspector } from './VariableInspector.js';
+import { SubNotebook } from './SubNotebook.js';
 
 export class WidgetFactory {
     static REGISTRY = {
@@ -13,13 +16,19 @@ export class WidgetFactory {
         'slider': TruthSlider,
         'metrics': MetricsWidget,
         'derivation': DerivationWidget,
+        'timeline': TimelineWidget,
+        'variables': VariableInspector,
+        'subnotebook': SubNotebook,
         'ChartWidget': ChartWidget,
         'SimpleGraphWidget': SimpleGraphWidget,
         'GraphWidget': SimpleGraphWidget,
         'TaskTreeWidget': TaskTreeWidget,
         'TruthSlider': TruthSlider,
         'MetricsWidget': MetricsWidget,
-        'DerivationWidget': DerivationWidget
+        'DerivationWidget': DerivationWidget,
+        'TimelineWidget': TimelineWidget,
+        'VariableInspector': VariableInspector,
+        'SubNotebook': SubNotebook
     };
 
     static register(type, Class) {

@@ -3,18 +3,69 @@ import { SemanticZoom } from './SemanticZoom.js';
 import { ContextualWidget } from './ContextualWidget.js';
 
 export class ActivityGraph {
-    constructor(containerId, widgetContainer) {
-        this.viewport = new GraphViewport(containerId);
+    constructor(container, widgetContainer) {
+        this.viewport = new GraphViewport(container);
         this.semanticZoom = new SemanticZoom(this.viewport);
-        this.widgetManager = new ContextualWidget(this.viewport, widgetContainer);
+        // If widgetContainer is not provided, use the graph container (or its parent if needed)
+        // Ideally widgets should be on top of the canvas.
+        this.widgetManager = new ContextualWidget(this.viewport, widgetContainer || container);
     }
 
-    initialize() {
+    async initialize() {
         if (this.viewport.initialize()) {
-            this._setupDemoData();
+            this._setupDemoData(); // Keep demo data for now or remove? keeping as fallback
             return true;
         }
         return false;
+    }
+
+    handleMessage(message) {
+        switch (message.type) {
+            case 'concept.created':
+            case 'reasoning:concept':
+                this._handleConceptCreated(message.payload);
+                break;
+            case 'control/snapshot':
+            case 'memorySnapshot':
+                this._handleSnapshot(message.payload);
+                break;
+            case 'link.created':
+                this._handleLinkCreated(message.payload);
+                break;
+        }
+    }
+
+    _handleConceptCreated(payload) {
+        const term = payload.term || payload.name || payload.id;
+        if (!term) return;
+
+        const priority = payload.priority || 0.5;
+        this.addConcept(term, priority, payload);
+    }
+
+    _handleLinkCreated(payload) {
+        const { source, target, type } = payload;
+        if (source && target) {
+            this.addRelationship(source, target, type || 'related');
+        }
+    }
+
+    _handleSnapshot(payload) {
+        // Assuming payload is { concepts: [], links: [] } or similar
+        const concepts = payload.concepts || payload.nodes || [];
+        const links = payload.links || payload.edges || [];
+
+        this.viewport.clear();
+
+        concepts.forEach(c => {
+             this._handleConceptCreated(c);
+        });
+
+        links.forEach(l => {
+             this._handleLinkCreated(l);
+        });
+
+        this.viewport.fit();
     }
 
     addConcept(term, priority, details = {}) {
@@ -23,15 +74,15 @@ export class ActivityGraph {
             data: {
                 id: term,
                 label: term,
-                weight: priority * 20 + 20,
+                weight: (priority * 20) + 20,
                 ...details
             }
         });
 
         // Add widget
         const widgetHtml = `
-            <div>Prio: ${priority.toFixed(2)}</div>
-            <div>Freq: ${(details.frequency || 0).toFixed(2)}</div>
+            <div>Prio: ${typeof priority === 'number' ? priority.toFixed(2) : priority}</div>
+            ${details.frequency ? `<div>Freq: ${details.frequency.toFixed(2)}</div>` : ''}
         `;
         this.widgetManager.attach(term, widgetHtml);
     }
@@ -64,6 +115,7 @@ export class ActivityGraph {
         this.addRelationship('bird', 'wings', 'property');
         this.addRelationship('bird', 'fly', 'property');
 
+        this.relayout();
         this.viewport.fit();
     }
 

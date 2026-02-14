@@ -7,6 +7,7 @@ import { NotebookPanel } from '../components/NotebookPanel.js';
 import { ExampleBrowser } from '../components/ExampleBrowser.js';
 import { CodeEditorPanel } from '../components/CodeEditorPanel.js';
 import { LMActivityIndicator } from '../components/LMActivityIndicator.js';
+import { ZUIPanel } from '../components/ZUIPanel.js';
 import { LayoutPresets } from '../config/LayoutPresets.js';
 import { COMPONENTS, STORAGE_KEYS } from '../config/constants.js';
 
@@ -49,7 +50,8 @@ export class LayoutManager {
             [COMPONENTS.METRICS]: (c) => this._createStandard(c, SystemMetricsPanel, 'metrics', false, 'render'),
             [COMPONENTS.SETTINGS]: (c) => this._createSettings(c),
             [COMPONENTS.EXAMPLES]: (c) => this._createExamples(c),
-            [COMPONENTS.EDITOR]: (c) => this._createEditor(c)
+            [COMPONENTS.EDITOR]: (c) => this._createEditor(c),
+            [COMPONENTS.ZUI]: (c) => this._createZUI(c)
         };
     }
 
@@ -106,6 +108,13 @@ export class LayoutManager {
         if (resize && panel.resize) {
              container.on('resize', () => panel.resize());
         }
+    }
+
+    _createZUI(container) {
+        const panel = new ZUIPanel(container.element);
+        panel.initialize();
+        this.app.registerComponent('zui', panel);
+        container.on('resize', () => panel.resize());
     }
 
     _createSettings(container) {

@@ -195,6 +195,14 @@ export class CodeCell extends Cell {
                 e.preventDefault();
                 this.delete();
             }
+            if (e.altKey && e.key === 'ArrowUp') {
+                e.preventDefault();
+                this.onMoveUp?.(this);
+            }
+            if (e.altKey && e.key === 'ArrowDown') {
+                e.preventDefault();
+                this.onMoveDown?.(this);
+            }
         });
 
         return wrapper;

@@ -345,5 +345,32 @@ export const LayoutPresets = {
                 }
             ]
         }
+    },
+    zui: {
+        settings: {
+            hasHeaders: true,
+            constrainDragToContainer: true,
+            reorderEnabled: true,
+            selectionEnabled: false,
+            showPopoutIcon: true,
+            showMaximiseIcon: true,
+            showCloseIcon: false
+        },
+        dimensions: {
+            borderWidth: 2,
+            headerHeight: 24
+        },
+        root: {
+            type: 'column',
+            content: [
+                {
+                    type: 'component',
+                    componentName: COMPONENTS.ZUI,
+                    title: 'ZUI GRAPH',
+                    height: 100,
+                    isClosable: false
+                }
+            ]
+        }
     }
 };

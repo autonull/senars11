@@ -49,6 +49,7 @@ const CATEGORY_MATCHERS = [
     { id: 'debug', match: t => t === 'debug' },
     { id: 'user-input', match: t => t === 'user-input' || t === 'user' },
     { id: 'result', match: t => t === 'result' || ['answer', 'query', 'result'].some(k => t.includes(k)) },
+    { id: 'system', match: t => t === 'log' },
     { id: 'metric', match: t => t === 'metric' || ['performance', 'stats'].some(k => t.includes(k)) },
     { id: 'derivation', match: t => ['derive', 'proof'].some(k => t.includes(k)) }
 ];
