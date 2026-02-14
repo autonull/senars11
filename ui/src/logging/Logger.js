@@ -4,6 +4,7 @@ export class Logger {
     constructor(uiElements = null) {
         this.uiElements = uiElements;
         this.logViewer = null;
+        this.toastManager = null;
         this.messageCounter = 1;
         this.icons = {
             success: UI_CONSTANTS.LOG_ICONS.SUCCESS,
@@ -30,6 +31,10 @@ export class Logger {
 
     setUIElements(uiElements) {
         this.uiElements = uiElements;
+    }
+
+    setToastManager(toastManager) {
+        this.toastManager = toastManager;
     }
 
     addLogEntry(content, type = 'info', icon = null) {
@@ -61,18 +66,21 @@ export class Logger {
     }
 
     showNotification(message, type = 'info') {
-        const container = this.uiElements?.notificationContainer ?? document.getElementById('notification-container');
-        if (!container) {
-            this._logToConsole(message, type);
-            return;
+        if (this.toastManager) {
+            this.toastManager.show(message, type);
+        } else {
+            const container = this.uiElements?.notificationContainer ?? document.getElementById('notification-container');
+            if (container) {
+                const notification = document.createElement('div');
+                notification.className = `notification notification-${type}`;
+                notification.textContent = message;
+                container.appendChild(notification);
+
+                setTimeout(() => notification.parentNode?.removeChild(notification), 5000);
+            } else {
+                this._logToConsole(message, type);
+            }
         }
-
-        const notification = document.createElement('div');
-        notification.className = `notification notification-${type}`;
-        notification.textContent = message;
-        container.appendChild(notification);
-
-        setTimeout(() => notification.parentNode?.removeChild(notification), 5000);
     }
 
     _logToConsole(content, type, icon = null) {

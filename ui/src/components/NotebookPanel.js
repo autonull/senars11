@@ -67,7 +67,9 @@ export class NotebookPanel extends Component {
             .mount(this.container);
 
         this.notebookManager = new NotebookManager(notebookContainer.dom, {
-            onExecute: (cmd, originCell) => this.handleExecution(cmd, originCell)
+            onExecute: (cmd, originCell) => this.handleExecution(cmd, originCell),
+            // Use optional chaining for safety, though app.logger is expected
+            onError: (msg) => this.app?.logger?.showNotification(msg, 'error')
         });
         this.notebookManager.loadFromStorage();
 
@@ -167,8 +169,11 @@ export class NotebookPanel extends Component {
             try {
                 const data = JSON.parse(e.target.result);
                 this.notebookManager.importNotebook(data);
+                this.app?.logger?.showNotification('Notebook imported successfully', 'success');
             } catch (err) {
-                console.error('Failed to import notebook', err);
+                const msg = `Failed to import notebook: ${err.message}`;
+                console.error(msg, err);
+                this.app?.logger?.showNotification(msg, 'error');
             }
         };
         reader.readAsText(file);
