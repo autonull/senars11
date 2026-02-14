@@ -252,7 +252,8 @@ export class StatusBar extends Component {
                         'toggle-metrics': 'metrics',
                         'toggle-logs': 'log',
                         'toggle-inspector': 'inspector',
-                        'toggle-tasks': 'tasks'
+                        'toggle-tasks': 'tasks',
+                        'toggle-visualization': 'visualization'
                     };
                     const widgetId = mapping[id];
                     if (widgetId && this.onWidgetToggle) {
@@ -263,6 +264,7 @@ export class StatusBar extends Component {
         };
 
         toggleBtn('toggle-layers', '📐', 'Toggle Layers (1)', true);
+        toggleBtn('toggle-visualization', '👁️', 'Toggle Visualization', false);
         toggleBtn('toggle-metrics', '📊', 'Toggle Metrics (2)', true);
         toggleBtn('toggle-logs', '📝', 'Toggle Logs (3)', true);
         toggleBtn('toggle-inspector', '🔍', 'Toggle Inspector (4)', false);
