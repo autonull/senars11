@@ -61,22 +61,16 @@ export class Strategy {
         try {
             for await (const primaryPremise of premiseStream) {
                 try {
-                    // Select secondary premises based on strategy
                     const secondaryPremises = await this.selectSecondaryPremises(primaryPremise);
-
-                    // Yield pairs of primary and secondary premises
                     for (const secondaryPremise of secondaryPremises) {
                         yield [primaryPremise, secondaryPremise];
                     }
                 } catch (error) {
                     Logger.error('Error processing primary premise in Strategy:', error);
-                    // Continue to next premise rather than failing completely
-
                 }
             }
         } catch (error) {
             Logger.error('Error in Strategy generatePremisePairs:', error);
-            // Re-throw to allow upstream handling
             throw error;
         }
     }
@@ -134,19 +128,14 @@ export class Strategy {
                 .map(candidate => StrategyHelper.candidateToTask(candidate, primaryPremise, context))
                 .filter(Boolean);
 
-            // Merge with legacy results, prioritizing formation strategy candidates
             const allResults = [...candidateTasks, ...legacyResults];
 
-            // Deduplicate by term name
+            // Deduplicate
             const seen = new Set();
-            const uniqueResults = allResults.filter(task => {
+            return allResults.filter(task => {
                 const key = task?.term?.name || task?.term?.toString?.() || '';
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
-            });
-
-            return uniqueResults.slice(0, this.config.maxSecondaryPremises || 20);
+                return !seen.has(key) && seen.add(key);
+            }).slice(0, this.config.maxSecondaryPremises || 20);
         } catch (error) {
             Logger.error('Error in selectSecondaryPremises:', error);
             return [];

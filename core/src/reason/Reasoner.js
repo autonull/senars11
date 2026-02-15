@@ -64,10 +64,7 @@ export class Reasoner extends EventEmitter {
             for (const primaryPremise of focusTasks) {
                 if (this._shouldStopStep(startTime, timeoutMs, results.length)) break;
 
-                // Single premise processing
                 await this._processSinglePremise(primaryPremise, results, startTime, timeoutMs, suppressEvents);
-
-                // Dual premise processing
                 await this._processDualPremises(
                     primaryPremise,
                     sortedFocusTasks,
@@ -130,7 +127,7 @@ export class Reasoner extends EventEmitter {
 
         if (id1 === id2) return true;
 
-        const pairId = id1 < id2 ? `${id1}-${id2}` : `${id2}-${id1}`;
+        const pairId = id1 < id2 ? `${id1}:${id2}` : `${id2}:${id1}`;
         if (processedPairs.has(pairId)) return true;
 
         processedPairs.add(pairId);
