@@ -55,16 +55,9 @@ const unifyCompounds = (t1, t2, bindings, adapter) => {
 const bindVariable = (variable, term, bindings, adapter) => {
     const varName = adapter.getVariableName(variable);
 
-    if (bindings[varName]) {
-        return unify(bindings[varName], term, bindings, adapter);
-    }
-
-    if (adapter.isVariable(term)) {
-        const termVarName = adapter.getVariableName(term);
-        if (bindings[termVarName]) {
-            return unify(variable, bindings[termVarName], bindings, adapter);
-        }
-    }
+    // Note: The variable (b1/b2) passed here is already substituted by `unify`.
+    // So if it's still a variable, it means it's unbound in the current bindings.
+    // Redundant checks removed.
 
     if (occursCheck(varName, term, bindings, adapter)) {
         return null;
