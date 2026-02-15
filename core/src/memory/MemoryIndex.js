@@ -20,6 +20,14 @@ export class MemoryIndex {
         this._temporalIndex = new TemporalIndex(this._config);
         this._relationshipIndex = new RelationshipIndex(this._config);
 
+        this._indexes = [
+            this._atomicIndex,
+            this._compoundIndex,
+            this._activationIndex,
+            this._temporalIndex,
+            this._relationshipIndex
+        ];
+
         // Additional index for term id to concept mapping to support getConcept method
         this._termIdToConcepts = new Map();
 
@@ -40,11 +48,7 @@ export class MemoryIndex {
         }
 
         // Add to appropriate indexes
-        this._atomicIndex.add(concept);
-        this._compoundIndex.add(concept);
-        this._activationIndex.add(concept);
-        this._temporalIndex.add(concept);
-        this._relationshipIndex.add(concept);
+        this._indexes.forEach(index => index.add(concept));
     }
 
     removeConcept(concept) {
@@ -64,11 +68,7 @@ export class MemoryIndex {
         }
 
         // Remove from all indexes
-        this._atomicIndex.remove(concept);
-        this._compoundIndex.remove(concept);
-        this._activationIndex.remove(concept);
-        this._temporalIndex.remove(concept);
-        this._relationshipIndex.remove(concept);
+        this._indexes.forEach(index => index.remove(concept));
 
         this._totalConcepts = Math.max(0, this._totalConcepts - 1);
     }
@@ -402,16 +402,8 @@ export class MemoryIndex {
     }
 
     getAllConcepts() {
-        const indexes = [
-            this._atomicIndex,
-            this._compoundIndex,
-            this._activationIndex,
-            this._temporalIndex,
-            this._relationshipIndex
-        ];
-
         const allConcepts = new Set();
-        for (const index of indexes) {
+        for (const index of this._indexes) {
             if (index?.getAll) {
                 const items = index.getAll();
                 for (const concept of items) allConcepts.add(concept);
@@ -477,20 +469,7 @@ export class MemoryIndex {
     }
 
     clear() {
-        // Use an array of indexes to iterate and clear
-        const indexes = [
-            this._atomicIndex,
-            this._compoundIndex,
-            this._activationIndex,
-            this._temporalIndex,
-            this._relationshipIndex
-        ];
-
-        for (const index of indexes) {
-            if (index && typeof index.clear === 'function') {
-                index.clear();
-            }
-        }
+        this._indexes.forEach(index => index?.clear?.());
         this._totalConcepts = 0;
     }
 

@@ -387,13 +387,13 @@ export class MemoryConsolidation extends ConfigurableComponent {
      * @private
      */
     _getDecayWeights() {
-        return [
+        return this._decayWeights || (this._decayWeights = [
             this.getConfigValue('usageDecayWeight', 0.25),
             this.getConfigValue('activationDecayWeight', 0.25),
             this.getConfigValue('complexityDecayWeight', 0.20),
             this.getConfigValue('recencyDecayWeight', 0.15),
             this.getConfigValue('qualityDecayWeight', 0.15)
-        ];
+        ]);
     }
 
     /**
@@ -559,34 +559,22 @@ export class MemoryConsolidation extends ConfigurableComponent {
      */
     _removeForgettingConcepts(memory) {
         let removed = 0;
-        const conceptsToRemove = [];
+        const concepts = memory.getAllConcepts();
+        const conceptsToRemove = concepts.filter(concept => concept.forgettingMarked);
 
-        for (const concept of memory.getAllConcepts()) {
-            if (concept.forgettingMarked) {
-                // Phase 4.2: Consolidation as Compilation
-                // Before forgetting, compile high-value tasks and store in Archive
-                if (memory.archive) {
-                    const tasks = concept.getAllTasks();
-                    const compiledRules = this.compile(tasks);
-
-                    // Archive if we have compiled content
-                    if (compiledRules.length > 0) {
-                        // Store the compiled batch (simplified for now)
-                        // In real implementation, this might link back to the term
-                        const content = JSON.stringify({
-                            term: concept.term.toString(),
-                            rules: compiledRules
-                        });
-                        memory.archive.put(content);
-                    }
+        for (const concept of conceptsToRemove) {
+            // Phase 4.2: Consolidation as Compilation
+            if (memory.archive) {
+                const tasks = concept.getAllTasks();
+                const compiledRules = this.compile(tasks);
+                if (compiledRules.length > 0) {
+                    memory.archive.put(JSON.stringify({
+                        term: concept.term.toString(),
+                        rules: compiledRules
+                    }));
                 }
-
-                conceptsToRemove.push(concept.term);
             }
-        }
-
-        for (const term of conceptsToRemove) {
-            memory.removeConcept(term);
+            memory.removeConcept(concept.term);
             removed++;
         }
 
