@@ -147,6 +147,92 @@ export class SeNARS {
         }
     }
 
+    /**
+     * Attempt to achieve a goal.
+     * @param {string} narsese - The goal statement (will append '!' if missing).
+     * @param {Object} options - Options (cycles, threshold).
+     * @returns {Promise<Object>} - Status of goal achievement.
+     */
+    async achieve(narsese, options = {}) {
+        await this._ensureInitialized();
+        const cycles = options.cycles ?? 50;
+        const threshold = options.threshold ?? 0.8;
+
+        const goalInput = narsese.trim().endsWith('!') ? narsese : `${narsese.replace(/[?.!]$/, '')}!`;
+
+        try {
+            let goalTerm = null;
+             if (this.nar._parser) {
+                const parsed = this.nar._parser.parse(goalInput);
+                goalTerm = parsed.term;
+            }
+
+            await this.nar.input(goalInput);
+
+            if (cycles > 0) {
+                await this.nar.runCycles(cycles);
+            }
+
+            // Check if goal is satisfied (belief exists with high expectation)
+            // Note: NARS handles goal processing internally, but we can peek at beliefs
+            // to see if the system *believes* the goal condition is met.
+
+            const allBeliefs = this.nar.getBeliefs();
+            let matchingBeliefs = [];
+
+             if (goalTerm && this._unifier) {
+                matchingBeliefs = allBeliefs.filter(b => {
+                    // Match belief against goal content
+                    const result = this._unifier.match(goalTerm, b.term);
+                    return result.success;
+                });
+            } else {
+                 const keyTerms = this._extractKeyTerms(goalInput);
+                 matchingBeliefs = allBeliefs.filter(b => {
+                    const beliefStr = b.term?.toString() || '';
+                    return keyTerms.every(term => beliefStr.includes(term));
+                });
+            }
+
+            let achieved = false;
+            let bestTruth = { f: 0, c: 0 };
+            let bestTerm = null;
+
+            if (matchingBeliefs.length > 0) {
+                const bestBelief = matchingBeliefs.reduce((best, current) => {
+                     // Using expectation: e = c * (f - 0.5) + 0.5
+                     const expCurrent = (current.truth?.c ?? 0) * ((current.truth?.f ?? 0) - 0.5) + 0.5;
+                     const expBest = (best.truth?.c ?? 0) * ((best.truth?.f ?? 0) - 0.5) + 0.5;
+                     return expCurrent > expBest ? current : best;
+                }, matchingBeliefs[0]);
+
+                if (bestBelief) {
+                    bestTruth = bestBelief.truth;
+                    bestTerm = bestBelief.term?.toString();
+                    const expectation = (bestTruth.c) * (bestTruth.f - 0.5) + 0.5;
+                    // Usually "achieved" means expectation > threshold (e.g. > 0.5 or higher)
+                    // Or if simple truth: f > 0.5 and c > threshold
+                    achieved = expectation > threshold || (bestTruth.f > 0.8 && bestTruth.c > 0.5);
+                }
+            }
+
+            return {
+                achieved,
+                term: bestTerm,
+                truth: bestTruth,
+                cyclesRun: cycles,
+                timestamp: Date.now()
+            };
+
+        } catch (error) {
+            Logger.error('Achieve failed:', error);
+             return {
+                achieved: false,
+                error: error.message
+            };
+        }
+    }
+
     _extractKeyTerms(narsese) {
         return narsese
             .replace(/[()?.!]/g, '')
