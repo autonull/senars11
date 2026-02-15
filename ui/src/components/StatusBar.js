@@ -34,12 +34,13 @@ export class StatusBar extends Component {
         );
     }
 
-    initialize({ onModeSwitch, onThemeToggle, onReasonerControl, onReplSubmit, onWidgetToggle }) {
+    initialize({ onModeSwitch, onThemeToggle, onReasonerControl, onReplSubmit, onWidgetToggle, onConfig }) {
         this.onModeSwitch = onModeSwitch;
         this.onThemeToggle = onThemeToggle;
         this.onReasonerControl = onReasonerControl;
         this.onReplSubmit = onReplSubmit;
         this.onWidgetToggle = onWidgetToggle;
+        this.onConfig = onConfig;
         this.render();
     }
 
@@ -71,6 +72,17 @@ export class StatusBar extends Component {
 
                 <!-- Right section: System Info + Widget Toggles -->
                 <div class="status-info-section">
+                    <!-- Global Toolbar Items Moved from LogPanel/Toolbar -->
+                    <div class="status-toolbar-items">
+                        <input type="text" id="search-input" placeholder="Search..." class="control-input-small">
+                        <select id="demo-select" class="control-select-small">
+                            <option value="" disabled selected>Load Demo...</option>
+                        </select>
+                         <button id="btn-clear" class="status-btn-small warning" title="Clear Workspace">🗑️</button>
+                    </div>
+
+                    <div class="status-divider"></div>
+
                     <div class="status-metric" id="status-cycles">📊 Cycles: 0</div>
                     <div class="status-metric" id="status-nodes">🧠 Nodes: 0/50</div>
                     <div class="status-metric" id="status-tps">⚡ TPS: 0</div>
@@ -134,24 +146,14 @@ export class StatusBar extends Component {
             }, 200);
         });
 
-        // Submit on Ctrl+Enter
+        // Submit on Enter (unless Shift is held), or Ctrl+Enter
         repl.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            if ((e.key === 'Enter' && !e.shiftKey) || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) {
                 e.preventDefault();
                 const command = repl.value.trim();
                 if (command) {
                     this.onReplSubmit?.(command);
                     repl.value = '';
-                }
-            } else if (e.key === 'Enter' && !e.shiftKey) {
-                // Single Enter = submit if not expanded
-                if (!this.state.expanded) {
-                    e.preventDefault();
-                    const command = repl.value.trim();
-                    if (command) {
-                        this.onReplSubmit?.(command);
-                        repl.value = '';
-                    }
                 }
             }
         });
@@ -187,6 +189,14 @@ export class StatusBar extends Component {
                 const value = e.target.value;
                 throttleValue.textContent = `${value}ms`;
                 this.onReasonerControl?.('throttle', parseInt(value));
+            });
+        }
+
+        const configBtn = document.getElementById('status-config');
+        if (configBtn) {
+            configBtn.style.cursor = 'pointer';
+            configBtn.addEventListener('click', () => {
+                this.onConfig?.();
             });
         }
     }

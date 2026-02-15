@@ -144,6 +144,58 @@
     font-size: 0.85rem;
     font-family: 'Consolas', monospace;
     color: #aaccbb;
+    flex: 2;
+    justify-content: flex-end;
+}
+
+.status-toolbar-items {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: auto; /* Push metrics to the right */
+}
+
+.control-input-small, .control-select-small {
+    background: rgba(0, 20, 10, 0.5);
+    border: 1px solid rgba(0, 255, 157, 0.2);
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 0;
+    font-size: 0.8rem;
+    font-family: inherit;
+    outline: none;
+    height: 24px;
+}
+
+.control-input-small:focus, .control-select-small:focus {
+    border-color: #00ff9d;
+}
+
+#search-input {
+    width: 120px;
+    transition: width 0.2s;
+}
+
+#search-input:focus {
+    width: 180px;
+}
+
+.status-btn-small {
+    background: transparent;
+    border: 1px solid transparent;
+    color: #aaa;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.status-btn-small:hover {
+    color: #fff;
+}
+
+.status-btn-small.warning:hover {
+    color: #ff5555;
 }
 
 .status-metric {

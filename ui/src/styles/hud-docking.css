@@ -87,7 +87,44 @@
 }
 
 #log-widget {
-    max-height: 250px;
+    top: calc(var(--statusbar-height) + var(--widget-gap) + 160px); /* Position below metrics panel */
+    bottom: var(--widget-gap);
+    max-height: none; /* Let it stretch */
+    display: flex;
+    flex-direction: column;
+}
+
+.log-panel-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.log-header {
+    flex-shrink: 0;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.log-area {
+    flex: 1;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 255, 157, 0.1);
+    padding: 4px;
+}
+
+#log-content {
+    font-size: 11px; /* Smaller font as requested */
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.4;
+}
+
+#log-content > div {
+    padding: 1px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 #controls-widget {
@@ -96,7 +133,7 @@
     width: auto;
     padding: 6px;
     left: auto;
-    display: none;
+    /* display: none; */
     /* Hidden - controls moved to StatusBar */
 }
 
