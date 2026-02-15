@@ -17,83 +17,57 @@ export class AnalogyRule extends NALRule {
     }
 
     canApply(primaryPremise, secondaryPremise, context) {
-        if (!primaryPremise || !secondaryPremise) return false;
-
-        const {term: t1} = primaryPremise;
-        const {term: t2} = secondaryPremise;
-
+        const t1 = primaryPremise?.term;
+        const t2 = secondaryPremise?.term;
         if (!t1?.isCompound || !t2?.isCompound) return false;
 
-        // One must be similarity, other inheritance
-        const isSim1 = t1.operator === '<->';
-        const isInh1 = t1.operator === '-->';
-        const isSim2 = t2.operator === '<->';
-        const isInh2 = t2.operator === '-->';
+        const isSim = t => t.operator === '<->';
+        const isInh = t => t.operator === '-->';
 
-        if (!((isSim1 && isInh2) || (isSim2 && isInh1))) return false;
+        if (!((isSim(t1) && isInh(t2)) || (isSim(t2) && isInh(t1)))) return false;
 
-        const sim = isSim1 ? t1 : t2;
-        const inh = isSim1 ? t2 : t1;
+        const sim = isSim(t1) ? t1 : t2;
+        const inh = isSim(t1) ? t2 : t1;
 
-        // Check for shared term
-        const s1 = sim.components[0];
-        const s2 = sim.components[1];
-        const i1 = inh.subject;
-        const i2 = inh.predicate;
-
-        return this.unify(s1, i1, context).success ||
-               this.unify(s1, i2, context).success ||
-               this.unify(s2, i1, context).success ||
-               this.unify(s2, i2, context).success;
+        return sim.components.some(s =>
+            inh.components.some(i => this.unify(s, i, context).success)
+        );
     }
 
     apply(primaryPremise, secondaryPremise, context) {
-        const {term: t1, truth: truth1} = primaryPremise;
-        const {term: t2, truth: truth2} = secondaryPremise;
-        const termFactory = context?.termFactory;
+        const t1 = primaryPremise.term;
+        const t2 = secondaryPremise.term;
+        if (!context?.termFactory) return [];
 
-        if (!termFactory || !truth1 || !truth2) return [];
+        const isSim = t1.operator === '<->';
+        const sim = isSim ? t1 : t2;
+        const inh = isSim ? t2 : t1;
 
-        const isSim1 = t1.operator === '<->';
-        const sim = isSim1 ? t1 : t2;
-        const inh = isSim1 ? t2 : t1;
+        const s1 = sim.components[0], s2 = sim.components[1];
+        const i1 = inh.subject, i2 = inh.predicate;
 
-        const s1 = sim.components[0];
-        const s2 = sim.components[1];
-        const i1 = inh.subject;
-        const i2 = inh.predicate;
-
-        const derivedTruth = Truth.analogy(truth1, truth2);
-        if (!derivedTruth) return [];
+        const newTruth = Truth.analogy(primaryPremise.truth, secondaryPremise.truth);
+        if (!newTruth) return [];
 
         const results = [];
-
-        // Helper to generate task
-        const generate = (replacedSubject, replacedPredicate, sub) => {
-            const finalS = this.applySubstitution(replacedSubject, sub, context);
-            const finalP = this.applySubstitution(replacedPredicate, sub, context);
-
-            const term = termFactory.inheritance(finalS, finalP);
-            const task = this.createDerivedTask(term, derivedTruth, [primaryPremise, secondaryPremise], context, '.');
-            if (task) results.push(task);
-        };
-
-        // Optimized matching: stop after finding valid matches if necessary,
-        // but analogy can produce multiple results. We process all valid unifications.
-
         const matches = [
-            { match: this.unify(s1, i1, context), args: [s2, i2] },
-            { match: this.unify(s1, i2, context), args: [i1, s2] },
-            { match: this.unify(s2, i1, context), args: [s1, i2] },
-            { match: this.unify(s2, i2, context), args: [i1, s1] }
+            {match: this.unify(s1, i1, context), s: s2, p: i2},
+            {match: this.unify(s1, i2, context), s: i1, p: s2},
+            {match: this.unify(s2, i1, context), s: s1, p: i2},
+            {match: this.unify(s2, i2, context), s: i1, p: s1}
         ];
 
-        for (const {match, args} of matches) {
+        for (const {match, s, p} of matches) {
             if (match.success) {
-                generate(args[0], args[1], match.substitution);
+                const termS = this.applySubstitution(s, match.substitution, context);
+                const termP = this.applySubstitution(p, match.substitution, context);
+                const task = this.createDerivedTask(
+                    context.termFactory.inheritance(termS, termP),
+                    newTruth, [primaryPremise, secondaryPremise], context
+                );
+                if (task) results.push(task);
             }
         }
-
         return results;
     }
 }
