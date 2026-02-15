@@ -18,7 +18,7 @@ export const termsEqual = (t1, t2) => t1 === t2 || (t1?.equals?.(t2) ?? false);
  * @param {Term} term - The term to check
  * @returns {boolean} True if the term is a variable
  */
-export const isVariable = (term) => term?.isVariable || term?.name?.startsWith('$') || false;
+export const isVariable = (term) => term?.isVariable || term?.name?.startsWith('$') || term?.name?.startsWith('?') || false;
 
 /**
  * Checks if a term is a compound term.
