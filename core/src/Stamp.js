@@ -17,8 +17,9 @@ export class Stamp {
 
     static derive(parentStamps = [], overrides = {}) {
         const maxDepth = Stamp._getMaxDepth(parentStamps);
+        const useBloom = maxDepth > 20 || parentStamps.some(s => s instanceof BloomStamp);
 
-        if (maxDepth > 20 || parentStamps.some(s => s instanceof BloomStamp)) {
+        if (useBloom) {
             return Stamp.deriveBloom(parentStamps, overrides, maxDepth);
         }
 
@@ -37,12 +38,15 @@ export class Stamp {
             depth
         });
 
+        const filter = newStamp.filter;
         for (const parent of parentStamps) {
             if (parent instanceof BloomStamp) {
-                newStamp.filter.merge(parent.filter);
+                filter.merge(parent.filter);
             } else if (parent instanceof ArrayStamp) {
-                newStamp.filter.add(parent.id);
-                parent.derivations.forEach(d => newStamp.filter.add(d));
+                filter.add(parent.id);
+                for (const d of parent.derivations) {
+                    filter.add(d);
+                }
             }
         }
 
@@ -136,6 +140,8 @@ export class BloomStamp extends Stamp {
         if (other instanceof BloomStamp) return this._filter.intersects(other.filter);
         if (other instanceof ArrayStamp) {
             if (this._filter.test(other.id)) return true;
+            // Use iterator to avoid array allocation if possible, but ArrayStamp has array.
+            // .some() is good.
             return other.derivations.some(d => this._filter.test(d));
         }
         return false;

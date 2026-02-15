@@ -15,10 +15,15 @@ export const termsEqual = (t1, t2) => t1 === t2 || (t1?.equals?.(t2) ?? false);
 
 /**
  * Checks if a term is a variable.
- * @param {Term} term - The term to check
+ * @param {Term|string} term - The term to check
  * @returns {boolean} True if the term is a variable
  */
-export const isVariable = (term) => term?.isVariable || term?.name?.startsWith('$') || term?.name?.startsWith('?') || false;
+export const isVariable = (term) => {
+    if (typeof term === 'string') {
+        return term.startsWith('$') || term.startsWith('?');
+    }
+    return term?.isVariable || term?.name?.startsWith('$') || term?.name?.startsWith('?') || false;
+};
 
 /**
  * Checks if a term is a compound term.
@@ -58,7 +63,12 @@ export const hasOperator = (term, op) => term?.operator === op;
 
 /**
  * Gets the variable name of a term.
- * @param {Term} term - The term
+ * @param {Term|string} term - The term
  * @returns {string} The variable name, or 'unknown'
  */
-export const getVariableName = (term) => term?.name || term?._name || 'unknown';
+export const getVariableName = (term) => {
+    if (typeof term === 'string') {
+        return term;
+    }
+    return term?.name || term?._name || 'unknown';
+};

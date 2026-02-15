@@ -15,6 +15,12 @@ export const SemanticType = freeze({
     UNKNOWN: 'unknown'
 });
 
+const TYPE_TAG = freeze({
+    ATOM: 1,
+    VARIABLE: 2,
+    COMPOUND: 3
+});
+
 export class Term {
     constructor(type, name, components = [], operator = null) {
         this._type = type;
@@ -75,22 +81,22 @@ export class Term {
     _determineSemanticType() {
         if (this._type !== TermType.ATOM) return SemanticType.NAL_CONCEPT;
 
-        switch (true) {
-            case ['True', 'False', 'Null'].includes(this._name):
-                return SemanticType.BOOLEAN;
-            case this._name?.startsWith('?'):
-                return SemanticType.VARIABLE;
-            case !isNaN(Number(this._name)):
-                return SemanticType.NUMERIC;
-            default:
-                return SemanticType.NAL_CONCEPT;
-        }
+        const name = this._name;
+        if (['True', 'False', 'Null'].includes(name)) return SemanticType.BOOLEAN;
+
+        // Variables start with ? (independent) or $ (dependent)
+        if (name?.startsWith('?') || name?.startsWith('$')) return SemanticType.VARIABLE;
+
+        // Numeric check
+        if (name && !isNaN(Number(name)) && name.trim() !== '') return SemanticType.NUMERIC;
+
+        return SemanticType.NAL_CONCEPT;
     }
 
     _calculateTypeTag() {
-        if (this._type === TermType.COMPOUND) return 3;
-        if (this._name?.startsWith('?') || this._name?.startsWith('$')) return 2;
-        return 1;
+        if (this._type === TermType.COMPOUND) return TYPE_TAG.COMPOUND;
+        if (this._semanticType === SemanticType.VARIABLE) return TYPE_TAG.VARIABLE;
+        return TYPE_TAG.ATOM;
     }
 
     _calculateComplexity() {

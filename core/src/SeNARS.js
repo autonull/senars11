@@ -28,20 +28,19 @@ export class SeNARS {
         if (this._initialized) return;
         if (this._initPromise) return this._initPromise;
 
-        this._initPromise = (async () => {
-            try {
-                await this.nar.initialize();
+        this._initPromise = this.nar.initialize()
+            .then(() => {
                 this._initialized = true;
                 // Initialize unifier using the NAR's term factory
                 if (this.nar._termFactory) {
                     this._unifier = new Unifier(this.nar._termFactory);
                 }
-            } catch (error) {
+            })
+            .catch(error => {
                 Logger.error('Failed to initialize SeNARS:', error);
                 this._initPromise = null;
                 throw error;
-            }
-        })();
+            });
 
         return this._initPromise;
     }
@@ -69,12 +68,7 @@ export class SeNARS {
         const cycles = options.cycles ?? 20;
 
         try {
-            // Parse the question first to get the term pattern
-            let questionTerm = null;
-            if (this.nar._parser) {
-                const parsed = this.nar._parser.parse(narsese);
-                questionTerm = parsed.term;
-            }
+            const questionTerm = this._parseTerm(narsese);
 
             await this.nar.input(narsese);
 
@@ -82,23 +76,7 @@ export class SeNARS {
                 await this.nar.runCycles(cycles);
             }
 
-            const allBeliefs = this.nar.getBeliefs();
-            let matchingBeliefs = [];
-
-            if (questionTerm && this._unifier) {
-                // Use unification to find matching beliefs
-                matchingBeliefs = allBeliefs.filter(b => {
-                    const result = this._unifier.match(questionTerm, b.term);
-                    return result.success;
-                });
-            } else {
-                // Fallback to string matching if parser/unifier not available
-                const keyTerms = this._extractKeyTerms(narsese);
-                matchingBeliefs = allBeliefs.filter(b => {
-                    const beliefStr = b.term?.toString() || '';
-                    return keyTerms.every(term => beliefStr.includes(term));
-                });
-            }
+            const matchingBeliefs = this._findMatchingBeliefs(questionTerm, narsese);
 
             let answer = false;
             let confidence = 0;
@@ -161,11 +139,7 @@ export class SeNARS {
         const goalInput = narsese.trim().endsWith('!') ? narsese : `${narsese.replace(/[?.!]$/, '')}!`;
 
         try {
-            let goalTerm = null;
-             if (this.nar._parser) {
-                const parsed = this.nar._parser.parse(goalInput);
-                goalTerm = parsed.term;
-            }
+            const goalTerm = this._parseTerm(goalInput);
 
             await this.nar.input(goalInput);
 
@@ -177,22 +151,7 @@ export class SeNARS {
             // Note: NARS handles goal processing internally, but we can peek at beliefs
             // to see if the system *believes* the goal condition is met.
 
-            const allBeliefs = this.nar.getBeliefs();
-            let matchingBeliefs = [];
-
-             if (goalTerm && this._unifier) {
-                matchingBeliefs = allBeliefs.filter(b => {
-                    // Match belief against goal content
-                    const result = this._unifier.match(goalTerm, b.term);
-                    return result.success;
-                });
-            } else {
-                 const keyTerms = this._extractKeyTerms(goalInput);
-                 matchingBeliefs = allBeliefs.filter(b => {
-                    const beliefStr = b.term?.toString() || '';
-                    return keyTerms.every(term => beliefStr.includes(term));
-                });
-            }
+            const matchingBeliefs = this._findMatchingBeliefs(goalTerm, goalInput);
 
             let achieved = false;
             let bestTruth = { f: 0, c: 0 };
@@ -233,10 +192,41 @@ export class SeNARS {
         }
     }
 
+    _parseTerm(narsese) {
+        if (this.nar._parser) {
+            try {
+                const parsed = this.nar._parser.parse(narsese);
+                return parsed.term;
+            } catch (e) {
+                // Parse error is expected if narsese is invalid or partial, input() will handle full error reporting
+                return null;
+            }
+        }
+        return null;
+    }
+
+    _findMatchingBeliefs(term, narseseFallback) {
+        const allBeliefs = this.nar.getBeliefs();
+
+        if (term && this._unifier) {
+            return allBeliefs.filter(b => {
+                const result = this._unifier.match(term, b.term);
+                return result.success;
+            });
+        }
+
+        const keyTerms = this._extractKeyTerms(narseseFallback);
+        return allBeliefs.filter(b => {
+            const beliefStr = b.term?.toString() || '';
+            return keyTerms.every(t => beliefStr.includes(t));
+        });
+    }
+
     _extractKeyTerms(narsese) {
         return narsese
-            .replace(/[()?.!]/g, '')
-            .split(/--?>|<->|==>/)
+            .replace(/[()?!]/g, '') // Remove structural chars but keep dots inside numbers if any
+            .replace(/\.$/, '')    // Remove trailing dot
+            .split(/--?>|<->|==>/) // Split by relations
             .map(s => s.trim())
             .filter(s => s.length > 0);
     }
