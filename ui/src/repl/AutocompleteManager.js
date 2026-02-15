@@ -1,3 +1,5 @@
+import { AUTOCOMPLETE_SUGGESTIONS } from './AutocompleteSuggestions.js';
+
 /**
  * Manages the autocomplete popup for the SmartTextarea
  */
@@ -5,71 +7,24 @@ export class AutocompleteManager {
     constructor(textarea, wrapper) {
         this.textarea = textarea;
         this.wrapper = wrapper;
-        this.suggestions = [
-            // Narsese
-            { label: '-->', type: 'relation', info: 'Inheritance' },
-            { label: '<->', type: 'relation', info: 'Similarity' },
-            { label: '==>', type: 'relation', info: 'Implication' },
-            { label: '<=>', type: 'relation', info: 'Equivalence' },
-            { label: '{--', type: 'relation', info: 'Instance' },
-            { label: '--]', type: 'relation', info: 'Property' },
-            { label: '(&&,', type: 'connector', info: 'Conjunction' },
-            { label: '(||,', type: 'connector', info: 'Disjunction' },
-            { label: '(&/,', type: 'connector', info: 'Sequence' },
-            { label: '(|/,', type: 'connector', info: 'Parallel' },
-            { label: '^op', type: 'operator', info: 'Operator' },
-            { label: 'SELF', type: 'keyword', info: 'Self Reference' },
-            { label: 'like', type: 'relation', info: 'Similarity (like)' },
-            { label: 'instance', type: 'relation', info: 'Instance (instance)' },
-            // MeTTa
-            { label: 'match', type: 'keyword', info: 'Pattern Matching' },
-            { label: 'superpose', type: 'keyword', info: 'Superposition' },
-            { label: 'collapse', type: 'keyword', info: 'Collapse Superposition' },
-            { label: 'unique', type: 'keyword', info: 'Unique Results' },
-            { label: 'case', type: 'keyword', info: 'Case Expression' },
-            { label: 'if', type: 'keyword', info: 'Conditional' },
-            { label: 'let', type: 'keyword', info: 'Variable Binding' },
-            { label: 'let*', type: 'keyword', info: 'Sequential Binding' },
-            { label: 'quote', type: 'keyword', info: 'Quote Atom' },
-            { label: 'eval', type: 'keyword', info: 'Evaluate' },
-            { label: 'Cons', type: 'keyword', info: 'List Construction' },
-            { label: 'Nil', type: 'keyword', info: 'Empty List' },
-            { label: 'Atom', type: 'type', info: 'Base Type' },
-            { label: 'Symbol', type: 'type', info: 'Symbol Type' },
-            { label: 'Expression', type: 'type', info: 'Expression Type' },
-            { label: 'Variable', type: 'type', info: 'Variable Type' },
-            { label: 'Grounded', type: 'type', info: 'Grounded Type' },
-            { label: 'let', type: 'keyword', info: 'Variable Binding' },
-            { label: 'let*', type: 'keyword', info: 'Sequential Binding' },
-            { label: 'type', type: 'keyword', info: 'Type Definition' },
-            { label: '->', type: 'keyword', info: 'Function Type' },
-            { label: '!', type: 'keyword', info: 'Execution' },
-            { label: 'import!', type: 'keyword', info: 'Import Module' },
-            { label: 'bind!', type: 'keyword', info: 'Bind Token' },
-            { label: 'get-type', type: 'keyword', info: 'Get Atom Type' },
-            { label: 'assertEqual', type: 'keyword', info: 'Assertion' }
-        ];
+        this.suggestions = AUTOCOMPLETE_SUGGESTIONS;
 
         this.element = document.createElement('div');
         this.element.className = 'autocomplete-popup';
         this.element.style.cssText = `
-            position: absolute;
+            position: fixed; /* Fixed works better with viewport coords from getBoundingClientRect */
             display: none;
             flex-direction: column;
             background: #252526;
             border: 1px solid #454545;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            z-index: 100;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            z-index: 9999;
             max-height: 200px;
             overflow-y: auto;
             border-radius: 4px;
             min-width: 150px;
         `;
 
-        // Append to body or wrapper?
-        // If wrapper has overflow:hidden, body is safer, but positioning is harder.
-        // SmartTextarea wrapper has overflow:hidden (for backdrop).
-        // So we must append to body or a parent.
         document.body.appendChild(this.element);
 
         this.selectedIndex = 0;
@@ -83,6 +38,7 @@ export class AutocompleteManager {
             white-space: pre-wrap; word-wrap: break-word;
             font-family: monospace; font-size: 13px; line-height: 1.5;
             padding: 8px; border: 1px solid transparent;
+            box-sizing: border-box; /* Match textarea default */
         `;
         document.body.appendChild(this.measureDiv);
     }
@@ -97,12 +53,14 @@ export class AutocompleteManager {
         const cursorPos = this.textarea.selectionEnd;
 
         // Find word boundary
-        // Look back from cursor
         const left = text.slice(0, cursorPos);
-        const match = left.match(/([a-zA-Z0-9_\-\>\<\=\!\&\^\|\*]+)$/);
+        // Match standard chars + special chars used in Narsese/MeTTa identifiers
+        // Narsese relations often start with < or -, so we include them
+        const match = left.match(/([a-zA-Z0-9_\-\>\<\=\!\&\^\|\*\.\{\}]+)$/);
 
         if (match) {
             this.currentWord = match[1];
+            // Show only if length >= 1 or specific chars
             if (this.currentWord.length >= 1) {
                 this.show(this.currentWord, cursorPos);
                 return;
@@ -137,7 +95,11 @@ export class AutocompleteManager {
     }
 
     show(prefix, cursorPos) {
+        // Simple filter
         this.matched = this.suggestions.filter(s => s.label.startsWith(prefix) && s.label !== prefix);
+
+        // If no prefix match, maybe fuzzy? For now stick to prefix.
+
         if (this.matched.length === 0) {
             this.hide();
             return;
@@ -170,17 +132,16 @@ export class AutocompleteManager {
             div.appendChild(icon);
 
             const label = document.createElement('span');
-            label.textContent = item.label;
+            // Highlight match part
+            const matchPart = item.label.substring(0, this.currentWord.length);
+            const restPart = item.label.substring(this.currentWord.length);
+            label.innerHTML = `<strong style="color: #fff">${matchPart}</strong>${restPart}`;
             label.style.flex = '1';
-
-            // Highlight match
-            // label.innerHTML = `<strong>${this.currentWord}</strong>${item.label.substring(this.currentWord.length)}`;
-
             div.appendChild(label);
 
             const info = document.createElement('span');
             info.textContent = item.info;
-            info.style.color = '#666';
+            info.style.color = '#888';
             info.style.fontSize = '10px';
             div.appendChild(info);
 
@@ -190,17 +151,19 @@ export class AutocompleteManager {
                 this.insert();
             };
 
+            // Hover effect
+            div.onmouseenter = () => {
+                this.selectedIndex = index;
+                this.renderList(); // Re-render to update background
+            };
+
             this.element.appendChild(div);
         });
 
         // Auto-scroll
         const selected = this.element.children[this.selectedIndex];
         if (selected) {
-            if (selected.offsetTop < this.element.scrollTop) {
-                this.element.scrollTop = selected.offsetTop;
-            } else if (selected.offsetTop + selected.offsetHeight > this.element.scrollTop + this.element.offsetHeight) {
-                this.element.scrollTop = selected.offsetTop + selected.offsetHeight - this.element.offsetHeight;
-            }
+            selected.scrollIntoView({ block: 'nearest' });
         }
     }
 
@@ -209,7 +172,9 @@ export class AutocompleteManager {
             relation: '🔗',
             keyword: '🔑',
             connector: '⚪',
-            operator: '⚙️'
+            operator: '⚙️',
+            type: '🇹',
+            snippet: '✂️'
         };
         return icons[type] || '📄';
     }
@@ -227,22 +192,18 @@ export class AutocompleteManager {
 
         this.textarea.value = before + completion + after;
 
-        // Reset cursor
         const newCursorPos = before.length + completion.length;
         this.textarea.setSelectionRange(newCursorPos, newCursorPos);
 
         this.hide();
-
-        // Trigger input event to update highlighter
         this.textarea.dispatchEvent(new Event('input'));
         this.textarea.focus();
     }
 
     updatePosition(cursorPos) {
-        // Calculate coordinates
-        // 1. Copy styles
+        // 1. Sync styles to measureDiv
         const styles = window.getComputedStyle(this.textarea);
-        ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'padding', 'border', 'width'].forEach(prop => {
+        ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'padding', 'border', 'width', 'boxSizing'].forEach(prop => {
             this.measureDiv.style[prop] = styles[prop];
         });
         this.measureDiv.style.width = this.textarea.clientWidth + 'px';
@@ -250,30 +211,41 @@ export class AutocompleteManager {
         // 2. Set content up to cursor
         const text = this.textarea.value.substring(0, cursorPos);
         const span = document.createElement('span');
-        span.textContent = '|';
+        span.textContent = '|'; // Marker
 
-        this.measureDiv.innerHTML = text.replace(/\n/g, '<br>') // Simple replace might be buggy with whitespace
-            .replace(/ /g, '&nbsp;'); // And spaces
-
-        // Better: TextNode
+        // We need to exactly mimic how textarea renders text, including newlines
+        // Note: textarea pre-wrap handling is subtle.
         this.measureDiv.textContent = text;
         this.measureDiv.appendChild(span);
 
         // 3. Get coordinates
-        const rect = this.textarea.getBoundingClientRect();
-        const spanRect = span.getBoundingClientRect(); // This gives pos relative to viewport because measureDiv is absolute
+        const rect = this.textarea.getBoundingClientRect(); // Viewport relative
+        const spanRect = span.getBoundingClientRect(); // Viewport relative (because measureDiv is in body, but invisible?)
+        // Wait, measureDiv is absolute top/left in body. If body is 0,0, then spanRect is relative to body.
+        // But we want relative to textarea top/left.
+        // Better way: use offsetLeft/Top of span relative to measureDiv.
 
-        // Wait, measureDiv is invisible and somewhere in body.
-        // We need measureDiv to match textarea position?
-        // No, we just need offset inside measureDiv
-
-        const measureRect = this.measureDiv.getBoundingClientRect();
-        const left = span.offsetLeft;
-        const top = span.offsetTop;
+        const markerLeft = span.offsetLeft;
+        const markerTop = span.offsetTop;
 
         // Position popup
-        // It should be relative to textarea on screen
-        this.element.style.left = (rect.left + left) + 'px';
-        this.element.style.top = (rect.top + top + parseInt(styles.lineHeight || 20)) + 'px';
+        // rect.left/top are viewport coords of textarea.
+        // We add marker offset.
+        // We also need to account for textarea scroll.
+        const scrollLeft = this.textarea.scrollLeft;
+        const scrollTop = this.textarea.scrollTop;
+
+        let left = rect.left + markerLeft - scrollLeft;
+        let top = rect.top + markerTop - scrollTop + parseInt(styles.lineHeight || 20);
+
+        // Boundary checks (keep in viewport)
+        if (left + 200 > window.innerWidth) left = window.innerWidth - 210;
+        if (top + 200 > window.innerHeight) {
+            // Show above if not enough space below
+            top = rect.top + markerTop - scrollTop - this.element.offsetHeight;
+        }
+
+        this.element.style.left = `${left}px`;
+        this.element.style.top = `${top}px`;
     }
 }

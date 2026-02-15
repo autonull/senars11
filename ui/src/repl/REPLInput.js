@@ -1,5 +1,7 @@
 import { CommandHistory } from './CommandHistory.js';
 import { SmartTextarea } from './SmartTextarea.js';
+import { Modal } from '../components/ui/Modal.js';
+import { Toolbar } from '../components/ui/Toolbar.js';
 
 export class REPLInput {
     constructor(container, options = {}) {
@@ -12,7 +14,7 @@ export class REPLInput {
 
         this.history = new CommandHistory();
         this.element = null;
-        this.inputBox = null; // Will refer to SmartTextarea instance or element
+        this.inputBox = null;
         this.controls = {};
         this.isRunning = false;
         this.cycleCount = 0;
@@ -29,7 +31,7 @@ export class REPLInput {
 
         // Input Box (SmartTextarea)
         const inputContainer = document.createElement('div');
-        inputContainer.style.position = 'relative'; // For badge positioning
+        inputContainer.style.position = 'relative';
 
         this.smartInput = new SmartTextarea(inputContainer, {
             onExecute: () => this.execute()
@@ -48,11 +50,10 @@ export class REPLInput {
         this.modeBadge.textContent = 'NARS';
         inputContainer.appendChild(this.modeBadge);
 
-        // Event Listeners for history & mode update
         this.smartInput.textarea.addEventListener('keydown', (e) => this._handleKeydown(e));
         this.smartInput.textarea.addEventListener('input', () => this._updateModeBadge());
 
-        // Bottom Toolbar (Run, Demo, Widgets)
+        // Bottom Toolbar
         const toolbar = this._createBottomToolbar();
 
         this.element.appendChild(inputContainer);
@@ -67,56 +68,51 @@ export class REPLInput {
     }
 
     _createControlBar() {
-        const bar = document.createElement('div');
-        bar.style.cssText = 'display: flex; gap: 6px; align-items: center; margin-bottom: 4px;';
+        const wrapper = document.createElement('div');
+        const tb = new Toolbar(wrapper, { style: 'display: flex; gap: 6px; align-items: center; margin-bottom: 4px; background: transparent; padding: 0;' });
 
-        const btnStyle = `padding: 4px 8px; background: #333; color: #fff; border: 1px solid #444; cursor: pointer; border-radius: 3px; font-size: 11px; display: flex; align-items: center; gap: 4px;`;
+        this.controls.playPause = tb.addButton({
+            label: '▶️ Run',
+            onClick: () => this.onControl(this.isRunning ? 'stop' : 'start')
+        });
 
-        this.controls.playPause = document.createElement('button');
-        this.controls.playPause.innerHTML = '▶️ Run';
-        this.controls.playPause.style.cssText = btnStyle;
-        this.controls.playPause.onclick = () => this.onControl(this.isRunning ? 'stop' : 'start');
+        this.controls.step = tb.addButton({
+            label: '⏭️ Step',
+            onClick: () => this.onControl('step')
+        });
 
-        this.controls.step = document.createElement('button');
-        this.controls.step.innerHTML = '⏭️ Step';
-        this.controls.step.style.cssText = btnStyle;
-        this.controls.step.onclick = () => this.onControl('step');
-
-        this.controls.reset = document.createElement('button');
-        this.controls.reset.innerHTML = '🔄 Reset';
-        this.controls.reset.style.cssText = btnStyle;
-        this.controls.reset.onclick = () => confirm('Reset Memory?') && this.onControl('reset');
+        this.controls.reset = tb.addButton({
+            label: '🔄 Reset',
+            onClick: () => Modal.confirm('Reset Memory?').then(yes => yes && this.onControl('reset'))
+        });
 
         this.controls.cycleDisplay = document.createElement('span');
         this.controls.cycleDisplay.style.cssText = 'margin-left: auto; font-family: monospace; font-size: 11px; color: #888;';
         this.controls.cycleDisplay.textContent = 'Cycles: 0';
 
-        bar.append(this.controls.playPause, this.controls.step, this.controls.reset, this.controls.cycleDisplay);
-        return bar;
+        wrapper.firstChild.appendChild(this.controls.cycleDisplay); // Append to toolbar div
+
+        return wrapper;
     }
 
     _createBottomToolbar() {
-        const toolbar = document.createElement('div');
-        toolbar.style.cssText = 'display: flex; gap: 8px; align-items: center; flex-wrap: wrap;';
+        const wrapper = document.createElement('div');
+        const tb = new Toolbar(wrapper, { style: 'display: flex; gap: 8px; align-items: center; background: transparent; padding: 0;' });
 
-        const runBtn = this._createButton('▶️ Execute (Shift+Enter)', '#0e639c', () => this.execute());
-        const clearBtn = this._createButton('🗑️ Clear', '#333', () => this.onClear());
-        const demoBtn = this._createButton('📚 Load Demo', '#5c2d91', () => this.onDemo());
-        demoBtn.title = 'Browse demo library (Ctrl+Shift+D)';
+        tb.addButton({ label: '▶️ Execute (Shift+Enter)', primary: true, onClick: () => this.execute() });
+        tb.addButton({ label: '🗑️ Clear', onClick: () => this.onClear() });
+        tb.addButton({ label: '📚 Load Demo', onClick: () => this.onDemo(), title: 'Browse demo library (Ctrl+Shift+D)' });
+        tb.addButton({ label: '❓', onClick: () => this._showHelp(), title: 'Keyboard Shortcuts (F1)' });
 
-        const helpBtn = this._createButton('❓', '#333', () => this._showHelp());
-        helpBtn.title = 'Keyboard Shortcuts (F1)';
+        const spacer = document.createElement('div');
+        spacer.style.flex = '1';
+        tb.addCustom(spacer);
 
-        const extraTools = document.createElement('div');
-        extraTools.style.cssText = 'display: flex; gap: 4px; border-left: 1px solid #444; padding-left: 12px; margin-left: auto;';
+        tb.addButton({ label: '📝 Text', onClick: () => this.onExtraAction('markdown') });
+        tb.addButton({ label: '🎚️ Slider', onClick: () => this.onExtraAction('slider') });
+        tb.addButton({ label: '📂 Sub-Notebook', onClick: () => this.onExtraAction('subnotebook') });
 
-        const addMdBtn = this._createButton('📝 Text', '#333', () => this.onExtraAction('markdown'));
-        const addSliderBtn = this._createButton('🎚️ Slider', '#333', () => this.onExtraAction('slider'));
-        const addSubNbBtn = this._createButton('📂 Sub-Notebook', '#333', () => this.onExtraAction('subnotebook'));
-
-        extraTools.append(addMdBtn, addSliderBtn, addSubNbBtn);
-        toolbar.append(runBtn, clearBtn, demoBtn, helpBtn, extraTools);
-        return toolbar;
+        return wrapper;
     }
 
     _showHelp() {
@@ -135,60 +131,12 @@ export class REPLInput {
             </div>
         `).join('');
 
-        // Simple modal using alert for now, or create a temporary element
-        // Since we want to be fancy, let's inject a div
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: #252526; border: 1px solid #444; padding: 20px; border-radius: 6px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 10000; min-width: 300px;
-        `;
-
-        modal.innerHTML = `
-            <h3 style="margin-top: 0; color: #fff; border-bottom: 1px solid #444; padding-bottom: 10px;">⌨️ Keyboard Shortcuts</h3>
-            <div style="margin: 15px 0;">${content}</div>
-            <div style="text-align: right;">
-                <button id="close-help-btn" style="padding: 6px 12px; background: #0e639c; color: white; border: none; border-radius: 3px; cursor: pointer;">Close</button>
-            </div>
-        `;
-
-        const backdrop = document.createElement('div');
-        backdrop.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); z-index: 9999;
-        `;
-
-        const close = () => {
-            modal.remove();
-            backdrop.remove();
-        };
-
-        backdrop.onclick = close;
-        document.body.appendChild(backdrop);
-        document.body.appendChild(modal);
-
-        modal.querySelector('#close-help-btn').onclick = close;
-    }
-
-    _createButton(label, bg, onClick) {
-        return REPLInput.createButton(label, bg, onClick);
-    }
-
-    static createButton(label, bg, onClick) {
-        const btn = document.createElement('button');
-        btn.textContent = label;
-        btn.onclick = onClick;
-        btn.style.cssText = `
-            padding: 6px 12px;
-            background: ${bg};
-            color: white;
-            border: none;
-            cursor: pointer;
-            border-radius: 3px;
-            font-size: 11px;
-            font-family: inherit;
-        `;
-        return btn;
+        const modal = new Modal({
+            title: '⌨️ Keyboard Shortcuts',
+            content: content,
+            width: '400px'
+        });
+        modal.show();
     }
 
     updateState(isRunning) {
@@ -261,8 +209,6 @@ export class REPLInput {
         this.onExecute(content);
         this.inputBox.setValue('');
 
-        // Auto-scroll to bottom of notebook when executing from REPL input
-        // This is a bit of a hack reaching into DOM, but simple
         const notebook = document.getElementById('repl-notebook');
         if (notebook) {
             setTimeout(() => notebook.scrollTop = notebook.scrollHeight, 100);

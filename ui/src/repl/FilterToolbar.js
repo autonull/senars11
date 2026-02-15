@@ -17,13 +17,12 @@ export class FilterToolbar {
     render() {
         const toolbar = document.createElement('div');
         toolbar.className = 'filter-toolbar';
-        toolbar.style.cssText = 'padding: 8px; background: #2d2d2d; border-bottom: 1px solid #333; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;';
 
         // Search Input
         const searchInput = document.createElement('input');
         searchInput.type = 'text';
         searchInput.placeholder = '🔍 Search messages...';
-        searchInput.style.cssText = 'flex: 1; min-width: 150px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3c3c3c; padding: 4px 8px; border-radius: 3px; font-size: 0.9em;';
+        searchInput.className = 'filter-search-input';
         searchInput.value = this.messageFilter.searchTerm || '';
         searchInput.oninput = (e) => {
             this.messageFilter.setSearchTerm(e.target.value);
@@ -32,7 +31,7 @@ export class FilterToolbar {
 
         // Category Buttons Container
         const categoryButtons = document.createElement('div');
-        categoryButtons.style.cssText = 'display: flex; gap: 4px; flex-wrap: wrap;';
+        categoryButtons.className = 'filter-btn-group';
 
         Object.entries(MESSAGE_CATEGORIES).forEach(([id, cat]) => {
             const btn = document.createElement('button');
@@ -53,7 +52,7 @@ export class FilterToolbar {
 
         // View Switcher
         const viewGroup = document.createElement('div');
-        viewGroup.style.cssText = 'display: flex; gap: 2px; margin: 0 4px; background: #1e1e1e; padding: 2px; border-radius: 4px;';
+        viewGroup.className = 'filter-view-group';
 
         ['list', 'grid', 'icon', 'graph'].forEach(mode => {
             const btn = document.createElement('button');
@@ -72,54 +71,34 @@ export class FilterToolbar {
 
         // Action Buttons Group
         const actionGroup = document.createElement('div');
-        actionGroup.style.cssText = 'display: flex; gap: 4px; margin-left: 4px; border-left: 1px solid #444; padding-left: 4px;';
+        actionGroup.className = 'filter-action-group';
 
         // Collapse All Button
-        const collapseAllBtn = document.createElement('button');
-        collapseAllBtn.innerHTML = '🔽';
-        collapseAllBtn.title = 'Collapse All Results';
-        collapseAllBtn.style.cssText = 'padding: 4px 8px; background: #333; color: #ccc; border: 1px solid #444; cursor: pointer; border-radius: 3px; font-size: 0.85em;';
-        collapseAllBtn.onclick = () => {
+        const collapseAllBtn = this._createBtn('🔽', 'Collapse All Results', () => {
              this.messageFilter.getAllCategories().forEach(cat => {
                  this.messageFilter.setCategoryMode(cat.id, VIEW_MODES.COMPACT);
              });
              this.refresh();
              this.onFilterChange();
-        };
+        });
 
         // Expand All Button
-        const expandAllBtn = document.createElement('button');
-        expandAllBtn.innerHTML = '🔼';
-        expandAllBtn.title = 'Expand All Results';
-        expandAllBtn.style.cssText = 'padding: 4px 8px; background: #333; color: #ccc; border: 1px solid #444; cursor: pointer; border-radius: 3px; font-size: 0.85em;';
-        expandAllBtn.onclick = () => {
+        const expandAllBtn = this._createBtn('🔼', 'Expand All Results', () => {
              this.messageFilter.getAllCategories().forEach(cat => {
                  this.messageFilter.setCategoryMode(cat.id, VIEW_MODES.FULL);
              });
              this.refresh();
              this.onFilterChange();
-        };
+        });
 
         // Run All Button
-        const runAllBtn = document.createElement('button');
-        runAllBtn.innerHTML = '▶️▶️';
-        runAllBtn.title = 'Run All Cells';
-        runAllBtn.style.cssText = 'padding: 4px 8px; background: #0e639c; color: #fff; border: 1px solid #444; cursor: pointer; border-radius: 3px; font-size: 0.85em;';
-        runAllBtn.onclick = () => this.onRunAll();
+        const runAllBtn = this._createBtn('▶️▶️', 'Run All Cells', () => this.onRunAll(), 'primary');
 
         // Clear Outputs Button
-        const clearBtn = document.createElement('button');
-        clearBtn.innerHTML = '🧹';
-        clearBtn.title = 'Clear Outputs';
-        clearBtn.style.cssText = 'padding: 4px 8px; background: #333; color: #ccc; border: 1px solid #444; cursor: pointer; border-radius: 3px; font-size: 0.85em;';
-        clearBtn.onclick = () => this.onClearOutputs();
+        const clearBtn = this._createBtn('🧹', 'Clear Outputs', () => this.onClearOutputs());
 
         // Import Button
-        const importBtn = document.createElement('button');
-        importBtn.innerHTML = '📂 Import';
-        importBtn.title = 'Import notebook';
-        importBtn.style.cssText = 'padding: 4px 8px; background: #333; color: #ccc; border: 1px solid #444; cursor: pointer; border-radius: 3px; font-size: 0.85em;';
-
+        const importBtn = this._createBtn('📂 Import', 'Import notebook', null);
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.accept = '.json';
@@ -133,11 +112,7 @@ export class FilterToolbar {
         importBtn.onclick = () => fileInput.click();
 
         // Export Button
-        const exportBtn = document.createElement('button');
-        exportBtn.innerHTML = '💾 Export';
-        exportBtn.title = 'Export notebook';
-        exportBtn.style.cssText = 'padding: 4px 8px; background: #333; color: #ccc; border: 1px solid #444; cursor: pointer; border-radius: 3px; font-size: 0.85em;';
-        exportBtn.onclick = () => this.onExport();
+        const exportBtn = this._createBtn('💾 Export', 'Export notebook', () => this.onExport());
 
         actionGroup.append(collapseAllBtn, expandAllBtn, runAllBtn, clearBtn, importBtn, exportBtn, fileInput);
 
@@ -148,6 +123,15 @@ export class FilterToolbar {
 
         this.element = toolbar;
         return toolbar;
+    }
+
+    _createBtn(html, title, onClick, extraClass = '') {
+        const btn = document.createElement('button');
+        btn.innerHTML = html;
+        btn.title = title;
+        btn.className = `toolbar-btn ${extraClass}`;
+        if (onClick) btn.onclick = onClick;
+        return btn;
     }
 
     updateViewButtons(container) {
@@ -172,6 +156,7 @@ export class FilterToolbar {
 
         btn.innerHTML = `${cat.icon} ${cat.label} ${isCompact ? '🔹' : isHidden ? '👁️‍🗨️' : ''}`;
 
+        // Dynamic styles for category buttons usually remain inline due to dynamic colors
         btn.style.cssText = `
             padding: 4px 8px;
             background: ${!isHidden ? cat.color : '#333'};
@@ -187,12 +172,10 @@ export class FilterToolbar {
         `;
     }
 
-    // Call this if filters change externally
     refresh() {
         if (!this.element) return;
         this.buttons.forEach((btn, id) => {
             this.updateButtonStyle(btn, id, this.messageFilter.getCategoryMode(id));
         });
-        // Update search input if needed?
     }
 }

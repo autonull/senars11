@@ -1,0 +1,129 @@
+/* FilterToolbar Styles */
+.filter-toolbar {
+    padding: 8px;
+    background: #2d2d2d;
+    border-bottom: 1px solid #333;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.filter-search-input {
+    flex: 1;
+    min-width: 150px;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border: 1px solid #3c3c3c;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+.filter-btn-group {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.filter-view-group {
+    display: flex;
+    gap: 2px;
+    margin: 0 4px;
+    background: #1e1e1e;
+    padding: 2px;
+    border-radius: 4px;
+}
+
+.filter-action-group {
+    display: flex;
+    gap: 4px;
+    margin-left: 4px;
+    border-left: 1px solid #444;
+    padding-left: 4px;
+}
+
+.toolbar-btn {
+    padding: 4px 8px;
+    background: #333;
+    color: #ccc;
+    border: 1px solid #444;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 0.85em;
+}
+
+.toolbar-btn.primary {
+    background: #0e639c;
+    color: #fff;
+}
+
+/* SettingsPanel Styles */
+.settings-container {
+    overflow: auto;
+    padding: 10px;
+    font-family: var(--font-mono);
+}
+
+.settings-section {
+    margin-bottom: 15px;
+}
+
+.settings-header {
+    color: var(--text-muted);
+    font-size: 12px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+    margin-bottom: 8px;
+}
+
+.setting-item {
+    margin-bottom: 8px;
+}
+
+.setting-label {
+    display: block;
+    font-size: 11px;
+    color: #aaa;
+    margin-bottom: 4px;
+}
+
+.setting-label-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #aaa;
+}
+
+.setting-input, .setting-select {
+    width: 100%;
+    background: var(--bg-input);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+}
+
+.setting-color-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.reset-btn {
+    width: 100%;
+    border: 1px solid var(--accent-error);
+    color: var(--accent-error);
+    padding: 4px;
+    background: transparent;
+    cursor: pointer;
+}
+
+.apply-btn {
+    width: 100%;
+    padding: 8px;
+    background: var(--accent-primary);
+    color: #000;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+}

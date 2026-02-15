@@ -53,6 +53,46 @@ export class GraphManager {
         this.cy.layout(Config.getGraphLayout(name)).run();
     }
 
+    applyFilters(filters) {
+        if (!this.cy) return;
+        this.filters = { ...this.filters, ...filters };
+
+        this.cy.batch(() => {
+            const nodes = this.cy.nodes();
+            nodes.forEach(node => {
+                const data = node.data('fullData');
+                let visible = true;
+
+                // Type Filter
+                const type = node.data('type');
+                if (type === 'task' && !this.filters.showTasks) visible = false;
+
+                // Priority Filter
+                if (visible && data && data.budget) {
+                    if (data.budget.priority < this.filters.minPriority) visible = false;
+                }
+
+                if (visible) {
+                    node.style('display', 'element');
+                } else {
+                    node.style('display', 'none');
+                }
+            });
+        });
+    }
+
+    focusNode(nodeId) {
+        const node = this.cy?.getElementById(nodeId);
+        if (node?.length) {
+            this.cy.animate({
+                center: { eles: node },
+                zoom: 2,
+                duration: 500
+            });
+            this.highlightNode(node);
+        }
+    }
+
     toggleTraceMode(nodeId) {
         if (!this.cy) return;
 
@@ -88,7 +128,7 @@ export class GraphManager {
 
     _handleKeyboardEvent(e) {
         if (!this.cy) return;
-        const nodes = this.cy.nodes();
+        const nodes = this.cy.nodes(':visible'); // Only navigate visible nodes
         if (nodes.length === 0) return;
 
         switch (e.key) {
@@ -110,13 +150,12 @@ export class GraphManager {
     _navigateNeighbors(nodes) {
         const { selectedNode } = this.kbState;
         if (selectedNode) {
-            const connected = selectedNode.neighborhood('node');
+            const connected = selectedNode.neighborhood('node:visible');
             if (connected.length > 0) {
                 const nextNode = connected[0];
                 this.kbState.selectedNode = nextNode;
-                let idx = -1;
-                for(let i=0; i<nodes.length; i++) { if(nodes[i].id() === nextNode.id()) { idx = i; break; } }
-                this.kbState.index = idx >= 0 ? idx : 0;
+                // Find index in current visible set for consistency if switching to cycle
+                // Implementation detail, mostly for _cycleNodes continuity
                 this.highlightNode(nextNode);
             }
         } else {

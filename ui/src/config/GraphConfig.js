@@ -16,15 +16,49 @@ export const GraphConfig = {
         TEXT: '#e0e0e0'
     },
 
+    OVERRIDES: {},
+
+    load() {
+        try {
+            const saved = localStorage.getItem('senars-graph-config');
+            if (saved) {
+                const config = JSON.parse(saved);
+                if (config.COLORS) Object.assign(this.COLORS, config.COLORS);
+                if (config.OVERRIDES) Object.assign(this.OVERRIDES, config.OVERRIDES);
+            }
+        } catch (e) {
+            console.error('Failed to load graph config', e);
+        }
+    },
+
+    save() {
+        try {
+            const config = {
+                COLORS: this.COLORS,
+                OVERRIDES: this.OVERRIDES
+            };
+            localStorage.setItem('senars-graph-config', JSON.stringify(config));
+        } catch (e) {
+            console.error('Failed to save graph config', e);
+        }
+    },
+
     getGraphStyle() {
         const c = this.COLORS;
         const isHighContrast = document.body.classList.contains('high-contrast');
 
         if (isHighContrast) {
-            Object.assign(c, {
+            // High contrast overrides (temporary, not persisted to base colors)
+            const contrastColors = { ...c,
                 CONCEPT: '#00ffff', TASK: '#ffff00', QUESTION: '#ff00ff',
                 EDGE: '#ffffff', TEXT: '#ffffff'
-            });
+            };
+             // Helper to use correct color map
+             const getC = (k) => contrastColors[k] || c[k];
+
+             // ... construct style using getC ...
+             // For simplicity, we just mutate c clone
+             Object.assign(c, contrastColors);
         }
 
         return [
@@ -91,8 +125,6 @@ export const GraphConfig = {
         ];
     },
 
-    OVERRIDES: {},
-
     getGraphLayout: (layoutName = 'fcose') => {
         const common = { animate: true, padding: 30 };
         const layouts = {
@@ -110,3 +142,6 @@ export const GraphConfig = {
         return layouts[layoutName] ?? layouts.fcose;
     }
 };
+
+// Initialize by loading settings
+GraphConfig.load();

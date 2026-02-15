@@ -5,6 +5,9 @@ import { SmartTextarea } from './SmartTextarea.js';
 import { ConceptCard } from '../components/ConceptCard.js';
 import { TaskCard } from '../components/TaskCard.js';
 import { marked } from 'marked';
+import { Toast } from '../components/ui/Toast.js';
+import { Modal } from '../components/ui/Modal.js';
+import { Toolbar } from '../components/ui/Toolbar.js';
 
 /**
  * Base class for REPL cells
@@ -27,6 +30,7 @@ export class REPLCell {
     }
 
     _createActionBtn(icon, title, onClick) {
+        // Keeping this for non-Toolbar usages (like absolute positioned actions)
         const btn = document.createElement('button');
         btn.innerHTML = icon;
         btn.title = title;
@@ -48,6 +52,8 @@ export class CodeCell extends REPLCell {
         this.onExecute = onExecute;
         this.isEditing = true;
         this.executionCount = null;
+        this.lastRunTime = null;
+        this.isCollapsed = false;
     }
 
     destroy() {
@@ -59,6 +65,7 @@ export class CodeCell extends REPLCell {
         this.element = document.createElement('div');
         this.element.className = 'repl-cell code-cell';
         this.element.dataset.cellId = this.id;
+        this.element.draggable = true;
         this.element.style.cssText = `
             margin-bottom: 12px;
             border: 1px solid #3c3c3c;
@@ -69,10 +76,12 @@ export class CodeCell extends REPLCell {
             position: relative;
         `;
 
-        this.element.appendChild(this._createToolbar());
+        this.toolbar = this._createToolbar();
+        this.element.appendChild(this.toolbar);
 
         const body = document.createElement('div');
         body.style.display = 'flex';
+        this.body = body;
 
         // Execution Count Gutter
         this.gutter = document.createElement('div');
@@ -81,6 +90,7 @@ export class CodeCell extends REPLCell {
             width: 50px; flex-shrink: 0; background: #252526; color: #888;
             font-family: monospace; font-size: 0.85em; text-align: right; padding: 10px 5px;
             border-right: 1px solid #3c3c3c; user-select: none;
+            cursor: move;
         `;
         this._updateGutter();
         body.appendChild(this.gutter);
@@ -103,6 +113,12 @@ export class CodeCell extends REPLCell {
     }
 
     updateMode() {
+        if (this.isCollapsed) {
+            this.body.style.display = 'none';
+            return;
+        }
+        this.body.style.display = 'flex';
+
         this.editorContainer.innerHTML = '';
         if (this.isEditing) {
             this.editorContainer.appendChild(this._createEditor());
@@ -116,7 +132,6 @@ export class CodeCell extends REPLCell {
         const preview = document.createElement('div');
         preview.className = 'code-preview';
 
-        // Simple heuristic for language detection
         const trimmed = this.content.trim();
         const isMetta = trimmed.startsWith('(') || trimmed.startsWith(';') || trimmed.startsWith('!');
         const language = isMetta ? 'metta' : 'narsese';
@@ -136,54 +151,56 @@ export class CodeCell extends REPLCell {
     }
 
     _createToolbar() {
-        const toolbar = document.createElement('div');
-        toolbar.className = 'cell-toolbar';
-        toolbar.style.cssText = `
-            padding: 4px 8px;
-            background: #252526;
-            border-bottom: 1px solid #3c3c3c;
-            display: flex; gap: 8px; align-items: center; font-size: 0.85em;
-        `;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'cell-toolbar';
+        const tb = new Toolbar(wrapper, { style: 'display: flex; gap: 8px; align-items: center; padding: 4px 8px; background: #252526; border-bottom: 1px solid #3c3c3c;' });
 
         const label = document.createElement('span');
         label.textContent = '💻 Code';
         label.style.color = '#888';
+        label.style.fontSize = '0.85em';
+        tb.addCustom(label);
 
-        const runBtn = this._createButton('▶️', 'Run', '#0e639c', () => this.execute());
+        tb.addButton({ label: '▶️', title: 'Run', primary: true, onClick: () => this.execute() });
 
-        const toggleBtn = this._createButton(this.isEditing ? '👁️' : '✏️', 'Toggle View', '#333', () => {
-            this.isEditing = !this.isEditing;
-            this.updateMode();
-            // Update button label
-            toggleBtn.innerHTML = this.isEditing ? '👁️' : '✏️';
+        const toggleBtn = tb.addButton({
+            label: this.isEditing ? '👁️' : '✏️',
+            title: 'Toggle View',
+            onClick: () => {
+                this.isEditing = !this.isEditing;
+                this.updateMode();
+                toggleBtn.innerHTML = this.isEditing ? '👁️' : '✏️';
+            }
         });
 
-        const upBtn = this._createButton('⬆️', 'Move Up', '#333', () => this.onMoveUp?.(this));
-        const downBtn = this._createButton('⬇️', 'Move Down', '#333', () => this.onMoveDown?.(this));
-        const dupBtn = this._createButton('📑', 'Duplicate', '#333', () => this.onDuplicate?.(this));
-        const addCodeBtn = this._createButton('➕ Code', 'Insert Code Below', '#333', () => this.onInsertAfter?.('code'));
-        const addMdBtn = this._createButton('➕ Text', 'Insert Text Below', '#333', () => this.onInsertAfter?.('markdown'));
+        const collapseBtn = tb.addButton({
+            label: this.isCollapsed ? '🔽' : '🔼',
+            title: 'Collapse/Expand',
+            onClick: () => {
+                this.isCollapsed = !this.isCollapsed;
+                this.updateMode();
+                collapseBtn.innerHTML = this.isCollapsed ? '🔽' : '🔼';
+            }
+        });
 
-        const deleteBtn = this._createButton('🗑️', 'Delete', '#b30000', () => this.delete());
-        deleteBtn.style.marginLeft = 'auto';
+        tb.addButton({ label: '⬆️', title: 'Move Up', onClick: () => this.onMoveUp?.(this) });
+        tb.addButton({ label: '⬇️', title: 'Move Down', onClick: () => this.onMoveDown?.(this) });
+        tb.addButton({ label: '📑', title: 'Duplicate', onClick: () => this.onDuplicate?.(this) });
+        tb.addButton({ label: '➕ Code', title: 'Insert Code Below', onClick: () => this.onInsertAfter?.('code') });
+        tb.addButton({ label: '➕ Text', title: 'Insert Text Below', onClick: () => this.onInsertAfter?.('markdown') });
 
-        toolbar.append(label, runBtn, toggleBtn, upBtn, downBtn, dupBtn, addCodeBtn, addMdBtn, deleteBtn);
-        return toolbar;
-    }
+        // Time Label
+        this.timeLabel = document.createElement('span');
+        this.timeLabel.style.cssText = 'margin-left: auto; color: #666; font-size: 0.8em; font-family: monospace;';
+        tb.addCustom(this.timeLabel);
 
-    _createButton(icon, title, bg, onClick) {
-        const btn = document.createElement('button');
-        btn.innerHTML = icon;
-        btn.title = title;
-        btn.style.cssText = `padding: 2px 8px; background: ${bg}; color: white; border: none; cursor: pointer; border-radius: 2px;`;
-        btn.onclick = onClick;
-        return btn;
+        tb.addButton({ label: '🗑️', title: 'Delete', className: 'btn-danger', style: 'margin-left: 4px; background: #b30000; color: white; border: none;', onClick: () => this.delete() });
+
+        return wrapper;
     }
 
     _createEditor() {
         const wrapper = document.createElement('div');
-        // wrapper.style.padding = '10px'; // SmartTextarea handles padding
-
         this.smartEditor = new SmartTextarea(wrapper, {
             rows: Math.max(3, this.content.split('\n').length),
             autoResize: true,
@@ -197,7 +214,6 @@ export class CodeCell extends REPLCell {
              this.content = this.smartEditor.getValue();
         });
 
-        // Border highlighting
         this.smartEditor.textarea.addEventListener('focus', () => this.element.style.borderColor = '#007acc');
         this.smartEditor.textarea.addEventListener('blur', () => this.element.style.borderColor = '#3c3c3c');
 
@@ -208,16 +224,26 @@ export class CodeCell extends REPLCell {
         if (this.onExecute && this.content.trim()) {
             this.isEditing = false;
             this.updateMode();
+
+            // Timestamp
+            const now = new Date();
+            this.lastRunTime = now;
+            if (this.timeLabel) {
+                this.timeLabel.textContent = `Run at ${now.toLocaleTimeString()}`;
+            }
+
             this.onExecute(this.content, this, options);
             this._updateGutter();
         }
     }
 
     delete() {
-        if (confirm('Delete this cell?')) {
-            this.destroy();
-            this.onDelete?.(this);
-        }
+        Modal.confirm('Delete this cell?').then(yes => {
+            if (yes) {
+                this.destroy();
+                this.onDelete?.(this);
+            }
+        });
     }
 
     focus() {
@@ -312,6 +338,7 @@ export class ResultCell extends REPLCell {
         this.element.className = 'repl-cell result-cell';
         this.element.dataset.cellId = this.id;
         this.element.dataset.category = this.category;
+        this.element.draggable = true;
 
         this.updateViewMode(this.viewMode);
         return this.element;
@@ -340,7 +367,6 @@ export class ResultCell extends REPLCell {
         this.element.onclick = () => this.updateViewMode(VIEW_MODES.FULL);
         this.element.title = "Click to expand";
 
-        // Special handling for Cards in compact mode
         if (this.category === 'concept' && typeof this.content === 'object') {
             this.element.style.cssText = 'margin-bottom: 1px;';
             new ConceptCard(this.element, this.content, { compact: true }).render();
@@ -352,7 +378,6 @@ export class ResultCell extends REPLCell {
             return;
         }
 
-        // Standard Compact View
         this.element.style.cssText = `
             margin-bottom: 2px; padding: 2px 6px; border-left: 3px solid ${color};
             background: rgba(0,0,0,0.2); border-radius: 2px; display: flex;
@@ -375,10 +400,7 @@ export class ResultCell extends REPLCell {
 
         if (previewText.length > 120) previewText = previewText.substring(0, 120) + '...';
 
-        // Highlight logic for compact text?
-        // Simple highlighting for better readability
         if (this.category === 'reasoning') {
-             // Try to highlight inference rule
              preview.innerHTML = previewText.replace(/(\w+)(\:)/, '<span style="color:#00d4ff">$1</span>$2');
         } else {
              preview.textContent = previewText;
@@ -391,27 +413,18 @@ export class ResultCell extends REPLCell {
         this.element.onclick = null;
         this.element.innerHTML = '';
 
-        // Shared Actions Toolbar
         const actions = this._createActionsToolbar(catInfo);
         this.element.appendChild(actions);
 
-        // Handle specialized cards (avoid double borders)
         if ((this.category === 'concept' || this.category === 'task') && typeof this.content === 'object') {
             this.element.style.cssText = 'margin-bottom: 8px; position: relative;';
-            // Wrapper for card to ensure it sits below actions
             const cardWrapper = document.createElement('div');
-            // Add top margin if actions interfere? Actions are absolute, top right.
-            // Cards have their own structure.
-            // Let's rely on card rendering.
-
             if (this.category === 'concept') new ConceptCard(cardWrapper, this.content).render();
             else new TaskCard(cardWrapper, this.content).render();
-
             this.element.appendChild(cardWrapper);
             return;
         }
 
-        // Standard Full View
         this.element.style.cssText = `
             margin-bottom: 8px; padding: 8px; border-left: 3px solid ${color};
             background: rgba(255, 255, 255, 0.03); border-radius: 4px; position: relative;
@@ -423,9 +436,7 @@ export class ResultCell extends REPLCell {
         if (typeof this.content === 'string') {
             contentDiv.innerHTML = NarseseHighlighter.highlight(this.content);
         } else if (this.category === 'derivation') {
-             // Placeholder for Derivation Tree visualization
              contentDiv.innerHTML = `<div style="padding:10px; border:1px dashed #444; text-align:center;">🌲 Derivation Tree Visualization (Coming Soon)</div>`;
-             // Show raw data for now
              const raw = document.createElement('pre');
              raw.textContent = JSON.stringify(this.content, null, 2);
              contentDiv.appendChild(raw);
@@ -457,7 +468,7 @@ export class ResultCell extends REPLCell {
         });
 
         const infoBtn = this._createActionBtn('ℹ️', 'Details', () => {
-            alert(`Type: ${catInfo.label}\nTime: ${new Date(this.timestamp).toLocaleString()}\nCategory: ${this.category}`);
+            Modal.alert(`Type: ${catInfo.label}<br>Time: ${new Date(this.timestamp).toLocaleString()}<br>Category: ${this.category}`, 'Cell Info');
         });
 
         actions.append(copyBtn, infoBtn, collapseBtn);
@@ -472,13 +483,14 @@ export class MarkdownCell extends REPLCell {
     constructor(content = '') {
         super('markdown', content);
         this.isEditing = false;
-        this.onUpdate = null; // Callback for updates
+        this.onUpdate = null;
     }
 
     render() {
         this.element = document.createElement('div');
         this.element.className = 'repl-cell markdown-cell';
         this.element.dataset.cellId = this.id;
+        this.element.draggable = true;
         this.element.style.cssText = `
             margin-bottom: 12px;
             padding: 8px;
@@ -554,10 +566,11 @@ export class WidgetCell extends REPLCell {
     render() {
         this.element = document.createElement('div');
         this.element.className = 'repl-cell widget-cell';
+        this.element.draggable = true;
         this.element.style.cssText = 'margin-bottom: 12px; border: 1px solid #333; background: #1e1e1e; border-radius: 4px; padding: 10px;';
 
         const header = document.createElement('div');
-        header.style.cssText = 'display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px;';
+        header.style.cssText = 'display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; cursor: move;';
         header.innerHTML = `<span>🧩 ${this.widgetType}</span>`;
 
         const closeBtn = this._createActionBtn('✖️', 'Remove', () => this.destroy());
@@ -569,8 +582,6 @@ export class WidgetCell extends REPLCell {
         this.element.append(header, content);
 
         if (this.widgetType === 'SubNotebook') {
-             // SubNotebook is special, handles its own logic/creation for now
-             // Or we could create a SubNotebookWidget wrapper class and register it.
              const nestedManager = new NotebookManager(content, {
                  onExecute: (text, cell, options) => {
                      console.log('Nested execution:', text);
@@ -579,8 +590,6 @@ export class WidgetCell extends REPLCell {
              this.widgetInstance = nestedManager;
              nestedManager.createCodeCell('(print "Hello Nested World")');
         } else {
-            // Use WidgetFactory for standard widgets
-            // normalize config
             let config = this.content;
             if (this.widgetType === 'TruthSlider') {
                 config = {
@@ -614,10 +623,13 @@ export class NotebookManager {
         this.saveTimeout = null;
         this.storageKey = 'senars-notebook-content';
         this.defaultOnExecute = options.onExecute || null;
-        this.viewMode = 'list'; // list, grid, graph
+        this.viewMode = 'list';
         this.viewContainer = document.createElement('div');
         this.viewContainer.style.cssText = 'height: 100%; width: 100%; position: relative;';
         this.container.appendChild(this.viewContainer);
+
+        this.dragSrcEl = null;
+
         this.switchView('list');
     }
 
@@ -629,16 +641,75 @@ export class NotebookManager {
         if (mode === 'list') {
             this.viewContainer.style.overflowY = 'auto';
             this.viewContainer.style.display = 'block';
-            this.cells.forEach(cell => this.viewContainer.appendChild(cell.render()));
+            this.cells.forEach(cell => {
+                const el = cell.render();
+                this._addDnDListeners(el, cell);
+                this.viewContainer.appendChild(el);
+            });
         } else if (mode === 'grid') {
             this._renderGridView(false);
         } else if (mode === 'icon') {
             this._renderGridView(true);
         } else if (mode === 'graph') {
              this.viewContainer.style.overflow = 'hidden';
-             // Graph logic will be initialized here or via a dedicated method
              this._initGraphView();
         }
+    }
+
+    _addDnDListeners(el, cell) {
+        el.addEventListener('dragstart', (e) => {
+            this.dragSrcEl = el;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', cell.id);
+            el.style.opacity = '0.4';
+            el.classList.add('dragging');
+        });
+
+        el.addEventListener('dragover', (e) => {
+            if (e.preventDefault) e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            el.classList.add('drag-over');
+            return false;
+        });
+
+        el.addEventListener('dragenter', (e) => {
+            el.classList.add('drag-over');
+        });
+
+        el.addEventListener('dragleave', (e) => {
+            el.classList.remove('drag-over');
+        });
+
+        el.addEventListener('dragend', (e) => {
+            el.style.opacity = '1';
+            el.classList.remove('dragging');
+            this.cells.forEach(c => c.element?.classList.remove('drag-over'));
+        });
+
+        el.addEventListener('drop', (e) => {
+            if (e.stopPropagation) e.stopPropagation();
+
+            const srcId = e.dataTransfer.getData('text/plain');
+            const srcCell = this.cells.find(c => c.id === srcId);
+            const targetCell = cell;
+
+            if (srcCell && srcCell !== targetCell) {
+                const srcIndex = this.cells.indexOf(srcCell);
+                const targetIndex = this.cells.indexOf(targetCell);
+
+                this.cells.splice(srcIndex, 1);
+                this.cells.splice(targetIndex, 0, srcCell);
+
+                if (srcIndex < targetIndex) {
+                    targetCell.element.after(srcCell.element);
+                } else {
+                    targetCell.element.before(srcCell.element);
+                }
+
+                this.triggerSave();
+            }
+            return false;
+        });
     }
 
     _renderGridView(isIconMode) {
@@ -706,7 +777,6 @@ export class NotebookManager {
         cyContainer.style.cssText = 'width: 100%; height: 100%; background: #1e1e1e;';
         this.viewContainer.appendChild(cyContainer);
 
-        // Nodes for Cells
         const cellNodes = this.cells.map((cell, index) => ({
             group: 'nodes',
             data: {
@@ -718,18 +788,12 @@ export class NotebookManager {
             }
         }));
 
-        // Parse content to find shared terms
         const termNodes = new Map();
         const termEdges = [];
 
         this.cells.forEach(cell => {
             const text = typeof cell.content === 'string' ? cell.content : JSON.stringify(cell.content);
             if (!text) return;
-
-            // Heuristic extraction of terms
-            // Matches Narsese: <term --> term> or MeTTa: (Concept "term")
-            // Simple approach: word tokens > 3 chars
-            // Better: use regex for common patterns
 
             const narsTerms = text.match(/<([^>]+)>/g) || [];
             narsTerms.forEach(t => {
@@ -740,7 +804,6 @@ export class NotebookManager {
                 termEdges.push({ group: 'edges', data: { source: cell.id, target: `term_${term}`, label: 'refs', type: 'ref' } });
             });
 
-            // MeTTa symbols (heuristic)
             const mettaSymbols = text.match(/\(([^)\s]+)/g) || [];
             mettaSymbols.forEach(s => {
                 const sym = s.substring(1);
@@ -754,7 +817,6 @@ export class NotebookManager {
         });
 
         const edges = [];
-        // Sequential edges
         for (let i = 0; i < this.cells.length - 1; i++) {
             edges.push({
                 group: 'edges',
@@ -819,12 +881,11 @@ export class NotebookManager {
                 }
             ],
             layout: {
-                name: 'fcose', // Use force-directed if available
+                name: 'fcose',
                 animate: true
             }
         });
 
-        // Fallback layout if fcose not registered or fails
         try {
             this.cy.layout({ name: 'fcose', animate: true }).run();
         } catch (e) {
@@ -844,8 +905,6 @@ export class NotebookManager {
                     }, 100);
                 }
             } else {
-                // It's a term node, maybe filter list view?
-                // For now, highlight connected cells
                 const connected = evt.target.neighborhood();
                 this.cy.elements().removeClass('highlight');
                 connected.addClass('highlight');
@@ -853,12 +912,10 @@ export class NotebookManager {
             }
         });
 
-        // Add hover effects for details?
         this.cy.on('mouseover', 'node', (evt) => {
             const container = this.viewContainer;
             const data = evt.target.data();
 
-            // Simple tooltip
             const tip = document.createElement('div');
             tip.className = 'graph-tooltip';
             tip.style.cssText = `
@@ -877,7 +934,6 @@ export class NotebookManager {
             container.appendChild(tip);
 
             const moveHandler = (e) => {
-                 // Mouse relative to container?
                  const rect = container.getBoundingClientRect();
                  tip.style.left = (e.clientX - rect.left + 10) + 'px';
                  tip.style.top = (e.clientY - rect.top + 10) + 'px';
@@ -893,9 +949,8 @@ export class NotebookManager {
     }
 
     _updateGraphData() {
-        // Debounce update or just full re-render for prototype
         if (this.viewMode === 'graph') {
-             this.switchView('graph'); // Re-init for now
+             this.switchView('graph');
         }
     }
 
@@ -903,12 +958,11 @@ export class NotebookManager {
         this.cells.push(cell);
 
         if (this.viewMode === 'list') {
-            this.viewContainer.appendChild(cell.render());
+            const el = cell.render();
+            this._addDnDListeners(el, cell);
+            this.viewContainer.appendChild(el);
             this.scrollToBottom();
         } else {
-             // For Grid/Icon/Graph, easier to just re-render or append.
-             // But _renderGridView clears container.
-             // Let's just trigger a refresh of current view logic
              this.switchView(this.viewMode);
         }
 
@@ -924,10 +978,7 @@ export class NotebookManager {
     }
 
     createCodeCell(content = '', onExecute = null) {
-        // Use provided handler or default
         const executeHandler = onExecute || this.defaultOnExecute;
-
-        // Wrap execute to update execution count and handle focus
         const wrappedExecute = (content, cellInstance, options) => {
             this.executionCount++;
             cellInstance.executionCount = this.executionCount;
@@ -941,8 +992,6 @@ export class NotebookManager {
     }
 
     createResultCell(content, category = 'result', viewMode = VIEW_MODES.FULL) {
-        // Result cells are transient usually, but we might want to save them?
-        // For now, let's save them too.
         return this.addCell(new ResultCell(content, category, viewMode));
     }
 
@@ -978,9 +1027,8 @@ export class NotebookManager {
         if (index > -1) this.cells.splice(index, 1);
 
         if (this.viewMode === 'list') {
-            cell.element?.remove(); // Just remove element, destroy is called below
+            cell.element?.remove();
         } else {
-             // Re-render whole view for grid/graph simplicity for now
              this.switchView(this.viewMode);
         }
 
@@ -991,7 +1039,6 @@ export class NotebookManager {
     moveCellUp(cell) {
         const index = this.cells.indexOf(cell);
         if (index > 0) {
-            // Swap in array
             this.cells.splice(index, 1);
             this.cells.splice(index - 1, 0, cell);
 
@@ -1026,7 +1073,6 @@ export class NotebookManager {
     handleCellExecution(cell, options = {}) {
         if (options.advance) {
             const index = this.cells.indexOf(cell);
-            // Check if there is a next code cell (skip results)
             let nextIndex = index + 1;
             while(nextIndex < this.cells.length && !(this.cells[nextIndex] instanceof CodeCell)) {
                 nextIndex++;
@@ -1035,9 +1081,7 @@ export class NotebookManager {
             if (nextIndex < this.cells.length) {
                 this.cells[nextIndex].focus();
             } else {
-                // Create new cell if at end
                 const newCell = this.createCodeCell('', cell.onExecute);
-                // createCodeCell calls addCell which appends, so focus it
                 newCell.focus();
             }
         }
@@ -1046,7 +1090,6 @@ export class NotebookManager {
     moveCellDown(cell) {
         const index = this.cells.indexOf(cell);
         if (index > -1 && index < this.cells.length - 1) {
-            // Swap in array
             this.cells.splice(index, 1);
             this.cells.splice(index + 1, 0, cell);
 
@@ -1065,7 +1108,7 @@ export class NotebookManager {
     duplicateCell(cell) {
         if (cell instanceof CodeCell) {
             const newCell = this.createCodeCell(cell.content, cell.onExecute);
-            this.removeCell(newCell); // Remove from end
+            this.removeCell(newCell);
 
             const index = this.cells.indexOf(cell);
             this.cells.splice(index + 1, 0, newCell);
@@ -1119,7 +1162,6 @@ export class NotebookManager {
     }
 
     clearOutputs() {
-        // Filter out result and widget cells
         const toRemove = this.cells.filter(c => c instanceof ResultCell || c instanceof WidgetCell);
         toRemove.forEach(c => this.removeCell(c));
     }
@@ -1158,22 +1200,18 @@ export class NotebookManager {
             else if (d.type === 'markdown') this.createMarkdownCell(d.content);
             else if (d.type === 'widget') this.createWidgetCell(d.widgetType, d.content);
         });
-        // Clear save timeout to avoid immediate save of imported content (redundant)
-        // But actually we might want to save it as the new state.
         this.triggerSave();
     }
 
     triggerSave() {
         if (this.saveTimeout) clearTimeout(this.saveTimeout);
-        this.saveTimeout = setTimeout(() => this.saveToStorage(), 1000); // Save after 1s of inactivity
+        this.saveTimeout = setTimeout(() => this.saveToStorage(), 1000);
     }
 
     saveToStorage() {
         try {
             const data = this.exportNotebook();
-            // Filter out transient simulation data if needed, but for now save all
-            // Maybe limit size?
-            if (data.length > 500) data.splice(0, data.length - 500); // Keep last 500 cells
+            if (data.length > 500) data.splice(0, data.length - 500);
             localStorage.setItem(this.storageKey, JSON.stringify(data));
         } catch (e) {
             console.warn('Failed to save notebook', e);
@@ -1196,11 +1234,6 @@ export class NotebookManager {
         return false;
     }
 
-    /**
-     * Load a demo file into the notebook
-     * @param {string} path - Path to demo file
-     * @param {Object} options - Loading options
-     */
     async loadDemoFile(path, options = {}) {
         const { clearFirst = false, autoRun = false } = options;
 

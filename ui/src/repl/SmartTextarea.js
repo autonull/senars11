@@ -23,22 +23,42 @@ export class SmartTextarea {
             overflow: hidden;
         `;
 
+        // Common styles for layers
+        const fontStyles = `
+            font-family: monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            padding: 8px;
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+        `;
+
         // Backdrop for highlighting
         this.backdrop = document.createElement('div');
         this.backdrop.className = 'smart-textarea-backdrop';
         this.backdrop.style.cssText = `
             position: absolute;
             top: 0; left: 0;
-            width: 100%; height: 100%;
-            padding: 8px;
-            font-family: monospace;
-            font-size: 13px; /* Match typical textarea font size */
-            line-height: 1.5;
-            white-space: pre-wrap;
+            ${fontStyles}
             pointer-events: none;
             color: transparent;
-            overflow: auto;
+            overflow: hidden; /* Scroll is handled by sync */
             z-index: 1;
+        `;
+
+        // Bracket Layer for bracket matching
+        this.bracketLayer = document.createElement('div');
+        this.bracketLayer.className = 'smart-textarea-brackets';
+        this.bracketLayer.style.cssText = `
+            position: absolute;
+            top: 0; left: 0;
+            ${fontStyles}
+            pointer-events: none;
+            color: transparent;
+            overflow: hidden;
+            z-index: 2;
         `;
 
         // The actual textarea
@@ -48,20 +68,14 @@ export class SmartTextarea {
         this.textarea.placeholder = 'Enter Narsese or MeTTa... (Shift+Enter to Run)';
         this.textarea.style.cssText = `
             position: relative;
-            z-index: 2;
-            width: 100%;
-            height: 100%;
-            padding: 8px;
-            font-family: monospace;
-            font-size: 13px;
-            line-height: 1.5;
+            z-index: 3;
+            ${fontStyles}
             background: transparent;
-            color: #d4d4d4; /* Text visible by default, caret color needs to match */
+            color: #d4d4d4; /* Text visible by default */
             caret-color: #d4d4d4;
             border: none;
             resize: vertical;
             outline: none;
-            white-space: pre-wrap;
             overflow: auto;
         `;
 
@@ -75,6 +89,13 @@ export class SmartTextarea {
             .smart-textarea-backdrop .nars-variable { color: #9cdcfe; }
             .smart-textarea-backdrop .nars-punctuation { color: #ce9178; font-weight: bold; }
 
+            .metta-comment { color: #6a9955; font-style: italic; }
+            .metta-keyword { color: #c586c0; font-weight: bold; }
+            .metta-variable { color: #9cdcfe; }
+            .metta-paren { color: #888; font-weight: bold; }
+
+            .bracket-match { background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 2px; }
+
             /* Hide text in textarea but keep caret */
             .smart-textarea-input.highlight-mode { color: transparent; background: transparent; }
             .smart-textarea-input.highlight-mode::selection { background: rgba(255, 255, 255, 0.2); color: transparent; }
@@ -85,30 +106,64 @@ export class SmartTextarea {
             if (this.autoResize) this.adjustHeight();
             this.autocomplete?.onInput(e);
         });
+
         this.textarea.addEventListener('scroll', () => this.syncScroll());
+
+        this.textarea.addEventListener('click', () => this.updateBrackets());
+        this.textarea.addEventListener('keyup', () => this.updateBrackets());
+
         this.textarea.addEventListener('keydown', (e) => {
             if (this.autocomplete?.onKeyDown(e)) return;
 
             if ((e.shiftKey && e.key === 'Enter') || (e.ctrlKey && e.key === 'Enter')) {
                 e.preventDefault();
                 this.onExecute(this.textarea.value, { shiftKey: e.shiftKey, ctrlKey: e.ctrlKey });
+            } else if (e.key === 'Enter') {
+                // Auto-indentation
+                e.preventDefault();
+                this.handleEnter();
             }
         });
+
         this.textarea.addEventListener('blur', () => {
              setTimeout(() => this.autocomplete?.hide(), 200);
         });
 
-        this.wrapper.append(style, this.backdrop, this.textarea);
+        this.wrapper.append(style, this.backdrop, this.bracketLayer, this.textarea);
         if (this.container) this.container.appendChild(this.wrapper);
 
         this.autocomplete = new AutocompleteManager(this.textarea, this.wrapper);
 
         if (this.autoResize) {
-             // Initial adjustment
              requestAnimationFrame(() => this.adjustHeight());
         }
 
         return this.wrapper;
+    }
+
+    handleEnter() {
+        const start = this.textarea.selectionStart;
+        const end = this.textarea.selectionEnd;
+        const value = this.textarea.value;
+
+        // Find current line start
+        const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+        const currentLine = value.substring(lineStart, start);
+
+        // Match indentation
+        const match = currentLine.match(/^(\s*)/);
+        let indent = match ? match[1] : '';
+
+        // Increase indent if line ends with opening bracket
+        const trimmed = currentLine.trim();
+        if (trimmed.endsWith('(') || trimmed.endsWith('{') || trimmed.endsWith('[')) {
+            indent += '  '; // 2 spaces
+        }
+
+        // Insert
+        const textToInsert = '\n' + indent;
+        this.textarea.setRangeText(textToInsert, start, end, 'end');
+        this.textarea.dispatchEvent(new Event('input')); // Trigger update
     }
 
     adjustHeight() {
@@ -125,31 +180,117 @@ export class SmartTextarea {
 
     update() {
         const text = this.textarea.value;
-
-        // Language detection for highlighting
         const trimmed = text.trim();
         const isMetta = trimmed.startsWith('(') || trimmed.startsWith(';') || trimmed.startsWith('!');
         const language = isMetta ? 'metta' : 'narsese';
 
-        // Simple highlighting
         const highlighted = NarseseHighlighter.highlight(text, language);
-
-        // Ensure trailing newline is handled for scrolling match
         this.backdrop.innerHTML = highlighted + (text.endsWith('\n') ? '<br>&nbsp;' : '');
         this.value = text;
 
-        // Toggle highlight mode if text is present to show colors
-        // Ideally we make textarea text transparent so backdrop shows through
         if (text.length > 0) {
             this.textarea.classList.add('highlight-mode');
         } else {
             this.textarea.classList.remove('highlight-mode');
         }
+
+        this.updateBrackets();
+    }
+
+    updateBrackets() {
+        const text = this.textarea.value;
+        const cursor = this.textarea.selectionStart;
+
+        // Check if cursor is next to a bracket
+        let matchIndex = -1;
+        let selfIndex = -1;
+
+        const pairs = { '(': ')', ')': '(', '{': '}', '}': '{', '[': ']', ']': '[' };
+
+        // Check character before cursor
+        const before = text[cursor - 1];
+        if (pairs[before]) {
+            selfIndex = cursor - 1;
+            matchIndex = this.findMatch(text, selfIndex);
+        } else {
+            // Check character after cursor
+            const after = text[cursor];
+            if (pairs[after]) {
+                selfIndex = cursor;
+                matchIndex = this.findMatch(text, selfIndex);
+            }
+        }
+
+        if (matchIndex !== -1) {
+            this.renderBracketHighlight(text, selfIndex, matchIndex);
+        } else {
+            this.bracketLayer.innerHTML = '';
+        }
+    }
+
+    findMatch(text, index) {
+        const char = text[index];
+        const pairs = { '(': ')', '{': '}', '[': ']' };
+        const reversePairs = { ')': '(', '}': '{', ']': '[' };
+
+        if (pairs[char]) {
+            // Opening bracket - search forward
+            let depth = 1;
+            for (let i = index + 1; i < text.length; i++) {
+                if (text[i] === char) depth++;
+                else if (text[i] === pairs[char]) depth--;
+
+                if (depth === 0) return i;
+            }
+        } else if (reversePairs[char]) {
+            // Closing bracket - search backward
+            let depth = 1;
+            for (let i = index - 1; i >= 0; i--) {
+                if (text[i] === char) depth++;
+                else if (text[i] === reversePairs[char]) depth--;
+
+                if (depth === 0) return i;
+            }
+        }
+        return -1;
+    }
+
+    renderBracketHighlight(text, idx1, idx2) {
+        // Construct HTML that has same layout but only spans at indices
+        // Ideally we just replace chars at idx1 and idx2 with spans, and everything else with spaces?
+        // No, spacing/kerning might differ if we replace chars with spaces.
+        // Better: escape everything, then wrap brackets.
+
+        // Actually, easiest is:
+        // Create full text, wrap brackets in span, set color transparent for everything else.
+        // We already set color transparent on layer.
+        // So we just need to wrap matched brackets in a class that gives them background/border.
+
+        let html = '';
+        for (let i = 0; i < text.length; i++) {
+            let char = text[i];
+            if (char === '<') char = '&lt;';
+            else if (char === '>') char = '&gt;';
+            else if (char === '&') char = '&amp;';
+
+            if (i === idx1 || i === idx2) {
+                html += `<span class="bracket-match">${char}</span>`;
+            } else {
+                html += char;
+            }
+        }
+
+        // Handle trailing newline
+        if (text.endsWith('\n')) html += '<br>&nbsp;';
+
+        this.bracketLayer.innerHTML = html;
     }
 
     syncScroll() {
         this.backdrop.scrollTop = this.textarea.scrollTop;
         this.backdrop.scrollLeft = this.textarea.scrollLeft;
+        this.bracketLayer.scrollTop = this.textarea.scrollTop;
+        this.bracketLayer.scrollLeft = this.textarea.scrollLeft;
     }
 
     setValue(text) {

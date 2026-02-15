@@ -1,6 +1,7 @@
 import { Component } from '../Component.js';
 import cytoscape from 'cytoscape';
 import fcose from 'cytoscape-fcose';
+import { Modal } from '../ui/Modal.js';
 
 cytoscape.use(fcose);
 
@@ -21,16 +22,12 @@ export class SimpleGraphWidget extends Component {
         graphDiv.style.cssText = 'width: 100%; height: 100%;';
         this.container.appendChild(graphDiv);
 
-        // Defer initialization to ensure container is in DOM and has dimensions
-        // requestAnimationFrame is better than setTimeout for DOM updates
         requestAnimationFrame(() => {
-            // Need a second frame for layout to compute dimensions properly
             requestAnimationFrame(() => this.initCy(graphDiv));
         });
     }
 
     initCy(container, elements = null) {
-        // Use provided elements or convert from this.data
         const elems = elements || this._convertData(this.data);
 
         try {
@@ -158,36 +155,25 @@ export class SimpleGraphWidget extends Component {
     }
 
     expandView() {
-        const backdrop = document.createElement('div');
-        backdrop.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:9999;display:flex;justify-content:center;align-items:center;';
-
-        const modal = document.createElement('div');
-        modal.style.cssText = 'width:90%;height:90%;background:#0a0a0c;border:1px solid #333;position:relative;border-radius:4px;';
-
-        const closeBtn = document.createElement('button');
-        closeBtn.innerHTML = '✖️';
-        closeBtn.style.cssText = 'position:absolute;top:10px;right:10px;z-index:10;background:#000;color:#fff;border:1px solid #555;padding:5px 10px;cursor:pointer;';
-        closeBtn.onclick = () => document.body.removeChild(backdrop);
-
-        const content = document.createElement('div');
-        content.style.cssText = 'width:100%;height:100%;';
-        modal.appendChild(content);
-
-        modal.appendChild(closeBtn);
-        backdrop.appendChild(modal);
-        document.body.appendChild(backdrop);
-
-        // Get current elements from the active instance
         const elements = this.cy.json().elements;
 
-        // Use a new instance but initialize it manually to avoid race conditions with render()
-        // We bypass render() and call initCy directly after DOM update
-        const widget = new SimpleGraphWidget(modal, []);
+        const content = document.createElement('div');
+        content.style.cssText = 'width:100%; height:100%;';
 
+        const modal = new Modal({
+            title: 'Graph View',
+            content: content,
+            width: '90vw',
+            height: '90vh'
+        });
+        modal.show();
+
+        // Initialize new graph instance in modal
+        // Using a new SimpleGraphWidget for simplicity
+        const widget = new SimpleGraphWidget(content, []);
+        // Bypass render/wait cycle
         requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                widget.initCy(content, elements);
-            });
+            widget.initCy(content, elements);
         });
     }
 }
