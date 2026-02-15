@@ -8,34 +8,36 @@ class ForgetPolicy {
 
 class PriorityForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData) {
-        let min = Infinity, minItem = null;
+        if (itemData.size === 0) return null;
+        let minP = Infinity, minItem = null;
         for (const [item, p] of itemData) {
-            if (p < min) { min = p; minItem = item; }
+            if (p < minP) { minP = p; minItem = item; }
         }
         return minItem;
     }
 
     orderItems(items, itemData) {
-        return [...itemData.entries()]
-            .sort(([, a], [, b]) => b - a)
-            .map(([item]) => item);
+        return Array.from(itemData.entries())
+            .sort((a, b) => b[1] - a[1])
+            .map(entry => entry[0]);
     }
 }
 
 class LRUForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData, insertionOrder, accessTimes) {
-        let min = Infinity, minItem = null;
+        if (accessTimes.size === 0) return null;
+        let minT = Infinity, minItem = null;
         for (const [item, t] of accessTimes) {
-            if (t < min) { min = t; minItem = item; }
+            if (t < minT) { minT = t; minItem = item; }
         }
         return minItem;
     }
 
     orderItems(items, itemData, insertionOrder, accessTimes) {
-        return [...accessTimes.entries()]
-            .sort(([, a], [, b]) => b - a)
-            .filter(([item]) => items.has(item))
-            .map(([item]) => item);
+        return Array.from(accessTimes.entries())
+            .sort((a, b) => b[1] - a[1])
+            .filter(entry => items.has(entry[0]))
+            .map(entry => entry[0]);
     }
 }
 
@@ -51,12 +53,12 @@ class FIFOForgetPolicy extends ForgetPolicy {
 
 class RandomForgetPolicy extends ForgetPolicy {
     selectForRemoval(items) {
-        const arr = [...items.keys()];
+        const arr = Array.from(items.keys());
         return arr.length ? arr[Math.floor(Math.random() * arr.length)] : null;
     }
 
     orderItems(items) {
-        const arr = [...items.keys()];
+        const arr = Array.from(items.keys());
         for (let i = arr.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [arr[i], arr[j]] = [arr[j], arr[i]];
@@ -119,9 +121,6 @@ export class Bag {
         const key = this._getKey(item);
         if (this._itemKeys.has(key)) return false;
 
-        // Double check referential equality just in case, though key check should suffice
-        if (this._items.has(item)) return false;
-
         if (this.size >= this.maxSize) {
             this._removeItemByPolicy();
         }
@@ -150,12 +149,10 @@ export class Bag {
             this._accessTimes.delete(item);
             this._cachedOrderedItems = null;
 
-            if (this.onItemRemoved) {
-                try {
-                    this.onItemRemoved(item);
-                } catch (e) {
-                    console.error('Error in Bag onItemRemoved callback:', e);
-                }
+            try {
+                this.onItemRemoved?.(item);
+            } catch (e) {
+                console.error('Error in Bag onItemRemoved callback:', e);
             }
         }
         return result;
