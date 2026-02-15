@@ -46,7 +46,7 @@ export class ExplorerInfoPanel extends Component {
                     <summary>Layout & Filters</summary>
                     <div class="control-group">
                         <select id="layout-select" class="control-select small-btn">
-                            <option value="fcose">Layout: Force</option>
+                            <option value="fcose" selected>Layout: Organic (Force)</option>
                             <option value="grid">Layout: Grid</option>
                             <option value="circle">Layout: Circle</option>
                             <option value="scatter">Layout: Scatter</option>

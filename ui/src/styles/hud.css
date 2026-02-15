@@ -98,31 +98,6 @@
     background: rgba(0, 255, 157, 0.5);
 }
 
-/* HUD Corner Brackets */
-.hud-panel::before {
-    content: '';
-    position: absolute;
-    top: -1px;
-    left: -1px;
-    width: 10px;
-    height: 10px;
-    border-top: 1px solid rgba(0, 255, 157, 0.6);
-    border-left: 1px solid rgba(0, 255, 157, 0.6);
-    pointer-events: none;
-}
-
-.hud-panel::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    right: -1px;
-    width: 10px;
-    height: 10px;
-    border-bottom: 1px solid rgba(0, 255, 157, 0.6);
-    border-right: 1px solid rgba(0, 255, 157, 0.6);
-    pointer-events: none;
-}
-
 /* Status Bar - Fixed at bottom */
 #status-bar-container {
     position: fixed;
