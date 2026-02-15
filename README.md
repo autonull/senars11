@@ -309,6 +309,33 @@ This design enables reinforcement learning where:
 - **Goals** drive learning by defining desired behaviors
 - The system learns by pursuing goals and updating beliefs based on results
 
+### Reinforcement Learning from Preferences (RLFP): Teaching SeNARS How to Think
+
+SeNARS incorporates a Reinforcement Learning from Preferences (RLFP) framework to optimize its internal reasoning strategies and align them with human preferences for effective, coherent, and efficient thought. Rather than simply programming *what* the system thinks, RLFP enables teaching the system *how* to think more effectively.
+
+**Core Concepts:**
+
+- **Learning from Preferences**: Instead of explicit reward functions, the system learns from qualitative comparisons like "reasoning path A was more insightful than path B"
+- **Optimized Decision Making**: RLFP enhances discretionary choices during the reasoning cycle, including task selection, rule application, and modality selection between symbolic (NAL) and neural (LM) reasoning
+- **Trajectory-Based Learning**: The system captures complete reasoning episodes (trajectories) and learns from user feedback on these reasoning paths
+
+**Architecture:**
+
+The RLFP system operates through three functional layers:
+
+1. **Data Layer**: `ReasoningTrajectoryLogger` records complete reasoning episodes, while `PreferenceCollector` gathers feedback from users comparing different reasoning paths
+2. **Learning Layer**: `RLFPLearner` trains a preference model that predicts the expected preference score for actions or trajectories
+3. **Policy Layer**: `ReasoningPolicyAdapter` bridges learned insights with core reasoning, using predictions to guide decisions in components like `FocusManager` and `RuleEngine`
+
+**Benefits:**
+
+- **Strategic Reasoning**: Ability to prioritize long-term objectives and resist distractions
+- **Explainability Awareness**: Preference for generating clear and interpretable reasoning paths
+- **Error Recovery**: Recognition of unproductive thought patterns and dynamic pivoting to better strategies
+- **Domain Adaptation**: Tailoring thinking style to specific problem domains
+
+The RLFP framework enables SeNARS to develop increasingly effective and trustworthy reasoning patterns through continuous learning from human preferences.
+
 ---
 
 ## Core System Components
@@ -789,14 +816,7 @@ knowledge while goals drive exploration toward desired outcomes.
 
 ### Core Technical Challenges
 
-**Term Normalization and Equality:**
 
-- The Term implementation requires refinement to achieve full immutability - some computed properties need proper
-  freezing
-- The equality method `equals()` needs implementation of canonical normalization for commutative and associative
-  operators
-- Without proper normalization, logically equivalent terms (e.g., `(&, A, B)` vs `(&, B, A)`) may be treated as
-  different objects
 
 **Performance Optimization:**
 

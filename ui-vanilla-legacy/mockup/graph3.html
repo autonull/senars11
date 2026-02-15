@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Graph REPL</title>
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+<style>
+    body {
+        font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', 'Lucida Console', Monaco, monospace;
+    }
+    #cy {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 10;
+    }
+    #repl-container {
+        position: absolute;
+        bottom: 1rem;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 20;
+        width: 80%;
+        max-width: 800px;
+    }
+    #repl {
+        background-color: rgba(30, 41, 59, 0.8);
+        backdrop-filter: blur(10px);
+        border: 1px solid #475569;
+        color: #e2e8f0;
+        padding: 0.75rem 1.25rem;
+    }
+</style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 to-slate-800 text-slate-300">
+
+<h1 class="absolute top-4 left-4 text-2xl font-bold text-slate-400 z-20">Graph REPL</h1>
+
+<div id="cy"></div>
+
+<div id="loader" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 hidden">
+    <div class="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-sky-500"></div>
+</div>
+<div id="repl-container">
+    <input type="text" id="repl" class="w-full rounded-full shadow-2xl bg-slate-800/50 backdrop-blur-xl border border-slate-700 focus:ring-2 focus:ring-sky-500 focus:outline-none px-6 py-3 text-lg" placeholder="Create a node, or type 'help' for commands...">
+</div>
+
+<div id="help-tooltip" class="hidden absolute bottom-20 left-1/2 -translate-x-1/2 w-96 bg-slate-800/80 backdrop-blur-xl border border-slate-700 rounded-lg p-4 text-sm z-30 shadow-2xl">
+    <h3 class="font-bold text-lg mb-2 text-sky-400">Commands</h3>
+    <ul class="list-disc list-inside space-y-1">
+        <li><code class="bg-slate-900/50 rounded px-1.5 py-0.5">node_name</code> - Creates a new node.</li>
+        <li><code class="bg-slate-900/50 rounded px-1.5 py-0.5">source -> target</code> - Creates an edge between two nodes.</li>
+        <li><code class="bg-slate-900/50 rounded px-1.5 py-0.5">clear</code> - Clears the graph.</li>
+        <li><code class="bg-slate-900/50 rounded px-1.5 py-0.5">help</code> - Shows this help tooltip.</li>
+    </ul>
+</div>
+
+<button id="clear-btn" class="absolute bottom-5 right-5 z-20 bg-red-500/50 hover:bg-red-500/80 text-white font-bold py-2 px-4 rounded-full shadow-lg backdrop-blur-xl border border-red-400/50">
+    Clear
+</button>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const cy = cytoscape({
+            container: document.getElementById('cy'),
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'background-color': '#334155',
+                        'label': 'data(label)',
+                        'color': '#f1f5f9',
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'font-size': 16,
+                        'width': 'label',
+                        'height': 'label',
+                        'padding': '16px',
+                        'border-width': 2,
+                        'border-color': '#475569',
+                        'box-shadow': '0 5px 15px rgba(0,0,0,0.3)',
+                        'transition-property': 'background-color, border-color',
+                        'transition-duration': '0.3s'
+                    }
+                },
+                {
+                    selector: 'node:selected',
+                    style: {
+                        'background-color': '#0ea5e9',
+                        'border-color': '#38bdf8',
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 3,
+                        'line-color': '#475569',
+                        'target-arrow-color': '#475569',
+                        'target-arrow-shape': 'triangle',
+                        'curve-style': 'bezier',
+                        'transition-property': 'line-color, target-arrow-color',
+                        'transition-duration': '0.3s'
+                    }
+                },
+                {
+                    selector: 'edge:selected',
+                    style: {
+                        'line-color': '#0ea5e9',
+                        'target-arrow-color': '#0ea5e9',
+                    }
+                }
+            ],
+            layout: {
+                name: 'cose',
+                animate: true,
+                padding: 50
+            }
+        });
+
+        const repl = document.getElementById('repl');
+        const clearBtn = document.getElementById('clear-btn');
+        let idCounter = 0;
+
+        clearBtn.addEventListener('click', function() {
+            cy.elements().remove();
+        });
+
+        repl.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const input = repl.value.trim();
+                if (input) {
+                    if (input === 'help') {
+                        const tooltip = document.getElementById('help-tooltip');
+                        tooltip.classList.toggle('hidden');
+                    } else if (input === 'clear') {
+                        cy.elements().remove();
+                    } else if (input.includes('->')) {
+                        const [sourceLabel, targetLabel] = input.split('->').map(s => s.trim());
+                        const sourceNode = cy.nodes().filter(n => n.data('label') === sourceLabel)[0];
+                        const targetNode = cy.nodes().filter(n => n.data('label') === targetLabel)[0];
+
+                        if (sourceNode && targetNode) {
+                            cy.add({
+                                group: 'edges',
+                                data: { source: sourceNode.id(), target: targetNode.id() }
+                            });
+                        } else {
+                            repl.value = 'Error: One or both nodes not found.';
+                            setTimeout(() => repl.value = '', 2000);
+                        }
+                    } else {
+                        cy.add({
+                            group: 'nodes',
+                            data: { id: 'n' + idCounter++, label: input },
+                            position: {
+                                x: Math.random() * (window.innerWidth - 100) + 50,
+                                y: Math.random() * (window.innerHeight - 200) + 50
+                            }
+                        });
+                        let layout = cy.layout({
+                            name: 'cose',
+                            idealEdgeLength: 100,
+                            nodeOverlap: 20,
+                            refresh: 20,
+                            fit: true,
+                            padding: 30,
+                            randomize: false,
+                            componentSpacing: 100,
+                            nodeRepulsion: 400000,
+                            edgeElasticity: 100,
+                            nestingFactor: 5,
+                            gravity: 80,
+                            numIter: 1000,
+                            initialTemp: 200,
+                            coolingFactor: 0.95,
+                            minTemp: 1.0,
+                            animate: 'end',
+                            animationDuration: 500,
+                        });
+
+                        layout.run();
+                    }
+                    if(!input.includes('->')) repl.value = '';
+                }
+            }
+        });
+    });
+</script>
+
+</body>
+</html>

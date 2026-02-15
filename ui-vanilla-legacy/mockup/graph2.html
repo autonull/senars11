@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual REPL - Interactive Code Execution</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        code, .code {
+            font-family: 'Fira Code', monospace;
+        }
+        
+        #cy {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            position: relative;
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .glow {
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        .output-line {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .pulse-border {
+            animation: pulseBorder 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulseBorder {
+            0%, 100% {
+                border-color: rgba(59, 130, 246, 0.5);
+            }
+            50% {
+                border-color: rgba(59, 130, 246, 1);
+            }
+        }
+        
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .node-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white">
+    <div class="flex h-screen">
+        <!-- Left Panel - REPL -->
+        <div class="w-1/3 flex flex-col border-r border-slate-700 bg-slate-800">
+            <!-- Header -->
+            <div class="p-6 border-b border-slate-700">
+                <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                    Visual REPL
+                </h1>
+                <p class="text-slate-400 text-sm mt-1">Interactive code execution with graph visualization</p>
+            </div>
+            
+            <!-- Output Console -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-2" id="console">
+                <div class="glass rounded-lg p-4 text-sm text-slate-300">
+                    <div class="flex items-center gap-2 mb-2">
+                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span class="font-semibold">Welcome!</span>
+                    </div>
+                    <p class="text-xs leading-relaxed">
+                        • Type JavaScript expressions below<br>
+                        • Use <code class="bg-slate-700 px-1 rounded">$n</code> to reference node outputs (e.g., $0, $1)<br>
+                        • Click nodes in the graph to view details<br>
+                        • The graph updates automatically
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Input Area -->
+            <div class="p-4 border-t border-slate-700 bg-slate-800/50">
+                <div class="flex items-start gap-2">
+                    <div class="flex-1">
+                        <textarea 
+                            id="repl-input" 
+                            rows="3"
+                            placeholder="Enter JavaScript code..."
+                            class="w-full bg-slate-900 text-white rounded-lg px-4 py-3 border border-slate-600 code text-sm resize-none focus:ring-2 focus:ring-blue-500 transition-all"
+                        ></textarea>
+                    </div>
+                    <button 
+                        id="execute-btn"
+                        class="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 glow"
+                    >
+                        Run
+                    </button>
+                </div>
+                <div class="flex gap-2 mt-2">
+                    <button 
+                        id="clear-btn"
+                        class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded transition-all"
+                    >
+                        Clear Console
+                    </button>
+                    <button 
+                        id="reset-graph-btn"
+                        class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded transition-all"
+                    >
+                        Reset Graph
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Panel - Graph Visualization -->
+        <div class="flex-1 flex flex-col">
+            <!-- Graph Controls -->
+            <div class="p-4 border-b border-slate-700 bg-slate-800 flex justify-between items-center">
+                <div class="flex gap-2">
+                    <button id="zoom-in" class="glass px-3 py-2 rounded-lg hover:bg-white/10 transition-all" title="Zoom In">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"></path>
+                        </svg>
+                    </button>
+                    <button id="zoom-out" class="glass px-3 py-2 rounded-lg hover:bg-white/10 transition-all" title="Zoom Out">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM7 10h6"></path>
+                        </svg>
+                    </button>
+                    <button id="fit-graph" class="glass px-3 py-2 rounded-lg hover:bg-white/10 transition-all" title="Fit to Screen">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="flex items-center gap-4 text-sm text-slate-400">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        <span>Success</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <span>Error</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+                        <span>Reference</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Graph Canvas -->
+            <div id="cy" class="flex-1"></div>
+            
+            <!-- Node Detail Panel -->
+            <div id="detail-panel" class="hidden absolute bottom-6 right-6 glass rounded-xl p-6 max-w-md shadow-2xl">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="text-lg font-semibold">Node Details</h3>
+                    <button id="close-detail" class="text-slate-400 hover:text-white transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div id="detail-content" class="space-y-3 text-sm"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let executionHistory = [];
+        let nodeCounter = 0;
+        let cy;
+        
+        // Initialize Cytoscape
+        function initGraph() {
+            cy = cytoscape({
+                container: document.getElementById('cy'),
+                
+                style: [
+                    {
+                        selector: 'node',
+                        style: {
+                            'label': 'data(label)',
+                            'text-valign': 'center',
+                            'text-halign': 'center',
+                            'background-color': 'data(color)',
+                            'width': 80,
+                            'height': 80,
+                            'color': '#fff',
+                            'text-outline-width': 2,
+                            'text-outline-color': 'data(color)',
+                            'font-size': 12,
+                            'font-weight': 'bold',
+                            'overlay-padding': 6,
+                            'border-width': 3,
+                            'border-color': '#fff',
+                            'border-opacity': 0.3
+                        }
+                    },
+                    {
+                        selector: 'node.success',
+                        style: {
+                            'background-color': '#10b981',
+                            'text-outline-color': '#10b981'
+                        }
+                    },
+                    {
+                        selector: 'node.error',
+                        style: {
+                            'background-color': '#ef4444',
+                            'text-outline-color': '#ef4444'
+                        }
+                    },
+                    {
+                        selector: 'node.highlight',
+                        style: {
+                            'border-width': 5,
+                            'border-color': '#fbbf24',
+                            'border-opacity': 1
+                        }
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            'width': 3,
+                            'line-color': '#3b82f6',
+                            'target-arrow-color': '#3b82f6',
+                            'target-arrow-shape': 'triangle',
+                            'curve-style': 'bezier',
+                            'arrow-scale': 1.5,
+                            'opacity': 0.6
+                        }
+                    },
+                    {
+                        selector: 'edge.highlight',
+                        style: {
+                            'line-color': '#fbbf24',
+                            'target-arrow-color': '#fbbf24',
+                            'width': 4,
+                            'opacity': 1
+                        }
+                    }
+                ],
+                
+                layout: {
+                    name: 'dagre',
+                    rankDir: 'TB',
+                    nodeSep: 50,
+                    rankSep: 100,
+                    padding: 30
+                },
+                
+                wheelSensitivity: 0.2,
+                minZoom: 0.3,
+                maxZoom: 3
+            });
+            
+            // Node click handler
+            cy.on('tap', 'node', function(evt) {
+                const node = evt.target;
+                const data = node.data();
+                
+                // Highlight node
+                cy.elements().removeClass('highlight');
+                node.addClass('highlight');
+                node.connectedEdges().addClass('highlight');
+                
+                showNodeDetail(data);
+            });
+            
+            // Click on background to deselect
+            cy.on('tap', function(evt) {
+                if (evt.target === cy) {
+                    cy.elements().removeClass('highlight');
+                    hideNodeDetail();
+                }
+            });
+        }
+        
+        // Add node to graph
+        function addNode(id, label, type, input, output, dependencies = []) {
+            const color = type === 'success' ? '#10b981' : '#ef4444';
+            
+            cy.add({
+                group: 'nodes',
+                data: {
+                    id: id,
+                    label: label,
+                    color: color,
+                    type: type,
+                    input: input,
+                    output: output,
+                    timestamp: new Date().toLocaleTimeString()
+                },
+                classes: type
+            });
+            
+            // Add edges for dependencies
+            dependencies.forEach(depId => {
+                if (cy.getElementById(depId).length > 0) {
+                    cy.add({
+                        group: 'edges',
+                        data: {
+                            source: depId,
+                            target: id
+                        }
+                    });
+                }
+            });
+            
+            // Update layout
+            cy.layout({
+                name: 'dagre',
+                rankDir: 'TB',
+                nodeSep: 50,
+                rankSep: 100,
+                padding: 30,
+                animate: true,
+                animationDuration: 500
+            }).run();
+        }
+        
+        // Show node details
+        function showNodeDetail(data) {
+            const panel = document.getElementById('detail-panel');
+            const content = document.getElementById('detail-content');
+            
+            const outputStr = typeof data.output === 'object' ? 
+                JSON.stringify(data.output, null, 2) : 
+                String(data.output);
+            
+            content.innerHTML = `
+                <div>
+                    <span class="node-badge ${data.type === 'success' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}">
+                        ${data.type.toUpperCase()}
+                    </span>
+                    <span class="node-badge bg-blue-500/20 text-blue-300 ml-2">
+                        ${data.id}
+                    </span>
+                </div>
+                <div>
+                    <div class="text-slate-400 text-xs font-semibold mb-1">INPUT</div>
+                    <code class="block bg-slate-900 p-2 rounded text-xs break-all">${escapeHtml(data.input)}</code>
+                </div>
+                <div>
+                    <div class="text-slate-400 text-xs font-semibold mb-1">OUTPUT</div>
+                    <code class="block bg-slate-900 p-2 rounded text-xs break-all max-h-32 overflow-auto">${escapeHtml(outputStr)}</code>
+                </div>
+                <div class="text-slate-400 text-xs">
+                    <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    ${data.timestamp}
+                </div>
+            `;
+            
+            panel.classList.remove('hidden');
+        }
+        
+        function hideNodeDetail() {
+            document.getElementById('detail-panel').classList.add('hidden');
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Execute code
+        function executeCode(code) {
+            const nodeId = `$${nodeCounter}`;
+            const dependencies = [];
+            
+            // Find dependencies (references to previous nodes)
+            const refPattern = /\$(\d+)/g;
+            let match;
+            while ((match = refPattern.exec(code)) !== null) {
+                const refId = `$${match[1]}`;
+                if (cy.getElementById(refId).length > 0) {
+                    dependencies.push(refId);
+                }
+            }
+            
+            // Create context with previous results
+            const context = {};
+            executionHistory.forEach((item, idx) => {
+                context[`$${idx}`] = item.result;
+            });
+            
+            let result, type, displayResult;
+            
+            try {
+                // Create function with context
+                const func = new Function(...Object.keys(context), `return ${code}`);
+                result = func(...Object.values(context));
+                type = 'success';
+                displayResult = result;
+                
+                // Add to console
+                addToConsole(nodeId, code, result, type);
+                
+            } catch (error) {
+                result = error;
+                type = 'error';
+                displayResult = error.message;
+                
+                // Add error to console
+                addToConsole(nodeId, code, error.message, type);
+            }
+            
+            // Store in history
+            executionHistory.push({
+                id: nodeId,
+                code: code,
+                result: result,
+                type: type
+            });
+            
+            // Add to graph
+            addNode(nodeId, nodeId, type, code, displayResult, dependencies);
+            
+            nodeCounter++;
+        }
+        
+        // Add to console
+        function addToConsole(id, input, output, type) {
+            const console = document.getElementById('console');
+            const outputStr = typeof output === 'object' ? JSON.stringify(output, null, 2) : String(output);
+            
+            const line = document.createElement('div');
+            line.className = `output-line glass rounded-lg p-3 text-sm ${type === 'error' ? 'border-l-4 border-red-500' : 'border-l-4 border-green-500'}`;
+            line.innerHTML = `
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="node-badge ${type === 'success' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}">
+                        ${id}
+                    </span>
+                    <span class="text-slate-500 text-xs">${new Date().toLocaleTimeString()}</span>
+                </div>
+                <div class="code text-slate-300 mb-2 text-xs">> ${escapeHtml(input)}</div>
+                <div class="code ${type === 'error' ? 'text-red-400' : 'text-blue-400'} text-xs break-all">
+                    ${escapeHtml(outputStr)}
+                </div>
+            `;
+            
+            console.appendChild(line);
+            console.scrollTop = console.scrollHeight;
+        }
+        
+        // Event listeners
+        document.getElementById('execute-btn').addEventListener('click', () => {
+            const input = document.getElementById('repl-input');
+            const code = input.value.trim();
+            
+            if (code) {
+                executeCode(code);
+                input.value = '';
+            }
+        });
+        
+        document.getElementById('repl-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                document.getElementById('execute-btn').click();
+            }
+        });
+        
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            const console = document.getElementById('console');
+            // Keep only the welcome message
+            while (console.children.length > 1) {
+                console.removeChild(console.lastChild);
+            }
+        });
+        
+        document.getElementById('reset-graph-btn').addEventListener('click', () => {
+            executionHistory = [];
+            nodeCounter = 0;
+            cy.elements().remove();
+            hideNodeDetail();
+            
+            const console = document.getElementById('console');
+            while (console.children.length > 1) {
+                console.removeChild(console.lastChild);
+            }
+        });
+        
+        document.getElementById('zoom-in').addEventListener('click', () => {
+            cy.zoom(cy.zoom() * 1.2);
+        });
+        
+        document.getElementById('zoom-out').addEventListener('click', () => {
+            cy.zoom(cy.zoom() * 0.8);
+        });
+        
+        document.getElementById('fit-graph').addEventListener('click', () => {
+            cy.fit(null, 50);
+        });
+        
+        document.getElementById('close-detail').addEventListener('click', () => {
+            hideNodeDetail();
+            cy.elements().removeClass('highlight');
+        });
+        
+        // Initialize
+        initGraph();
+        
+        // Add some example executions on load
+        setTimeout(() => {
+            executeCode('5 + 3');
+        }, 500);
+        
+        setTimeout(() => {
+            executeCode('$0 * 2');
+        }, 1000);
+        
+        setTimeout(() => {
+            executeCode('[1, 2, 3, 4, 5].map(x => x * $1)');
+        }, 1500);
+    </script>
+</body>
+</html>

@@ -1,40 +1,40 @@
 export class AdvancedNarseseTranslator {
     constructor() {
-        this.patterns = {
-            forward: [
-                {
-                    regex: /(.*)\s+is\s+(?:a|an|a kind of|a type of|a sort of)\s+(.*)/i,
-                    replacement: '($1 --> $2).',
-                    confidence: 0.9
-                },
-                {regex: /(.*)s\s+are\s+(.*)/i, replacement: '($1 --> $2).', confidence: 0.9},
-                {
-                    regex: /(.*)\s+(?:resembles|is similar to|is like|is similar as)\s+(.*)/i,
-                    replacement: '($1 <-> $2).',
-                    confidence: 0.85
-                },
-                {regex: /(?:if|when)\s+(.*)\s+then\s+(.*)/i, replacement: '($1 ==> $2).', confidence: 0.9},
-                {regex: /(.*)\s+(?:causes|leads to|results in)\s+(.*)/i, replacement: '($1 ==> $2).', confidence: 0.85},
-                {regex: /(.*)\s+if and only if\s+(.*)/i, replacement: '($1 <=> $2).', confidence: 0.8},
-                {
-                    regex: /(.*)\s+(?:is equivalent to|is the same as)\s+(.*)/i,
-                    replacement: '($1 <=> $2).',
-                    confidence: 0.8
-                },
-                {regex: /(.*)\s+and\s+(.*)/i, replacement: '(&, $1, $2).', confidence: 0.9},
-                {regex: /(.*)\s+or\s+(.*)/i, replacement: '(|, $1, $2).', confidence: 0.9},
-                {regex: /\bnot\s+(.*)/i, replacement: '(--, $1).', confidence: 0.9},
-            ],
-            reverse: [
-                {regex: /\((.+?)\s+-->\s+(.+?)\)\./, replacement: '$1 is a $2', confidence: 0.9},
-                {regex: /\((.+?)\s+<->\s+(.+?)\)\./, replacement: '$1 is similar to $2', confidence: 0.85},
-                {regex: /\((.+?)\s+==>\s+(.+?)\)\./, replacement: 'if $1 then $2', confidence: 0.9},
-                {regex: /\((.+?)\s+<=>\s+(.+?)\)\./, replacement: '$1 if and only if $2', confidence: 0.8},
-                {regex: /\(&,\s*(.+?),\s*(.+?)\)\./, replacement: '$1 and $2', confidence: 0.9},
-                {regex: /\(\|,\s*(.+?),\s*(.+?)\)\./, replacement: '$1 or $2', confidence: 0.9},
-                {regex: /\(--,\s*(.+?)\)\./, replacement: 'not $1', confidence: 0.9},
-            ]
-        };
+        // Store patterns pre-sorted by confidence for performance
+        this.forwardPatterns = [
+            {
+                regex: /(.*)\s+is\s+(?:a|an|a kind of|a type of|a sort of)\s+(.*)/i,
+                replacement: '($1 --> $2).',
+                confidence: 0.9
+            },
+            {regex: /(.*)s\s+are\s+(.*)/i, replacement: '($1 --> $2).', confidence: 0.9},
+            {
+                regex: /(.*)\s+(?:resembles|is similar to|is like|is similar as)\s+(.*)/i,
+                replacement: '($1 <-> $2).',
+                confidence: 0.85
+            },
+            {regex: /(?:if|when)\s+(.*)\s+then\s+(.*)/i, replacement: '($1 ==> $2).', confidence: 0.9},
+            {regex: /(.*)\s+(?:causes|leads to|results in)\s+(.*)/i, replacement: '($1 ==> $2).', confidence: 0.85},
+            {regex: /(.*)\s+if and only if\s+(.*)/i, replacement: '($1 <=> $2).', confidence: 0.8},
+            {
+                regex: /(.*)\s+(?:is equivalent to|is the same as)\s+(.*)/i,
+                replacement: '($1 <=> $2).',
+                confidence: 0.8
+            },
+            {regex: /(.*)\s+and\s+(.*)/i, replacement: '(&, $1, $2).', confidence: 0.9},
+            {regex: /(.*)\s+or\s+(.*)/i, replacement: '(|, $1, $2).', confidence: 0.9},
+            {regex: /\bnot\s+(.*)/i, replacement: '(--, $1).', confidence: 0.9},
+        ].sort((a, b) => b.confidence - a.confidence);
+
+        this.reversePatterns = [
+            {regex: /\((.+?)\s+-->\s+(.+?)\)\./, replacement: '$1 is a $2', confidence: 0.9},
+            {regex: /\((.+?)\s+<->\s+(.+?)\)\./, replacement: '$1 is similar to $2', confidence: 0.85},
+            {regex: /\((.+?)\s+==>\s+(.+?)\)\./, replacement: 'if $1 then $2', confidence: 0.9},
+            {regex: /\((.+?)\s+<=>\s+(.+?)\)\./, replacement: '$1 if and only if $2', confidence: 0.8},
+            {regex: /\(&,\s*(.+?),\s*(.+?)\)\./, replacement: '$1 and $2', confidence: 0.9},
+            {regex: /\(\|,\s*(.+?),\s*(.+?)\)\./, replacement: '$1 or $2', confidence: 0.9},
+            {regex: /\(--,\s*(.+?)\)\./, replacement: 'not $1', confidence: 0.9},
+        ].sort((a, b) => b.confidence - a.confidence);
 
         this.contextBuffer = [];
         this.translationHistory = [];
@@ -45,9 +45,11 @@ export class AdvancedNarseseTranslator {
 
     addContext(context) {
         if (this.contextBuffer.length >= this.maxContextSize) {
-            this.contextBuffer.shift();
+            // Use a more efficient approach: remove the first element and add the new one
+            this.contextBuffer = this.contextBuffer.slice(1).concat(context);
+        } else {
+            this.contextBuffer.push(context);
         }
-        this.contextBuffer.push(context);
     }
 
     toNarsese(text, options = {}) {
@@ -56,14 +58,13 @@ export class AdvancedNarseseTranslator {
         }
 
         const originalText = text;
-        const sortedPatterns = [...this.patterns.forward].sort((a, b) => b.confidence - a.confidence);
 
-        for (const pattern of sortedPatterns) {
+        for (const pattern of this.forwardPatterns) {
             const match = text.match(pattern.regex);
             if (match) {
                 const result = pattern.replacement
-                    .replace('$1', match[1].trim())
-                    .replace('$2', match[2].trim());
+                    .replace('$1', match[1]?.trim() || '')
+                    .replace('$2', match[2]?.trim() || '');
 
                 return this._recordTranslation(originalText, result, pattern.confidence, pattern.regex.toString());
             }
@@ -78,14 +79,13 @@ export class AdvancedNarseseTranslator {
         }
 
         const originalNarsese = narsese;
-        const sortedPatterns = [...this.patterns.reverse].sort((a, b) => b.confidence - a.confidence);
 
-        for (const pattern of sortedPatterns) {
+        for (const pattern of this.reversePatterns) {
             const match = narsese.match(pattern.regex);
             if (match) {
                 const result = pattern.replacement
-                    .replace('$1', match[1].replace(/_/g, ' '))
-                    .replace('$2', match[2].replace(/_/g, ' '));
+                    .replace('$1', match[1]?.replace(/_/g, ' ') || '')
+                    .replace('$2', match[2]?.replace(/_/g, ' ') || '');
 
                 return this._recordTranslation(originalNarsese, result, pattern.confidence, pattern.regex.toString(), true);
             }
@@ -103,10 +103,11 @@ export class AdvancedNarseseTranslator {
             patternUsed
         };
 
-        this.translationHistory.push(translationEntry);
-
-        if (this.translationHistory.length > this.maxHistorySize) {
-            this.translationHistory.shift();
+        if (this.translationHistory.length >= this.maxHistorySize) {
+            // More efficient approach: replace old entries instead of shifting
+            this.translationHistory = this.translationHistory.slice(1).concat(translationEntry);
+        } else {
+            this.translationHistory.push(translationEntry);
         }
 
         const result = isReverse

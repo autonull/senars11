@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Interactive Graph Visualization Demo</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+        }
+        .controls {
+            padding: 10px;
+            background-color: #333;
+            color: white;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .controls button, .controls select, .controls input {
+            padding: 5px 10px;
+            background-color: #555;
+            color: white;
+            border: 1px solid #777;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .controls button:hover {
+            background-color: #666;
+        }
+        #cy-container {
+            flex: 1;
+            position: relative;
+        }
+        #details-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            display: none;
+            max-width: 300px;
+            max-height: 90%;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.9em;
+            z-index: 1000;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <input type="text" id="node-label-input" placeholder="Node label" />
+            <select id="node-type-select">
+                <option value="concept">Concept</option>
+                <option value="task">Task</option>
+                <option value="belief">Belief</option>
+                <option value="goal">Goal</option>
+                <option value="input_task">Input Task</option>
+                <option value="reasoning_step">Reasoning</option>
+            </select>
+            <button id="add-node-btn">Add Node</button>
+
+            <select id="source-node-select">
+                <option value="">Select source</option>
+            </select>
+            <select id="target-node-select">
+                <option value="">Select target</option>
+            </select>
+            <button id="add-edge-btn">Add Edge</button>
+
+            <button id="fit-btn">Fit to View</button>
+            <button id="clear-btn">Clear Graph</button>
+            <button id="add-example-btn">Add Example Data</button>
+        </div>
+        <div id="cy-container"></div>
+        <div id="details-panel"></div>
+    </div>
+
+    <script>
+        // Initialize Cytoscape with empty elements first
+        const cy = cytoscape({
+            container: document.getElementById('cy-container'),
+
+            elements: [],
+
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'label': 'data(label)',
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'background-color': '#3399FF',
+                        'width': 40,
+                        'height': 40,
+                        'color': '#fff',
+                        'text-outline-width': 2,
+                        'text-outline-color': '#3399FF'
+                    }
+                },
+                // Different colors for different node types
+                {
+                    selector: 'node[type="concept"]',
+                    style: {
+                        'background-color': '#3399FF',
+                        'text-outline-color': '#3399FF'
+                    }
+                },
+                {
+                    selector: 'node[type="task"]',
+                    style: {
+                        'background-color': '#FF6B6B',
+                        'text-outline-color': '#FF6B6B'
+                    }
+                },
+                {
+                    selector: 'node[type="belief"]',
+                    style: {
+                        'background-color': '#6BCF7F',
+                        'text-outline-color': '#6BCF7F'
+                    }
+                },
+                {
+                    selector: 'node[type="goal"]',
+                    style: {
+                        'background-color': '#9B59B6',
+                        'text-outline-color': '#9B59B6'
+                    }
+                },
+                {
+                    selector: 'node[type="input_task"]',
+                    style: {
+                        'background-color': '#FFD93D',
+                        'text-outline-color': '#FFD93D'
+                    }
+                },
+                {
+                    selector: 'node[type="reasoning_step"]',
+                    style: {
+                        'background-color': '#1ABC9C',
+                        'text-outline-color': '#1ABC9C'
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 2,
+                        'line-color': '#888',
+                        'target-arrow-shape': 'triangle',
+                        'target-arrow-color': '#888',
+                        'curve-style': 'bezier',
+                        'opacity': 0.6
+                    }
+                }
+            ],
+
+            layout: {
+                name: 'cose',
+                animate: false,
+                fit: true,
+                padding: 30
+            }
+        });
+
+        // Add initial example nodes
+        function addExampleData() {
+            // Clear existing elements
+            cy.elements().remove();
+
+            cy.add([
+                { group: 'nodes', data: { id: 'concept1', label: 'Concept A', type: 'concept' } },
+                { group: 'nodes', data: { id: 'concept2', label: 'Concept B', type: 'concept' } },
+                { group: 'nodes', data: { id: 'task1', label: 'Task 1', type: 'task' } },
+                { group: 'nodes', data: { id: 'belief1', label: 'Belief 1', type: 'belief' } },
+                { group: 'nodes', data: { id: 'goal1', label: 'Goal 1', type: 'goal' } }
+            ]);
+
+            cy.add([
+                { group: 'edges', data: { id: 'e1', source: 'concept1', target: 'task1' } },
+                { group: 'edges', data: { id: 'e2', source: 'concept2', target: 'task1' } },
+                { group: 'edges', data: { id: 'e3', source: 'task1', target: 'belief1' } },
+                { group: 'edges', data: { id: 'e4', source: 'belief1', target: 'goal1' } }
+            ]);
+
+            // Run layout to position the elements
+            cy.layout({ name: 'cose', animate: false, fit: true, padding: 30 }).run();
+        }
+
+        // Run the example data function initially
+        addExampleData();
+
+        // Set up the details panel like in the mockups
+        const detailsPanel = document.getElementById('details-panel');
+
+        cy.on('tap', 'node', function(evt) {
+            const node = evt.target;
+            detailsPanel.innerHTML = `<pre>${JSON.stringify(node.data(), null, 2)}</pre>`;
+            detailsPanel.style.display = 'block';
+        });
+
+        cy.on('tap', function(evt) {
+            if (evt.target === cy) {
+                detailsPanel.style.display = 'none';
+            }
+        });
+
+        // Set up controls
+        const nodeLabelInput = document.getElementById('node-label-input');
+        const nodeTypeSelect = document.getElementById('node-type-select');
+        const sourceNodeSelect = document.getElementById('source-node-select');
+        const targetNodeSelect = document.getElementById('target-node-select');
+
+        // Update node selection dropdowns when nodes change
+        function updateNodeSelections() {
+            // Clear existing options except the first placeholder
+            sourceNodeSelect.innerHTML = '<option value="">Select source</option>';
+            targetNodeSelect.innerHTML = '<option value="">Select target</option>';
+
+            // Add all current nodes to the selection dropdowns
+            cy.nodes().forEach(node => {
+                const option1 = document.createElement('option');
+                option1.value = node.id();
+                option1.textContent = `${node.data().label} (${node.id()})`;
+                sourceNodeSelect.appendChild(option1);
+
+                const option2 = document.createElement('option');
+                option2.value = node.id();
+                option2.textContent = `${node.data().label} (${node.id()})`;
+                targetNodeSelect.appendChild(option2);
+            });
+        }
+
+        // Initially populate the dropdowns
+        updateNodeSelections();
+
+        // Add node button
+        document.getElementById('add-node-btn').addEventListener('click', () => {
+            const label = nodeLabelInput.value.trim();
+            if (!label) {
+                alert('Please enter a label for the node');
+                return;
+            }
+
+            const type = nodeTypeSelect.value;
+            const id = `node_${Date.now()}`;
+
+            cy.add({
+                group: 'nodes',
+                data: { id, label, type }
+            });
+
+            // Update the selection dropdowns
+            updateNodeSelections();
+
+            // Run layout to reposition elements nicely
+            cy.layout({ name: 'cose', animate: true, fit: true, padding: 30 }).run();
+
+            // Clear input
+            nodeLabelInput.value = '';
+        });
+
+        // Add edge button
+        document.getElementById('add-edge-btn').addEventListener('click', () => {
+            const sourceId = sourceNodeSelect.value;
+            const targetId = targetNodeSelect.value;
+
+            if (!sourceId || !targetId) {
+                alert('Please select both source and target nodes');
+                return;
+            }
+
+            if (sourceId === targetId) {
+                alert('Source and target cannot be the same node');
+                return;
+            }
+
+            // Check if edge already exists
+            const edgeExists = cy.edges().some(edge =>
+                edge.source().id() === sourceId && edge.target().id() === targetId
+            );
+
+            if (edgeExists) {
+                alert('Edge already exists between these nodes');
+                return;
+            }
+
+            const edgeId = `edge_${Date.now()}`;
+
+            cy.add({
+                group: 'edges',
+                data: { id: edgeId, source: sourceId, target: targetId }
+            });
+
+            // Run layout to update the visualization
+            cy.layout({ name: 'cose', animate: true, fit: true, padding: 30 }).run();
+        });
+
+        // Fit to view button
+        document.getElementById('fit-btn').addEventListener('click', () => {
+            cy.fit();
+        });
+
+        // Clear graph button
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            cy.elements().remove();
+            updateNodeSelections();
+        });
+
+        // Add example data button
+        document.getElementById('add-example-btn').addEventListener('click', () => {
+            addExampleData();
+            updateNodeSelections();
+        });
+
+        // Listen for changes to the graph to update dropdowns
+        cy.on('add remove', () => {
+            // Small delay to ensure the change is processed
+            setTimeout(updateNodeSelections, 0);
+        });
+
+        console.log('Advanced graph demo initialized and working!');
+        console.log('Cytoscape instance:', cy);
+    </script>
+</body>
+</html>

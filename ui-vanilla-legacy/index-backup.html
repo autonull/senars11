@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SeNARS - Semantic Non-Axiomatic Reasoning System</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #212529;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #status-bar {
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .status-connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-connecting {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .status-content {
+            display: flex;
+            gap: 25px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .connected-indicator {
+            background-color: #28a745;
+            animation: pulse-connected 1.5s infinite;
+        }
+
+        .disconnected-indicator {
+            background-color: #dc3545;
+        }
+
+        .error-indicator {
+            background-color: #dc3545;
+            animation: blink 1s infinite;
+        }
+
+        .connecting-indicator {
+            background-color: #ffc107;
+            animation: pulse-connecting 1s infinite;
+        }
+
+        @keyframes pulse-connected {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes pulse-connecting {
+            0% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+
+        .main-layout {
+            display: flex;
+            flex: 1;
+            gap: 15px;
+            height: calc(100vh - 120px);
+            overflow: hidden;
+        }
+
+        .repl-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        #repl-container {
+            flex: 1;
+            background-color: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 6px;
+            padding: 10px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Courier New', monospace;
+            margin-bottom: 10px;
+        }
+
+        .console-output {
+            color: #d4d4d4;
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .console-input {
+            color: #9cdcfe;
+        }
+
+        .console-output-line {
+            margin: 3px 0;
+            padding: 2px 0;
+        }
+
+        .console-sent {
+            color: #b5cea8;
+        }
+
+        .console-received {
+            color: #ce9178;
+        }
+
+        .console-error {
+            color: #f44747;
+        }
+
+        .console-success {
+            color: #89d185;
+        }
+
+        .console-info {
+            color: #9cdcfe;
+        }
+
+        .console-debug {
+            color: #d19a66;
+        }
+
+        #repl-input {
+            width: 100%;
+            padding: 12px;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            border: 1px solid #3e3e42;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        #repl-input:focus {
+            outline: none;
+            border-color: #4fc3f7;
+            box-shadow: 0 0 0 2px rgba(79, 195, 247, 0.3);
+        }
+
+        .visualization-section {
+            flex: 1.5;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        #cy-container {
+            flex: 1;
+            background-color: #ffffff;
+            border: 1px solid #3e3e42;
+            border-radius: 6px;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        #details-panel {
+            height: 150px;
+            background-color: #ffffff;
+            border: 1px solid #3e3e42;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+            overflow-y: auto;
+            display: block;
+        }
+
+        .controls-panel {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        select, input[type="text"] {
+            padding: 8px 12px;
+            border: 1px solid #3e3e42;
+            border-radius: 6px;
+            background-color: #ffffff;
+            color: #212529;
+            font-size: 14px;
+        }
+
+        select:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #4fc3f7;
+            box-shadow: 0 0 0 2px rgba(79, 195, 247, 0.3);
+        }
+
+        .quick-commands {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stats-display {
+            background-color: #e9ecef;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #495057;
+        }
+
+        @media (max-width: 1200px) {
+            .main-layout {
+                flex-direction: column;
+                height: auto;
+            }
+
+            .visualization-section {
+                min-height: 400px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .status-content {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .controls-panel {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .control-group {
+                justify-content: space-between;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="status-bar">
+        <div class="status-content">
+            <div class="status-item">
+                <span class="status-indicator disconnected-indicator" id="connection-status-indicator"></span>
+                <span id="connection-status-text">Disconnected</span>
+            </div>
+            <div class="status-item">
+                <span>Live Updates:</span>
+                <span id="live-updates-status">ON</span>
+            </div>
+            <div class="status-item">
+                <span>Messages:</span>
+                <span id="message-count">0</span>
+            </div>
+            <div class="status-item">
+                <span>Nodes:</span>
+                <span id="node-count">0</span>
+            </div>
+            <div class="status-item">
+                <span>Connection Quality:</span>
+                <span id="connection-quality">Poor</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div class="repl-section">
+            <div id="repl-container">
+                <div class="console-output" id="console-output">
+                    <div class="console-output-line console-info">SeNARS Console - Ready to receive commands</div>
+                    <div class="console-output-line console-info">Type 'help' for available commands</div>
+                    <div class="console-output-line console-info">Type Narsese statements like: &lt;cat --&gt; animal&gt;.</div>
+                </div>
+            </div>
+            <input type="text" id="repl-input" placeholder="Enter NARS command (e.g., &lt;cat --&gt; mammal&gt;.)" autocomplete="off" />
+        </div>
+
+        <div class="visualization-section">
+            <div id="cy-container"></div>
+            <div id="details-panel">Click on nodes or edges in the graph to see details here.</div>
+        </div>
+    </div>
+
+    <div class="controls-panel">
+        <div class="control-group">
+            <button id="refresh-btn">Refresh Graph</button>
+            <button id="toggle-live-btn">Pause Live Updates</button>
+            <button id="clear-console-btn">Clear Console</button>
+        </div>
+
+        <div class="control-group">
+            <select id="demo-select">
+                <option value="">Select Demo...</option>
+            </select>
+            <button id="run-demo-btn">Run Demo</button>
+        </div>
+
+        <div class="control-group quick-commands">
+            <select id="quick-command-select">
+                <option value="">Quick Commands...</option>
+                <option value="&lt;cat --&gt; animal&gt; .">Basic Assertion</option>
+                <option value="&lt;bird --&gt; flyer&gt; . %1.0;0.9%">Assertion with Truth Value</option>
+                <option value="&lt;dog --&gt; pet&gt; ?">Question</option>
+                <option value="&lt;(cat & dog) --&gt; pets&gt; .">Compound Term</option>
+                <option value="*step">Single Step</option>
+                <option value="*run">Run Continuous</option>
+                <option value="*stop">Stop</option>
+                <option value="*reset">Reset</option>
+            </select>
+            <button id="execute-quick-btn">Execute</button>
+        </div>
+
+        <div class="stats-display">
+            <span id="session-stats">Session: 0 inputs, 0 outputs</span>
+        </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>

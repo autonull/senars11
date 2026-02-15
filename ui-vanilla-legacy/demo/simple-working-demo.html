@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Working Cytoscape Demo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #f0f0f0;
+        }
+        #cy-container {
+            width: 100%;
+            height: 100%;
+        }
+        #details-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            display: none;
+            max-width: 300px;
+            max-height: 90%;
+            overflow-y: auto;
+            font-family: monospace;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div id="cy-container"></div>
+    <div id="details-panel"></div>
+
+    <script>
+        // Initialize Cytoscape directly like in the working mockups
+        const cy = cytoscape({
+            container: document.getElementById('cy-container'),
+            
+            elements: [
+                // Define nodes
+                { 
+                    group: 'nodes', 
+                    data: { id: 'concept1', label: 'Concept A', type: 'concept' } 
+                },
+                { 
+                    group: 'nodes', 
+                    data: { id: 'concept2', label: 'Concept B', type: 'concept' } 
+                },
+                { 
+                    group: 'nodes', 
+                    data: { id: 'task1', label: 'Task 1', type: 'task' } 
+                },
+                { 
+                    group: 'nodes', 
+                    data: { id: 'belief1', label: 'Belief 1', type: 'belief' } 
+                },
+                { 
+                    group: 'nodes', 
+                    data: { id: 'goal1', label: 'Goal 1', type: 'goal' } 
+                },
+                
+                // Define edges
+                { 
+                    group: 'edges', 
+                    data: { id: 'e1', source: 'concept1', target: 'task1' } 
+                },
+                { 
+                    group: 'edges', 
+                    data: { id: 'e2', source: 'concept2', target: 'task1' } 
+                },
+                { 
+                    group: 'edges', 
+                    data: { id: 'e3', source: 'task1', target: 'belief1' } 
+                },
+                { 
+                    group: 'edges', 
+                    data: { id: 'e4', source: 'belief1', target: 'goal1' } 
+                }
+            ],
+            
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'label': 'data(label)',
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'background-color': '#3399FF',
+                        'width': 40,
+                        'height': 40
+                    }
+                },
+                {
+                    selector: 'node[type="concept"]',
+                    style: {
+                        'background-color': '#3399FF'
+                    }
+                },
+                {
+                    selector: 'node[type="task"]',
+                    style: {
+                        'background-color': '#FF6B6B'
+                    }
+                },
+                {
+                    selector: 'node[type="belief"]',
+                    style: {
+                        'background-color': '#6BCF7F'
+                    }
+                },
+                {
+                    selector: 'node[type="goal"]',
+                    style: {
+                        'background-color': '#9B59B6'
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 1,
+                        'line-color': '#ccc',
+                        'target-arrow-shape': 'triangle',
+                        'target-arrow-color': '#ccc',
+                        'curve-style': 'bezier'
+                    }
+                }
+            ],
+            
+            layout: {
+                name: 'cose',
+                animate: false,
+                fit: true,
+                padding: 30
+            }
+        });
+
+        // Add interactivity like in the mockups
+        const detailsPanel = document.getElementById('details-panel');
+        
+        cy.on('tap', 'node', function(evt) {
+            const node = evt.target;
+            detailsPanel.innerHTML = `<pre>${JSON.stringify(node.data(), null, 2)}</pre>`;
+            detailsPanel.style.display = 'block';
+        });
+
+        cy.on('tap', function(evt) {
+            if (evt.target === cy) {
+                detailsPanel.style.display = 'none';
+            }
+        });
+
+        console.log('Simple Cytoscape demo initialized and working!');
+        console.log('Cytoscape instance:', cy);
+    </script>
+</body>
+</html>

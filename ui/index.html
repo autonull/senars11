@@ -2,20 +2,86 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>SeNARS UI</title>
-    <link rel="stylesheet" href="css/style.css">
+    <title>SeNARS UI2</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="status-bar">Connecting...</div>
-    <div id="main-container">
-        <div id="repl-container"></div>
-        <div id="cy-container"></div>
+    <div class="app-container">
+        <div class="log-panel">
+            <div class="panel-header">Log Messages</div>
+            
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-indicator status-disconnected" id="status-indicator"></div>
+                    <span id="connection-status">Disconnected</span>
+                </div>
+                <div class="status-item">
+                    <span id="message-count">0</span> messages
+                </div>
+            </div>
+
+            <div class="logs-container" id="logs-container">
+                <div class="log-entry type-info">
+                    <span class="log-entry-icon">🚀</span>
+                    <div class="log-entry-content">SeNARS UI2 - Ready</div>
+                    <span class="log-entry-time" id="time-0"></span>
+                </div>
+            </div>
+
+            <div class="input-section">
+                <div class="input-group">
+                    <input type="text" id="command-input" placeholder="Enter Narsese command..." autocomplete="off">
+                    <button id="send-button">Send</button>
+                </div>
+                <div class="input-group">
+                    <select id="quick-commands">
+                        <option value="">Quick Commands...</option>
+                        <option value="&lt;cat --&gt; animal&gt; .">Basic Assertion</option>
+                        <option value="&lt;bird --&gt; flyer&gt; . %1.0;0.9%">Assertion with Truth Value</option>
+                        <option value="&lt;dog --&gt; pet&gt; ?">Question</option>
+                        <option value="&lt;(cat & dog) --&gt; pets&gt; .">Compound Term</option>
+                        <option value="&lt;swan --&gt; flyer&gt; !">Goal</option>
+                        <option value="*step">Single Step</option>
+                        <option value="*run">Run Continuous</option>
+                        <option value="*stop">Stop</option>
+                        <option value="*reset">Reset</option>
+                    </select>
+                    <button id="exec-quick">Execute</button>
+                    <button id="show-history">History</button>
+                    <button id="clear-logs">Clear</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="graph-panel">
+            <div id="graph-container" class="cytoscape-container"></div>
+            <div class="graph-controls">
+                <button id="refresh-graph">Refresh Graph</button>
+                <button id="toggle-live">Pause Live</button>
+                <select id="demo-select">
+                    <option value="">Demos...</option>
+                    <option value="inheritance">Inheritance Demo</option>
+                    <option value="similarity">Similarity Demo</option>
+                    <option value="temporal">Temporal Demo</option>
+                </select>
+                <button id="run-demo">Run</button>
+            </div>
+            <div id="graph-details" class="graph-details-panel">
+                Click on nodes or edges to see details
+            </div>
+        </div>
     </div>
-    <div id="controls">
-        <button id="refresh-btn">Refresh Graph</button>
-        <button id="toggle-live-btn">Pause Live Updates</button>
-    </div>
-    <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
-    <script type="module" src="src/main.js"></script>
+
+    <div class="notification-container" id="notification-container"></div>
+
+    <script>
+        // Inject WebSocket configuration from server
+        window.WEBSOCKET_CONFIG = {
+            port: '{{WEBSOCKET_PORT}}',
+            host: '{{WEBSOCKET_HOST}}'
+        };
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.25.0/cytoscape.min.js"></script>
+    <script type="module" src="src/SeNARSUI.js"></script>
 </body>
 </html>

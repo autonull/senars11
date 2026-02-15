@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SeNARS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            flex-direction: row;
+            min-height: 0;
+        }
+
+        .log-panel {
+            display: flex;
+            flex-direction: column;
+            width: 400px;  /* Fixed width to prevent stretching */
+            min-width: 300px;
+            max-width: 400px;  /* Prevents excessive stretching */
+            background: #1e1e1e;
+            border-right: 1px solid #333;
+            padding: 0;
+            overflow: hidden;
+            flex-shrink: 0;  /* Prevents shrinking */
+        }
+
+        .log-header {
+            padding: 12px 15px 8px;
+            background: #252526;
+            border-bottom: 1px solid #333;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 15px;
+            background: #2d2d30;
+            font-size: 0.9rem;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .indicator-connected { background-color: #4ec9b0; }
+        .indicator-disconnected { background-color: #f48771; }
+        .indicator-connecting { background-color: #ffcc02; animation: pulse 1.5s infinite; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
+        .log-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background: #1e1e1e;
+        }
+
+        .log-entry {
+            padding: 8px 10px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+            width: 100%;
+        }
+
+        .log-entry-icon {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-entry-content {
+            flex: 1;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            min-width: 0; /* Allows flex item to shrink below content size */
+        }
+
+        .log-entry-time {
+            font-size: 0.75rem;
+            color: #858585;
+            margin-left: 8px;
+            flex-shrink: 0;
+        }
+
+        .log-info { background-color: #252525; border-left: 3px solid #0078d7; }
+        .log-success { background-color: #252525; border-left: 3px solid #4ec9b0; }
+        .log-error { background-color: #252525; border-left: 3px solid #f48771; }
+        .log-warning { background-color: #252525; border-left: 3px solid #ffcc02; }
+        .log-debug { background-color: #252525; border-left: 3px solid #c586c0; }
+
+        .log-input { background-color: #252525; border-left: 3px solid #569cd6; }
+        .log-output { background-color: #252525; border-left: 3px solid #b5cea8; }
+        .log-command { background-color: #252525; border-left: 3px solid #d19a66; }
+
+        .log-controls {
+            padding: 10px 15px;
+            background: #252526;
+            border-top: 1px solid #333;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .input-container {
+            display: flex;
+            flex: 1;
+            gap: 8px;
+        }
+
+        #repl-input {
+            flex: 1;
+            padding: 10px 12px;
+            background: #3c3c3c;
+            border: 1px solid #454545;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-family: monospace;
+            font-size: 0.95rem;
+        }
+
+        #repl-input:focus {
+            outline: none;
+            border-color: #0078d7;
+            box-shadow: 0 0 0 2px rgba(0, 120, 215, 0.3);
+        }
+
+        button {
+            background: #0078d7;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background: #1a85ff;
+        }
+
+        select {
+            background: #3c3c3c;
+            color: #e0e0e0;
+            border: 1px solid #454545;
+            border-radius: 4px;
+            padding: 10px 12px;
+            font-size: 0.9rem;
+        }
+
+        .graph-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+            min-width: 0;  /* Allows flex item to shrink */
+        }
+
+        #cy-container {
+            flex: 1;
+            background: #252526;
+            min-width: 0;  /* Allows flex item to shrink */
+            min-height: 0; /* Allows flex item to shrink */
+        }
+
+        .graph-controls {
+            padding: 12px 15px;
+            background: #252526;
+            border-top: 1px solid #333;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            max-width: 400px;
+        }
+
+        .notification {
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            color: white;
+            animation: slideIn 0.3s ease-out, fadeOut 0.5s ease-out 4.5s forwards;
+        }
+
+        .notification-success { background-color: #4ec9b0; }
+        .notification-error { background-color: #f48771; }
+        .notification-warning { background-color: #ffcc02; color: #000; }
+        .notification-info { background-color: #0078d7; }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #252526;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #454545;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #5a5a5a;
+        }
+
+        /* Responsive design */
+        @media (max-width: 1024px) {
+            .main-container {
+                flex-direction: column;
+            }
+            
+            .log-panel {
+                width: 100%;
+                min-height: 40vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Log Panel -->
+        <div class="log-panel">
+            <div class="log-header">
+                <h3>Log</h3>
+            </div>
+            
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="status-indicator indicator-disconnected" id="connection-indicator"></span>
+                    <span id="connection-status">Disconnected</span>
+                </div>
+                <div class="status-item">
+                    <span>Msg:</span>
+                    <span id="message-count">0</span>
+                </div>
+                <div class="status-item">
+                    <span>Nodes:</span>
+                    <span id="node-count">0</span>
+                </div>
+            </div>
+            
+            <div class="log-messages" id="log-messages">
+                <!-- Log messages will be added here -->
+                <div class="log-entry log-info">
+                    <span class="log-entry-icon">🚀</span>
+                    <div class="log-entry-content">
+                        <span>SeNARS System Initialized</span>
+                    </div>
+                    <span class="log-entry-time" id="time-1"></span>
+                </div>
+                <div class="log-entry log-info">
+                    <span class="log-entry-icon">💡</span>
+                    <div class="log-entry-content">
+                        <span>Ready to receive Narsese commands</span>
+                    </div>
+                    <span class="log-entry-time" id="time-2"></span>
+                </div>
+            </div>
+            
+            <div class="log-controls">
+                <div class="input-container">
+                    <input type="text" id="repl-input" placeholder="Enter Narsese command..." autocomplete="off" />
+                    <button id="send-btn">Send</button>
+                </div>
+                
+                <select id="quick-commands">
+                    <option value="">Quick Commands...</option>
+                    <option value="&lt;cat --&gt; animal&gt; .">Basic Assertion</option>
+                    <option value="&lt;bird --&gt; flyer&gt; . %1.0;0.9%">Assertion with Truth Value</option>
+                    <option value="&lt;dog --&gt; pet&gt; ?">Question</option>
+                    <option value="&lt;(cat & dog) --&gt; pets&gt; .">Compound Term</option>
+                    <option value="&lt;swan --&gt; flyer&gt; !">Goal</option>
+                    <option value="*step">Single Step</option>
+                    <option value="*run">Run Continuous</option>
+                    <option value="*stop">Stop</option>
+                    <option value="*reset">Reset</option>
+                </select>
+                <button id="exec-quick-btn">Execute</button>
+                <button id="clear-console-btn">Clear</button>
+            </div>
+        </div>
+
+        <!-- Graph Panel -->
+        <div class="graph-panel">
+            <div id="cy-container"></div>
+            
+            <div class="graph-controls">
+                <div class="control-group">
+                    <button id="refresh-btn">Refresh</button>
+                    <button id="toggle-live-btn">Pause Live</button>
+                </div>
+                
+                <div class="control-group">
+                    <select id="demo-select">
+                        <option value="">Select Demo...</option>
+                        <option value="Simple Inheritance">Simple Inheritance</option>
+                        <option value="Compound Terms">Compound Terms</option>
+                        <option value="Conditional Statements">Conditional Statements</option>
+                        <option value="Variable Reasoning">Variable Reasoning</option>
+                    </select>
+                    <button id="run-demo-btn">Run Demo</button>
+                </div>
+                
+                <div class="control-group">
+                    <button id="show-history-btn">History</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification-container" id="notification-container"></div>
+
+    <script type="module">
+        // Create a simplified WebSocket service for the standalone HTML
+        class SimpleWebSocketService {
+            constructor() {
+                this.ws = null;
+                this.reconnectAttempts = 0;
+                this.maxReconnectAttempts = 10;
+                this.reconnectDelay = 3000;
+                this.eventListeners = new Map();
+                this.url = this._getWebSocketUrl();
+                this.statusHandler = null;
+                this.messageHandler = null;
+                this.sentCount = 0;
+                this.receivedCount = 0;
+            }
+
+            _getWebSocketUrl() {
+                // Use the current page's hostname and standard port
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const hostname = window.location.hostname || 'localhost';
+                return `${protocol}//${hostname}:8080/ws`;
+            }
+
+            connect() {
+                try {
+                    this.ws = new WebSocket(this.url);
+
+                    this.ws.onopen = () => {
+                        console.log('WebSocket connected!');
+                        this.reconnectAttempts = 0;
+                        this.statusHandler?.('connected');
+                        this._showNotification('Connected to SeNARS server', 'success');
+                    };
+
+                    this.ws.onclose = (event) => {
+                        console.log('WebSocket closed:', event);
+                        this.statusHandler?.('disconnected');
+                        this._showNotification('Disconnected from server', 'warning');
+
+                        // Attempt to reconnect
+                        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                            this.reconnectAttempts++;
+                            setTimeout(() => this.connect(), this.reconnectDelay);
+                        }
+                    };
+
+                    this.ws.onerror = (error) => {
+                        console.error('WebSocket error:', error);
+                        this.statusHandler?.('error');
+                        this._showNotification(`Connection Error: ${error.message || 'WebSocket Error'}`, 'error');
+                    };
+
+                    this.ws.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            this.receivedCount++;
+                            this.updateCounts();
+                            this.messageHandler?.(data);
+                        } catch (parseError) {
+                            console.error('Error parsing message:', parseError);
+                        }
+                    };
+                } catch (error) {
+                    console.error('Error creating WebSocket:', error);
+                    this.statusHandler?.('error');
+                    this._showNotification('Failed to establish connection', 'error');
+                }
+            }
+
+            sendMessage(type, payload) {
+                if (this.ws?.readyState === WebSocket.OPEN) {
+                    const message = { type, payload };
+                    this.ws.send(JSON.stringify(message));
+                    this.sentCount++;
+                    this.updateCounts();
+                    return true;
+                }
+                return false;
+            }
+
+            sendCommand(command) {
+                return this.sendMessage('narseseInput', { input: command });
+            }
+
+            updateCounts() {
+                // Update UI with counts
+                const countElement = document.getElementById('message-count');
+                if (countElement) {
+                    countElement.textContent = (this.sentCount + this.receivedCount).toString();
+                }
+            }
+
+            _showNotification(message, type) {
+                const container = document.getElementById('notification-container');
+                const notification = document.createElement('div');
+                notification.className = `notification notification-${type}`;
+                notification.textContent = message;
+                container.appendChild(notification);
+
+                setTimeout(() => {
+                    notification.style.opacity = '0';
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    }, 500);
+                }, 5000);
+            }
+        }
+
+        // UI Component Registry for extensibility
+        class UIComponentRegistry {
+            constructor() {
+                this.components = new Map();
+                this.initDefaultComponents();
+            }
+
+            initDefaultComponents() {
+                // Register default components
+                this.register('log', new LogComponent());
+                this.register('status', new StatusComponent());
+                this.register('input', new InputComponent());
+                this.register('graph', new GraphComponent());
+            }
+
+            register(name, component) {
+                this.components.set(name, component);
+            }
+
+            get(name) {
+                return this.components.get(name);
+            }
+
+            initAll() {
+                this.components.forEach(component => {
+                    component.init();
+                });
+            }
+        }
+
+        // Base component class
+        class BaseComponent {
+            constructor() {
+                this.elements = {};
+                this.state = {};
+            }
+
+            init() {
+                // Override in subclasses
+            }
+
+            render() {
+                // Override in subclasses
+            }
+        }
+
+        // Log Component
+        class LogComponent extends BaseComponent {
+            constructor() {
+                super();
+                this.messageCounter = 3; // For time element IDs
+            }
+
+            init() {
+                this.elements.logMessages = document.getElementById('log-messages');
+                this.state.messages = [];
+            }
+
+            render() {
+                // Render function - not needed since we add messages directly
+            }
+
+            addLogMessage(content, type = 'info', icon = '📝') {
+                // Truncate very long content to prevent horizontal stretching
+                let displayContent = content;
+                if (content.length > 500) {
+                    displayContent = content.substring(0, 500) + '... [truncated]';
+                }
+
+                const logEntry = document.createElement('div');
+                logEntry.className = `log-entry log-${type}`;
+
+                const entryIcon = document.createElement('span');
+                entryIcon.className = 'log-entry-icon';
+                entryIcon.textContent = icon;
+
+                const entryContent = document.createElement('div');
+                entryContent.className = 'log-entry-content';
+                entryContent.textContent = displayContent;
+                entryContent.title = content; // Show full content on hover
+
+                const entryTime = document.createElement('span');
+                entryTime.className = 'log-entry-time';
+                entryTime.textContent = this.getTimestamp();
+                entryTime.id = `time-${this.messageCounter++}`;
+
+                logEntry.appendChild(entryIcon);
+                logEntry.appendChild(entryContent);
+                logEntry.appendChild(entryTime);
+
+                this.elements.logMessages.appendChild(logEntry);
+                this.elements.logMessages.scrollTop = this.elements.logMessages.scrollHeight;
+
+                // Store message in state
+                this.state.messages.push({ content, type, icon, timestamp: new Date() });
+            }
+
+            clear() {
+                this.elements.logMessages.innerHTML = '';
+                this.state.messages = [];
+                this.addLogMessage('Console cleared', 'info', '🧹');
+            }
+
+            getTimestamp() {
+                const now = new Date();
+                return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            }
+        }
+
+        // Status Component
+        class StatusComponent extends BaseComponent {
+            constructor() {
+                super();
+                this.state = {
+                    connectionStatus: 'disconnected',
+                    nodeCount: 0
+                };
+            }
+
+            init() {
+                this.elements = {
+                    connectionIndicator: document.getElementById('connection-indicator'),
+                    connectionStatus: document.getElementById('connection-status'),
+                    nodeCount: document.getElementById('node-count')
+                };
+            }
+
+            updateStatusDisplay() {
+                this.elements.connectionStatus.textContent =
+                    this.state.connectionStatus.charAt(0).toUpperCase() +
+                    this.state.connectionStatus.slice(1);
+
+                // Update indicator class
+                this.elements.connectionIndicator.className = 'status-indicator';
+                if (this.state.connectionStatus === 'connected') {
+                    this.elements.connectionIndicator.classList.add('indicator-connected');
+                } else if (this.state.connectionStatus === 'connecting') {
+                    this.elements.connectionIndicator.classList.add('indicator-connecting');
+                } else {
+                    this.elements.connectionIndicator.classList.add('indicator-disconnected');
+                }
+
+                this.elements.nodeCount.textContent = this.state.nodeCount.toString();
+            }
+        }
+
+        // Input Component
+        class InputComponent extends BaseComponent {
+            constructor() {
+                super();
+                this.state = {
+                    commandHistory: [],
+                    inputCount: 0,
+                    outputCount: 0
+                };
+            }
+
+            init() {
+                this.elements = {
+                    replInput: document.getElementById('repl-input'),
+                    sendBtn: document.getElementById('send-btn'),
+                    quickCommands: document.getElementById('quick-commands'),
+                    execQuickBtn: document.getElementById('exec-quick-btn'),
+                    clearConsoleBtn: document.getElementById('clear-console-btn')
+                };
+
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                this.elements.sendBtn.addEventListener('click', () => {
+                    const command = this.elements.replInput.value.trim();
+                    if (command) {
+                        this.handleCommand(command);
+                        this.elements.replInput.value = '';
+                    }
+                });
+
+                this.elements.replInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.elements.sendBtn.click();
+                    }
+                });
+
+                this.elements.execQuickBtn.addEventListener('click', () => {
+                    if (this.elements.quickCommands.value) {
+                        this.elements.replInput.value = this.elements.quickCommands.value;
+                        this.elements.sendBtn.click();
+                    }
+                });
+            }
+
+            handleCommand(command) {
+                if (!command.trim()) return;
+
+                // Add to history
+                this.state.commandHistory.push({
+                    command: command,
+                    timestamp: new Date(),
+                    status: 'sent'
+                });
+
+                // Add to console with icon
+                const logComponent = componentRegistry.get('log');
+                logComponent.addLogMessage(`> ${command}`, 'input', '⌨️');
+                this.state.inputCount++;
+
+                // Attempt to send via WebSocket
+                const success = wsService.sendCommand(command);
+                if (success) {
+                    logComponent.addLogMessage(`Command sent: ${command}`, 'success', '✅');
+                } else {
+                    logComponent.addLogMessage(`Failed to send: ${command}`, 'error', '❌');
+                }
+            }
+
+            showHistory() {
+                const logComponent = componentRegistry.get('log');
+                if (this.state.commandHistory.length === 0) {
+                    logComponent.addLogMessage('No commands in history', 'info', '📋');
+                } else {
+                    logComponent.addLogMessage(`Command History (${this.state.commandHistory.length} commands):`, 'info', '📋');
+                    const recent = this.state.commandHistory.slice(-10);
+                    recent.forEach((entry, i) => {
+                        const status = entry.status === 'error' ? '❌' : '✅';
+                        logComponent.addLogMessage(`${status} [${this.state.commandHistory.length - recent.length + i + 1}] ${entry.command}`, 'debug', '📜');
+                    });
+                }
+            }
+        }
+
+        // Graph Component
+        class GraphComponent extends BaseComponent {
+            constructor() {
+                super();
+            }
+
+            init() {
+                this.elements = {
+                    refreshBtn: document.getElementById('refresh-btn'),
+                    toggleLiveBtn: document.getElementById('toggle-live-btn'),
+                    demoSelect: document.getElementById('demo-select'),
+                    runDemoBtn: document.getElementById('run-demo-btn'),
+                    showHistoryBtn: document.getElementById('show-history-btn')
+                };
+
+                this.state = {
+                    liveUpdatesEnabled: true
+                };
+
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                this.elements.toggleLiveBtn.addEventListener('click', () => {
+                    this.state.liveUpdatesEnabled = !this.state.liveUpdatesEnabled;
+                    this.elements.toggleLiveBtn.textContent =
+                        this.state.liveUpdatesEnabled ? 'Pause Live' : 'Resume Live';
+                });
+
+                this.elements.refreshBtn.addEventListener('click', () => {
+                    const logComponent = componentRegistry.get('log');
+                    logComponent.addLogMessage('Graph refresh requested', 'info', '🔄');
+                    wsService.sendMessage('control/refresh', {});
+                });
+
+                this.elements.runDemoBtn.addEventListener('click', () => {
+                    const selectedDemo = this.elements.demoSelect.value;
+                    if (!selectedDemo) {
+                        logComponent.addLogMessage('Please select a demo first', 'warning', '⚠️');
+                        return;
+                    }
+
+                    const logComponent = componentRegistry.get('log');
+                    logComponent.addLogMessage(`Running demo: ${selectedDemo}`, 'info', '🎬');
+
+                    // Get demo commands
+                    const demos = {
+                        "Simple Inheritance": ['<{cat} --> animal>.', '<{lion} --> cat>.', '<lion --> animal>?', '5'],
+                        "Compound Terms": ['<(cat & black) --> entity>.', '<(dog & white) --> entity>.', '<{fluffy} --> (cat & white)>?', '5'],
+                        "Conditional Statements": ['<(a & b) ==> c>.', '<a & b>.', '<c>?', '5'],
+                        "Variable Reasoning": ['<?x --> animal>?', '<?x --> (mammal & pet)>?', '<{cat} --> mammal>.', '<{cat} --> pet>.', '5']
+                    };
+
+                    const commands = demos[selectedDemo] || [];
+                    commands.forEach((cmd, index) => {
+                        setTimeout(() => inputComponent.handleCommand(cmd), index * 1000);
+                    });
+                });
+            }
+        }
+
+        // DOM elements (kept for backward compatibility)
+        const elements = {
+            clearConsoleBtn: document.getElementById('clear-console-btn'),
+            showHistoryBtn: document.getElementById('show-history-btn')
+        };
+
+        // State management
+        let state = {
+            connectionStatus: 'disconnected',
+            liveUpdatesEnabled: true,
+            inputCount: 0,
+            outputCount: 0,
+            commandHistory: [],
+            graphNodes: new Map(),
+            graphEdges: new Map()
+        };
+
+        // Initialize component registry
+        const componentRegistry = new UIComponentRegistry();
+        const logComponent = componentRegistry.get('log');
+        const statusComponent = componentRegistry.get('status');
+        const inputComponent = componentRegistry.get('input');
+        const graphComponent = componentRegistry.get('graph');
+
+        // WebSocket service instance
+        const wsService = new SimpleWebSocketService();
+
+        // Message type to icon and style mapping
+        function getMessageStyle(messageType) {
+            const styleMap = {
+                // Connection related
+                'connection': { icon: '🌐', type: 'info' },
+                'error': { icon: '🚨', type: 'error' },
+
+                // NARS concepts
+                'narsese.result': { icon: '✅', type: 'success' },
+                'concept.created': { icon: '🧠', type: 'info' },
+                'task.added': { icon: '📋', type: 'info' },
+                'belief.added': { icon: '💡', type: 'info' },
+                'question.answered': { icon: '❓', type: 'info' },
+                'reasoning.derivation': { icon: '🔍', type: 'info' },
+                'reasoning.step': { icon: '👣', type: 'info' },
+                'task.processed': { icon: '✅', type: 'info' },
+                'task.input': { icon: '📥', type: 'info' },
+
+                // Event types
+                'eventBatch': { icon: '📦', type: 'info' },
+
+                // System commands and control
+                'control/ack': { icon: '✅', type: 'info' },
+                'control.result': { icon: '⚙️', type: 'info' },
+
+                // Default
+                'default': { icon: '📝', type: 'info' }
+            };
+
+            return styleMap[messageType] || styleMap.default;
+        }
+
+        // Process incoming message and format it nicely
+        function processIncomingMessage(message) {
+            state.outputCount++;
+
+            const style = getMessageStyle(message.type);
+
+            // Format content based on message type
+            let content = '';
+
+            // Helper function to safely convert objects to strings (single line)
+            function safeStringify(obj) {
+                try {
+                    // Format objects for better readability but in single line
+                    if (typeof obj === 'object' && obj !== null) {
+                        return JSON.stringify(obj); // Single line JSON
+                    }
+                    return String(obj);
+                } catch (e) {
+                    return '[Object cannot be serialized]';
+                }
+            }
+
+            if (message.type === 'narsese.result') {
+                // Check if it's an error result
+                if (message.payload?.error || message.payload?.status === 'error') {
+                    content = message.payload?.error || message.payload?.message || safeStringify(message.payload || {});
+                    // Override style for error results
+                    style.icon = '🚨';
+                    style.type = 'error';
+                } else {
+                    content = message.payload?.result || message.payload?.message || safeStringify(message.payload || {});
+                }
+            } else if (message.type === 'error' || message.type.includes('error')) {
+                content = message.payload?.message || message.payload?.error || safeStringify(message.payload || {});
+                // Ensure error styling
+                style.icon = '🚨';
+                style.type = 'error';
+            } else if (message.type === 'connection') {
+                content = message.payload?.message || safeStringify(message.payload || {});
+            } else if (message.type.includes('concept') || message.type.includes('task') || message.type.includes('belief')) {
+                content = message.payload?.term || message.payload?.task || safeStringify(message.payload || {});
+            } else {
+                content = safeStringify(message.payload || message);
+            }
+
+            // Limit content length and format message
+            const maxLength = 300;
+            if (content.length > maxLength) {
+                content = content.substring(0, maxLength) + '...';
+            }
+
+            logComponent.addLogMessage(`${message.type}: ${content}`, style.type, style.icon);
+        }
+
+        // Initialize components
+        componentRegistry.initAll();
+
+        // Additional event listeners
+        elements.clearConsoleBtn.addEventListener('click', () => {
+            logComponent.clear();
+        });
+
+        elements.showHistoryBtn.addEventListener('click', () => {
+            inputComponent.showHistory();
+        });
+
+        // Setup WebSocket callbacks
+        wsService.statusHandler = (status) => {
+            state.connectionStatus = status;
+            statusComponent.state.connectionStatus = status;
+            statusComponent.updateStatusDisplay();
+        };
+
+        wsService.messageHandler = (message) => {
+            processIncomingMessage(message);
+        };
+
+        // Connect to WebSocket
+        wsService.connect();
+
+        // Add welcome message
+        setTimeout(() => {
+            logComponent.addLogMessage('SeNARS UI Ready - Attempting to connect to server...', 'info', '📡');
+        }, 500);
+    </script>
+</body>
+</html>

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>REPL Graph Interface</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        #graph-svg { width: 100vw; height: 100vh; display: block; }
+        
+        /* Custom Scrollbar for Terminal */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        .terminal-text { font-family: 'Fira Code', monospace; }
+        
+        /* Animations */
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .log-entry { animation: fade-in 0.2s ease-out; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-200 h-screen flex flex-col relative">
+
+    <!-- Graph Container (Background) -->
+    <div id="graph-container" class="absolute inset-0 z-0 cursor-crosshair"></div>
+
+    <!-- UI Overlay -->
+    <div class="absolute top-4 left-4 z-10 pointer-events-none">
+        <h1 class="text-2xl font-bold text-slate-100 opacity-80">REPL / Graph Viz</h1>
+        <p class="text-sm text-slate-400 mt-1 max-w-xs">
+            Type text to create nodes.<br>
+            Type JS (e.g., <span class="font-mono text-emerald-400">2+2</span>) to attach result nodes.<br>
+            Nodes link to the active (highlighted) node. Click to select.<br>
+            Commands: <span class="font-mono text-sky-400">/clear</span>, <span class="font-mono text-sky-400">/link [label]</span>
+        </p>
+    </div>
+
+    <!-- REPL / Terminal Container -->
+    <div class="absolute bottom-0 left-0 right-0 h-1/3 bg-slate-900/90 backdrop-blur-md border-t border-slate-700 flex flex-col z-20 shadow-[0_-5px_20px_rgba(0,0,0,0.5)] transition-all duration-300 ease-in-out" id="repl-panel">
+        
+        <!-- Drag handle / Status Bar -->
+        <div class="h-6 bg-slate-800 flex items-center justify-between px-4 text-xs text-slate-400 select-none border-b border-slate-700">
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>Active Context: <span id="active-node-display" class="font-mono text-emerald-400">ROOT</span></span>
+            </div>
+            <div class="flex gap-2">
+                 <span>Nodes: <span id="node-count">1</span></span>
+                 <span>Links: <span id="link-count">0</span></span>
+            </div>
+        </div>
+
+        <!-- Terminal Output -->
+        <div id="terminal-output" class="flex-1 overflow-y-auto p-4 terminal-text text-sm space-y-1">
+            <div class="log-entry text-slate-400">Welcome to REPL Graph.</div>
+            <div class="log-entry text-slate-400">System initialized. Root node established.</div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="p-3 bg-slate-950 flex items-center border-t border-slate-800">
+            <span class="text-emerald-500 mr-3 font-bold font-mono">➜</span>
+            <input type="text" id="repl-input" 
+                class="flex-1 bg-transparent border-none outline-none text-slate-100 terminal-text placeholder-slate-600"
+                placeholder="Type input here... (e.g. 'Define Project Scope')" autofocus autocomplete="off">
+        </div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        const state = {
+            nodes: [{ id: "ROOT", label: "ROOT", type: "root", r: 20 }],
+            links: [],
+            activeNodeId: "ROOT",
+            nodeCounter: 0
+        };
+
+        // --- D3 Setup ---
+        const container = document.getElementById('graph-container');
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+
+        const svg = d3.select("#graph-container").append("svg")
+            .attr("id", "graph-svg")
+            .attr("viewBox", [0, 0, width, height]);
+
+        // Add arrow marker for links
+        svg.append("defs").append("marker")
+            .attr("id", "arrowhead")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 25) // Position relative to node radius
+            .attr("refY", 0)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")
+            .attr("fill", "#475569");
+
+        const g = svg.append("g"); // Group for zoom
+
+        // Zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 4])
+            .on("zoom", (event) => {
+                g.attr("transform", event.transform);
+            });
+        svg.call(zoom);
+
+        // Force Simulation
+        const simulation = d3.forceSimulation(state.nodes)
+            .force("link", d3.forceLink(state.links).id(d => d.id).distance(100))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collide", d3.forceCollide().radius(d => d.r + 5).iterations(2));
+
+        // UI Elements references
+        const replInput = document.getElementById('repl-input');
+        const terminalOutput = document.getElementById('terminal-output');
+        const activeNodeDisplay = document.getElementById('active-node-display');
+        const nodeCountDisplay = document.getElementById('node-count');
+        const linkCountDisplay = document.getElementById('link-count');
+
+        // --- Core Logic ---
+
+        function updateGraph() {
+            // Update Stats
+            nodeCountDisplay.textContent = state.nodes.length;
+            linkCountDisplay.textContent = state.links.length;
+
+            // LINKS
+            const link = g.selectAll(".link")
+                .data(state.links, d => d.source.id + "-" + d.target.id);
+
+            link.exit().remove();
+
+            const linkEnter = link.enter().append("line")
+                .attr("class", "link")
+                .attr("stroke", "#475569")
+                .attr("stroke-width", 1.5)
+                .attr("opacity", 0.6)
+                .attr("marker-end", "url(#arrowhead)");
+
+            const linksMerged = linkEnter.merge(link);
+
+            // NODES
+            const node = g.selectAll(".node")
+                .data(state.nodes, d => d.id);
+
+            node.exit().transition().duration(300).attr("r", 0).remove();
+
+            const nodeEnter = node.enter().append("g")
+                .attr("class", "node")
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended))
+                .on("click", (event, d) => {
+                    event.stopPropagation(); // Prevent bg click
+                    setActiveNode(d.id);
+                });
+
+            // Node Circle
+            nodeEnter.append("circle")
+                .attr("r", 0) // Animate in
+                .attr("fill", d => getNodeColor(d.type))
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 2)
+                .transition().duration(300)
+                .attr("r", d => d.r);
+
+            // Node Label
+            nodeEnter.append("text")
+                .attr("dy", d => d.r + 15)
+                .attr("text-anchor", "middle")
+                .text(d => d.label.length > 20 ? d.label.substring(0, 17) + "..." : d.label)
+                .attr("fill", "#cbd5e1")
+                .attr("font-size", "10px")
+                .attr("class", "font-mono pointer-events-none select-none")
+                .style("text-shadow", "0px 1px 2px #000");
+
+            // Tooltip
+            nodeEnter.append("title")
+                .text(d => d.label);
+
+            const nodesMerged = nodeEnter.merge(node);
+
+            // Update visual state of active node
+            nodesMerged.selectAll("circle")
+                .attr("stroke", d => d.id === state.activeNodeId ? "#34d399" : (d.type === 'root' ? '#94a3b8' : '#1e293b'))
+                .attr("stroke-width", d => d.id === state.activeNodeId ? 4 : 2);
+
+            // Simulation Tick
+            simulation.nodes(state.nodes);
+            simulation.force("link").links(state.links);
+            simulation.alpha(1).restart();
+
+            simulation.on("tick", () => {
+                linksMerged
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+
+                nodesMerged
+                    .attr("transform", d => `translate(${d.x},${d.y})`);
+            });
+        }
+
+        function getNodeColor(type) {
+            switch(type) {
+                case 'root': return '#64748b';
+                case 'input': return '#3b82f6';
+                case 'context': return '#a855f7';
+                case 'result': return '#10b981'; // Emerald for results
+                case 'error': return '#ef4444';
+                default: return '#3b82f6';
+            }
+        }
+
+        function setActiveNode(id) {
+            const node = state.nodes.find(n => n.id === id);
+            if (node) {
+                state.activeNodeId = id;
+                activeNodeDisplay.textContent = node.label.length > 15 ? node.label.substring(0, 12) + '...' : node.label;
+                logToTerminal(`Context switched to: [${node.label}]`, 'system');
+                updateGraph();
+            }
+        }
+
+        function logToTerminal(text, type = 'info') {
+            const div = document.createElement('div');
+            div.className = "log-entry break-words";
+            
+            let colorClass = "text-slate-300";
+            if (type === 'command') colorClass = "text-emerald-400 font-bold";
+            if (type === 'system') colorClass = "text-slate-500 italic";
+            if (type === 'error') colorClass = "text-red-400";
+            if (type === 'output') colorClass = "text-sky-300";
+
+            div.innerHTML = `<span class="${colorClass}">${text}</span>`;
+            terminalOutput.appendChild(div);
+            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+        }
+
+        function processCommand(input) {
+            const trimmed = input.trim();
+            if (!trimmed) return;
+
+            logToTerminal(`> ${trimmed}`, 'command');
+
+            // Check for slash commands
+            if (trimmed.startsWith('/')) {
+                const parts = trimmed.split(' ');
+                const cmd = parts[0].toLowerCase();
+                const args = parts.slice(1);
+
+                if (cmd === '/clear') {
+                    state.nodes = [{ id: "ROOT", label: "ROOT", type: "root", r: 20 }];
+                    state.links = [];
+                    state.activeNodeId = "ROOT";
+                    state.nodeCounter = 0;
+                    updateGraph();
+                    logToTerminal("Graph cleared.", "system");
+                    return;
+                }
+                if (cmd === '/link') {
+                    const targetLabel = args.join(' ');
+                    const targetNode = state.nodes.find(n => n.label === targetLabel || n.id === targetLabel);
+                    if (targetNode) {
+                        state.links.push({ source: state.activeNodeId, target: targetNode.id });
+                        updateGraph();
+                        logToTerminal(`Linked to ${targetNode.label}`, "system");
+                    } else {
+                        logToTerminal(`Target node '${targetLabel}' not found.`, "error");
+                    }
+                    return;
+                }
+                return;
+            }
+
+            // 1. Create the Command Node (Input)
+            const commandNodeId = createNode(trimmed, 'input');
+
+            // 2. Try to Evaluate as JavaScript
+            try {
+                // Simple safe-ish eval wrapper
+                const result = (function(str) { 
+                    try { return eval('(' + str + ')'); } 
+                    catch (e) { return null; } 
+                })(trimmed);
+
+                if (result !== null && result !== undefined && String(result) !== trimmed) {
+                    const outputLabel = String(result);
+                    // Create result node, force link to command node (temporarily override active logic inside createNode via flow)
+                    // We keep the Command Node as active, but attach result to it.
+                    createNode(outputLabel, 'result', commandNodeId); 
+                    logToTerminal(`= ${outputLabel}`, 'output');
+                }
+            } catch (e) {
+                // Ignore eval errors, just treat as text
+            }
+        }
+
+        function createNode(label, type = 'input', parentId = null) {
+            state.nodeCounter++;
+            const newNodeId = `node-${state.nodeCounter}`;
+            
+            let radius = 15;
+            
+            // Context/Result nodes are smaller
+            if (type === 'context' || type === 'result' || label.includes(':')) {
+                if (type === 'input') type = 'context'; // Auto-detect key:value as context
+                radius = 10;
+            }
+
+            // Determine source: either explicitly provided parent, or current active node
+            const sourceId = parentId || state.activeNodeId;
+
+            const newNode = {
+                id: newNodeId,
+                label: label,
+                type: type,
+                r: radius,
+                x: width/2 + (Math.random() - 0.5) * 50,
+                y: height/2 + (Math.random() - 0.5) * 50
+            };
+
+            state.nodes.push(newNode);
+            
+            if (sourceId) {
+                state.links.push({
+                    source: sourceId,
+                    target: newNodeId
+                });
+            }
+
+            // Set Active Node Logic:
+            // - If it's a standard input, it becomes the new active node.
+            // - If it's a result/context, the parent (Command) stays active.
+            if (type === 'input') {
+                state.activeNodeId = newNodeId;
+                activeNodeDisplay.textContent = label.length > 15 ? label.substring(0, 12) + '...' : label;
+            }
+
+            updateGraph();
+            return newNodeId;
+        }
+
+        // --- Event Listeners ---
+
+        replInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                processCommand(replInput.value);
+                replInput.value = '';
+            }
+        });
+
+        // Click background to reset to ROOT (optional, currently disabled to keep focus flow)
+        // svg.on("click", () => setActiveNode("ROOT"));
+
+        // Window Resize
+        window.addEventListener('resize', () => {
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            svg.attr("viewBox", [0, 0, w, h]);
+            simulation.force("center", d3.forceCenter(w / 2, h / 2));
+            simulation.alpha(0.3).restart();
+        });
+
+        // --- Drag Functions ---
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        // Initial render
+        updateGraph();
+        replInput.focus();
+
+    </script>
+</body>
+</html>

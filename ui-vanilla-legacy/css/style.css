@@ -1,0 +1,398 @@
+/* Basic styles for SeNARS UI */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+#status-bar {
+    padding: 10px;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    margin-bottom: 10px;
+}
+
+#status-bar.status-connected {
+    background-color: #d4edda;
+    color: #155724;
+    border-color: #c3e6cb;
+}
+
+#status-bar.status-disconnected {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-color: #f5c6cb;
+}
+
+#status-bar.status-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-color: #f5c6cb;
+}
+
+#status-bar.status-connecting {
+    background-color: #fff3cd;
+    color: #856404;
+    border-color: #ffeaa7;
+}
+
+#main-container {
+    display: flex;
+    flex: 1;
+    gap: 20px;
+    min-height: 0;
+    overflow: hidden; /* Prevent any overflow from child containers */
+}
+
+#repl-container {
+    flex: 1;
+    border: 1px solid #ccc;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Ensure it respects flex constraints */
+    overflow: hidden; /* Prevent overflow */
+    position: relative; /* Ensure proper positioning context */
+}
+
+#cy-container {
+    flex: 1;
+    border: 1px solid #ccc;
+    min-height: 0;
+    min-width: 0; /* Ensure it respects flex constraints */
+    overflow: hidden; /* Prevent cytoscape from causing overflow */
+    position: relative; /* Ensure proper positioning context */
+}
+
+#controls {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+}
+
+/* Button styles */
+button {
+    padding: 8px 16px;
+    cursor: pointer;
+    background-color: var(--accent-color, #007bff);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+button:active {
+    background-color: #004085;
+}
+
+/* Form components */
+.form-input, input {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid var(--border-color, #ccc);
+    border-radius: 4px;
+    background-color: var(--bg-primary, #ffffff);
+    color: var(--text-primary, #333333);
+}
+
+.form-input:focus, input:focus {
+    outline: none;
+    border-color: var(--accent-color, #007bff);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.form-select, select {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid var(--border-color, #ccc);
+    border-radius: 4px;
+    background-color: var(--bg-primary, #ffffff);
+    color: var(--text-primary, #333333);
+}
+
+.form-select:focus, select:focus {
+    outline: none;
+    border-color: var(--accent-color, #007bff);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Form group */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: var(--text-primary, #333333);
+}
+
+.form-help-text {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.875em;
+    color: var(--text-secondary, #666666);
+}
+
+.form-error-message {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.875em;
+    color: var(--error-color, #dc3545);
+}
+
+.form-group-error {
+    border: 1px solid var(--error-color, #dc3545);
+    border-radius: 4px;
+    padding: 5px;
+}
+
+/* Button variants */
+.btn {
+    padding: 8px 16px;
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    transition: background-color 0.2s;
+}
+
+.btn-primary {
+    background-color: var(--accent-color, #007bff);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #545b62;
+}
+
+.btn-success {
+    background-color: var(--success-color, #28a745);
+    color: white;
+}
+
+.btn-success:hover {
+    background-color: #1e7e34;
+}
+
+.btn-danger {
+    background-color: var(--error-color, #dc3545);
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.toolbar {
+    display: flex;
+    gap: 10px;
+    padding: 10px 0;
+    flex-wrap: wrap;
+}
+
+.toolbar .btn {
+    margin-bottom: 5px;
+}
+
+pre {
+    flex: 1;
+    overflow-y: auto;
+    margin: 0;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-top: 1px solid #eee;
+    white-space: pre-wrap;
+    font-family: monospace;
+}
+
+input {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+#cy-graph {
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* Ensure cytoscape container doesn't overflow */
+    position: absolute; /* Use absolute positioning to prevent size issues */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+#details-panel {
+    flex: 0 0 250px; /* Do not grow, do not shrink, initial width 250px */
+    border: 1px solid #ccc;
+    padding: 10px;
+    overflow-y: auto;
+    display: none; /* Hidden by default */
+}
+
+/* Enhanced responsiveness for different screen sizes */
+@media (max-width: 1200px) {
+    #main-container {
+        flex-direction: column;
+    }
+
+    #repl-container, #cy-container {
+        min-height: 300px; /* Ensure minimum height for usability on smaller screens */
+        min-width: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    #main-container {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    #repl-container, #cy-container {
+        min-height: 250px;
+    }
+
+    #controls {
+        flex-wrap: wrap;
+    }
+
+    button, select {
+        min-height: 40px; /* Ensure buttons are touch-friendly */
+        min-width: auto;
+    }
+
+    #status-bar {
+        font-size: 14px;
+        padding: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        padding: 5px;
+    }
+
+    #status-bar {
+        font-size: 12px;
+        padding: 6px;
+    }
+
+    #controls {
+        flex-direction: column;
+    }
+
+    button {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+
+    #repl-container, #cy-container {
+        min-height: 200px;
+    }
+
+    input, .form-input {
+        padding: 10px;  /* Larger touch targets */
+        min-height: 44px;  /* Touch-friendly height */
+    }
+}
+
+/* Responsive typography */
+@media (max-width: 480px) {
+    body {
+        font-size: 14px;
+    }
+
+    pre {
+        font-size: 12px;
+        padding: 5px;
+    }
+
+    button {
+        font-size: 14px;
+        padding: 10px 15px;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    #status-bar.status-connected {
+        background-color: #d4edda;
+        color: #000;
+        border-color: #000;
+    }
+
+    #status-bar.status-disconnected,
+    #status-bar.status-error {
+        background-color: #f8d7da;
+        color: #000;
+        border-color: #000;
+    }
+
+    #status-bar.status-connecting {
+        background-color: #fff3cd;
+        color: #000;
+        border-color: #000;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Ensure accessibility for keyboard navigation */
+button:focus,
+input:focus,
+select:focus {
+    outline: 2px solid #0056b3;
+    outline-offset: 2px;
+}
+
+/* Better focus indicators for accessibility */
+*[tabindex]:focus {
+    outline: 2px solid #0056b3;
+    outline-offset: 2px;
+}

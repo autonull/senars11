@@ -127,10 +127,8 @@ async function startWebSocketServer(config = DEFAULT_CONFIG) {
     console.log(`Starting WebSocket server on ${config.webSocket.host}:${config.webSocket.port}...`);
 
     const {ReplEngine} = await import('../../src/repl/ReplEngine.js');
-    const nar = new NAR(config.nar);
-    await nar.initialize();
 
-    // Create a ReplEngine to provide the processInput method required by WebRepl
+    // Create a ReplEngine which manages its own NAR instance
     const replEngine = new ReplEngine(config);
     await replEngine.initialize();
 
@@ -164,7 +162,7 @@ async function startWebSocketServer(config = DEFAULT_CONFIG) {
 
     // Initialize DemoWrapper to provide remote control and introspection
     const demoWrapper = new DemoWrapper();
-    await demoWrapper.initialize(nar, monitor);
+    await demoWrapper.initialize(replEngine.nar, monitor);
 
     // Send list of available demos to connected UIs
     await demoWrapper.sendDemoList();
@@ -181,41 +179,36 @@ async function startWebSocketServer(config = DEFAULT_CONFIG) {
 }
 
 /**
- * Start the Vite development server
+ * Start the UI server as a child process
  */
-function startViteDevServer(config = DEFAULT_CONFIG) {
-    console.log(`Starting Vite dev server on port ${config.ui.port}...`);
+function startUIServer(config = DEFAULT_CONFIG) {
+    console.log(`Starting UI server on port ${config.ui.port}...`);
 
-    const viteArgs = ['vite', 'dev', '--host', '--port', config.ui.port.toString()];
+    // Set up environment variables for the UI server
+    const env = {
+        ...process.env,
+        HTTP_PORT: config.ui.port.toString(),
+        WS_PORT: config.webSocket.port.toString()
+    };
 
-    // Change to ui directory and run vite dev server
-    const viteProcess = spawn('npx', viteArgs, {
+    // Run the UI server as a child process
+    const serverProcess = spawn('node', ['server.js'], {
         cwd: join(__dirname, '../../ui'),
-        stdio: 'inherit', // This allows the Vite server to control the terminal properly
-        env: {
-            ...process.env,
-            // Pass WebSocket connection info to UI
-            VITE_WS_HOST: config.webSocket.host,
-            VITE_WS_PORT: config.webSocket.port.toString(),
-            VITE_WS_PATH: DEFAULT_CONFIG.webSocket.path || undefined,
-            PORT: config.ui.port.toString(), // Also set PORT for compatibility
-            VITE_DEFAULT_LAYOUT: config.ui.layout || 'default'
-        }
+        stdio: 'inherit', // This allows the UI server to control the terminal properly
+        env: env
     });
 
-    viteProcess.on('error', (err) => {
-        console.error('Error starting Vite server:', err.message);
+    serverProcess.on('error', (err) => {
+        console.error('Error starting UI server:', err.message);
         process.exit(1);
     });
 
-    viteProcess.on('close', (code) => {
-        console.log(`Vite server exited with code ${code}`);
-        // Don't exit the main process if vite server closes, just log it
-        // This allows graceful shutdown to be triggered by user pressing Ctrl+C
-        console.log('Vite server closed. Press Ctrl+C to shut down the WebSocket server as well.');
+    serverProcess.on('close', (code) => {
+        console.log(`UI server exited with code ${code}`);
+        console.log('UI server closed. Press Ctrl+C to shut down the WebSocket server as well.');
     });
 
-    return viteProcess;
+    return serverProcess;
 }
 
 /**
@@ -299,11 +292,11 @@ async function main() {
             monitor: webSocketServer.monitor
         });
 
-        // Start Vite dev server
-        const viteProcess = startViteDevServer(config);
+        // Start UI server
+        const uiServer = startUIServer(config);
 
         // Store the websocket server info for shutdown
-        webSocketServer.viteProcess = viteProcess;
+        webSocketServer.uiServer = uiServer;
 
         console.log('Both servers are running. Press Ctrl+C to stop.');
     } catch (error) {

@@ -2,8 +2,8 @@ import {
     createMessageProcessor,
     MessageProcessor,
     messageProcessorUtils
-} from '../../../ui/src/utils/messageProcessor.js';
-import {validateMessage} from '../../../ui/src/schemas/messages.js';
+} from '../../../ui-react-legacy/src/utils/messageProcessor.js';
+import {validateMessage} from '../../../ui-react-legacy/src/schemas/messages.js';
 
 describe('Message Processor', () => {
     describe('MessageProcessor class', () => {
