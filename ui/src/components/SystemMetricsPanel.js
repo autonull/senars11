@@ -29,11 +29,9 @@ export class SystemMetricsPanel extends Component {
     render() {
         if (!this.container) return;
 
-        // Ensure container has hud-panel class if not present (when created dynamically)
-        if (!this.container.classList.contains('hud-panel')) {
-            this.container.classList.add('hud-panel');
-            this.container.classList.add('metrics-panel');
-        }
+        // Set container ID for docking system
+        this.container.id = 'metrics-widget';
+        this.container.className = 'hud-widget dock-right';
 
         const grid = FluentUI.create(this.container)
             .clear()
@@ -48,7 +46,7 @@ export class SystemMetricsPanel extends Component {
         );
 
         // 2. Memory (MEM)
-        this.ui.memoryBar = FluentUI.create('div').class('progress-fill').style({width: '0%'});
+        this.ui.memoryBar = FluentUI.create('div').class('progress-fill').style({ width: '0%' });
         this.ui.memoryText = FluentUI.create('span').class('metric-val-mono').text('0%');
 
         grid.child(
@@ -133,8 +131,8 @@ export class SystemMetricsPanel extends Component {
         this.ui.throughput.text(throughput.toFixed(1));
 
         this.ui.memoryBar.style({ width: `${memory}%` });
-        if(memoryUtilization > 0.8) this.ui.memoryBar.class('progress-fill danger');
-        else if(memoryUtilization > 0.6) this.ui.memoryBar.class('progress-fill warning');
+        if (memoryUtilization > 0.8) this.ui.memoryBar.class('progress-fill danger');
+        else if (memoryUtilization > 0.6) this.ui.memoryBar.class('progress-fill warning');
         else this.ui.memoryBar.class('progress-fill success');
 
         this.ui.memoryText.text(`${Math.round(memory)}%`);

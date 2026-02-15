@@ -1,14 +1,19 @@
-import { Component } from './Component.js';
+import { Component } from '../components/Component.js';
 
-export class ControlToolbar extends Component {
+export class ExplorerToolbar extends Component {
     constructor(container) {
         super(container);
     }
 
     render() {
         if (!this.container) return;
+        // Set container ID for docking system - these are the old controls
+        // We'll make them a compact corner widget
+        this.container.id = 'controls-widget';
+        this.container.className = 'hud-widget';
+
         this.container.innerHTML = `
-            <div id="control-toolbar" class="hud-panel control-toolbar hidden">
+            <div id="control-toolbar" class="hud-panel control-toolbar">
                 <div class="reasoner-controls">
                     <button id="btn-run" class="btn" title="Run Reasoner">▶</button>
                     <button id="btn-pause" class="btn hidden" title="Pause Reasoner">⏸</button>
@@ -18,6 +23,8 @@ export class ControlToolbar extends Component {
                         <input type="range" id="throttle-slider" min="0" max="1000" value="100" step="50">
                         <span id="throttle-val">100ms</span>
                     </div>
+                    <button id="btn-save" class="btn">Save JSON</button>
+                    <button id="btn-load" class="btn">Load JSON</button>
                 </div>
                 <div class="divider"></div>
                 <button id="btn-add-concept" class="btn">Add Concept</button>

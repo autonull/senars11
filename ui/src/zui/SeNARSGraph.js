@@ -606,6 +606,8 @@ export class SeNARSGraph extends GraphSystem {
                          node.data('weight', weight);
                          node.data('priority', priority);
                      }
+                     // Always update fullData as it might have changed via inspector
+                     node.data('fullData', item.data);
                 }
             });
         });

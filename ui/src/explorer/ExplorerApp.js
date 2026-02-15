@@ -76,24 +76,30 @@ export class ExplorerApp {
 
         // Wait for graphManager to be ready if async
         if (!this.graph) {
-             console.error("GraphPanel failed to initialize graphManager");
+            console.error("GraphPanel failed to initialize graphManager");
         } else {
-             // Bind inspector
-             this.graph.on('nodeClick', ({ node }) => {
-                 this.showInspector({ id: node.id(), ...node.data() });
-             });
+            // Bind inspector
+            this.graph.on('nodeClick', ({ node }) => {
+                const data = node.data();
+                // Merge fullData to top level for inspector so it sees budget/truth
+                this.showInspector({
+                    id: node.id(),
+                    ...data,
+                    ...(data.fullData || {})
+                });
+            });
 
-             // Setup Context Menu proxy
-             // SeNARSGraph emits 'contextMenu' event
-             this.graph.on('contextMenu', ({ target, originalEvent }) => {
-                 const type = target && target !== this.graph.cy ? (target.isNode() ? 'node' : 'edge') : 'background';
-                 const evt = originalEvent;
-                 if (type === 'background') {
-                     this.contextMenu.show(evt.x, evt.y, null, 'background');
-                 } else {
-                     this.contextMenu.show(evt.x, evt.y, target, type);
-                 }
-             });
+            // Setup Context Menu proxy
+            // SeNARSGraph emits 'contextMenu' event
+            this.graph.on('contextMenu', ({ target, originalEvent }) => {
+                const type = target && target !== this.graph.cy ? (target.isNode() ? 'node' : 'edge') : 'background';
+                const evt = originalEvent;
+                if (type === 'background') {
+                    this.contextMenu.show(evt.x, evt.y, null, 'background');
+                } else {
+                    this.contextMenu.show(evt.x, evt.y, target, type);
+                }
+            });
         }
 
         // Register Commands
@@ -102,30 +108,62 @@ export class ExplorerApp {
         // Init Layout System
         this.layoutManager.initialize();
 
-        // Instantiate and Mount Components
-        this.layoutManager.addComponent(this.infoPanel, 'top');
+        // === NEW DOCKING SYSTEM: Create temporary containers for  widgets ===
+        // Widgets will set their own IDs and classes during render()
 
-        // Metrics - Mount to top region
-        this.metricsPanel = new SystemMetricsPanel(null); // No static container
+        // 1. Layers Widget (left) - ExplorerInfoPanel
+        const layersContainer = document.createElement('div');
+        this.infoPanel.container = layersContainer;
+        this.infoPanel.render();
+        // Widget sets its own ID and docking class
+        document.body.appendChild(layersContainer);
+
+        // 2. Metrics Widget (right, top) - SystemMetricsPanel
+        const metricsContainer = document.createElement('div');
+        this.metricsPanel = new SystemMetricsPanel(null);
+        this.metricsPanel.container = metricsContainer;
         this.metricsPanel.initialize();
-        this.layoutManager.addComponent(this.metricsPanel, 'top');
+        this.metricsPanel.render();
+        // Widget sets its own ID and docking class
+        document.body.appendChild(metricsContainer);
 
-        this.targetPanel = new TargetPanel(null); // Will be absolute
+        // 3. Log Widget (bottom) - LogPanel
+        const logContainer = document.createElement('div');
+        this.logPanel.container = logContainer;
+        this.logPanel.render();
+        // Widget sets its own ID and docking class
+        document.body.appendChild(logContainer);
+
+        // 4. Inspector Widget (right, bottom) - InspectorPanel
+        const inspectorContainer = document.createElement('div');
+        this.inspectorPanel.container = inspectorContainer;
+        this.inspectorPanel.render();
+        // Widget sets its own ID and docking class
+        document.body.appendChild(inspectorContainer);
+
+        // 5. Controls Widget (bottom-right corner) - ExplorerToolbar
+        const controlsContainer = document.createElement('div');
+        this.controlToolbar.container = controlsContainer;
+        this.controlToolbar.render();
+        // Widget sets its own ID and docking class
+        document.body.appendChild(controlsContainer);
+
+        // 6. Target Panel (absolute positioned, not docked)
+        this.targetPanel = new TargetPanel(null);
         const targetContainer = document.createElement('div');
         targetContainer.id = 'target-panel-container';
         document.body.appendChild(targetContainer);
-        this.targetPanel.container = targetContainer; // Manual mount
+        this.targetPanel.container = targetContainer;
         this.targetPanel.render();
 
-        this.layoutManager.addComponent(this.controlToolbar, 'bottom');
-        this.layoutManager.addComponent(this.logPanel, 'left');
-        this.layoutManager.addComponent(this.inspectorPanel, 'right');
-
-        // Init Components (StatusBar)
+        // Init Components (StatusBar with unified controls)
         this.statusBar = new StatusBar('status-bar-container');
         this.statusBar.initialize({
             onModeSwitch: () => console.log('Mode Switch'),
-            onThemeToggle: () => console.log('Theme Toggle')
+            onThemeToggle: () => console.log('Theme Toggle'),
+            onReasonerControl: (action, value) => this.handleReasonerControl(action, value),
+            onReplSubmit: (command) => this.handleReplCommand(command),
+            onWidgetToggle: (widgetId) => this.toggleWidget(widgetId)
         });
 
         // Start stats update loop
@@ -133,6 +171,8 @@ export class ExplorerApp {
 
         // Init UI Bindings
         this._bindControls();
+        this._bindDragDrop();
+        this._bindKeyboardShortcuts();
 
         // Dynamic import of LLM Controller
         try {
@@ -186,7 +226,9 @@ export class ExplorerApp {
             { id: 'btn-pause', action: () => this.toggleReasoner(false) },
             { id: 'btn-step', action: () => this.stepReasoner() },
             { id: 'btn-llm-config', action: () => this._showLLMConfig() },
-            { id: 'btn-close-inspector', action: () => document.getElementById('inspector-panel')?.classList.add('hidden') }
+            { id: 'btn-close-inspector', action: () => document.getElementById('inspector-panel')?.classList.add('hidden') },
+            { id: 'btn-save', action: () => this.handleSaveJSON() },
+            { id: 'btn-load', action: () => this.handleLoadJSON() }
         ];
 
         bindings.forEach(({ id, action }) => this._bindClick(id, action));
@@ -194,10 +236,9 @@ export class ExplorerApp {
         this._bindSearch();
         this._bindDemoSelect();
         this._bindModeSwitch();
-        this._bindThrottleSlider();
-        this._bindRepl();
         this._bindLayerToggles();
         this._bindMappingControls();
+        // Note: REPL and reasoner controls now in StatusBar
     }
 
     _bindSearch() {
@@ -211,10 +252,10 @@ export class ExplorerApp {
             // We can implement highlightMatches here or assume it's available if we mixed it in.
             // Or use direct cy manipulation.
             if (this.graph.highlightMatches) {
-                 this.graph.highlightMatches(term);
+                this.graph.highlightMatches(term);
             } else {
-                 // Fallback or implementation
-                 this._highlightMatches(term);
+                // Fallback or implementation
+                this._highlightMatches(term);
             }
         };
 
@@ -332,17 +373,43 @@ export class ExplorerApp {
         }
     }
 
-    _bindRepl() {
-        const input = document.getElementById('repl-input');
-        if (input) {
-            input.onkeydown = async (e) => {
-                if (e.key === 'Enter' && input.value.trim()) {
-                    const command = input.value.trim();
-                    input.value = '';
-                    await this.handleReplCommand(command);
-                }
-            };
+    // Reasoner control handler for StatusBar
+    handleReasonerControl(action, value) {
+        switch (action) {
+            case 'run':
+                this.toggleReasoner(true);
+                break;
+            case 'pause':
+                this.toggleReasoner(false);
+                break;
+            case 'step':
+                this.stepReasoner();
+                break;
+            case 'throttle':
+                this.reasonerDelay = value;
+                break;
         }
+    }
+
+    /**
+     * Toggle HUD widget visibility
+     * @param {string} widgetId - Widget identifier (layers, metrics, log, inspector)
+     * @returns {boolean} New visibility state
+     */
+    toggleWidget(widgetId) {
+        const widgetElement = document.getElementById(`${widgetId}-widget`);
+        if (!widgetElement) {
+            console.warn(`Widget ${widgetId} not found`);
+            return false;
+        }
+
+        const isCurrentlyVisible = !widgetElement.classList.contains('hidden');
+        widgetElement.classList.toggle('hidden');
+
+        const newState = !isCurrentlyVisible;
+        this.log(`${widgetId} widget ${newState ? 'shown' : 'hidden'}`, 'system');
+
+        return newState;
     }
 
     _bindLayerToggles() {
@@ -353,7 +420,7 @@ export class ExplorerApp {
                 // Map layer toggles to filter
                 // SeNARSGraph uses applyFilters({ showTasks: bool, ... })
                 if (layer === 'tasks') {
-                     this.graph.applyFilters({ showTasks: visible });
+                    this.graph.applyFilters({ showTasks: visible });
                 }
                 // Concepts layer isn't explicitly filterable in SeNARSGraph currently, only tasks/isolated.
                 // We might need to implement concept hiding if needed, but usually we just hide tasks.
@@ -425,15 +492,18 @@ export class ExplorerApp {
     }
 
     saveNodeChanges(id, updates) {
-        // SeNARSGraph uses addNode/updateNode to handle bag updates internally
-        // We just need to construct the update payload
-        const payload = {
-            id: id,
-            ...updates
-            // Note: SeNARSGraph expects full data structure for deep updates,
-            // but for shallow props it might be fine.
-            // If bag exists, it updates bag item.
-        };
+        // Fetch existing data to merge
+        let existing = {};
+        if (this.graph.bag && this.graph.bag.get(id)) {
+            existing = this.graph.bag.get(id).data;
+        } else if (this.graph.cy) {
+            const node = this.graph.cy.$id(id);
+            if (node.nonempty()) {
+                existing = node.data('fullData') || node.data();
+            }
+        }
+
+        const payload = this._deepMerge(existing, updates);
 
         this.graph.updateNode(payload);
 
@@ -441,7 +511,7 @@ export class ExplorerApp {
         // Retrieve updated item from bag or graph to show in inspector
         const item = this.graph.bag ? this.graph.bag.get(id) : null;
         if (item) {
-             this.showInspector({ id, ...item.data, ...updates });
+            this.showInspector({ id, ...item.data, ...updates });
         }
     }
 
@@ -463,8 +533,8 @@ export class ExplorerApp {
 
         // Data
         this.commandPalette.registerCommand('clear', 'Clear Workspace', null, () => {
-             this.graph.clear();
-             this.log('Workspace cleared', 'system');
+            this.graph.clear();
+            this.log('Workspace cleared', 'system');
         });
 
         this.commandPalette.registerCommand('add-concept', 'Add New Concept', 'A', () => this.handleAddConcept());
@@ -633,6 +703,127 @@ export class ExplorerApp {
         }
     }
 
+    handleSaveJSON() {
+        if (!this.graph || !this.graph.cy) return;
+        const json = this.graph.cy.json();
+        const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'senars-graph.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        this.log('Graph saved to senars-graph.json', 'system');
+    }
+
+    handleLoadJSON() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            this.loadFile(file);
+        };
+        input.click();
+    }
+
+    loadFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                this.loadGraphData(data);
+                this.log(`Loaded file: ${file.name}`, 'system');
+            } catch (err) {
+                this.log(`Error parsing JSON: ${err.message}`, 'error');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    _bindDragDrop() {
+        const container = document.body;
+
+        container.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            container.classList.add('dragging-over');
+        });
+
+        container.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            container.classList.remove('dragging-over');
+        });
+
+        container.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            container.classList.remove('dragging-over');
+
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                if (file.name.endsWith('.json')) {
+                    this.loadFile(file);
+                } else {
+                    this.log('Only .json files are supported', 'warning');
+                }
+            }
+        });
+    }
+
+    _bindKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Ignore if typing in an input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+                return;
+            }
+
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                this.handleDelete();
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                this.handleSaveJSON();
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+                e.preventDefault();
+                this.handleLoadJSON();
+            } else if (e.key === ' ') {
+                e.preventDefault(); // Prevent scroll
+                this.toggleReasoner(!this.isReasonerRunning);
+            }
+        });
+    }
+
+    loadGraphData(json) {
+        if (!this.graph || !this.graph.cy) return;
+
+        // Handle Cytoscape JSON export format
+        if (json.elements) {
+            this.graph.clear();
+            const nodes = json.elements.nodes || [];
+            const edges = json.elements.edges || [];
+
+            let addedNodes = 0;
+            nodes.forEach(n => {
+                if (this.graph.addNode(n.data, false)) addedNodes++;
+            });
+
+            let addedEdges = 0;
+            edges.forEach(e => {
+                if (this.graph.addEdge(e.data, false)) addedEdges++;
+            });
+
+            this.graph.scheduleLayout();
+            this.log(`Loaded ${addedNodes} nodes and ${addedEdges} edges`, 'success');
+            this._updateStats();
+        } else {
+            this.log('Invalid graph JSON format (missing "elements")', 'error');
+        }
+    }
+
     handleDelete() {
         if (!this.graph.cy) return;
         const selected = this.graph.cy.$(':selected');
@@ -679,13 +870,13 @@ export class ExplorerApp {
         const btnPause = document.getElementById('btn-pause');
 
         if (run) {
-            if(btnRun) btnRun.classList.add('hidden');
-            if(btnPause) btnPause.classList.remove('hidden');
+            if (btnRun) btnRun.classList.add('hidden');
+            if (btnPause) btnPause.classList.remove('hidden');
             this._runReasonerLoop();
             this.log('Reasoner started', 'system');
         } else {
-            if(btnRun) btnRun.classList.remove('hidden');
-            if(btnPause) btnPause.classList.add('hidden');
+            if (btnRun) btnRun.classList.remove('hidden');
+            if (btnPause) btnPause.classList.add('hidden');
             if (this.reasonerLoopId) {
                 clearTimeout(this.reasonerLoopId);
                 this.reasonerLoopId = null;
@@ -702,8 +893,8 @@ export class ExplorerApp {
 
         const nar = this.lmController.toolsBridge.getNAR();
         if (!nar) {
-             this.log('NAR instance not found', 'error');
-             return;
+            this.log('NAR instance not found', 'error');
+            return;
         }
 
         try {
@@ -724,6 +915,25 @@ export class ExplorerApp {
         }
     }
 
+    _deepMerge(target, source) {
+        const isObject = (item) => (item && typeof item === 'object' && !Array.isArray(item));
+        const output = Object.assign({}, target);
+
+        if (isObject(target) && isObject(source)) {
+            Object.keys(source).forEach(key => {
+                if (isObject(source[key])) {
+                    if (!(key in target))
+                        Object.assign(output, { [key]: source[key] });
+                    else
+                        output[key] = this._deepMerge(target[key], source[key]);
+                } else {
+                    Object.assign(output, { [key]: source[key] });
+                }
+            });
+        }
+        return output;
+    }
+
     _startStatsLoop() {
         setInterval(() => {
             if (!this.lmController || !this.lmController.toolsBridge) return;
@@ -731,19 +941,32 @@ export class ExplorerApp {
             if (!nar) return;
 
             const stats = nar.getStats();
+            const totalConcepts = stats.memoryStats ? stats.memoryStats.totalConcepts : 0;
+            const maxConcepts = (stats.config && stats.config.memory) ? stats.config.memory.maxConcepts : 1000;
+            const tps = this.isReasonerRunning ? (1000 / Math.max(this.reasonerDelay, 1)).toFixed(1) : 0;
 
+            // Update StatusBar
             if (this.statusBar) {
                 this.statusBar.updateStats({
+                    cycles: stats.cycleCount || 0,
+                    nodes: totalConcepts,
+                    maxNodes: maxConcepts,
+                    tps: tps
+                });
+            }
+
+            // Legacy status bar support
+            const legacyBar = this.statusBar;
+            if (legacyBar && legacyBar.updateStats) {
+                legacyBar.updateStats({
                     cycles: stats.cycleCount || 0,
                     messages: 0,
                     latency: 0
                 });
             }
 
+            // Update metrics panel
             if (this.metricsPanel) {
-                const totalConcepts = stats.memoryStats ? stats.memoryStats.totalConcepts : 0;
-                const maxConcepts = (stats.config && stats.config.memory) ? stats.config.memory.maxConcepts : 1000;
-
                 this.metricsPanel.update({
                     performance: {
                         throughput: this.isReasonerRunning ? (1000 / Math.max(this.reasonerDelay, 1)) : 0,

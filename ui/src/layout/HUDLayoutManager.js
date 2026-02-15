@@ -1,85 +1,133 @@
+/**
+ * HUD Layout Manager - Docking System
+ * Manages togglable widgets docked to screen borders
+ */
 export class HUDLayoutManager {
-    constructor(containerId) {
-        this.containerId = containerId;
-        this.container = null;
-        this.zones = {
-            top: null,
-            bottom: null,
-            left: null,
-            right: null,
-            center: null
-        };
-        this.components = new Map();
-        this.mode = 'default';
+    constructor() {
+        this.widgets = new Map();
+        this.visibilityState = new Map();
     }
 
+    /**
+     * Initialize the layout manager (no-op for new system, kept for compatibility)
+     */
     initialize() {
-        this.container = document.getElementById(this.containerId);
-        if (!this.container) {
-            console.error(`HUDLayoutManager: Container #${this.containerId} not found`);
-            return;
+        // New system doesn't need  initialization, widgets register themselves
+        console.log('HUDLayoutManager initialized (docking system)');
+    }
+
+    /**
+     * Register a widget with the docking system
+     * @param {string} id - Unique widget identifier
+     * @param {HTMLElement} element - Widget DOM element
+     * @param {string} dock - Docking position: 'left', 'right', 'bottom', 'none'
+     * @param {boolean} defaultVisible - Initial visibility state
+     */
+    registerWidget(id, element, dock = 'none', defaultVisible = true) {
+        element.id = `${id}-widget`;
+        element.classList.add('hud-widget');
+
+        if (dock !== 'none') {
+            element.classList.add(`dock-${dock}`);
         }
 
-        // Create Zones
-        this._createZone('top');
-        this._createZone('left');
-        this._createZone('right');
-        this._createZone('bottom');
-        this._createZone('center');
+        this.widgets.set(id, element);
+        this.visibilityState.set(id, defaultVisible);
+
+        if (!defaultVisible) {
+            element.classList.add('hidden');
+        }
+
+        document.body.appendChild(element);
     }
 
-    _createZone(name) {
-        const el = document.createElement('div');
-        el.className = `hud-zone hud-${name}`;
-        el.id = `hud-zone-${name}`;
-        this.container.appendChild(el);
-        this.zones[name] = el;
+    /**
+     * Toggle widget visibility
+     */
+    toggle(id) {
+        const widget = this.widgets.get(id);
+        const isVisible = this.visibilityState.get(id);
+
+        if (widget) {
+            widget.classList.toggle('hidden');
+            this.visibilityState.set(id, !isVisible);
+            return !isVisible;
+        }
+        return false;
     }
 
+    /**
+     * Show a widget
+     */
+    show(id) {
+        const widget = this.widgets.get(id);
+        if (widget) {
+            widget.classList.remove('hidden');
+            this.visibilityState.set(id, true);
+        }
+    }
+
+    /**
+     * Hide a widget
+     */
+    hide(id) {
+        const widget = this.widgets.get(id);
+        if (widget) {
+            widget.classList.add('hidden');
+            this.visibilityState.set(id, false);
+        }
+    }
+
+    /**
+     * Check if widget is visible
+     */
+    isVisible(id) {
+        return this.visibilityState.get(id) || false;
+    }
+
+    /**
+     * Get widget element
+     */
+    getWidget(id) {
+        return this.widgets.get(id);
+    }
+
+    /**
+     * Legacy compatibility: addComponent
+     */
     addComponent(component, region) {
-        if (!this.zones[region]) {
-            console.error(`HUDLayoutManager: Invalid region "${region}"`);
-            return;
-        }
+        console.warn('HUDLayoutManager.addComponent is deprecated, use registerWidget');
 
-        // Create a wrapper for the component so it doesn't overwrite the zone
-        const wrapper = document.createElement('div');
-        wrapper.className = 'hud-component-wrapper';
-        this.zones[region].appendChild(wrapper);
+        // Convert old region names to dock positions
+        const dockMap = { left: 'left', right: 'right', bottom: 'bottom', top: 'none', center: 'none' };
+        const dock = dockMap[region] || 'none';
 
-        // Mount component to the wrapper
-        if (component.mount) {
-            component.mount(wrapper);
-        } else if (component.container) {
-            wrapper.appendChild(component.container);
+        // Generate ID from component or use region
+        const id = component.id || region;
+
+        // Get or create element
+        let element;
+        if (component.container) {
+            element = component.container;
         } else {
-             console.error(`HUDLayoutManager: Component missing mount() or container`, component);
-             return;
-        }
-
-        // Store reference to wrapper for removal
-        component._hudWrapper = wrapper;
-
-        this.components.set(component, region);
-    }
-
-    removeComponent(component) {
-        const region = this.components.get(component);
-        if (region && this.zones[region]) {
-            // Unmount/Remove logic would depend on Component implementation
-            // For now, assume component handles its own DOM removal on destroy/unmount
-            // or we just remove its container from the zone
-            if (component.container && component.container.parentNode === this.zones[region]) {
-                this.zones[region].removeChild(component.container);
+            element = document.createElement('div');
+            if (component.render) {
+                component.render();
+                if (component.container) {
+                    element = component.container;
+                }
             }
-            this.components.delete(component);
         }
+
+        this.registerWidget(id, element, dock, true);
     }
 
+    /**
+     * Clear all widgets
+     */
     clear() {
-        Object.values(this.zones).forEach(zone => {
-            if (zone) zone.innerHTML = '';
-        });
-        this.components.clear();
+        this.widgets.forEach(widget => widget.remove());
+        this.widgets.clear();
+        this.visibilityState.clear();
     }
 }
