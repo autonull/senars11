@@ -4,67 +4,263 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SeNARS UI2</title>
-
-    <!-- GoldenLayout Styles -->
-    <link type="text/css" rel="stylesheet" href="libs/goldenlayout-base.css" />
-    <link type="text/css" rel="stylesheet" href="libs/goldenlayout-dark-theme.css" />
-
-    <!-- Main UI Styles -->
-    <link rel="stylesheet" href="style.css">
-
+    <title>SeNARS - Sensorimotor NARS</title>
     <style>
-        body,
-        html {
-            width: 100%;
-            height: 100%;
+        * {
             margin: 0;
             padding: 0;
-            overflow: hidden;
-            background-color: #1e1e1e;
-            color: #d4d4d4;
+            box-sizing: border-box;
+        }
+
+        body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+            color: #d4d4d4;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
         }
 
-        #layout-root {
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00d4ff 0%, #00ff88 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 40px rgba(0, 212, 255, 0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #888;
+            font-weight: 300;
+            letter-spacing: 0.1em;
+        }
+
+        .tagline {
+            font-size: 0.95rem;
+            color: #666;
+            margin-top: 0.5rem;
+            font-style: italic;
+        }
+
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            max-width: 1200px;
             width: 100%;
-            height: 100vh;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
         }
 
-        /* GoldenLayout container adjustments */
-        .lm_content {
-            background: #1e1e1e;
+        .app-card {
+            background: rgba(45, 45, 45, 0.8);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 2px solid rgba(0, 212, 255, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .app-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #00d4ff, #00ff88);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+
+        .app-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .app-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(0, 212, 255, 0.6);
+            box-shadow: 0 12px 40px rgba(0, 212, 255, 0.3);
+            background: rgba(55, 55, 55, 0.95);
+        }
+
+        .app-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .app-title {
+            font-size: 1.6rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: #00d4ff;
+        }
+
+        .app-description {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #aaa;
+            margin-bottom: 1rem;
+        }
+
+        .app-badge {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-local {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.4);
+        }
+
+        .badge-online {
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+            border: 1px solid rgba(0, 212, 255, 0.4);
+        }
+
+        .badge-demo {
+            background: rgba(255, 187, 0, 0.2);
+            color: #ffbb00;
+            border: 1px solid rgba(255, 187, 0, 0.4);
+        }
+
+        .badge-dev {
+            background: rgba(187, 134, 252, 0.2);
+            color: #bb86fc;
+            border: 1px solid rgba(187, 134, 252, 0.4);
+        }
+
+        footer {
+            margin-top: auto;
+            padding-top: 3rem;
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: #00d4ff;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        footer a:hover {
+            color: #00ff88;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            .app-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 
 <body>
-    <div id="layout-root"></div>
+    <header>
+        <h1>SeNARS</h1>
+        <div class="subtitle">Sensorimotor Non-Axiomatic Reasoning System</div>
+        <div class="tagline">Cognitive Architecture for Artificial General Intelligence</div>
+    </header>
 
-    <div class="notification-container" id="notification-container"></div>
+    <div class="app-grid">
+        <a href="/ide.html" class="app-card">
+            <span class="app-icon">💻</span>
+            <h2 class="app-title">Local IDE</h2>
+            <p class="app-description">
+                Fully offline browser-based IDE. Runs the entire SeNARS engine (NAR + MeTTa) directly in your browser.
+                Perfect for experimentation, learning, and development.
+            </p>
+            <span class="app-badge badge-local">Offline • No Server</span>
+        </a>
 
-    <!-- Confirmation Modal -->
-    <div class="modal hidden" id="confirmation-modal">
-        <div class="modal-content">
-            <h3>Confirm Reset</h3>
-            <p>Are you sure you want to reset the system? This cannot be undone.</p>
-            <div class="modal-buttons">
-                <button class="primary-btn" id="btn-confirm-reset">Yes, Reset</button>
-                <button class="secondary-btn" id="btn-cancel-reset">Cancel</button>
-            </div>
-        </div>
+        <a href="/online.html" class="app-card">
+            <span class="app-icon">🌐</span>
+            <h2 class="app-title">Online UI</h2>
+            <p class="app-description">
+                Connect to a remote SeNARS server via WebSocket. Enables cloud-hosted instances, multi-user scenarios,
+                and production deployments.
+            </p>
+            <span class="app-badge badge-online">WebSocket • Server Required</span>
+        </a>
+
+        <a href="/demo.html" class="app-card">
+            <span class="app-icon">🎯</span>
+            <h2 class="app-title">Demo Runner</h2>
+            <p class="app-description">
+                Pre-configured demonstrations showcasing SeNARS capabilities. Explore reasoning examples, cognitive
+                patterns, and system features interactively.
+            </p>
+            <span class="app-badge badge-demo">Examples • Interactive</span>
+        </a>
+
+        <a href="/repl.html" class="app-card">
+            <span class="app-icon">⚡</span>
+            <h2 class="app-title">REPL</h2>
+            <p class="app-description">
+                Read-Eval-Print Loop for direct interaction with the reasoning engine. Execute Narsese commands and
+                MeTTa expressions with instant feedback.
+            </p>
+            <span class="app-badge badge-dev">Developer Tool</span>
+        </a>
     </div>
 
-    <script>
-        // Inject WebSocket configuration from server
-        window.WEBSOCKET_CONFIG = {
-            port: '{{WEBSOCKET_PORT}}',
-            host: window.location.hostname || 'localhost'
-        };
-    </script>
-
-    <!-- App Bundle -->
-    <script src="dist/app.bundle.js"></script>
+    <footer>
+        <p>
+            SeNARS is an implementation of <a href="https://github.com/opennars/opennars" target="_blank">NARS</a>
+            with sensorimotor integration and <a href="https://github.com/trueagi-io/hyperon-experimental" target="_blank">MeTTa</a> support.
+        </p>
+    </footer>
 </body>
 
 </html>
