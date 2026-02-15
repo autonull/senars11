@@ -2,7 +2,7 @@ import {mergeConfig, processDerivation, sleep} from './utils/common.js';
 import {Logger} from '../util/Logger.js';
 import {logError, ReasonerError} from './utils/error.js';
 import {Queue} from '../util/Queue.js';
-import {ArrayStamp} from '../Stamp.js';
+import {Stamp, ArrayStamp, BloomStamp} from '../Stamp.js';
 import {isSynchronousRule} from './RuleHelpers.js';
 import {RuleCompiler} from './exec/RuleCompiler.js';
 import {RuleExecutor as PatternRuleExecutor} from './exec/RuleExecutor.js';
@@ -121,10 +121,8 @@ export class RuleProcessor {
         const TaskClass = p1.constructor;
 
         // Create new stamp
-        const newStamp = new ArrayStamp({
-            source: `DERIVED:${ruleName}`,
-            derivations: [p1.stamp, p2.stamp],
-            depth: Math.max(p1.stamp.depth, p2.stamp.depth) + 1
+        const newStamp = Stamp.derive([p1.stamp, p2.stamp], {
+            source: `DERIVED:${ruleName}`
         });
 
         return new TaskClass({
@@ -181,14 +179,38 @@ export class RuleProcessor {
     enrichResult(result, rule) {
         if (!result || !result.stamp) return result;
         const ruleName = rule.id || rule.name || 'UnknownRule';
-        return result.clone({
-            stamp: new ArrayStamp({
-                id: result.stamp.id,
-                creationTime: result.stamp.creationTime,
+        const s = result.stamp;
+
+        let newStamp;
+        if (s instanceof ArrayStamp) {
+            newStamp = new ArrayStamp({
+                id: s.id,
+                creationTime: s.creationTime,
                 source: `DERIVED:${ruleName}`,
-                derivations: result.stamp.derivations,
-                depth: result.stamp.depth
-            })
+                derivations: s.derivations,
+                depth: s.depth
+            });
+        } else if (s instanceof BloomStamp) {
+            newStamp = new BloomStamp({
+                id: s.id,
+                creationTime: s.creationTime,
+                source: `DERIVED:${ruleName}`,
+                depth: s.depth,
+                filter: s.filter
+            });
+        } else {
+            // Fallback: Try to convert plain objects to ArrayStamp (backward compatibility)
+            newStamp = new ArrayStamp({
+                id: s.id,
+                creationTime: s.creationTime,
+                source: `DERIVED:${ruleName}`,
+                derivations: s.derivations,
+                depth: s.depth
+            });
+        }
+
+        return result.clone({
+            stamp: newStamp
         });
     }
 

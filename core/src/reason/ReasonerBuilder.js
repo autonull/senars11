@@ -244,7 +244,7 @@ export class ReasonerBuilder {
     }
 
     useDefaultRuleProcessor(options = {}) {
-        const {termFactory} = this.context;
+        const {termFactory, budgetManager} = this.context;
         const config = {...this.config, ...options};
 
         if (!this.components.ruleExecutor) {
@@ -253,7 +253,8 @@ export class ReasonerBuilder {
 
         this.components.ruleProcessor = new RuleProcessor(this.components.ruleExecutor, {
             maxDerivationDepth: config.maxDerivationDepth || 10,
-            termFactory: termFactory
+            termFactory: termFactory,
+            budgetManager: budgetManager
         });
         return this;
     }

@@ -120,6 +120,52 @@ export class Server {
                 }
             }
         );
+
+        this.server.tool(
+            "sync-beliefs",
+            {
+                since: z.number().default(0).describe("Timestamp to get modified beliefs since"),
+                incoming: z.array(z.object({
+                    term: z.string(),
+                    truth: z.object({
+                        frequency: z.number(),
+                        confidence: z.number()
+                    }),
+                    source: z.string().optional()
+                })).optional().describe("Incoming belief deltas to reconcile")
+            },
+            async ({since, incoming}) => {
+                if (!this.nar) return this._error("NAR instance not available.");
+                try {
+                    const stats = {reconciled: 0, outgoing: 0};
+
+                    // 1. Process Incoming
+                    if (incoming && incoming.length > 0) {
+                        for (const beliefData of incoming) {
+                            const success = await this.nar.reconcile(beliefData);
+                            if (success) stats.reconciled++;
+                        }
+                    }
+
+                    // 2. Prepare Outgoing
+                    const outgoing = this.nar.memory.getBeliefDeltas(since);
+                    stats.outgoing = outgoing.length;
+
+                    return {
+                        content: [{
+                            type: "text",
+                            text: JSON.stringify({
+                                status: "success",
+                                stats,
+                                deltas: outgoing
+                            }, null, 2)
+                        }]
+                    };
+                } catch (error) {
+                    return this._error(`Sync error: ${error.message}`);
+                }
+            }
+        );
     }
 
     async start() {

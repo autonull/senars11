@@ -32,9 +32,25 @@ export class LMNarseseTranslationRule extends LMRule {
                 const lmStats = context.lmStats; // Assuming context has access to LMStats
                 const providerId = this.lm.providerId || 'unknown';
 
-                // Get calibrated confidence (if logProb available in response metadata, pass it)
-                // For now, we assume simple text response
-                const confidence = lmStats ? lmStats.getCalibratedConfidence(providerId) : 0.8;
+                // Extract logprobs or score if available in response object (if response is object)
+                let logProb = null;
+                let textResponse = response;
+
+                if (typeof response === 'object' && response.text) {
+                    textResponse = response.text;
+                    if (response.metadata && response.metadata.score) {
+                        // Assume score is log probability or probability
+                        // Normalized if > 0 ? No, usually score is logProb.
+                        logProb = response.metadata.score;
+                    }
+                }
+
+                // Get calibrated confidence
+                const confidence = lmStats ? lmStats.getCalibratedConfidence(providerId, logProb) :
+                                   (logProb !== null ? Math.min(0.99, Math.max(0.1, Math.exp(logProb))) : 0.8);
+
+                // Use simple response string for processing
+                response = typeof response === 'string' ? response : textResponse;
 
                 try {
                     // Try to translate

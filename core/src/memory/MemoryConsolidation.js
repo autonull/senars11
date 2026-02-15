@@ -563,6 +563,24 @@ export class MemoryConsolidation extends ConfigurableComponent {
 
         for (const concept of memory.getAllConcepts()) {
             if (concept.forgettingMarked) {
+                // Phase 4.2: Consolidation as Compilation
+                // Before forgetting, compile high-value tasks and store in Archive
+                if (memory.archive) {
+                    const tasks = concept.getAllTasks();
+                    const compiledRules = this.compile(tasks);
+
+                    // Archive if we have compiled content
+                    if (compiledRules.length > 0) {
+                        // Store the compiled batch (simplified for now)
+                        // In real implementation, this might link back to the term
+                        const content = JSON.stringify({
+                            term: concept.term.toString(),
+                            rules: compiledRules
+                        });
+                        memory.archive.put(content);
+                    }
+                }
+
                 conceptsToRemove.push(concept.term);
             }
         }
@@ -599,5 +617,21 @@ export class MemoryConsolidation extends ConfigurableComponent {
             memoryEfficiency: totalTasks / concepts.length,
             consolidationNeeded: totalActivation / concepts.length < this.getConfigValue('activationThreshold')
         };
+    }
+
+    /**
+     * Compile tasks/concepts into MeTTa rewrite rules (Consolidation as Compilation)
+     * @param {Array<Task>} tasks - The tasks to compile
+     * @returns {Array<string>} - The compiled MeTTa rules
+     */
+    compile(tasks) {
+        // Placeholder for Phase 4.2
+        // Convert evidence chains into MeTTa rewrite rules (implications).
+        // Compresses the deductive history into executable logic.
+
+        return tasks.map(task => {
+            // Simple placeholder transformation
+            return `(compile-stub "${task.term ? task.term.toString() : 'unknown'}")`;
+        });
     }
 }
