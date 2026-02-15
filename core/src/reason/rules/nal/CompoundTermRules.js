@@ -34,8 +34,8 @@ export class CompoundCompositionRule extends NALRule {
     apply(primaryPremise, secondaryPremise, context) {
         if (!this.canApply(primaryPremise, secondaryPremise, context)) return [];
 
-        const {term: t1, truth: truth1} = primaryPremise;
-        const {term: t2, truth: truth2} = secondaryPremise;
+        const {term: t1} = primaryPremise;
+        const {term: t2} = secondaryPremise;
         const termFactory = context?.termFactory;
         const unifier = context?.unifier;
 
@@ -43,63 +43,33 @@ export class CompoundCompositionRule extends NALRule {
 
         let substitution = {};
         const match = (u, v) => {
-            if (unifier) {
-                const res = unifier.unify(u, v);
-                if (res.success) {
-                    substitution = res.substitution;
-                    return true;
-                }
-                return false;
+            const res = unifier?.unify(u, v);
+            if (res?.success) {
+                substitution = res.substitution;
+                return true;
             }
             return u?.equals?.(v);
         };
 
         const results = [];
-        const derive = (op, comp1, comp2, isSubject, common, truthFunc) => {
-            let finalC1 = comp1;
-            let finalC2 = comp2;
-            let finalCommon = common;
+        const derive = (op, c1, c2, isSubject, common, truthFunc) => {
+            const finalC1 = this.applySubstitution(c1, substitution, context);
+            const finalC2 = this.applySubstitution(c2, substitution, context);
+            const finalCommon = this.applySubstitution(common, substitution, context);
 
-            if (unifier && Object.keys(substitution).length > 0) {
-                finalC1 = unifier.applySubstitution(finalC1, substitution);
-                finalC2 = unifier.applySubstitution(finalC2, substitution);
-                finalCommon = unifier.applySubstitution(finalCommon, substitution);
-            }
-
-            // Create compound
             const compound = termFactory.create(op, [finalC1, finalC2]);
+            const term = isSubject ? termFactory.inheritance(compound, finalCommon) : termFactory.inheritance(finalCommon, compound);
+            const truth = truthFunc(primaryPremise.truth, secondaryPremise.truth);
 
-            let conclusionTerm;
-            if (isSubject) {
-                // ((C1 op C2) --> Common)
-                conclusionTerm = termFactory.inheritance(compound, finalCommon);
-            } else {
-                // (Common --> (C1 op C2))
-                conclusionTerm = termFactory.inheritance(finalCommon, compound);
-            }
-
-            const derivedTruth = truthFunc(truth1, truth2);
-            if (derivedTruth) {
-                const task = this.createDerivedTask(conclusionTerm, derivedTruth, [primaryPremise, secondaryPremise], context, '.');
-                if (task) results.push(task);
-            }
+            const task = this.createDerivedTask(term, truth, [primaryPremise, secondaryPremise], context);
+            if (task) results.push(task);
         };
 
-        // Shared Subject: (S --> P), (S --> M)
         if (match(t1.subject, t2.subject)) {
-            // Intersection: (S --> (P & M)) using Truth.intersection
             derive('&', t1.predicate, t2.predicate, false, t1.subject, Truth.intersection);
-
-            // Union: (S --> (P | M)) using Truth.union
             derive('|', t1.predicate, t2.predicate, false, t1.subject, Truth.union);
-        }
-
-        // Shared Predicate: (P --> M), (S --> M)
-        else if (match(t1.predicate, t2.predicate)) {
-            // Intersection: ((P & S) --> M) using Truth.union
+        } else if (match(t1.predicate, t2.predicate)) {
             derive('&', t1.subject, t2.subject, true, t1.predicate, Truth.union);
-
-            // Union: ((P | S) --> M) using Truth.intersection
             derive('|', t1.subject, t2.subject, true, t1.predicate, Truth.intersection);
         }
 
@@ -132,54 +102,30 @@ export class CompoundDecompositionRule extends NALRule {
     apply(primaryPremise, secondaryPremise, context) {
         if (!this.canApply(primaryPremise, secondaryPremise, context)) return [];
 
-        const {term, truth} = primaryPremise;
+        const {term} = primaryPremise;
         const termFactory = context?.termFactory;
         if (!termFactory) return [];
 
         const results = [];
+        const truth = Truth.structuralDeduction(primaryPremise.truth);
+        if (!truth) return [];
 
-        // Helper
-        const derive = (sub, pred, truthVal) => {
-            if (!truthVal) return;
-            const newTerm = termFactory.inheritance(sub, pred);
-            const task = this.createDerivedTask(newTerm, truthVal, [primaryPremise], context, '.');
+        const derive = (sub, pred) => {
+            const task = this.createDerivedTask(
+                termFactory.inheritance(sub, pred),
+                truth, [primaryPremise], context
+            );
             if (task) results.push(task);
         };
 
-        const deductiveTruth = Truth.structuralDeduction(truth);
-        // Inductive truth for invalid structural deductions (like Intersection Subject Decomposition)
-        // (A & B) --> M does NOT deduce A --> M. It might suggest it inductively?
-        // Actually, NAL uses structural deduction only for tautological entailments.
-        // ((A & B) --> M) <=> (A --> M) is FALSE.
-        // ((A | B) --> M) <=> (A --> M) & (B --> M). This is TRUE.
+        const {subject: s, predicate: p} = term;
 
-        // Decompose Subject
-        const s = term.subject;
-        const p = term.predicate;
-
-        if (s.isCompound) {
-            // ((A & B) --> M) |- (A --> M)
-            // This is NOT valid deduction. It is induction-like or invalid.
-            // Removing for now to fix logic error.
-
-            // ((A | B) --> M) |- (A --> M).
-            // Valid Deduction.
-            if (s.operator === '|' || s.operator === '||') { // Union
-                 s.components.forEach(comp => derive(comp, p, deductiveTruth));
-            }
+        if (s.isCompound && (s.operator === '|' || s.operator === '||')) {
+            s.components.forEach(comp => derive(comp, p));
         }
 
-        // Decompose Predicate
-        if (p.isCompound) {
-            // (S --> (A & B)) |- (S --> A)
-            // Valid Deduction.
-             if (p.operator === '&' || p.operator === '&&') { // Intersection
-                p.components.forEach(comp => derive(s, comp, deductiveTruth));
-            }
-             // (S --> (A | B)) |- (S --> A)?
-             // (S --> A) => (S --> (A | B)).
-             // (S --> (A | B)) does not imply (S --> A).
-             // Invalid deduction.
+        if (p.isCompound && (p.operator === '&' || p.operator === '&&')) {
+            p.components.forEach(comp => derive(s, comp));
         }
 
         return results;

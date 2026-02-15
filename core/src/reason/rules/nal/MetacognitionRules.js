@@ -21,35 +21,26 @@ export class AdjustCacheSizeRule extends Rule {
     }
 
     apply(primaryPremise, secondaryPremise, context = {}) {
-        if (!this.canApply(primaryPremise, secondaryPremise, context)) {
-            return [];
-        }
+        if (!this.canApply(primaryPremise, secondaryPremise, context)) return [];
 
         try {
-            // Get the term factory or system component to adjust
             const termFactory = context.termFactory;
-            if (termFactory && typeof termFactory.getCacheSize === 'function') {
-                const currentCacheSize = termFactory.getCacheSize();
-                const newCacheSize = Math.floor(currentCacheSize * 1.2); // Increase by 20%
+            if (termFactory?.getCacheSize) {
+                const newCacheSize = Math.floor(termFactory.getCacheSize() * 1.2);
 
                 if (context.nar) {
-                    // Adjust system configuration
                     context.nar.config.set('termFactory.maxCacheSize', newCacheSize);
-                    if (typeof termFactory.setMaxCacheSize === 'function') {
+                    if (termFactory.setMaxCacheSize) {
                         termFactory.setMaxCacheSize(newCacheSize);
-                    } else if (termFactory._maxCacheSize !== undefined) {
+                    } else {
                         termFactory._maxCacheSize = newCacheSize;
                     }
                     context.nar.logInfo?.(`Adjusted TermFactory cache size to ${newCacheSize}`);
                 }
             }
-
-            return []; // No new tasks are created, but the system state is modified
+            return [];
         } catch (error) {
-            logError(error, {
-                ruleId: this.id,
-                context: 'adjust_cache_size_rule_application'
-            }, 'error');
+            logError(error, {ruleId: this.id, context: 'adjust_cache_size_rule_application'}, 'error');
             return [];
         }
     }
