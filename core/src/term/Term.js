@@ -1,3 +1,5 @@
+import { fnv1a } from '../util/HashUtils.js';
+
 const freeze = Object.freeze;
 
 export const TermType = freeze({
@@ -54,12 +56,7 @@ export class Term {
     get isNALConcept() { return this._semanticType === SemanticType.NAL_CONCEPT; }
 
     static hash(str) {
-        let hash = 0x811c9dc5;
-        for (let i = 0; i < str.length; i++) {
-            hash ^= str.charCodeAt(i);
-            hash = (hash * 0x01000193) >>> 0;
-        }
-        return hash.toString(16).padStart(8, '0');
+        return fnv1a(str).toString(16).padStart(8, '0');
     }
 
     static fromJSON(data) {

@@ -1,4 +1,6 @@
 
+import { fnv1a } from './HashUtils.js';
+
 export class BloomFilter {
     /**
      * @param {number} size - Size of the bitfield in bits
@@ -40,16 +42,7 @@ export class BloomFilter {
      * @param {string} str
      */
     add(str) {
-        const h1 = this._fnv1a(str);
-        const h2 = this._fnv1a(str + 's'); // Simple secondary hash with salt
-
-        for (let i = 0; i < this._hashes; i++) {
-            // Double hashing: h(i) = (h1 + i * h2) % size
-            const index = (h1 + i * h2) % this._size;
-            // Handle negative result from modulo
-            const safeIndex = index < 0 ? index + this._size : index;
-            this._setBit(safeIndex);
-        }
+        this._apply(str, (index) => this._setBit(index));
     }
 
     /**
@@ -58,13 +51,20 @@ export class BloomFilter {
      * @returns {boolean} True if possibly present, False if definitely not
      */
     test(str) {
-        const h1 = this._fnv1a(str);
-        const h2 = this._fnv1a(str + 's');
+        return this._apply(str, (index) => this._getBit(index));
+    }
+
+    _apply(str, fn) {
+        const h1 = fnv1a(str);
+        const h2 = fnv1a(str + 's'); // Simple secondary hash with salt
+        const size = this._size;
 
         for (let i = 0; i < this._hashes; i++) {
-            const index = (h1 + i * h2) % this._size;
-            const safeIndex = index < 0 ? index + this._size : index;
-            if (!this._getBit(safeIndex)) return false;
+            // Double hashing: h(i) = (h1 + i * h2) % size
+            const index = (h1 + i * h2) % size;
+            // Handle negative result from modulo
+            const safeIndex = index < 0 ? index + size : index;
+            if (fn(safeIndex) === false) return false;
         }
         return true;
     }
@@ -121,12 +121,4 @@ export class BloomFilter {
         return (this._buffer[wordIndex] & (1 << bitIndex)) !== 0;
     }
 
-    _fnv1a(str) {
-        let hash = 0x811c9dc5;
-        for (let i = 0; i < str.length; i++) {
-            hash ^= str.charCodeAt(i);
-            hash = (hash * 0x01000193) >>> 0;
-        }
-        return hash;
-    }
 }

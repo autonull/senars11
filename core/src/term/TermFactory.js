@@ -185,15 +185,8 @@ export class TermFactory extends BaseComponent {
 
     _removeRedundancy(comps) {
         if (comps.length < 2) return comps;
-        const result = [];
         const seen = new Set();
-        for (const c of comps) {
-            if (!seen.has(c.name)) {
-                seen.add(c.name);
-                result.push(c);
-            }
-        }
-        return result;
+        return comps.filter(c => !seen.has(c.name) && seen.add(c.name));
     }
 
     _buildCanonicalName(op, comps) {
@@ -231,13 +224,10 @@ export class TermFactory extends BaseComponent {
 
     _topK(limit, compareFn) {
         if (limit <= 0) return [];
-        const top = [];
-        for (const term of this._cache.values()) {
-            top.push(term);
-            top.sort(compareFn);
-            if (top.length > limit) top.pop();
-        }
-        return top.map(term => ({ name: term.name, complexity: term.complexity }));
+        return Array.from(this._cache.values())
+            .sort(compareFn)
+            .slice(0, limit)
+            .map(term => ({ name: term.name, complexity: term.complexity }));
     }
 
     getAverageComplexity() {
