@@ -1,5 +1,7 @@
 import cytoscape from 'cytoscape';
 import { Config } from '../config/Config.js';
+import { EVENTS } from '../config/constants.js';
+import { eventBus } from '../core/EventBus.js';
 
 /**
  * EmbeddedGraphRenderer
@@ -71,9 +73,7 @@ export class EmbeddedGraphRenderer {
                 const node = e.target;
                 const id = node.id();
                 // Dispatch event to show details or inspect
-                document.dispatchEvent(new CustomEvent('senars:command', {
-                    detail: { command: `/inspect ${id}` }
-                }));
+                eventBus.emit(EVENTS.COMMAND, { command: `/inspect ${id}` });
 
                 // Visual feedback
                 node.animate({

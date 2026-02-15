@@ -6,7 +6,11 @@ export const EVENTS = {
     NOTEBOOK_CELL_EXECUTED: 'notebook:cell:executed',
     GRAPH_FILTER: 'senars:graph:filter',
     SETTINGS_UPDATED: 'senars:settings:updated',
-    MEMORY_REFRESH: 'senars:memory:refresh'
+    MEMORY_REFRESH: 'senars:memory:refresh',
+    COMMAND: 'senars:command',
+    CONCEPT_CENTER: 'senars:concept:center',
+    TASK_SELECT: 'senars:task:select',
+    TASK_HOVER: 'senars:task:hover'
 };
 
 export const COMPONENTS = {

@@ -1,6 +1,16 @@
 import { jest } from '@jest/globals';
 import { EVENTS, STORAGE_KEYS } from '../../../src/config/constants.js';
 
+// Mock EventBus
+const mockEventBus = {
+    emit: jest.fn(),
+    on: jest.fn(),
+    off: jest.fn()
+};
+jest.unstable_mockModule('../../../src/core/EventBus.js', () => ({
+    eventBus: mockEventBus
+}));
+
 // Import module under test
 let ThemeManager;
 
@@ -55,11 +65,7 @@ describe('ThemeManager', () => {
     });
 
     test('should dispatch event on update', () => {
-        const spy = jest.spyOn(document, 'dispatchEvent');
         themeManager.setTheme('light');
-        expect(spy).toHaveBeenCalledWith(expect.any(CustomEvent));
-        const event = spy.mock.calls[0][0];
-        expect(event.type).toBe(EVENTS.SETTINGS_UPDATED);
-        expect(event.detail.theme).toBe('light');
+        expect(mockEventBus.emit).toHaveBeenCalledWith(EVENTS.SETTINGS_UPDATED, { theme: 'light' });
     });
 });

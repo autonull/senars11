@@ -14,6 +14,16 @@ jest.unstable_mockModule('../../../src/components/ContextMenu.js', () => ({
     ContextMenu: class { destroy() {} }
 }));
 
+// Mock EventBus
+const mockEventBus = {
+    on: jest.fn(),
+    emit: jest.fn(),
+    off: jest.fn()
+};
+jest.unstable_mockModule('../../../src/core/EventBus.js', () => ({
+    eventBus: mockEventBus
+}));
+
 // Import module under test dynamically after mocking
 let GraphManager;
 
@@ -137,13 +147,11 @@ describe('GraphManager', () => {
             originalEvent: {}
         };
 
-        const dispatchSpy = jest.spyOn(document, 'dispatchEvent');
-
         eventCallback(mockEvent);
 
-        expect(dispatchSpy).toHaveBeenCalledWith(expect.any(CustomEvent));
-        const event = dispatchSpy.mock.calls[0][0];
-        expect(event.type).toBe('senars:concept:select');
-        expect(event.detail).toEqual({ concept: { id: 'c1', term: 'bird' }, id: 'c1' });
+        expect(mockEventBus.emit).toHaveBeenCalledWith('senars:concept:select', {
+            concept: { id: 'c1', term: 'bird' },
+            id: 'c1'
+        });
     });
 });

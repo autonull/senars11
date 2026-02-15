@@ -2,6 +2,8 @@ import { Component } from './Component.js';
 import { GraphConfig } from '../config/GraphConfig.js';
 import { Modal } from './ui/Modal.js';
 import { FluentUI } from '../utils/FluentUI.js';
+import { EVENTS } from '../config/constants.js';
+import { eventBus } from '../core/EventBus.js';
 
 export class SettingsPanel extends Component {
     constructor(container) {
@@ -231,6 +233,6 @@ export class SettingsPanel extends Component {
         // Save to persistence (handled in GraphConfig now)
         if (GraphConfig.save) GraphConfig.save();
 
-        document.dispatchEvent(new CustomEvent('senars:settings:updated'));
+        eventBus.emit(EVENTS.SETTINGS_UPDATED);
     }
 }

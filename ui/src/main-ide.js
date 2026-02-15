@@ -73,14 +73,14 @@ class SeNARSIDE {
         await this.switchMode(this.settingsManager.getMode());
         this.setupKeyboardShortcuts();
 
-        const onConceptSelect = (concept) => {
-            if (!concept) return;
-             const memoryComponent = this.layoutManager.layout.root.getItemsByFilter(item => item.config.componentName === COMPONENTS.MEMORY)[0];
-             memoryComponent?.parent?.setActiveContentItem?.(memoryComponent);
-        };
+        eventBus.on(EVENTS.CONCEPT_SELECT, (payload) => this._onConceptSelect(payload));
+    }
 
-        eventBus.on('concept:select', onConceptSelect);
-        document.addEventListener(EVENTS.CONCEPT_SELECT, (e) => onConceptSelect(e.detail?.concept));
+    _onConceptSelect(payload) {
+        const concept = payload?.concept;
+        if (!concept) return;
+        const memoryComponent = this.layoutManager.layout.root.getItemsByFilter(item => item.config.componentName === COMPONENTS.MEMORY)[0];
+        memoryComponent?.parent?.setActiveContentItem?.(memoryComponent);
     }
 
     getNotebook() {

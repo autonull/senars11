@@ -51,13 +51,8 @@ export class MemoryInspector extends Component {
         this.state.watch('listMode', () => this.viewMode === 'list' && this._renderListView());
 
         // Events
-        eventBus.on('concept:select', (concept) => {
-            this.selectConcept(concept);
-        });
-
-        // Bridge legacy
-        document.addEventListener(EVENTS.CONCEPT_SELECT, (e) => {
-            e.detail?.concept && eventBus.emit('concept:select', e.detail.concept);
+        eventBus.on(EVENTS.CONCEPT_SELECT, (payload) => {
+            if (payload?.concept) this.selectConcept(payload.concept);
         });
     }
 
@@ -120,7 +115,7 @@ export class MemoryInspector extends Component {
                     type: 'button',
                     label: 'REFRESH',
                     class: 'mi-refresh-btn',
-                    onClick: () => document.dispatchEvent(new CustomEvent(EVENTS.MEMORY_REFRESH))
+                    onClick: () => eventBus.emit(EVENTS.MEMORY_REFRESH)
                 }
             ]
         };

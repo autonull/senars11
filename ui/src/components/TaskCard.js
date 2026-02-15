@@ -1,6 +1,8 @@
 import { Component } from './Component.js';
 import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
 import { FluentUI } from '../utils/FluentUI.js';
+import { EVENTS } from '../config/constants.js';
+import { eventBus } from '../core/EventBus.js';
 
 export class TaskCard extends Component {
     constructor(container, task, options = {}) {
@@ -30,7 +32,7 @@ export class TaskCard extends Component {
         card.on('mouseleave', () => this._dispatchHover(false));
         card.on('click', () => {
             if (this.task) {
-                document.dispatchEvent(new CustomEvent('senars:task:select', { detail: { task: this.task } }));
+                eventBus.emit(EVENTS.TASK_SELECT, { task: this.task });
             }
         });
 
@@ -87,9 +89,10 @@ export class TaskCard extends Component {
 
     _dispatchHover(isHovering) {
         if (this.task) {
-            document.dispatchEvent(new CustomEvent('senars:task:hover', {
-                detail: { task: this.task, hovering: isHovering }
-            }));
+            eventBus.emit(EVENTS.TASK_HOVER, {
+                task: this.task,
+                hovering: isHovering
+            });
         }
     }
 }

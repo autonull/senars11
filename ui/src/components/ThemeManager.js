@@ -1,4 +1,5 @@
 import { EVENTS, STORAGE_KEYS } from '../config/constants.js';
+import { eventBus } from '../core/EventBus.js';
 
 /**
  * ThemeManager handles application theming
@@ -37,7 +38,7 @@ export class ThemeManager {
         }
 
         // Dispatch event for components that need manual redraw (like Graphs)
-        document.dispatchEvent(new CustomEvent(EVENTS.SETTINGS_UPDATED, { detail: { theme: themeName } }));
+        eventBus.emit(EVENTS.SETTINGS_UPDATED, { theme: themeName });
     }
 
     getTheme() {

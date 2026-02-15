@@ -2,6 +2,7 @@ import { Component } from './Component.js';
 import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
 import { FluentUI } from '../utils/FluentUI.js';
 import { EVENTS } from '../config/constants.js';
+import { eventBus } from '../core/EventBus.js';
 
 export class ConceptCard extends Component {
     constructor(container, concept, options = {}) {
@@ -26,9 +27,9 @@ export class ConceptCard extends Component {
             .mount(this.container);
 
         // Event handling
-        const detail = { concept: this.concept, id: this.concept.id ?? this.concept.term };
-        card.on('click', () => document.dispatchEvent(new CustomEvent(EVENTS.CONCEPT_SELECT, { detail })));
-        card.on('dblclick', () => document.dispatchEvent(new CustomEvent('senars:concept:center', { detail })));
+        const payload = { concept: this.concept, id: this.concept.id ?? this.concept.term };
+        card.on('click', () => eventBus.emit(EVENTS.CONCEPT_SELECT, payload));
+        card.on('dblclick', () => eventBus.emit(EVENTS.CONCEPT_CENTER, payload));
 
         if (this.compact) {
             card.child(

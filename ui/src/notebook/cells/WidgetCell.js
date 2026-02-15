@@ -1,5 +1,6 @@
 import { Cell } from './Cell.js';
 import { WidgetFactory } from '../../components/widgets/WidgetFactory.js';
+import { FluentUI } from '../../utils/FluentUI.js';
 
 /**
  * Widget cell for interactive components
@@ -13,25 +14,38 @@ export class WidgetCell extends Cell {
     }
 
     render() {
-        this.element = document.createElement('div');
-        this.element.className = 'repl-cell widget-cell';
-        this.element.draggable = true;
-        this.element.style.cssText = 'margin-bottom: 12px; border: 1px solid #333; background: #1e1e1e; border-radius: 4px; padding: 10px;';
+        const wrapper = FluentUI.create('div')
+            .class('repl-cell widget-cell')
+            .attr({ draggable: 'true' })
+            .style({
+                marginBottom: '12px',
+                border: '1px solid #333',
+                background: '#1e1e1e',
+                borderRadius: '4px',
+                padding: '10px'
+            });
 
-        const header = document.createElement('div');
-        header.style.cssText = 'display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; cursor: move;';
-        header.innerHTML = `<span>🧩 ${this.widgetType}</span>`;
+        const header = FluentUI.create('div')
+            .style({
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginBottom: '8px',
+                fontSize: '11px',
+                color: '#888',
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                cursor: 'move'
+            })
+            .html(`<span>🧩 ${this.widgetType}</span>`)
+            .child(this._createActionBtn('✖️', 'Remove', () => this.destroy()));
 
-        const closeBtn = this._createActionBtn('✖️', 'Remove', () => this.destroy());
-        header.appendChild(closeBtn);
+        const content = FluentUI.create('div').style({ position: 'relative' });
 
-        const content = document.createElement('div');
-        content.style.position = 'relative';
-
-        this.element.append(header, content);
+        wrapper.child(header).child(content);
+        this.element = wrapper.dom;
 
         if (this.widgetType === 'SubNotebook' && this.NotebookManagerClass) {
-             const nestedManager = new this.NotebookManagerClass(content, {
+             const nestedManager = new this.NotebookManagerClass(content.dom, {
                  onExecute: (text, cell, options) => {
                      console.log('Nested execution:', text);
                  }
@@ -48,12 +62,12 @@ export class WidgetCell extends Cell {
                 };
             }
 
-            this.widgetInstance = WidgetFactory.createWidget(this.widgetType, content, config);
+            this.widgetInstance = WidgetFactory.createWidget(this.widgetType, content.dom, config);
 
             if (this.widgetInstance) {
                 this.widgetInstance.render();
             } else {
-                content.innerHTML = `<div style="color:red">Unknown widget: ${this.widgetType}</div>`;
+                content.html(`<div style="color:red">Unknown widget: ${this.widgetType}</div>`);
             }
         }
 

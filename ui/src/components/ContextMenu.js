@@ -1,4 +1,5 @@
 import { EVENTS } from '../config/constants.js';
+import { eventBus } from '../core/EventBus.js';
 
 export class ContextMenu {
     constructor(graphManager, commandProcessor) {
@@ -124,9 +125,10 @@ export class ContextMenu {
         // Since we don't have updateGraphDetails fully implemented in GraphManager yet in this context,
         // we mainly rely on the select event to trigger MemoryInspector
         if (data.fullData) {
-            document.dispatchEvent(new CustomEvent(EVENTS.CONCEPT_SELECT, {
-                detail: { concept: data.fullData, id: data.id }
-            }));
+            eventBus.emit(EVENTS.CONCEPT_SELECT, {
+                concept: data.fullData,
+                id: data.id
+            });
         }
         this.commandProcessor.logger.log(`Inspecting ${type}: ${data.label ?? data.id}`, 'info', '🔍');
     }

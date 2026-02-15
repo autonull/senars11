@@ -1,4 +1,5 @@
 import { EVENTS } from '../config/constants.js';
+import { eventBus } from '../core/EventBus.js';
 
 export class CommandProcessor {
     constructor(connectionManager, notebookLogger, graphManager) {
@@ -107,9 +108,7 @@ export class CommandProcessor {
         }
 
         // 1. Dispatch event to select in memory inspector
-        document.dispatchEvent(new CustomEvent(EVENTS.CONCEPT_SELECT, {
-            detail: { concept: { term } }
-        }));
+        eventBus.emit(EVENTS.CONCEPT_SELECT, { concept: { term } });
 
         // 2. Focus in graph if available
         if (this.graphManager) {

@@ -1,5 +1,6 @@
 import { Cell } from './Cell.js';
 import { marked } from 'marked';
+import { FluentUI } from '../../utils/FluentUI.js';
 
 /**
  * Markdown cell for documentation
@@ -12,46 +13,49 @@ export class MarkdownCell extends Cell {
     }
 
     render() {
-        this.element = document.createElement('div');
-        this.element.className = 'repl-cell markdown-cell';
-        this.element.dataset.cellId = this.id;
-        this.element.draggable = true;
-        this.element.style.cssText = `
-            margin-bottom: 12px;
-            padding: 8px;
-            border: 1px solid transparent;
-            border-radius: 4px;
-            background: transparent;
-            transition: all 0.2s;
-        `;
+        const wrapper = FluentUI.create('div')
+            .class('repl-cell markdown-cell')
+            .data('cellId', this.id)
+            .attr({ draggable: 'true' })
+            .style({
+                marginBottom: '12px', padding: '8px', border: '1px solid transparent',
+                borderRadius: '4px', background: 'transparent', transition: 'all 0.2s'
+            })
+            .on('dblclick', () => this.toggleEdit(true));
 
-        this.element.ondblclick = () => this.toggleEdit(true);
+        this.element = wrapper.dom;
 
-        this.previewDiv = document.createElement('div');
-        this.previewDiv.className = 'markdown-preview';
-        this.previewDiv.style.color = '#d4d4d4';
+        this.previewDiv = FluentUI.create('div')
+            .class('markdown-preview')
+            .style({ color: '#d4d4d4' })
+            .dom;
+
         this.updatePreview();
 
-        this.editorDiv = document.createElement('div');
-        this.editorDiv.style.display = 'none';
+        this.editorDiv = FluentUI.create('div').style({ display: 'none' }).dom;
 
-        const textarea = document.createElement('textarea');
-        textarea.value = this.content;
-        textarea.rows = 5;
-        textarea.style.cssText = 'width: 100%; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3c3c3c; padding: 8px; font-family: monospace;';
+        const textarea = FluentUI.create('textarea')
+            .val(this.content)
+            .attr({ rows: 5 })
+            .style({
+                width: '100%', background: '#1e1e1e', color: '#d4d4d4',
+                border: '1px solid #3c3c3c', padding: '8px', fontFamily: 'monospace'
+            })
+            .dom;
 
-        const saveBtn = document.createElement('button');
-        saveBtn.textContent = 'Render';
-        saveBtn.style.cssText = 'margin-top: 5px; padding: 4px 8px; cursor: pointer;';
-        saveBtn.onclick = () => {
-            this.content = textarea.value;
-            this.toggleEdit(false);
-            this.onUpdate?.();
-        };
+        const saveBtn = FluentUI.create('button')
+            .text('Render')
+            .style({ marginTop: '5px', padding: '4px 8px', cursor: 'pointer' })
+            .on('click', () => {
+                this.content = textarea.value;
+                this.toggleEdit(false);
+                this.onUpdate?.();
+            })
+            .dom;
 
         this.editorDiv.append(textarea, saveBtn);
 
-        this.element.append(this.previewDiv, this.editorDiv);
+        wrapper.child(this.previewDiv).child(this.editorDiv);
         return this.element;
     }
 

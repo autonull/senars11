@@ -1,4 +1,3 @@
-import { createElement } from '../utils/dom.js';
 import { FluentUI } from '../utils/FluentUI.js';
 
 /**
@@ -41,14 +40,6 @@ export class Component {
             this.container.innerHTML = '';
         }
         this.elements = {};
-    }
-
-    /**
-     * Helper to create DOM elements
-     * @deprecated Use fluent() instead
-     */
-    createElement(tag, attributes, children) {
-        return createElement(tag, attributes, children);
     }
 
     /**

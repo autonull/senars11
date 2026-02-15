@@ -3,6 +3,7 @@ import { ContextMenu } from '../components/ContextMenu.js';
 import { AutoLearner } from '../utils/AutoLearner.js';
 import { KeyboardNavigation } from './KeyboardNavigation.js';
 import { EVENTS } from '../config/constants.js';
+import { eventBus } from '../core/EventBus.js';
 
 export class GraphManager {
     constructor(uiElements = null, callbacks = {}) {
@@ -23,14 +24,14 @@ export class GraphManager {
     }
 
     _setupGlobalListeners() {
-        document.addEventListener(EVENTS.CONCEPT_SELECT, (e) => {
-            const { id, concept } = e.detail;
+        eventBus.on(EVENTS.CONCEPT_SELECT, (payload) => {
+            const { id, concept } = payload;
             if (concept?.term) this.autoLearner.recordInteraction(concept.term, 1);
             if (id) this.highlightNode(id);
         });
 
-        document.addEventListener(EVENTS.GRAPH_FILTER, (e) => this.applyFilters(e.detail));
-        document.addEventListener(EVENTS.SETTINGS_UPDATED, () => {
+        eventBus.on(EVENTS.GRAPH_FILTER, (payload) => this.applyFilters(payload));
+        eventBus.on(EVENTS.SETTINGS_UPDATED, () => {
             this.updateStyle();
             this.scheduleLayout();
         });
@@ -81,9 +82,10 @@ export class GraphManager {
         this.callbacks.onNodeClick?.(data);
 
         if (data.fullData) {
-            document.dispatchEvent(new CustomEvent(EVENTS.CONCEPT_SELECT, {
-                detail: { concept: data.fullData, id: data.id }
-            }));
+            eventBus.emit(EVENTS.CONCEPT_SELECT, {
+                concept: data.fullData,
+                id: data.id
+            });
         }
 
         if (event.originalEvent.shiftKey) this.toggleTraceMode(data.id);

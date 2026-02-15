@@ -32,8 +32,8 @@ export class NotebookPanel extends Component {
             else if (type === 'markdown') this.notebookManager.createMarkdownCell(content);
         });
 
-        document.addEventListener(EVENTS.NOTEBOOK_ADD_CELL, (e) => {
-            const { type, content } = e.detail;
+        eventBus.on(EVENTS.NOTEBOOK_ADD_CELL, (payload) => {
+            const { type, content } = payload;
             eventBus.emit('notebook:cmd:add-cell', { type, content });
         });
     }

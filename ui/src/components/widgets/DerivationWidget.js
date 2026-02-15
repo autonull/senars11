@@ -1,5 +1,6 @@
 import { SimpleGraphWidget } from './SimpleGraphWidget.js';
 import { EVENTS } from '../../config/constants.js';
+import { eventBus } from '../../core/EventBus.js';
 
 export class DerivationWidget extends SimpleGraphWidget {
     constructor(container, data = null) {
@@ -38,9 +39,7 @@ export class DerivationWidget extends SimpleGraphWidget {
                         term: data.fullTerm || data.label,
                         id: data.id
                     };
-                    document.dispatchEvent(new CustomEvent(EVENTS.CONCEPT_SELECT, {
-                        detail: { concept }
-                    }));
+                    eventBus.emit(EVENTS.CONCEPT_SELECT, { concept });
                 }
             });
         }

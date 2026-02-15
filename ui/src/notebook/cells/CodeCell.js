@@ -3,6 +3,7 @@ import { Toolbar } from '../../components/ui/Toolbar.js';
 import { SmartTextarea } from '../SmartTextarea.js';
 import { NarseseHighlighter } from '../../utils/NarseseHighlighter.js';
 import { Modal } from '../../components/ui/Modal.js';
+import { FluentUI } from '../../utils/FluentUI.js';
 
 /**
  * Code cell for user input
@@ -23,44 +24,44 @@ export class CodeCell extends Cell {
     }
 
     render() {
-        this.element = document.createElement('div');
-        this.element.className = 'repl-cell code-cell';
-        this.element.dataset.cellId = this.id;
-        this.element.draggable = true;
-        this.element.style.cssText = `
-            margin-bottom: 12px;
-            border: 1px solid #3c3c3c;
-            border-radius: 4px;
-            background: #1e1e1e;
-            overflow: hidden;
-            transition: border-color 0.2s;
-            position: relative;
-        `;
+        const wrapper = FluentUI.create('div')
+            .class('repl-cell code-cell')
+            .data('cellId', this.id)
+            .attr({ draggable: 'true' })
+            .style({
+                marginBottom: '12px',
+                border: '1px solid #3c3c3c',
+                borderRadius: '4px',
+                background: '#1e1e1e',
+                overflow: 'hidden',
+                transition: 'border-color 0.2s',
+                position: 'relative'
+            });
 
+        this.element = wrapper.dom;
         this.toolbar = this._createToolbar();
-        this.element.appendChild(this.toolbar);
+        wrapper.child(this.toolbar);
 
-        const body = document.createElement('div');
-        body.style.display = 'flex';
-        this.body = body;
+        const body = FluentUI.create('div').style({ display: 'flex' });
+        this.body = body.dom;
 
         // Execution Count Gutter
-        this.gutter = document.createElement('div');
-        this.gutter.className = 'cell-gutter';
-        this.gutter.style.cssText = `
-            width: 50px; flex-shrink: 0; background: #252526; color: #888;
-            font-family: monospace; font-size: 0.85em; text-align: right; padding: 10px 5px;
-            border-right: 1px solid #3c3c3c; user-select: none;
-            cursor: move;
-        `;
+        this.gutter = FluentUI.create('div')
+            .class('cell-gutter')
+            .style({
+                width: '50px', flexShrink: '0', background: '#252526', color: '#888',
+                fontFamily: 'monospace', fontSize: '0.85em', textAlign: 'right', padding: '10px 5px',
+                borderRight: '1px solid #3c3c3c', userSelect: 'none', cursor: 'move'
+            })
+            .dom;
+
         this._updateGutter();
-        body.appendChild(this.gutter);
+        body.child(this.gutter);
 
-        this.editorContainer = document.createElement('div');
-        this.editorContainer.style.flex = '1';
-        body.appendChild(this.editorContainer);
+        this.editorContainer = FluentUI.create('div').style({ flex: '1' }).dom;
+        body.child(this.editorContainer);
 
-        this.element.appendChild(body);
+        wrapper.child(body);
         this.updateMode();
 
         return this.element;
@@ -92,45 +93,42 @@ export class CodeCell extends Cell {
     }
 
     _createPreview() {
-        const preview = document.createElement('div');
-        preview.className = 'code-preview';
-
         const trimmed = this.content.trim();
         const isMetta = trimmed.startsWith('(') || trimmed.startsWith(';') || trimmed.startsWith('!');
         const language = isMetta ? 'metta' : 'narsese';
 
-        preview.innerHTML = NarseseHighlighter.highlight(this.content, language);
-        preview.style.cssText = `
-            padding: 10px; font-family: monospace; font-size: 0.95em;
-            color: #d4d4d4; white-space: pre-wrap; cursor: pointer;
-            border-left: 2px solid transparent;
-        `;
-        preview.title = 'Double-click to edit';
-        preview.ondblclick = () => {
-            this.isEditing = true;
-            this.updateMode();
-        };
-        return preview;
+        return FluentUI.create('div')
+            .class('code-preview')
+            .html(NarseseHighlighter.highlight(this.content, language))
+            .style({
+                padding: '10px', fontFamily: 'monospace', fontSize: '0.95em',
+                color: '#d4d4d4', whiteSpace: 'pre-wrap', cursor: 'pointer',
+                borderLeft: '2px solid transparent'
+            })
+            .attr({ title: 'Double-click to edit' })
+            .on('dblclick', () => {
+                this.isEditing = true;
+                this.updateMode();
+            })
+            .dom;
     }
 
     _createToolbar() {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'cell-toolbar';
+        const wrapper = FluentUI.create('div').class('cell-toolbar').dom;
         const tb = new Toolbar(wrapper, { style: 'display: flex; gap: 4px; align-items: center; padding: 2px 4px; background: #252526; border-bottom: 1px solid #333; height: 28px;' });
 
         tb.addButton({ label: '▶️', title: 'Run (Shift+Enter)', primary: true, style: 'padding: 0 8px;', onClick: () => this.execute() });
 
-        const label = document.createElement('span');
-        label.textContent = 'CODE';
-        label.style.cssText = 'color: #555; font-size: 0.7em; font-weight: bold; margin-left: 4px; font-family: monospace;';
-        tb.addCustom(label);
+        tb.addCustom(FluentUI.create('span')
+            .text('CODE')
+            .style({ color: '#555', fontSize: '0.7em', fontWeight: 'bold', marginLeft: '4px', fontFamily: 'monospace' })
+            .dom);
 
-        const spacer = document.createElement('div');
-        spacer.style.flex = '1';
-        tb.addCustom(spacer);
+        tb.addCustom(FluentUI.create('div').style({ flex: '1' }).dom);
 
-        this.timeLabel = document.createElement('span');
-        this.timeLabel.style.cssText = 'color: #555; font-size: 0.8em; font-family: monospace; margin-right: 8px;';
+        this.timeLabel = FluentUI.create('span')
+            .style({ color: '#555', fontSize: '0.8em', fontFamily: 'monospace', marginRight: '8px' })
+            .dom;
         tb.addCustom(this.timeLabel);
 
         this._addSecondaryActions(wrapper);
@@ -151,19 +149,18 @@ export class CodeCell extends Cell {
     }
 
     _addToolbarButton(wrapper, icon, title, action) {
-        const btnStyle = 'padding: 2px 4px; font-size: 12px; background: transparent; border: none; color: #888; cursor: pointer;';
-        const hoverStyle = (e) => { e.target.style.color = '#fff'; e.target.style.background = '#333'; };
-        const outStyle = (e) => { e.target.style.color = '#888'; e.target.style.background = 'transparent'; };
-
-        const b = document.createElement('button');
-        b.textContent = icon;
-        b.title = title;
-        b.style.cssText = btnStyle;
-        b.onclick = action;
-        b.onmouseover = hoverStyle;
-        b.onmouseout = outStyle;
-        wrapper.appendChild(b);
-        return b;
+        const btn = FluentUI.create('button')
+            .text(icon)
+            .attr({ title })
+            .style({
+                padding: '2px 4px', fontSize: '12px', background: 'transparent',
+                border: 'none', color: '#888', cursor: 'pointer'
+            })
+            .on('click', action)
+            .on('mouseover', (e) => { e.target.style.color = '#fff'; e.target.style.background = '#333'; })
+            .on('mouseout', (e) => { e.target.style.color = '#888'; e.target.style.background = 'transparent'; })
+            .mount(wrapper);
+        return btn.dom;
     }
 
     _createEditor() {
