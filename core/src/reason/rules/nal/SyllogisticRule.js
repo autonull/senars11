@@ -27,67 +27,37 @@ export class SyllogisticRule extends NALRule {
      * @returns {boolean} - Whether the rule can be applied
      */
     canApply(primaryPremise, secondaryPremise, context) {
-        if (!primaryPremise || !secondaryPremise) return false;
+        if (!primaryPremise?.term?.isCompound || !secondaryPremise?.term?.isCompound) return false;
 
         const term1 = primaryPremise.term;
         const term2 = secondaryPremise.term;
 
-        // Both premises need to be compound statements with the appropriate operator
-        if (!term1?.isCompound || !term2?.isCompound) return false;
+        if ((term1.operator !== this.operator && term2.operator !== this.operator) ||
+            term1.components.length !== 2 || term2.components.length !== 2) return false;
 
-        // Check that at least one premise has the correct operator for this rule
-        const hasCorrectOperator = (term) => term.operator === this.operator;
-        if (!hasCorrectOperator(term1) && !hasCorrectOperator(term2)) return false;
-
-        // Check for syllogistic pattern: (S --> M) + (M --> P) => (S --> P)
-        const comp1 = term1.components;
-        const comp2 = term2.components;
-
-        if (comp1.length !== 2 || comp2.length !== 2) return false;
-
-        // Use helper from NALRule
-        const match1 = this.unify(term1.predicate, term2.subject, context).success;
-        const match2 = !match1 && this.unify(term2.predicate, term1.subject, context).success;
-
-        return match1 || match2;
+        return this.unify(term1.predicate, term2.subject, context).success ||
+               this.unify(term2.predicate, term1.subject, context).success;
     }
 
-    /**
-     * Apply the syllogistic rule to derive new tasks
-     * @param {Task} primaryPremise - The primary premise
-     * @param {Task} secondaryPremise - The secondary premise
-     * @returns {Array<Task>} - Array of derived tasks
-     */
     apply(primaryPremise, secondaryPremise, context) {
         const term1 = primaryPremise.term;
         const term2 = secondaryPremise.term;
-        const termFactory = context?.termFactory;
 
-        const tryDerive = (match, subject, predicate) => {
-             if (match.success) {
-                 return this._createDerivedTask(
-                     primaryPremise, secondaryPremise,
-                     subject, predicate,
-                     this.operator, termFactory, context, match.substitution
-                 );
-             }
-             return null;
-        };
+        const patterns = [
+            // (S --> M) + (M --> P) => (S --> P)
+            {match: this.unify(term1.predicate, term2.subject, context), s: term1.subject, p: term2.predicate},
+            // (M --> P) + (S --> M) => (S --> P)
+            {match: this.unify(term2.predicate, term1.subject, context), s: term2.subject, p: term1.predicate}
+        ];
 
-        // Pattern 1: (S --> M) + (M --> P) => (S --> P)
-        const res1 = tryDerive(
-            this.unify(term1.predicate, term2.subject, context),
-            term1.subject, term2.predicate
-        );
-        if (res1) return res1;
-
-        // Pattern 2: (M --> P) + (S --> M) => (S --> P)
-        const res2 = tryDerive(
-            this.unify(term2.predicate, term1.subject, context),
-            term2.subject, term1.predicate
-        );
-        if (res2) return res2;
-
+        for (const {match, s, p} of patterns) {
+            if (match.success) {
+                return this._createDerivedTask(
+                    primaryPremise, secondaryPremise, s, p,
+                    this.operator, context?.termFactory, context, match.substitution
+                );
+            }
+        }
         return [];
     }
 

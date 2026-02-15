@@ -560,7 +560,8 @@ export class MemoryConsolidation extends ConfigurableComponent {
     _removeForgettingConcepts(memory) {
         let removed = 0;
         const concepts = memory.getAllConcepts();
-        const conceptsToRemove = concepts.filter(concept => concept.forgettingMarked);
+        const conceptsToRemove = (Array.isArray(concepts) ? concepts : Array.from(concepts))
+            .filter(concept => concept.forgettingMarked);
 
         for (const concept of conceptsToRemove) {
             // Phase 4.2: Consolidation as Compilation
