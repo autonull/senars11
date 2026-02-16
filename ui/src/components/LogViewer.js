@@ -1,6 +1,7 @@
 import {Component} from './Component.js';
 import {UI_CONSTANTS} from '@senars/core';
 import {NarseseHighlighter} from '../utils/NarseseHighlighter.js';
+import {WidgetFactory} from './widgets/WidgetFactory.js';
 
 /**
  * LogViewer component for displaying log entries with icons and formatting
@@ -55,28 +56,44 @@ export class LogViewer extends Component {
             contentElement = document.createElement('div');
             contentElement.className = 'log-entry-content';
 
-            // Check if object is large (e.g., > 10 keys or deep nesting - heuristic)
-            const jsonString = JSON.stringify(content, null, 2);
-            if (jsonString.length > 200) {
-                const details = document.createElement('details');
-                const summary = document.createElement('summary');
-                summary.textContent = `Object (${Object.keys(content).length} keys)`;
-                summary.style.cursor = 'pointer';
-                summary.style.color = '#aaa';
+            // Check for Dynamic Widget Request
+            if (content.type === 'widget' && content.widgetType) {
+                const widgetContainer = document.createElement('div');
+                widgetContainer.className = 'log-widget-container';
+                widgetContainer.style.cssText = 'margin: 5px 0; width: 100%;';
 
-                const pre = document.createElement('pre');
-                pre.textContent = jsonString;
-                pre.style.marginTop = '5px';
-                pre.style.fontSize = '0.9em';
-
-                details.appendChild(summary);
-                details.appendChild(pre);
-                contentElement.appendChild(details);
+                const widget = WidgetFactory.createWidget(content.widgetType, widgetContainer, content.config || content.data);
+                if (widget) {
+                    widget.render();
+                    contentElement.appendChild(widgetContainer);
+                } else {
+                    contentElement.textContent = `[Widget Error: Unknown type ${content.widgetType}]`;
+                    contentElement.style.color = 'red';
+                }
             } else {
-                const pre = document.createElement('pre');
-                pre.textContent = jsonString;
-                pre.style.margin = '0';
-                contentElement.appendChild(pre);
+                // Check if object is large (e.g., > 10 keys or deep nesting - heuristic)
+                const jsonString = JSON.stringify(content, null, 2);
+                if (jsonString.length > 200) {
+                    const details = document.createElement('details');
+                    const summary = document.createElement('summary');
+                    summary.textContent = `Object (${Object.keys(content).length} keys)`;
+                    summary.style.cursor = 'pointer';
+                    summary.style.color = '#aaa';
+
+                    const pre = document.createElement('pre');
+                    pre.textContent = jsonString;
+                    pre.style.marginTop = '5px';
+                    pre.style.fontSize = '0.9em';
+
+                    details.appendChild(summary);
+                    details.appendChild(pre);
+                    contentElement.appendChild(details);
+                } else {
+                    const pre = document.createElement('pre');
+                    pre.textContent = jsonString;
+                    pre.style.margin = '0';
+                    contentElement.appendChild(pre);
+                }
             }
         } else {
             // String content with Syntax Highlighting

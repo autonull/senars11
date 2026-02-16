@@ -38,9 +38,9 @@ export const GraphConfig = {
                     'font-family': 'JetBrains Mono, monospace',
                     'font-size': '12px', 'text-transform': 'uppercase', 'font-weight': 'normal',
                     'text-background-color': '#0a0a0c', 'text-background-opacity': 0.8, 'text-background-padding': 3,
-                    'width': 'mapData(weight, 0, 100, 20, 60)',
-                    'height': 'mapData(weight, 0, 100, 20, 60)',
-                    'border-width': 1, 'border-color': c.CONCEPT,
+                    'width': 'mapData(weight, 0, 100, 20, 80)',
+                    'height': 'mapData(weight, 0, 100, 20, 80)',
+                    'border-width': 'mapData(weight, 50, 100, 1, 3)', 'border-color': c.CONCEPT,
                     'ghost': 'yes', 'ghost-offset-x': 0, 'ghost-offset-y': 0, 'ghost-opacity': 0.5,
                     'transition-property': 'background-color, border-color, width, height, opacity',
                     'transition-duration': '0.3s'
@@ -58,6 +58,16 @@ export const GraphConfig = {
                 style: {
                     'background-color': `mapData(taskCount, 0, 20, ${c.CONCEPT}, #ff00ff)`,
                     'border-color': c.CONCEPT
+                }
+            },
+            // High priority concepts get a distinct look (simulating "prominence" in bag)
+            {
+                selector: 'node[weight >= 80]',
+                style: {
+                    'border-color': '#ffffff',
+                    'shadow-blur': 10,
+                    'shadow-color': c.CONCEPT,
+                    'z-index': 10
                 }
             },
             {selector: 'node[type = "task"]', style: {'background-color': c.TASK, 'border-color': c.TASK, 'shape': 'rectangle'}},

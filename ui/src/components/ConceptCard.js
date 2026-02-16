@@ -39,8 +39,9 @@ export class ConceptCard extends Component {
 
         const term = this.concept.term ?? 'unknown';
         const priority = this.concept.budget?.priority ?? 0;
+        const durability = this.concept.budget?.durability ?? 0;
+        const quality = this.concept.budget?.quality ?? 0;
         const taskCount = this.concept.tasks?.length ?? this.concept.taskCount ?? 0;
-        const priorityPercent = (priority * 100).toFixed(0);
 
         div.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
@@ -52,11 +53,10 @@ export class ConceptCard extends Component {
                 </div>
             </div>
 
-            <div style="display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--text-muted);">
-                <div style="flex: 1; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
-                    <div style="width: ${priorityPercent}%; height: 100%; background: ${this._getPriorityColor(priority)};"></div>
-                </div>
-                <div>PRI: ${priority.toFixed(2)}</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 9px; color: var(--text-muted);">
+                ${this._renderBudgetBar('P', priority)}
+                ${this._renderBudgetBar('D', durability)}
+                ${this._renderBudgetBar('Q', quality)}
             </div>
         `;
 
@@ -66,5 +66,20 @@ export class ConceptCard extends Component {
 
     _getPriorityColor(val) {
         return val > 0.8 ? 'var(--accent-primary)' : val > 0.5 ? 'var(--accent-warn)' : '#555';
+    }
+
+    _renderBudgetBar(label, value) {
+        const percent = (value * 100).toFixed(0);
+        return `
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span>${label}</span>
+                    <span>${value.toFixed(2)}</span>
+                </div>
+                <div style="height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
+                    <div style="width: ${percent}%; height: 100%; background: ${this._getPriorityColor(value)};"></div>
+                </div>
+            </div>
+        `;
     }
 }

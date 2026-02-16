@@ -1,3 +1,5 @@
+import {InteractiveDemoManager} from './InteractiveDemoManager.js';
+
 /**
  * DemoManager handles demo sequences and execution via backend integration
  */
@@ -7,6 +9,7 @@ export class DemoManager {
         this.commandProcessor = commandProcessor;
         this.logger = logger;
         this.demos = new Map();
+        this.interactiveManager = new InteractiveDemoManager(this);
 
         // Define static demos (Universal Demos)
         this.STATIC_DEMOS = [
@@ -27,6 +30,13 @@ export class DemoManager {
                 name: 'Truth Chain (Static)',
                 description: 'Multi-step deduction (client-side execution)',
                 path: 'examples/metta/demos/truth_chain.metta'
+            },
+            {
+                id: 'static-interactive-ui',
+                name: 'Interactive UI Generation',
+                description: 'Demonstrates dynamic UI generation and user input handling',
+                path: 'examples/metta/demos/interactive_ui.metta',
+                isInteractive: true
             }
         ];
     }
@@ -93,6 +103,9 @@ export class DemoManager {
 
         // Check if it's a static demo
         if (demo && demo.path) {
+            if (demo.isInteractive) {
+                return this.runInteractiveDemo(demo);
+            }
             return this.runStaticDemo(demo);
         }
 
@@ -102,6 +115,29 @@ export class DemoManager {
             demoId: demoId
         });
         this.logger.log(`Requested demo start: ${demoId}`, 'info', '🚀');
+        return true;
+    }
+
+    /**
+     * Run an interactive demo (frontend simulation)
+     */
+    async runInteractiveDemo(demo) {
+        this.logger.log(`Starting interactive demo: ${demo.name}`, 'info', '🚀');
+
+        // Simulating the backend requesting input
+        setTimeout(() => {
+            this.interactiveManager.handleDemoRequest({
+                requestId: 'req_001',
+                type: 'widget_input',
+                widgetType: 'slider',
+                prompt: 'Please adjust the Truth Value for the concept "bird"',
+                config: {
+                    frequency: 0.5,
+                    confidence: 0.9
+                }
+            });
+        }, 1000);
+
         return true;
     }
 

@@ -1,4 +1,5 @@
 import {Component} from './Component.js';
+import {ThemeManager} from './ThemeManager.js';
 
 /**
  * Configuration panel for managing application settings
@@ -15,6 +16,7 @@ export class ConfigPanel extends Component {
     constructor(containerId) {
         super(containerId);
         this.config = this.loadConfig();
+        this.themeManager = new ThemeManager();
 
         this._setupEventListeners();
         this.renderContent();
@@ -74,11 +76,14 @@ export class ConfigPanel extends Component {
         const apiKey = document.getElementById('config-lm-api-key')?.value;
         const model = document.getElementById('config-lm-model')?.value;
         const temp = parseFloat(document.getElementById('config-lm-temp')?.value);
+        const theme = document.getElementById('config-ui-theme')?.value;
 
         this.config.lm.provider = provider;
         if (apiKey) this.config.lm.apiKey = apiKey;
         this.config.lm.model = model;
         this.config.lm.temperature = temp;
+
+        if (theme) this.themeManager.setTheme(theme);
 
         this.saveConfig(this.config);
         this.hide();
@@ -91,7 +96,21 @@ export class ConfigPanel extends Component {
         const content = document.getElementById('config-content');
         if (!content) return;
 
+        const currentTheme = this.themeManager.getTheme();
+
         content.innerHTML = `
+            <div class="config-section">
+                <h4>Interface</h4>
+                <div class="form-group">
+                    <label>Theme</label>
+                    <select id="config-ui-theme">
+                        <option value="default" ${currentTheme === 'default' ? 'selected' : ''}>Cyberpunk (Dark)</option>
+                        <option value="light" ${currentTheme === 'light' ? 'selected' : ''}>Light</option>
+                        <option value="contrast" ${currentTheme === 'contrast' ? 'selected' : ''}>High Contrast</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="config-section">
                 <h4>Language Model</h4>
                 <div class="form-group">
