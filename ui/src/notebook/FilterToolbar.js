@@ -120,28 +120,29 @@ export class FilterToolbar {
     getViewBtnStyle(mode) {
         const isActive = mode === this.currentView;
         return {
-            background: isActive ? '#333' : 'transparent',
-            color: isActive ? '#fff' : '#888',
-            border: 'none',
+            background: isActive ? 'var(--accent-primary-dim, #0e639c)' : 'transparent',
+            color: isActive ? '#fff' : 'var(--text-muted, #888)',
+            border: isActive ? '1px solid var(--accent-primary, #00d4ff)' : '1px solid transparent',
             padding: '4px 8px',
             cursor: 'pointer',
-            borderRadius: '2px',
-            fontSize: '14px'
+            borderRadius: '3px',
+            fontSize: '14px',
+            transition: 'all 0.2s'
         };
     }
 
     updateViewButtons(container) {
-        // Manually update styles since FluentToolbar doesn't have reactive state binding yet
         Array.from(container.children).forEach(btn => {
-            // Find the config item logic... simpler to just check index or attribute if we added one
-            // We added customData via FluentToolbar? No, FluentToolbar doesn't attach generic data attributes from config easily yet
-            // Let's rely on mapping icons or title
-            const modes = { '☰': 'list', '⊞': 'grid', '🧱': 'icon', '🕸️': 'graph' };
-            const mode = modes[btn.innerText];
+            // Map icon to mode
+            const text = btn.innerText;
+            const mode = Object.entries({ '☰': 'list', '⊞': 'grid', '🧱': 'icon', '🕸️': 'graph' })
+                .find(([icon]) => text.includes(icon))?.[1];
+
             if (mode) {
                 const isActive = mode === this.currentView;
-                btn.style.background = isActive ? '#333' : 'transparent';
-                btn.style.color = isActive ? '#fff' : '#888';
+                Object.assign(btn.style, this.getViewBtnStyle(mode)); // Re-apply full style object
+                if (isActive) btn.classList.add('active');
+                else btn.classList.remove('active');
             }
         });
     }

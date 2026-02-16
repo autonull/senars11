@@ -6,6 +6,7 @@ export class MessageRouter {
     }
 
     handleMessage(message) {
+        console.log('[MessageRouter] Received:', message);
         this.app.messageCount++;
         this.app.updateStats();
 
@@ -54,7 +55,19 @@ export class MessageRouter {
             // Generic message handling (logging) is often handled by subscribers or specific components
             // But we can check if we want to explicitly log something here if it's not covered
             const category = categorizeMessage(message);
-            // Additional logic if needed
+
+            if (category !== 'unknown' && category !== 'metric') {
+                let content = message.content || message.payload;
+                if (message.payload?.answer) content = message.payload.answer;
+
+                if (content && typeof content === 'object') {
+                    content = JSON.stringify(content);
+                }
+
+                if (content) {
+                    this.app.logger.log(content, message.type || category);
+                }
+            }
         }
     }
 

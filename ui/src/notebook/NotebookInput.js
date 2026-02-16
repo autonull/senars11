@@ -214,9 +214,9 @@ export class NotebookInput {
         if (e.ctrlKey && e.key === 'Enter') {
             e.preventDefault();
             this.execute();
-        } else if (e.key === 'ArrowUp') {
+        } else if (e.key === 'ArrowUp' && !e.shiftKey && !e.altKey && !e.metaKey) {
             this._handleHistoryNav('up', e);
-        } else if (e.key === 'ArrowDown') {
+        } else if (e.key === 'ArrowDown' && !e.shiftKey && !e.altKey && !e.metaKey) {
             this._handleHistoryNav('down', e);
         }
     }

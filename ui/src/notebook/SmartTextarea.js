@@ -43,7 +43,7 @@ export class SmartTextarea {
             top: 0; left: 0;
             ${fontStyles}
             pointer-events: none;
-            color: transparent;
+            color: #d4d4d4;
             overflow: hidden; /* Scroll is handled by sync */
             z-index: 1;
         `;
@@ -66,6 +66,10 @@ export class SmartTextarea {
         this.textarea.className = 'smart-textarea-input';
         this.textarea.rows = this.rows;
         this.textarea.placeholder = 'Enter Narsese or MeTTa... (Shift+Enter to Run)';
+        this.textarea.setAttribute('spellcheck', 'false');
+        this.textarea.setAttribute('autocomplete', 'off');
+        this.textarea.setAttribute('autocorrect', 'off');
+        this.textarea.setAttribute('autocapitalize', 'off');
         this.textarea.style.cssText = `
             position: relative;
             z-index: 3;
@@ -97,7 +101,7 @@ export class SmartTextarea {
             .bracket-match { background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 2px; }
 
             /* Hide text in textarea but keep caret */
-            .smart-textarea-input.highlight-mode { color: transparent; background: transparent; }
+            .smart-textarea-input.highlight-mode { color: transparent !important; background: transparent; }
             .smart-textarea-input.highlight-mode::selection { background: rgba(255, 255, 255, 0.2); color: transparent; }
         `;
 
@@ -132,7 +136,7 @@ export class SmartTextarea {
         this.wrapper.append(style, this.backdrop, this.bracketLayer, this.textarea);
         if (this.container) this.container.appendChild(this.wrapper);
 
-        this.autocomplete = new AutocompleteManager(this.textarea, this.wrapper);
+        // this.autocomplete = new AutocompleteManager(this.textarea, this.wrapper);
 
         if (this.autoResize) {
              requestAnimationFrame(() => this.adjustHeight());

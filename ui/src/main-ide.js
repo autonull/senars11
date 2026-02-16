@@ -13,6 +13,7 @@ import { MessageRouter } from './messaging/MessageRouter.js';
 import { SettingsManager } from './config/SettingsManager.js';
 import { EVENTS, COMPONENTS, MODES } from './config/constants.js';
 import { eventBus } from './core/EventBus.js';
+import { Modal } from './components/ui/Modal.js';
 
 cytoscape.use(fcose);
 window.cytoscape = cytoscape;
@@ -36,9 +37,14 @@ class SeNARSIDE {
 
         // Handle URL params for mode/layout
         const urlParams = new URLSearchParams(window.location.search);
-        this.presetName = urlParams.get('layout') || urlParams.get('mode');
+        this.presetName = urlParams.get('layout') || 'ide';
 
-        if (!this.presetName && window.location.pathname.endsWith('demo.html')) {
+        const modeParam = urlParams.get('mode');
+        if (modeParam && Object.values(MODES).includes(modeParam)) {
+            this.settingsManager.setMode(modeParam);
+        }
+
+        if (window.location.pathname.endsWith('demo.html')) {
             this.presetName = 'demo';
         }
 
@@ -156,7 +162,42 @@ class SeNARSIDE {
                 e.preventDefault();
                 this.layoutManager.toggleSidebar();
             }
+            if (e.ctrlKey && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
+                e.preventDefault();
+                const memComp = this.components.get('memory');
+                memComp?.focusFilter?.();
+            }
+            if (e.key === 'F1') {
+                e.preventDefault();
+                this.showHelpModal();
+            }
         });
+    }
+
+    showHelpModal() {
+        const shortcuts = [
+            { key: 'Ctrl + Enter', desc: 'Execute Cell' },
+            { key: 'Shift + Enter', desc: 'Execute & Advance' },
+            { key: 'Ctrl + L', desc: 'Clear Notebook' },
+            { key: 'Ctrl + S', desc: 'Save Notebook' },
+            { key: 'Ctrl + B', desc: 'Toggle Sidebar' },
+            { key: 'Ctrl + Shift + F', desc: 'Search Memory' },
+            { key: 'Ctrl + Shift + D', desc: 'Demo Library' },
+            { key: 'F1', desc: 'Help (Shortcuts)' }
+        ];
+
+        const content = shortcuts.map(s => `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #333;">
+                <span style="font-family: monospace; color: #00ff9d; font-weight: bold;">${s.key}</span>
+                <span style="color: #ccc;">${s.desc}</span>
+            </div>
+        `).join('');
+
+        new Modal({
+            title: '⌨️ Global Shortcuts',
+            content,
+            width: '450px'
+        }).show();
     }
 }
 

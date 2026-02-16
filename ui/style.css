@@ -418,18 +418,19 @@ input[type="text"]:focus, select:focus {
 }
 
 /* REPL Panel */
-.repl-panel-container {
+.repl-panel-container, .notebook-panel-container {
     display: flex;
     flex-direction: column;
     height: 100%;
     background: #1e1e1e;
+    overflow: hidden;
 }
 
 .notebook-container {
     flex: 1;
-    overflow-y: auto;
+    overflow: auto;
     padding: 10px;
-    scroll-behavior: smooth;
+    position: relative;
 }
 
 /* System Metrics Panel */

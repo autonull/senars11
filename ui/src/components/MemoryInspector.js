@@ -179,6 +179,22 @@ export class MemoryInspector extends Component {
         this.state.selectedConcept = concept;
     }
 
+    focusFilter() {
+        // Bring container to front if possible (GoldenLayout dependent)
+        if (this.glContainer && this.glContainer.parent && this.glContainer.parent.parent) {
+             try {
+                 // The parent is usually a Stack
+                 this.glContainer.parent.parent.setActiveContentItem(this.glContainer.parent);
+             } catch(e) { console.warn('Failed to focus tab', e); }
+        }
+
+        const input = this.toolbar?.querySelector('input');
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    }
+
     render() {
         if (!this.contentContainer) return;
         this.contentContainer.innerHTML = '';

@@ -48,7 +48,7 @@ const CATEGORY_MATCHERS = [
     { id: 'system', match: t => t === 'system' || ['control', 'agent'].some(k => t.includes(k)) },
     { id: 'debug', match: t => t === 'debug' },
     { id: 'user-input', match: t => t === 'user-input' || t === 'user' },
-    { id: 'result', match: t => t === 'result' || ['answer', 'query'].some(k => t.includes(k)) },
+    { id: 'result', match: t => t === 'result' || ['answer', 'query', 'result'].some(k => t.includes(k)) },
     { id: 'metric', match: t => t === 'metric' || ['performance', 'stats'].some(k => t.includes(k)) },
     { id: 'derivation', match: t => ['derive', 'proof'].some(k => t.includes(k)) }
 ];

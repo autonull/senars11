@@ -57,7 +57,9 @@ export class NotebookPanel extends Component {
             .class('notebook-container')
             .mount(this.container);
 
-        this.notebookManager = new NotebookManager(notebookContainer.dom);
+        this.notebookManager = new NotebookManager(notebookContainer.dom, {
+            onExecute: (cmd, originCell) => this.handleExecution(cmd, originCell)
+        });
         this.notebookManager.loadFromStorage();
 
         const inputContainer = FluentUI.create('div').mount(this.container);
@@ -72,10 +74,12 @@ export class NotebookPanel extends Component {
         this.notebookInput.render();
     }
 
-    handleExecution(command) {
-        const cell = this.notebookManager.createCodeCell(command);
-        cell.isEditing = false;
-        cell.updateMode();
+    handleExecution(command, originCell) {
+        if (!originCell) {
+            const cell = this.notebookManager.createCodeCell(command);
+            cell.isEditing = false;
+            cell.updateMode();
+        }
 
         if (this.app?.commandProcessor) {
             this.app.commandProcessor.processCommand(command);

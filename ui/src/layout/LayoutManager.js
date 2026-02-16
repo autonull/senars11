@@ -87,6 +87,7 @@ export class LayoutManager {
 
     _createStandard(container, Class, name, resize = false, initMethod = 'initialize') {
         const panel = new Class(container.element);
+        panel.glContainer = container; // Attach GoldenLayout container
         panel[initMethod]();
         this.app.registerComponent(name, panel);
         if (resize && panel.resize) {

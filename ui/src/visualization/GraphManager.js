@@ -31,7 +31,7 @@ export class GraphManager {
         document.addEventListener('senars:graph:filter', (e) => this.applyFilters(e.detail));
         document.addEventListener('senars:settings:updated', () => {
             this.updateStyle();
-            this.runLayout();
+            this.scheduleLayout();
         });
     }
 

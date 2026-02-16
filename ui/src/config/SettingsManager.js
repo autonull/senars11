@@ -4,7 +4,7 @@ export class SettingsManager {
     constructor() {
         this.settings = {
             mode: MODES.LOCAL,
-            serverUrl: 'localhost:3000'
+            serverUrl: 'ws://localhost:8080/ws'
         };
         this.load();
     }
