@@ -1,7 +1,13 @@
 import { jest } from '@jest/globals';
+import { EVENTS, STORAGE_KEYS } from '../../../src/config/constants.js';
 
 // Import module under test
-const { ThemeManager } = await import('../../../src/components/ThemeManager.js');
+let ThemeManager;
+
+beforeAll(async () => {
+    const module = await import('../../../src/components/ThemeManager.js');
+    ThemeManager = module.ThemeManager;
+});
 
 describe('ThemeManager', () => {
     let themeManager;
@@ -45,7 +51,7 @@ describe('ThemeManager', () => {
 
     test('should persist theme selection', () => {
         themeManager.setTheme('contrast');
-        expect(setItemSpy).toHaveBeenCalledWith('senars-theme', 'contrast');
+        expect(setItemSpy).toHaveBeenCalledWith(STORAGE_KEYS.THEME, 'contrast');
     });
 
     test('should dispatch event on update', () => {
@@ -53,7 +59,7 @@ describe('ThemeManager', () => {
         themeManager.setTheme('light');
         expect(spy).toHaveBeenCalledWith(expect.any(CustomEvent));
         const event = spy.mock.calls[0][0];
-        expect(event.type).toBe('senars:settings:updated');
+        expect(event.type).toBe(EVENTS.SETTINGS_UPDATED);
         expect(event.detail.theme).toBe('light');
     });
 });

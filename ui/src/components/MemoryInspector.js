@@ -114,7 +114,7 @@ export class MemoryInspector extends Component {
                         type: 'button',
                         label: 'REFRESH',
                         class: 'mi-refresh-btn',
-                        onClick: () => document.dispatchEvent(new CustomEvent('senars:memory:refresh'))
+                        onClick: () => document.dispatchEvent(new CustomEvent(EVENTS.MEMORY_REFRESH))
                     }
                 ]
             },

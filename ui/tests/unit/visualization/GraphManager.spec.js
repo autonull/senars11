@@ -15,7 +15,7 @@ jest.unstable_mockModule('../../../src/components/ContextMenu.js', () => ({
 }));
 
 // Import module under test dynamically after mocking
-const { GraphManager } = await import('../../../src/visualization/GraphManager.js');
+let GraphManager;
 
 // Mock Cytoscape
 const mockCy = {
@@ -38,6 +38,11 @@ global.cytoscape = jest.fn(() => mockCy);
 describe('GraphManager', () => {
     let graphManager;
     let container;
+
+    beforeAll(async () => {
+        const module = await import('../../../src/visualization/GraphManager.js');
+        GraphManager = module.GraphManager;
+    });
 
     beforeEach(() => {
         container = document.createElement('div');

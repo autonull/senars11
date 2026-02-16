@@ -1,4 +1,5 @@
 import { SimpleGraphWidget } from './SimpleGraphWidget.js';
+import { EVENTS } from '../../config/constants.js';
 
 export class DerivationWidget extends SimpleGraphWidget {
     constructor(container, data = null) {
@@ -37,7 +38,7 @@ export class DerivationWidget extends SimpleGraphWidget {
                         term: data.fullTerm || data.label,
                         id: data.id
                     };
-                    document.dispatchEvent(new CustomEvent('senars:concept:select', {
+                    document.dispatchEvent(new CustomEvent(EVENTS.CONCEPT_SELECT, {
                         detail: { concept }
                     }));
                 }

@@ -1,3 +1,5 @@
+import { EVENTS } from '../config/constants.js';
+
 export class ContextMenu {
     constructor(graphManager, commandProcessor) {
         this.graphManager = graphManager;
@@ -122,7 +124,7 @@ export class ContextMenu {
         // Since we don't have updateGraphDetails fully implemented in GraphManager yet in this context,
         // we mainly rely on the select event to trigger MemoryInspector
         if (data.fullData) {
-            document.dispatchEvent(new CustomEvent('senars:concept:select', {
+            document.dispatchEvent(new CustomEvent(EVENTS.CONCEPT_SELECT, {
                 detail: { concept: data.fullData, id: data.id }
             }));
         }

@@ -2,6 +2,7 @@ import { Config } from '../config/Config.js';
 import { ContextMenu } from '../components/ContextMenu.js';
 import { AutoLearner } from '../utils/AutoLearner.js';
 import { KeyboardNavigation } from './KeyboardNavigation.js';
+import { EVENTS } from '../config/constants.js';
 
 export class GraphManager {
     constructor(uiElements = null, callbacks = {}) {
@@ -22,14 +23,14 @@ export class GraphManager {
     }
 
     _setupGlobalListeners() {
-        document.addEventListener('senars:concept:select', (e) => {
+        document.addEventListener(EVENTS.CONCEPT_SELECT, (e) => {
             const { id, concept } = e.detail;
             if (concept?.term) this.autoLearner.recordInteraction(concept.term, 1);
             if (id) this.highlightNode(id);
         });
 
-        document.addEventListener('senars:graph:filter', (e) => this.applyFilters(e.detail));
-        document.addEventListener('senars:settings:updated', () => {
+        document.addEventListener(EVENTS.GRAPH_FILTER, (e) => this.applyFilters(e.detail));
+        document.addEventListener(EVENTS.SETTINGS_UPDATED, () => {
             this.updateStyle();
             this.scheduleLayout();
         });
@@ -80,7 +81,7 @@ export class GraphManager {
         this.callbacks.onNodeClick?.(data);
 
         if (data.fullData) {
-            document.dispatchEvent(new CustomEvent('senars:concept:select', {
+            document.dispatchEvent(new CustomEvent(EVENTS.CONCEPT_SELECT, {
                 detail: { concept: data.fullData, id: data.id }
             }));
         }
@@ -129,7 +130,7 @@ export class GraphManager {
         const nodes = this.cy.nodes();
         const width = this.cy.width() * 0.8;
         const height = this.cy.height() * 0.8;
-        const padding = 50;
+        // const padding = 50; // Unused variable
 
         const getVal = (node, axis) => {
             const data = node.data('fullData') || {};
@@ -260,24 +261,33 @@ export class GraphManager {
         }
     }
 
-    addNode(nodeData, runLayout = true) {
-        if (!this.cy) return false;
+    _calculateNodeWeight(priority, term) {
+        let weight = priority * 100;
+        if (term) weight += this.autoLearner.getConceptModifier(term);
+        return Math.min(Math.max(weight, 10), 100);
+    }
 
-        const { id, label, term, type, truth } = nodeData;
-        const nodeId = id ?? `concept_${Date.now()}`;
-
-        if (this.cy.getElementById(nodeId).length) return false;
-
+    _calculateNodeLabel(payload) {
+        const { label, term, id, truth } = payload;
         let displayLabel = label ?? term ?? id;
         if (truth) {
             displayLabel += `\n{${(truth.frequency ?? 0).toFixed(2)}, ${(truth.confidence ?? 0).toFixed(2)}}`;
         }
+        return displayLabel;
+    }
 
+    addNode(nodeData, runLayout = true) {
+        if (!this.cy) return false;
+
+        const { id, type } = nodeData;
+        const nodeId = id ?? `concept_${Date.now()}`;
+
+        if (this.cy.getElementById(nodeId).length) return false;
+
+        const displayLabel = this._calculateNodeLabel(nodeData);
         const priority = nodeData.budget?.priority ?? 0;
         const taskCount = nodeData.tasks?.length ?? nodeData.taskCount ?? 0;
-
-        let weight = priority * 100;
-        if (term) weight += this.autoLearner.getConceptModifier(term);
+        const weight = this._calculateNodeWeight(priority, nodeData.term);
 
         this.cy.add({
             group: 'nodes',
@@ -285,7 +295,7 @@ export class GraphManager {
                 id: nodeId,
                 label: displayLabel,
                 type: type ?? 'concept',
-                weight: Math.min(Math.max(weight, 10), 100),
+                weight: weight,
                 taskCount: taskCount,
                 fullData: nodeData
             }
@@ -341,19 +351,16 @@ export class GraphManager {
         if (node.length > 0) {
             const priority = payload.budget?.priority ?? 0;
             const taskCount = payload.tasks?.length ?? payload.taskCount ?? 0;
-            let weight = priority * 100;
-            if (payload.term) weight += this.autoLearner.getConceptModifier(payload.term);
+            const weight = this._calculateNodeWeight(priority, payload.term);
 
             const updates = {
-                weight: Math.min(Math.max(weight, 10), 100),
+                weight: weight,
                 taskCount: taskCount,
                 fullData: payload
             };
 
             if (payload.truth) {
-                let displayLabel = payload.term ?? payload.label ?? payload.id;
-                displayLabel += `\n{${(payload.truth.frequency ?? 0).toFixed(2)}, ${(payload.truth.confidence ?? 0).toFixed(2)}}`;
-                updates.label = displayLabel;
+                updates.label = this._calculateNodeLabel(payload);
             }
 
             node.data(updates);

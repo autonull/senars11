@@ -1,3 +1,5 @@
+import { COMPONENTS } from './constants.js';
+
 export const LayoutPresets = {
     ide: {
         settings: {
@@ -20,7 +22,7 @@ export const LayoutPresets = {
             content: [
                 {
                     type: 'component',
-                    componentName: 'notebookComponent',
+                    componentName: COMPONENTS.NOTEBOOK,
                     title: 'NOTEBOOK',
                     width: 70
                 },
@@ -29,11 +31,11 @@ export const LayoutPresets = {
                     width: 30,
                     isClosable: true,
                     content: [
-                        { type: 'component', componentName: 'graphComponent', title: 'KNOWLEDGE GRAPH', isClosable: true },
-                        { type: 'component', componentName: 'memoryComponent', title: 'MEMORY INSPECTOR' },
-                        { type: 'component', componentName: 'derivationComponent', title: 'DERIVATION TRACER' },
-                        { type: 'component', componentName: 'metricsComponent', title: 'SYSTEM METRICS' },
-                        { type: 'component', componentName: 'settingsComponent', title: 'SETTINGS' }
+                        { type: 'component', componentName: COMPONENTS.GRAPH, title: 'KNOWLEDGE GRAPH', isClosable: true },
+                        { type: 'component', componentName: COMPONENTS.MEMORY, title: 'MEMORY INSPECTOR' },
+                        { type: 'component', componentName: COMPONENTS.DERIVATION, title: 'DERIVATION TRACER' },
+                        { type: 'component', componentName: COMPONENTS.METRICS, title: 'SYSTEM METRICS' },
+                        { type: 'component', componentName: COMPONENTS.SETTINGS, title: 'SETTINGS' }
                     ]
                 }
             ]
@@ -60,7 +62,7 @@ export const LayoutPresets = {
             content: [
                 {
                     type: 'component',
-                    componentName: 'editorComponent',
+                    componentName: COMPONENTS.EDITOR,
                     title: 'CODE EDITOR',
                     width: 50,
                     isClosable: false
@@ -71,7 +73,7 @@ export const LayoutPresets = {
                     content: [
                         {
                             type: 'component',
-                            componentName: 'notebookComponent',
+                            componentName: COMPONENTS.NOTEBOOK,
                             title: 'OUTPUT / CONSOLE',
                             height: 70,
                             isClosable: false,
@@ -81,8 +83,8 @@ export const LayoutPresets = {
                             type: 'stack',
                             height: 30,
                             content: [
-                                { type: 'component', componentName: 'metricsComponent', title: 'METRICS' },
-                                { type: 'component', componentName: 'graphComponent', title: 'GRAPH' }
+                                { type: 'component', componentName: COMPONENTS.METRICS, title: 'METRICS' },
+                                { type: 'component', componentName: COMPONENTS.GRAPH, title: 'GRAPH' }
                             ]
                         }
                     ]
@@ -109,14 +111,14 @@ export const LayoutPresets = {
             content: [
                 {
                     type: 'component',
-                    componentName: 'graphComponent',
+                    componentName: COMPONENTS.GRAPH,
                     title: 'GRAPH CANVAS',
                     height: 80,
                     componentState: { label: 'Canvas' }
                 },
                 {
                     type: 'component',
-                    componentName: 'notebookComponent',
+                    componentName: COMPONENTS.NOTEBOOK,
                     title: 'CONSOLE',
                     height: 20
                 }
@@ -138,13 +140,13 @@ export const LayoutPresets = {
             content: [
                 {
                     type: 'component',
-                    componentName: 'editorComponent',
+                    componentName: COMPONENTS.EDITOR,
                     title: 'SOURCE',
                     width: 50
                 },
                 {
                     type: 'component',
-                    componentName: 'notebookComponent',
+                    componentName: COMPONENTS.NOTEBOOK,
                     title: 'OUTPUT',
                     width: 50,
                     componentState: { hideInput: true }
@@ -175,13 +177,13 @@ export const LayoutPresets = {
                     content: [
                         {
                             type: 'component',
-                            componentName: 'notebookComponent',
+                            componentName: COMPONENTS.NOTEBOOK,
                             title: 'NOTEBOOK',
                             isClosable: false
                         },
                         {
                             type: 'component',
-                            componentName: 'graphComponent',
+                            componentName: COMPONENTS.GRAPH,
                             title: 'GRAPH (Hidden)',
                             componentState: { label: 'Graph' }
                         }
@@ -210,7 +212,7 @@ export const LayoutPresets = {
             type: 'row',
             content: [{
                 type: 'component',
-                componentName: 'graphComponent',
+                componentName: COMPONENTS.GRAPH,
                 title: 'KNOWLEDGE GRAPH',
                 width: 60,
                 componentState: { label: 'Graph' }
@@ -220,28 +222,28 @@ export const LayoutPresets = {
                 content: [
                     {
                         type: 'component',
-                        componentName: 'notebookComponent',
+                        componentName: COMPONENTS.NOTEBOOK,
                         title: 'NOTEBOOK',
                         isClosable: false
                     },
                     {
                         type: 'component',
-                        componentName: 'derivationComponent',
+                        componentName: COMPONENTS.DERIVATION,
                         title: 'DERIVATION TREE'
                     },
                     {
                         type: 'component',
-                        componentName: 'memoryComponent',
+                        componentName: COMPONENTS.MEMORY,
                         title: 'MEMORY INSPECTOR'
                     },
                     {
                         type: 'component',
-                        componentName: 'metricsComponent',
+                        componentName: COMPONENTS.METRICS,
                         title: 'METRICS'
                     },
                     {
                         type: 'component',
-                        componentName: 'settingsComponent',
+                        componentName: COMPONENTS.SETTINGS,
                         title: 'SETTINGS'
                     }
                 ]
@@ -270,14 +272,14 @@ export const LayoutPresets = {
             content: [
                 {
                     type: 'component',
-                    componentName: 'examplesComponent',
+                    componentName: COMPONENTS.EXAMPLES,
                     title: 'DEMO LIBRARY',
                     width: 20,
                     isClosable: false
                 },
                 {
                     type: 'component',
-                    componentName: 'notebookComponent',
+                    componentName: COMPONENTS.NOTEBOOK,
                     title: 'NOTEBOOK',
                     width: 40,
                     isClosable: false
@@ -289,7 +291,7 @@ export const LayoutPresets = {
                     content: [
                         {
                             type: 'component',
-                            componentName: 'graphComponent',
+                            componentName: COMPONENTS.GRAPH,
                             title: 'KNOWLEDGE GRAPH',
                             height: 70,
                             componentState: { label: 'Graph' },
@@ -297,7 +299,7 @@ export const LayoutPresets = {
                         },
                         {
                             type: 'component',
-                            componentName: 'metricsComponent',
+                            componentName: COMPONENTS.METRICS,
                             title: 'SYSTEM METRICS',
                             height: 30,
                             isClosable: true
@@ -329,14 +331,14 @@ export const LayoutPresets = {
             content: [
                 {
                     type: 'component',
-                    componentName: 'examplesComponent',
+                    componentName: COMPONENTS.EXAMPLES,
                     title: 'DEMO LIBRARY',
                     width: 30,
                     isClosable: false
                 },
                 {
                     type: 'component',
-                    componentName: 'notebookComponent',
+                    componentName: COMPONENTS.NOTEBOOK,
                     title: 'NOTEBOOK',
                     width: 70,
                     isClosable: false

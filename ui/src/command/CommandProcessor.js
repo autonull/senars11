@@ -1,3 +1,5 @@
+import { EVENTS } from '../config/constants.js';
+
 export class CommandProcessor {
     constructor(connectionManager, notebookLogger, graphManager) {
         this.connection = connectionManager;
@@ -92,7 +94,7 @@ export class CommandProcessor {
         }
 
         // 1. Dispatch event to select in memory inspector
-        document.dispatchEvent(new CustomEvent('senars:concept:select', {
+        document.dispatchEvent(new CustomEvent(EVENTS.CONCEPT_SELECT, {
             detail: { concept: { term } }
         }));
 

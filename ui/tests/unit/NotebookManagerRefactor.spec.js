@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import { NotebookManager } from '../../src/notebook/NotebookManager.js';
 import { eventBus } from '../../src/core/EventBus.js';
+import { EVENTS } from '../../src/config/constants.js';
 
 describe('NotebookManager Refactor', () => {
     let container;
@@ -13,7 +14,7 @@ describe('NotebookManager Refactor', () => {
     });
 
     test('addCell emits notebook:cell:added', (done) => {
-        eventBus.on('notebook:cell:added', (cell) => {
+        eventBus.on(EVENTS.NOTEBOOK_CELL_ADDED, (cell) => {
             try {
                 expect(cell.content).toBe('test');
                 done();
@@ -26,7 +27,7 @@ describe('NotebookManager Refactor', () => {
 
     test('removeCell emits notebook:cell:removed', (done) => {
         const cell = manager.createMarkdownCell('test');
-        eventBus.on('notebook:cell:removed', (removed) => {
+        eventBus.on(EVENTS.NOTEBOOK_CELL_REMOVED, (removed) => {
             try {
                 expect(removed).toBe(cell);
                 done();

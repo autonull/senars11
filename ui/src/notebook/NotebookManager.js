@@ -9,6 +9,7 @@ import { NotebookGraphView } from './views/NotebookGraphView.js';
 import { NotebookGridView } from './views/NotebookGridView.js';
 import { ReactiveState } from '../core/ReactiveState.js';
 import { eventBus } from '../core/EventBus.js';
+import { EVENTS, STORAGE_KEYS } from '../config/constants.js';
 
 /**
  * Notebook manager for Notebook cells
@@ -24,7 +25,7 @@ export class NotebookManager {
         this.history = []; // Undo stack
         this.executionCount = 0;
         this.saveTimeout = null;
-        this.storageKey = 'senars-notebook-content';
+        this.storageKey = STORAGE_KEYS.NOTEBOOK_CONTENT;
         this.defaultOnExecute = options.onExecute || null;
         this.lastInsertionPoint = null;
 
@@ -171,7 +172,7 @@ export class NotebookManager {
         }
 
         this.triggerSave();
-        eventBus.emit('notebook:cell:added', cell);
+        eventBus.emit(EVENTS.NOTEBOOK_CELL_ADDED, cell);
         return cell;
     }
 
@@ -258,7 +259,7 @@ export class NotebookManager {
         // Don't fully destroy if we want to undo, but DOM element is removed
         // cell.destroy();
         this.triggerSave();
-        eventBus.emit('notebook:cell:removed', cell);
+        eventBus.emit(EVENTS.NOTEBOOK_CELL_REMOVED, cell);
     }
 
     undo() {
@@ -328,7 +329,7 @@ export class NotebookManager {
     }
 
     handleCellExecution(cell, options = {}) {
-        eventBus.emit('notebook:cell:executed', cell);
+        eventBus.emit(EVENTS.NOTEBOOK_CELL_EXECUTED, cell);
 
         if (options.advance) {
             const index = this.cells.indexOf(cell);
@@ -387,7 +388,7 @@ export class NotebookManager {
                 this._renderView(this.state.viewMode);
             }
             this.triggerSave();
-            eventBus.emit('notebook:cell:added', newCell);
+            eventBus.emit(EVENTS.NOTEBOOK_CELL_ADDED, newCell);
         }
     }
 
@@ -419,7 +420,7 @@ export class NotebookManager {
                 this._renderView(this.state.viewMode);
             }
             this.triggerSave();
-            eventBus.emit('notebook:cell:added', newCell);
+            eventBus.emit(EVENTS.NOTEBOOK_CELL_ADDED, newCell);
         } else {
             // Fallback
             this.addCell(newCell);
@@ -458,7 +459,7 @@ export class NotebookManager {
     clear() {
         this.state.cells.forEach(cell => {
             cell.destroy();
-            eventBus.emit('notebook:cell:removed', cell);
+            eventBus.emit(EVENTS.NOTEBOOK_CELL_REMOVED, cell);
         });
         this.state.cells = [];
         this.viewContainer.innerHTML = '';

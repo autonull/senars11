@@ -65,6 +65,7 @@ export function categorizeMessage(message) {
 }
 
 import { ReactiveState } from '../core/ReactiveState.js';
+import { STORAGE_KEYS } from '../config/constants.js';
 
 /**
  * Filter manager for REPL messages
@@ -131,7 +132,7 @@ export class MessageFilter {
 
     saveFilters() {
         try {
-            localStorage.setItem('senars-message-filters-v2', JSON.stringify(this.state.modeMap));
+            localStorage.setItem(STORAGE_KEYS.MESSAGE_FILTERS, JSON.stringify(this.state.modeMap));
         } catch (e) {
             console.warn('Failed to save filters', e);
         }
@@ -139,7 +140,7 @@ export class MessageFilter {
 
     loadFilters() {
         try {
-            const savedV2 = localStorage.getItem('senars-message-filters-v2');
+            const savedV2 = localStorage.getItem(STORAGE_KEYS.MESSAGE_FILTERS);
             if (savedV2) {
                 const filters = JSON.parse(savedV2);
                 this.state.modeMap = { ...this.state.modeMap, ...filters };

@@ -4,6 +4,7 @@ import { Modal } from '../components/ui/Modal.js';
 import { FluentToolbar } from '../components/ui/FluentToolbar.js';
 import { Config } from '../config/Config.js';
 import { FluentUI } from '../utils/FluentUI.js';
+import { STORAGE_KEYS } from '../config/constants.js';
 
 export class NotebookInput {
     constructor(container, options = {}) {
@@ -14,7 +15,7 @@ export class NotebookInput {
         this.onExtraAction = options.onExtraAction ?? (() => {});
         this.onControl = options.onControl ?? (() => {});
 
-        this.history = new CommandHistory('senars-repl-history', Config.getConstants().MAX_HISTORY_SIZE);
+        this.history = new CommandHistory(STORAGE_KEYS.REPL_HISTORY, Config.getConstants().MAX_HISTORY_SIZE);
         this.element = null;
         this.inputBox = null;
         this.controls = {};

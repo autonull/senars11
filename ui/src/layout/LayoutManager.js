@@ -42,7 +42,7 @@ export class LayoutManager {
             [COMPONENTS.METRICS]: (c) => this._createStandard(c, SystemMetricsPanel, 'metrics', false, 'render'),
             [COMPONENTS.SETTINGS]: (c) => this._createSettings(c),
             [COMPONENTS.EXAMPLES]: (c) => this._createExamples(c),
-            'editorComponent': (c) => this._createEditor(c)
+            [COMPONENTS.EDITOR]: (c) => this._createEditor(c)
         };
 
         Object.entries(componentMap).forEach(([name, factory]) => {
