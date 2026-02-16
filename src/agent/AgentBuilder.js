@@ -7,10 +7,7 @@ export class AgentBuilder {
     constructor(initialConfig = {}) {
         this.config = this.constructor.getDefaultConfig();
         this.dependencies = new Map();
-
-        if (initialConfig) {
-            this.withConfig(initialConfig);
-        }
+        if (initialConfig) this.withConfig(initialConfig);
     }
 
     static getDefaultConfig() {
@@ -23,17 +20,10 @@ export class AgentBuilder {
                 tools: false,
                 lm: false,
             },
-            memory: {
-                enableMemoryValidation: true,
-                memoryValidationInterval: 30000,
-            },
+            memory: { enableMemoryValidation: true, memoryValidationInterval: 30000 },
             nar: {},
             lm: {
-                circuitBreaker: {
-                    failureThreshold: 5,
-                    timeout: 60000,
-                    resetTimeout: 30000
-                },
+                circuitBreaker: { failureThreshold: 5, timeout: 60000, resetTimeout: 30000 },
             },
             persistence: {},
             inputProcessing: {}
@@ -76,35 +66,17 @@ export class AgentBuilder {
         return this;
     }
 
-    withMetrics(metricsConfig = true) {
-        this.config.subsystems.metrics = metricsConfig;
+    withSubsystem(name, config = true) {
+        this.config.subsystems[name] = config;
         return this;
     }
 
-    withEmbeddings(embeddingConfig = true) {
-        this.config.subsystems.embeddingLayer = embeddingConfig;
-        return this;
-    }
-
-    withFunctors(functorConfig) {
-        this.config.subsystems.functors = Array.isArray(functorConfig) ? functorConfig : functorConfig;
-        return this;
-    }
-
-    withRules(ruleConfig) {
-        this.config.subsystems.rules = Array.isArray(ruleConfig) ? ruleConfig : ruleConfig;
-        return this;
-    }
-
-    withTools(toolConfig = true) {
-        this.config.subsystems.tools = toolConfig;
-        return this;
-    }
-
-    withLM(lmConfig = true) {
-        this.config.subsystems.lm = lmConfig;
-        return this;
-    }
+    withMetrics(config = true) { return this.withSubsystem('metrics', config); }
+    withEmbeddings(config = true) { return this.withSubsystem('embeddingLayer', config); }
+    withFunctors(config) { return this.withSubsystem('functors', Array.isArray(config) ? config : config); }
+    withRules(config) { return this.withSubsystem('rules', Array.isArray(config) ? config : config); }
+    withTools(config = true) { return this.withSubsystem('tools', config); }
+    withLM(config = true) { return this.withSubsystem('lm', config); }
 
     registerDependency(name, dependency) {
         this.dependencies.set(name, dependency);
@@ -112,87 +84,83 @@ export class AgentBuilder {
     }
 
     async build() {
-        const agent = new Agent(this._buildAgentConfig());
-
-        agent._pluginManager = new PluginManager({
-            nar: agent,
-            agent: agent,
-            eventBus: agent._eventBus
-        });
-
-        if (this.config.subsystems.plugins) {
-            this._registerPlugins(agent._pluginManager, this.config.subsystems.plugins);
-        }
-
+        const agent = this._createAgent();
+        this._setupPlugins(agent);
         FunctorProvider.registerFunctors(agent.evaluator?.getFunctorRegistry?.(), this.config.subsystems.functors);
-
         await this._initializeSubsystems(agent);
-
-        const lmProvider = LMProviderBuilder.create(agent, this.config.lm);
-        if (lmProvider) {
-            agent.lm?.registerProvider(lmProvider.name, lmProvider);
-            agent.lm?.providers.setDefault(lmProvider.name);
-        }
-
+        this._setupLM(agent);
         return agent;
     }
 
+    _createAgent() {
+        return new Agent(this._buildAgentConfig());
+    }
+
     _buildAgentConfig() {
-        const {subsystems, nar, memory, persistence, inputProcessing, lm} = this.config;
-        const {lm: lmSubsystem, tools, embeddingLayer, metrics} = subsystems;
+        const { subsystems, nar, memory, persistence, inputProcessing, lm } = this.config;
+        const { lm: lmSubsystem, tools, embeddingLayer, metrics } = subsystems;
+
+        const getSubsystemConfig = (subsystem) => ({
+            enabled: !!subsystem,
+            ...(typeof subsystem === 'object' ? subsystem : {})
+        });
 
         return {
             ...nar,
             memory,
             persistence,
             inputProcessing,
-            lm: {
-                enabled: !!lmSubsystem,
-                ...(typeof lmSubsystem === 'object' ? lmSubsystem : {}),
-                ...lm
-            },
-            tools: {
-                enabled: !!tools,
-                ...(typeof tools === 'object' ? tools : {})
-            },
-            embeddingLayer: {
-                enabled: !!embeddingLayer,
-                ...(typeof embeddingLayer === 'object' ? embeddingLayer : {})
-            },
+            lm: { ...getSubsystemConfig(lmSubsystem), ...lm },
+            tools: getSubsystemConfig(tools),
+            embeddingLayer: getSubsystemConfig(embeddingLayer),
             metricsMonitor: metrics ? (typeof metrics === 'object' ? metrics : {}) : undefined
         };
     }
 
+    _setupPlugins(agent) {
+        agent._pluginManager = new PluginManager({ nar: agent, agent: agent, eventBus: agent._eventBus });
+        if (this.config.subsystems.plugins) {
+            this._registerPlugins(agent._pluginManager, this.config.subsystems.plugins);
+        }
+    }
+
     _registerPlugins(pluginManager, pluginConfig) {
         const register = (config, id) => {
-            if (config.instance) pluginManager.registerPlugin(config.instance);
-            else if (config.constructor) {
-                pluginManager.registerPlugin(new config.constructor(id ?? config.constructor.name.toLowerCase(), config.config ?? {}));
+            if (config.instance) {
+                pluginManager.registerPlugin(config.instance);
+            } else if (config.constructor) {
+                const pluginId = id ?? config.constructor.name.toLowerCase();
+                pluginManager.registerPlugin(new config.constructor(pluginId, config.config ?? {}));
             }
         };
 
         if (Array.isArray(pluginConfig)) {
-            pluginConfig
-                .filter(Boolean)
-                .forEach(p => register(p, p.id));
+            pluginConfig.filter(Boolean).forEach(p => register(p, p.id));
         } else if (typeof pluginConfig === 'object') {
             Object.entries(pluginConfig)
-                .filter(([, c]) => c && c.enabled !== false)
+                .filter(([, c]) => c?.enabled !== false)
                 .forEach(([id, c]) => register(c, id));
         }
     }
 
     async _initializeSubsystems(agent) {
-        if (agent.initialize) await agent.initialize();
-
+        await agent.initialize?.();
         if (agent._pluginManager) {
             try {
                 if (await agent._pluginManager.initializeAll()) {
-                    agent._pluginManager.startAll().catch(e => console.error('Failed to start plugins:', e));
+                    await agent._pluginManager.startAll();
                 }
             } catch (e) {
-                console.error('Failed to initialize plugins:', e);
+                console.error('Failed to initialize or start plugins:', e);
             }
+        }
+    }
+
+    _setupLM(agent) {
+        const lmProvider = LMProviderBuilder.create(agent, this.config.lm);
+        if (lmProvider) {
+            agent.lm?.registerProvider(lmProvider.name, lmProvider);
+            agent.lm?.providers.setDefault(lmProvider.name);
         }
     }
 }

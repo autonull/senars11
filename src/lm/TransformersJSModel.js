@@ -27,11 +27,9 @@ export class TransformersJSModel extends BaseChatModel {
         if (this.pipeline) return;
 
         // Suppress ONNX Runtime warnings
-        if (!process.env.ORT_LOG_LEVEL) {
-            process.env.ORT_LOG_LEVEL = '3';
-        }
+        process.env.ORT_LOG_LEVEL ??= '3';
 
-        const { pipeline, env } = await import('@xenova/transformers');
+        const { pipeline } = await import('@xenova/transformers');
 
         this.pipeline = await pipeline(this.task, this.modelName, {
             device: this.device,
@@ -39,49 +37,43 @@ export class TransformersJSModel extends BaseChatModel {
         });
     }
 
+
+
     bindTools(tools) {
         this.boundTools = tools;
         return this;
     }
 
     async _generate(messages, options, runManager) {
-        const prompt = this._formatMessages(messages);
-        await this._initialize();
-
-        const output = await this.pipeline(prompt, {
-            max_new_tokens: this.maxTokens,
-            temperature: this.temperature,
-            do_sample: this.temperature > 0,
-        });
-
-        const res = Array.isArray(output) ? output[0] : output;
-        const text = res?.generated_text ?? res?.text ?? JSON.stringify(output);
-
-        const { content, tool_calls } = this._parseOutput(text);
-
+        const { text, content, tool_calls } = await this._invoke(messages);
         return {
-            generations: [
-                {
-                    text: text,
-                    message: new AIMessage({
-                        content,
-                        tool_calls
-                    })
-                }
-            ]
+            generations: [{
+                text: text,
+                message: new AIMessage({ content, tool_calls }),
+            }],
         };
     }
 
     async *_streamResponseChunks(messages, options, runManager) {
+        // TODO: Implement true streaming if possible with @xenova/transformers Streamer
+        const { text, content, tool_calls } = await this._invoke(messages);
+
+        if (tool_calls?.length > 0) {
+            yield new ChatGenerationChunk({
+                message: new AIMessageChunk({ content: content ?? "", tool_calls }),
+                text: text,
+            });
+        } else {
+            yield new ChatGenerationChunk({
+                message: new AIMessageChunk({ content }),
+                text: content,
+            });
+        }
+    }
+
+    async _invoke(messages) {
         const prompt = this._formatMessages(messages);
         await this._initialize();
-
-        // Transformers.js pipeline doesn't support streaming efficiently in the same way for all models
-        // But for text-generation it might support a callback.
-        // For now, we simulate streaming by generating full text and yielding it.
-        // If the underlying pipeline supports streamer, we could use it.
-
-        // TODO: implement true streaming if possible with @xenova/transformers Streamer
 
         const output = await this.pipeline(prompt, {
             max_new_tokens: this.maxTokens,
@@ -90,96 +82,76 @@ export class TransformersJSModel extends BaseChatModel {
         });
 
         const res = Array.isArray(output) ? output[0] : output;
-        const text = res?.generated_text ?? res?.text ?? JSON.stringify(output);
+        const text = res?.generated_text ?? res?.text ?? JSON.stringify(res);
+        const parsed = this._parseOutput(text);
 
-        const { content, tool_calls } = this._parseOutput(text);
-
-        if (tool_calls && tool_calls.length > 0) {
-             // Yield empty content with tool calls
-             yield new ChatGenerationChunk({
-                message: new AIMessageChunk({
-                    content: content ?? "",
-                    tool_calls: tool_calls
-                }),
-                text: text
-            });
-        } else {
-            // Yield content
-             yield new ChatGenerationChunk({
-                message: new AIMessageChunk({
-                    content: content,
-                }),
-                text: content
-            });
-        }
+        return { text, ...parsed };
     }
 
     _formatMessages(messages) {
-        let systemPrompt = "";
-        let chatHistory = "";
-
-        // Construct tool definitions
-        if (this.boundTools?.length > 0) {
-            systemPrompt += "You are a helpful assistant. You have access to the following tools:\n";
-            this.boundTools.forEach(tool => {
-                const schema = JSON.stringify(tool.schema ?? tool.parameters ?? {});
-                systemPrompt += `- ${tool.name}: ${tool.description}. Arguments: ${schema}\n`;
-            });
-            systemPrompt += "\nTo use a tool, output exactly:\nAction: <tool_name>\nAction Input: <json_arguments>\n";
-            systemPrompt += "If no tool is needed, just provide the answer.\n\n";
-            systemPrompt += "Example:\nUser: Add 2 and 3\nAssistant:\nAction: calculator\nAction Input: {\"operation\": \"add\", \"a\": 2, \"b\": 3}\n\n";
-        }
-
-        messages.forEach(msg => {
-            if (msg instanceof SystemMessage) {
-                systemPrompt += `${msg.content}\n`;
-            } else if (msg instanceof HumanMessage) {
-                chatHistory += `User: ${msg.content}\n`;
-            } else if (msg instanceof AIMessage) {
-                chatHistory += `Assistant: ${msg.content}\n`;
-                if (msg.tool_calls?.length > 0) {
-                    msg.tool_calls.forEach(tc => {
-                        chatHistory += `Action: ${tc.name}\nAction Input: ${JSON.stringify(tc.args)}\n`;
-                    });
-                }
-            } else if (msg instanceof ToolMessage) {
-                chatHistory += `Tool Result: ${msg.content}\n`;
-            } else if (typeof msg === 'string') {
-                 chatHistory += `User: ${msg}\n`;
-            }
-        });
-
-        // T5 usually expects "instruction: ... input: ..."
-        // But LaMini-Flan-T5 is instruction tuned.
-        // We'll concat system + history + "Assistant:"
+        const systemPrompt = this._buildToolPrompt(messages);
+        const chatHistory = this._formatMessageHistory(messages);
         return `${systemPrompt}\n${chatHistory}\nAssistant:`;
     }
 
+    _buildToolPrompt(messages) {
+        let systemPrompt = messages.find(m => m instanceof SystemMessage)?.content ?? "";
+
+        if (this.boundTools?.length > 0) {
+            const toolDefs = this.boundTools.map(tool => {
+                const schema = JSON.stringify(tool.schema ?? tool.parameters ?? {});
+                return `- ${tool.name}: ${tool.description}. Arguments: ${schema}`;
+            }).join('\n');
+
+            systemPrompt = [
+                "You are a helpful assistant. You have access to the following tools:",
+                toolDefs,
+                "\nTo use a tool, output exactly:\nAction: <tool_name>\nAction Input: <json_arguments>\n",
+                "If no tool is needed, just provide the answer.\n",
+                "Example:\nUser: Add 2 and 3\nAssistant:\nAction: calculator\nAction Input: {\"operation\": \"add\", \"a\": 2, \"b\": 3}\n\n",
+                systemPrompt
+            ].join('\n');
+        }
+        return systemPrompt;
+    }
+
+    _formatMessageHistory(messages) {
+        return messages
+            .filter(msg => !(msg instanceof SystemMessage))
+            .map(msg => {
+                if (msg instanceof HumanMessage) return `User: ${msg.content}`;
+                if (msg instanceof AIMessage) {
+                    const toolCalls = msg.tool_calls?.map(tc => `Action: ${tc.name}\nAction Input: ${JSON.stringify(tc.args)}`).join('\n') ?? '';
+                    return `Assistant: ${msg.content}${toolCalls ? '\n' + toolCalls : ''}`;
+                }
+                if (msg instanceof ToolMessage) return `Tool Result: ${msg.content}`;
+                if (typeof msg === 'string') return `User: ${msg}`;
+                return '';
+            })
+            .join('\n');
+    }
+
     _parseOutput(text) {
-        const actionRegex = /Action:\s*(.+)\s*Action Input:\s*({.+})/s;
+        const actionRegex = /Action:\s*(.+?)\s*Action Input:\s*({.+})/s;
         const match = text.match(actionRegex);
 
-        if (match) {
-            try {
-                const toolName = match[1].trim();
-                const argsString = match[2].trim();
-                const args = JSON.parse(argsString);
-
-                return {
-                    content: text.substring(0, match.index).trim(),
-                    tool_calls: [{
-                        name: toolName,
-                        args: args,
-                        id: `call_${Date.now()}` // Mock ID
-                    }]
-                };
-            } catch (e) {
-                // Failed to parse JSON or regex, return as text
-                console.warn("Failed to parse tool call:", e);
-                return { content: text, tool_calls: [] };
-            }
+        if (!match) {
+            return { content: text, tool_calls: [] };
         }
 
-        return { content: text, tool_calls: [] };
+        try {
+            const [, toolName, argsString] = match;
+            const args = JSON.parse(argsString.trim());
+            const content = text.substring(0, match.index).trim();
+            const tool_calls = [{
+                name: toolName.trim(),
+                args,
+                id: `call_${Date.now()}` // Mock ID
+            }];
+            return { content, tool_calls };
+        } catch (e) {
+            console.warn("Failed to parse tool call, returning as text.", e);
+            return { content: text, tool_calls: [] };
+        }
     }
 }

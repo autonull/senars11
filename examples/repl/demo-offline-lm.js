@@ -1,8 +1,8 @@
 import {TransformersJSProvider} from '../../src/lm/TransformersJSProvider.js';
 
-async function run() {
+async function main() {
     console.log('🚀 Demo: Offline LM with Transformers.js');
-    console.log('Loading model (this may take a while first time)...');
+    console.log('Loading model (this may take a while on the first run)...');
 
     try {
         const provider = new TransformersJSProvider({
@@ -13,16 +13,15 @@ async function run() {
         const prompt = "Explain artificial intelligence in simple terms.";
         console.log(`\n📝 Prompt: ${prompt}`);
 
-        const start = Date.now();
+        const startTime = Date.now();
         const result = await provider.generateText(prompt);
-        const time = (Date.now() - start) / 1000;
+        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
-        console.log(`\n🤖 Result (${time.toFixed(2)}s):`);
-        console.log(result);
+        console.log(`\n🤖 Result (${duration}s):\n${result}`);
 
     } catch (error) {
-        console.error('\n❌ Error:', error.message);
+        console.error('\n❌ Error:', { message: error.message, stack: error.stack });
     }
 }
 
-run().catch(console.error);
+main().catch(console.error);

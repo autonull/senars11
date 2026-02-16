@@ -18,112 +18,90 @@ export class App extends EventEmitter {
         return this.createAgent('default', this.config);
     }
 
+    _generateAgentId() {
+        return `agent_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    }
+
     async createAgent(agentId = null, config = {}) {
-        const id = agentId ?? `agent_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-        const effectiveConfig = Object.keys(config).length > 0 ? config : this.config;
+        const id = agentId ?? this._generateAgentId();
+        const effectiveConfig = Object.keys(config).length ? config : this.config;
 
         const agent = await new AgentBuilder(effectiveConfig).build();
         agent.id = id;
 
-        this.agents.set(id, {
-            id,
-            agent,
-            createdAt: new Date(),
-            lastAccessed: new Date(),
-            config: effectiveConfig
-        });
-
+        this.agents.set(id, { id, agent, createdAt: new Date(), lastAccessed: new Date(), config: effectiveConfig });
         this.activeAgentId ??= id;
+
         return agent;
     }
 
     getAgent(agentId) {
         const entry = this.agents.get(agentId);
-        if (entry) {
-            entry.lastAccessed = new Date();
-            return entry.agent;
-        }
-        return null;
+        if (entry) entry.lastAccessed = new Date();
+        return entry?.agent ?? null;
     }
 
     switchAgent(agentId) {
-        if (!this.agents.has(agentId)) {
-            throw new Error(`Agent ${agentId} does not exist`);
-        }
+        if (!this.agents.has(agentId)) throw new Error(`Agent ${agentId} does not exist`);
         this.activeAgentId = agentId;
         return this.getAgent(agentId);
     }
 
     listAgents() {
-        return Array.from(this.agents.entries()).map(([id, entry]) => ({
-            id: entry.id,
-            createdAt: entry.createdAt,
-            lastAccessed: entry.lastAccessed,
+        return Array.from(this.agents.values()).map(entry => ({
+            ...entry,
             isActive: entry.id === this.activeAgentId
         }));
     }
 
     async removeAgent(agentId) {
-        if (!this.agents.has(agentId)) return false;
+        const agentEntry = this.agents.get(agentId);
+        if (!agentEntry) return false;
 
-        const {agent} = this.agents.get(agentId);
-        await this._cleanupAgent(agent, agentId);
-
+        await this._cleanupAgent(agentEntry.agent, agentId);
         this.agents.delete(agentId);
 
         if (this.activeAgentId === agentId) {
-            this.activeAgentId = this.agents.size > 0 ? this.agents.keys().next().value : null;
+            this.activeAgentId = this.agents.keys().next().value ?? null;
         }
 
         return true;
     }
 
-    async start(options = {}) {
-        const {startAgent = true, setupSignals = false} = options;
-
-        if (!this.agent) await this.initialize();
-
-        if (startAgent && this.agent && typeof this.agent.start === 'function') {
-            this.agent.start();
-        }
-
-        if (setupSignals) {
-            this.setupGracefulShutdown();
-        }
-
+    async start({ startAgent = true, setupSignals = false } = {}) {
+        await this.initialize();
+        if (startAgent) this.agent?.start?.();
+        if (setupSignals) this.setupGracefulShutdown();
         this.emit('started', this.agent);
         return this.agent;
     }
 
     async shutdown() {
-        console.log('\nShutting down application...');
-
-        for (const [id, {agent}] of this.agents) {
-            if (!agent) continue;
-
-            console.log(`Stopping agent ${id}...`);
-            try {
-                if (typeof agent.save === 'function') await agent.save();
-                if (typeof agent.shutdown === 'function') {
-                    await agent.shutdown();
-                } else if (typeof agent.stop === 'function') {
-                    agent.stop();
-                }
-            } catch (error) {
-                console.error(`Error stopping agent ${id}:`, error.message);
-            }
+        this.log.info('\nShutting down application...');
+        for (const [id, { agent }] of this.agents) {
+            await this._shutdownAgent(agent, id);
         }
-
         this.emit('stopped');
+    }
+
+    async _shutdownAgent(agent, agentId) {
+        if (!agent) return;
+        this.log.info(`Stopping agent ${agentId}...`);
+        try {
+            await agent.save?.();
+            await (agent.shutdown?.() ?? agent.stop?.());
+        } catch (error) {
+            this.log.error(`Error stopping agent ${agentId}:`, error.message);
+        }
     }
 
     async _cleanupAgent(agent, agentId) {
         if (!agent) return;
         try {
-            if (typeof agent.stop === 'function') agent.stop();
-            if (typeof agent.dispose === 'function') await agent.dispose();
+            agent.stop?.();
+            await agent.dispose?.();
         } catch (error) {
-            console.error(`Error cleaning up agent ${agentId}:`, error);
+            this.log.error(`Error cleaning up agent ${agentId}:`, error);
         }
     }
 

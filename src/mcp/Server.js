@@ -28,231 +28,163 @@ export class Server extends EventEmitter {
 
     async start() {
         if (this.isRunning) {
-            console.warn('MCP server is already running');
+            this.log.warn('MCP server is already running');
             return;
         }
 
-        const validatedOptions = await this.safety.validateServerOptions(this.options);
+        const { port, host } = await this.safety.validateServerOptions(this.options);
+        this.port = port ?? this.port;
+        this.host = host ?? this.host;
 
-        this.httpServer = createHttpServer((req, res) => {
-            this.handleRequest(req, res).catch(error => {
-                console.error('Error handling request:', error);
-                res.writeHead(500, {'Content-Type': 'application/json'});
-                res.end(JSON.stringify({error: error.message}));
-            });
-        });
+        this._setupRouter();
+        this.httpServer = createHttpServer(this._handleRequest.bind(this));
 
-        await this.registerBuiltInTools();
-
-        await new Promise((resolve, reject) => {
-            this.httpServer.listen(
-                {port: validatedOptions.port ?? this.port, host: validatedOptions.host ?? this.host},
-                () => {
-                    console.log(`MCP server listening on http://${this.host}:${this.port}`);
-                    this.isRunning = true;
-                    this.serverUrl = `http://${this.host}:${this.port}`;
-                    this.emit('serverStarted', {port: this.port, host: this.host, url: this.serverUrl});
-                    resolve();
-                }
-            );
-
-            this.httpServer.on('error', (err) => {
-                console.error('MCP server error:', err);
-                reject(err);
-            });
-        });
+        await this._registerBuiltInTools();
+        await this._listen();
 
         return true;
     }
 
-    async handleRequest(req, res) {
-        const url = new URL(`http://${req.headers.host}${req.url}`);
-        const method = req.method;
+    _setupRouter() {
+        this.router = {
+            'POST /mcp/initialize': this.handleInitialize.bind(this),
+            'GET /mcp/tools/list': this.handleListTools.bind(this),
+            'POST /mcp/tools/call/': this.handleCallTool.bind(this),
+            'GET /mcp/resources/list': this.handleListResources.bind(this),
+        };
+    }
 
-        switch (true) {
-            case url.pathname === '/mcp/initialize' && method === 'POST':
-                await this.handleInitialize(req, res);
-                break;
-            case url.pathname === '/mcp/tools/list' && method === 'GET':
-                await this.handleListTools(req, res);
-                break;
-            case url.pathname.startsWith('/mcp/tools/call/') && method === 'POST':
-                await this.handleCallTool(url.pathname.split('/').pop(), req, res);
-                break;
-            case url.pathname === '/mcp/resources/list' && method === 'GET':
-                await this.handleListResources(req, res);
-                break;
-            default:
-                res.writeHead(404, {'Content-Type': 'application/json'});
-                res.end(JSON.stringify({error: 'Not found', path: req.url}));
+    async _listen() {
+        return new Promise((resolve, reject) => {
+            this.httpServer.listen({ port: this.port, host: this.host }, () => {
+                this.isRunning = true;
+                this.serverUrl = `http://${this.host}:${this.port}`;
+                this.log.info(`MCP server listening on ${this.serverUrl}`);
+                this.emit('serverStarted', { port: this.port, host: this.host, url: this.serverUrl });
+                resolve();
+            });
+            this.httpServer.on('error', (err) => {
+                this.log.error('MCP server error:', err);
+                reject(err);
+            });
+        });
+    }
+
+    async _handleRequest(req, res) {
+        try {
+            const url = new URL(req.url, `http://${req.headers.host}`);
+            const routeKey = `${req.method} ${url.pathname}`;
+            const handler = this.router[routeKey] ?? (routeKey.startsWith('POST /mcp/tools/call/') ? this.router['POST /mcp/tools/call/'] : null);
+
+            if (handler) {
+                await handler(req, res, url);
+            } else {
+                this._sendJSON(res, 404, { error: 'Not found', path: req.url });
+            }
+        } catch (error) {
+            this.log.error('Error handling request:', error);
+            this._sendJSON(res, 500, { error: error.message });
+        }
+    }
+
+    _sendJSON(res, statusCode, data) {
+        res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(data));
+    }
+
+    async _parseJSONBody(req) {
+        try {
+            let body = '';
+            for await (const chunk of req) body += chunk;
+            return JSON.parse(body);
+        } catch (e) {
+            throw new Error('Invalid JSON in request body');
         }
     }
 
     async handleInitialize(req, res) {
         const response = {
             protocolVersion: '2024-11-05',
-            capabilities: {tools: {listChanged: true}, resources: {listChanged: true}},
-            serverInfo: {name: 'SeNARS-MCP-Server', version: '1.0.0'}
+            capabilities: { tools: { listChanged: true }, resources: { listChanged: true } },
+            serverInfo: { name: 'SeNARS-MCP-Server', version: '1.0.0' }
         };
-
-        res.writeHead(200, {'Content-Type': 'application/json'});
-        res.end(JSON.stringify(response));
+        this._sendJSON(res, 200, response);
     }
 
     async handleListTools(req, res) {
-        const tools = Array.from(this.exposedTools.values()).map(tool => ({
-            name: tool.name,
-            description: tool.description,
-            inputSchema: tool.inputSchema,
-            outputSchema: tool.outputSchema
+        const tools = Array.from(this.exposedTools.values()).map(({ name, description, inputSchema, outputSchema }) => ({
+            name, description, inputSchema, outputSchema
         }));
-
-        res.writeHead(200, {'Content-Type': 'application/json'});
-        res.end(JSON.stringify({tools}));
+        this._sendJSON(res, 200, { tools });
     }
 
-    async handleCallTool(toolName, req, res) {
-        const tool = this.exposedTools.get(toolName);
-        if (!tool) {
-            res.writeHead(404, {'Content-Type': 'application/json'});
-            res.end(JSON.stringify({error: `Tool ${toolName} not found`}));
-            return;
+    async handleCallTool(req, res, url) {
+        const toolName = url.pathname.split('/').pop();
+        if (!this.exposedTools.has(toolName)) {
+            return this._sendJSON(res, 404, { error: `Tool ${toolName} not found` });
         }
 
         try {
-            let body = '';
-            for await (const chunk of req) {
-                body += chunk;
-            }
-
-            let input;
-            try {
-                input = JSON.parse(body);
-            } catch (e) {
-                res.writeHead(400, {'Content-Type': 'application/json'});
-                res.end(JSON.stringify({error: 'Invalid JSON in request body'}));
-                return;
-            }
-
+            const input = await this._parseJSONBody(req);
             const validatedInput = await this.safety.validateInput(toolName, input);
-
             const result = await this.executeToolHandler(toolName, validatedInput);
             const validatedOutput = await this.safety.validateOutput(toolName, result);
 
-            res.writeHead(200, {'Content-Type': 'application/json'});
-            res.end(JSON.stringify({result: validatedOutput}));
-
-            this.emit('toolCalled', {toolName, input: validatedInput, result: validatedOutput});
+            this._sendJSON(res, 200, { result: validatedOutput });
+            this.emit('toolCalled', { toolName, input: validatedInput, result: validatedOutput });
         } catch (error) {
-            console.error(`Error calling tool ${toolName}:`, error.message);
-            res.writeHead(500, {'Content-Type': 'application/json'});
-            res.end(JSON.stringify({error: error.message}));
+            this.log.error(`Error calling tool ${toolName}:`, error.message);
+            this._sendJSON(res, 500, { error: error.message });
         }
     }
 
-    // Helper method to execute the appropriate tool handler
     async executeToolHandler(toolName, input) {
-        switch (toolName) {
-            case 'reason':
-                return await this.handleReasoning(input);
-            case 'memory-query':
-                return await this.handleMemoryQuery(input);
-            case 'execute-tool':
-                return await this.handleToolExecution(input);
-            default:
-                throw new Error(`Unknown tool: ${toolName}`);
-        }
+        const handler = this.toolHandlers[toolName];
+        if (!handler) throw new Error(`Unknown tool: ${toolName}`);
+        return handler(input);
     }
 
     async handleListResources(req, res) {
-        res.writeHead(200, {'Content-Type': 'application/json'});
-        res.end(JSON.stringify({resources: []}));
+        this._sendJSON(res, 200, { resources: [] });
     }
 
-    async registerBuiltInTools() {
-        this.exposedTools.set('reason', {
-            name: 'reason',
-            title: 'SeNARS Reasoning Engine',
-            description: 'SeNARS reasoning engine - performs logical inference and reasoning',
-            inputSchema: {
-                type: 'object',
-                properties: {
-                    premises: {type: 'array', items: {type: 'string'}, description: 'Input premises for reasoning'},
-                    goal: {type: 'string', description: 'Goal to achieve through reasoning'}
-                },
-                required: ['premises']
-            },
-            outputSchema: {
-                type: 'object',
-                properties: {
-                    conclusions: {
-                        type: 'array',
-                        items: {type: 'string'},
-                        description: 'Conclusions derived from reasoning'
-                    },
-                    confidence: {type: 'number', description: 'Confidence level of conclusions'},
-                    derivationSteps: {
-                        type: 'array',
-                        items: {type: 'string'},
-                        description: 'Steps taken during the reasoning process'
-                    }
-                }
-            }
-        });
+    async _registerBuiltInTools() {
+        this.toolHandlers = {
+            'reason': this.handleReasoning.bind(this),
+            'memory-query': this.handleMemoryQuery.bind(this),
+            'execute-tool': this.handleToolExecution.bind(this),
+        };
 
-        this.exposedTools.set('memory-query', {
-            name: 'memory-query',
-            title: 'SeNARS Memory Query',
-            description: 'Query SeNARS memory for stored information',
-            inputSchema: {
-                type: 'object',
-                properties: {
-                    query: {type: 'string', description: 'Search query for memory'},
-                    limit: {type: 'number', description: 'Maximum number of results', default: 10}
-                },
-                required: ['query']
-            },
-            outputSchema: {
-                type: 'object',
-                properties: {
-                    results: {
-                        type: 'array',
-                        items: {
-                            type: 'object',
-                            properties: {
-                                id: {type: 'string'},
-                                content: {type: 'string'},
-                                confidence: {type: 'number'},
-                                timestamp: {type: 'string'}
-                            }
-                        }
-                    },
-                    count: {type: 'number', description: 'Total number of results found'}
-                }
-            }
-        });
+        const toolConfigs = this._getBuiltInToolConfigs();
+        for (const config of toolConfigs) {
+            this.exposedTools.set(config.name, config);
+        }
+    }
 
-        this.exposedTools.set('execute-tool', {
-            name: 'execute-tool',
-            title: 'Execute SeNARS Tool',
-            description: 'Execute a SeNARS tool/engine',
-            inputSchema: {
-                type: 'object',
-                properties: {
-                    toolName: {type: 'string', description: 'Name of the tool to execute'},
-                    parameters: {type: 'object', description: 'Parameters for the tool execution'}
-                },
-                required: ['toolName']
+    _getBuiltInToolConfigs() {
+        return [
+            {
+                name: 'reason',
+                title: 'SeNARS Reasoning Engine',
+                description: 'Performs logical inference and reasoning',
+                inputSchema: { type: 'object', properties: { premises: { type: 'array', items: { type: 'string' } }, goal: { type: 'string' } }, required: ['premises'] },
+                outputSchema: { type: 'object', properties: { conclusions: { type: 'array', items: { type: 'string' } }, confidence: { type: 'number' }, derivationSteps: { type: 'array', items: { type: 'string' } } } }
             },
-            outputSchema: {
-                type: 'object',
-                properties: {
-                    result: {type: 'string', description: 'Result of tool execution'},
-                    success: {type: 'boolean', description: 'Whether the execution was successful'},
-                    error: {type: 'string', description: 'Error message if execution failed'}
-                }
+            {
+                name: 'memory-query',
+                title: 'SeNARS Memory Query',
+                description: 'Queries SeNARS memory for stored information',
+                inputSchema: { type: 'object', properties: { query: { type: 'string' }, limit: { type: 'number', default: 10 } }, required: ['query'] },
+                outputSchema: { type: 'object', properties: { results: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, content: { type: 'string' }, confidence: { type: 'number' }, timestamp: { type: 'string' } } } }, count: { type: 'number' } } }
+            },
+            {
+                name: 'execute-tool',
+                title: 'Execute SeNARS Tool',
+                description: 'Executes a SeNARS tool/engine',
+                inputSchema: { type: 'object', properties: { toolName: { type: 'string' }, parameters: { type: 'object' } }, required: ['toolName'] },
+                outputSchema: { type: 'object', properties: { result: { type: 'string' }, success: { type: 'boolean' }, error: { type: 'string' } } }
             }
-        });
+        ];
     }
 
     async registerTool(name, config, handler) {

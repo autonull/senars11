@@ -47,18 +47,15 @@ export class ToolIntegration extends BaseComponent {
             const toolModules = await import('./index.js');
             const toolConfigs = this._getToolConfigs();
 
-            for (const config of toolConfigs) {
-                const toolClass = toolModules[config.className];
-                if (toolClass) {
-                    try {
-                        const tool = new toolClass();
-                        this.registry.registerTool(config.id, tool, {
-                            category: config.category,
-                            description: config.description
-                        });
-                    } catch (toolError) {
-                        this.logger.warn(`Failed to instantiate tool ${config.id}, skipping:`, toolError.message);
-                    }
+            for (const { id, className, category, description } of toolConfigs) {
+                const toolClass = toolModules[className];
+                if (!toolClass) continue;
+
+                try {
+                    const tool = new toolClass();
+                    this.registry.registerTool(id, tool, { category, description });
+                } catch (toolError) {
+                    this.logger.warn(`Failed to instantiate tool ${id}, skipping:`, toolError.message);
                 }
             }
 
@@ -73,54 +70,35 @@ export class ToolIntegration extends BaseComponent {
 
     _getToolConfigs() {
         return [
-            {
-                id: 'file-operations', className: 'FileOperationsTool', category: 'file-operations',
-                description: 'File operations including read, write, append, delete, list, and stat'
-            },
-            {
-                id: 'command-executor', className: 'CommandExecutorTool', category: 'command-execution',
-                description: 'Safe command execution in sandboxed environment'
-            },
-            {
-                id: 'web-automation', className: 'WebAutomationTool', category: 'web-automation',
-                description: 'Web automation including fetch, scrape, and check operations'
-            },
-            {
-                id: 'media-processing', className: 'MediaProcessingTool', category: 'media-processing',
-                description: 'Media processing including PDF, image, and text extraction'
-            },
-            {
-                id: 'embedding', className: 'EmbeddingTool', category: 'embedding',
-                description: 'Text embedding, similarity, and comparison operations'
-            }
+            { id: 'file-operations', className: 'FileOperationsTool', category: 'file-operations', description: 'File operations including read, write, append, delete, list, and stat' },
+            { id: 'command-executor', className: 'CommandExecutorTool', category: 'command-execution', description: 'Safe command execution in sandboxed environment' },
+            { id: 'web-automation', className: 'WebAutomationTool', category: 'web-automation', description: 'Web automation including fetch, scrape, and check operations' },
+            { id: 'media-processing', className: 'MediaProcessingTool', category: 'media-processing', description: 'Media processing including PDF, image, and text extraction' },
+            { id: 'embedding', className: 'EmbeddingTool', category: 'embedding', description: 'Text embedding, similarity, and comparison operations' }
         ];
     }
 
     /**
      * Execute a tool as part of reasoning process
-     * @param {string} toolId - Tool ID to execute
-     * @param {object} params - Tool parameters
-     * @param {object} context - Reasoning context
-     * @returns {object} - Tool execution result
      */
     async executeTool(toolId, params, context = {}) {
         const startTime = Date.now();
-        let result;
-
         try {
-            result = await this.engine.executeTool(toolId, params, {reasoningContext: context});
+            const result = await this.engine.executeTool(toolId, params, { reasoningContext: context });
+            const executionTime = this._logToolUsage(toolId, params, result, startTime, context);
+            return { ...result, executionTime };
         } catch (error) {
             this.logger.error(`Tool execution failed: ${toolId}`, {
                 error: error.message,
                 params: JSON.stringify(params).substring(0, 200)
             });
-            result = {
-                success: false,
-                error: error.message,
-                toolId
-            };
+            const errorResult = { success: false, error: error.message, toolId };
+            const executionTime = this._logToolUsage(toolId, params, errorResult, startTime, context);
+            return { ...errorResult, executionTime };
         }
+    }
 
+    _logToolUsage(toolId, params, result, startTime, context) {
         const executionTime = Date.now() - startTime;
         this.toolUsageHistory.push({
             toolId,
@@ -134,48 +112,33 @@ export class ToolIntegration extends BaseComponent {
         if (this.toolUsageHistory.length > 1000) {
             this.toolUsageHistory.splice(0, this.toolUsageHistory.length - 500);
         }
-
-        return {...result, executionTime};
     }
 
     /**
-     * Execute multiple tools in sequence as part of reasoning
-     * @param {Array<object>} toolCalls - Array of tool call specifications
-     * @param {object} context - Reasoning context
-     * @returns {Array<object>} - Results from all tool calls
+     * Execute multiple tools as part of reasoning
      */
-    async executeTools(toolCalls, context = {}) {
-        const results = [];
-
-        for (const call of toolCalls) {
-            const result = await this.executeTool(call.toolId, call.params, context);
-            results.push(result);
-
-            // If a tool fails and we're not instructed to continue, we might want to handle that
-            if (!result.success && call.continueOnError !== true) {
-                break;
+    async executeTools(toolCalls, context = {}, sequential = false) {
+        if (sequential) {
+            const results = [];
+            for (const call of toolCalls) {
+                const result = await this.executeTool(call.toolId, call.params, context);
+                results.push(result);
+                if (!result.success && !call.continueOnError) break;
             }
+            return results;
         }
-
-        return results;
+        return Promise.all(toolCalls.map(call => this.executeTool(call.toolId, call.params, context)));
     }
 
     /**
      * Find tools that match certain criteria
-     * @param {object} criteria - Tool selection criteria
-     * @returns {Array<object>} - Matching tools
      */
     findTools(criteria = {}) {
-        if (!this.registry) {
-            return [];
-        }
-
-        return this.registry.findTools(criteria);
+        return this.registry ? this.registry.findTools(criteria) : [];
     }
 
     /**
      * Get all available tools
-     * @returns {Array<object>} - Available tool descriptions
      */
     getAvailableTools() {
         return this.engine.getAvailableTools();
@@ -183,50 +146,44 @@ export class ToolIntegration extends BaseComponent {
 
     /**
      * Get tool usage statistics
-     * @returns {object} - Tool usage statistics
      */
     getUsageStats() {
-        const stats = this.engine.getStats();
-
-        // Add our own usage stats
-        const totalCalls = this.toolUsageHistory.length;
-        const successfulCalls = this.toolUsageHistory.filter(item => item.result.success).length;
+        const { totalCalls, successfulCalls } = this.toolUsageHistory.reduce(
+            (acc, item) => ({
+                totalCalls: acc.totalCalls + 1,
+                successfulCalls: acc.successfulCalls + (item.result.success ? 1 : 0),
+            }),
+            { totalCalls: 0, successfulCalls: 0 }
+        );
 
         return {
-            ...stats,
+            ...this.engine.getStats(),
             totalToolCalls: totalCalls,
             successfulToolCalls: successfulCalls,
             failedToolCalls: totalCalls - successfulCalls,
-            lastToolCalls: this.toolUsageHistory.slice(-10) // Last 10 calls
+            lastToolCalls: this.toolUsageHistory.slice(-10),
         };
     }
 
     /**
      * Analyze tool usage patterns for intelligent selection
-     * @returns {object} - Tool usage analysis
      */
     analyzeUsagePatterns() {
-        const toolUsage = {};
+        const toolUsage = this.toolUsageHistory.reduce((acc, usage) => {
+            acc[usage.toolId] ??= {
+                totalCalls: 0,
+                successfulCalls: 0,
+                totalExecutionTime: 0,
+            };
 
-        for (const usage of this.toolUsageHistory) {
-            if (!toolUsage[usage.toolId]) {
-                toolUsage[usage.toolId] = {
-                    totalCalls: 0,
-                    successfulCalls: 0,
-                    avgExecutionTime: 0,
-                    totalExecutionTime: 0
-                };
-            }
+            acc[usage.toolId].totalCalls++;
+            if (usage.result.success) acc[usage.toolId].successfulCalls++;
+            acc[usage.toolId].totalExecutionTime += usage.executionTime;
 
-            toolUsage[usage.toolId].totalCalls++;
-            if (usage.result.success) {
-                toolUsage[usage.toolId].successfulCalls++;
-            }
-            toolUsage[usage.toolId].totalExecutionTime += usage.executionTime;
-        }
+            return acc;
+        }, {});
 
-        // Calculate averages
-        for (const [toolId, data] of Object.entries(toolUsage)) {
+        for (const data of Object.values(toolUsage)) {
             data.avgExecutionTime = data.totalExecutionTime / data.totalCalls;
             data.successRate = data.successfulCalls / data.totalCalls;
         }

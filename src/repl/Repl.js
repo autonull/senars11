@@ -14,43 +14,25 @@ class Repl {
     }
 
     async start() {
-        console.log('🤖 SeNARS Unified Agent REPL - Hybrid Intelligence Lab\n');
+        this.log.info('🤖 SeNARS Unified Agent REPL - Hybrid Intelligence Lab\n');
 
-        // If LM is not enabled via args, it remains disabled.
-        // Users should provide --modelName or similar args to enable it.
         if (!this.config.lm.enabled && !this.config.demo) {
-            console.log('ℹ️ LM not enabled. Use --provider <name> --modelName <name> to enable Agent capabilities.');
+            this.log.info('ℹ️ LM not enabled. Use --provider <name> --modelName <name> to enable Agent capabilities.');
         } else if (this.config.lm.enabled) {
-            console.log(`ℹ️ LM Enabled: Provider=${this.config.lm.provider}, Model=${this.config.lm.modelName}`);
+            this.log.info(`ℹ️ LM Enabled: Provider=${this.config.lm.provider}, Model=${this.config.lm.modelName}`);
         }
 
-        await this.startRepl();
-    }
+        this.log.info('🚀 Starting REPL engine...\n');
+        const agent = await this.app.start({ startAgent: false });
+        this.log.info('✅ Engine ready. Rendering UI...');
 
-    async startRepl() {
-        console.log('🚀 Starting REPL engine...\n');
-
-        // Initialize app/agent
-        const agent = await this.app.start({startAgent: false});
-
-        console.log('✅ Engine ready. Rendering UI...');
-
-        // Pass exitOnCtrlC: false so we can handle it gracefully in the UI or via our own logic
-        // However, Ink's default is true.
-        // If the user says "not even ctrl-c" works, it means something is blocking.
-        // We will rely on TUI to handle input.
-        this.inkInstance = render(React.createElement(TUI, {engine: agent, app: this.app}));
-
-        // Register shutdown handler for TUI specific cleanup
-        // We don't need to manually handle SIGINT if Ink handles it,
-        // but if we want graceful shutdown of the agent, we might need to intercept.
-        // For now, let's trust the App/Agent cleanup.
+        this.inkInstance = render(React.createElement(TUI, { engine: agent, app: this.app }));
     }
 
     async shutdown() {
         this.inkInstance?.unmount();
         await this.app.shutdown();
-        console.log('\n👋 Agent REPL session ended.');
+        this.log.info('\n👋 Agent REPL session ended.');
     }
 }
 

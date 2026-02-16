@@ -4,50 +4,36 @@ import { Config } from '../../src/app/Config.js';
 
 process.env.ORT_LOG_LEVEL = 'error';
 
-export async function runExample(options) {
-    const { model, inputs, onStep } = options;
-
+export async function runExample({ model, inputs, onStep, tools }) {
     console.log(`🚀 Starting SeNARS Agent Example Runner with ${model}...`);
 
-    // 1. Initialize Agent
-    const config = Config.parse([
-        '--provider', 'transformers',
-        '--model', model,
-        '--temperature', '0'
-    ]);
-
-    config.nar.tools.enabled = true;
-    config.subsystems = { ...config.subsystems, tools: true, lm: true };
-
-    if (options.tools) {
-        config.tools = options.tools;
-    }
+    const config = new Config({
+        provider: 'transformers',
+        model,
+        temperature: 0,
+        nar: { tools: { enabled: true } },
+        subsystems: { tools: true, lm: true },
+        tools: tools,
+    });
 
     const app = new App(config);
-    await app.start();
-    const agent = await app.initialize();
-
+    const agent = await app.start();
     console.log("✅ Agent initialized.");
 
-    // 2. Run Scenarios
     for (const input of inputs) {
         console.log(`\n--------------------------------------------------`);
         console.log(`👤 User: ${input}`);
         console.log(`--------------------------------------------------`);
 
         try {
-            await agent.processInputStreaming(input, (chunk) => {
-                 process.stdout.write(chunk);
-            }, onStep);
+            await agent.processInputStreaming(input, process.stdout.write.bind(process.stdout), onStep);
             process.stdout.write("\n");
         } catch (e) {
-            console.error(`❌ Error processing input: ${e.message}`);
+            console.error(`❌ Error processing input:`, { message: e.message, stack: e.stack });
         }
     }
 
     console.log(`\n--------------------------------------------------`);
-
-    // Cleanup
     await app.shutdown();
     console.log("👋 Example finished.");
 }
