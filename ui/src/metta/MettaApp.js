@@ -107,7 +107,6 @@ export class MettaApp {
     }
 
     async initialize() {
-        console.log('MettaApp: Initializing...');
         this._setupHUD();
         this.graphPanel.initialize();
         this.contextMenu = new HUDContextMenu(this.graph, this);
@@ -130,7 +129,6 @@ export class MettaApp {
 
         this.statusBar = new StatusBar('status-bar-container');
         this.statusBar.initialize({
-            onModeSwitch: () => console.log('Mode Switch'),
             onThemeToggle: () => this._toggleTheme(),
             onReasonerControl: (action, value) => this.reasoningManager.handleReasonerControl(action, value),
             onReplSubmit: (command) => this.handleReplCommand(command),
@@ -146,7 +144,6 @@ export class MettaApp {
 
         await this.reasoningManager.initialize();
 
-        console.log('MettaApp: Initialized');
         this._subscribeToEvents();
         setTimeout(() => this.toastManager.show('Welcome to SeNARS MeTTa! Press "?" for keyboard shortcuts.', 'info', 5000), 1000);
     }
@@ -416,7 +413,6 @@ export class MettaApp {
 
     log(message, type = 'info') {
         if (this.logPanel && this.logPanel.addLog) this.logPanel.addLog(message, type);
-        else console.log(`[${type.toUpperCase()}] ${message}`);
         if (type === 'error' || type === 'warning' || type === 'success') this.toastManager.show(message, type);
     }
 
