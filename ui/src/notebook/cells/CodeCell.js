@@ -1,7 +1,7 @@
 import { Cell } from './Cell.js';
 import { Toolbar } from '../../components/ui/Toolbar.js';
 import { SmartTextarea } from '../SmartTextarea.js';
-import { NarseseHighlighter } from '../../utils/NarseseHighlighter.js';
+import { SyntaxHighlighter } from '../../utils/SyntaxHighlighter.js';
 import { Modal } from '../../components/ui/Modal.js';
 import { FluentUI } from '../../utils/FluentUI.js';
 
@@ -99,7 +99,7 @@ export class CodeCell extends Cell {
 
         return FluentUI.create('div')
             .class('code-preview')
-            .html(NarseseHighlighter.highlight(this.content, language))
+            .html(SyntaxHighlighter.highlight(this.content, language))
             .style({
                 padding: '10px', fontFamily: 'monospace', fontSize: '0.95em',
                 color: '#d4d4d4', whiteSpace: 'pre-wrap', cursor: 'pointer',

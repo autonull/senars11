@@ -1,5 +1,5 @@
 import { Component } from './Component.js';
-import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
+import { SyntaxHighlighter } from '../utils/SyntaxHighlighter.js';
 import { FluentUI } from '../utils/FluentUI.js';
 import { EVENTS } from '../config/constants.js';
 import { eventBus } from '../core/EventBus.js';
@@ -50,7 +50,7 @@ export class TaskCard extends Component {
             row.child(FluentUI.create('span').class('task-icon').text(icon));
 
             const content = FluentUI.create('span').class('task-term')
-                .html(`${NarseseHighlighter.highlight(term)}<span class="nars-punctuation">${punctuation}</span>`);
+                .html(`${SyntaxHighlighter.highlight(term)}<span class="nars-punctuation">${punctuation}</span>`);
             row.child(content);
 
             if (truth) {
@@ -77,7 +77,7 @@ export class TaskCard extends Component {
             main.child(
                 FluentUI.create('div')
                     .class('task-content')
-                    .html(`${NarseseHighlighter.highlight(term)}<span class="nars-punctuation">${punctuation}</span>`)
+                    .html(`${SyntaxHighlighter.highlight(term)}<span class="nars-punctuation">${punctuation}</span>`)
             );
 
             // Metadata Row

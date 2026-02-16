@@ -58,6 +58,9 @@ export class CodeEditorPanel extends Component {
              if (this.langSelect && this.langSelect.dom.value !== lang) {
                  this.langSelect.dom.value = lang;
              }
+             if (this.editor) {
+                 this.editor.setLanguage(lang);
+             }
         }));
         this.langSelect.dom.value = this.state.language;
 
@@ -141,7 +144,8 @@ export class CodeEditorPanel extends Component {
             this.editor = new SmartTextarea(editorContainer.dom, {
                 rows: 20,
                 autoResize: false,
-                onExecute: (text) => this.execute(text)
+                onExecute: (text) => this.execute(text),
+                language: this.state.language
             });
 
             const editorEl = this.editor.render();

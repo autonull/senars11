@@ -3,7 +3,7 @@ import { TaskCard } from '../components/TaskCard.js';
 import { FluentUI, $ } from '../utils/FluentUI.js';
 import { eventBus } from '../core/EventBus.js';
 import { EVENTS } from '../config/constants.js';
-import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
+import { SyntaxHighlighter } from '../utils/SyntaxHighlighter.js';
 
 export class TaskBrowser extends Component {
     constructor(container) {
@@ -298,7 +298,7 @@ export class TaskBrowser extends Component {
         });
 
         const summary = $('summary').class('concept-summary').attr('title', term).mount(details);
-        $('span').class('concept-term').html(NarseseHighlighter.highlight(term)).mount(summary);
+        $('span').class('concept-term').html(SyntaxHighlighter.highlight(term)).mount(summary);
         $('span').class('concept-badge').text(visibleItems.length).mount(summary);
 
         summary.on('click', (e) => {

@@ -2,7 +2,7 @@ import { Cell } from './Cell.js';
 import { VIEW_MODES, MESSAGE_CATEGORIES } from '../MessageFilter.js';
 import { ConceptCard } from '../../components/ConceptCard.js';
 import { TaskCard } from '../../components/TaskCard.js';
-import { NarseseHighlighter } from '../../utils/NarseseHighlighter.js';
+import { SyntaxHighlighter } from '../../utils/SyntaxHighlighter.js';
 import { Modal } from '../../components/ui/Modal.js';
 import { WidgetFactory } from '../../components/widgets/WidgetFactory.js';
 import { FluentUI } from '../../utils/FluentUI.js';
@@ -128,7 +128,7 @@ export class ResultCell extends Cell {
             .style({ whiteSpace: 'pre-wrap', fontFamily: 'monospace', color: '#d4d4d4', overflowX: 'auto', fontSize: '0.95em' });
 
         if (typeof this.content === 'string') {
-            contentDiv.html(NarseseHighlighter.highlight(this.content));
+            contentDiv.html(SyntaxHighlighter.highlight(this.content));
         } else if (this.category === 'derivation') {
              // Embed Derivation Widget
              contentDiv.style({ height: '300px', position: 'relative' });

@@ -1,6 +1,6 @@
 import { Component } from './Component.js';
 import { FluentUI, div, input, button, span } from '../utils/FluentUI.js';
-import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
+import { SyntaxHighlighter } from '../utils/SyntaxHighlighter.js';
 
 export class LogPanel extends Component {
     constructor(container) {
@@ -161,7 +161,7 @@ export class LogPanel extends Component {
 
         if (entry.type !== 'error' && (msg.includes('<') || msg.includes('-->') || msg.includes('$') || msg.includes('{'))) {
              // Highlighter performs its own escaping and returns HTML string
-             msgSpan.html(NarseseHighlighter.highlight(msg));
+             msgSpan.html(SyntaxHighlighter.highlight(msg));
         } else {
              // Standard text content handles escaping automatically
              msgSpan.text(msg);
