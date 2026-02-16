@@ -81,7 +81,11 @@ export class FluentUI {
 
     attr(nameOrAttributes, value) {
         if (typeof nameOrAttributes === 'string') {
-            this.element.setAttribute(nameOrAttributes, value);
+            if (value === null || value === undefined) {
+                this.element.removeAttribute(nameOrAttributes);
+            } else {
+                this.element.setAttribute(nameOrAttributes, value);
+            }
         } else {
             Object.entries(nameOrAttributes).forEach(([key, val]) => {
                 if (key === 'className' || key === 'class') {
@@ -90,6 +94,8 @@ export class FluentUI {
                     this.style(val);
                 } else if (key.startsWith('on') && typeof val === 'function') {
                     this.on(key.substring(2).toLowerCase(), val);
+                } else if (val === null || val === undefined) {
+                    this.element.removeAttribute(key);
                 } else {
                     this.element.setAttribute(key, val);
                 }

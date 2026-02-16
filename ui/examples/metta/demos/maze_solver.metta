@@ -1,1 +1,0 @@
-; Maze Solver Demo

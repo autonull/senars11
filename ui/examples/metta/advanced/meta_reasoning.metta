@@ -1,1 +1,0 @@
-; Advanced Meta Reasoning Placeholder
