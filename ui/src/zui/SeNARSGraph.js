@@ -142,6 +142,24 @@ export class SeNARSGraph extends GraphSystem {
         }
     }
 
+    enterNode(nodeId) {
+        if (!this.cy) return;
+        const node = this.cy.getElementById(nodeId);
+
+        if (node.length > 0) {
+            // "Enter" the node by zooming in significantly
+            this.cy.animate({
+                zoom: 4.0, // High zoom level to trigger LOD 3
+                center: { eles: node },
+                duration: 800,
+                easing: 'ease-out-expo'
+            });
+
+            node.addClass('selected');
+            this.highlightNode(nodeId);
+        }
+    }
+
     // Compatibility method for KeyboardNavigation
     _getNodeData(node) {
         // KeyboardNavigation expects this format
@@ -394,12 +412,35 @@ export class SeNARSGraph extends GraphSystem {
     }
 
     _createNodeConfig(data) {
-        const { id, type, term } = data;
+        const { id, type, term, position } = data;
         const nodeId = id ?? `concept_${Date.now()}_${Math.random()}`;
         const displayLabel = this._calculateNodeLabel(data);
         const priority = data.budget?.priority ?? 0.5;
         const taskCount = data.tasks?.length ?? data.taskCount ?? 0;
         const weight = this._calculateNodeWeight(priority, term);
+
+        // Initialize with random position if not provided to avoid "horizontal line" issue
+        // We use a small area around the center or current extent
+        let initialPos = position;
+        if (!initialPos) {
+            const range = 500;
+            initialPos = {
+                x: (Math.random() - 0.5) * range,
+                y: (Math.random() - 0.5) * range
+            };
+            // If graph exists and has nodes, try to spawn near them but not exactly
+            if (this.cy && this.cy.nodes().nonempty()) {
+                const extent = this.cy.extent();
+                if (extent && extent.w > 0) {
+                     const cx = (extent.x1 + extent.x2) / 2;
+                     const cy = (extent.y1 + extent.y2) / 2;
+                     initialPos = {
+                         x: cx + (Math.random() - 0.5) * (extent.w * 0.5),
+                         y: cy + (Math.random() - 0.5) * (extent.h * 0.5)
+                     };
+                }
+            }
+        }
 
         return {
             group: 'nodes',
@@ -411,7 +452,8 @@ export class SeNARSGraph extends GraphSystem {
                 taskCount: taskCount,
                 fullData: data,
                 term: term
-            }
+            },
+            position: initialPos
         };
     }
 
@@ -464,17 +506,25 @@ export class SeNARSGraph extends GraphSystem {
     _updateWidget(nodeId, data) {
         if (!this.contextualWidget) return;
 
-        const priority = data.budget?.priority;
-        const truth = data.truth;
-
-        let html = '';
-        if (priority !== undefined && typeof priority === 'number') html += `<div>Prio: ${priority.toFixed(2)}</div>`;
-        if (truth && truth.frequency !== undefined && truth.confidence !== undefined) {
-             html += `<div>{${Number(truth.frequency).toFixed(2)}, ${Number(truth.confidence).toFixed(2)}}</div>`;
+        // Widgets are optional. Only attach if explicitly requested.
+        if (data.widgetContent) {
+            this.contextualWidget.attach(nodeId, data.widgetContent);
+            return;
         }
 
-        if (html) {
-            this.contextualWidget.attach(nodeId, html);
+        if (data.showWidget) {
+            const priority = data.budget?.priority;
+            const truth = data.truth;
+
+            let html = '';
+            if (priority !== undefined && typeof priority === 'number') html += `<div>Prio: ${priority.toFixed(2)}</div>`;
+            if (truth && truth.frequency !== undefined && truth.confidence !== undefined) {
+                 html += `<div>{${Number(truth.frequency).toFixed(2)}, ${Number(truth.confidence).toFixed(2)}}</div>`;
+            }
+
+            if (html) {
+                this.contextualWidget.attach(nodeId, html);
+            }
         }
     }
 
@@ -568,7 +618,16 @@ export class SeNARSGraph extends GraphSystem {
         this._layoutTimeout = setTimeout(() => {
             if (this.cy && this.updatesEnabled) {
                 if (this.currentLayout !== 'scatter' && this.currentLayout !== 'sorted-grid') {
-                    const layoutOpts = Config.getGraphLayout(this.currentLayout || 'fcose');
+                    const baseOpts = Config.getGraphLayout(this.currentLayout || 'fcose');
+                    // Use gentler options for updates to preserve momentum/mental map
+                    const layoutOpts = {
+                        ...baseOpts,
+                        randomize: false,
+                        animate: true,
+                        fit: false, // Don't fit on every update to avoid camera jumping
+                        animationDuration: 800,
+                        animationEasing: 'ease-out-cubic'
+                    };
                     super.layout(layoutOpts);
                 }
             }
@@ -705,6 +764,9 @@ export class SeNARSGraph extends GraphSystem {
                      // Always update fullData as it might have changed via inspector
                      node.data('fullData', item.data);
                 }
+
+                // Ensure widget is attached if required
+                this._updateWidget(item.id, item.data);
             });
         });
 
