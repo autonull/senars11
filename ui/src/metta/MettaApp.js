@@ -638,7 +638,7 @@ export class MettaApp {
         }, false);
 
         // If called recursively with a parent, link it
-        if (parentId) {
+        if (parentId && parentId !== id) {
             this.graph.addEdge({
                 source: parentId,
                 target: id,
