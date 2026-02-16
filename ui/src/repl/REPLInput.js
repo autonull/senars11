@@ -29,14 +29,28 @@ export class REPLInput {
 
         // Input Box (SmartTextarea)
         const inputContainer = document.createElement('div');
+        inputContainer.style.position = 'relative'; // For badge positioning
+
         this.smartInput = new SmartTextarea(inputContainer, {
             onExecute: () => this.execute()
         });
         this.smartInput.render();
-        this.inputBox = this.smartInput; // Use wrapper for history access compatibility
+        this.inputBox = this.smartInput;
 
-        // Event Listeners for history
+        // Mode Badge
+        this.modeBadge = document.createElement('div');
+        this.modeBadge.style.cssText = `
+            position: absolute; bottom: 8px; right: 8px; z-index: 10;
+            font-size: 10px; color: rgba(255,255,255,0.3); font-family: monospace;
+            background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 3px;
+            pointer-events: none; transition: opacity 0.2s;
+        `;
+        this.modeBadge.textContent = 'NARS';
+        inputContainer.appendChild(this.modeBadge);
+
+        // Event Listeners for history & mode update
         this.smartInput.textarea.addEventListener('keydown', (e) => this._handleKeydown(e));
+        this.smartInput.textarea.addEventListener('input', () => this._updateModeBadge());
 
         // Bottom Toolbar (Run, Demo, Widgets)
         const toolbar = this._createBottomToolbar();
@@ -90,6 +104,9 @@ export class REPLInput {
         const demoBtn = this._createButton('📚 Load Demo', '#5c2d91', () => this.onDemo());
         demoBtn.title = 'Browse demo library (Ctrl+Shift+D)';
 
+        const helpBtn = this._createButton('❓', '#333', () => this._showHelp());
+        helpBtn.title = 'Keyboard Shortcuts (F1)';
+
         const extraTools = document.createElement('div');
         extraTools.style.cssText = 'display: flex; gap: 4px; border-left: 1px solid #444; padding-left: 12px; margin-left: auto;';
 
@@ -98,11 +115,66 @@ export class REPLInput {
         const addSubNbBtn = this._createButton('📂 Sub-Notebook', '#333', () => this.onExtraAction('subnotebook'));
 
         extraTools.append(addMdBtn, addSliderBtn, addSubNbBtn);
-        toolbar.append(runBtn, clearBtn, demoBtn, extraTools);
+        toolbar.append(runBtn, clearBtn, demoBtn, helpBtn, extraTools);
         return toolbar;
     }
 
+    _showHelp() {
+        const shortcuts = [
+            { key: 'Ctrl + Enter', desc: 'Execute current cell' },
+            { key: 'Shift + Enter', desc: 'Execute and advance' },
+            { key: 'Up / Down', desc: 'Navigate history (when empty)' },
+            { key: 'Ctrl + L', desc: 'Clear console' },
+            { key: 'F1', desc: 'Show this help' }
+        ];
+
+        const content = shortcuts.map(s => `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px;">
+                <span style="font-family: monospace; color: #00ff9d; background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 3px;">${s.key}</span>
+                <span style="color: #ccc;">${s.desc}</span>
+            </div>
+        `).join('');
+
+        // Simple modal using alert for now, or create a temporary element
+        // Since we want to be fancy, let's inject a div
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: #252526; border: 1px solid #444; padding: 20px; border-radius: 6px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 10000; min-width: 300px;
+        `;
+
+        modal.innerHTML = `
+            <h3 style="margin-top: 0; color: #fff; border-bottom: 1px solid #444; padding-bottom: 10px;">⌨️ Keyboard Shortcuts</h3>
+            <div style="margin: 15px 0;">${content}</div>
+            <div style="text-align: right;">
+                <button id="close-help-btn" style="padding: 6px 12px; background: #0e639c; color: white; border: none; border-radius: 3px; cursor: pointer;">Close</button>
+            </div>
+        `;
+
+        const backdrop = document.createElement('div');
+        backdrop.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 9999;
+        `;
+
+        const close = () => {
+            modal.remove();
+            backdrop.remove();
+        };
+
+        backdrop.onclick = close;
+        document.body.appendChild(backdrop);
+        document.body.appendChild(modal);
+
+        modal.querySelector('#close-help-btn').onclick = close;
+    }
+
     _createButton(label, bg, onClick) {
+        return REPLInput.createButton(label, bg, onClick);
+    }
+
+    static createButton(label, bg, onClick) {
         const btn = document.createElement('button');
         btn.textContent = label;
         btn.onclick = onClick;
@@ -138,7 +210,27 @@ export class REPLInput {
         }
     }
 
+    _updateModeBadge() {
+        const text = this.inputBox.getValue().trim();
+        const isMetta = text.startsWith('(') || text.startsWith(';') || text.startsWith('!');
+        this.modeBadge.textContent = isMetta ? 'MeTTa' : 'NARS';
+        this.modeBadge.style.color = isMetta ? 'var(--metta-keyword, #c586c0)' : 'var(--nars-structure, #888)';
+        this.modeBadge.style.opacity = text.length > 0 ? 1 : 0.3;
+    }
+
     _handleKeydown(e) {
+        if (e.key === 'F1') {
+            e.preventDefault();
+            this._showHelp();
+            return;
+        }
+
+        if (e.ctrlKey && e.key === 'l') {
+             e.preventDefault();
+             this.onClear();
+             return;
+        }
+
         if (e.ctrlKey && e.key === 'Enter') {
             e.preventDefault();
             this.execute();

@@ -12,6 +12,10 @@ export class WidgetFactory {
         'TruthSlider': TruthSlider
     };
 
+    static register(type, Class) {
+        this.REGISTRY[type] = Class;
+    }
+
     static createWidget(type, container, config = {}) {
         const WidgetClass = this.REGISTRY[type];
         if (!WidgetClass) {

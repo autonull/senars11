@@ -1,10 +1,12 @@
 import { Component } from './Component.js';
 import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
+import { contextMenu } from './GlobalContextMenu.js';
 
 export class ConceptCard extends Component {
-    constructor(container, concept) {
+    constructor(container, concept, options = {}) {
         super(container);
         this.concept = concept;
+        this.compact = options.compact || false;
     }
 
     render() {
@@ -12,16 +14,31 @@ export class ConceptCard extends Component {
 
         const div = document.createElement('div');
         div.className = 'concept-card';
-        div.style.cssText = `
+
+        let styles = `
             border-left: 3px solid var(--concept-color);
-            background: rgba(255, 255, 255, 0.04);
-            padding: 4px 8px;
-            margin-bottom: 4px;
             border-radius: 0 3px 3px 0;
             cursor: pointer;
             transition: all 0.2s;
-            font-size: 11px;
         `;
+
+        if (this.compact) {
+            styles += `
+                background: rgba(255, 255, 255, 0.02);
+                padding: 2px 6px;
+                margin-bottom: 1px;
+                font-size: 10px;
+            `;
+        } else {
+            styles += `
+                background: rgba(255, 255, 255, 0.04);
+                padding: 4px 8px;
+                margin-bottom: 4px;
+                font-size: 11px;
+            `;
+        }
+
+        div.style.cssText = styles;
 
         div.addEventListener('mouseenter', () => {
             div.style.background = 'rgba(255, 255, 255, 0.07)';
@@ -36,25 +53,44 @@ export class ConceptCard extends Component {
         div.addEventListener('click', () => document.dispatchEvent(new CustomEvent('senars:concept:select', { detail })));
         div.addEventListener('dblclick', () => document.dispatchEvent(new CustomEvent('senars:concept:center', { detail })));
 
+        div.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            this._showContextMenu(e);
+        });
+
         const term = this.concept.term ?? 'unknown';
         const priority = this.concept.budget?.priority ?? 0;
         const durability = this.concept.budget?.durability ?? 0;
         const quality = this.concept.budget?.quality ?? 0;
         const taskCount = this.concept.tasks?.length ?? this.concept.taskCount ?? 0;
 
-        div.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-                <div style="font-weight: 500; font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">
-                    ${NarseseHighlighter.highlight(term)}
+        if (this.compact) {
+            div.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                    <div style="font-weight: 500; font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">
+                        <span style="opacity: 0.7;">🧠</span> ${NarseseHighlighter.highlight(term)}
+                    </div>
+                    <div style="display: flex; gap: 4px; align-items: center; font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); opacity: 0.8;">
+                        <span title="Tasks">📚${taskCount}</span>
+                        <span title="Priority" style="color:${this._getPriorityColor(priority)}">P:${priority.toFixed(2)}</span>
+                    </div>
                 </div>
-                <div style="display: flex; gap: 6px; align-items: center; font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); opacity: 0.8;">
-                    <span title="Tasks">📚${taskCount}</span>
-                    <span title="Priority" style="color:${this._getPriorityColor(priority)}">P:${priority.toFixed(2)}</span>
-                    <span title="Durability">D:${durability.toFixed(2)}</span>
-                    <span title="Quality">Q:${quality.toFixed(2)}</span>
+            `;
+        } else {
+            div.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                    <div style="font-weight: 500; font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">
+                        ${NarseseHighlighter.highlight(term)}
+                    </div>
+                    <div style="display: flex; gap: 6px; align-items: center; font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); opacity: 0.8;">
+                        <span title="Tasks">📚${taskCount}</span>
+                        <span title="Priority" style="color:${this._getPriorityColor(priority)}">P:${priority.toFixed(2)}</span>
+                        <span title="Durability">D:${durability.toFixed(2)}</span>
+                        <span title="Quality">Q:${quality.toFixed(2)}</span>
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        }
 
         this.container.appendChild(div);
         this.elements.card = div;
@@ -77,5 +113,31 @@ export class ConceptCard extends Component {
                 </div>
             </div>
         `;
+    }
+
+    _showContextMenu(e) {
+        const term = this.concept.term || this.concept.id || 'unknown';
+        const items = [
+            {
+                label: 'Copy Term',
+                icon: '📋',
+                action: () => navigator.clipboard.writeText(term)
+            },
+            {
+                label: 'Focus in Graph',
+                icon: '🎯',
+                action: () => document.dispatchEvent(new CustomEvent('senars:concept:center', {
+                    detail: { concept: this.concept, id: term }
+                }))
+            },
+            { separator: true },
+            {
+                label: 'Inspect (JSON)',
+                icon: 'ℹ️',
+                action: () => console.log('Concept:', this.concept)
+            }
+        ];
+
+        contextMenu.show(e.clientX, e.clientY, items);
     }
 }

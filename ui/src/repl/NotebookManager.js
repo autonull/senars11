@@ -1,7 +1,5 @@
 import { VIEW_MODES, MESSAGE_CATEGORIES } from './MessageFilter.js';
-import { TruthSlider } from '../components/widgets/TruthSlider.js';
-import { SimpleGraphWidget } from '../components/widgets/SimpleGraphWidget.js';
-import { ChartWidget } from '../components/widgets/ChartWidget.js';
+import { WidgetFactory } from '../components/widgets/WidgetFactory.js';
 import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
 import { SmartTextarea } from './SmartTextarea.js';
 import { ConceptCard } from '../components/ConceptCard.js';
@@ -338,13 +336,28 @@ export class ResultCell extends REPLCell {
     }
 
     _renderCompact(catInfo, color) {
+        this.element.innerHTML = '';
+        this.element.onclick = () => this.updateViewMode(VIEW_MODES.FULL);
+        this.element.title = "Click to expand";
+
+        // Special handling for Cards in compact mode
+        if (this.category === 'concept' && typeof this.content === 'object') {
+            this.element.style.cssText = 'margin-bottom: 1px;';
+            new ConceptCard(this.element, this.content, { compact: true }).render();
+            return;
+        }
+        if (this.category === 'task' && typeof this.content === 'object') {
+            this.element.style.cssText = 'margin-bottom: 1px;';
+            new TaskCard(this.element, this.content, { compact: true }).render();
+            return;
+        }
+
+        // Standard Compact View
         this.element.style.cssText = `
             margin-bottom: 2px; padding: 2px 6px; border-left: 3px solid ${color};
             background: rgba(0,0,0,0.2); border-radius: 2px; display: flex;
             align-items: center; gap: 8px; cursor: pointer; font-size: 0.85em;
         `;
-        this.element.title = "Click to expand";
-        this.element.onclick = () => this.updateViewMode(VIEW_MODES.FULL);
 
         const badge = document.createElement('span');
         badge.style.color = color;
@@ -354,27 +367,76 @@ export class ResultCell extends REPLCell {
         preview.style.cssText = 'color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; opacity: 0.8;';
 
         let previewText = '';
-        if (this.category === 'concept' && typeof this.content === 'object') {
-            previewText = `Concept: ${this.content.term || this.content.id}`;
-        } else if (this.category === 'task' && typeof this.content === 'object') {
-            previewText = `Task: ${this.content.term || '...' }`;
+        if (typeof this.content === 'string') {
+            previewText = this.content;
         } else {
-            previewText = typeof this.content === 'string' ? this.content : JSON.stringify(this.content);
+            previewText = JSON.stringify(this.content);
         }
 
-        if (previewText.length > 80) previewText = previewText.substring(0, 80) + '...';
-        preview.textContent = previewText;
+        if (previewText.length > 120) previewText = previewText.substring(0, 120) + '...';
+
+        // Highlight logic for compact text?
+        // Simple highlighting for better readability
+        if (this.category === 'reasoning') {
+             // Try to highlight inference rule
+             preview.innerHTML = previewText.replace(/(\w+)(\:)/, '<span style="color:#00d4ff">$1</span>$2');
+        } else {
+             preview.textContent = previewText;
+        }
 
         this.element.append(badge, preview);
     }
 
     _renderFull(catInfo, color) {
         this.element.onclick = null;
+        this.element.innerHTML = '';
+
+        // Shared Actions Toolbar
+        const actions = this._createActionsToolbar(catInfo);
+        this.element.appendChild(actions);
+
+        // Handle specialized cards (avoid double borders)
+        if ((this.category === 'concept' || this.category === 'task') && typeof this.content === 'object') {
+            this.element.style.cssText = 'margin-bottom: 8px; position: relative;';
+            // Wrapper for card to ensure it sits below actions
+            const cardWrapper = document.createElement('div');
+            // Add top margin if actions interfere? Actions are absolute, top right.
+            // Cards have their own structure.
+            // Let's rely on card rendering.
+
+            if (this.category === 'concept') new ConceptCard(cardWrapper, this.content).render();
+            else new TaskCard(cardWrapper, this.content).render();
+
+            this.element.appendChild(cardWrapper);
+            return;
+        }
+
+        // Standard Full View
         this.element.style.cssText = `
             margin-bottom: 8px; padding: 8px; border-left: 3px solid ${color};
             background: rgba(255, 255, 255, 0.03); border-radius: 4px; position: relative;
         `;
 
+        const contentDiv = document.createElement('div');
+        contentDiv.style.cssText = 'white-space: pre-wrap; font-family: monospace; color: #d4d4d4; overflow-x: auto; font-size: 0.95em;';
+
+        if (typeof this.content === 'string') {
+            contentDiv.innerHTML = NarseseHighlighter.highlight(this.content);
+        } else if (this.category === 'derivation') {
+             // Placeholder for Derivation Tree visualization
+             contentDiv.innerHTML = `<div style="padding:10px; border:1px dashed #444; text-align:center;">🌲 Derivation Tree Visualization (Coming Soon)</div>`;
+             // Show raw data for now
+             const raw = document.createElement('pre');
+             raw.textContent = JSON.stringify(this.content, null, 2);
+             contentDiv.appendChild(raw);
+        } else {
+            contentDiv.textContent = JSON.stringify(this.content, null, 2);
+        }
+
+        this.element.appendChild(contentDiv);
+    }
+
+    _createActionsToolbar(catInfo) {
         const actions = document.createElement('div');
         actions.className = 'cell-actions';
         actions.style.cssText = `
@@ -399,22 +461,7 @@ export class ResultCell extends REPLCell {
         });
 
         actions.append(copyBtn, infoBtn, collapseBtn);
-        this.element.appendChild(actions);
-
-        const contentDiv = document.createElement('div');
-        contentDiv.style.cssText = 'white-space: pre-wrap; font-family: monospace; color: #d4d4d4; overflow-x: auto; font-size: 0.95em;';
-
-        if (this.category === 'concept' && typeof this.content === 'object') {
-            new ConceptCard(contentDiv, this.content).render();
-        } else if (this.category === 'task' && typeof this.content === 'object') {
-            new TaskCard(contentDiv, this.content).render();
-        } else if (typeof this.content === 'string') {
-            contentDiv.innerHTML = NarseseHighlighter.highlight(this.content);
-        } else {
-            contentDiv.textContent = JSON.stringify(this.content, null, 2);
-        }
-
-        this.element.appendChild(contentDiv);
+        return actions;
     }
 }
 
@@ -521,33 +568,35 @@ export class WidgetCell extends REPLCell {
 
         this.element.append(header, content);
 
-        if (this.widgetType === 'TruthSlider') {
-            this.widgetInstance = new TruthSlider(content, {
-                frequency: this.content.frequency,
-                confidence: this.content.confidence,
-                onChange: (val) => console.log('Widget update:', val)
-            });
-            this.widgetInstance.render();
-        } else if (this.widgetType === 'GraphWidget') {
-            this.widgetInstance = new SimpleGraphWidget(content, this.content);
-            this.widgetInstance.render();
-        } else if (this.widgetType === 'ChartWidget') {
-            this.widgetInstance = new ChartWidget(content, this.content);
-            this.widgetInstance.render();
-        } else if (this.widgetType === 'SubNotebook') {
-             // Create a nested notebook
+        if (this.widgetType === 'SubNotebook') {
+             // SubNotebook is special, handles its own logic/creation for now
+             // Or we could create a SubNotebookWidget wrapper class and register it.
              const nestedManager = new NotebookManager(content, {
                  onExecute: (text, cell, options) => {
-                     // Pass through execution or handle locally?
-                     // For now, simple logging
                      console.log('Nested execution:', text);
                  }
              });
              this.widgetInstance = nestedManager;
-             // Add initial cell
              nestedManager.createCodeCell('(print "Hello Nested World")');
         } else {
-            content.innerHTML = `<div style="color:red">Unknown widget: ${this.widgetType}</div>`;
+            // Use WidgetFactory for standard widgets
+            // normalize config
+            let config = this.content;
+            if (this.widgetType === 'TruthSlider') {
+                config = {
+                    frequency: this.content.frequency,
+                    confidence: this.content.confidence,
+                    onChange: (val) => console.log('Widget update:', val)
+                };
+            }
+
+            this.widgetInstance = WidgetFactory.createWidget(this.widgetType, content, config);
+
+            if (this.widgetInstance) {
+                this.widgetInstance.render();
+            } else {
+                content.innerHTML = `<div style="color:red">Unknown widget: ${this.widgetType}</div>`;
+            }
         }
 
         return this.element;

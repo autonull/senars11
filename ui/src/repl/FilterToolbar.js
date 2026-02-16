@@ -74,6 +74,32 @@ export class FilterToolbar {
         const actionGroup = document.createElement('div');
         actionGroup.style.cssText = 'display: flex; gap: 4px; margin-left: 4px; border-left: 1px solid #444; padding-left: 4px;';
 
+        // Collapse All Button
+        const collapseAllBtn = document.createElement('button');
+        collapseAllBtn.innerHTML = '🔽';
+        collapseAllBtn.title = 'Collapse All Results';
+        collapseAllBtn.style.cssText = 'padding: 4px 8px; background: #333; color: #ccc; border: 1px solid #444; cursor: pointer; border-radius: 3px; font-size: 0.85em;';
+        collapseAllBtn.onclick = () => {
+             this.messageFilter.getAllCategories().forEach(cat => {
+                 this.messageFilter.setCategoryMode(cat.id, VIEW_MODES.COMPACT);
+             });
+             this.refresh();
+             this.onFilterChange();
+        };
+
+        // Expand All Button
+        const expandAllBtn = document.createElement('button');
+        expandAllBtn.innerHTML = '🔼';
+        expandAllBtn.title = 'Expand All Results';
+        expandAllBtn.style.cssText = 'padding: 4px 8px; background: #333; color: #ccc; border: 1px solid #444; cursor: pointer; border-radius: 3px; font-size: 0.85em;';
+        expandAllBtn.onclick = () => {
+             this.messageFilter.getAllCategories().forEach(cat => {
+                 this.messageFilter.setCategoryMode(cat.id, VIEW_MODES.FULL);
+             });
+             this.refresh();
+             this.onFilterChange();
+        };
+
         // Run All Button
         const runAllBtn = document.createElement('button');
         runAllBtn.innerHTML = '▶️▶️';
@@ -113,7 +139,7 @@ export class FilterToolbar {
         exportBtn.style.cssText = 'padding: 4px 8px; background: #333; color: #ccc; border: 1px solid #444; cursor: pointer; border-radius: 3px; font-size: 0.85em;';
         exportBtn.onclick = () => this.onExport();
 
-        actionGroup.append(runAllBtn, clearBtn, importBtn, exportBtn, fileInput);
+        actionGroup.append(collapseAllBtn, expandAllBtn, runAllBtn, clearBtn, importBtn, exportBtn, fileInput);
 
         toolbar.appendChild(searchInput);
         toolbar.appendChild(categoryButtons);

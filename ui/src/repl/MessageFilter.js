@@ -91,10 +91,31 @@ export const MESSAGE_CATEGORIES = {
 };
 
 /**
+ * Register a new message category dynamically
+ */
+export function registerMessageCategory(id, config) {
+    if (MESSAGE_CATEGORIES[id]) {
+        console.warn(`Category ${id} already exists, overwriting.`);
+    }
+    MESSAGE_CATEGORIES[id] = {
+        id,
+        label: config.label || id,
+        icon: config.icon || '📦',
+        color: config.color || '#888',
+        defaultMode: config.defaultMode || VIEW_MODES.FULL
+    };
+}
+
+/**
  * Categorize a message based on its type
  */
 export function categorizeMessage(message) {
     const type = message.type || 'unknown';
+
+    // Check custom mappings or direct ID match first
+    if (MESSAGE_CATEGORIES[type]) {
+        return type;
+    }
 
     // Map message types to categories
     if (type.includes('concept')) {

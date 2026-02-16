@@ -15,6 +15,7 @@ import { NotebookLogger } from './repl/NotebookLogger.js';
 import { FilterToolbar } from './repl/FilterToolbar.js';
 import { REPLInput } from './repl/REPLInput.js';
 import { DemoLibrary } from './components/DemoLibrary.js';
+import { ThemeManager } from './components/ThemeManager.js';
 
 console.log('--- SeNARS IDE loading ---');
 
@@ -29,6 +30,7 @@ class SeNARSIDE {
         this.components = new Map();
         this.graphManager = null;
         this.messageFilter = new MessageFilter();
+        this.themeManager = new ThemeManager();
         this.notebook = null;
         this.notebookLogger = null;
         this.commandProcessor = null;
@@ -61,16 +63,29 @@ class SeNARSIDE {
         await this.switchMode(this.connectionMode);
         this.setupKeyboardShortcuts();
 
+        // Setup Layout Persistence
+        this.layout.on('stateChanged', () => {
+            const state = this.layout.toConfig();
+            localStorage.setItem('senars-ide-layout', JSON.stringify(state));
+        });
+
         // Load persisted state or show welcome
         if (this.notebook && !this.notebook.loadFromStorage()) {
             this.notebook.createMarkdownCell("# Welcome to SeNARS IDE v1.0\n\nDouble-click this cell to edit.\n- **Local Mode**: Runs entirely in browser\n- **Remote Mode**: Connects to backend\n- **Widgets**: Interactive tools");
         }
 
-        // Listen for concept selection to log in REPL
+        // Listen for concept selection
         document.addEventListener('senars:concept:select', (e) => {
             const { concept } = e.detail;
             if (concept) {
-                this.notebook?.createResultCell(concept, 'concept', 'compact');
+                 // Open Memory Inspector if available
+                 const memoryComponent = this.layout.root.getItemsByFilter(item => item.config.componentName === 'memoryComponent')[0];
+                 if (memoryComponent && memoryComponent.parent && memoryComponent.parent.setActiveContentItem) {
+                     memoryComponent.parent.setActiveContentItem(memoryComponent);
+                 }
+                 // Optional: Do not log to REPL to avoid spam, or log only if not in "silent" mode.
+                 // For now, we disable REPL logging on selection to prioritize Inspector.
+                 // this.notebook?.createResultCell(concept, 'concept', 'compact');
             }
         });
 
@@ -91,31 +106,46 @@ class SeNARSIDE {
             'graphComponent': (c) => this.createGraphComponent(c),
             'memoryComponent': (c) => this.createMemoryComponent(c),
             'derivationComponent': (c) => this.createDerivationComponent(c),
-            'metricsComponent': (c) => this.createMetricsComponent(c)
+            'metricsComponent': (c) => this.createMetricsComponent(c),
+            'settingsComponent': (c) => this.createSettingsComponent(c)
         };
 
         Object.entries(factories).forEach(([k, v]) => this.layout.registerComponentFactoryFunction(k, v));
 
-        this.layout.loadLayout({
-            settings: { hasHeaders: true, constrainDragToContainer: true, reorderEnabled: true, selectionEnabled: false, showPopoutIcon: false, showMaximiseIcon: true, showCloseIcon: false },
-            dimensions: { borderWidth: 2, minItemHeight: 100, minItemWidth: 200, headerHeight: 24 },
-            root: {
-                type: 'row',
-                content: [
-                    { type: 'component', componentName: 'replComponent', title: 'REPL', width: 70 },
-                    {
-                        type: 'stack', width: 30,
-                        isClosable: true,
-                        content: [
-                            { type: 'component', componentName: 'graphComponent', title: 'KNOWLEDGE GRAPH', isClosable: true },
-                            { type: 'component', componentName: 'memoryComponent', title: 'MEMORY INSPECTOR' },
-                            { type: 'component', componentName: 'derivationComponent', title: 'DERIVATION TRACER' },
-                            { type: 'component', componentName: 'metricsComponent', title: 'SYSTEM METRICS' }
-                        ]
-                    }
-                ]
-            }
-        });
+        // Load saved layout or default
+        const savedLayout = localStorage.getItem('senars-ide-layout');
+        let config = null;
+        if (savedLayout) {
+            try {
+                config = JSON.parse(savedLayout);
+            } catch (e) { console.error('Invalid saved layout', e); }
+        }
+
+        if (!config) {
+            config = {
+                settings: { hasHeaders: true, constrainDragToContainer: true, reorderEnabled: true, selectionEnabled: false, showPopoutIcon: false, showMaximiseIcon: true, showCloseIcon: false },
+                dimensions: { borderWidth: 2, minItemHeight: 100, minItemWidth: 200, headerHeight: 24 },
+                root: {
+                    type: 'row',
+                    content: [
+                        { type: 'component', componentName: 'replComponent', title: 'REPL', width: 70 },
+                        {
+                            type: 'stack', width: 30,
+                            isClosable: true,
+                            content: [
+                                { type: 'component', componentName: 'graphComponent', title: 'KNOWLEDGE GRAPH', isClosable: true },
+                                { type: 'component', componentName: 'memoryComponent', title: 'MEMORY INSPECTOR' },
+                                { type: 'component', componentName: 'derivationComponent', title: 'DERIVATION TRACER' },
+                                { type: 'component', componentName: 'metricsComponent', title: 'SYSTEM METRICS' },
+                                { type: 'component', componentName: 'settingsComponent', title: 'SETTINGS' }
+                            ]
+                        }
+                    ]
+                }
+            };
+        }
+
+        this.layout.loadLayout(config);
 
         window.addEventListener('resize', () => this.layout.updateRootSize());
     }
@@ -224,6 +254,22 @@ class SeNARSIDE {
         const panel = new SystemMetricsPanel(metricsContainer);
         panel.render();
         this.components.set('metrics', { container: metricsContainer, panel });
+    }
+
+    createSettingsComponent(container) {
+        const settingsContainer = container.element;
+        settingsContainer.style.backgroundColor = '#1e1e1e';
+        settingsContainer.innerHTML = '';
+
+        // Dynamic import to avoid circular dependency issues if SettingsPanel imports Config which imports...
+        // But we are in main-ide, so standard import is fine.
+        import('./components/SettingsPanel.js').then(({ SettingsPanel }) => {
+            const panel = new SettingsPanel(settingsContainer);
+            // Inject dependencies
+            panel.app = this;
+            panel.initialize();
+            this.components.set('settings', { container: settingsContainer, panel });
+        });
     }
 
     async switchMode(mode) {

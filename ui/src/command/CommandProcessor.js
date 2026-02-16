@@ -87,7 +87,25 @@ export class CommandProcessor {
     }
 
     _executeInspect(ctx) {
-        this.logger.log('Inspect not implemented yet', 'info');
+        const term = ctx.args && ctx.args[0];
+        if (!term) {
+            this.logger.log('Usage: /inspect <term>', 'error');
+            return false;
+        }
+
+        // 1. Dispatch event to select in memory inspector
+        document.dispatchEvent(new CustomEvent('senars:concept:select', {
+            detail: { concept: { term } }
+        }));
+
+        // 2. Focus in graph if available
+        if (this.graphManager) {
+            this.graphManager.focusNode(term);
+            this.logger.log(`Inspecting ${term}...`, 'info', '🔍');
+        } else {
+            this.logger.log(`Selected ${term} in Memory Inspector`, 'info');
+        }
+
         return true;
     }
 

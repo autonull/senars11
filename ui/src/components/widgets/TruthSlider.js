@@ -32,7 +32,7 @@ export class TruthSlider extends Component {
 
         // Visualization of truth value
         this.valueDisplay = document.createElement('div');
-        this.valueDisplay.style.cssText = 'margin-top: 10px; font-family: var(--font-mono); text-align: center; color: var(--accent-primary); font-size: 14px; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 3px;';
+        this.valueDisplay.style.cssText = 'margin-top: 10px; font-family: var(--font-mono); text-align: center; color: var(--accent-primary); font-size: 14px; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 3px; transition: all 0.2s; border: 1px solid transparent;';
         this.updateDisplay();
         this.container.appendChild(this.valueDisplay);
     }
@@ -70,6 +70,18 @@ export class TruthSlider extends Component {
     updateDisplay() {
         if (this.valueDisplay) {
             this.valueDisplay.textContent = `{${this.frequency.toFixed(2)} ${this.confidence.toFixed(2)}}`;
+
+            // Visual feedback: border color based on confidence, background opacity based on frequency
+            // High confidence = solid Green
+            // Low confidence = Red/Orange
+
+            let color = '#555';
+            if (this.confidence > 0.9) color = '#00ff9d';
+            else if (this.confidence > 0.5) color = '#ffcc00';
+            else color = '#ff4444';
+
+            this.valueDisplay.style.borderColor = color;
+            this.valueDisplay.style.background = `rgba(${this.frequency * 255}, ${this.frequency * 255}, 255, 0.1)`;
         }
     }
 

@@ -23,6 +23,7 @@ export class DerivationTree extends Component {
             .dt-rule { color: var(--accent-secondary); font-weight: bold; margin-bottom: 2px; }
             .dt-term { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .dt-time { font-size: 10px; opacity: 0.7; }
+            .dt-toolbar { padding: 4px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; }
         `;
         this.container.appendChild(style);
 
@@ -31,6 +32,9 @@ export class DerivationTree extends Component {
                 <div class="dt-sidebar">
                     <div style="padding: 8px; font-weight: bold; border-bottom: 1px solid var(--border-color); background: var(--bg-header);">HISTORY</div>
                     <div class="dt-history-list" id="dt-history"></div>
+                    <div class="dt-toolbar">
+                        <button id="dt-export" title="Export History" style="font-size:10px;">💾 Export</button>
+                    </div>
                 </div>
                 <div class="dt-main" id="dt-graph"></div>
             </div>
@@ -39,7 +43,23 @@ export class DerivationTree extends Component {
         this.historyList = this.container.querySelector('#dt-history');
         this.graphContainer = this.container.querySelector('#dt-graph');
 
+        this.container.querySelector('#dt-export').addEventListener('click', () => this.exportHistory());
+
         this._initCytoscape();
+    }
+
+    exportHistory() {
+        if (this.history.length === 0) {
+            alert('No derivation history to export.');
+            return;
+        }
+        const blob = new Blob([JSON.stringify(this.history, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `derivations-${new Date().toISOString()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
     }
 
     _initCytoscape() {
@@ -73,6 +93,22 @@ export class DerivationTree extends Component {
                 ],
                 layout: { name: 'grid' }
             });
+
+            this.cy.on('tap', 'node', (evt) => {
+                const data = evt.target.data();
+                if (data.type === 'conclusion' || data.type === 'premise') {
+                     // Dispatch select event to open in Memory Inspector
+                     // We need to construct a concept-like object or at least ID/Term
+                     const concept = {
+                         term: data.fullTerm || data.label,
+                         id: data.id // This ID is random, so MemoryInspector needs to match by term
+                     };
+                     document.dispatchEvent(new CustomEvent('senars:concept:select', {
+                        detail: { concept }
+                     }));
+                }
+            });
+
         } catch (e) {
             console.error('DerivationTree: Failed to init Cytoscape', e);
         }

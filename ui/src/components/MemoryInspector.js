@@ -10,6 +10,7 @@ export class MemoryInspector extends Component {
         this.sortDirection = 'desc';
         this.filterText = '';
         this.filters = { hasGoals: false, hasQuestions: false };
+        this.listMode = 'compact'; // 'compact' or 'full'
         this.viewMode = 'list';
         this.selectedConcept = null;
 
@@ -44,6 +45,7 @@ export class MemoryInspector extends Component {
             <div class="mi-filter-row">
                 <label class="mi-checkbox-label"><input type="checkbox" id="mi-filter-goals"> Has Goals</label>
                 <label class="mi-checkbox-label"><input type="checkbox" id="mi-filter-questions"> Has Questions</label>
+                <label class="mi-checkbox-label" style="margin-left: 8px;"><input type="checkbox" id="mi-compact-view" checked> Compact</label>
                 <select id="mi-sort" style="margin-left:auto; font-size:10px; padding: 2px;">
                     <option value="priority">Priority</option>
                     <option value="term">Term</option>
@@ -76,6 +78,11 @@ export class MemoryInspector extends Component {
 
         this.container.querySelector('#mi-filter-questions').addEventListener('change', (e) => {
             this.filters.hasQuestions = e.target.checked;
+            this.render();
+        });
+
+        this.container.querySelector('#mi-compact-view').addEventListener('change', (e) => {
+            this.listMode = e.target.checked ? 'compact' : 'full';
             this.render();
         });
 
@@ -134,7 +141,10 @@ export class MemoryInspector extends Component {
             listDiv.innerHTML = '<div style="padding:10px; color:var(--text-muted); text-align:center;">No concepts found</div>';
         } else {
             const limit = 50;
-            filtered.slice(0, limit).forEach(concept => new ConceptCard(listDiv, concept).render());
+            const isCompact = this.listMode === 'compact';
+            filtered.slice(0, limit).forEach(concept =>
+                new ConceptCard(listDiv, concept, { compact: isCompact }).render()
+            );
 
             if (filtered.length > limit) {
                 const more = document.createElement('div');

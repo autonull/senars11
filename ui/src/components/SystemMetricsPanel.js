@@ -10,6 +10,7 @@ export class SystemMetricsPanel extends Component {
             cycleCount: 0,
             avgLatency: 0
         };
+        this.history = [];
     }
 
     update(metrics = {}) {
@@ -23,6 +24,11 @@ export class SystemMetricsPanel extends Component {
             avgLatency: perf.avgLatency ?? 0,
             uptime
         };
+
+        // Track throughput history (last 50 points)
+        this.history.push(this.metrics.throughput);
+        if (this.history.length > 50) this.history.shift();
+
         this.render();
     }
 
@@ -62,9 +68,28 @@ export class SystemMetricsPanel extends Component {
                 <span class="metric-label">Avg Latency</span><span class="metric-value">${avgLatency.toFixed(2)} <small>ms</small></span>
             </div>
             <div class="metric-item full-width">
-                <span class="metric-label">Uptime</span><span class="metric-value">${Math.floor(uptime / 1000)}s</span>
+                <span class="metric-label">Throughput History</span>
+                <svg width="100%" height="30" viewBox="0 0 50 30" preserveAspectRatio="none" style="background: rgba(0,0,0,0.2); border: 1px solid #333;">
+                    <path d="${this.generateSparklinePath(this.history)}" fill="none" stroke="#00ff9d" stroke-width="1" />
+                </svg>
+            </div>
+            <div class="metric-item full-width" style="display: flex; justify-content: space-between;">
+                <span><span class="metric-label">Uptime</span> <span class="metric-value">${Math.floor(uptime / 1000)}s</span></span>
             </div>
         `;
+    }
+
+    generateSparklinePath(data) {
+        if (data.length < 2) return '';
+        const max = Math.max(...data, 10); // Ensure some height
+        const width = 50;
+        const height = 30;
+
+        return data.map((val, i) => {
+            const x = (i / (data.length - 1)) * width;
+            const y = height - (val / max) * height;
+            return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+        }).join(' ');
     }
 
     getMemoryColor(usage) {
