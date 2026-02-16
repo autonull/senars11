@@ -6,6 +6,7 @@ export class ExampleBrowser extends Component {
         super(containerId);
         this.options = {
             onSelect: null,
+            onActivate: null,
             indexUrl: 'examples.json',
             viewMode: 'graph', // 'tree' or 'graph'
             ...options
@@ -16,6 +17,7 @@ export class ExampleBrowser extends Component {
 
         // Bind methods
         this.handleSelect = this.handleSelect.bind(this);
+        this.handleActivate = this.handleActivate.bind(this);
     }
 
     async initialize() {
@@ -113,6 +115,7 @@ export class ExampleBrowser extends Component {
                 .html(`<span class="icon">📄</span> <span class="label">${name}</span>`)
                 .attr({ title: path, 'data-path': path, 'data-id': id })
                 .on('click', () => this.handleSelect(node))
+                .on('dblclick', () => this.handleActivate(node))
                 .mount(li);
         }
     }
@@ -228,5 +231,9 @@ export class ExampleBrowser extends Component {
 
     handleSelect(node) {
         this.options.onSelect?.(node);
+    }
+
+    handleActivate(node) {
+        this.options.onActivate?.(node);
     }
 }

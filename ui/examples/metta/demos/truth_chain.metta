@@ -1,1 +1,0 @@
-; Truth Chain Demo

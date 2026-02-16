@@ -118,17 +118,79 @@ export class DemoLibraryModal {
             });
         } else {
             // Browse Tab
+            const wrapper = FluentUI.create('div')
+                .style({ display: 'flex', flex: 1, overflow: 'hidden', height: '100%' })
+                .mount(container);
+
             const browserContainer = FluentUI.create('div')
                 .id('example-browser-root')
-                .style({ flex: 1, overflow: 'hidden', height: '100%' })
-                .mount(container);
+                .style({ width: '40%', borderRight: '1px solid var(--border-primary)', overflow: 'hidden', height: '100%' })
+                .mount(wrapper);
+
+            const previewContainer = FluentUI.create('div')
+                .id('example-preview-root')
+                .style({ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '10px' })
+                .mount(wrapper);
+
+            const previewContent = FluentUI.create('div')
+                .style({ flex: 1, overflow: 'auto', background: '#2d2d2d', padding: '10px', borderRadius: '4px', fontSize: '12px', whiteSpace: 'pre-wrap', fontFamily: 'monospace' })
+                .text('Select an example to preview...')
+                .mount(previewContainer);
+
+            const controls = FluentUI.create('div')
+                .style({ marginTop: '10px', display: 'flex', justifyContent: 'flex-end', gap: '10px' })
+                .mount(previewContainer);
+
+            const loadBtn = FluentUI.create('button')
+                .text('Load Example')
+                .class('modal-btn primary')
+                .attr('disabled', 'true')
+                .style({ padding: '8px 16px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'not-allowed', opacity: '0.5' })
+                .mount(controls);
+
+            let selectedNode = null;
+            let fileContent = null;
+
+            const updatePreview = async (node) => {
+                selectedNode = node;
+                loadBtn.attr('disabled', 'true').style({ cursor: 'not-allowed', opacity: '0.5' });
+                previewContent.text('Loading...');
+                fileContent = null;
+
+                try {
+                    const response = await fetch('/' + node.path);
+                    if (!response.ok) throw new Error('Failed to load content');
+                    fileContent = await response.text();
+                    previewContent.text(fileContent);
+                    loadBtn.attr('disabled', null).style({ cursor: 'pointer', opacity: '1' });
+                } catch (e) {
+                    previewContent.text(`Error loading preview: ${e.message}`);
+                }
+            };
+
+            const triggerLoad = () => {
+                if (selectedNode && fileContent !== null) {
+                    if (this.options && typeof this.options.createCodeCell === 'function') {
+                        // If options is NotebookManager
+                        this.options.createCodeCell(fileContent);
+                    } else if (this.onSelect) {
+                        // Fallback to onSelect if provided
+                        this.onSelect(selectedNode);
+                    }
+                }
+                 this.close(backdrop);
+            };
+
+            loadBtn.on('click', triggerLoad);
 
             const browser = new ExampleBrowser('example-browser-root', {
                 indexUrl: '/examples.json',
                 viewMode: 'tree',
                 onSelect: (node) => {
-                    if (this.onSelect) this.onSelect(node);
-                    this.close(backdrop);
+                    updatePreview(node);
+                },
+                onActivate: (node) => {
+                    updatePreview(node).then(() => triggerLoad());
                 }
             });
             browser.initialize();

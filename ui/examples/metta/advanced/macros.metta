@@ -1,1 +1,0 @@
-; Advanced Macros Placeholder

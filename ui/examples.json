@@ -9,33 +9,33 @@
       "type": "directory",
       "children": [
         {
-          "id": "examples-metta-advanced",
+          "id": "examples-examples-metta-advanced",
           "name": "advanced",
           "type": "directory",
           "children": [
             {
-              "id": "examples-metta-advanced-macros.metta",
+              "id": "examples-examples-metta-advanced-macros.metta",
               "name": "macros.metta",
               "path": "examples/metta/advanced/macros.metta",
               "type": "file",
               "extension": ".metta"
             },
             {
-              "id": "examples-metta-advanced-meta_reasoning.metta",
+              "id": "examples-examples-metta-advanced-meta_reasoning.metta",
               "name": "meta_reasoning.metta",
               "path": "examples/metta/advanced/meta_reasoning.metta",
               "type": "file",
               "extension": ".metta"
             },
             {
-              "id": "examples-metta-advanced-nondeterminism.metta",
+              "id": "examples-examples-metta-advanced-nondeterminism.metta",
               "name": "nondeterminism.metta",
               "path": "examples/metta/advanced/nondeterminism.metta",
               "type": "file",
               "extension": ".metta"
             },
             {
-              "id": "examples-metta-advanced-search_algorithms.metta",
+              "id": "examples-examples-metta-advanced-search_algorithms.metta",
               "name": "search_algorithms.metta",
               "path": "examples/metta/advanced/search_algorithms.metta",
               "type": "file",
@@ -44,40 +44,40 @@
           ]
         },
         {
-          "id": "examples-metta-basics",
+          "id": "examples-examples-metta-basics",
           "name": "basics",
           "type": "directory",
           "children": [
             {
-              "id": "examples-metta-basics-arithmetic.metta",
+              "id": "examples-examples-metta-basics-arithmetic.metta",
               "name": "arithmetic.metta",
               "path": "examples/metta/basics/arithmetic.metta",
               "type": "file",
               "extension": ".metta"
             },
             {
-              "id": "examples-metta-basics-equality.metta",
+              "id": "examples-examples-metta-basics-equality.metta",
               "name": "equality.metta",
               "path": "examples/metta/basics/equality.metta",
               "type": "file",
               "extension": ".metta"
             },
             {
-              "id": "examples-metta-basics-functions.metta",
+              "id": "examples-examples-metta-basics-functions.metta",
               "name": "functions.metta",
               "path": "examples/metta/basics/functions.metta",
               "type": "file",
               "extension": ".metta"
             },
             {
-              "id": "examples-metta-basics-lists.metta",
+              "id": "examples-examples-metta-basics-lists.metta",
               "name": "lists.metta",
               "path": "examples/metta/basics/lists.metta",
               "type": "file",
               "extension": ".metta"
             },
             {
-              "id": "examples-metta-basics-variables.metta",
+              "id": "examples-examples-metta-basics-variables.metta",
               "name": "variables.metta",
               "path": "examples/metta/basics/variables.metta",
               "type": "file",
@@ -86,68 +86,110 @@
           ]
         },
         {
-          "id": "examples-metta-demos",
+          "id": "examples-examples-metta-demos",
           "name": "demos",
           "type": "directory",
           "children": [
             {
-              "id": "examples-metta-demos-adaptive_reasoning.metta",
+              "id": "examples-examples-metta-demos-adaptive_reasoning.metta",
               "name": "adaptive_reasoning.metta",
               "path": "examples/metta/demos/adaptive_reasoning.metta",
               "type": "file",
               "extension": ".metta"
             },
             {
-              "id": "examples-metta-demos-maze_solver.metta",
+              "id": "examples-examples-metta-demos-interactive_ui.metta",
+              "name": "interactive_ui.metta",
+              "path": "examples/metta/demos/interactive_ui.metta",
+              "type": "file",
+              "extension": ".metta"
+            },
+            {
+              "id": "examples-examples-metta-demos-maze_solver.metta",
               "name": "maze_solver.metta",
               "path": "examples/metta/demos/maze_solver.metta",
               "type": "file",
               "extension": ".metta"
             },
             {
-              "id": "examples-metta-demos-truth_chain.metta",
+              "id": "examples-examples-metta-demos-new_operations.metta",
+              "name": "new_operations.metta",
+              "path": "examples/metta/demos/new_operations.metta",
+              "type": "file",
+              "extension": ".metta"
+            },
+            {
+              "id": "examples-examples-metta-demos-parallel_demo.metta",
+              "name": "parallel_demo.metta",
+              "path": "examples/metta/demos/parallel_demo.metta",
+              "type": "file",
+              "extension": ".metta"
+            },
+            {
+              "id": "examples-examples-metta-demos-reactive_demo.metta",
+              "name": "reactive_demo.metta",
+              "path": "examples/metta/demos/reactive_demo.metta",
+              "type": "file",
+              "extension": ".metta"
+            },
+            {
+              "id": "examples-examples-metta-demos-superpose_demo.metta",
+              "name": "superpose_demo.metta",
+              "path": "examples/metta/demos/superpose_demo.metta",
+              "type": "file",
+              "extension": ".metta"
+            },
+            {
+              "id": "examples-examples-metta-demos-truth_chain.metta",
               "name": "truth_chain.metta",
               "path": "examples/metta/demos/truth_chain.metta",
+              "type": "file",
+              "extension": ".metta"
+            },
+            {
+              "id": "examples-examples-metta-demos-type_operations.metta",
+              "name": "type_operations.metta",
+              "path": "examples/metta/demos/type_operations.metta",
               "type": "file",
               "extension": ".metta"
             }
           ]
         },
         {
-          "id": "examples-metta-logic",
+          "id": "examples-examples-metta-logic",
           "name": "logic",
           "type": "directory",
           "children": [
             {
-              "id": "examples-metta-logic-inheritance.metta",
+              "id": "examples-examples-metta-logic-inheritance.metta",
               "name": "inheritance.metta",
               "path": "examples/metta/logic/inheritance.metta",
               "type": "file",
               "extension": ".metta"
             },
             {
-              "id": "examples-metta-logic-revision.metta",
+              "id": "examples-examples-metta-logic-revision.metta",
               "name": "revision.metta",
               "path": "examples/metta/logic/revision.metta",
               "type": "file",
               "extension": ".metta"
             },
             {
-              "id": "examples-metta-logic-rules.metta",
+              "id": "examples-examples-metta-logic-rules.metta",
               "name": "rules.metta",
               "path": "examples/metta/logic/rules.metta",
               "type": "file",
               "extension": ".metta"
             },
             {
-              "id": "examples-metta-logic-socrates.metta",
+              "id": "examples-examples-metta-logic-socrates.metta",
               "name": "socrates.metta",
               "path": "examples/metta/logic/socrates.metta",
               "type": "file",
               "extension": ".metta"
             },
             {
-              "id": "examples-metta-logic-syllogism.metta",
+              "id": "examples-examples-metta-logic-syllogism.metta",
               "name": "syllogism.metta",
               "path": "examples/metta/logic/syllogism.metta",
               "type": "file",
@@ -156,12 +198,12 @@
           ]
         },
         {
-          "id": "examples-metta-types",
+          "id": "examples-examples-metta-types",
           "name": "types",
           "type": "directory",
           "children": [
             {
-              "id": "examples-metta-types-annotations.metta",
+              "id": "examples-examples-metta-types-annotations.metta",
               "name": "annotations.metta",
               "path": "examples/metta/types/annotations.metta",
               "type": "file",
@@ -177,105 +219,105 @@
       "type": "directory",
       "children": [
         {
-          "id": "examples-scripts-alien-encounter.nars",
+          "id": "examples-examples-scripts-alien-encounter.nars",
           "name": "alien-encounter.nars",
           "path": "examples/scripts/alien-encounter.nars",
           "type": "file",
           "extension": ".nars"
         },
         {
-          "id": "examples-scripts-complex-interaction.nars",
-          "name": "complex-interaction.nars",
-          "path": "examples/scripts/complex-interaction.nars",
-          "type": "file",
-          "extension": ".nars"
-        },
-        {
-          "id": "examples-scripts-basic-reasoning.nars",
+          "id": "examples-examples-scripts-basic-reasoning.nars",
           "name": "basic-reasoning.nars",
           "path": "examples/scripts/basic-reasoning.nars",
           "type": "file",
           "extension": ".nars"
         },
         {
-          "id": "examples-scripts-causal-reasoning.nars",
+          "id": "examples-examples-scripts-causal-reasoning.nars",
           "name": "causal-reasoning.nars",
           "path": "examples/scripts/causal-reasoning.nars",
           "type": "file",
           "extension": ".nars"
         },
         {
-          "id": "examples-scripts-decision-making.nars",
+          "id": "examples-examples-scripts-complex-interaction.nars",
+          "name": "complex-interaction.nars",
+          "path": "examples/scripts/complex-interaction.nars",
+          "type": "file",
+          "extension": ".nars"
+        },
+        {
+          "id": "examples-examples-scripts-decision-making.nars",
           "name": "decision-making.nars",
           "path": "examples/scripts/decision-making.nars",
           "type": "file",
           "extension": ".nars"
         },
         {
-          "id": "examples-scripts-goal-reasoning.nars",
+          "id": "examples-examples-scripts-goal-reasoning.nars",
           "name": "goal-reasoning.nars",
           "path": "examples/scripts/goal-reasoning.nars",
           "type": "file",
           "extension": ".nars"
         },
         {
-          "id": "examples-scripts-hybrid-reasoning-showcase.nars",
+          "id": "examples-examples-scripts-hybrid-reasoning-showcase.nars",
           "name": "hybrid-reasoning-showcase.nars",
           "path": "examples/scripts/hybrid-reasoning-showcase.nars",
           "type": "file",
           "extension": ".nars"
         },
         {
-          "id": "examples-scripts-hybrid-reasoning.nars",
+          "id": "examples-examples-scripts-hybrid-reasoning.nars",
           "name": "hybrid-reasoning.nars",
           "path": "examples/scripts/hybrid-reasoning.nars",
           "type": "file",
           "extension": ".nars"
         },
         {
-          "id": "examples-scripts-layers-demo.nars",
+          "id": "examples-examples-scripts-layers-demo.nars",
           "name": "layers-demo.nars",
           "path": "examples/scripts/layers-demo.nars",
           "type": "file",
           "extension": ".nars"
         },
         {
-          "id": "examples-scripts-lm-demo.nars",
+          "id": "examples-examples-scripts-lm-demo.nars",
           "name": "lm-demo.nars",
           "path": "examples/scripts/lm-demo.nars",
           "type": "file",
           "extension": ".nars"
         },
         {
-          "id": "examples-scripts-multi-step-inference.nars",
+          "id": "examples-examples-scripts-multi-step-inference.nars",
           "name": "multi-step-inference.nars",
           "path": "examples/scripts/multi-step-inference.nars",
           "type": "file",
           "extension": ".nars"
         },
         {
-          "id": "examples-scripts-operator-examples.nars",
+          "id": "examples-examples-scripts-operator-examples.nars",
           "name": "operator-examples.nars",
           "path": "examples/scripts/operator-examples.nars",
           "type": "file",
           "extension": ".nars"
         },
         {
-          "id": "examples-scripts-procedural-learning.nars",
+          "id": "examples-examples-scripts-procedural-learning.nars",
           "name": "procedural-learning.nars",
           "path": "examples/scripts/procedural-learning.nars",
           "type": "file",
           "extension": ".nars"
         },
         {
-          "id": "examples-scripts-syllogistic-reasoning.nars",
+          "id": "examples-examples-scripts-syllogistic-reasoning.nars",
           "name": "syllogistic-reasoning.nars",
           "path": "examples/scripts/syllogistic-reasoning.nars",
           "type": "file",
           "extension": ".nars"
         },
         {
-          "id": "examples-scripts-temporal-reasoning.nars",
+          "id": "examples-examples-scripts-temporal-reasoning.nars",
           "name": "temporal-reasoning.nars",
           "path": "examples/scripts/temporal-reasoning.nars",
           "type": "file",
