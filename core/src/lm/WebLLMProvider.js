@@ -8,7 +8,13 @@ const importMLC = () => {
     return mlcPromise;
 };
 
+let customEngineFactory = null;
+
 export class WebLLMProvider extends BaseProvider {
+    static setCustomEngineFactory(factory) {
+        customEngineFactory = factory;
+    }
+
     constructor(config = {}) {
         super(config);
         // Default to a compact model as requested
@@ -37,8 +43,6 @@ export class WebLLMProvider extends BaseProvider {
         this._emitEvent('lm:model-load-start', {modelName: this.modelName});
 
         try {
-            const {CreateMLCEngine} = await importMLC();
-
             const initProgressCallback = (progress) => {
                 // progress is { progress: number, text: string, timeElapsed: number }
                 this._emitEvent('lm:model-dl-progress', {
@@ -49,9 +53,14 @@ export class WebLLMProvider extends BaseProvider {
             };
 
             // Initialize the engine
-            this.engine = await CreateMLCEngine(this.modelName, {
-                initProgressCallback
-            });
+            if (customEngineFactory) {
+                this.engine = await customEngineFactory(this.modelName, {initProgressCallback});
+            } else {
+                const {CreateMLCEngine} = await importMLC();
+                this.engine = await CreateMLCEngine(this.modelName, {
+                    initProgressCallback
+                });
+            }
 
             const elapsed = Date.now() - startTime;
             this._emitEvent('lm:model-load-complete', {
@@ -72,26 +81,48 @@ export class WebLLMProvider extends BaseProvider {
         }
     }
 
-    async generateText(prompt, options = {}) {
+    async generate(prompt, options = {}) {
         await this._initialize();
 
-        const {maxTokens, temperature} = options;
+        const {maxTokens, temperature, tools, toolChoice} = options;
         const temp = temperature ?? this.temperature ?? 0.7;
 
         try {
-            const messages = [{ role: "user", content: prompt }];
-            const reply = await this.engine.chat.completions.create({
+            const messages = [{role: "user", content: prompt}];
+            const requestOptions = {
                 messages,
                 temperature: temp,
                 max_tokens: maxTokens ?? this.maxTokens ?? 256, // WebLLM might use max_gen_len or similar, but standard OpenAI API param is max_tokens
-            });
+            };
 
-            const text = reply.choices[0].message.content;
-            return text || '';
+            if (tools) {
+                requestOptions.tools = tools;
+            }
+            if (toolChoice) {
+                requestOptions.tool_choice = toolChoice;
+            }
+
+            const reply = await this.engine.chat.completions.create(requestOptions);
+
+            const message = reply.choices[0].message;
+            const text = message.content || '';
+
+            return {
+                text,
+                toolCalls: message.tool_calls,
+                usage: reply.usage,
+                finishReason: reply.choices[0].finish_reason,
+                raw: reply
+            };
         } catch (error) {
             this._emitDebug('WebLLM Generate error', {error: error.message});
             throw error;
         }
+    }
+
+    async generateText(prompt, options = {}) {
+        const result = await this.generate(prompt, options);
+        return result.text;
     }
 
     async* streamText(prompt, options = {}) {

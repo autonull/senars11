@@ -53,6 +53,7 @@
     "dev:visual-inspection": "node scripts/utils/automated-dev-workflow.js --visual-inspection",
     "dev:tune-heuristics": "node scripts/utils/automated-dev-workflow.js --tune-heuristics",
     "dev:regression": "node scripts/utils/automated-dev-workflow.js --regression-tests",
+    "agent": "npx http-server -p 8080 -o /ui/agent.html",
     "lint:patterns": "node scripts/utils/lint-patterns.js",
     "build": "npm run build:parser",
     "build:parser": "npx peggy --format es -o core/src/parser/peggy-parser.js core/src/parser/narsese.peggy",

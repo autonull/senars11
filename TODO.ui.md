@@ -1,538 +1,426 @@
-# SeNARS UI Development Roadmap
+# SeNARS UI2 Refactoring Roadmap
 
-**Vision:** Create the ultimate IDE/REPL for cognitive architecture development - powerful enough for research, intuitive enough for learning, fast enough for real-time interaction.
+**Vision**: Refactor `ui/` to enable **versatile UI creation** and **minimal boilerplate** through metaprogramming, while preserving and enhancing existing functionality.
 
----
-
-## Architecture Overview
-
-### Apps
-
-1. **`ide.html`** - **Unified IDE** (Primary App)
-   - Local mode (in-browser NAR + MeTTa) OR Remote mode (WebSocket)
-   - Notebook-style REPL with embedded widgets
-   - Memory inspector, derivation tracer, graph explorer
-   - Load demos, save/share notebooks, collaborative features
-
-2. **`demo.html`** - **Demo Runner** (Separate App) ✅
-   - Auto-run pre-configured demonstrations
-   - Gallery of reasoning examples
-   - Pedagogical interface for learning NARS
-   - Shareable demo URLs
-   - Can be loaded INTO ide.html but also standalone
-
-3. **`index.html`** - **Launcher** (Landing Page)
-   - Links to IDE and Demo Runner
-   - Quick start guides
-   - Version info and settings
+**Approach**: Build **alongside** existing UI - no breaking changes. Focus on **tangible wins**, avoid overengineering.
 
 ---
 
-## Phase 1: Unified IDE Foundation
+## Phase 1: Metaprogramming Foundations ✅ **COMPLETE**
 
-### 1.1 Connection Architecture
+Create core utilities to reduce boilerplate by ~80%.
 
-- [ ] **Dual-mode system**
-  - **Local mode** (default): In-browser NAR + MeTTa, no server needed
-  - **Remote mode**: WebSocket connection to server
-  - Toggle mode via menu without page reload
-  - State preservation during mode switch
-  
-- [ ] **Connection UI**
-  - Status bar: Mode indicator (💻 Local / 🌐 Remote), latency, message rate
-  - Connect modal: Server URL, port, authentication
-  - Auto-reconnect logic with backoff
-  - Graceful degradation when offline
+### Completed
 
-- [ ] **Unified ConnectionManager**
-  - Abstract interface: `connect()`, `send()`, `subscribe()`, `disconnect()`
-  - Implementations: `LocalConnectionManager`, `WebSocketManager`
-  - Event-based message routing
-  - Request/response correlation
-
-### 1.2 Layout & Panels
-
-- [ ] **Intelligent panel system**
-  - **Main panels:**
-    - REPL Notebook (includes console and logs, center, primary)
-    - Knowledge Graph (right, collapsible, default: collapsed)
-    - Memory Inspector (right, collapsible, default: collapsed)
-    - Derivation Tracer (bottom, collapsible, default: collapsed)
-  
-- [ ] **Layout features**
-  - Drag-and-drop rearrangement (GoldenLayout)
-  - Save/load layout presets (beginner, researcher, debugging)
-  - Responsive breakpoints for mobile/tablet
-  - Maximize/minimize panels
-  - Pop-out panels to separate windows
+- ✅ **ReactiveState** - Proxy-based reactive state with watchers & computed properties
+- ✅ **ServiceContainer** - Dependency injection container  
+- ✅ **EventBus** - Centralized events with wildcards & middleware
+- ✅ **Decorators** - `@inject`, `@autobind`, `@debounce`, `@throttle`, `@memoize`, `@validate`
+- ✅ **FluentUI** - Enhanced fluent DOM builder (consolidated with ComponentBuilder)
+  - Added: `data()`, `childIf()`, `each()`, `apply()`, `destroy()`
+  - Added shortcuts: `$()`, `div()`, `button()`, `input()`, etc.
+  - Added helpers: `list()`, `table()`, `form()`
+- ✅ **ComponentGenerator** - Template-based component factories
+- ✅ **Examples & Documentation**
 
 ---
 
-## Phase 2: REPL as Notebook
+## Phase 2: Simple Custom Views
 
-### 2.1 Cell-Based Interface
+Create specialized UI views with minimal code - no overengineering.
 
-- [ ] **Cell types**
-  - **Code cells**: Narsese or MeTTa input
-  - **Markdown cells**: Documentation, explanations
-  - **Result cells**: Auto-generated outputs (read-only)
-  - **Widget cells**: Interactive visualizations
+### 2.1 Simple View Examples
+
+Create practical examples showing how to build custom UIs:
+
+- [ ] **Pure Agent REPL** (`agent-simple.html`)
+  - Just the agent chat component
+  - WebLLM connection
+  - ~20 lines total
   
-- [ ] **Cell operations**
-  - Run (Ctrl+Enter), Run All, Run Above/Below
-  - Edit, Delete, Duplicate, Move Up/Down
-  - Fold/unfold cells
-  - Cell execution counter
-  - Execution time display
+- [ ] **Metrics Dashboard** (`metrics-dashboard.html`)
+  - System metrics panel + graph
+  - Remote connection only
+  - ~30 lines total
 
-- [ ] **Notebook features**
-  - Persistent history (IndexedDB/localStorage)
-  - Export: JSON, Markdown, HTML
-  - Import: from file, from URL
-  - Share: encode in URL hash (compressed)
-  - Auto-save drafts every 30s
+- [ ] **Minimal REPL** (`repl-minimal.html`)
+  - Notebook only, no sidebars
+  - Local or remote
+  - ~15 lines total
 
-### 2.2 Smart Input
+**Approach**: Each view is its own simple HTML file that directly instantiates what it needs. No manifest parser, no complex builder system.
 
-- [ ] **Input features**
-  - **Syntax highlighting**: Narsese (red terms, blue copulas) + MeTTa (S-expressions)
-  - **Auto-completion**: Terms, copulas, predicates, functions
-  - **Bracket matching**: Highlight matching `<>`, `[]`, `()`
-  - **Multi-line editing**: Shift+Enter for newlines
-  - **Command history**: Up/Down arrows, searchable (Ctrl+R)
-  - **Snippets**: Quick insert for common patterns
+### 2.2 Component Extraction
 
-- [ ] **Input modes**
-  - Narsese, MeTTa, Mixed (auto-detect), Comment
-  - Mode indicator in input box
-  - Quick toggle button
+Make it easy to compose custom views by extracting reusable pieces:
 
-### 2.3 Embedded Widgets
+- [ ] Create simple component initialization helpers
+  ```javascript
+  // Simple helper, not a framework
+  function createNotebookView(container, connection) {
+    const panel = new NotebookPanel(container);
+    panel.initialize({ connection });
+    return panel;
+  }
+  ```
 
-- [ ] **Widget types**
-  - **GraphWidget**: Inline concept graph (clickable, zoomable)
-  - **TruthSlider**: Interactive truth value adjustment
-  - **TimelineWidget**: Temporal relationships over time
-  - **MetricsWidget**: Inference rate, memory usage charts
-  - **VariableInspector**: Current MeTTa bindings table
-  - **TaskTree**: Hierarchical goal/subgoal visualization
-  
-- [ ] **Widget interactions**
-  - Click to interact (adjust sliders, select nodes)
-  - Double-click to expand in modal
-  - Export widget as image/SVG
-  - Widget state saved with notebook
-
-### 2.4 Control Panel (Unified)
-
-- [ ] **Reasoner controls** (toolbar near input)
-  - ▶️ Start / ⏸️ Pause / ⏹️ Stop / ⏭️ Step / 🔄 Reset
-  - Cycle counter display (live updating)
-  - Inference rate (per second)
-  - Step size control for debugging
-  
-- [ ] **Quick actions**
-  - 📂 Load demo (dropdown menu)
-  - 💾 Save/Export state
-  - 🗑️ Clear memory
-  - 📊 Show metrics
-  - ⚙️ Settings modal
+- [ ] Document common patterns in examples
+- [ ] Keep it simple - just regular JS, no magic
 
 ---
 
-## Phase 3: Advanced REPL
+## Phase 3: Enhanced Existing Components
 
-### 3.1 Visibility System
+Gradually enhance existing components using new utilities.
 
-**3 states for every message:**
+### 3.1 NotebookPanel & NotebookManager
 
-1. **Full**: Expanded with all details (timestamp, source, trace)
-2. **Compact**: Inline badge/chip (horizontal layout, click to expand)
-3. **Hidden**: Filtered out entirely
+- [ ] Refactor to use **ReactiveState** for cell management
+- [ ] Use **EventBus** for cell events (create, delete, execute)
+- [ ] Simplify rendering with FluentUI where appropriate
+- [ ] Add undo/redo using state snapshots
 
-### 3.2 Message Categories
+### 3.2 GraphPanel
 
-- [ ] **Category definitions**
-  - `reasoning`: Inferences, derivations, judgments → **Full**
-  - `lm-call`: LLM requests/responses → **Compact**
-  - `system`: Start/stop, errors, warnings → **Full**
-  - `debug`: Internal state dumps → **Hidden**
-  - `user-input`: Echo of user commands → **Compact**
-  - `result`: Query answers → **Full**
-  - `metric`: Performance stats → **Compact**
-  - `derivation`: Proof trees → **Full** (optional)
-  
-- [ ] **Custom categories**
-  - User-defined filters (regex matching)
-  - Color coding per category
-  - Icons for quick identification
+- [ ] Use **EventBus** for graph events (node click, zoom, layout)
+- [ ] Use ReactiveState for filter/layout settings
+- [ ] Add graph state save/restore to localStorage
 
-### 3.3 Filter UI
+### 3.3 MemoryInspector
 
-- [ ] **Filter panel** (popup modal)
-  - Grid of categories with visibility toggles
-  - Text search across all messages
-  - Time range slider (last hour, day, session)
-  - Source filter (system, user, LLM, etc.)
-  - Export filtered logs as JSON/CSV/Markdown
-  
-- [ ] **Compact widget layout**
-  - Horizontal chip arrangement (flexbox)
-  - Hover for tooltip preview
-  - Click to expand inline
-  - Badge counts for collapsed categories
-  - Animated transitions
+- [ ] Refactor list rendering with `FluentUI.list()`
+- [ ] Use ReactiveState for sorting/filtering
+- [ ] Add virtual scrolling for large datasets
 
-### 3.4 Log Features
+### 3.4 StatusBar
 
-- [ ] **Advanced capabilities**
-  - Copy message to clipboard
-  - Jump to source (e.g., task that triggered derivation)
-  - Pin important messages to top
-  - Highlight/annotate messages
-  - Create snapshot of current log state
-  - Diff between log snapshots
+- [ ] Use ReactiveState for status updates
+- [ ] Use EventBus for global status events
+- [ ] Simplify with FluentUI
+
+### 3.5 Connection Layer
+
+- [ ] Integrate with ServiceContainer (optional)
+- [ ] Add connection middleware for logging
+- [ ] Enhance retry/backoff logic
 
 ---
 
-## Phase 4: Knowledge Exploration
+## Phase 4: Advanced REPL Features
 
-### 4.1 Data Model Clarity
+### 4.1 Message Visibility System
 
-#### TaskCard (Sentence)
-- **Definition**: Single atomic statement with truth and punctuation
-- **Properties**: Term, Truth (f, c), Punctuation (`.` `!` `?`), Timestamp, Derivation
-- **UI**: 
-  - Compact card: `<bird --> animal>. {0.9 0.8}` with green left border
-  - Truth bar visualization
-  - Click to trace derivation
-  - Hover to highlight related concepts in graph
+Implement 3-state visibility:
 
-#### ConceptCard (Term)
-- **Definition**: Collection of all tasks about the same term
-- **Properties**: Term, Priority, Task count, Related concepts
-- **UI**:
-  - Larger card with blue left border
-  - Term name (bold)
-  - Task count badge
-  - Priority meter
-  - Click to show all tasks in sidebar
-  - Double-click to center in graph
+- [ ] **Full** - Expanded with all details
+- [ ] **Compact** - Inline badge/chip (horizontal layout)
+- [ ] **Hidden** - Filtered out entirely
 
-### 4.2 Memory Inspector
+- [ ] **Message Categories**
+  - `reasoning`, `lm-call`, `system`, `debug`, `user-input`, `result`, `metric`, `derivation`
+  - Color coding and icons per category
+  - User-toggleable visibility per category
+
+- [ ] **Filter Toolbar**
+  - Category toggles (clickable badges)
+  - Text search across messages
+  - Time range filter
+  - Export filtered logs
+
+### 4.2 Cell Operations
+
+- [ ] **Execution controls**
+  - Run All, Clear Outputs
+  - Execution counter and timing per cell
+  - Cell folding/unfolding
+  
+- [ ] **Cell manipulation**
+  - Delete, Duplicate
+  - Move Up/Down (keyboard shortcuts)
+  - Drag-and-drop reordering (future)
+
+### 4.3 New Widget Types
+
+- [ ] **TimelineWidget** - Temporal relationships visualization
+- [ ] **VariableInspector** - MeTTa bindings table
+- [ ] **TaskTreeWidget** - Hierarchical goal/subgoal tree
+- [ ] **CompactMessageBadge** - Horizontal chip layout for compact messages
+
+---
+
+## Phase 5: Knowledge Exploration
+
+### 5.1 Enhanced Memory Inspector
+
+**Note**: TaskCard and ConceptCard likely already exist - verify and enhance if needed.
 
 - [ ] **Concept browser**
-  - Searchable list of all concepts
-  - Sort by: Priority, Task count, Recency
-  - Filter by: Has goals, Has questions, Truth threshold
-  - Paginated for large memories
-  
+  - Searchable, sortable (priority, task count, recency)
+  - Filter by: Goals, Questions, Truth threshold
+  - Pagination or virtual scrolling
+
 - [ ] **Task browser**
-  - All tasks grouped by concept
+  - Grouped by concept
   - Expandable tree view
-  - Show derivation chain
-  - Edit truth values (local mode only)
-  - Delete tasks (with confirmation)
+  - Show derivation chains
+  - Quick actions (inspect, delete)
 
-### 4.3 Knowledge Graph
+### 5.2 Enhanced Knowledge Graph
 
-- [ ] **Graph features**
-  - **Layouts**: Force-directed, hierarchical, circular, custom
-  - **Filters**: Show only high-priority concepts, hide isolated nodes
-  - **Interactions**:
-    - Click node → Show ConceptCard
-    - Double-click node → Expand neighbors
-    - Click edge → Show relationship tasks
-    - Drag nodes to rearrange
-  - **Visual encoding**:
-    - Node size = priority
-    - Node color = task count (gradient)
-    - Edge thickness = relationship strength
-    - Animated updates when reasoning
+- [ ] **Layout options**
+  - Force-directed (current), hierarchical, circular
+  - Layout selector dropdown
+  - Remember user preference
+
+- [ ] **Visual encoding enhancements**
+  - Node size = priority (already done?)
+  - Node color = task count gradient
+  - Edge thickness = relationship strength
+  - Animated updates when reasoning
 
 - [ ] **Graph controls**
-  - Zoom (mouse wheel), Pan (drag background)
-  - Reset view button
-  - Layout selector dropdown
+  - Fullscreen toggle
   - Export as SVG/PNG
-  - Fullscreen mode
+  - Reset view button
 
-### 4.4 Derivation Tracer
+### 5.3 Derivation Tracer Enhancements
 
-- [ ] **Proof tree visualization**
-  - Show how a conclusion was derived
-  - Tree layout: conclusion at top, premises below
-  - Rule names on edges
-  - Truth values propagated up
-  - **Interactions**:
-    - Click node to highlight in memory
-    - Hover to show rule details
-    - Collapse/expand branches
-    - Export as text proof
-  
-- [ ] **Derivation history**
-  - Timeline of all derivations
+- [ ] **Proof tree improvements**
+  - Clearer tree layout
+  - Show rule names on edges
+  - Collapse/expand branches
+  - Export as text proof
+
+- [ ] **Derivation history** (future)
+  - Timeline of derivations
   - Filter by rule type
-  - Playback mode (step through reasoning)
-  - Compare derivations (why two different conclusions?)
+  - Playback mode
 
 ---
 
-## Phase 5: State Management & Persistence
+## Phase 6: Graph-Centric ZUI (Experimental - Separate)
 
-### 5.1 Save/Load System
+**Note**: Keep as experimental addon in `ui/src/experimental/zui/`.
 
-- [ ] **State formats**
-  - **Memory snapshot**: All concepts and tasks as JSON
-  - **Notebook**: Cells, outputs, widgets, execution state
-  - **Full workspace**: Memory + Notebook + Layout + Settings
-  
-- [ ] **Operations**
-  - Save to file (download)
-  - Load from file (upload)
-  - Auto-save to browser storage (every 30s)
-  - Restore last session on startup
-  - Name and manage multiple saved states
+### 6.1 Core ZUI Components
 
-### 5.2 Demo Integration
-
-- [ ] **Demo library** (in IDE)
-  - Built-in demos from `examples.json`
-  - Each demo is a pre-filled notebook
-  - Categories: Reasoning, Temporal, Spatial, Language, etc.
-  - Load demo → populates REPL cells → auto-run option
-  
-- [ ] **Demo Runner (`demo.html`) integration**
-  - Link to open demo in full IDE
-  - Embed IDE lite in demo.html for side-by-side
-  - Demo progress tracking
-  - Export demo results
-
----
-
-## Phase 6: Developer Experience & Testing
-
-### 6.1 Storybook Stories
-
-- [ ] **Component isolation**
-  - `TaskCard.stories.js`: Various truth values, punctuations, states
-  - `ConceptCard.stories.js`: Different task counts, priorities
-  - `GraphPanel.stories.js`: Small/medium/large graphs, different layouts
-  - `REPLCell.stories.js`: Code/Markdown/Result/Widget cells
-  - `FilterPanel.stories.js`: Different filter configurations
-  - `DerivationTree.stories.js`: Simple/complex proof trees
-  
-- [ ] **Storybook addons**
-  - Controls: Knobs for all props
-  - Actions: Log event handlers
-  - Viewport: Test responsive layouts
-  - Accessibility: a11y checks
-  - Docs: Auto-generated documentation
-
-### 6.2 Playwright E2E Tests
-
-- [ ] **Critical flows**
-  - `smoke.spec.js`: IDE loads, connection works
-  - `repl-basic.spec.js`: Input → Execute → Verify output
-  - `mode-switch.spec.js`: Local ↔ Remote without data loss
-  - `notebook.spec.js`: Create cells, run, export, import
-  - `graph.spec.js`: Click nodes, zoom, layout change
-  - `repl-filter.spec.js`: Toggle visibility, search, export
-  - `derivation.spec.js`: Trace derivation, expand tree
-  - `demo-load.spec.js`: Load demo, auto-run, verify results
-  
-- [ ] **Test infrastructure**
-  - Screenshot comparison for regressions
-  - Performance benchmarks (load time, interaction latency)
-  - Cross-browser testing (Chromium, Firefox, WebKit)
-  - CI integration (run on every PR)
-
-### 6.3 Development Commands
-
-```bash
-# Development
-npm run ui                  # Start IDE dev server
-npm run storybook           # Component isolation
-npm run test:e2e:ui         # Playwright UI mode (visual)
-
-# Testing
-npm run test:e2e            # Run all E2E tests
-npm run test:screenshots    # Visual regression
-npm run test:component      # Single component test
-
-# Building
-npm run ui:build            # Production build
-npm run ui:preview          # Preview build locally
+```
+ui/src/experimental/zui/
+├── ActivityGraph.js          # Model system as graph
+├── SemanticZoom.js           # Detail-on-demand zoom
+├── ContextualWidget.js       # Node-attached widgets
+├── GraphViewport.js          # Canvas/Cytoscape viewport
+└── index.html                # Standalone ZUI demo
 ```
 
+### 6.2 Features
+
+- [ ] **Activity Graph** - Model concepts, events, reasoning as nodes
+- [ ] **Semantic Zoom** - Overview → Component → Detail with auto widgets
+- [ ] **Contextual Widgets** - Inspectors attach to nodes on zoom
+- [ ] **Navigation** - Pan, zoom, filter
+- [ ] **Temporal** - Scrub through time
+
+### 6.3 Implementation
+
+- [ ] Design activity graph schema
+- [ ] Implement zoom controller
+- [ ] Create widget attachment system
+- [ ] Build viewport with Cytoscape
+- [ ] Create standalone demo
+- [ ] Document ZUI patterns (separate doc)
+
 ---
 
-## Phase 7: UX Polish
+## Phase 7: Polish & Accessibility
 
-### 7.1 Keyboard Shortcuts
+### 7.1 Editor Enhancements
+
+- [ ] **Syntax highlighting**
+  - Narsese (red terms, blue copulas)
+  - MeTTa (S-expressions)
+  - Auto-detect mode (future)
+
+- [ ] **Auto-completion** (future)
+  - Terms, copulas, predicates
+  - Context-aware suggestions
+
+- [ ] **Editing improvements**
+  - Bracket matching
+  - Multi-line support (Shift+Enter)
+  - Command history (Up/Down, Ctrl+R)
+
+### 7.2 Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+Enter` | Execute current cell |
 | `Ctrl+L` | Clear REPL |
-| `Ctrl+K` | Focus search |
-| `Ctrl+Shift+P` | Command palette |
-| `Ctrl+S` | Save notebook |
-| `Ctrl+O` | Load notebook |
-| `Ctrl+,` | Settings |
-| `Ctrl+/` | Toggle comment |
+| `Ctrl+S` | Save notebook to file |
+| `Ctrl+O` | Load notebook from file |
 | `Ctrl+B` | Toggle sidebar |
-| `Ctrl+G` | Go to concept |
+| `Ctrl+G` | Go to concept (search) |
 | `Ctrl+D` | Trace derivation |
 | `F1` | Help |
 
-### 7.2 Theme System
+### 7.3 Theme System
 
 - [ ] **Themes**
-  - Dark (default, current)
+  - Dark (current)
   - Light
-  - High contrast
-  - Custom (user-defined colors)
-  
-- [ ] **Design tokens** (CSS variables)
-  - Colors: primary, secondary, bg, text, border
-  - Spacing: xs, sm, md, lg, xl
-  - Typography: font families, sizes, weights
-  - Shadows: elevation levels
+  - High contrast (accessibility)
 
-### 7.3 Accessibility
+- [ ] **Theme switcher** in settings
+- [ ] Use CSS variables throughout
+
+### 7.4 Accessibility
 
 - [ ] **ARIA compliance**
   - Semantic HTML5 elements
-  - Labels for all interactive elements
-  - Landmark regions (nav, main, aside)
-  - Live regions for dynamic updates
-  
+  - Labels for interactive elements
+  - Landmark regions
+  - Live regions for updates
+
 - [ ] **Keyboard navigation**
   - Tab through all controls
-  - Focus indicators (visible outlines)
-  - Skip links for long pages
+  - Focus indicators
   - Modal trapping (Esc to close)
-  
-- [ ] **Screen reader support**
-  - Meaningful alt text for icons
-  - Announced state changes
-  - Descriptive button labels
 
-### 7.4 Animations
+- [ ] **Screen reader support**
+  - Alt text for icons
+  - Announced state changes
+
+### 7.5 Animations & Performance
 
 - [ ] **Micro-interactions**
-  - Button hover/click feedback
-  - Panel expand/collapse (smooth)
-  - Graph node selection (pulse)
-  - Loading spinners
-  - Success/error toasts
-  
+  - Button feedback
+  - Panel expand/collapse
+  - Graph node selection pulse
+  - Toast notifications
+
 - [ ] **Performance**
-  - CSS transitions (GPU-accelerated)
-  - Debounced scroll/resize handlers
+  - Debounced handlers
   - Virtual scrolling for long lists
-  - Lazy loading for images/widgets
-
-
-## Phase 8: Networking
-
-### 8.1 Collaboration
-
-- [ ] **Real-time collaboration** (optional, remote mode)
-  - Multiple users connect to same server
-  - Shared notebook editing (like Google Docs)
-  - Cursor presence indicators
-  - Chat sidebar
-  - Permissions (read-only, edit, admin)
+  - Lazy loading
 
 ---
 
-## Implementation Priorities
+## Phase 8: Testing & Documentation
 
-### Sprint 1: Core IDE (Week 1-2)
-- [x] Vite migration ✅
-- [ ] Merge apps into `ide.html`
-- [ ] Connection mode switcher (Local/Remote)
-- [ ] Basic REPL notebook (cells + execute)
-- [ ] REPL with simple filtering
+### 8.1 Unit Tests
 
-### Sprint 2: Enhanced REPL (Week 3-4)
-- [ ] Embedded widgets (graph, metrics, truth sliders)
-- [ ] Smart input (syntax highlighting, autocomplete)
-- [ ] Unified control panel
-- [ ] Cell types (Code, Markdown, Result, Widget)
-- [ ] Export/import notebooks
+- [ ] Core utilities (ReactiveState, ServiceContainer, EventBus)
+- [ ] FluentUI builder
+- [ ] Decorator utilities
 
-### Sprint 3: Knowledge Exploration (Week 5-6)
-- [ ] TaskCard vs ConceptCard components
-- [ ] Memory inspector (concept/task browsers)
-- [ ] Knowledge graph (interactive visualization)
-- [ ] Derivation tracer (proof trees)
+### 8.2 Component Tests (Storybook)
 
-### Sprint 4: Console & Logging (Week 7)
-- [ ] Message categories
-- [ ] 3 visibility states (Full/Compact/Hidden)
-- [ ] Filter panel with advanced options
-- [ ] Log export
+- [ ] TaskCard, ConceptCard (if exist)
+- [ ] NotebookPanel cells
+- [ ] GraphPanel
+- [ ] FilterToolbar
+- [ ] Widget types
 
-### Sprint 5: State & Persistence (Week 8)
-- [ ] Save/load workspace
-- [ ] Auto-save to browser storage
-- [ ] Demo library integration
-- [ ] Session restore
+### 8.3 E2E Tests (Playwright)
 
-### Sprint 6: Testing & Polish (Week 9-10)
-- [ ] Storybook stories for all components
-- [ ] Playwright E2E test suite
-- [ ] Keyboard shortcuts
-- [ ] Theme system
-- [ ] Accessibility audit
-- [ ] Performance optimization
+- [ ] IDE loads and connects
+- [ ] REPL execution flow
+- [ ] Mode switching (Local ↔ Remote)
+- [ ] Notebook operations
+- [ ] Graph interactions
+- [ ] Filter system
+- [ ] Demo loading
+
+### 8.4 Documentation
+
+- [ ] **Getting Started Guide** - Quick intro for new users
+- [ ] **Component Guide** - How to use new utilities in components
+- [ ] **Custom View Guide** - How to create specialized UIs
+- [ ] **ZUI Guide** - Experimental graph-centric UI
+- [ ] **API Reference** - ReactiveState, EventBus, ServiceContainer, FluentUI
+- [ ] **Keyboard Shortcuts** - Quick reference card
+- [ ] **Migration Guide** - Updating existing components
+
+---
+
+## Implementation Strategy
+
+### Incremental Rollout
+
+1. ✅ **Phase 1** - Core utilities available, opt-in
+2. **Phase 2** - Create simple custom view examples
+3. **Phase 3** - Enhance existing components one at a time
+4. **Phase 4-5** - Add REPL and exploration features
+5. **Phase 6** - ZUI as separate experiment
+6. **Phase 7** - Polish and accessibility
+7. **Phase 8** - Testing and documentation
+
+### Feature Flags
+
+```javascript
+const config = {
+  useReactiveState: true,     // New reactive state
+  useFluentBuilders: true,    // FluentUI builders
+  useServiceContainer: false, // Optional DI
+  enableZUI: false            // Experimental ZUI
+};
+```
+
+### Prioritization
+
+**High Priority** (Tangible Wins):
+- Phase 3: Enhanced existing components with new utilities
+- Phase 4.1: Message visibility system (big UX improvement)
+- Phase 4.3: New widget types
+- Phase 5.1-5.2: Enhanced memory/concept browsing
+
+**Medium Priority**:
+- Phase 2: Simple custom view examples
+- Phase 4.2: Cell operations improvements
+- Phase 5.3: Derivation tracer enhancements
+- Phase 7.2-7.4: Keyboard shortcuts, themes, accessibility
+
+**Low Priority** (Future/Experimental):
+- Phase 6: ZUI experimental
+- Phase 7.1: Editor auto-completion
+- Phase 7.5: Advanced animations
+
+---
+
+## Current Status
+
+✅ **Phase 1 Complete** - Core metaprogramming infrastructure
+  - ReactiveState, ServiceContainer, EventBus, Decorators, FluentUI, ComponentGenerator
+
+🎯 **Next Up** - Pick tangible wins from Phase 3-5
+
+📝 **Experimental** - ZUI kept separate (Phase 6)
 
 ---
 
 ## Success Criteria
 
-✅ **Unified IDE** replaces 3 apps (online, repl, ide), demo.html stays separate
+✅ **Reduced boilerplate** - 40% less code in refactored components
 
-✅ **Seamless mode switching** Local ↔ Remote without reload
+✅ **Better UX** - Message visibility, enhanced browsing, new widgets
 
-✅ **Notebook interface** with persistent history and embedded widgets
+✅ **Simple custom views** - Easy to create specialized UIs
 
-✅ **Filter system** with Full/Compact/Hidden states for all message types
+✅ **Experimental ZUI** - Innovative graph-centric option available
 
-✅ **Data model clarity** TaskCard (single task) vs ConceptCard (task collection)
+✅ **Production ready** - Tests, docs, accessibility
 
-✅ **Memory exploration** Concept browser, task drilldown, derivation tracer
-
-✅ **State management** Save/load workspaces, auto-save, demo integration
-
-✅ **Testing infrastructure** Storybook for components, Playwright for E2E
-
-✅ **Performance** <1s HMR, <100ms interaction latency
-
-✅ **Accessibility** WCAG 2.1 AA compliant
+✅ **Backward compatible** - Existing code works unchanged
 
 ---
 
-## The Ideal IDE/REPL
+## Skipped (Avoiding Overengineering)
 
-This is **the IDE we want**:
+- ❌ Complex UIBuilder/manifest system - too much abstraction
+- ❌ State management framework - use browser storage directly
+- ❌ URL encoding - not essential
+- ❌ Plugin system - YAGNI (You Aren't Gonna Need It)
+- ❌ Auto-save/persistence - manual save is fine
+- ❌ Collaboration features - out of scope
 
-### For Learning
-- Load a demo → See reasoning happen → Explore derivations → Understand NARS
-
-### For Research
-- Prototype ideas in REPL → Inspect memory → Trace derivations → Export results
-
-### For Development
-- Write MeTTa → Test in isolation (Storybook) → Integrate → Validate (Playwright)
-
-### For Collaboration
-- Share notebooks → Reproduce experiments → Build on each other's work
-
-### For Production
-- Connect to remote server → Monitor live reasoning → Debug issues → Optimize
-
-**Fast, intuitive, powerful, collaborative.**
+**Keep it simple. Focus on tangible improvements.**

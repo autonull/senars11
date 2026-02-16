@@ -75,25 +75,44 @@ export class AIClient {
 
             async doGenerate(options) {
                 const prompt = AIClient._extractPrompt(options);
-                const text = await provider.generateText(prompt, {
+                const result = await provider.generate(prompt, {
                     temperature: options.temperature ?? 0.7,
-                    maxTokens: options.maxTokens ?? 256
+                    maxTokens: options.maxTokens ?? 256,
+                    tools: options.tools,
+                    toolChoice: options.toolChoice
                 });
 
-                const responseText = text || '';
+                const responseText = result.text || '';
+                const toolCalls = (result.toolCalls || []).map(tc => ({
+                    toolCallId: tc.id,
+                    toolName: tc.function.name,
+                    args: tc.function.arguments
+                }));
+
+                const content = [{type: 'text', text: responseText}];
+                if (toolCalls.length > 0) {
+                    toolCalls.forEach(tc => {
+                        content.push({
+                            type: 'tool-call',
+                            toolCallId: tc.toolCallId,
+                            toolName: tc.toolName,
+                            args: tc.args
+                        });
+                    });
+                }
 
                 return {
                     text: responseText,
-                    content: [{type: 'text', text: responseText}],
-                    finishReason: 'stop',
-                    usage: {
+                    content: content,
+                    finishReason: result.finishReason || 'stop',
+                    usage: result.usage || {
                         promptTokens: 0,
                         completionTokens: 0,
                         inputTokens: 0,
                         outputTokens: 0
                     },
                     rawCall: {rawPrompt: prompt, rawSettings: {}},
-                    toolCalls: [],
+                    toolCalls: toolCalls,
                     warnings: [],
                     logprobs: undefined
                 };

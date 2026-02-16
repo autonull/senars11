@@ -47,6 +47,42 @@ describe('WebLLMProvider', () => {
         expect(result).toBe('World');
     });
 
+    test('should generate text with tools', async () => {
+        const prompt = 'What time is it?';
+        const toolCalls = [{
+            id: 'call_1',
+            type: 'function',
+            function: {
+                name: 'get_time',
+                arguments: '{}'
+            }
+        }];
+
+        mockEngine.chat.completions.create.mockResolvedValue({
+            choices: [{
+                message: {
+                    content: 'I need to check the time.',
+                    tool_calls: toolCalls
+                },
+                finish_reason: 'tool_calls'
+            }],
+            usage: {total_tokens: 10}
+        });
+
+        const result = await provider.generate(prompt, {
+            tools: [{type: 'function', function: {name: 'get_time'}}]
+        });
+
+        expect(mockEngine.chat.completions.create).toHaveBeenCalledWith(expect.objectContaining({
+            messages: [{role: 'user', content: prompt}],
+            tools: expect.arrayContaining([expect.objectContaining({function: {name: 'get_time'}})])
+        }));
+
+        expect(result.text).toBe('I need to check the time.');
+        expect(result.toolCalls).toEqual(toolCalls);
+        expect(result.finishReason).toBe('tool_calls');
+    });
+
     test('should stream text', async () => {
         const prompt = 'Hello';
         const chunks = [

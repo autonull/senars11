@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeNARS Agent REPL</title>
+
+    <!-- Main UI Styles -->
+    <link rel="stylesheet" href="/ui/style.css">
+    <link rel="stylesheet" href="/ui/src/styles/components.css">
+    <link rel="stylesheet" href="/ui/src/styles/effects.css">
+    <link rel="stylesheet" href="/ui/src/styles/lm-activity.css">
+
+    <style>
+        body,
+        html {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #agent-container {
+            width: 100%;
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #status-bar-root {
+            width: 100%;
+            height: 24px;
+            background: #007acc;
+            flex-shrink: 0;
+            z-index: 1000;
+        }
+
+        #notification-container {
+            position: fixed;
+            top: 30px;
+            right: 20px;
+            z-index: 2000;
+        }
+
+        .agent-header {
+            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+            border-bottom: 2px solid rgba(0, 212, 255, 0.3);
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .agent-header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #00d4ff 0%, #00ff88 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .agent-header .subtitle {
+            font-size: 0.9rem;
+            color: #888;
+            margin: 0;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(30, 30, 30, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(0, 212, 255, 0.2);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            color: #00d4ff;
+        }
+
+        .loading-progress {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #888;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="agent-header">
+        <h1>🤖 SeNARS Agent REPL</h1>
+        <p class="subtitle">Agentic Interface with WebLLM • Offline LM • System Control</p>
+    </div>
+
+    <div id="agent-container">
+        <div id="loading-overlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Initializing Agent...</div>
+            <div class="loading-progress" id="loading-progress"></div>
+        </div>
+    </div>
+
+    <div id="status-bar-root"></div>
+    <div id="notification-container"></div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "cytoscape": "/node_modules/cytoscape/dist/cytoscape.esm.min.mjs",
+            "cytoscape-fcose": "/ui/src/shims/mock-cytoscape-fcose.js",
+            "golden-layout": "/node_modules/golden-layout/dist/esm/index.js",
+            "marked": "/node_modules/marked/lib/marked.esm.js",
+            "@senars/core": "/core/src/index.js",
+            "@senars/core/": "/core/",
+            "@senars/agent": "/agent/src/index.js",
+            "@senars/agent/": "/agent/",
+            "@mlc-ai/web-llm": "/node_modules/@mlc-ai/web-llm/lib/index.js",
+            "ai": "/node_modules/ai/dist/index.js",
+            "@ai-sdk/openai": "/node_modules/@ai-sdk/openai/dist/index.js",
+            "@ai-sdk/anthropic": "/node_modules/@ai-sdk/anthropic/dist/index.js",
+            "ollama-ai-provider": "/node_modules/ollama-ai-provider/dist/index.js",
+            "zod": "/node_modules/zod/index.js",
+            "mitt": "/node_modules/mitt/dist/mitt.mjs",
+            "uuid": "/node_modules/uuid/dist/esm-browser/index.js",
+            "eventemitter3": "/node_modules/eventemitter3/dist/eventemitter3.esm.js",
+            "immer": "/node_modules/immer/dist/immer.mjs",
+            "js-sha256": "/node_modules/js-sha256/src/sha256.js",
+            "danfojs": "/node_modules/danfojs/lib/bundle.esm.js",
+            "module": "/ui/src/shims/mock-node.js",
+            "fs": "/ui/src/shims/mock-node.js",
+            "path": "/ui/src/shims/mock-node.js",
+            "url": "/ui/src/shims/mock-node.js",
+            "crypto": "/ui/src/shims/mock-node.js",
+            "events": "/ui/src/shims/events-shim.js",
+            "util": "/ui/src/shims/mock-node.js",
+            "os": "/ui/src/shims/mock-node.js",
+            "child_process": "/ui/src/shims/mock-node.js",
+            "@langchain/core/messages": "/ui/src/shims/mock-langchain.js",
+            "@langchain/core/tools": "/ui/src/shims/mock-langchain.js",
+            "@langchain/ollama": "/ui/src/shims/mock-langchain.js",
+            "@langchain/openai": "/ui/src/shims/mock-langchain.js",
+            "@langchain/langgraph": "/ui/src/shims/mock-langchain.js",
+            "@langchain/langgraph/prebuilt": "/ui/src/shims/mock-langchain.js",
+            "@langchain/langgraph-checkpoint": "/ui/src/shims/mock-langchain.js",
+            "langchain": "/ui/src/shims/mock-langchain.js",
+            "chart.js/auto": "/node_modules/chart.js/auto/auto.js",
+            "chart.js": "/node_modules/chart.js/dist/chart.js",
+            "@kurkle/color": "/node_modules/@kurkle/color/dist/color.esm.js"
+        }
+    }
+    </script>
+
+    <!-- Agent REPL Entry Point -->
+    <script type="module" src="/ui/src/main-agent.js"></script>
+</body>
+
+</html>
