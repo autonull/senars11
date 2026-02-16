@@ -85,7 +85,12 @@ export class MettaApp {
     get graph() { return this.graphPanel.graphManager; }
     get isReasonerRunning() { return this.reasoningManager.isReasonerRunning; }
     get lmController() { return this.reasoningManager.lmController; }
-    get localToolsBridge() { return this.reasoningManager.localToolsBridge; }
+    get localToolsBridge() {
+        if (this.reasoningManager.lmController && this.reasoningManager.lmController.toolsBridge) {
+            return this.reasoningManager.lmController.toolsBridge;
+        }
+        return this.reasoningManager.localToolsBridge;
+    }
 
     // Bridge for CodeEditorPanel
     get commandProcessor() {
@@ -574,5 +579,59 @@ export class MettaApp {
              }
         }
         if (this.graph.scheduleLayout) this.graph.scheduleLayout();
+    }
+
+    _getMetta() {
+        if (this.lmController && this.lmController.toolsBridge && this.lmController.toolsBridge.metta) {
+            return this.lmController.toolsBridge.metta;
+        }
+        if (this.localToolsBridge && this.localToolsBridge.metta) {
+            return this.localToolsBridge.metta;
+        }
+        return null;
+    }
+
+    visualizeAtomSpace() {
+        const metta = this._getMetta();
+        if (!metta) {
+            this.log('MeTTa interpreter not available', 'error');
+            return;
+        }
+
+        const allAtoms = metta.space.all ? metta.space.all() : Array.from(metta.space.atoms);
+
+        this.graph.clear();
+        this.log(`Visualizing ${allAtoms.length} atoms...`, 'system');
+
+        let count = 0;
+        for (const atom of allAtoms) {
+            this._addMettaTermToGraph(atom);
+            count++;
+        }
+        this.graph.scheduleLayout();
+        this.log(`Visualized ${count} atoms.`, 'success');
+    }
+
+    _addMettaTermToGraph(atom) {
+        if (!atom) return;
+        const id = atom.toString();
+
+        this.graph.addNode({ id: id, term: id, type: 'concept' }, false);
+
+        if (atom.type === 'expression' || (atom.components && atom.components.length > 0)) {
+            const components = atom.components || [];
+
+            components.forEach((comp, index) => {
+                const compId = comp.toString();
+                this._addMettaTermToGraph(comp);
+
+                this.graph.addEdge({
+                    source: id,
+                    target: compId,
+                    type: 'structure',
+                    label: index.toString()
+                }, false);
+            });
+        }
     }
 }

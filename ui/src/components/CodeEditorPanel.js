@@ -83,6 +83,19 @@ export class CodeEditorPanel extends Component {
             .on('click', () => this.loadFile())
             .mount(toolbar);
 
+        // Visualize Button
+        $('button')
+            .text('👁️ Visualize')
+            .style({ padding: '4px 8px', background: '#333', color: '#ccc', border: '1px solid #444', borderRadius: '3px', cursor: 'pointer' })
+            .on('click', () => {
+                if (this.app && this.app.visualizeAtomSpace) {
+                    this.app.visualizeAtomSpace();
+                } else {
+                    console.warn('Visualize AtomSpace not available');
+                }
+            })
+            .mount(toolbar);
+
         // Auto Run Toggle
         const autoRunLabel = $('label')
             .style({ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85em', color: '#ccc', marginLeft: '8px', cursor: 'pointer' })
