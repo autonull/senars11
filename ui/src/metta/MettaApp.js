@@ -591,6 +591,11 @@ export class MettaApp {
         return null;
     }
 
+    clearGraph() {
+        this.graph.clear();
+        this.log('Graph cleared.', 'system');
+    }
+
     visualizeAtomSpace() {
         const metta = this._getMetta();
         if (!metta) {
@@ -608,29 +613,46 @@ export class MettaApp {
             this._addMettaTermToGraph(atom);
             count++;
         }
+
         this.graph.scheduleLayout();
         this.log(`Visualized ${count} atoms.`, 'success');
     }
 
-    _addMettaTermToGraph(atom) {
+    _addMettaTermToGraph(atom, parentId = null, edgeLabel = '') {
         if (!atom) return;
+
         const id = atom.toString();
+        // Determine type for color coding
+        let type = 'concept';
+        if (atom.type === 'compound' || (atom.components && atom.components.length > 0)) type = 'compound'; // Expressions
+        else if (atom.name && atom.name.startsWith('$')) type = 'variable'; // Variables
+        else if (atom.name) type = 'symbol'; // Symbols
 
-        this.graph.addNode({ id: id, term: id, type: 'concept' }, false);
+        // Add the node if not exists (GraphManager handles duplicates)
+        this.graph.addNode({
+            id: id,
+            term: id,
+            type: type,
+            // Store raw atom data for inspection
+            raw: atom
+        }, false);
 
-        if (atom.type === 'expression' || (atom.components && atom.components.length > 0)) {
+        // If called recursively with a parent, link it
+        if (parentId) {
+            this.graph.addEdge({
+                source: parentId,
+                target: id,
+                type: 'structure',
+                label: edgeLabel
+            }, false);
+        }
+
+        // Recursively handle components (expressions)
+        if (atom.type === 'compound' || (atom.components && atom.components.length > 0)) {
             const components = atom.components || [];
-
             components.forEach((comp, index) => {
-                const compId = comp.toString();
-                this._addMettaTermToGraph(comp);
-
-                this.graph.addEdge({
-                    source: id,
-                    target: compId,
-                    type: 'structure',
-                    label: index.toString()
-                }, false);
+                // Pass current atom ID as parent ID for recursion
+                this._addMettaTermToGraph(comp, id, index.toString());
             });
         }
     }
