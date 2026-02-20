@@ -191,14 +191,14 @@ export class StatusBar extends Component {
                 this.onReasonerControl?.('pause');
             }).mount(parent);
 
-        button('⏭').id('status-btn-step').class('status-btn').attr('title', 'Step Reasoner')
+        button('⏭').id('status-btn-step').class('status-btn').attr('title', 'Step Reasoner (S)')
             .on('click', () => this.onReasonerControl?.('step')).mount(parent);
 
-        button('+10').id('status-btn-step-10').class('status-btn').attr('title', 'Step 10 Cycles')
+        button('+10').id('status-btn-step-10').class('status-btn').attr('title', 'Step 10 Cycles (Shift+S)')
             .style({ fontSize: '0.8em', width: 'auto', padding: '0 5px' })
             .on('click', () => this.onReasonerControl?.('step', 10)).mount(parent);
 
-        button('+50').id('status-btn-step-50').class('status-btn').attr('title', 'Step 50 Cycles')
+        button('+50').id('status-btn-step-50').class('status-btn').attr('title', 'Step 50 Cycles (Alt+S)')
             .style({ fontSize: '0.8em', width: 'auto', padding: '0 5px' })
             .on('click', () => this.onReasonerControl?.('step', 50)).mount(parent);
 

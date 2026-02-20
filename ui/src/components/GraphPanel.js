@@ -86,6 +86,13 @@ export class GraphPanel extends Component {
     }
 
     createToolbar() {
+        // Remove existing toolbar if any
+        // Note: FluentToolbar changes class to 'fluent-toolbar', so we check for that too
+        const existing = this.container.querySelector('.fluent-toolbar') || this.container.querySelector('.graph-toolbar-container');
+        if (existing) {
+            existing.remove();
+        }
+
         const toolbarContainer = FluentUI.create('div')
             .class('graph-toolbar-container')
             .mount(this.container)
@@ -146,16 +153,18 @@ export class GraphPanel extends Component {
                 class: 'graph-control-row',
                 items: [
                     {
-                        type: 'toggle',
-                        label: 'Tasks',
-                        checked: this.state.filters.showTasks,
-                        onChange: (checked) => this.state.filters = { ...this.state.filters, showTasks: checked }
+                        type: 'button',
+                        icon: '✅',
+                        title: `Tasks ${this.state.filters.showTasks ? '(On)' : '(Off)'}`,
+                        class: this.state.filters.showTasks ? 'active-toggle' : '',
+                        onClick: () => this.state.filters = { ...this.state.filters, showTasks: !this.state.filters.showTasks }
                     },
                     {
-                        type: 'toggle',
-                        label: 'Concepts',
-                        checked: this.state.filters.showConcepts !== false,
-                        onChange: (checked) => this.state.filters = { ...this.state.filters, showConcepts: checked }
+                        type: 'button',
+                        icon: '🧠',
+                        title: `Concepts ${this.state.filters.showConcepts !== false ? '(On)' : '(Off)'}`,
+                        class: this.state.filters.showConcepts !== false ? 'active-toggle' : '',
+                        onClick: () => this.state.filters = { ...this.state.filters, showConcepts: !this.state.filters.showConcepts }
                     }
                 ]
             }

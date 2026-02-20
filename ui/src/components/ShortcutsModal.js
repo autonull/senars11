@@ -44,7 +44,9 @@ export class ShortcutsModal {
         // Shortcuts Table
         const shortcuts = [
             { key: 'Space', desc: 'Start/Pause Reasoner' },
-            { key: 'S', desc: 'Step Reasoner' },
+            { key: 'S', desc: 'Step Reasoner (1 cycle)' },
+            { key: 'Shift + S', desc: 'Step 10 Cycles' },
+            { key: 'Alt + S', desc: 'Step 50 Cycles' },
             { key: 'F', desc: 'Fit Graph to View' },
             { key: '+ / -', desc: 'Zoom In / Out' },
             { key: 'L', desc: 'Recalculate Layout' },
