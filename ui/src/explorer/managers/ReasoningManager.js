@@ -139,7 +139,7 @@ export class ReasoningManager {
         }
     }
 
-    async stepReasoner() {
+    async stepReasoner(steps = 1) {
         const nar = this._getNAR();
         if (!nar) {
             this.app.log('Reasoner not available (LLM not connected?)', 'warning');
@@ -147,7 +147,9 @@ export class ReasoningManager {
         }
 
         try {
-            await nar.step();
+            for (let i = 0; i < steps; i++) {
+                await nar.step();
+            }
         } catch (e) {
             this.app.log(`Reasoner step error: ${e.message}`, 'error');
             this.toggleReasoner(false);
@@ -173,7 +175,7 @@ export class ReasoningManager {
                 this.toggleReasoner(false);
                 break;
             case 'step':
-                this.stepReasoner();
+                this.stepReasoner(value || 1);
                 break;
             case 'throttle':
                 this.reasonerDelay = value;

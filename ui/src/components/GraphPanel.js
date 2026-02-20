@@ -18,6 +18,7 @@ export class GraphPanel extends Component {
         this.state = new ReactiveState({
             filters: {
                 showTasks: true,
+                showConcepts: true,
                 minPriority: 0,
                 hideIsolated: false
             },
@@ -26,12 +27,21 @@ export class GraphPanel extends Component {
         });
 
         // Watchers
-        this.state.watch('filters', () => this._dispatchFilter());
-        this.state.watch('viewMode', (mode) => this.setLayout(mode));
+        this.state.watch('filters', () => {
+            this._dispatchFilter();
+            // Re-render toolbar to update checkbox states if changed externally
+            // minimal flickering risk, acceptable for now
+            this.createToolbar();
+        });
+        this.state.watch('viewMode', (mode) => {
+            this.setLayout(mode);
+            this.createToolbar();
+        });
         this.state.watch('scatterAxes', () => {
             if (this.state.viewMode === 'scatter') {
                 this.setLayout('scatter');
             }
+            this.createToolbar();
         });
 
         this._setupEventListeners();
@@ -85,15 +95,68 @@ export class GraphPanel extends Component {
     }
 
     _createToolbarItems() {
+        const layoutOptions = [
+            { label: 'Force (fCoSE)', value: 'fcose', selected: this.state.viewMode === 'fcose' },
+            { label: 'Circle', value: 'circle', selected: this.state.viewMode === 'circle' },
+            { label: 'Grid', value: 'grid', selected: this.state.viewMode === 'grid' },
+            { label: 'Breadthfirst', value: 'breadthfirst', selected: this.state.viewMode === 'breadthfirst' },
+            { label: 'Scatter', value: 'scatter', selected: this.state.viewMode === 'scatter' },
+            { label: 'Sorted Grid', value: 'sorted-grid', selected: this.state.viewMode === 'sorted-grid' }
+        ];
+
+        const scatterAxesOptions = [
+            { label: 'Priority', value: 'priority' },
+            { label: 'Confidence', value: 'confidence' },
+            { label: 'Frequency', value: 'frequency' }
+        ];
+
         return [
             {
                 type: 'group',
                 class: 'graph-control-row',
                 items: [
+                    {
+                        type: 'select',
+                        options: layoutOptions,
+                        onChange: (val) => this.state.viewMode = val,
+                        style: { width: '120px', marginRight: '5px' }
+                    },
+                    this.state.viewMode === 'scatter' ? {
+                        type: 'select',
+                        options: scatterAxesOptions.map(o => ({ ...o, selected: this.state.scatterAxes.x === o.value })),
+                        onChange: (val) => this.state.scatterAxes = { ...this.state.scatterAxes, x: val },
+                        style: { width: '90px', marginRight: '5px' },
+                        title: 'X-Axis'
+                    } : null,
+                    this.state.viewMode === 'scatter' ? {
+                        type: 'select',
+                        options: scatterAxesOptions.map(o => ({ ...o, selected: this.state.scatterAxes.y === o.value })),
+                        onChange: (val) => this.state.scatterAxes = { ...this.state.scatterAxes, y: val },
+                        style: { width: '90px', marginRight: '5px' },
+                        title: 'Y-Axis'
+                    } : null,
                     { type: 'button', icon: '⤢', title: 'Fit', onClick: () => this.graphManager?.fitToScreen() },
                     { type: 'button', icon: '➕', title: 'In', onClick: () => this.graphManager?.zoomIn() },
                     { type: 'button', icon: '➖', title: 'Out', onClick: () => this.graphManager?.zoomOut() },
                     { type: 'button', icon: '↻', title: 'Refresh', onClick: () => this.resize(), id: 'refresh-graph' }
+                ].filter(Boolean)
+            },
+            {
+                type: 'group',
+                class: 'graph-control-row',
+                items: [
+                    {
+                        type: 'toggle',
+                        label: 'Tasks',
+                        checked: this.state.filters.showTasks,
+                        onChange: (checked) => this.state.filters = { ...this.state.filters, showTasks: checked }
+                    },
+                    {
+                        type: 'toggle',
+                        label: 'Concepts',
+                        checked: this.state.filters.showConcepts !== false,
+                        onChange: (checked) => this.state.filters = { ...this.state.filters, showConcepts: checked }
+                    }
                 ]
             }
         ];
