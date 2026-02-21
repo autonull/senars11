@@ -2,7 +2,7 @@
 import { RLAgent } from '../core/RLAgent.js';
 import { LearnedGrounding } from '../grounding/LearnedGrounding.js';
 import { EpisodicMemory } from '../memory/EpisodicMemory.js';
-import { SkillLibrary } from '../core/SkillLibrary.js';
+import { SkillManager } from '../skills/SkillManager.js';
 import { DualProcessArchitecture } from '../architectures/DualProcessArchitecture.js';
 import { MeTTaPolicyArchitecture } from '../architectures/MeTTaPolicyArchitecture.js';
 import { EvolutionaryArchitecture } from '../architectures/EvolutionaryArchitecture.js';
@@ -24,7 +24,7 @@ export class NeuroSymbolicAgent extends RLAgent {
 
     this.grounding = new LearnedGrounding();
     this.memory = new EpisodicMemory();
-    this.skills = new SkillLibrary();
+    this.skills = new SkillManager();
 
     // Select Architecture
     if (this.config.architecture === 'metta-policy') {

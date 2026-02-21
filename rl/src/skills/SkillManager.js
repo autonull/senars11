@@ -1,6 +1,6 @@
 
 // Composable skill repository
-export class SkillLibrary {
+export class SkillManager {
     constructor() {
         this.skills = new Map();
     }

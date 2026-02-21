@@ -4,6 +4,7 @@ import { SeNARSBridge } from '../reasoning/SeNARSBridge.js';
 import { Planner } from '../modules/Planner.js';
 import { HierarchicalStrategy } from '../strategies/hierarchical.js';
 import { RuleInducer } from '../modules/RuleInducer.js';
+import { IntrinsicMotivation } from '../modules/IntrinsicMotivation.js';
 import { MeTTaInterpreter } from '@senars/metta';
 import { registerTensorPrimitives } from '../core/TensorPrimitives.js';
 import fs from 'fs';
@@ -34,6 +35,7 @@ export class DualProcessArchitecture extends Architecture {
         this.planner = new Planner(this.bridge, this.config);
         this.hierarchical = new HierarchicalStrategy(this.bridge, agent.skills, this.config);
         this.inducer = new RuleInducer(this.bridge, this.config);
+        this.motivation = new IntrinsicMotivation(this.config);
     }
 
     async initialize() {
@@ -113,12 +115,16 @@ export class DualProcessArchitecture extends Architecture {
     async learn(observation, action, reward, nextObservation, done) {
         if (!this.initialized) await this.initialize();
 
+        // Calculate Intrinsic Reward
+        const intrinsicReward = this.motivation.calculate({ obs: observation, action, nextObs: nextObservation });
+        const totalReward = reward + intrinsicReward;
+
         // 0. Update Neural Policy
         if (this.config.usePolicy && this.metta) {
             const obsStr = `(${observation.join(' ')})`;
             const target = [0, 0];
             if (typeof action === 'number' && action < target.length) {
-                 target[action] = reward;
+                 target[action] = totalReward;
             }
             const targetStr = `(${target.join(' ')})`;
             this.metta.run(`! (update-policy ${obsStr} ${targetStr})`);
