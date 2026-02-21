@@ -597,4 +597,25 @@ export class ComparativeEvaluator extends Component {
     getComparisons() {
         return this.comparisons;
     }
+
+    // Backward compatibility aliases
+    static get NeuroSymbolicBenchmarkRunner() {
+        return this;
+    }
+
+    static get BenchmarkFactory() {
+        return this;
+    }
+
+    static createComprehensive(config = {}) {
+        return new BenchmarkRunner({ ...config, numEpisodes: 100, saveTrajectories: true });
+    }
+
+    static createQuick(config = {}) {
+        return new BenchmarkRunner({ ...config, numEpisodes: 20 });
+    }
+
+    static createTransfer(config = {}) {
+        return new BenchmarkRunner({ ...config, numEpisodes: 50 });
+    }
 }

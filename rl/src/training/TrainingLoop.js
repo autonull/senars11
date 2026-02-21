@@ -5,10 +5,12 @@
 import { Component } from '../composable/Component.js';
 import { ConfigManager, HyperparameterSpaces } from '../config/ConfigManager.js';
 import { PluginManager, PluginPresets } from '../plugins/PluginSystem.js';
-import { ArchitectureFactory } from '../architecture/NeuroSymbolicArchitecture.js';
+import { ArchitectureFactory } from '../architectures/NeuroSymbolicArchitecture.js';
 import { WorldModel } from '../neurosymbolic/WorldModel.js';
-import { SkillDiscoveryEngine } from '../skills/HierarchicalSkillSystem.js';
+import { SkillDiscovery } from '../skills/SkillDiscovery.js';
 import { CausalReasoner, CausalGraph } from '../reasoning/CausalReasoning.js';
+import { ExperienceBuffer, CausalExperience } from '../experience/ExperienceBuffer.js';
+import { MetaController } from '../meta/MetaController.js';
 
 /**
  * Training Configuration
@@ -70,26 +72,35 @@ export class EpisodeResult {
 export class TrainingLoop extends Component {
     constructor(agent, env, config = new TrainingConfig()) {
         super(config);
-        
+
         this.agent = agent;
         this.env = env;
         this.config = config;
-        
+
         // Configuration manager
         this.configManager = new ConfigManager({
             learningRate: 0.001,
             explorationRate: 0.1,
             discountFactor: 0.99
         });
-        
+
         // Plugin manager
         this.pluginManager = new PluginManager();
-        
+
+        // Shared experience buffer (used by all components)
+        this.experienceBuffer = new ExperienceBuffer({
+            capacity: 50000,
+            batchSize: config.batchSize,
+            sampleStrategy: 'prioritized',
+            useCausalIndexing: config.paradigms.causal
+        });
+
         // Optional components
         this.worldModel = config.useWorldModel ? new WorldModel() : null;
-        this.skillDiscovery = config.useSkillDiscovery ? new SkillDiscoveryEngine() : null;
-        this.causalReasoner = config.useCausalReasoning ? new CausalReasoner() : null;
-        
+        this.skillDiscovery = config.useSkillDiscovery || config.paradigms.hierarchical ? new SkillDiscovery() : null;
+        this.causalReasoner = config.useCausalReasoning || config.paradigms.causal ? new CausalReasoner() : null;
+        this.metaController = config.meta ? new MetaController() : null;
+
         // Training state
         this.currentEpisode = 0;
         this.totalSteps = 0;
@@ -100,14 +111,15 @@ export class TrainingLoop extends Component {
             successes: [],
             losses: []
         };
-        
+
         // Callbacks
         this.callbacks = {
             onEpisodeStart: [],
             onEpisodeEnd: [],
             onStep: [],
             onEval: [],
-            onSave: []
+            onSave: [],
+            onSkillDiscovered: []
         };
     }
 
@@ -117,24 +129,37 @@ export class TrainingLoop extends Component {
     async onInitialize() {
         // Initialize agent
         await this.agent?.initialize?.();
-        
+
+        // Initialize shared experience buffer
+        await this.experienceBuffer.initialize();
+
         // Initialize optional components
         await this.worldModel?.initialize?.();
         await this.skillDiscovery?.initialize?.();
         await this.causalReasoner?.initialize?.();
-        
+        await this.metaController?.initialize?.();
+
         // Install plugins
         await this.pluginManager.installAll({
             agent: this.agent,
             env: this.env,
-            config: this.configManager
+            config: this.configManager,
+            experienceBuffer: this.experienceBuffer
         });
-        
+
         // Set random seed
         if (this.config.seed) {
             this.seedRandom(this.config.seed);
         }
-        
+
+        // Set initial architecture for meta-controller
+        if (this.metaController && this.agent?.architecture) {
+            this.metaController.setArchitecture({
+                type: this.agent.config.architecture,
+                components: ['grounding', 'memory', 'skills']
+            });
+        }
+
         this.emit('initialized', { config: this.config });
     }
 
@@ -173,8 +198,28 @@ export class TrainingLoop extends Component {
             if (episode % this.config.evalFrequency === 0 && episode > 0) {
                 const evalResult = await this.evaluate();
                 this.emit('evaluation', evalResult);
+                
+                // Meta-controller evaluates and potentially modifies architecture
+                if (this.metaController) {
+                    const result = await this.metaController.evaluatePerformance(evalResult.meanReward);
+                    if (result.modified) {
+                        this.emit('architectureModified', result);
+                    }
+                }
             }
-            
+
+            // Periodic skill discovery
+            if (this.skillDiscovery && episode % 50 === 0 && episode > 0) {
+                const experiences = await this.experienceBuffer.sample(500);
+                const newSkills = await this.skillDiscovery.discoverSkills(experiences, { consolidate: true });
+                if (newSkills.length > 0) {
+                    this.emit('skillsDiscovered', { count: newSkills.length, skills: newSkills });
+                    for (const cb of this.callbacks.onSkillDiscovered) {
+                        await cb({ skills: newSkills });
+                    }
+                }
+            }
+
             // Periodic saving
             if (episode % this.config.saveFrequency === 0 && episode > 0) {
                 await this.save();
@@ -294,12 +339,25 @@ export class TrainingLoop extends Component {
      * Learn from transition.
      */
     async learn(transition) {
+        // Store in shared experience buffer
+        const experience = new CausalExperience({
+            state: transition.state,
+            action: transition.action,
+            reward: transition.reward,
+            nextState: transition.nextState,
+            done: transition.done,
+            trajectoryId: this.currentEpisode,
+            stepIndex: this.totalSteps
+        });
+        await this.experienceBuffer.store(experience);
+
         // Plugin hook for learning
         const modified = await this.pluginManager.executeHook('learn', {
             transition,
-            episode: this.currentEpisode
+            episode: this.currentEpisode,
+            experience
         });
-        
+
         // Model-free learning
         if (this.config.paradigms.modelFree) {
             await this.agent.learn?.(
@@ -310,65 +368,26 @@ export class TrainingLoop extends Component {
                 modified.transition.done
             );
         }
-        
+
         // World model learning
         if (this.worldModel && this.config.paradigms.modelBased) {
             await this.worldModel.train([modified.transition], 1);
         }
-        
-        // Skill discovery
-        if (this.skillDiscovery) {
-            this.skillDiscovery.processTransition(modified.transition);
-        }
-        
+
         // Causal learning
         if (this.causalReasoner) {
-            this.updateCausalGraph(modified.transition);
+            await this.causalReasoner.learn(
+                JSON.stringify(transition.state),
+                JSON.stringify(transition.nextState),
+                JSON.stringify({ action: transition.action, reward: transition.reward })
+            );
         }
-        
+
         // Intrinsic motivation
         if (this.config.useIntrinsicMotivation) {
             const intrinsicReward = await this.computeIntrinsicReward(modified.transition);
             modified.transition.reward += intrinsicReward;
         }
-    }
-
-    /**
-     * Update causal graph from transition.
-     */
-    updateCausalGraph(transition) {
-        if (!this.causalReasoner) return;
-        
-        const graph = this.causalReasoner.graph;
-        
-        // Add nodes for state variables
-        const stateVars = this.extractVariables(transition.state);
-        const nextVars = this.extractVariables(transition.nextState);
-        
-        for (const [varId, value] of Object.entries(stateVars)) {
-            if (!graph.nodes.has(varId)) {
-                graph.addNode(varId, { type: 'state' });
-            }
-            graph.observe(varId, value);
-        }
-        
-        // Learn causal structure
-        if (this.totalSteps % 100 === 0) {
-            graph.learnStructure([this.episodeHistory.flatMap(e => e.info.trajectory ?? [])]);
-        }
-    }
-
-    /**
-     * Extract variables from state.
-     */
-    extractVariables(state) {
-        if (Array.isArray(state)) {
-            return Object.fromEntries(state.map((v, i) => [`var_${i}`, v]));
-        }
-        if (typeof state === 'object') {
-            return state;
-        }
-        return { value: state };
     }
 
     /**
@@ -544,9 +563,11 @@ export class TrainingLoop extends Component {
 
     async onShutdown() {
         await this.pluginManager.uninstallAll();
+        await this.experienceBuffer?.shutdown?.();
         await this.worldModel?.shutdown?.();
         await this.skillDiscovery?.shutdown?.();
         await this.causalReasoner?.shutdown?.();
+        await this.metaController?.shutdown?.();
     }
 }
 
