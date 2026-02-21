@@ -1,5 +1,5 @@
 
-import { RLEnvironment } from '../environments/RLEnvironment.js';
+import { RLEnvironment } from '../core/RLEnvironment.js';
 
 /**
  * A simple 1D Continuous Control environment.

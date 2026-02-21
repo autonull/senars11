@@ -1,5 +1,5 @@
 
-import { RLAgent } from './RLAgent.js';
+import { RLAgent } from '../core/RLAgent.js';
 import { Tensor } from '@senars/tensor';
 // We might need an optimizer, let's assume one is available or we implement a simple SGD step
 

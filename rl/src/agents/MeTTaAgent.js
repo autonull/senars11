@@ -1,5 +1,5 @@
 
-import { RLAgent } from './RLAgent.js';
+import { RLAgent } from '../core/RLAgent.js';
 import { MeTTaInterpreter } from '@senars/metta';
 import path from 'path';
 import fs from 'fs';
