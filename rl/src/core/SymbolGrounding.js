@@ -47,6 +47,14 @@ export class SymbolGrounding {
         }
 
         if (typeof symbols === 'string') {
+            // Strip operation prefix
+            if (symbols.startsWith('^')) {
+                symbols = symbols.slice(1);
+            }
+            if (symbols.startsWith('op_')) {
+                symbols = symbols.slice(3);
+            }
+
             if (symbols.startsWith('(')) {
                 const content = symbols.slice(1, -1).trim();
                 // Check if it looks like a vector (numbers separated by space or comma)
