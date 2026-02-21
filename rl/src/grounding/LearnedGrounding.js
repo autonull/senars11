@@ -1,8 +1,10 @@
 
+import { Grounding } from '../core/Grounding.js';
+
 // Bidirectional mapping between neural and symbolic representations
-export class SymbolGrounding {
+export class LearnedGrounding extends Grounding {
     constructor(config = {}) {
-        this.config = config;
+        super(config);
         this.conceptMap = new Map(); // Symbol -> Tensor/Value
         this.valueMap = new Map();   // Tensor/Value hash -> Symbol
         this.counter = 0;
@@ -82,7 +84,7 @@ export class SymbolGrounding {
      * @param {*} obs
      * @param {*} symbols
      */
-    updateGrounding(obs, symbols) {
+    update(obs, symbols) {
         this.conceptMap.set(symbols, obs);
         // TODO: Reverse mapping logic
     }

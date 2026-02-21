@@ -1,6 +1,6 @@
 
 // Episodic buffer enriched with symbolic annotations
-export class WorkingMemory {
+export class EpisodicMemory {
     constructor(capacity = 1000) {
         this.capacity = capacity;
         this.buffer = [];

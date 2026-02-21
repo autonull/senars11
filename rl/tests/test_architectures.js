@@ -81,9 +81,31 @@ async function testDualProcess() {
     console.log("'dual-process' architecture Passed!");
 }
 
+async function testEvolutionary() {
+    console.log("\n--- Testing 'evolutionary' architecture ---");
+    const env = new MockEnv();
+
+    const agent = new NeuroSymbolicAgent(env, {
+        architecture: 'evolutionary'
+    });
+
+    await agent.initialize();
+
+    assert.equal(agent.architecture.constructor.name, 'EvolutionaryArchitecture');
+    console.log("Architecture instantiated correctly.");
+
+    const action = await agent.act([0.1]);
+    console.log(`Action: ${action}`);
+    assert(typeof action === 'number');
+
+    await agent.close();
+    console.log("'evolutionary' architecture Passed!");
+}
+
 async function run() {
     await testMeTTaOnly();
     await testDualProcess();
+    await testEvolutionary();
 }
 
 run().catch(err => {

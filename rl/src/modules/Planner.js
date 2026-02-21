@@ -1,5 +1,5 @@
 
-export class ModelBasedStrategy {
+export class Planner {
     constructor(bridge, config = {}) {
         this.bridge = bridge;
         this.config = config;

@@ -1,10 +1,11 @@
 
 import { RLAgent } from '../core/RLAgent.js';
-import { SymbolGrounding } from '../core/SymbolGrounding.js';
-import { WorkingMemory } from '../core/WorkingMemory.js';
+import { LearnedGrounding } from '../grounding/LearnedGrounding.js';
+import { EpisodicMemory } from '../memory/EpisodicMemory.js';
 import { SkillLibrary } from '../core/SkillLibrary.js';
 import { DualProcessArchitecture } from '../architectures/DualProcessArchitecture.js';
 import { MeTTaPolicyArchitecture } from '../architectures/MeTTaPolicyArchitecture.js';
+import { EvolutionaryArchitecture } from '../architectures/EvolutionaryArchitecture.js';
 
 export class NeuroSymbolicAgent extends RLAgent {
   constructor(env, config = {}) {
@@ -21,13 +22,15 @@ export class NeuroSymbolicAgent extends RLAgent {
         ...config
     };
 
-    this.grounding = new SymbolGrounding();
-    this.memory = new WorkingMemory();
+    this.grounding = new LearnedGrounding();
+    this.memory = new EpisodicMemory();
     this.skills = new SkillLibrary();
 
     // Select Architecture
     if (this.config.architecture === 'metta-policy') {
         this.architecture = new MeTTaPolicyArchitecture(this, this.config);
+    } else if (this.config.architecture === 'evolutionary') {
+        this.architecture = new EvolutionaryArchitecture(this, this.config);
     } else {
         // Default to Dual Process (the original implementation)
         this.architecture = new DualProcessArchitecture(this, this.config);

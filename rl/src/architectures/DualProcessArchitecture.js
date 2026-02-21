@@ -1,9 +1,9 @@
 
 import { Architecture } from '../core/Architecture.js';
 import { SeNARSBridge } from '../reasoning/SeNARSBridge.js';
-import { ModelBasedStrategy } from '../strategies/model-based.js';
+import { Planner } from '../modules/Planner.js';
 import { HierarchicalStrategy } from '../strategies/hierarchical.js';
-import { RuleInducer } from '../reasoning/RuleInducer.js';
+import { RuleInducer } from '../modules/RuleInducer.js';
 import { MeTTaInterpreter } from '@senars/metta';
 import { registerTensorPrimitives } from '../core/TensorPrimitives.js';
 import fs from 'fs';
@@ -31,7 +31,7 @@ export class DualProcessArchitecture extends Architecture {
 
         // Initialize SeNARS (System 2)
         this.bridge = new SeNARSBridge(agent, senarsConfig);
-        this.planner = new ModelBasedStrategy(this.bridge, this.config);
+        this.planner = new Planner(this.bridge, this.config);
         this.hierarchical = new HierarchicalStrategy(this.bridge, agent.skills, this.config);
         this.inducer = new RuleInducer(this.bridge, this.config);
     }
@@ -143,7 +143,7 @@ export class DualProcessArchitecture extends Architecture {
 
         // 2. Update grounding (if learned)
         if (this.config.grounding === 'learned') {
-            this.agent.grounding.updateGrounding(observation, obsSym);
+            this.agent.grounding.update(observation, obsSym);
         }
 
         // 3. Rule Induction
