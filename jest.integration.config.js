@@ -7,4 +7,7 @@ export default {
     setupFilesAfterEnv: ['<rootDir>/tests/setup/integration.js'],
     testMatch: ['**/tests/integration/**/*.test.js'],
     testTimeout: 30000,
+    transform: {
+        '^.+\\.js$': 'babel-jest',
+    },
 };

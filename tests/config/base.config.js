@@ -16,9 +16,13 @@ const baseConfig = {
         '^.+\\.js$': 'babel-jest',
     },
     moduleNameMapper: {
+        '^@senars/metta$': '<rootDir>/metta/src/index.js',
         '^@senars/metta/(.*)$': '<rootDir>/metta/$1',
+        '^@senars/tensor$': '<rootDir>/tensor/src/index.js',
         '^@senars/tensor/(.*)$': '<rootDir>/tensor/$1',
+        '^@senars/core$': '<rootDir>/core/src/index.js',
         '^@senars/core/(.*)$': '<rootDir>/core/$1',
+        '^@senars/agent$': '<rootDir>/agent/src/index.js',
         '^@senars/agent/(.*)$': '<rootDir>/agent/$1',
     },
     collectCoverageFrom: [

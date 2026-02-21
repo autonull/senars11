@@ -19,8 +19,10 @@ export class MeTTaAgent extends RLAgent {
         if (this.initialized) return;
 
         if (this.strategyPath) {
+            console.log(`Loading strategy from ${this.strategyPath}`);
             const content = fs.readFileSync(this.strategyPath, 'utf-8');
             await this.metta.run(content);
+            console.log('Strategy loaded');
         }
         this.initialized = true;
     }
