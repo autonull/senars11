@@ -76,7 +76,7 @@ export class NeuroSymbolicAgent extends RLAgent {
       // Lift inputs
       const obsSym = this.grounding.lift(observation);
       const nextObsSym = this.grounding.lift(nextObservation);
-      const actionSym = typeof action === 'number' ? `op_${action}` : `op_${action[0]}`; // Simplified action symbol
+      const actionSym = typeof action === 'number' ? `action_${action}` : `action_${action[0]}`; // Simplified action symbol
 
       // 1. Store experience
       const episode = {
