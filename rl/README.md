@@ -5,82 +5,100 @@ A **general-purpose, self-improving neuro-symbolic reinforcement learning framew
 
 ## 🚀 Key Features
 
+- **Neuro-Symbolic Integration**: Deep bidirectional bridge between NARS, MeTTa, and Tensor representations
+- **Tensor Logic Policies**: Policy networks with automatic differentiation and symbolic rule extraction
+- **Hierarchical Skill Discovery**: Automatic discovery and composition of skills with Narsese grounding
+- **Distributed Experience**: Causal-indexed experience replay with prioritized sampling
+- **Self-Modifying Architectures**: Meta-controller for automatic architecture evolution
+- **Comprehensive Benchmarking**: Neuro-symbolic metrics with statistical comparison
 - **Fine-Grained Composition**: Modular components that can be freely combined
-- **Self-Modifying Architectures**: Meta-learning systems that evolve their own structure
-- **Neuro-Symbolic Integration**: Bidirectional tensor-logic bridge for explainable AI
-- **Hierarchical Skill Discovery**: Automatic discovery and composition of skills
-- **World Model Learning**: Imagination-based planning with uncertainty estimation
-- **Distributed Execution**: Parallel training across workers and machines
-- **Comprehensive Benchmarking**: Systematic evaluation with statistical testing
 
-## Architecture
+## 🏗️ Architecture
 
 ### Core Components
 
-| Module | Description |
-|--------|-------------|
-| **Composable System** | Fine-grained components with lifecycle, events, and composition |
-| **MetaController** | Self-modifying architecture with meta-learning |
-| **Tensor-Logic Bridge** | Bidirectional neural-symbolic conversion |
-| **World Model** | Dynamics learning and imagination |
-| **Skill System** | Hierarchical discovery and composition |
-| **Distributed** | Worker pools, experience buffers, parameter servers |
-| **Evaluation** | Benchmarking, metrics, statistical comparison |
+| Module | Purpose |
+|--------|---------|
+| **NeuroSymbolicBridge** | Unified NARS ↔ MeTTa ↔ Tensor bidirectional translation |
+| **TensorLogicPolicy** | Differentiable policy networks with rule extraction |
+| **HierarchicalSkillSystem** | Skill discovery with neuro-symbolic grounding |
+| **DistributedExperienceBuffer** | Causal-indexed experience replay |
+| **MetaController** | Self-modifying architecture controller |
+| **NeuroSymbolicBenchmarking** | Comprehensive evaluation suite |
 
 ### Directory Structure
 
 ```
 rl/
 ├── src/
-│   ├── composable/           # NEW: Composable module system
-│   │   ├── Component.js
-│   │   ├── ComponentRegistry.js
-│   │   ├── CompositionEngine.js
-│   │   └── MetaController.js
-│   ├── neurosymbolic/        # NEW: Neuro-symbolic primitives
-│   │   ├── TensorLogicBridge.js
-│   │   └── WorldModel.js
-│   ├── distributed/          # NEW: Parallel execution
-│   │   ├── ParallelExecution.js
-│   │   └── Worker.js
-│   ├── evaluation/           # NEW: Benchmarking
-│   │   └── Benchmarking.js
-│   ├── skills/               # Enhanced: Hierarchical skills
+│   ├── bridges/                # Neuro-symbolic bridges
+│   │   ├── SeNARSBridge.js
+│   │   └── NeuroSymbolicBridge.js
+│   ├── policies/               # Policy networks
+│   │   └── TensorLogicPolicy.js
+│   ├── skills/                 # Skill systems
 │   │   ├── Skill.js
 │   │   ├── SkillManager.js
-│   │   └── HierarchicalSkillSystem.js
-│   ├── core/                 # Core abstractions
-│   ├── agents/               # Agent implementations
-│   ├── architectures/        # Architecture patterns
-│   ├── environments/         # RL environments
-│   ├── modules/              # Planning, motivation, etc.
-│   └── bridges/              # SeNARS integration
+│   │   ├── HierarchicalSkillSystem.js
+│   │   └── HierarchicalSkillDiscovery.js
+│   ├── experience/             # Experience systems
+│   │   ├── ExperienceSystem.js
+│   │   └── DistributedExperienceBuffer.js
+│   ├── meta/                   # Meta-control
+│   │   └── MetaController.js
+│   ├── evaluation/             # Benchmarking
+│   │   ├── Benchmarking.js
+│   │   ├── NeuroSymbolicBenchmarking.js
+│   │   └── StatisticalTests.js
+│   ├── core/                   # Core abstractions
+│   ├── agents/                 # Agent implementations
+│   ├── environments/           # RL environments
+│   ├── composable/             # Component system
+│   ├── neurosymbolic/          # Tensor-logic primitives
+│   └── reasoning/              # Causal reasoning
 ├── examples/
-│   ├── self_improving_agent.js    # Complete self-improvement demo
-│   └── neurosymbolic_integration.js  # Tensor-logic bridge demo
-└── tests/
-    └── unit/
-        ├── composable.test.js
-        └── neurosymbolic.test.js
+│   ├── neurosymbolic_rl_demo.js    # Comprehensive demo
+│   ├── self_improving_agent.js     # Self-improvement demo
+│   └── neurosymbolic_integration.js # Integration demo
+├── tests/
+│   ├── unit/
+│   │   └── neurosymbolic_rl.test.js
+│   └── integration/
+└── docs/
+    ├── NEUROSYMBOLIC_RL_ARCHITECTURE.md
+    ├── IMPLEMENTATION_GUIDE.md
+    └── ADVANCED_ARCHITECTURE.md
 ```
 
 ## Quick Start
 
+### Installation
+
+```bash
+npm install @senars/rl
+```
+
 ### Basic Usage
 
 ```javascript
-import { NeuroSymbolicAgent, CompositionalWorld } from '@senars/rl';
+import { NeuroSymbolicAgent, CartPole } from '@senars/rl';
 
-const env = new CompositionalWorld();
+const env = new CartPole();
 const agent = new NeuroSymbolicAgent(env, {
-    planning: true,
+    architecture: 'dual-process',
     reasoning: 'metta',
-    architecture: 'dual-process'
+    planning: true
 });
 
 await agent.initialize();
 const obs = env.reset().observation;
 const action = await agent.act(obs);
+```
+
+### Run Comprehensive Demo
+
+```bash
+node rl/examples/neurosymbolic_rl_demo.js
 ```
 
 ### Self-Improving Agent
@@ -248,9 +266,11 @@ npm test
 
 ## Documentation
 
-- [Advanced Architecture Guide](ADVANCED_ARCHITECTURE.md) - Comprehensive API and examples
-- [Implementation Guide](../../IMPLEMENTATION_GUIDE.md) - System architecture details
-- [Enhancement Guide](../../ENHANCEMENT_GUIDE.md) - Best practices
+- **[Neuro-Symbolic Architecture](NEUROSYMBOLIC_RL_ARCHITECTURE.md)** - Complete architecture design
+- **[Implementation Guide](IMPLEMENTATION_GUIDE.md)** - API reference and usage details
+- **[Advanced Architecture](ADVANCED_ARCHITECTURE.md)** - Advanced patterns and examples
+- **[SeNARS-MeTTa Integration](SENARS_METTA_TENSOR_INTEGRATION.md)** - Integration details
+- **[Hybrid Emergent Architecture](HYBRID_EMERGENT_ARCHITECTURE.md)** - Hybrid action spaces
 
 ## Dependencies
 

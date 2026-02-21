@@ -14,6 +14,10 @@ export * from './memory/EpisodicMemory.js';
 export * from './skills/Skill.js';
 export * from './skills/SkillManager.js';
 export * from './skills/HierarchicalSkillSystem.js';
+export * from './skills/HierarchicalSkillDiscovery.js';
+
+// ==================== Policies ====================
+export * from './policies/TensorLogicPolicy.js';
 
 // ==================== Planning & Modules ====================
 export * from './modules/Planner.js';
@@ -24,6 +28,7 @@ export * from './modules/IntrinsicMotivation.js';
 
 // ==================== Bridges ====================
 export * from './bridges/SeNARSBridge.js';
+export * from './bridges/NeuroSymbolicBridge.js';
 
 // ==================== Architectures ====================
 export * from './architectures/DualProcessArchitecture.js';
@@ -54,7 +59,9 @@ export * from './environments/HybridActionSpace.js';
 export * from './composable/Component.js';
 export * from './composable/ComponentRegistry.js';
 export * from './composable/CompositionEngine.js';
-export * from './composable/MetaController.js';
+
+// ==================== Meta-Controller ====================
+export * from './meta/MetaController.js';
 
 // ==================== Neuro-Symbolic Primitives ====================
 export * from './neurosymbolic/TensorLogicBridge.js';
@@ -80,6 +87,7 @@ export * from './functional/FunctionalUtils.js';
 
 // ==================== Experience System ====================
 export * from './experience/ExperienceSystem.js';
+export * from './experience/DistributedExperienceBuffer.js';
 
 // ==================== Cognitive Architecture ====================
 export * from './cognitive/CognitiveArchitecture.js';
@@ -96,3 +104,9 @@ export * from './distributed/ParallelExecution.js';
 
 // ==================== Evaluation & Benchmarking ====================
 export * from './evaluation/Benchmarking.js';
+export * from './evaluation/NeuroSymbolicBenchmarking.js';
+export * from './evaluation/StatisticalTests.js';
+
+// ==================== Utilities (NEW - Deduplicated) ====================
+export * from './utils/index.js';
+export { ActionUtils, ModelFactory, StateUtils, LossUtils, BeliefSystem } from './utils/index.js';
