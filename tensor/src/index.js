@@ -31,4 +31,5 @@ export * from './Optimizer.js';
 export * from './LossFunctor.js';
 export * from './Module.js';
 export * from './TruthTensorBridge.js';
+export * from './TensorFunctor.js';
 export { T as torch };

@@ -7,6 +7,8 @@ import { SeNARSBridge } from '../reasoning/SeNARSBridge.js';
 import { ModelBasedStrategy } from '../strategies/model-based.js';
 import { HierarchicalStrategy } from '../strategies/hierarchical.js';
 import { RuleInducer } from '../reasoning/RuleInducer.js';
+import { MeTTaInterpreter } from '@senars/metta';
+import { registerTensorPrimitives } from '../core/TensorPrimitives.js';
 
 export class NeuroSymbolicAgent extends RLAgent {
   constructor(env, config = {}) {
@@ -20,13 +22,29 @@ export class NeuroSymbolicAgent extends RLAgent {
         ...config
     };
 
+    // Ensure config is an object for SeNARSBridge and filter out conflicting keys
+    const senarsConfig = typeof config === 'object' ? { ...config } : {};
+    // 'reasoning' in Agent config is a string (engine selection), but SeNARS expects an object (params)
+    // We remove it from the config passed to SeNARS to avoid validation error
+    if (typeof senarsConfig.reasoning !== 'object') {
+        delete senarsConfig.reasoning;
+    }
+
     this.grounding = new SymbolGrounding();
     this.memory = new WorkingMemory();
     this.skills = new SkillLibrary();
-    this.bridge = new SeNARSBridge(this, config);
-    this.planner = new ModelBasedStrategy(this.bridge, config);
-    this.hierarchical = new HierarchicalStrategy(this.bridge, this.skills, config);
-    this.inducer = new RuleInducer(this.bridge, config);
+
+    // If using MeTTa strategy, initialize interpreter
+    if (this.config.reasoning === 'metta') {
+        this.metta = new MeTTaInterpreter();
+        // Register Tensor Primitives for Neuro-Symbolic Logic
+        registerTensorPrimitives(this.metta);
+    }
+
+    this.bridge = new SeNARSBridge(this, senarsConfig);
+    this.planner = new ModelBasedStrategy(this.bridge, this.config);
+    this.hierarchical = new HierarchicalStrategy(this.bridge, this.skills, this.config);
+    this.inducer = new RuleInducer(this.bridge, this.config);
   }
 
   async initialize() {
