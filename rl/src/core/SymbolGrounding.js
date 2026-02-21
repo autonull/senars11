@@ -22,12 +22,12 @@ export class SymbolGrounding {
     _liftNumber(val) {
         // Simple binning
         const bin = Math.floor(val * 10) / 10;
-        return `val_${bin}`;
+        return `val_${String(bin).replace('.', 'd')}`;
     }
 
     _liftArray(arr) {
         // Create a unique key or find nearest neighbor (simplified by stringifying)
-        const key = arr.map(x => Math.floor(x * 10) / 10).join('_');
+        const key = arr.map(x => String(Math.floor(x * 10) / 10).replace('.', 'd')).join('_');
         const sym = `state_${key}`;
 
         if (!this.conceptMap.has(sym)) {

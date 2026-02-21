@@ -64,6 +64,7 @@ export function registerTensorPrimitives(metta) {
         'sum', 'mean', 'max', 'min',
         'exp', 'log', 'pow',
         'reshape', 'transpose',
+        'truth_to_tensor', 'tensor_to_truth',
         'mse', 'mae', 'binary_cross_entropy', 'cross_entropy',
         'sgd_step', 'adam_step',
         'grad', 'backward', 'zero_grad'

@@ -9,6 +9,7 @@ import { HierarchicalStrategy } from '../strategies/hierarchical.js';
 import { RuleInducer } from '../reasoning/RuleInducer.js';
 import { MeTTaInterpreter } from '@senars/metta';
 import { registerTensorPrimitives } from '../core/TensorPrimitives.js';
+import fs from 'fs';
 
 export class NeuroSymbolicAgent extends RLAgent {
   constructor(env, config = {}) {
@@ -19,6 +20,8 @@ export class NeuroSymbolicAgent extends RLAgent {
         grounding: 'learned',
         planning: true,
         skillDiscovery: false,
+        usePolicy: false,
+        policyScript: null,
         ...config
     };
 
@@ -49,11 +52,33 @@ export class NeuroSymbolicAgent extends RLAgent {
 
   async initialize() {
       await this.bridge.initialize();
+
+      if (this.config.reasoning === 'metta' && this.config.policyScript) {
+          try {
+              const scriptContent = fs.readFileSync(this.config.policyScript, 'utf8');
+              this.metta.run(scriptContent);
+          } catch (e) {
+              console.error(`Failed to load policy script: ${e.message}`);
+          }
+      }
   }
 
   // Core interface
   async act(observation, goal) {
       if (!this.bridge.initialized) await this.initialize();
+
+      // 0. Neural Policy (Fast System 1)
+      if (this.config.usePolicy && this.metta) {
+          const obsStr = `(${observation.join(' ')})`;
+          const result = this.metta.run(`! (get-action ${obsStr})`);
+          // result is [Value(Tensor)] or [Symbol] depending on get-action return
+          // get-action returns (&argmax ...) which returns a Symbol (index string)
+          if (result && result.length > 0) {
+               const actionStr = result[0].toString();
+               const action = Number(actionStr);
+               if (!isNaN(action)) return action;
+          }
+      }
 
       // 1. Perception -> Symbols
       const symbols = this.grounding.lift(observation);
@@ -102,6 +127,23 @@ export class NeuroSymbolicAgent extends RLAgent {
 
   async learn(observation, action, reward, nextObservation, done) {
       if (!this.bridge.initialized) await this.initialize();
+
+      // 0. Update Neural Policy
+      if (this.config.usePolicy && this.metta) {
+          const obsStr = `(${observation.join(' ')})`;
+          // Simple target construction for demonstration:
+          // If action 0 taken and reward 1, target [1, 0].
+          // This is NOT proper Q-learning but shows tensor flow.
+          // Ideally we query the network for next Q values here.
+
+          const target = [0, 0];
+          // Ensure action is valid index
+          if (typeof action === 'number' && action < target.length) {
+               target[action] = reward;
+          }
+          const targetStr = `(${target.join(' ')})`;
+          this.metta.run(`! (update-policy ${obsStr} ${targetStr})`);
+      }
 
       // Lift inputs
       const obsSym = this.grounding.lift(observation);
