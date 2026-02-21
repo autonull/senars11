@@ -160,13 +160,15 @@ export class SeNARS {
 
             this.nar.on(IntrospectionEvents.TASK_ADDED, opListener);
 
-            await this.nar.input(goalInput);
+            try {
+                await this.nar.input(goalInput);
 
-            if (cycles > 0) {
-                await this.nar.runCycles(cycles);
+                if (cycles > 0) {
+                    await this.nar.runCycles(cycles);
+                }
+            } finally {
+                this.nar.off(IntrospectionEvents.TASK_ADDED, opListener);
             }
-
-            this.nar.off(IntrospectionEvents.TASK_ADDED, opListener);
 
             // Check if goal is satisfied (belief exists with high expectation)
             // Note: NARS handles goal processing internally, but we can peek at beliefs
