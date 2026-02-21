@@ -22,25 +22,8 @@ export class SeNARSBridge {
 
         // Check if MettaBridge is actually imported
         if (this.agent?.metta) {
-             // Fallback for weird module resolution issue in test
-             // If MettaBridge is undefined, it means the import failed.
-
-             // Dynamic import as last resort
-             let Bridge = MettaBridge;
-
-             // If MettaBridge is undefined, try manual import
-             // This is a hack for Jest + ESM issues with circular deps or index exports
-             if (!Bridge) {
-                 try {
-                     const mod = await import('../../../metta/src/SeNARSBridge.js');
-                     Bridge = mod.default || mod.SeNARSBridge;
-                 } catch (e) {
-                     // console.error("Could not load SeNARSBridge", e);
-                 }
-             }
-
-             if (Bridge) {
-                 this.mettaBridge = new Bridge(this.senars.nar, this.agent.metta);
+             if (MettaBridge) {
+                 this.mettaBridge = new MettaBridge(this.senars.nar, this.agent.metta);
                  if (this.agent.metta.ground) {
                      this.mettaBridge.registerPrimitives(this.agent.metta.ground);
                  }
@@ -76,5 +59,11 @@ export class SeNARSBridge {
 
     reset() {
         this.senars.reset();
+    }
+
+    async close() {
+        if (this.senars) {
+            await this.senars.dispose();
+        }
     }
 }

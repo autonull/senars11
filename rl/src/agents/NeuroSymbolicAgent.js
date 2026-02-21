@@ -140,8 +140,24 @@ export class NeuroSymbolicAgent extends RLAgent {
   }
 
   async explain(decision) {
-      // Query SeNARS for explanation: <(decision) --> ?explanation>?
-      return "Explanation not implemented yet";
+      if (this.bridge && this.bridge.initialized) {
+           const query = `<(${decision}) --> ?explanation>?`;
+           try {
+               const result = await this.bridge.ask(query);
+               if (result && result.term) {
+                   return `Explanation: ${result.term}`;
+               }
+           } catch (e) {
+               // Fallback if query fails
+           }
+      }
+      return "Explanation not found";
+  }
+
+  async close() {
+      if (this.bridge) {
+          await this.bridge.close();
+      }
   }
 
   transferTo(newEnv) {

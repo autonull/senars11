@@ -16,8 +16,18 @@
    (argmax-action $s (actions)))
 
 (= (argmax-action $s $actions)
-    (let $best (map-reduce $actions (lambda ($a) (pair $a (eval-action $s $a))) max-pair (-1 -99999))
-        (car-pair $best)))
+   (car-pair (find-best-action $s $actions (-1 -99999))))
+
+(= (find-best-action $s $actions $best)
+   (if (== $actions ())
+       $best
+       (if (== (get-metatype $actions) Expression)
+           (let $h (car-atom $actions)
+             (let $t (cdr-atom $actions)
+               (let $curr (pair $h (eval-action $s $h))
+                 (find-best-action $s $t (max-pair $curr $best)))))
+           (let $curr (pair $actions (eval-action $s $actions))
+             (max-pair $curr $best)))))
 
 (= (eval-action $s $a)
    (let $ns (get-next-state $s $a)
