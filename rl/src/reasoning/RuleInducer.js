@@ -25,12 +25,12 @@ export class RuleInducer {
         const a = this._formatTerm(action);
         const n = this._formatTerm(nextObs);
 
-        await this.bridge.input(`<(*, ${o}) --> obs>. :|:`);
-        await this.bridge.input(`<(*, ${a}) --> executed>. :|:`);
-        await this.bridge.input(`<(*, ${n}) --> obs>. :|:`);
+        await this.bridge.input(`<(*, ${o}) --> obs>.`);
+        await this.bridge.input(`<(*, ${a}) --> executed>.`);
+        await this.bridge.input(`<(*, ${n}) --> obs>.`);
 
         if (reward > 0) {
-            await this.bridge.input(`<(*, ${n}) --> goal>. :|:`);
+            await this.bridge.input(`<(*, ${n}) --> goal>.`);
         }
     }
 

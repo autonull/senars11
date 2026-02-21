@@ -52,22 +52,23 @@ export class NeuroSymbolicAgent extends RLAgent {
   }
 
   // Core interface
-  async act(observation) {
+  async act(observation, goal) {
       if (!this.bridge.initialized) await this.initialize();
 
       // 1. Perception -> Symbols
       const symbols = this.grounding.lift(observation);
+      const goalSymbols = goal ? this.grounding.lift(goal) : 'goal';
 
       // 2. Reasoning / Planning
       let actionSymbols;
 
       // Try Hierarchical
-      const option = await this.hierarchical.selectOption(symbols, 'goal'); // Goal hardcoded for now
+      const option = await this.hierarchical.selectOption(symbols, goalSymbols);
       if (option) {
           actionSymbols = await option.act(observation);
       } else if (this.config.planning) {
           // Model-based planning: "What action leads to goal?"
-          actionSymbols = await this.planner.act(symbols, 'goal');
+          actionSymbols = await this.planner.act(symbols, goalSymbols);
       }
 
       // If planning failed or returned null, reactive fallback
@@ -76,7 +77,16 @@ export class NeuroSymbolicAgent extends RLAgent {
       }
 
       // 3. Symbols -> Action
-      return this.grounding.ground(actionSymbols);
+      const action = this.grounding.ground(actionSymbols);
+
+      // Validate action against environment spec
+      const as = this.env?.actionSpace;
+      if (as && as.type === 'Discrete' && typeof action !== 'number') {
+           // Planning returned a non-action symbol (e.g. goal statement), fallback
+           return this._randomAction();
+      }
+
+      return action;
   }
 
   _randomAction() {

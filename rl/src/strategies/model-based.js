@@ -10,7 +10,7 @@ export class ModelBasedStrategy {
         if (!this.bridge) return null;
 
         const obsTerm = this._term(obs);
-        await this.bridge.input(`<(*, ${obsTerm}) --> obs>. :|:`);
+        await this.bridge.input(`<(*, ${obsTerm}) --> obs>.`);
 
         const goalStmt = `<(*, ${this._term(goal || 'goal')}) --> achieved>!`;
         const result = await this.bridge.achieve(goalStmt, { cycles: 50 });
