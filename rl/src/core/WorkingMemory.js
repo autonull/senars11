@@ -12,36 +12,29 @@ export class WorkingMemory {
      * @param {Object} item {(s,a,r,s')} with symbolic labels
      */
     store(item) {
-        const index = this.buffer.length;
         this.buffer.push(item);
-
-        // Index by symbol if available
-        if (item.symbol) {
-            if (!this.symbolicIndex.has(item.symbol)) {
-                this.symbolicIndex.set(item.symbol, []);
-            }
-            this.symbolicIndex.get(item.symbol).push(index);
-        }
+        this._indexItem(item, this.buffer.length - 1);
 
         if (this.buffer.length > this.capacity) {
-            // Remove oldest
-            const removed = this.buffer.shift();
-            // Need to update indices in Map or rebuild
-            // Simple: Rebuild index (expensive) or just shift indices?
-            // For now, let's just clear index occasionally or keep it simple.
-            // If we remove index 0, all indices shift down by 1.
-
-            // Rebuilding index for simplicity
-            this.symbolicIndex.clear();
-            this.buffer.forEach((it, idx) => {
-                if (it.symbol) {
-                    if (!this.symbolicIndex.has(it.symbol)) {
-                        this.symbolicIndex.set(it.symbol, []);
-                    }
-                    this.symbolicIndex.get(it.symbol).push(idx);
-                }
-            });
+            this.buffer.shift();
+            // Rebuild index occasionally or lazily?
+            // For simplicity/correctness in this reference impl, we rebuild.
+            this._rebuildIndex();
         }
+    }
+
+    _indexItem(item, index) {
+        if (!item.symbol) return;
+
+        if (!this.symbolicIndex.has(item.symbol)) {
+            this.symbolicIndex.set(item.symbol, []);
+        }
+        this.symbolicIndex.get(item.symbol).push(index);
+    }
+
+    _rebuildIndex() {
+        this.symbolicIndex.clear();
+        this.buffer.forEach((it, idx) => this._indexItem(it, idx));
     }
 
     /**
@@ -50,11 +43,9 @@ export class WorkingMemory {
      * @returns {Array} matching items
      */
     query(pattern) {
-        if (this.symbolicIndex.has(pattern)) {
-            const indices = this.symbolicIndex.get(pattern);
-            return indices.map(i => this.buffer[i]);
-        }
-        return [];
+        return this.symbolicIndex.has(pattern)
+            ? this.symbolicIndex.get(pattern).map(i => this.buffer[i])
+            : [];
     }
 
     /**
@@ -63,22 +54,14 @@ export class WorkingMemory {
      * @returns {Array} similar items
      */
     retrieveSimilar(current) {
-        // Placeholder: find items with same symbol first
-        if (current.symbol) {
-            return this.query(current.symbol);
-        }
-
-        // If vector, compute similarity (expensive without index)
-        return [];
+        return current.symbol ? this.query(current.symbol) : [];
     }
 
     /**
      * Consolidate memory to extract rules/skills from episodes.
      */
     consolidate() {
-        // Identify frequent patterns
-        // This is where RuleInducer would process episodes
-        // Return structured summaries or rule candidates
+        // Placeholder for rule induction trigger
         return [];
     }
 }

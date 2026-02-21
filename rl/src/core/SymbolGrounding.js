@@ -14,16 +14,9 @@ export class SymbolGrounding {
      * @returns {Object} {entities, relations, attributes} or string symbol
      */
     lift(observation) {
-        // Simple heuristic:
-        // If discrete, return symbol directly.
-        // If continuous, discretize or find nearest concept.
-
-        if (typeof observation === 'number') {
-            return this._liftNumber(observation);
-        } else if (Array.isArray(observation)) {
-            return this._liftArray(observation);
-        }
-        return String(observation);
+        return typeof observation === 'number' ? this._liftNumber(observation)
+             : Array.isArray(observation) ? this._liftArray(observation)
+             : String(observation);
     }
 
     _liftNumber(val) {
@@ -33,8 +26,7 @@ export class SymbolGrounding {
     }
 
     _liftArray(arr) {
-        // Create a unique key or find nearest neighbor
-        // For simplicity, just stringify
+        // Create a unique key or find nearest neighbor (simplified by stringifying)
         const key = arr.map(x => Math.floor(x * 10) / 10).join('_');
         const sym = `state_${key}`;
 
@@ -50,25 +42,19 @@ export class SymbolGrounding {
      * @returns {*} action vector/tensor
      */
     ground(symbols) {
-        // If symbol is known, return value
         if (this.conceptMap.has(symbols)) {
             return this.conceptMap.get(symbols);
         }
 
-        // If symbol looks like a number, parse it
-        if (!isNaN(parseFloat(symbols))) {
-            return parseFloat(symbols);
-        }
-
-        // If symbol looks like a list
-        if (typeof symbols === 'string' && symbols.startsWith('(')) {
-             // Parse "(1.0 2.0)"
-             return symbols.slice(1, -1).trim().split(/\s+/).map(Number);
-        }
-
-        // Fallback: Return index if it's an action symbol like 'action_0'
-        if (typeof symbols === 'string' && symbols.startsWith('action_')) {
-            return parseInt(symbols.split('_')[1]);
+        if (typeof symbols === 'string') {
+            if (symbols.startsWith('(')) {
+                return symbols.slice(1, -1).trim().split(/\s+/).map(Number);
+            }
+            if (symbols.startsWith('action_')) {
+                return parseInt(symbols.split('_')[1], 10);
+            }
+            const num = parseFloat(symbols);
+            if (!isNaN(num)) return num;
         }
 
         return symbols;
@@ -81,6 +67,6 @@ export class SymbolGrounding {
      */
     updateGrounding(obs, symbols) {
         this.conceptMap.set(symbols, obs);
-        // Reverse mapping logic could go here
+        // TODO: Reverse mapping logic
     }
 }
