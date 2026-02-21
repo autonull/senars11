@@ -80,15 +80,15 @@ async function main() {
     await benchmark('GridWorld', 'PolicyGradient', PolicyGradientAgent, 1);
 
     // MeTTa Q-Learning
-    const qStrategy = path.join(__dirname, '../strategies/q-learning.metta');
+    const qStrategy = path.join(__dirname, '../src/strategies/q-learning.metta');
     await benchmark('GridWorld', 'MeTTa-Q', MeTTaAgent, 1, qStrategy);
 
     // MeTTa Neuro-Symbolic
-    const nsStrategy = path.join(__dirname, '../strategies/neuro-symbolic.metta');
+    const nsStrategy = path.join(__dirname, '../src/strategies/neuro-symbolic.metta');
     await benchmark('GridWorld', 'MeTTa-NeuroSymbolic', MeTTaAgent, 1, nsStrategy);
 
     // MeTTa Neuro-Symbolic Tensor
-    const nsTensorStrategy = path.join(__dirname, '../strategies/neuro-symbolic-tensor.metta');
+    const nsTensorStrategy = path.join(__dirname, '../src/strategies/neuro-symbolic-tensor.metta');
     await benchmark('GridWorld', 'MeTTa-NeuroSymbolic-Tensor', NeuroSymbolicAgent, 1, nsTensorStrategy);
 
 

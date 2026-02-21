@@ -25,13 +25,28 @@
    (argmax-action $s (0 1 2 3)))
 
 (= (argmax-action $s $actions)
-   (foldl-atom $actions (0 -9999) (lambda ($acc $a)
-      (let ($best-a $best-v) $acc
-        (let $v (get-q $s $a)
-          (if (> $v $best-v) ($a $v) ($best-a $best-v)))))))
+   (car-pair (my-foldl (lambda ($acc $a) (check-max $s $acc $a)) (0 -9999) $actions)))
 
-; Helper to get just the action from the pair
+(= (check-max $s $acc $a)
+   (let $best-a (car-pair $acc)
+     (let $best-v (cdr-pair $acc)
+       (let $v (get-q $s $a)
+         (if (> $v $best-v) ($a $v) ($best-a $best-v))))))
+
+; Custom foldl for expression lists
+(= (my-foldl $f $acc $list)
+   (if (== $list ())
+       $acc
+       (if (== (get-metatype $list) Expression)
+           (let $h (car-atom $list)
+             (let $t (cdr-atom $list)
+               (let $new-acc ($f $acc $h)
+                 (my-foldl $f $new-acc $t))))
+           ($f $acc $list))))
+
+; Helpers
 (= (car-pair ($a $b)) $a)
+(= (cdr-pair ($a $b)) $b)
 
 ; Update Rule
 (= (agent-learn $s $a $r $ns $d)
