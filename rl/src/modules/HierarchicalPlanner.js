@@ -1,8 +1,8 @@
 
-import { SeNARSBridge } from '../reasoning/SeNARSBridge.js';
+import { SeNARSBridge } from '../bridges/SeNARSBridge.js';
 import { RLAgent } from '../core/RLAgent.js';
 
-export class HierarchicalStrategy {
+export class HierarchicalPlanner {
     constructor(bridge, skillLibrary, config = {}) {
         this.bridge = bridge;
         this.skills = skillLibrary;

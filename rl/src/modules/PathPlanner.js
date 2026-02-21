@@ -1,7 +1,7 @@
 
-import { SeNARSBridge } from './SeNARSBridge.js';
+import { SeNARSBridge } from '../bridges/SeNARSBridge.js';
 
-export class SymbolicPlanner {
+export class PathPlanner {
     constructor(bridge, config = {}) {
         this.bridge = bridge;
         this.config = config;

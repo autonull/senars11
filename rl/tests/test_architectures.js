@@ -26,7 +26,7 @@ class MockEnv extends RLEnvironment {
 async function testMeTTaOnly() {
     console.log("--- Testing 'metta-policy' architecture ---");
     const env = new MockEnv();
-    const policyPath = path.resolve('rl/src/strategies/policy.metta');
+    const policyPath = path.resolve('rl/src/examples/policy.metta');
 
     const agent = new NeuroSymbolicAgent(env, {
         architecture: 'metta-policy',
@@ -56,7 +56,7 @@ async function testMeTTaOnly() {
 async function testDualProcess() {
     console.log("\n--- Testing 'dual-process' architecture (explicit) ---");
     const env = new MockEnv();
-    const policyPath = path.resolve('rl/src/strategies/policy.metta');
+    const policyPath = path.resolve('rl/src/examples/policy.metta');
 
     const agent = new NeuroSymbolicAgent(env, {
         architecture: 'dual-process', // Explicitly setting default
@@ -105,7 +105,7 @@ async function testEvolutionary() {
 async function testIntrinsicMotivation() {
     console.log("\n--- Testing 'intrinsic motivation' in DualProcess ---");
     const env = new MockEnv();
-    const policyPath = path.resolve('rl/src/strategies/policy.metta');
+    const policyPath = path.resolve('rl/src/examples/policy.metta');
 
     const agent = new NeuroSymbolicAgent(env, {
         architecture: 'dual-process',

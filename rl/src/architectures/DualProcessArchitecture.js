@@ -1,8 +1,8 @@
 
 import { Architecture } from '../core/Architecture.js';
-import { SeNARSBridge } from '../reasoning/SeNARSBridge.js';
+import { SeNARSBridge } from '../bridges/SeNARSBridge.js';
 import { Planner } from '../modules/Planner.js';
-import { HierarchicalStrategy } from '../strategies/hierarchical.js';
+import { HierarchicalPlanner } from '../modules/HierarchicalPlanner.js';
 import { RuleInducer } from '../modules/RuleInducer.js';
 import { IntrinsicMotivation } from '../modules/IntrinsicMotivation.js';
 import { MeTTaInterpreter } from '@senars/metta';
@@ -33,7 +33,7 @@ export class DualProcessArchitecture extends Architecture {
         // Initialize SeNARS (System 2)
         this.bridge = new SeNARSBridge(agent, senarsConfig);
         this.planner = new Planner(this.bridge, this.config);
-        this.hierarchical = new HierarchicalStrategy(this.bridge, agent.skills, this.config);
+        this.hierarchical = new HierarchicalPlanner(this.bridge, agent.skills, this.config);
         this.inducer = new RuleInducer(this.bridge, this.config);
         this.motivation = new IntrinsicMotivation(this.config);
     }

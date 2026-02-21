@@ -11,8 +11,13 @@ export * from './memory/EpisodicMemory.js';
 export * from './skills/SkillManager.js';
 export * from './skills/Skill.js';
 export * from './modules/Planner.js';
+export * from './modules/HierarchicalPlanner.js';
+export * from './modules/PathPlanner.js';
 export * from './modules/RuleInducer.js';
 export * from './modules/IntrinsicMotivation.js';
+
+// Bridges
+export * from './bridges/SeNARSBridge.js';
 
 // Architectures
 export * from './architectures/DualProcessArchitecture.js';
@@ -30,10 +35,3 @@ export * from './agents/ProgrammaticAgent.js';
 export * from './environments/GridWorld.js';
 export * from './environments/Continuous1D.js';
 export * from './environments/CompositionalWorld.js';
-
-// Reasoning
-export * from './reasoning/SymbolicPlanner.js'; // Assuming this still exists and is distinct
-export * from './reasoning/SeNARSBridge.js';
-
-// Strategies
-export * from './strategies/hierarchical.js';
