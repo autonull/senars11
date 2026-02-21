@@ -1,154 +1,122 @@
 
-import { MeTTaAgent } from './MeTTaAgent.js';
-import { Tensor } from '@senars/tensor';
+import { RLAgent } from '../core/RLAgent.js';
+import { SymbolGrounding } from '../core/SymbolGrounding.js';
+import { WorkingMemory } from '../core/WorkingMemory.js';
+import { SkillLibrary } from '../core/SkillLibrary.js';
+import { SeNARSBridge } from '../reasoning/SeNARSBridge.js';
+import { ModelBasedStrategy } from '../strategies/model-based.js';
+import { HierarchicalStrategy } from '../strategies/hierarchical.js';
+import { RuleInducer } from '../reasoning/RuleInducer.js';
 
-/**
- * Neuro-Symbolic Agent that exposes Tensor operations to MeTTa.
- * Extends MeTTaAgent to include tensor primitives in the MeTTa interpreter.
- */
-export class NeuroSymbolicAgent extends MeTTaAgent {
-    constructor(env, strategyPath) {
-        super(env, strategyPath);
-    }
+export class NeuroSymbolicAgent extends RLAgent {
+  constructor(env, config = {}) {
+    super(env);
+    this.config = {
+        encoder: 'mlp',
+        reasoning: 'metta',
+        grounding: 'learned',
+        planning: true,
+        skillDiscovery: false,
+        ...config
+    };
 
-    async _ensureInitialized() {
-        if (!this.initialized) {
-            // Register Tensor Primitives BEFORE loading strategy
-            this._registerTensorPrimitives();
-            await super._ensureInitialized();
-        }
-    }
+    this.grounding = new SymbolGrounding();
+    this.memory = new WorkingMemory();
+    this.skills = new SkillLibrary();
+    this.bridge = new SeNARSBridge(this, config);
+    this.planner = new ModelBasedStrategy(this.bridge, config);
+    this.hierarchical = new HierarchicalStrategy(this.bridge, this.skills, config);
+    this.inducer = new RuleInducer(this.bridge, config);
+  }
 
-    _registerTensorPrimitives() {
-        const ground = this.metta.ground;
-        const Term = this.metta.termFactory || this.metta.ground.termFactory; // Access Term factory depending on implementation
+  async initialize() {
+      await this.bridge.initialize();
+  }
 
-        // Helper to unwrap Tensor from Atom (if wrapped) or expect it as JS object
-        // MeTTa atoms wrapping JS objects usually are Symbol or Value atoms
-        const unwrap = (atom) => {
-            // If it's a Value atom holding a Tensor
-            if (atom.type === 'Value' && atom.value instanceof Tensor) return atom.value;
-            // If it's a Symbol but we somehow mapped it? unlikely.
-            // Check if it's a list (vector) and convert to Tensor
-             if (atom.toString().startsWith('(')) {
-                 const str = atom.toString().slice(1, -1).trim();
-                 const arr = str.split(/\s+/).map(Number);
-                 return new Tensor(arr);
-            }
-            return atom;
-        };
+  // Core interface
+  async act(observation) {
+      if (!this.bridge.initialized) await this.initialize();
 
-        // Helper to wrap Tensor back to Atom
-        const wrap = (tensor) => {
-             // We return a Value atom containing the Tensor object
-             // The MeTTa interpreter needs to support Value atoms (which it likely does via Grounding)
-             // We use a specific marking or just relies on JS object passing if supported
-             // Assuming Ground.js supports `Value(obj)` or similar.
-             // Looking at `metta/src/kernel/Ground.js` or `Term.js` would confirm.
-             // We'll try to use a mechanism compatible with how MeTTaInterpreter handles JS objects.
-             // Usually `Term.atom(obj)` or similar.
-             // For now, let's assume we can register functions that return raw JS objects which get wrapped?
-             // Or we construct a Term.
+      // 1. Perception -> Symbols
+      const symbols = this.grounding.lift(observation);
 
-             // If we look at SeNARSBridge.js, it uses `sym` and `exp`.
-             // If we want to pass opaque objects, we might need a registry or specific Value atom type.
-             // Let's assume we can return a Symbol with a unique ID and store tensor in a map,
-             // OR rely on `Term.js` supporting `new Term('Value', obj)`.
+      // 2. Reasoning / Planning
+      let actionSymbols;
 
-             // Let's check Term.js implementation via thought later if needed.
-             // For now, assume we return an object and the interpreter handles it or we use a convention.
-             return { type: 'Value', value: tensor, toString: () => tensor.toString() };
-        };
+      // Try Hierarchical
+      const option = await this.hierarchical.selectOption(symbols, 'goal'); // Goal hardcoded for now
+      if (option) {
+          actionSymbols = await option.act(observation);
+      } else if (this.config.planning) {
+          // Model-based planning: "What action leads to goal?"
+          actionSymbols = await this.planner.act(symbols, 'goal');
+      }
 
-        // Register Primitives
-        // &tensor <list> -> Tensor
-        ground.register('&tensor', (listAtom) => {
-            const str = listAtom.toString().slice(1, -1).trim();
-            const arr = str.split(/\s+/).map(Number);
-            return wrap(new Tensor(arr));
-        });
+      // If planning failed or returned null, reactive fallback
+      if (!actionSymbols) {
+           return this._randomAction();
+      }
 
-        // &zeros <shape_list> -> Tensor
-        ground.register('&zeros', (shapeAtom) => {
-             const str = shapeAtom.toString().slice(1, -1).trim();
-             const shape = str.split(/\s+/).map(Number);
-             return wrap(Tensor.zeros(shape));
-        });
+      // 3. Symbols -> Action
+      return this.grounding.ground(actionSymbols);
+  }
 
-        // &randn <shape_list> -> Tensor
-        ground.register('&randn', (shapeAtom) => {
-             const str = shapeAtom.toString().slice(1, -1).trim();
-             const shape = str.split(/\s+/).map(Number);
-             return wrap(Tensor.randn(shape));
-        });
+  _randomAction() {
+      const as = this.env?.actionSpace;
+      if (!as) return 0;
 
-        // &matmul <t1> <t2> -> Tensor
-        ground.register('&matmul', (t1, t2) => {
-            return wrap(unwrap(t1).matmul(unwrap(t2)));
-        });
+      if (as.type === 'Discrete') {
+          return Math.floor(Math.random() * as.n);
+      }
+      // Continuous
+      return as.low.map((l, i) => l + Math.random() * (as.high[i] - l));
+  }
 
-        // &add <t1> <t2> -> Tensor
-        ground.register('&add', (t1, t2) => {
-            return wrap(unwrap(t1).add(unwrap(t2)));
-        });
+  async learn(observation, action, reward, nextObservation, done) {
+      if (!this.bridge.initialized) await this.initialize();
 
-        // &relu <t> -> Tensor
-        ground.register('&relu', (t) => {
-            return wrap(unwrap(t).relu());
-        });
+      // Lift inputs
+      const obsSym = this.grounding.lift(observation);
+      const nextObsSym = this.grounding.lift(nextObservation);
+      const actionSym = typeof action === 'number' ? `action_${action}` : `action_${action[0]}`; // Simplified action symbol
 
-        // &softmax <t> -> Tensor
-        ground.register('&softmax', (t) => {
-            return wrap(unwrap(t).softmax());
-        });
+      // 1. Store experience
+      const episode = {
+          obs: obsSym,
+          action: actionSym,
+          reward,
+          nextObs: nextObsSym,
+          done,
+          symbol: obsSym
+      };
 
-        // &argmax <t> -> Number
-        ground.register('&argmax', (t) => {
-             const tensor = unwrap(t);
-             const arr = tensor.data;
-             let maxIdx = 0;
-             let maxVal = arr[0];
-             for(let i=1; i<arr.length; i++) {
-                 if(arr[i] > maxVal) {
-                     maxVal = arr[i];
-                     maxIdx = i;
-                 }
-             }
-             // Return simple number atom
-             return { type: 'Symbol', name: String(maxIdx), toString: () => String(maxIdx) };
-        });
+      this.memory.store(episode);
 
-        // &shape <t> -> List
-        ground.register('&shape', (t) => {
-            const tensor = unwrap(t);
-            return { type: 'Symbol', name: `(${tensor.shape.join(' ')})`, toString: () => `(${tensor.shape.join(' ')})` };
-        });
+      // 2. Update grounding (if learned)
+      if (this.config.grounding === 'learned') {
+          this.grounding.updateGrounding(observation, obsSym);
+      }
 
-        // &get-data <t> -> List (for debugging or output)
-        ground.register('&get-data', (t) => {
-             const tensor = unwrap(t);
-             return { type: 'Symbol', name: `(${tensor.data.join(' ')})`, toString: () => `(${tensor.data.join(' ')})` };
-        });
+      // 3. Rule Induction
+      this.inducer.induce([episode]);
 
-        // Parameter registration (Stateful)
-        // Store parameters in a Map so we can update them?
-        // Or we let MeTTa manage them as Atoms?
-        // Let's provide a simple parameter store.
-        this.params = new Map();
+      // 4. Skill discovery / consolidation
+      if (this.config.skillDiscovery && done) {
+          this.memory.consolidate();
+      }
+  }
 
-        // &param <name> <shape> -> Tensor (initialized or retrieved)
-        ground.register('&param', (nameAtom, shapeAtom) => {
-            const name = nameAtom.toString();
-            if (this.params.has(name)) {
-                return wrap(this.params.get(name));
-            }
-            const str = shapeAtom.toString().slice(1, -1).trim();
-            const shape = str.split(/\s+/).map(Number);
-            // Xavier init / Random
-            const param = Tensor.randn(shape);
-            param.requiresGrad = true;
-            this.params.set(name, param);
-            return wrap(param);
-        });
-    }
+  // Neuro-symbolic specific
+  async plan(goal) {
+      return this.planner.act(null, goal);
+  }
+
+  async explain(decision) {
+      // Query SeNARS for explanation: <(decision) --> ?explanation>?
+      return "Explanation not implemented yet";
+  }
+
+  transferTo(newEnv) {
+      // compositional transfer logic placeholder
+  }
 }

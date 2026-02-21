@@ -1,7 +1,6 @@
 
-import { RLAgent } from './RLAgent.js';
+import { RLAgent } from '../core/RLAgent.js';
 import { MeTTaInterpreter } from '@senars/metta';
-import path from 'path';
 import fs from 'fs';
 
 /**
@@ -17,65 +16,48 @@ export class MeTTaAgent extends RLAgent {
     }
 
     async _ensureInitialized() {
-        if (!this.initialized) {
-            // Load the strategy
-            if (this.strategyPath) {
-                const content = fs.readFileSync(this.strategyPath, 'utf-8');
-                // We assume the strategy defines functions:
-                // (agent-act $observation) -> $action
-                // (agent-learn $obs $act $reward $next_obs $done) -> $result
-                await this.metta.run(content);
-            }
-            this.initialized = true;
+        if (this.initialized) return;
+
+        if (this.strategyPath) {
+            const content = fs.readFileSync(this.strategyPath, 'utf-8');
+            await this.metta.run(content);
         }
+        this.initialized = true;
     }
 
-    _obsToMetta(obs) {
-        // Convert JS observation to MeTTa string
-        // If array: (obs-vec 0.1 0.2 ...)
-        // If object: (obs-dict (k v) ...)
-        if (Array.isArray(obs)) {
-            return `(${obs.join(' ')})`;
-        }
-        return `(${obs})`;
+    _toMetta(obs) {
+        return Array.isArray(obs) ? `(${obs.join(' ')})` : `(${obs})`;
     }
 
     async act(observation) {
         await this._ensureInitialized();
-        const obsStr = this._obsToMetta(observation);
+        const obsStr = this._toMetta(observation);
         const program = `!(agent-act ${obsStr})`;
-
         const result = await this.metta.run(program);
-        // Result is a list of atoms. We expect one result which is the action.
-        // e.g. [Symbol(0)] or [Value(0.5)]
 
-        if (result && result.length > 0) {
+        if (result?.[0]) {
             const atom = result[0];
-            // Helper to extract value from atom
-            // If it's a number atom (Symbol with number name? or Value?)
-            // MeTTa implementation details vary.
-            // Let's assume standard behavior: if it looks like a number, it is.
-            const val = parseFloat(atom.toString());
+            const str = atom.toString();
+
+            // Try parsing as number
+            const val = parseFloat(str);
             if (!isNaN(val)) return val;
 
-            // If it's a list, it might be a continuous action vector
-            if (atom.toString().startsWith('(')) {
-                 // Parse list
-                 const str = atom.toString().slice(1, -1).trim();
-                 return str.split(/\s+/).map(Number);
+            // Try parsing as list
+            if (str.startsWith('(')) {
+                return str.slice(1, -1).trim().split(/\s+/).map(Number);
             }
 
-            return atom.toString();
+            return str;
         }
 
-        // Fallback
-        return 0;
+        return 0; // Fallback
     }
 
     async learn(observation, action, reward, nextObservation, done) {
         await this._ensureInitialized();
-        const obsStr = this._obsToMetta(observation);
-        const nextObsStr = this._obsToMetta(nextObservation);
+        const obsStr = this._toMetta(observation);
+        const nextObsStr = this._toMetta(nextObservation);
         const actStr = Array.isArray(action) ? `(${action.join(' ')})` : action;
 
         const program = `!(agent-learn ${obsStr} ${actStr} ${reward} ${nextObsStr} ${done})`;

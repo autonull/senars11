@@ -1,5 +1,5 @@
 
-import { RLAgent } from './RLAgent.js';
+import { RLAgent } from '../core/RLAgent.js';
 
 export class RandomAgent extends RLAgent {
     constructor(env) {
