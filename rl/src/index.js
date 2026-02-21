@@ -17,6 +17,7 @@ export * from './environments/CompositionalWorld.js';
 
 export * from './reasoning/SymbolicPlanner.js';
 export * from './reasoning/RuleInducer.js';
+export * from './reasoning/SeNARSBridge.js';
 
 export * from './strategies/model-based.js';
 export * from './strategies/hierarchical.js';
