@@ -47,6 +47,8 @@ export * from './environments/GridWorld.js';
 export * from './environments/Continuous1D.js';
 export * from './environments/CompositionalWorld.js';
 export * from './environments/CartPole.js';
+export * from './environments/UnifiedEnvironment.js';
+export * from './environments/HybridActionSpace.js';
 
 // ==================== Composable Module System ====================
 export * from './composable/Component.js';
@@ -81,6 +83,10 @@ export * from './experience/ExperienceSystem.js';
 
 // ==================== Cognitive Architecture ====================
 export * from './cognitive/CognitiveArchitecture.js';
+export * from './cognitive/EmergentArchitecture.js';
+
+// ==================== SeNARS-MeTTa-Tensor Integration ====================
+export * from './integration/SeNARSMettaTensor.js';
 
 // ==================== Training Loop ====================
 export * from './training/TrainingLoop.js';
