@@ -19,14 +19,42 @@ export class HierarchicalStrategy {
             return this.currentOption;
         }
 
+        this.currentOption = null;
+
         // 2. Select new option using SeNARS
-        // Ask: "Which skill is applicable?"
-        // <(obs) --> (applicable, ?skill)>?
+        if (this.bridge && goal) {
+            // Ask: "What skill achieves the goal?"
+            // Query: <(?skill) --> (achieved-by, goal)>?
+            // Or better: <(goal) --> (achieved-by, ?skill)>?
+            // Assuming "achieved-by" is the relation.
 
-        // Simplified: use goal
-        // <(goal) --> (achieved-by, ?skill)>?
+            // Format goal term
+            const goalTerm = Array.isArray(goal) ? `(${goal.join(' ')})` : String(goal);
+            // Narsese syntax: <S --> P>?
+            // Here S=goal, P=(achieved_by, ?skill)
+            // Note: If goal is compound term like (1 2), wrap it in parens?
+            // SymbolGrounding usually returns strings like "state_0_0" or "(1,2)".
+            // If goal is already a string, assume it's a term.
 
-        // For now, return a random skill from library or null
+            // To be safe, we query: <goal --> (achieved_by, ?skill)>?
+            const query = `<${goalTerm} --> (achieved_by, ?skill)>?`;
+
+            const result = await this.bridge.ask(query);
+
+            if (result && result.substitution && result.substitution['?skill']) {
+                let skillName = result.substitution['?skill'].toString();
+                // Strip quotes if present (some terms might be string literals)
+                skillName = skillName.replace(/^"|"$/g, '');
+
+                const skill = this.skills.get(skillName);
+                if (skill && (typeof skill.precondition !== 'function' || skill.precondition(obs))) {
+                    this.currentOption = skill;
+                    return skill;
+                }
+            }
+        }
+
+        // Fallback: return a random available skill from library or null
         const available = this.skills.available(obs);
         if (available.length > 0) {
             const skillName = available[0]; // Simple first available
