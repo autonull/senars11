@@ -29,6 +29,14 @@ export class SkillLibrary {
      * @returns {Array<string>} list of skill names
      */
     available(context) {
-        return Array.from(this.skills.keys());
+        // Filter skills based on preconditions
+        return Array.from(this.skills.entries())
+            .filter(([name, skill]) => {
+                if (skill.precondition) {
+                    return skill.precondition(context);
+                }
+                return true; // Default: available
+            })
+            .map(([name]) => name);
     }
 }

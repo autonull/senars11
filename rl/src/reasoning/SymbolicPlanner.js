@@ -1,6 +1,9 @@
 
+import { SeNARSBridge } from './SeNARSBridge.js';
+
 export class SymbolicPlanner {
-    constructor(config = {}) {
+    constructor(bridge, config = {}) {
+        this.bridge = bridge;
         this.config = config;
     }
 
@@ -10,8 +13,19 @@ export class SymbolicPlanner {
      * @param {*} goal Symbolic goal
      * @returns {Array} Sequence of actions
      */
-    plan(startState, goal) {
-        // Placeholder: MCTS or A* search
-        return [];
+    async plan(startState, goal) {
+        // Use SeNARS to find a path
+        // Query: <(startState) --> (path-to, goal)>?
+
+        // Or iterative ask: "What to do next?"
+        const result = await this.bridge.ask(`<( ${startState} ) --> (path-to, ${goal})>?`);
+
+        if (result && result.answer) {
+             // Parse result.term to get sequence
+             // Assume result is like (op1, op2, ...)
+             return result.term;
+        }
+
+        return null;
     }
 }

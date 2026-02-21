@@ -3,6 +3,10 @@ import { RLAgent } from '../core/RLAgent.js';
 import { SymbolGrounding } from '../core/SymbolGrounding.js';
 import { WorkingMemory } from '../core/WorkingMemory.js';
 import { SkillLibrary } from '../core/SkillLibrary.js';
+import { SeNARSBridge } from '../reasoning/SeNARSBridge.js';
+import { ModelBasedStrategy } from '../strategies/model-based.js';
+import { HierarchicalStrategy } from '../strategies/hierarchical.js';
+import { RuleInducer } from '../reasoning/RuleInducer.js';
 
 export class NeuroSymbolicAgent extends RLAgent {
   constructor(env, config = {}) {
@@ -19,74 +23,102 @@ export class NeuroSymbolicAgent extends RLAgent {
     this.grounding = new SymbolGrounding();
     this.memory = new WorkingMemory();
     this.skills = new SkillLibrary();
+    this.bridge = new SeNARSBridge(this, config);
+    this.planner = new ModelBasedStrategy(this.bridge, config);
+    this.hierarchical = new HierarchicalStrategy(this.bridge, this.skills, config);
+    this.inducer = new RuleInducer(this.bridge, config);
+  }
+
+  async initialize() {
+      await this.bridge.initialize();
   }
 
   // Core interface
   async act(observation) {
+      if (!this.bridge.initialized) await this.initialize();
+
       // 1. Perception -> Symbols
-      // Note: lift/ground are placeholders currently
-      // const symbols = this.grounding.lift(observation);
+      const symbols = this.grounding.lift(observation);
 
       // 2. Reasoning / Planning
       let actionSymbols;
-      if (this.config.planning) {
-          // actionSymbols = await this.plan(symbols);
-          actionSymbols = {};
-      } else {
-          // Reactive
-          actionSymbols = {}; // Placeholder
+
+      // Try Hierarchical
+      const option = await this.hierarchical.selectOption(symbols, 'goal'); // Goal hardcoded for now
+      if (option) {
+          actionSymbols = await option.act(observation);
+      } else if (this.config.planning) {
+          // Model-based planning
+          // What action leads to goal?
+          actionSymbols = await this.planner.act(symbols, 'goal');
+      }
+
+      // If planning failed or returned null, reactive fallback
+      if (!actionSymbols) {
+           // Random fallback
+           if (this.env && this.env.actionSpace) {
+               const as = this.env.actionSpace;
+               if (as.type === 'Discrete') return Math.floor(Math.random() * as.n);
+               // Continuous
+               return as.low.map((l, i) => l + Math.random() * (as.high[i] - l));
+           }
+           return 0;
       }
 
       // 3. Symbols -> Action
-      // const action = this.grounding.ground(actionSymbols);
-
-      // Return a dummy action for now as components are placeholders
-      // Use random action from environment
-      if (this.env && this.env.actionSpace) {
-           const as = this.env.actionSpace;
-           if (as.type === 'Discrete') return Math.floor(Math.random() * as.n);
-           if (as.type === 'Box') return as.low.map((l, i) => l + Math.random() * (as.high[i] - l));
-      }
-      return 0;
+      const action = this.grounding.ground(actionSymbols);
+      return action;
   }
 
   async learn(observation, action, reward, nextObservation, done) {
-      // 1. Store experience
-      this.memory.store({
-          obs: observation,
-          action: action,
-          reward: reward,
-          nextObs: nextObservation,
-          done: done,
-          // Store symbolic too if available
-      });
+      if (!this.bridge.initialized) await this.initialize();
 
-      // 2. Update grounding
+      // Lift inputs
+      const obsSym = this.grounding.lift(observation);
+      const nextObsSym = this.grounding.lift(nextObservation);
+      const actionSym = typeof action === 'number' ? `op_${action}` : `op_${action[0]}`; // Simplified action symbol
+
+      // 1. Store experience
+      const episode = {
+          obs: obsSym,
+          action: actionSym,
+          reward: reward,
+          nextObs: nextObsSym,
+          done: done,
+          symbol: obsSym // Use observation symbol as index key
+      };
+
+      this.memory.store(episode);
+
+      // 2. Update grounding (if learned)
       if (this.config.grounding === 'learned') {
-          // this.grounding.update(experience)
+          this.grounding.updateGrounding(observation, obsSym);
       }
 
-      // 3. Skill discovery / consolidation
-      if (this.config.skillDiscovery) {
+      // 3. Rule Induction
+      // Feed to inducer
+      this.inducer.induce([episode]);
+
+      // 4. Skill discovery / consolidation
+      if (this.config.skillDiscovery && done) {
+          // Consolidate memory at end of episode
           this.memory.consolidate();
       }
   }
 
   // Neuro-symbolic specific
   async plan(goal) {
-      // symbolic planning
-      // Placeholder
-      return {};
+      return this.planner.act(null, goal);
   }
 
   async explain(decision) {
-      // generate symbolic explanation
-      // Placeholder
-      return "Explanation";
+      // Query SeNARS for explanation
+      // <(decision) --> ?explanation>?
+      return "Explanation not implemented yet";
   }
 
   transferTo(newEnv) {
       // compositional transfer
-      // Placeholder
+      // Clear specific grounding but keep rules?
   }
 }
