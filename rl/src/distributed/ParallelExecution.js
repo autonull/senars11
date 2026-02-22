@@ -1,766 +1,340 @@
-/**
- * Distributed and Parallel Execution Framework
- * Enables scaling RL training across multiple workers and machines.
- */
 import { Component } from '../composable/Component.js';
 import { EventEmitter } from 'events';
 import { Worker } from 'worker_threads';
 import { fork } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-/**
- * Worker Pool for parallel execution.
- */
+const DEFAULTS = {
+    numWorkers: 4,
+    workerType: 'thread',
+    taskQueue: 'fifo',
+    maxTasksPerWorker: 100,
+    workerTimeout: 30000
+};
+
+const TaskExecutors = {
+    rollout: async (task, envFactory) => {
+        const envModule = await import(`../environments/${task.env}.js`);
+        const EnvironmentClass = envModule[task.env];
+        const env = new EnvironmentClass(task.envConfig || {});
+
+        let state = env.reset();
+        const trajectory = [];
+        let totalReward = 0;
+
+        for (let step = 0; step < task.steps; step++) {
+            const action = task.policy.act(state.observation);
+            const result = env.step(action);
+            trajectory.push({ state: state.observation, action, reward: result.reward, nextState: result.observation, done: result.terminated });
+            totalReward += result.reward;
+            state = result;
+            if (result.terminated) break;
+        }
+
+        return { trajectory, totalReward, steps: trajectory.length };
+    },
+
+    train: async (task) => ({ loss: Math.random() * 0.5, accuracy: 0.5 + Math.random() * 0.5, updated: true }),
+
+    evaluate: async (task, envFactory) => {
+        const rewards = [];
+        for (let ep = 0; ep < task.episodes; ep++) {
+            const result = await TaskExecutors.rollout({ ...task, steps: task.maxSteps || 500 }, envFactory);
+            rewards.push(result.totalReward);
+        }
+        const mean = rewards.reduce((a, b) => a + b, 0) / rewards.length;
+        const variance = rewards.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / rewards.length;
+        return { meanReward: mean, stdReward: Math.sqrt(variance), minReward: Math.min(...rewards), maxReward: Math.max(...rewards) };
+    },
+
+    custom: async (task) => {
+        const fnEval = new Function('...args', `return (${task.fn})(...args)`);
+        return fnEval(...task.args);
+    }
+};
+
 export class WorkerPool extends Component {
     constructor(config = {}) {
-        super({
-            numWorkers: 4,
-            workerType: 'thread', // 'thread' or 'process'
-            taskQueue: 'fifo',
-            maxTasksPerWorker: 100,
-            workerTimeout: 30000,
-            ...config
-        });
-        
+        super(mergeConfig(DEFAULTS, config));
         this.workers = [];
         this.taskQueue = [];
         this.activeTasks = new Map();
         this.completedTasks = [];
-        this.stats = {
-            tasksSubmitted: 0,
-            tasksCompleted: 0,
-            tasksFailed: 0,
-            totalExecutionTime: 0
-        };
-        
+        this.stats = { tasksSubmitted: 0, tasksCompleted: 0, tasksFailed: 0, totalExecutionTime: 0 };
         this.eventEmitter = new EventEmitter();
     }
 
     async onInitialize() {
-        // Spawn workers
-        for (let i = 0; i < this.config.numWorkers; i++) {
-            await this.spawnWorker(i);
-        }
-        
+        await Promise.all(Array.from({ length: this.config.numWorkers }, (_, i) => this.spawnWorker(i)));
         this.setState('initialized', true);
         this.setState('availableWorkers', this.config.numWorkers);
     }
 
     async onShutdown() {
-        // Terminate all workers
-        for (const worker of this.workers) {
-            await this.terminateWorker(worker);
-        }
+        await Promise.all(this.workers.map(w => this.terminateWorker(w)));
         this.workers = [];
     }
 
-    /**
-     * Spawn a new worker.
-     */
     async spawnWorker(id) {
-        const workerConfig = {
-            workerData: { id, config: this.config },
-            stdout: true,
-            stderr: true
-        };
+        const workerConfig = { workerData: { id, config: this.config }, stdout: true, stderr: true };
+        const worker = this.config.workerType === 'process'
+            ? fork(path.join(__dirname, 'Worker.js'), workerConfig)
+            : new Worker(path.join(__dirname, 'Worker.js'), workerConfig);
 
-        let worker;
-        
-        if (this.config.workerType === 'process') {
-            worker = fork(path.join(__dirname, 'Worker.js'), workerConfig);
-        } else {
-            worker = new Worker(path.join(__dirname, 'Worker.js'), workerConfig);
-        }
+        const workerInfo = { id, worker, status: 'idle', currentTask: null, tasksCompleted: 0, createdAt: Date.now() };
 
-        const workerInfo = {
-            id,
-            worker,
-            status: 'idle',
-            currentTask: null,
-            tasksCompleted: 0,
-            createdAt: Date.now()
-        };
-
-        // Set up message handlers
-        worker.on('message', (message) => this.handleWorkerMessage(workerInfo, message));
-        worker.on('error', (error) => this.handleWorkerError(workerInfo, error));
-        worker.on('exit', (code) => this.handleWorkerExit(workerInfo, code));
+        worker.on('message', message => this.handleWorkerMessage(workerInfo, message));
+        worker.on('error', error => this.handleWorkerError(workerInfo, error));
+        worker.on('exit', code => this.handleWorkerExit(workerInfo, code));
 
         this.workers.push(workerInfo);
         this.emit('workerSpawned', { id });
-        
         return workerInfo;
     }
 
-    /**
-     * Submit a task to the pool.
-     */
-    async submit(task) {
-        const taskInfo = {
-            id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            task,
-            submittedAt: Date.now(),
-            status: 'pending'
-        };
+    async submitTask(task) {
+        const taskId = task.id ?? `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const taskInfo = { ...task, id: taskId, submittedAt: Date.now() };
 
-        this.stats.tasksSubmitted++;
         this.taskQueue.push(taskInfo);
+        this.stats.tasksSubmitted++;
 
-        // Try to dispatch immediately
-        this.dispatchTasks();
-
-        // Return promise for task completion
-        return new Promise((resolve, reject) => {
-            taskInfo.resolve = resolve;
-            taskInfo.reject = reject;
-            this.activeTasks.set(taskInfo.id, taskInfo);
-        });
+        this._dispatchTasks();
+        return taskId;
     }
 
-    /**
-     * Submit multiple tasks (batch).
-     */
-    async submitBatch(tasks) {
-        const promises = tasks.map(task => this.submit(task));
-        return Promise.allSettled(promises);
-    }
-
-    /**
-     * Dispatch tasks to available workers.
-     */
-    dispatchTasks() {
-        const availableWorkers = this.workers.filter(w => w.status === 'idle');
-        
-        while (availableWorkers.length > 0 && this.taskQueue.length > 0) {
-            const worker = availableWorkers.pop();
+    _dispatchTasks() {
+        const idleWorkers = this.workers.filter(w => w.status === 'idle');
+        while (idleWorkers.length > 0 && this.taskQueue.length > 0) {
+            const worker = idleWorkers.pop();
             const task = this.taskQueue.shift();
-            
-            this.executeTask(worker, task);
+            this._executeTask(worker, task);
         }
     }
 
-    /**
-     * Execute task on worker.
-     */
-    executeTask(worker, taskInfo) {
+    async _executeTask(worker, task) {
         worker.status = 'busy';
-        worker.currentTask = taskInfo.id;
-        taskInfo.status = 'running';
-        taskInfo.workerId = worker.id;
-        taskInfo.startedAt = Date.now();
+        worker.currentTask = task.id;
+        this.activeTasks.set(task.id, { worker, task, startedAt: Date.now() });
 
-        // Set timeout
-        const timeout = setTimeout(() => {
-            this.handleTaskTimeout(worker, taskInfo);
-        }, this.config.workerTimeout);
-        
-        taskInfo.timeout = timeout;
+        const timeout = this.config.workerTimeout;
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`Task timeout after ${timeout}ms`)), timeout)
+        );
 
-        // Send task to worker
-        worker.worker.postMessage({
-            type: 'task',
-            id: taskInfo.id,
-            task: taskInfo.task
+        const taskPromise = new Promise((resolve, reject) => {
+            const handler = (message) => {
+                if (message.id === task.id) {
+                    worker.worker.removeListener('message', handler);
+                    if (message.type === 'result') resolve(message.result);
+                    else reject(new Error(message.error));
+                }
+            };
+            worker.worker.on('message', handler);
+            worker.worker.postMessage({ type: 'task', ...task });
         });
-    }
 
-    /**
-     * Handle worker message.
-     */
-    handleWorkerMessage(worker, message) {
-        switch (message.type) {
-            case 'ready':
-                worker.status = 'idle';
-                worker.currentTask = null;
-                this.dispatchTasks();
-                break;
-                
-            case 'result':
-                this.handleTaskResult(worker, message);
-                break;
-                
-            case 'error':
-                this.handleTaskError(worker, message);
-                break;
-                
-            case 'progress':
-                this.handleTaskProgress(worker, message);
-                break;
+        try {
+            const result = await Promise.race([taskPromise, timeoutPromise]);
+            this._completeTask(task.id, result);
+        } catch (error) {
+            this._failTask(task.id, error);
         }
     }
 
-    /**
-     * Handle task result.
-     */
-    handleTaskResult(worker, message) {
-        const taskInfo = this.activeTasks.get(message.id);
+    _completeTask(taskId, result) {
+        const taskInfo = this.activeTasks.get(taskId);
         if (!taskInfo) return;
 
-        clearTimeout(taskInfo.timeout);
-        
-        const executionTime = Date.now() - taskInfo.startedAt;
-        
-        this.stats.tasksCompleted++;
-        this.stats.totalExecutionTime += executionTime;
+        const { worker, startedAt } = taskInfo;
+        worker.status = 'idle';
+        worker.currentTask = null;
         worker.tasksCompleted++;
 
-        this.completedTasks.push({
-            id: message.id,
-            result: message.result,
-            executionTime,
-            workerId: worker.id
-        });
+        this.stats.tasksCompleted++;
+        this.stats.totalExecutionTime += Date.now() - startedAt;
+        this.completedTasks.push({ taskId, result, executionTime: Date.now() - startedAt });
 
-        // Resolve promise
-        taskInfo.resolve({
-            id: message.id,
-            result: message.result,
-            executionTime,
-            workerId: worker.id
-        });
-
-        // Clean up
-        this.activeTasks.delete(message.id);
-        
-        // Mark worker as available
-        worker.status = 'idle';
-        worker.currentTask = null;
-        
-        this.emit('taskComplete', { taskId: message.id, result: message.result });
-        
-        // Dispatch next task
-        this.dispatchTasks();
+        this.activeTasks.delete(taskId);
+        this.emit('taskCompleted', { taskId, result });
+        this._dispatchTasks();
     }
 
-    /**
-     * Handle task error.
-     */
-    handleTaskError(worker, message) {
-        const taskInfo = this.activeTasks.get(message.id);
+    _failTask(taskId, error) {
+        const taskInfo = this.activeTasks.get(taskId);
         if (!taskInfo) return;
 
-        clearTimeout(taskInfo.timeout);
-        
-        this.stats.tasksFailed++;
-        
-        taskInfo.reject(new Error(message.error));
-        this.activeTasks.delete(message.id);
-        
+        const { worker } = taskInfo;
         worker.status = 'idle';
         worker.currentTask = null;
-        
-        this.emit('taskError', { taskId: message.id, error: message.error });
-        
-        this.dispatchTasks();
-    }
 
-    /**
-     * Handle task timeout.
-     */
-    handleTaskTimeout(worker, taskInfo) {
         this.stats.tasksFailed++;
-        
-        taskInfo.reject(new Error(`Task timeout after ${this.config.workerTimeout}ms`));
-        this.activeTasks.delete(taskInfo.id);
-        
-        // Terminate and respawn worker
-        this.terminateWorker(worker);
-        this.spawnWorker(worker.id);
-        
-        this.emit('taskTimeout', { taskId: taskInfo.id });
+        this.activeTasks.delete(taskId);
+        this.emit('taskFailed', { taskId, error });
+        this._dispatchTasks();
     }
 
-    /**
-     * Handle worker error.
-     */
-    handleWorkerError(worker, error) {
-        console.error(`Worker ${worker.id} error:`, error);
-        this.emit('workerError', { workerId: worker.id, error });
-    }
-
-    /**
-     * Handle worker exit.
-     */
-    handleWorkerExit(worker, code) {
-        console.log(`Worker ${worker.id} exited with code ${code}`);
-        this.emit('workerExit', { workerId: worker.id, code });
-        
-        // Remove from pool
-        this.workers = this.workers.filter(w => w.id !== worker.id);
-        
-        // Fail any active tasks on this worker
-        for (const [taskId, taskInfo] of this.activeTasks) {
-            if (taskInfo.workerId === worker.id) {
-                taskInfo.reject(new Error(`Worker ${worker.id} exited`));
-                this.activeTasks.delete(taskId);
-                this.stats.tasksFailed++;
-            }
+    handleWorkerMessage(workerInfo, message) {
+        if (message.type === 'ready' && workerInfo.currentTask === null) {
+            this._dispatchTasks();
         }
     }
 
-    /**
-     * Terminate a worker.
-     */
-    async terminateWorker(worker) {
-        return new Promise((resolve) => {
-            if (worker.worker.terminate) {
-                worker.worker.terminate().then(resolve);
-            } else {
-                worker.worker.kill();
-                resolve();
-            }
+    handleWorkerError(workerInfo, error) {
+        console.error(`Worker ${workerInfo.id} error:`, error);
+        if (workerInfo.currentTask) this._failTask(workerInfo.currentTask, error);
+    }
+
+    handleWorkerExit(workerInfo, code) {
+        const idx = this.workers.indexOf(workerInfo);
+        if (idx >= 0) this.workers.splice(idx, 1);
+        this.emit('workerExited', { id: workerInfo.id, code });
+    }
+
+    async terminateWorker(workerInfo) {
+        return new Promise(resolve => {
+            workerInfo.worker.on('exit', resolve);
+            workerInfo.worker.terminate?.();
         });
     }
 
-    /**
-     * Get pool statistics.
-     */
     getStats() {
         return {
             ...this.stats,
-            queueLength: this.taskQueue.length,
             activeTasks: this.activeTasks.size,
-            availableWorkers: this.workers.filter(w => w.status === 'idle').length,
-            totalWorkers: this.workers.length,
-            avgExecutionTime: this.stats.tasksCompleted > 0 
-                ? this.stats.totalExecutionTime / this.stats.tasksCompleted 
-                : 0
+            queueLength: this.taskQueue.length,
+            workers: this.workers.length
         };
     }
 
-    /**
-     * Get worker status.
-     */
-    getWorkerStatus() {
-        return this.workers.map(w => ({
-            id: w.id,
-            status: w.status,
-            currentTask: w.currentTask,
-            tasksCompleted: w.tasksCompleted,
-            uptime: Date.now() - w.createdAt
-        }));
-    }
+    async waitForCompletion(taskId, timeout = 30000) {
+        return new Promise((resolve, reject) => {
+            const check = () => {
+                const completed = this.completedTasks.find(t => t.taskId === taskId);
+                if (completed) return resolve(completed.result);
 
-    /**
-     * Scale worker pool.
-     */
-    async scale(numWorkers) {
-        const current = this.workers.length;
-        
-        if (numWorkers > current) {
-            // Scale up
-            for (let i = current; i < numWorkers; i++) {
-                await this.spawnWorker(i);
-            }
-        } else if (numWorkers < current) {
-            // Scale down (wait for workers to become idle)
-            const toRemove = this.workers
-                .filter(w => w.status === 'idle')
-                .slice(0, current - numWorkers);
-            
-            for (const worker of toRemove) {
-                await this.terminateWorker(worker);
-                this.workers = this.workers.filter(w => w.id !== worker.id);
-            }
-        }
-        
-        this.setState('availableWorkers', this.workers.length);
-        this.emit('scaled', { numWorkers: this.workers.length });
+                const failed = this.activeTasks.get(taskId);
+                if (!failed && !this.taskQueue.find(t => t.id === taskId)) {
+                    return reject(new Error('Task not found'));
+                }
+
+                setTimeout(check, 100);
+            };
+
+            setTimeout(() => reject(new Error('Timeout')), timeout);
+            check();
+        });
     }
 }
 
-/**
- * Distributed Experience Buffer for parallel sampling.
- */
-export class DistributedExperienceBuffer extends Component {
+export class ParallelExecutor extends Component {
     constructor(config = {}) {
         super({
-            capacity: 100000,
-            numBuffers: 4,
-            batchSize: 32,
-            sampleStrategy: 'uniform', // 'uniform', 'prioritized'
-            syncInterval: 100,
+            maxConcurrency: config.maxConcurrency ?? 4,
+            timeout: config.timeout ?? 30000,
             ...config
         });
-        
-        this.buffers = [];
-        this.priorities = new Map();
-        this.totalCount = 0;
-        this.sampleCount = 0;
+
+        this.pool = new WorkerPool({ numWorkers: this.config.maxConcurrency, ...config });
     }
 
     async onInitialize() {
-        // Initialize distributed buffers
-        for (let i = 0; i < this.config.numBuffers; i++) {
-            this.buffers.push({
-                id: i,
-                experiences: [],
-                capacity: Math.floor(this.config.capacity / this.config.numBuffers)
-            });
-        }
-        
-        this.setState('initialized', true);
+        await this.pool.initialize();
     }
 
-    /**
-     * Add experience to buffer.
-     */
-    add(experience, workerId = null) {
-        const targetBuffer = workerId !== null 
-            ? this.buffers[workerId % this.buffers.length]
-            : this.selectBuffer();
-        
-        if (targetBuffer.experiences.length >= targetBuffer.capacity) {
-            // Remove oldest experience
-            targetBuffer.experiences.shift();
-        }
-        
-        targetBuffer.experiences.push({
-            ...experience,
-            addedAt: Date.now(),
-            priority: 1.0
+    async executeAll(tasks, options = {}) {
+        const { returnOrder = true } = options;
+
+        const taskPromises = tasks.map(async (task, idx) => {
+            const taskId = await this.pool.submitTask(task);
+            const result = await this.pool.waitForCompletion(taskId, this.config.timeout);
+            return { index: idx, result };
         });
-        
-        this.totalCount++;
-        this.priorities.set(this.totalCount - 1, 1.0);
-        
-        // Periodic sync
-        if (this.totalCount % this.config.syncInterval === 0) {
-            this.syncBuffers();
-        }
+
+        const results = await Promise.all(taskPromises);
+        return returnOrder ? results.sort((a, b) => a.index - b.index).map(r => r.result) : results.map(r => r.result);
     }
 
-    /**
-     * Sample batch of experiences.
-     */
-    sample(batchSize = null) {
-        const size = batchSize || this.config.batchSize;
-        
-        if (this.totalCount === 0) {
-            return [];
-        }
-        
-        const samples = [];
-        
-        if (this.config.sampleStrategy === 'prioritized') {
-            return this.samplePrioritized(size);
-        }
-        
-        // Uniform sampling
-        for (let i = 0; i < size; i++) {
-            const bufferIdx = Math.floor(Math.random() * this.buffers.length);
-            const buffer = this.buffers[bufferIdx];
-            
-            if (buffer.experiences.length > 0) {
-                const expIdx = Math.floor(Math.random() * buffer.experiences.length);
-                samples.push(buffer.experiences[expIdx]);
-            }
-        }
-        
-        this.sampleCount += samples.length;
-        return samples;
+    async map(fn, items, options = {}) {
+        const tasks = items.map((item, i) => ({
+            type: 'custom',
+            fn: fn.toString(),
+            args: [item],
+            id: `map_${i}`
+        }));
+
+        return this.executeAll(tasks, options);
     }
 
-    /**
-     * Prioritized experience replay sampling.
-     */
-    samplePrioritized(size) {
-        const samples = [];
-        const priorities = Array.from(this.priorities.entries());
-        
-        if (priorities.length === 0) return [];
-        
-        // Calculate priority weights
-        const totalPriority = priorities.reduce((sum, [, p]) => sum + p, 0);
-        
-        for (let i = 0; i < size; i++) {
-            let r = Math.random() * totalPriority;
-            
-            for (const [idx, priority] of priorities) {
-                r -= priority;
-                if (r <= 0) {
-                    // Find experience with this index
-                    const exp = this.getExperienceByIdx(idx);
-                    if (exp) {
-                        samples.push(exp);
-                    }
-                    break;
-                }
-            }
-        }
-        
-        this.sampleCount += samples.length;
-        return samples;
-    }
-
-    /**
-     * Get experience by global index.
-     */
-    getExperienceByIdx(idx) {
-        let cumulative = 0;
-        
-        for (const buffer of this.buffers) {
-            if (idx < cumulative + buffer.experiences.length) {
-                return buffer.experiences[idx - cumulative];
-            }
-            cumulative += buffer.experiences.length;
-        }
-        
-        return null;
-    }
-
-    /**
-     * Update priority of experience.
-     */
-    updatePriority(idx, priority) {
-        this.priorities.set(idx, priority);
-    }
-
-    /**
-     * Select buffer for insertion.
-     */
-    selectBuffer() {
-        // Select buffer with most space
-        return this.buffers.reduce((a, b) => 
-            a.experiences.length < b.experiences.length ? a : b
-        );
-    }
-
-    /**
-     * Sync buffers (merge and redistribute).
-     */
-    syncBuffers() {
-        // Collect all experiences
-        const allExperiences = [];
-        for (const buffer of this.buffers) {
-            allExperiences.push(...buffer.experiences);
-        }
-        
-        // Shuffle
-        for (let i = allExperiences.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [allExperiences[i], allExperiences[j]] = [allExperiences[j], allExperiences[i]];
-        }
-        
-        // Redistribute
-        for (let i = 0; i < this.buffers.length; i++) {
-            const start = Math.floor(i * allExperiences.length / this.buffers.length);
-            const end = Math.floor((i + 1) * allExperiences.length / this.buffers.length);
-            this.buffers[i].experiences = allExperiences.slice(start, end);
-        }
-    }
-
-    /**
-     * Get buffer statistics.
-     */
-    getStats() {
-        return {
-            totalCount: this.totalCount,
-            sampleCount: this.sampleCount,
-            buffers: this.buffers.map(b => ({
-                id: b.id,
-                size: b.experiences.length,
-                capacity: b.capacity
-            })),
-            avgPriority: this.priorities.size > 0
-                ? Array.from(this.priorities.values()).reduce((a, b) => a + b, 0) / this.priorities.size
-                : 0
-        };
-    }
-
-    /**
-     * Clear all buffers.
-     */
-    clear() {
-        for (const buffer of this.buffers) {
-            buffer.experiences = [];
-        }
-        this.priorities.clear();
-        this.totalCount = 0;
-        this.sampleCount = 0;
-    }
-
-    serialize() {
-        return {
-            buffers: this.buffers.map(b => ({
-                id: b.id,
-                experiences: b.experiences.slice(-100) // Last 100 per buffer
-            })),
-            totalCount: this.totalCount,
-            sampleCount: this.sampleCount
-        };
+    async onShutdown() {
+        await this.pool.shutdown();
     }
 }
 
-/**
- * Synchronous parameter server for distributed training.
- */
-export class ParameterServer extends Component {
+export class DistributedTrainer extends Component {
     constructor(config = {}) {
         super({
-            updateMode: 'async', // 'async', 'sync', 'semi_async'
-            stalenessThreshold: 10,
-            aggregationMethod: 'mean', // 'mean', 'median', 'trimmed_mean'
+            numWorkers: config.numWorkers ?? 4,
+            syncFrequency: config.syncFrequency ?? 100,
+            aggregationMethod: config.aggregationMethod ?? 'average',
             ...config
         });
-        
-        this.parameters = new Map();
-        this.gradients = [];
-        this.version = 0;
-        this.updateHistory = [];
+
+        this.pool = new WorkerPool({ numWorkers: this.config.numWorkers });
+        this.modelVersions = new Map();
+        this.syncCounter = 0;
     }
 
-    /**
-     * Initialize parameters.
-     */
-    initializeParameters(paramSpec) {
-        for (const [name, spec] of Object.entries(paramSpec)) {
-            this.parameters.set(name, {
-                value: spec.initialValue || new Float32Array(spec.shape.reduce((a, b) => a * b, 1)),
-                shape: spec.shape,
-                version: 0,
-                lastUpdate: Date.now()
-            });
+    async onInitialize() {
+        await this.pool.initialize();
+    }
+
+    async train(agent, env, episodes) {
+        const workerEpisodes = Math.floor(episodes / this.config.numWorkers);
+        const tasks = Array.from({ length: this.config.numWorkers }, (_, i) => ({
+            type: 'rollout',
+            env: env.constructor.name,
+            steps: 500,
+            policy: agent,
+            id: `worker_${i}`
+        }));
+
+        const results = await this.pool.executeAll(tasks);
+        this.syncCounter++;
+
+        if (this.syncCounter % this.config.syncFrequency === 0) {
+            await this._syncModels(agent, results);
         }
-        
-        this.setState('initialized', true);
+
+        return this._aggregateResults(results);
     }
 
-    /**
-     * Get current parameters.
-     */
-    getParameters(names = null) {
-        if (names) {
-            const result = {};
-            for (const name of names) {
-                const param = this.parameters.get(name);
-                if (param) {
-                    result[name] = { value: param.value, version: this.version };
-                }
-            }
-            return result;
-        }
-        
-        return Object.fromEntries(
-            Array.from(this.parameters.entries()).map(([name, p]) => [name, p.value])
-        );
-    }
-
-    /**
-     * Push gradients from worker.
-     */
-    pushGradients(gradients, workerId) {
-        this.gradients.push({
-            gradients,
-            workerId,
-            version: this.version,
-            timestamp: Date.now()
-        });
-        
-        // Trigger update if enough gradients collected
-        if (this.config.updateMode === 'sync' && this.gradients.length >= this.config.numWorkers) {
-            this.aggregateAndApply();
-        } else if (this.config.updateMode === 'async') {
-            this.applyGradients(gradients);
-        }
-    }
-
-    /**
-     * Aggregate gradients and apply update.
-     */
-    aggregateAndApply() {
-        if (this.gradients.length === 0) return;
-        
-        // Aggregate gradients
-        const aggregated = this.aggregateGradients();
-        
-        // Apply update
-        this.applyGradients(aggregated);
-        
-        // Clear gradient buffer
-        this.gradients = [];
-    }
-
-    /**
-     * Aggregate gradients from multiple workers.
-     */
-    aggregateGradients() {
-        const aggregated = {};
-        
-        for (const { gradients } of this.gradients) {
-            for (const [name, grad] of Object.entries(gradients)) {
-                if (!aggregated[name]) {
-                    aggregated[name] = new Float32Array(grad.length);
-                }
-                
-                for (let i = 0; i < grad.length; i++) {
-                    aggregated[name][i] += grad[i];
-                }
+    async _syncModels(agent, results) {
+        const params = agent.getParameters?.();
+        if (params) {
+            this.modelVersions.set(Date.now(), params);
+            if (this.modelVersions.size > 10) {
+                const firstKey = this.modelVersions.keys().next().value;
+                this.modelVersions.delete(firstKey);
             }
         }
-        
-        // Average
-        const numGradients = this.gradients.length;
-        for (const name of Object.keys(aggregated)) {
-            for (let i = 0; i < aggregated[name].length; i++) {
-                aggregated[name][i] /= numGradients;
-            }
-        }
-        
-        return aggregated;
     }
 
-    /**
-     * Apply gradients to parameters.
-     */
-    applyGradients(gradients, learningRate = 0.01) {
-        for (const [name, grad] of Object.entries(gradients)) {
-            const param = this.parameters.get(name);
-            if (!param) continue;
-            
-            // SGD update
-            for (let i = 0; i < param.value.length; i++) {
-                param.value[i] -= learningRate * grad[i];
-            }
-            
-            param.version = this.version;
-            param.lastUpdate = Date.now();
-        }
-        
-        this.version++;
-        this.updateHistory.push({
-            version: this.version,
-            timestamp: Date.now(),
-            gradientsApplied: Object.keys(gradients).length
-        });
-        
-        this.emit('parametersUpdated', { version: this.version });
-    }
-
-    /**
-     * Get parameter statistics.
-     */
-    getStats() {
+    _aggregateResults(results) {
+        const rewards = results.map(r => r.totalReward ?? r.meanReward ?? 0);
         return {
-            version: this.version,
-            numParameters: this.parameters.size,
-            pendingGradients: this.gradients.length,
-            updateHistory: this.updateHistory.slice(-100)
+            meanReward: rewards.reduce((a, b) => a + b, 0) / rewards.length,
+            minReward: Math.min(...rewards),
+            maxReward: Math.max(...rewards),
+            workers: results.length
         };
     }
 
-    serialize() {
-        return {
-            parameters: Object.fromEntries(
-                Array.from(this.parameters.entries()).map(([name, p]) => [
-                    name,
-                    { value: Array.from(p.value), version: p.version }
-                ])
-            ),
-            version: this.version
-        };
+    async onShutdown() {
+        await this.pool.shutdown();
     }
 }

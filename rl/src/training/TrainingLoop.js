@@ -1,56 +1,53 @@
-/**
- * Unified Training Loop
- * Multiple learning paradigms with neurosymbolic synergy.
- */
 import { Component } from '../composable/Component.js';
-import { ConfigManager, HyperparameterSpaces } from '../config/ConfigManager.js';
-import { PluginManager, PluginPresets } from '../plugins/PluginSystem.js';
+import { ConfigManager } from '../config/ConfigManager.js';
+import { PluginManager } from '../plugins/PluginSystem.js';
 import { ArchitectureFactory } from '../architectures/NeuroSymbolicArchitecture.js';
 import { WorldModel } from '../neurosymbolic/WorldModel.js';
 import { SkillDiscovery } from '../skills/SkillDiscovery.js';
 import { CausalReasoner, CausalGraph } from '../reasoning/CausalReasoning.js';
-import { ExperienceBuffer, CausalExperience } from '../experience/ExperienceBuffer.js';
+import { ExperienceBuffer } from '../experience/ExperienceBuffer.js';
 import { MetaController } from '../meta/MetaController.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
-/**
- * Training Configuration
- */
+const DEFAULTS = {
+    episodes: 1000,
+    maxSteps: 500,
+    batchSize: 64,
+    updateFrequency: 1,
+    targetUpdateFrequency: 100,
+    evalFrequency: 50,
+    saveFrequency: 100,
+    seed: 42,
+    modelFree: true,
+    modelBased: false,
+    offline: false,
+    multiTask: false,
+    meta: false,
+    hierarchical: false,
+    causal: false,
+    useWorldModel: false,
+    useSkillDiscovery: false,
+    useCausalReasoning: false,
+    useIntrinsicMotivation: false
+};
+
 export class TrainingConfig {
     constructor(config = {}) {
-        this.episodes = config.episodes ?? 1000;
-        this.maxSteps = config.maxSteps ?? 500;
-        this.batchSize = config.batchSize ?? 64;
-        this.updateFrequency = config.updateFrequency ?? 1;
-        this.targetUpdateFrequency = config.targetUpdateFrequency ?? 100;
-        this.evalFrequency = config.evalFrequency ?? 50;
-        this.saveFrequency = config.saveFrequency ?? 100;
-        this.seed = config.seed ?? 42;
-        
-        // Learning paradigms
+        const merged = mergeConfig(DEFAULTS, config);
+        Object.assign(this, merged);
         this.paradigms = {
-            modelFree: config.modelFree ?? true,
-            modelBased: config.modelBased ?? false,
-            offline: config.offline ?? false,
-            multiTask: config.multiTask ?? false,
-            meta: config.meta ?? false,
-            hierarchical: config.hierarchical ?? false,
-            causal: config.causal ?? false
+            modelFree: merged.modelFree,
+            modelBased: merged.modelBased,
+            offline: merged.offline,
+            multiTask: merged.multiTask,
+            meta: merged.meta,
+            hierarchical: merged.hierarchical,
+            causal: merged.causal
         };
-        
-        // Components
-        this.useWorldModel = config.useWorldModel ?? false;
-        this.useSkillDiscovery = config.useSkillDiscovery ?? false;
-        this.useCausalReasoning = config.useCausalReasoning ?? false;
-        this.useIntrinsicMotivation = config.useIntrinsicMotivation ?? false;
-        
-        // Hyperparameters
         this.hyperparams = config.hyperparams ?? {};
     }
 }
 
-/**
- * Training Episode Result
- */
 export class EpisodeResult {
     constructor(episode, reward, steps, success = false, info = {}) {
         this.episode = episode;
@@ -61,569 +58,233 @@ export class EpisodeResult {
         this.timestamp = Date.now();
     }
 
-    toJSON() {
-        return { ...this };
-    }
+    toJSON() { return { ...this }; }
 }
 
-/**
- * Unified Training Loop
- */
 export class TrainingLoop extends Component {
     constructor(agent, env, config = new TrainingConfig()) {
         super(config);
-
         this.agent = agent;
         this.env = env;
         this.config = config;
 
-        // Configuration manager
-        this.configManager = new ConfigManager({
-            learningRate: 0.001,
-            explorationRate: 0.1,
-            discountFactor: 0.99
-        });
-
-        // Plugin manager
+        this.configManager = new ConfigManager({ learningRate: 0.001, explorationRate: 0.1, discountFactor: 0.99 });
         this.pluginManager = new PluginManager();
-
-        // Shared experience buffer (used by all components)
-        this.experienceBuffer = new ExperienceBuffer({
-            capacity: 50000,
-            batchSize: config.batchSize,
-            sampleStrategy: 'prioritized',
-            useCausalIndexing: config.paradigms.causal
-        });
-
-        // Optional components
+        this.experienceBuffer = new ExperienceBuffer({ capacity: 50000, batchSize: config.batchSize, sampleStrategy: 'prioritized', useCausalIndexing: config.causal });
         this.worldModel = config.useWorldModel ? new WorldModel() : null;
-        this.skillDiscovery = config.useSkillDiscovery || config.paradigms.hierarchical ? new SkillDiscovery() : null;
-        this.causalReasoner = config.useCausalReasoning || config.paradigms.causal ? new CausalReasoner() : null;
+        this.skillDiscovery = config.useSkillDiscovery || config.hierarchical ? new SkillDiscovery() : null;
+        this.causalReasoner = config.useCausalReasoning || config.causal ? new CausalReasoner({ graph: new CausalGraph() }) : null;
         this.metaController = config.meta ? new MetaController() : null;
 
-        // Training state
-        this.currentEpisode = 0;
-        this.totalSteps = 0;
         this.episodeHistory = [];
-        this.metrics = {
-            rewards: [],
-            lengths: [],
-            successes: [],
-            losses: []
-        };
-
-        // Callbacks
-        this.callbacks = {
-            onEpisodeStart: [],
-            onEpisodeEnd: [],
-            onStep: [],
-            onEval: [],
-            onSave: [],
-            onSkillDiscovered: []
-        };
+        this.currentEpisode = 0;
+        this.bestReward = -Infinity;
     }
 
-    /**
-     * Initialize training loop.
-     */
     async onInitialize() {
-        // Initialize agent
-        await this.agent?.initialize?.();
-
-        // Initialize shared experience buffer
+        await this.pluginManager.installAll({ agent: this.agent, env: this.env });
         await this.experienceBuffer.initialize();
-
-        // Initialize optional components
-        await this.worldModel?.initialize?.();
-        await this.skillDiscovery?.initialize?.();
-        await this.causalReasoner?.initialize?.();
-        await this.metaController?.initialize?.();
-
-        // Install plugins
-        await this.pluginManager.installAll({
-            agent: this.agent,
-            env: this.env,
-            config: this.configManager,
-            experienceBuffer: this.experienceBuffer
-        });
-
-        // Set random seed
-        if (this.config.seed) {
-            this.seedRandom(this.config.seed);
-        }
-
-        // Set initial architecture for meta-controller
-        if (this.metaController && this.agent?.architecture) {
-            this.metaController.setArchitecture({
-                type: this.agent.config.architecture,
-                components: ['grounding', 'memory', 'skills']
-            });
-        }
+        await this.worldModel?.initialize();
+        await this.skillDiscovery?.initialize();
+        await this.causalReasoner?.initialize();
+        await this.metaController?.initialize();
 
         this.emit('initialized', { config: this.config });
     }
 
-    /**
-     * Run training.
-     */
-    async train(options = {}) {
-        const {
-            episodes = this.config.episodes,
-            progressCallback = null
-        } = options;
-        
-        this.emit('trainingStart', { episodes });
-        
-        for (let episode = 0; episode < episodes; episode++) {
-            this.currentEpisode = episode;
-            
-            // Run episode
+    async run() {
+        this.emit('trainingStarted', { episodes: this.config.episodes });
+
+        for (let ep = 0; ep < this.config.episodes; ep++) {
+            this.currentEpisode = ep;
             const result = await this.runEpisode();
+
             this.episodeHistory.push(result);
-            
-            // Update metrics
-            this.updateMetrics(result);
-            
-            // Progress callback
-            if (progressCallback) {
-                progressCallback({
-                    episode,
-                    total: episodes,
+            if (result.reward > this.bestReward) this.bestReward = result.reward;
+
+            await this.learn(result);
+
+            if (ep % this.config.evalFrequency === 0) {
+                const evalResult = await this.evaluate();
+                this.emit('evaluation', { episode: ep, ...evalResult });
+            }
+
+            if (ep % this.config.saveFrequency === 0) {
+                this.emit('checkpoint', { episode: ep, state: this.getState() });
+            }
+
+            if (ep % 10 === 0) {
+                this.emit('progress', {
+                    episode: ep,
                     reward: result.reward,
-                    avgReward: this.getAverageReward(100)
+                    avgReward: this._runningAvg(10),
+                    bestReward: this.bestReward
                 });
             }
-            
-            // Periodic evaluation
-            if (episode % this.config.evalFrequency === 0 && episode > 0) {
-                const evalResult = await this.evaluate();
-                this.emit('evaluation', evalResult);
-                
-                // Meta-controller evaluates and potentially modifies architecture
-                if (this.metaController) {
-                    const result = await this.metaController.evaluatePerformance(evalResult.meanReward);
-                    if (result.modified) {
-                        this.emit('architectureModified', result);
-                    }
-                }
-            }
-
-            // Periodic skill discovery
-            if (this.skillDiscovery && episode % 50 === 0 && episode > 0) {
-                const experiences = await this.experienceBuffer.sample(500);
-                const newSkills = await this.skillDiscovery.discoverSkills(experiences, { consolidate: true });
-                if (newSkills.length > 0) {
-                    this.emit('skillsDiscovered', { count: newSkills.length, skills: newSkills });
-                    for (const cb of this.callbacks.onSkillDiscovered) {
-                        await cb({ skills: newSkills });
-                    }
-                }
-            }
-
-            // Periodic saving
-            if (episode % this.config.saveFrequency === 0 && episode > 0) {
-                await this.save();
-            }
-            
-            // Early stopping
-            if (this.shouldStop()) {
-                this.emit('earlyStop', { episode, reason: 'convergence' });
-                break;
-            }
         }
-        
-        await this.shutdown();
-        
-        return this.getTrainingSummary();
+
+        this.emit('trainingCompleted', { bestReward: this.bestReward, history: this.episodeHistory });
+        return { bestReward: this.bestReward, history: this.episodeHistory };
     }
 
-    /**
-     * Run single episode.
-     */
     async runEpisode() {
-        // Callbacks
-        for (const cb of this.callbacks.onEpisodeStart) {
-            await cb({ episode: this.currentEpisode });
-        }
-        
-        let state = this.env.reset();
+        const { observation } = this.env.reset();
+        let state = observation;
         let totalReward = 0;
         let steps = 0;
-        const trajectory = [];
-        
-        // Get current exploration rate
-        const explorationRate = this.configManager.get('explorationRate');
-        
-        while (steps < this.config.maxSteps) {
-            // Get action
-            const action = await this.selectAction(state.observation, explorationRate);
-            
-            // Step environment
+
+        for (let step = 0; step < this.config.maxSteps; step++) {
+            const action = await this.agent.act(state, {
+                explorationRate: this.configManager.get('explorationRate'),
+                useWorldModel: this.worldModel !== null
+            });
+
             const result = this.env.step(action);
-            
-            // Store transition
-            const transition = {
-                state: state.observation,
-                action,
-                reward: result.reward,
-                nextState: result.observation,
-                done: result.terminated,
-                info: result.info
-            };
-            
-            trajectory.push(transition);
-            totalReward += result.reward;
+            const { observation: nextState, reward, terminated, truncated } = result;
+
+            await this.agent.learn({ state, action, reward, nextState, done: terminated || truncated }, reward);
+
+            await this.experienceBuffer.store({ state, action, reward, nextState, done: terminated || truncated });
+
+            if (this.worldModel) {
+                await this.worldModel.update(state, action, nextState, reward);
+            }
+
+            if (this.causalReasoner) {
+                await this.causalReasoner.learn(JSON.stringify(state), JSON.stringify(nextState), { action, reward });
+            }
+
+            totalReward += reward;
+            state = nextState;
             steps++;
-            
-            // Step callback
-            for (const cb of this.callbacks.onStep) {
-                await cb({ transition, step: steps });
+
+            if (terminated || truncated) break;
+        }
+
+        return new EpisodeResult(this.currentEpisode, totalReward, steps, totalReward > 0);
+    }
+
+    async learn(episodeResult) {
+        if (this.currentEpisode % this.config.updateFrequency !== 0) return;
+
+        const batch = await this.experienceBuffer.sample(this.config.batchSize);
+        if (batch.length === 0) return;
+
+        for (const experience of batch) {
+            await this.agent.learn(experience, experience.reward);
+        }
+
+        if (this.worldModel && this.config.modelBased) {
+            const imaginedExperiences = await this.worldModel.generateImaginedExperiences(10);
+            for (const exp of imaginedExperiences) {
+                await this.agent.learn(exp, exp.reward);
             }
-            
-            // Learn from transition
-            await this.learn(transition);
-            
-            state = result;
-            
-            if (result.terminated) break;
-        }
-        
-        this.totalSteps += steps;
-        
-        // Episode end callbacks
-        for (const cb of this.callbacks.onEpisodeEnd) {
-            await cb({ episode: this.currentEpisode, result: { totalReward, steps, trajectory } });
-        }
-        
-        return new EpisodeResult(this.currentEpisode, totalReward, steps, state.terminated, {
-            trajectory: this.config.paradigms.modelBased ? trajectory : undefined
-        });
-    }
-
-    /**
-     * Select action with exploration.
-     */
-    async selectAction(observation, explorationRate) {
-        // Plugin hook for action selection
-        const modified = await this.pluginManager.executeHook('select-action', {
-            observation,
-            explorationRate,
-            episode: this.currentEpisode
-        });
-        
-        // Epsilon-greedy exploration
-        if (Math.random() < modified.explorationRate) {
-            return this.explore(modified.observation);
-        }
-        
-        return this.agent.act(modified.observation);
-    }
-
-    /**
-     * Explore (random action).
-     */
-    explore(observation) {
-        const actionSpace = this.env.actionSpace;
-        
-        if (actionSpace.type === 'Discrete') {
-            return Math.floor(Math.random() * actionSpace.n);
-        }
-        
-        // Continuous action space
-        return actionSpace.low.map((low, i) => 
-            low + Math.random() * (actionSpace.high[i] - low)
-        );
-    }
-
-    /**
-     * Learn from transition.
-     */
-    async learn(transition) {
-        // Store in shared experience buffer
-        const experience = new CausalExperience({
-            state: transition.state,
-            action: transition.action,
-            reward: transition.reward,
-            nextState: transition.nextState,
-            done: transition.done,
-            trajectoryId: this.currentEpisode,
-            stepIndex: this.totalSteps
-        });
-        await this.experienceBuffer.store(experience);
-
-        // Plugin hook for learning
-        const modified = await this.pluginManager.executeHook('learn', {
-            transition,
-            episode: this.currentEpisode,
-            experience
-        });
-
-        // Model-free learning
-        if (this.config.paradigms.modelFree) {
-            await this.agent.learn?.(
-                modified.transition.state,
-                modified.transition.action,
-                modified.transition.reward,
-                modified.transition.nextState,
-                modified.transition.done
-            );
         }
 
-        // World model learning
-        if (this.worldModel && this.config.paradigms.modelBased) {
-            await this.worldModel.train([modified.transition], 1);
+        if (this.skillDiscovery) {
+            const experiences = batch.map(e => ({ state: e.state, action: e.action, reward: e.reward, nextState: e.nextState }));
+            await this.skillDiscovery.discoverSkills(experiences);
         }
 
-        // Causal learning
-        if (this.causalReasoner) {
-            await this.causalReasoner.learn(
-                JSON.stringify(transition.state),
-                JSON.stringify(transition.nextState),
-                JSON.stringify({ action: transition.action, reward: transition.reward })
-            );
-        }
-
-        // Intrinsic motivation
-        if (this.config.useIntrinsicMotivation) {
-            const intrinsicReward = await this.computeIntrinsicReward(modified.transition);
-            modified.transition.reward += intrinsicReward;
+        if (this.metaController) {
+            await this.metaController.evaluatePerformance(episodeResult.reward);
         }
     }
 
-    /**
-     * Compute intrinsic reward.
-     */
-    async computeIntrinsicReward(transition) {
-        const result = await this.pluginManager.executeHook('reward', 
-            transition.reward,
-            transition
-        );
-        return result - transition.reward;
-    }
+    async evaluate() {
+        const evalEpisodes = [];
 
-    /**
-     * Evaluate agent.
-     */
-    async evaluate(episodes = 5) {
-        const rewards = [];
-        const lengths = [];
-        
-        // Temporarily disable exploration
-        const savedExploration = this.configManager.get('explorationRate');
-        this.configManager.set('explorationRate', 0);
-        
-        for (let i = 0; i < episodes; i++) {
-            let state = this.env.reset();
+        for (let ep = 0; ep < 5; ep++) {
+            const { observation } = this.env.reset();
+            let state = observation;
             let totalReward = 0;
-            let steps = 0;
-            
-            while (steps < this.config.maxSteps) {
-                const action = await this.agent.act(state.observation);
-                state = this.env.step(action);
-                totalReward += state.reward;
-                steps++;
-                
-                if (state.terminated) break;
+
+            for (let step = 0; step < this.config.maxSteps; step++) {
+                const action = await this.agent.act(state, { explorationRate: 0 });
+                const result = this.env.step(action);
+                totalReward += result.reward;
+                state = result.observation;
+                if (result.terminated || result.truncated) break;
             }
-            
-            rewards.push(totalReward);
-            lengths.push(steps);
+
+            evalEpisodes.push(totalReward);
         }
-        
-        // Restore exploration
-        this.configManager.set('explorationRate', savedExploration);
-        
-        const result = {
-            meanReward: rewards.reduce((a, b) => a + b, 0) / rewards.length,
-            stdReward: this.std(rewards),
-            meanLength: lengths.reduce((a, b) => a + b, 0) / lengths.length,
-            episodes
-        };
-        
-        // Eval callbacks
-        for (const cb of this.callbacks.onEval) {
-            await cb(result);
-        }
-        
-        return result;
+
+        const mean = evalEpisodes.reduce((a, b) => a + b, 0) / evalEpisodes.length;
+        const std = Math.sqrt(evalEpisodes.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / evalEpisodes.length);
+
+        return { meanReward: mean, stdReward: std, episodes: evalEpisodes };
     }
 
-    /**
-     * Save training state.
-     */
-    async save() {
-        const state = {
-            episode: this.currentEpisode,
-            totalSteps: this.totalSteps,
-            metrics: this.metrics,
-            config: this.config
-        };
-        
-        // Save callbacks
-        for (const cb of this.callbacks.onSave) {
-            await cb(state);
-        }
-        
-        this.emit('saved', state);
-        return state;
+    _runningAvg(window = 100) {
+        const recent = this.episodeHistory.slice(-window);
+        return recent.reduce((a, b) => a + b.reward, 0) / recent.length;
     }
 
-    /**
-     * Update metrics.
-     */
-    updateMetrics(result) {
-        this.metrics.rewards.push(result.reward);
-        this.metrics.lengths.push(result.steps);
-        this.metrics.successes.push(result.success ? 1 : 0);
-        
-        // Keep last N episodes
-        const keep = 1000;
-        if (this.metrics.rewards.length > keep) {
-            for (const key of Object.keys(this.metrics)) {
-                this.metrics[key] = this.metrics[key].slice(-keep);
-            }
-        }
-    }
-
-    /**
-     * Get average reward over last N episodes.
-     */
-    getAverageReward(n = 100) {
-        const recent = this.metrics.rewards.slice(-n);
-        return recent.length > 0 
-            ? recent.reduce((a, b) => a + b, 0) / recent.length 
-            : 0;
-    }
-
-    /**
-     * Check if training should stop.
-     */
-    shouldStop() {
-        // Convergence check
-        if (this.metrics.rewards.length < 100) return false;
-        
-        const recent = this.metrics.rewards.slice(-50);
-        const prev = this.metrics.rewards.slice(-100, -50);
-        
-        const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
-        const prevAvg = prev.reduce((a, b) => a + b, 0) / prev.length;
-        
-        // Stop if improvement is less than 1%
-        return Math.abs(recentAvg - prevAvg) / (Math.abs(prevAvg) || 1) < 0.01;
-    }
-
-    /**
-     * Get training summary.
-     */
-    getTrainingSummary() {
+    getState() {
         return {
-            episodes: this.currentEpisode,
-            totalSteps: this.totalSteps,
-            finalReward: this.getAverageReward(100),
-            bestReward: Math.max(...this.metrics.rewards),
-            successRate: this.metrics.successes.reduce((a, b) => a + b, 0) / this.metrics.successes.length,
-            metrics: { ...this.metrics }
+            currentEpisode: this.currentEpisode,
+            bestReward: this.bestReward,
+            configManager: this.configManager.getAll(),
+            episodeHistory: this.episodeHistory.slice(-100)
         };
-    }
-
-    /**
-     * Register callback.
-     */
-    on(event, callback) {
-        if (this.callbacks[event]) {
-            this.callbacks[event].push(callback);
-        }
-        return () => {
-            const idx = this.callbacks[event].indexOf(callback);
-            if (idx >= 0) this.callbacks[event].splice(idx, 1);
-        };
-    }
-
-    /**
-     * Seed random number generator.
-     */
-    seedRandom(seed) {
-        // Simple LCG for reproducibility
-        let state = seed;
-        Math.random = () => {
-            state = (state * 1103515245 + 12345) & 0x7fffffff;
-            return state / 0x7fffffff;
-        };
-    }
-
-    /**
-     * Compute standard deviation.
-     */
-    std(arr) {
-        if (arr.length < 2) return 0;
-        const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
-        const variance = arr.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / arr.length;
-        return Math.sqrt(variance);
     }
 
     async onShutdown() {
-        await this.pluginManager.uninstallAll();
-        await this.experienceBuffer?.shutdown?.();
-        await this.worldModel?.shutdown?.();
-        await this.skillDiscovery?.shutdown?.();
-        await this.causalReasoner?.shutdown?.();
-        await this.metaController?.shutdown?.();
+        await this.pluginManager.shutdown();
+        await this.experienceBuffer.shutdown();
+        await this.worldModel?.shutdown();
+        await this.skillDiscovery?.shutdown();
+        await this.causalReasoner?.shutdown();
+        await this.metaController?.shutdown();
     }
 }
 
-/**
- * Training Presets
- */
-export const TrainingPresets = {
-    /**
-     * Quick prototype training
-     */
-    prototype: new TrainingConfig({
-        episodes: 100,
-        maxSteps: 200,
-        batchSize: 32,
-        evalFrequency: 20
-    }),
+export class TrainingPresets {
+    static dqn(env, config = {}) {
+        return new TrainingConfig({
+            ...config,
+            episodes: 500,
+            batchSize: 32,
+            useWorldModel: false,
+            useSkillDiscovery: false
+        });
+    }
 
-    /**
-     * Standard training
-     */
-    standard: new TrainingConfig({
-        episodes: 1000,
-        maxSteps: 500,
-        batchSize: 64,
-        evalFrequency: 50,
-        useWorldModel: false
-    }),
+    static ppo(env, config = {}) {
+        return new TrainingConfig({
+            ...config,
+            episodes: 1000,
+            batchSize: 64,
+            updateFrequency: 200,
+            useWorldModel: false
+        });
+    }
 
-    /**
-     * Model-based training
-     */
-    modelBased: new TrainingConfig({
-        episodes: 500,
-        maxSteps: 500,
-        batchSize: 64,
-        paradigms: { modelFree: true, modelBased: true },
-        useWorldModel: true
-    }),
+    static modelBased(env, config = {}) {
+        return new TrainingConfig({
+            ...config,
+            episodes: 500,
+            modelBased: true,
+            useWorldModel: true
+        });
+    }
 
-    /**
-     * Hierarchical training
-     */
-    hierarchical: new TrainingConfig({
-        episodes: 2000,
-        maxSteps: 1000,
-        paradigms: { hierarchical: true },
-        useSkillDiscovery: true
-    }),
+    static hierarchical(env, config = {}) {
+        return new TrainingConfig({
+            ...config,
+            episodes: 2000,
+            hierarchical: true,
+            useSkillDiscovery: true
+        });
+    }
 
-    /**
-     * Causal-aware training
-     */
-    causal: new TrainingConfig({
-        episodes: 1500,
-        maxSteps: 500,
-        paradigms: { causal: true },
-        useCausalReasoning: true
-    })
-};
+    static causal(env, config = {}) {
+        return new TrainingConfig({
+            ...config,
+            episodes: 1000,
+            causal: true,
+            useCausalReasoning: true
+        });
+    }
+}

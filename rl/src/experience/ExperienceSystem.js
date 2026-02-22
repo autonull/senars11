@@ -1,12 +1,19 @@
-/**
- * Unified Experience System
- * Accumulate, organize, and learn from experience for general intelligence.
- */
-import { compose, pipe, Maybe, Either, Stream, Lazy, Lens } from '../functional/FunctionalUtils.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
-/**
- * Experience Record
- */
+const DEFAULTS = {
+    capacity: 100000,
+    episodeCapacity: 10000,
+    priorityReplay: false,
+    nStep: 1,
+    gamma: 0.99,
+    minSupport: 3,
+    minConfidence: 0.6,
+    maxSkillLength: 10,
+    batchSize: 32,
+    updateFrequency: 1,
+    prioritizedReplay: false
+};
+
 export class Experience {
     constructor({ state, action, reward, nextState, done, info = {} }) {
         this.id = info.id ?? this.generateId();
@@ -26,39 +33,17 @@ export class Experience {
         this.metadata = new Map();
     }
 
-    generateId() {
-        return `exp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    }
+    generateId() { return `exp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }
 
-    withReward(reward) {
-        return new Experience({ ...this, reward });
-    }
+    withReward(reward) { return new Experience({ ...this, reward }); }
+    withPriority(priority) { return new Experience({ ...this, info: { ...this.info, priority } }); }
+    withTag(tag) { return new Experience({ ...this, info: { ...this.info, tags: [...this.info.tags, tag] } }); }
 
-    withPriority(priority) {
-        return new Experience({ ...this, info: { ...this.info, priority } });
-    }
-
-    withTag(tag) {
-        return new Experience({ ...this, info: { ...this.info, tags: [...this.info.tags, tag] } });
-    }
-
-    setMetadata(key, value) {
-        this.metadata.set(key, value);
-        return this;
-    }
-
-    getMetadata(key) {
-        return this.metadata.get(key);
-    }
+    setMetadata(key, value) { this.metadata.set(key, value); return this; }
+    getMetadata(key) { return this.metadata.get(key); }
 
     toTransition() {
-        return {
-            state: this.state,
-            action: this.action,
-            reward: this.reward,
-            nextState: this.nextState,
-            done: this.done
-        };
+        return { state: this.state, action: this.action, reward: this.reward, nextState: this.nextState, done: this.done };
     }
 
     toJSON() {
@@ -80,28 +65,16 @@ export class Experience {
     }
 }
 
-/**
- * Experience Stream for lazy processing
- */
 export class ExperienceStream {
-    constructor(iterator) {
-        this._iterator = iterator;
-    }
+    constructor(iterator) { this._iterator = iterator; }
 
-    static from(iterable) {
-        return new ExperienceStream(iterable[Symbol.iterator]());
-    }
-
-    static empty() {
-        return new ExperienceStream((function*() {})());
-    }
+    static from(iterable) { return new ExperienceStream(iterable[Symbol.iterator]()); }
+    static empty() { return new ExperienceStream((function*() {})()); }
 
     filter(predicate) {
         const self = this;
         return new ExperienceStream((function*() {
-            for (const exp of self._iterator) {
-                if (predicate(exp)) yield exp;
-            }
+            for (const exp of self._iterator) if (predicate(exp)) yield exp;
         })());
     }
 
@@ -116,10 +89,7 @@ export class ExperienceStream {
         const self = this;
         return new ExperienceStream((function*() {
             let count = 0;
-            for (const exp of self._iterator) {
-                if (count++ >= n) break;
-                yield exp;
-            }
+            for (const exp of self._iterator) { if (count++ >= n) break; yield exp; }
         })());
     }
 
@@ -130,36 +100,21 @@ export class ExperienceStream {
     }
 
     sample(k) {
-        const items = this.collect();
-        const shuffled = items.sort(() => Math.random() - 0.5);
-        return ExperienceStream.from(shuffled.slice(0, k));
+        const items = this.collect().sort(() => Math.random() - 0.5);
+        return ExperienceStream.from(items.slice(0, k));
     }
 
-    collect() {
-        return Array.from(this._iterator);
-    }
-
+    collect() { return Array.from(this._iterator); }
     reduce(fn, initial) {
         let acc = initial;
-        for (const exp of this._iterator) {
-            acc = fn(acc, exp);
-        }
+        for (const exp of this._iterator) acc = fn(acc, exp);
         return acc;
     }
 
-    forEach(fn) {
-        for (const exp of this._iterator) fn(exp);
-        return this;
-    }
-
-    [Symbol.iterator]() {
-        return this._iterator;
-    }
+    forEach(fn) { for (const exp of this._iterator) fn(exp); return this; }
+    [Symbol.iterator]() { return this._iterator; }
 }
 
-/**
- * Episode: Sequence of experiences
- */
 export class Episode {
     constructor(id = null) {
         this.id = id ?? `ep_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -169,83 +124,33 @@ export class Episode {
         this.metadata = new Map();
     }
 
-    add(experience) {
-        this.experiences.push(experience);
-        return this;
-    }
+    add(experience) { this.experiences.push(experience); return this; }
+    addAll(experiences) { this.experiences.push(...experiences); return this; }
 
-    addAll(experiences) {
-        this.experiences.push(...experiences);
-        return this;
-    }
+    get length() { return this.experiences.length; }
+    get totalReward() { return this.experiences.reduce((sum, e) => sum + e.reward, 0); }
+    get success() { return this.experiences.length > 0 && this.experiences[this.experiences.length - 1].done && this.totalReward > 0; }
+    get duration() { return (this.endTime ?? Date.now()) - this.startTime; }
 
-    get length() {
-        return this.experiences.length;
-    }
+    getTrajectory() { return this.experiences.map(e => e.toTransition()); }
+    getStates() { return this.experiences.map(e => e.state); }
+    getActions() { return this.experiences.map(e => e.action); }
+    getRewards() { return this.experiences.map(e => e.reward); }
 
-    get totalReward() {
-        return this.experiences.reduce((sum, e) => sum + e.reward, 0);
-    }
-
-    get success() {
-        return this.experiences.length > 0 && 
-               this.experiences[this.experiences.length - 1].done &&
-               this.totalReward > 0;
-    }
-
-    get duration() {
-        return (this.endTime ?? Date.now()) - this.startTime;
-    }
-
-    getTrajectory() {
-        return this.experiences.map(e => e.toTransition());
-    }
-
-    getStates() {
-        return this.experiences.map(e => e.state);
-    }
-
-    getActions() {
-        return this.experiences.map(e => e.action);
-    }
-
-    getRewards() {
-        return this.experiences.map(e => e.reward);
-    }
-
-    finalize() {
-        this.endTime = Date.now();
-        return this;
-    }
-
-    setMetadata(key, value) {
-        this.metadata.set(key, value);
-        return this;
-    }
-
-    getMetadata(key) {
-        return this.metadata.get(key);
-    }
-
-    stream() {
-        return ExperienceStream.from(this.experiences);
-    }
+    finalize() { this.endTime = Date.now(); return this; }
+    setMetadata(key, value) { this.metadata.set(key, value); return this; }
+    getMetadata(key) { return this.metadata.get(key); }
+    stream() { return ExperienceStream.from(this.experiences); }
 
     toJSON() {
         return {
-            id: this.id,
-            length: this.length,
-            totalReward: this.totalReward,
-            success: this.success,
-            duration: this.duration,
+            id: this.id, length: this.length, totalReward: this.totalReward,
+            success: this.success, duration: this.duration,
             experiences: this.experiences.map(e => e.toJSON())
         };
     }
 }
 
-/**
- * Experience Index for efficient retrieval
- */
 export class ExperienceIndex {
     constructor() {
         this.byTag = new Map();
@@ -257,53 +162,41 @@ export class ExperienceIndex {
 
     add(experience) {
         const id = experience.id;
-        
-        // Timeline index
         this.timeline.push(id);
 
-        // Tag index
-        for (const tag of experience.info.tags) {
+        experience.info.tags.forEach(tag => {
             if (!this.byTag.has(tag)) this.byTag.set(tag, new Set());
             this.byTag.get(tag).add(id);
-        }
+        });
 
-        // Episode index
         const epId = experience.info.episode;
         if (!this.byEpisode.has(epId)) this.byEpisode.set(epId, new Set());
         this.byEpisode.get(epId).add(id);
 
-        // Reward index (binned)
         const rewardBin = Math.floor(experience.reward * 10);
         if (!this.byReward.has(rewardBin)) this.byReward.set(rewardBin, new Set());
         this.byReward.get(rewardBin).add(id);
 
-        // State index (hashed)
         const stateHash = this.hashState(experience.state);
         if (!this.byState.has(stateHash)) this.byState.set(stateHash, new Set());
         this.byState.get(stateHash).add(id);
     }
 
     remove(id) {
-        // Remove from all indices
-        for (const set of this.byTag.values()) set.delete(id);
-        for (const set of this.byEpisode.values()) set.delete(id);
-        for (const set of this.byReward.values()) set.delete(id);
-        for (const set of this.byState.values()) set.delete(id);
-        
+        [this.byTag, this.byEpisode, this.byReward, this.byState].forEach(set => set.forEach(s => s.delete(id)));
         const idx = this.timeline.indexOf(id);
         if (idx >= 0) this.timeline.splice(idx, 1);
     }
 
     query(options = {}) {
         const { tags, episode, minReward, maxReward, state, limit } = options;
-        
         let candidates = new Set(this.timeline);
 
         if (tags) {
-            for (const tag of tags) {
+            tags.forEach(tag => {
                 const tagged = this.byTag.get(tag) ?? new Set();
                 candidates = new Set([...candidates].filter(id => tagged.has(id)));
-            }
+            });
         }
 
         if (episode !== undefined) {
@@ -312,32 +205,23 @@ export class ExperienceIndex {
         }
 
         if (minReward !== undefined) {
-            for (const [bin, ids] of this.byReward) {
-                if (bin * 0.1 < minReward) {
-                    for (const id of ids) candidates.delete(id);
-                }
-            }
+            this.byReward.forEach((ids, bin) => {
+                if (bin * 0.1 < minReward) ids.forEach(id => candidates.delete(id));
+            });
         }
 
         if (state) {
-            const stateHash = this.hashState(state);
-            const similar = this.byState.get(stateHash) ?? new Set();
+            const similar = this.byState.get(this.hashState(state)) ?? new Set();
             candidates = similar;
         }
 
         let result = Array.from(candidates);
-        
-        if (limit) {
-            result = result.slice(0, limit);
-        }
-
+        if (limit) result = result.slice(0, limit);
         return result;
     }
 
     hashState(state) {
-        if (Array.isArray(state)) {
-            return state.map(x => Math.round(x * 10)).join('_');
-        }
+        if (Array.isArray(state)) return state.map(x => Math.round(x * 10)).join('_');
         return String(state);
     }
 
@@ -352,95 +236,50 @@ export class ExperienceIndex {
     }
 
     clear() {
-        this.byTag.clear();
-        this.byEpisode.clear();
-        this.byReward.clear();
-        this.byState.clear();
+        [this.byTag, this.byEpisode, this.byReward, this.byState].forEach(m => m.clear());
         this.timeline = [];
     }
 }
 
-/**
- * Experience Store - Main accumulation system
- */
 export class ExperienceStore {
     constructor(config = {}) {
-        this.config = {
-            capacity: config.capacity ?? 100000,
-            episodeCapacity: config.episodeCapacity ?? 10000,
-            priorityReplay: config.priorityReplay ?? false,
-            nStep: config.nStep ?? 1,
-            gamma: config.gamma ?? 0.99,
-            ...config
-        };
-
+        this.config = mergeConfig(DEFAULTS, config);
         this.experiences = new Map();
         this.episodes = new Map();
         this.index = new ExperienceIndex();
         this.currentEpisode = null;
         this.totalExperiences = 0;
         this.totalEpisodes = 0;
-
-        // Priority replay
         this.priorities = new Map();
-        this.sumTree = null;
-        if (this.config.priorityReplay) {
-            this.sumTree = new SumTree(this.config.capacity);
-        }
+        this.sumTree = this.config.priorityReplay ? new SumTree(this.config.capacity) : null;
     }
 
-    /**
-     * Start a new episode
-     */
     startEpisode(metadata = {}) {
         this.currentEpisode = new Episode();
-        for (const [key, value] of Object.entries(metadata)) {
-            this.currentEpisode.setMetadata(key, value);
-        }
+        Object.entries(metadata).forEach(([key, value]) => this.currentEpisode.setMetadata(key, value));
         return this.currentEpisode;
     }
 
-    /**
-     * Record an experience
-     */
     record(state, action, reward, nextState, done, info = {}) {
-        if (!this.currentEpisode) {
-            this.startEpisode();
-        }
+        if (!this.currentEpisode) this.startEpisode();
 
         const experience = new Experience({
-            state,
-            action,
-            reward,
-            nextState,
-            done,
-            info: {
-                ...info,
-                episode: this.currentEpisode.id,
-                step: this.currentEpisode.length
-            }
+            state, action, reward, nextState, done,
+            info: { ...info, episode: this.currentEpisode.id, step: this.currentEpisode.length }
         });
 
         this.currentEpisode.add(experience);
         this.experiences.set(experience.id, experience);
         this.index.add(experience);
-        
-        if (this.config.priorityReplay && this.sumTree) {
-            this.sumTree.update(this.totalExperiences, experience.info.priority);
-        }
+
+        if (this.sumTree) this.sumTree.update(this.totalExperiences, experience.info.priority);
 
         this.totalExperiences++;
-
-        if (done) {
-            this.finalizeEpisode();
-        }
+        if (done) this.finalizeEpisode();
 
         return experience;
     }
 
-    /**
-     * Finalize current episode
-     */
     finalizeEpisode() {
         if (!this.currentEpisode) return null;
 
@@ -448,21 +287,14 @@ export class ExperienceStore {
         this.episodes.set(episode.id, episode);
         this.totalEpisodes++;
 
-        // Compute n-step returns
-        if (this.config.nStep > 1) {
-            this.computeNStepReturns(episode);
-        }
+        if (this.config.nStep > 1) this.computeNStepReturns(episode);
 
         this.currentEpisode = null;
         return episode;
     }
 
-    /**
-     * Compute n-step returns
-     */
     computeNStepReturns(episode) {
-        const n = this.config.nStep;
-        const gamma = this.config.gamma;
+        const { nStep: n, gamma } = this.config;
         const experiences = episode.experiences;
 
         for (let t = 0; t < experiences.length; t++) {
@@ -470,82 +302,46 @@ export class ExperienceStore {
             for (let k = 0; k < n && t + k < experiences.length; k++) {
                 G += Math.pow(gamma, k) * experiences[t + k].reward;
             }
-            
             if (t + n < experiences.length) {
-                // Bootstrap from value estimate (placeholder)
                 G += Math.pow(gamma, n) * experiences[t + n].reward;
             }
-
             experiences[t].nStepReturn = G;
         }
     }
 
-    /**
-     * Query experiences
-     */
     query(options = {}) {
         const ids = this.index.query(options);
-        const experiences = ids
-            .map(id => this.experiences.get(id))
-            .filter(e => e !== undefined);
-
+        const experiences = ids.map(id => this.experiences.get(id)).filter(e => e !== undefined);
         return ExperienceStream.from(experiences);
     }
 
-    /**
-     * Sample experiences
-     */
     sample(k = 32, options = {}) {
         const { prioritized = false } = options;
-
-        if (prioritized && this.sumTree) {
-            return this.samplePrioritized(k);
-        }
-
+        if (prioritized && this.sumTree) return this.samplePrioritized(k);
         return this.query(options).sample(k).collect();
     }
 
-    /**
-     * Prioritized sampling
-     */
     samplePrioritized(k) {
         const indices = this.sumTree.sample(k);
-        return indices
-            .map(i => Array.from(this.experiences.values())[i])
-            .filter(e => e !== undefined);
+        const exps = Array.from(this.experiences.values());
+        return indices.map(i => exps[i]).filter(e => e !== undefined);
     }
 
-    /**
-     * Update priorities
-     */
     updatePriorities(experienceIds, priorities) {
         if (!this.config.priorityReplay) return;
 
-        for (let i = 0; i < experienceIds.length; i++) {
-            const id = experienceIds[i];
-            const priority = priorities[i];
-            
+        experienceIds.forEach((id, i) => {
             const exp = this.experiences.get(id);
             if (exp) {
-                exp.info.priority = priority;
+                exp.info.priority = priorities[i];
                 const idx = Array.from(this.experiences.keys()).indexOf(id);
-                if (idx >= 0 && this.sumTree) {
-                    this.sumTree.update(idx, priority);
-                }
+                if (idx >= 0 && this.sumTree) this.sumTree.update(idx, priorities[i]);
             }
-        }
+        });
     }
 
-    /**
-     * Get episode by ID
-     */
-    getEpisode(episodeId) {
-        return this.episodes.get(episodeId);
-    }
+    getEpisode(episodeId) { return this.episodes.get(episodeId); }
 
-    /**
-     * Get successful episodes
-     */
     getSuccessfulEpisodes(limit = 100) {
         return Array.from(this.episodes.values())
             .filter(ep => ep.success)
@@ -553,18 +349,12 @@ export class ExperienceStore {
             .slice(0, limit);
     }
 
-    /**
-     * Get recent episodes
-     */
     getRecentEpisodes(limit = 100) {
         return Array.from(this.episodes.values())
             .sort((a, b) => b.startTime - a.startTime)
             .slice(0, limit);
     }
 
-    /**
-     * Compute statistics
-     */
     getStats() {
         const episodes = Array.from(this.episodes.values());
         const rewards = episodes.map(ep => ep.totalReward);
@@ -585,43 +375,24 @@ export class ExperienceStore {
         };
     }
 
-    /**
-     * Export experiences
-     */
     export(options = {}) {
         const { format = 'json', filter = null } = options;
-        
         let stream = this.query();
-        if (filter) {
-            stream = stream.filter(filter);
-        }
-
+        if (filter) stream = stream.filter(filter);
         const experiences = stream.collect();
-
-        if (format === 'json') {
-            return JSON.stringify(experiences.map(e => e.toJSON()));
-        }
-
-        return experiences;
+        return format === 'json' ? JSON.stringify(experiences.map(e => e.toJSON())) : experiences;
     }
 
-    /**
-     * Import experiences
-     */
     import(data) {
         const experiences = typeof data === 'string' ? JSON.parse(data) : data;
-        
-        for (const expData of experiences) {
+        experiences.forEach(expData => {
             const experience = new Experience(expData);
             this.experiences.set(experience.id, experience);
             this.index.add(experience);
             this.totalExperiences++;
-        }
+        });
     }
 
-    /**
-     * Clear store
-     */
     clear() {
         this.experiences.clear();
         this.episodes.clear();
@@ -632,10 +403,7 @@ export class ExperienceStore {
         this.totalEpisodes = 0;
     }
 
-    mean(arr) {
-        return arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
-    }
-
+    mean(arr) { return arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0; }
     std(arr) {
         if (arr.length < 2) return 0;
         const m = this.mean(arr);
@@ -643,9 +411,6 @@ export class ExperienceStore {
     }
 }
 
-/**
- * Sum Tree for prioritized replay
- */
 class SumTree {
     constructor(capacity) {
         this.capacity = capacity;
@@ -672,26 +437,20 @@ class SumTree {
     sample(k) {
         const indices = [];
         const segmentSize = this.total / k;
-
         for (let i = 0; i < k; i++) {
-            const start = segmentSize * i;
-            const target = start + Math.random() * segmentSize;
+            const target = segmentSize * i + Math.random() * segmentSize;
             indices.push(this._retrieve(target));
         }
-
         return indices;
     }
 
     _retrieve(target, idx = 0) {
         const left = 2 * idx + 1;
         const right = 2 * idx + 2;
-
         if (left >= this.tree.length) return idx - (this.capacity - 1);
-
-        if (target <= this.tree[left]) {
-            return this._retrieve(target, left);
-        }
-        return this._retrieve(target - this.tree[left], right);
+        return target <= this.tree[left]
+            ? this._retrieve(target, left)
+            : this._retrieve(target - this.tree[left], right);
     }
 
     _propagate(idx, change) {
@@ -702,13 +461,8 @@ class SumTree {
         }
     }
 
-    get total() {
-        return this.tree[0];
-    }
-
-    get maxPriority() {
-        return Math.max(...this.tree.slice(this.capacity - 1));
-    }
+    get total() { return this.tree[0]; }
+    get maxPriority() { return Math.max(...this.tree.slice(this.capacity - 1)); }
 
     clear() {
         this.tree.fill(0);
@@ -718,46 +472,27 @@ class SumTree {
     }
 }
 
-/**
- * Skill Extraction from Experience
- */
 export class SkillExtractor {
     constructor(config = {}) {
-        this.config = {
-            minSupport: config.minSupport ?? 3,
-            minConfidence: config.minConfidence ?? 0.6,
-            maxSkillLength: config.maxSkillLength ?? 10,
-            ...config
-        };
+        this.config = mergeConfig(DEFAULTS, config);
     }
 
-    /**
-     * Extract skills from successful episodes
-     */
     extractSkills(episodes) {
         const successful = episodes.filter(ep => ep.success);
         const sequences = successful.map(ep => ep.getTrajectory());
-        
-        // Find common subsequences
         const patterns = this.findCommonPatterns(sequences);
-        
-        // Convert to skills
         return patterns.map(pattern => this.patternToSkill(pattern));
     }
 
-    /**
-     * Find common patterns
-     */
     findCommonPatterns(sequences) {
         const patternCounts = new Map();
 
-        for (const seq of sequences) {
-            const patterns = this.extractPatterns(seq);
-            for (const pattern of patterns) {
+        sequences.forEach(seq => {
+            this.extractPatterns(seq).forEach(pattern => {
                 const key = JSON.stringify(pattern);
                 patternCounts.set(key, (patternCounts.get(key) ?? 0) + 1);
-            }
-        }
+            });
+        });
 
         return Array.from(patternCounts.entries())
             .filter(([, count]) => count >= this.config.minSupport)
@@ -770,27 +505,20 @@ export class SkillExtractor {
             .sort((a, b) => b.support - a.support);
     }
 
-    /**
-     * Extract patterns from sequence
-     */
     extractPatterns(sequence) {
         const patterns = [];
-        
-        for (let len = 2; len <= Math.min(this.config.maxSkillLength, sequence.length); len++) {
+        const maxLen = Math.min(this.config.maxSkillLength, sequence.length);
+
+        for (let len = 2; len <= maxLen; len++) {
             for (let start = 0; start <= sequence.length - len; start++) {
                 patterns.push(sequence.slice(start, start + len));
             }
         }
-
         return patterns;
     }
 
-    /**
-     * Convert pattern to skill
-     */
     patternToSkill(patternData) {
         const { pattern, support, confidence } = patternData;
-        
         return {
             name: `skill_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
             type: 'extracted',
@@ -803,12 +531,9 @@ export class SkillExtractor {
     }
 
     inferPrecondition(pattern) {
-        // Infer from first state
+        const firstState = pattern[0]?.state;
         return (state) => {
-            const firstState = pattern[0]?.state;
             if (!firstState) return true;
-            
-            // Simple similarity check
             return this.stateSimilarity(state, firstState) > 0.5;
         };
     }
@@ -829,41 +554,28 @@ export class SkillExtractor {
     stateSimilarity(s1, s2) {
         const a1 = Array.isArray(s1) ? s1 : s1.data ?? [s1];
         const a2 = Array.isArray(s2) ? s2 : s2.data ?? [s2];
-        
         let dot = 0, norm1 = 0, norm2 = 0;
         const len = Math.min(a1.length, a2.length);
-        
+
         for (let i = 0; i < len; i++) {
             dot += a1[i] * a2[i];
             norm1 += a1[i] * a1[i];
             norm2 += a2[i] * a2[i];
         }
-        
         return dot / (Math.sqrt(norm1) * Math.sqrt(norm2) || 1);
     }
 }
 
-/**
- * Experience-based Learning
- */
 export class ExperienceLearner {
     constructor(store, config = {}) {
         this.store = store;
-        this.config = {
-            batchSize: config.batchSize ?? 32,
-            updateFrequency: config.updateFrequency ?? 1,
-            prioritizedReplay: config.prioritizedReplay ?? false,
-            ...config
-        };
-        
+        this.config = mergeConfig(DEFAULTS, config);
         this.learningSteps = 0;
         this.callbacks = new Map();
     }
 
     on(event, callback) {
-        if (!this.callbacks.has(event)) {
-            this.callbacks.set(event, []);
-        }
+        if (!this.callbacks.has(event)) this.callbacks.set(event, []);
         this.callbacks.get(event).push(callback);
         return () => {
             const cbs = this.callbacks.get(event);
@@ -874,19 +586,16 @@ export class ExperienceLearner {
 
     emit(event, data) {
         const cbs = this.callbacks.get(event) ?? [];
-        for (const cb of cbs) cb(data);
+        cbs.forEach(cb => cb(data));
     }
 
     async learn(agent, options = {}) {
         const { batchSize = this.config.batchSize, prioritized = this.config.prioritizedReplay } = options;
 
-        if (this.store.experiences.size < batchSize) {
-            return null;
-        }
+        if (this.store.experiences.size < batchSize) return null;
 
         const samples = this.store.sample(batchSize, { prioritized });
-        
-        // Compute TD errors and update priorities
+
         if (prioritized) {
             const { losses, tdErrors } = await this.computeLosses(agent, samples);
             const priorities = tdErrors.map(e => Math.abs(e) + 1e-6);
@@ -896,9 +605,7 @@ export class ExperienceLearner {
 
         const losses = await this.computeLosses(agent, samples);
         this.learningSteps++;
-        
         this.emit('learn', { step: this.learningSteps, losses });
-        
         return losses;
     }
 
@@ -908,10 +615,8 @@ export class ExperienceLearner {
 
         for (const sample of samples) {
             const { state, action, reward, nextState, done } = sample.toTransition();
-            
             const loss = await agent.computeLoss(state, action, reward, nextState, done);
             const tdError = await agent.computeTDError(state, action, reward, nextState);
-            
             losses.push(loss);
             tdErrors.push(tdError);
         }
@@ -923,7 +628,5 @@ export class ExperienceLearner {
         };
     }
 
-    shouldUpdate() {
-        return this.learningSteps % this.config.updateFrequency === 0;
-    }
+    shouldUpdate() { return this.learningSteps % this.config.updateFrequency === 0; }
 }

@@ -1,37 +1,30 @@
-/**
- * Symbolic Differentiation and World Model Learning
- * Enables gradient-based learning with symbolic explanations.
- */
 import { Tensor, TensorFunctor } from '@senars/tensor';
 import { SymbolicTensor, TensorLogicBridge } from './TensorLogicBridge.js';
 import { Component } from '../composable/Component.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
-/**
- * Symbolic Differentiation Engine.
- * Tracks gradients with symbolic provenance for explainable learning.
- */
+const DEFAULTS = {
+    trackProvenance: true,
+    symbolicThreshold: 0.3,
+    latentDim: 32,
+    ensembleSize: 5,
+    learningRate: 0.001,
+    imaginationHorizon: 10,
+    uncertaintyThreshold: 0.5
+};
+
 export class SymbolicDifferentiation {
     constructor(config = {}) {
-        this.config = {
-            trackProvenance: true,
-            symbolicThreshold: 0.3,
-            ...config
-        };
-        
+        this.config = mergeConfig(DEFAULTS, config);
         this.gradientGraph = new Map();
         this.symbolicGradients = new Map();
         this.bridge = new TensorLogicBridge();
     }
 
-    /**
-     * Compute gradient with symbolic tracking.
-     */
     gradient(loss, params, context = new Map()) {
         const gradients = [];
-        
-        for (const param of params) {
+        params.forEach(param => {
             const grad = this.computeGradient(loss, param, context);
-            
             if (param instanceof SymbolicTensor) {
                 const symbolicGrad = this.annotateGradient(grad, param);
                 gradients.push(symbolicGrad);
@@ -39,486 +32,309 @@ export class SymbolicDifferentiation {
             } else {
                 gradients.push(grad);
             }
-        }
-        
+        });
         return gradients;
     }
 
-    /**
-     * Compute gradient for a single parameter.
-     */
     computeGradient(loss, param, context) {
-        // Numerical gradient approximation with symbolic tracking
         const eps = 1e-5;
         const grad = new Float32Array(param.data.length);
-        
         const lossBase = typeof loss === 'function' ? loss() : loss.data ? loss.data[0] : loss;
-        
+
         for (let i = 0; i < param.data.length; i++) {
             const original = param.data[i];
-            
-            // Forward difference
             param.data[i] = original + eps;
             const lossPlus = typeof loss === 'function' ? loss() : loss.data ? loss.data[0] : loss;
-            
             grad[i] = (lossPlus - lossBase) / eps;
-            
             param.data[i] = original;
         }
-        
-        if (this.config.trackProvenance) {
-            this.trackGradientFlow(param, grad, context);
-        }
-        
+
+        if (this.config.trackProvenance) this.trackGradientFlow(param, grad, context);
         return grad;
     }
 
-    /**
-     * Annotate gradient with symbolic information.
-     */
     annotateGradient(grad, param) {
         const symbolicGrad = new SymbolicTensor(grad, param.shape);
-        
-        // Propagate symbols from parameter to gradient
-        for (const [key, symbolInfo] of param.symbols) {
+        param.symbols.forEach((symbolInfo, key) => {
             const idx = typeof key === 'string' ? parseInt(key.split(',')[0]) : key;
             if (!isNaN(idx) && idx < grad.length && Math.abs(grad[idx]) > this.config.symbolicThreshold) {
-                symbolicGrad.annotate(
-                    idx,
-                    `∂${symbolInfo.symbol}`,
-                    symbolInfo.confidence * Math.abs(grad[idx])
-                );
+                symbolicGrad.annotate(idx, `∂${symbolInfo.symbol}`, symbolInfo.confidence * Math.abs(grad[idx]));
             }
-        }
-        
-        symbolicGrad.addProvenance('SymbolicDifferentiation', 'annotateGradient', {
-            paramSymbols: param.symbols.size
         });
-        
+        symbolicGrad.addProvenance('SymbolicDifferentiation', 'annotateGradient', { paramSymbols: param.symbols.size });
         return symbolicGrad;
     }
 
-    /**
-     * Track gradient flow through computation graph.
-     */
     trackGradientFlow(param, grad, context) {
-        const nodeId = `param_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-        
-        this.gradientGraph.set(nodeId, {
-            param,
-            grad,
-            context: new Map(context),
-            timestamp: Date.now(),
-            magnitude: Math.sqrt(grad.reduce((a, b) => a + b * b, 0))
-        });
-        
-        // Prune old entries
-        if (this.gradientGraph.size > 1000) {
-            const oldest = Array.from(this.gradientGraph.entries())
-                .sort((a, b) => a[1].timestamp - b[1].timestamp)[0];
-            this.gradientGraph.delete(oldest[0]);
-        }
+        this.gradientGraph.set(param, { grad, context: new Map(context), timestamp: Date.now() });
     }
 
-    /**
-     * Get gradient flow analysis.
-     */
-    analyzeGradientFlow() {
-        const analysis = {
-            totalNodes: this.gradientGraph.size,
-            avgMagnitude: 0,
-            maxMagnitude: 0,
-            vanishingGradients: 0,
-            explodingGradients: 0
-        };
-        
-        let totalMag = 0;
-        for (const [, node] of this.gradientGraph) {
-            const mag = node.magnitude;
-            totalMag += mag;
-            
-            if (mag > analysis.maxMagnitude) {
-                analysis.maxMagnitude = mag;
-            }
-            
-            if (mag < 1e-7) analysis.vanishingGradients++;
-            if (mag > 100) analysis.explodingGradients++;
-        }
-        
-        analysis.avgMagnitude = totalMag / Math.max(1, this.gradientGraph.size);
-        
-        return analysis;
-    }
-
-    /**
-     * Explain gradient in symbolic terms.
-     */
-    explainGradient(param) {
-        if (!(param instanceof SymbolicTensor)) {
-            return { explanation: 'No symbolic information available', symbols: [] };
-        }
-        
-        const symbolicGrad = this.symbolicGradients.get(param);
-        if (!symbolicGrad) {
-            return { explanation: 'Gradient not computed', symbols: [] };
-        }
-        
-        const explanations = [];
-        for (const [key, { symbol, confidence }] of symbolicGrad.symbols) {
-            const idx = typeof key === 'string' ? parseInt(key) : key;
-            const gradValue = symbolicGrad.data[idx] || 0;
-            
-            explanations.push({
-                symbol,
-                gradient: gradValue,
-                confidence,
-                interpretation: this.interpretGradient(gradValue, symbol)
-            });
-        }
-        
-        return {
-            explanation: this.summarizeExplanations(explanations),
-            symbols: explanations
-        };
-    }
-
-    interpretGradient(grad, symbol) {
-        if (Math.abs(grad) < 0.01) return 'negligible_effect';
-        if (grad > 0) return `increase_${symbol}`;
-        return `decrease_${symbol}`;
-    }
-
-    summarizeExplanations(explanations) {
-        if (explanations.length === 0) return 'No significant symbolic gradients';
-        
-        const sorted = [...explanations].sort((a, b) => Math.abs(b.gradient) - Math.abs(a.gradient));
-        const top = sorted.slice(0, 3);
-        
-        return `Top influences: ${top.map(e => `${e.symbol}(${e.gradient.toFixed(3)})`).join(', ')}`;
-    }
-
-    /**
-     * Clear gradient tracking.
-     */
-    clear() {
-        this.gradientGraph.clear();
-        this.symbolicGradients.clear();
-    }
+    getSymbolicGradient(param) { return this.symbolicGradients.get(param); }
+    getGradientGraph() { return new Map(this.gradientGraph); }
+    clear() { this.gradientGraph.clear(); this.symbolicGradients.clear(); }
 }
 
-/**
- * World Model for imagination-based planning.
- * Learns symbolic-neural dynamics models.
- */
 export class WorldModel extends Component {
     constructor(config = {}) {
-        super({
-            modelType: 'neural-symbolic',
-            horizon: 10,
-            latentDim: 32,
-            ensembleSize: 3,
-            uncertaintyThreshold: 0.5,
-            ...config
-        });
-        
-        this.models = [];
-        this.symbolicRules = new Map();
-        this.predictionHistory = [];
-        this.uncertaintyEstimates = new Map();
-        this.bridge = new TensorLogicBridge();
+        super(mergeConfig(DEFAULTS, config));
+        this.latentDim = config.latentDim ?? 32;
+        this.ensembleSize = config.ensembleSize ?? 5;
+        this.learningRate = config.learningRate ?? 0.001;
+
+        this.transitionModels = [];
+        this.rewardModel = null;
+        this.encoder = null;
+        this.decoder = null;
+
+        this.experienceBuffer = [];
+        this.symbolicDiff = new SymbolicDifferentiation(config);
+        this.tensorBridge = new TensorLogicBridge();
     }
 
     async onInitialize() {
-        // Initialize ensemble of models
-        for (let i = 0; i < this.config.ensembleSize; i++) {
-            this.models.push(this.createModel());
-        }
-        
-        this.setState('trained', false);
-        this.setState('trainingStep', 0);
+        this._initializeModels();
+        this.emit('initialized', { latentDim: this.latentDim, ensembleSize: this.ensembleSize });
     }
 
-    createModel() {
-        // Simple dynamics model placeholder
+    _initializeModels() {
+        this.transitionModels = Array.from({ length: this.ensembleSize }, () => this._createTransitionModel());
+        this.rewardModel = this._createRewardModel();
+        this.encoder = this._createEncoder();
+        this.decoder = this._createDecoder();
+    }
+
+    _createTransitionModel() {
         return {
-            weights: new Float32Array(this.config.latentDim * this.config.latentDim),
-            bias: new Float32Array(this.config.latentDim),
-            symbolMap: new Map()
+            weights: new Float32Array(this.latentDim * this.latentDim).map(() => Math.random() * 0.1 - 0.05),
+            bias: new Float32Array(this.latentDim).fill(0)
         };
     }
 
-    /**
-     * Predict next state given current state and action.
-     */
-    predict(state, action, horizon = 1) {
-        const predictions = [];
-        const uncertainties = [];
-        
-        let currentState = this.encodeState(state);
-        
-        for (let h = 0; h < horizon; h++) {
-            const modelOutputs = this.models.map(model => 
-                this.stepModel(model, currentState, action)
-            );
-            
-            // Ensemble mean
-            const mean = this.ensembleMean(modelOutputs);
-            
-            // Ensemble variance (uncertainty)
-            const variance = this.ensembleVariance(modelOutputs, mean);
-            
-            predictions.push(mean);
-            uncertainties.push(variance);
-            
-            // Check uncertainty threshold
-            if (variance > this.config.uncertaintyThreshold) {
-                break; // Stop imagination at high uncertainty
+    _createRewardModel() {
+        return {
+            weights: new Float32Array(this.latentDim).map(() => Math.random() * 0.1 - 0.05),
+            bias: 0
+        };
+    }
+
+    _createEncoder() {
+        return {
+            weights: new Float32Array(64 * this.latentDim).map(() => Math.random() * 0.1 - 0.05),
+            bias: new Float32Array(this.latentDim).fill(0)
+        };
+    }
+
+    _createDecoder() {
+        return {
+            weights: new Float32Array(this.latentDim * 64).map(() => Math.random() * 0.1 - 0.05),
+            bias: new Float32Array(64).fill(0)
+        };
+    }
+
+    async update(state, action, nextState, reward) {
+        this.experienceBuffer.push({ state, action, nextState, reward });
+        if (this.experienceBuffer.length > 10000) this.experienceBuffer.shift();
+
+        if (this.experienceBuffer.length >= 32) {
+            await this._trainModels();
+        }
+    }
+
+    async _trainModels() {
+        const batch = this.experienceBuffer.slice(-32);
+        const lr = this.learningRate;
+
+        batch.forEach(exp => {
+            const latent = this.encode(exp.state);
+            const predictedNext = this._predictTransition(latent, exp.action);
+            const actualNext = this.encode(exp.nextState);
+
+            const error = predictedNext.map((p, i) => p - actualNext[i]);
+            this.transitionModels.forEach(model => {
+                for (let i = 0; i < model.weights.length; i++) {
+                    model.weights[i] -= lr * error[i % this.latentDim] * latent[Math.floor(i / this.latentDim)];
+                }
+            });
+        });
+    }
+
+    encode(state) {
+        const data = Array.isArray(state) ? state : [state];
+        const padded = new Float32Array(64);
+        data.forEach((v, i) => { if (i < 64) padded[i] = v; });
+
+        const latent = new Float32Array(this.latentDim);
+        for (let i = 0; i < this.latentDim; i++) {
+            let sum = this.encoder.bias[i];
+            for (let j = 0; j < 64; j++) {
+                sum += this.encoder.weights[i * 64 + j] * padded[j];
             }
-            
-            currentState = mean;
+            latent[i] = Math.tanh(sum);
         }
-        
-        return {
-            predictions,
-            uncertainties,
-            horizon: predictions.length
-        };
+        return latent;
     }
 
-    /**
-     * Encode state to latent representation.
-     */
-    encodeState(state) {
-        if (state instanceof SymbolicTensor) {
-            return state;
-        }
-        
-        const data = Array.isArray(state) 
-            ? new Float32Array(state)
-            : new Float32Array([state]);
-        
-        return new SymbolicTensor(data, [data.length]);
-    }
-
-    /**
-     * Step model forward.
-     */
-    stepModel(model, state, action) {
-        // Simple linear dynamics (placeholder for neural network)
-        const inputDim = state.data.length + (Array.isArray(action) ? action.length : 1);
-        const combined = new Float32Array(inputDim);
-        
-        combined.set(state.data);
-        if (Array.isArray(action)) {
-            combined.set(action, state.data.length);
-        } else {
-            combined[state.data.length] = action;
-        }
-        
-        // Matrix-vector multiply (simplified)
-        const output = new Float32Array(this.config.latentDim);
-        for (let i = 0; i < this.config.latentDim; i++) {
-            let sum = model.bias[i];
-            for (let j = 0; j < Math.min(inputDim, this.config.latentDim); j++) {
-                sum += model.weights[i * this.config.latentDim + j] * combined[j];
+    decode(latent) {
+        const output = new Float32Array(64);
+        for (let i = 0; i < 64; i++) {
+            let sum = this.decoder.bias[i];
+            for (let j = 0; j < this.latentDim; j++) {
+                sum += this.decoder.weights[i * this.latentDim + j] * latent[j];
             }
             output[i] = Math.tanh(sum);
         }
-        
-        return new SymbolicTensor(output, [this.config.latentDim]);
+        return output;
     }
 
-    /**
-     * Compute ensemble mean.
-     */
-    ensembleMean(outputs) {
-        const result = new Float32Array(outputs[0].data.length);
-        
-        for (const output of outputs) {
-            for (let i = 0; i < result.length; i++) {
-                result[i] += output.data[i];
-            }
-        }
-        
-        for (let i = 0; i < result.length; i++) {
-            result[i] /= outputs.length;
-        }
-        
-        return new SymbolicTensor(result, outputs[0].shape);
-    }
-
-    /**
-     * Compute ensemble variance.
-     */
-    ensembleVariance(outputs, mean) {
-        let totalVar = 0;
-        
-        for (const output of outputs) {
-            for (let i = 0; i < output.data.length; i++) {
-                const diff = output.data[i] - mean.data[i];
-                totalVar += diff * diff;
-            }
-        }
-
-        return totalVar / (outputs.length * outputs[0].data.length);
-    }
-
-    /**
-     * Train world model on experience.
-     */
-    async train(transitions, steps = 100) {
-        const { states, actions, nextStates } = this.organizeTransitions(transitions);
-        
-        for (let step = 0; step < steps; step++) {
-            for (const model of this.models) {
-                this.trainModelStep(model, states, actions, nextStates);
-            }
-            
-            this.setState('trainingStep', step + 1);
-        }
-        
-        this.setState('trained', true);
-        this.extractSymbolicRules();
-    }
-
-    /**
-     * Organize transitions for batch training.
-     */
-    organizeTransitions(transitions) {
-        return {
-            states: transitions.map(t => this.encodeState(t.state)),
-            actions: transitions.map(t => t.action),
-            nextStates: transitions.map(t => this.encodeState(t.nextState))
-        };
-    }
-
-    /**
-     * Single training step for a model.
-     */
-    trainModelStep(model, states, actions, nextStates) {
-        // Simplified gradient descent (placeholder)
-        const lr = 0.01;
-        
-        for (let i = 0; i < states.length; i++) {
-            const predicted = this.stepModel(model, states[i], actions[i]);
-            const target = nextStates[i];
-            
-            // Compute error
-            const error = new Float32Array(predicted.data.length);
-            for (let j = 0; j < error.length; j++) {
-                error[j] = target.data[j] - predicted.data[j];
-            }
-            
-            // Update weights (simplified)
-            for (let j = 0; j < model.weights.length && j < error.length; j++) {
-                model.weights[j] += lr * error[j % error.length] * states[i].data[j % states[i].data.length];
-            }
-        }
-    }
-
-    /**
-     * Extract symbolic rules from learned model.
-     */
-    extractSymbolicRules() {
-        for (let i = 0; i < this.models.length; i++) {
-            const model = this.models[i];
-            const rules = [];
-            
-            // Extract rules from weight patterns
-            for (let j = 0; j < model.weights.length; j++) {
-                const weight = model.weights[j];
-                if (Math.abs(weight) > 0.5) {
-                    rules.push({
-                        from: `feature_${j % this.config.latentDim}`,
-                        to: `feature_${Math.floor(j / this.config.latentDim)}`,
-                        strength: weight,
-                        model: i
-                    });
+    _predictTransition(latent, action) {
+        const predictions = this.transitionModels.map(model => {
+            const output = new Float32Array(this.latentDim);
+            for (let i = 0; i < this.latentDim; i++) {
+                let sum = model.bias[i];
+                for (let j = 0; j < this.latentDim; j++) {
+                    sum += model.weights[i * this.latentDim + j] * latent[j];
                 }
+                output[i] = Math.tanh(sum);
             }
-            
-            this.symbolicRules.set(`model_${i}`, rules);
+            return output;
+        });
+
+        const mean = new Float32Array(this.latentDim);
+        for (let i = 0; i < this.latentDim; i++) {
+            mean[i] = predictions.reduce((a, b) => a + b[i], 0) / predictions.length;
         }
+        return mean;
     }
 
-    /**
-     * Imagine trajectory with symbolic annotations.
-     */
-    imagine(initialState, actionSequence) {
-        const trajectory = [];
-        let state = this.encodeState(initialState);
-        
-        for (const action of actionSequence) {
-            const { predictions, uncertainties } = this.predict(state, action, 1);
-            
-            if (predictions.length === 0) break;
-            
-            trajectory.push({
-                state: state.toNarseseTerm('s'),
-                action: this.actionToSymbol(action),
-                nextState: predictions[0].toNarseseTerm('s'),
-                uncertainty: uncertainties[0]
-            });
-            
-            state = predictions[0];
-        }
-        
-        return {
-            trajectory,
-            totalUncertainty: trajectory.reduce((a, b) => a + b.uncertainty, 0),
-            reliable: trajectory.every(t => t.uncertainty < this.config.uncertaintyThreshold)
-        };
+    predictNext(state, action) {
+        const latent = this.encode(state);
+        const nextLatent = this._predictTransition(latent, action);
+        return this.decode(nextLatent);
     }
 
-    actionToSymbol(action) {
-        if (typeof action === 'number') {
-            return `a_${action}`;
+    predictReward(state, action) {
+        const latent = this.encode(state);
+        let sum = this.rewardModel.bias;
+        for (let i = 0; i < this.latentDim; i++) {
+            sum += this.rewardModel.weights[i] * latent[i];
         }
-        if (Array.isArray(action)) {
-            return `a(${action.join(',')})`;
-        }
-        return String(action);
+        return Math.tanh(sum);
     }
 
-    /**
-     * Get model uncertainty for a state-action pair.
-     */
     getUncertainty(state, action) {
-        const key = `${state}_${action}`;
-        if (this.uncertaintyEstimates.has(key)) {
-            return this.uncertaintyEstimates.get(key);
-        }
-        
-        const { uncertainties } = this.predict(state, action, 1);
-        const uncertainty = uncertainties[0] || 0;
-        
-        this.uncertaintyEstimates.set(key, uncertainty);
-        
-        // Prune old estimates
-        if (this.uncertaintyEstimates.size > 1000) {
-            const oldest = Array.from(this.uncertaintyEstimates.entries())[0];
-            this.uncertaintyEstimates.delete(oldest[0]);
-        }
-        
-        return uncertainty;
+        const latent = this.encode(state);
+        const predictions = this.transitionModels.map(model => {
+            const output = new Float32Array(this.latentDim);
+            for (let i = 0; i < this.latentDim; i++) {
+                let sum = model.bias[i];
+                for (let j = 0; j < this.latentDim; j++) {
+                    sum += model.weights[i * this.latentDim + j] * latent[j];
+                }
+                output[i] = Math.tanh(sum);
+            }
+            return output;
+        });
+
+        const variance = new Float32Array(this.latentDim);
+        const mean = new Float32Array(this.latentDim);
+        predictions.forEach(pred => {
+            for (let i = 0; i < this.latentDim; i++) mean[i] += pred[i];
+        });
+        for (let i = 0; i < this.latentDim; i++) mean[i] /= predictions.length;
+
+        predictions.forEach(pred => {
+            for (let i = 0; i < this.latentDim; i++) {
+                variance[i] += Math.pow(pred[i] - mean[i], 2);
+            }
+        });
+        for (let i = 0; i < this.latentDim; i++) variance[i] /= predictions.length;
+
+        return variance.reduce((a, b) => a + b, 0) / this.latentDim;
     }
 
-    /**
-     * Get symbolic rules.
-     */
-    getSymbolicRules() {
-        return Array.from(this.symbolicRules.entries());
+    async generateImaginedExperiences(count, options = {}) {
+        const { horizon = this.config.imaginationHorizon, startState = null } = options;
+        const experiences = [];
+
+        for (let i = 0; i < count; i++) {
+            let state = startState ?? this._sampleInitialState();
+
+            for (let step = 0; step < horizon; step++) {
+                const action = Math.floor(Math.random() * 4);
+                const nextState = this.predictNext(state, action);
+                const reward = this.predictReward(state, action);
+
+                experiences.push({ state, action, nextState, reward, imagined: true });
+                state = nextState;
+            }
+        }
+
+        return experiences;
     }
 
-    serialize() {
+    _sampleInitialState() {
+        return Array.from({ length: 8 }, () => Math.random() * 2 - 1);
+    }
+
+    planWithModel(state, goal, horizon = 10) {
+        const bestPlan = { plan: [], value: -Infinity };
+
+        for (let i = 0; i < 100; i++) {
+            const plan = Array.from({ length: horizon }, () => Math.floor(Math.random() * 4));
+            let currentState = state;
+            let totalValue = 0;
+
+            plan.forEach(action => {
+                const reward = this.predictReward(currentState, action);
+                const uncertainty = this.getUncertainty(currentState, action);
+
+                if (uncertainty > this.config.uncertaintyThreshold) {
+                    totalValue -= uncertainty;
+                } else {
+                    totalValue += reward;
+                    currentState = this.predictNext(currentState, action);
+                }
+            });
+
+            if (totalValue > bestPlan.value) {
+                bestPlan.plan = plan;
+                bestPlan.value = totalValue;
+            }
+        }
+
+        return bestPlan.plan;
+    }
+
+    explainPrediction(state, action) {
+        const latent = this.encode(state);
+        const importantFeatures = [];
+
+        for (let i = 0; i < this.latentDim; i++) {
+            if (Math.abs(latent[i]) > this.config.symbolicThreshold) {
+                importantFeatures.push({ dimension: i, value: latent[i], influence: Math.abs(latent[i]) });
+            }
+        }
+
+        importantFeatures.sort((a, b) => b.influence - a.influence);
+
         return {
-            ...super.serialize(),
-            models: this.models.map(m => ({
-                weights: Array.from(m.weights),
-                bias: Array.from(m.bias)
-            })),
-            symbolicRules: Array.from(this.symbolicRules.entries()),
-            trained: this.getState('trained')
+            latentRepresentation: Array.from(latent),
+            importantFeatures: importantFeatures.slice(0, 5),
+            predictedReward: this.predictReward(state, action),
+            uncertainty: this.getUncertainty(state, action)
         };
+    }
+
+    getState() {
+        return {
+            experienceBufferSize: this.experienceBuffer.length,
+            latentDim: this.latentDim,
+            ensembleSize: this.ensembleSize
+        };
+    }
+
+    async onShutdown() {
+        this.experienceBuffer = [];
+        this.symbolicDiff.clear();
     }
 }
