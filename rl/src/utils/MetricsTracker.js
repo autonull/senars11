@@ -1,5 +1,25 @@
 import { Component } from '../composable/Component.js';
 
+const HISTORY_LIMIT = 1000;
+
+const StatsCalculator = {
+    compute(history) {
+        if (!history.length) return null;
+
+        const sum = history.reduce((a, b) => a + b, 0);
+        const mean = sum / history.length;
+        const variance = history.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / history.length;
+
+        return {
+            mean,
+            std: Math.sqrt(variance),
+            min: Math.min(...history),
+            max: Math.max(...history),
+            count: history.length
+        };
+    }
+};
+
 export class MetricsTracker extends Component {
     constructor(initialMetrics = {}) {
         super({});
@@ -26,20 +46,7 @@ export class MetricsTracker extends Component {
     }
 
     getStats(key) {
-        const history = this.history.get(key) ?? [];
-        if (!history.length) return null;
-
-        const sum = history.reduce((a, b) => a + b, 0);
-        const mean = sum / history.length;
-        const variance = history.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / history.length;
-
-        return {
-            mean,
-            std: Math.sqrt(variance),
-            min: Math.min(...history),
-            max: Math.max(...history),
-            count: history.length
-        };
+        return StatsCalculator.compute(this.history.get(key) ?? []);
     }
 
     reset(key) {
@@ -58,6 +65,6 @@ export class MetricsTracker extends Component {
         }
         const history = this.history.get(key);
         history.push(value);
-        if (history.length > 1000) history.shift();
+        if (history.length > HISTORY_LIMIT) history.shift();
     }
 }

@@ -1,4 +1,3 @@
-
 import { RLEnvironment } from '../core/RLEnvironment.js';
 
 export class GridWorld extends RLEnvironment {
@@ -19,26 +18,28 @@ export class GridWorld extends RLEnvironment {
 
     step(action) {
         this.currentSteps++;
-        let [x, y] = this.state;
+        const [x, y] = this.state;
+        const deltas = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+        const [dx, dy] = deltas[action] ?? [0, 0];
 
-        switch (action) {
-            case 0: y = Math.max(0, y - 1); break;
-            case 1: y = Math.min(this.size - 1, y + 1); break;
-            case 2: x = Math.max(0, x - 1); break;
-            case 3: x = Math.min(this.size - 1, x + 1); break;
+        const newX = Math.max(0, Math.min(this.size - 1, x + dx));
+        const newY = Math.max(0, Math.min(this.size - 1, y + dy));
+
+        if (!this.obstacles.some(([ox, oy]) => ox === newX && oy === newY)) {
+            this.state = [newX, newY];
         }
 
-        if (this.obstacles.some(([ox, oy]) => ox === x && oy === y)) {
-            [x, y] = this.state;
-        } else {
-            this.state = [x, y];
-        }
-
-        const terminated = x === this.goal[0] && y === this.goal[1];
+        const [gx, gy] = this.goal;
+        const terminated = this.state[0] === gx && this.state[1] === gy;
         const truncated = this.currentSteps >= this.size * this.size * 2;
-        const reward = terminated ? 10 : -0.1;
 
-        return { observation: [...this.state], reward, terminated, truncated, info: {} };
+        return {
+            observation: [...this.state],
+            reward: terminated ? 10 : -0.1,
+            terminated,
+            truncated,
+            info: {}
+        };
     }
 
     get observationSpace() {

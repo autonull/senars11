@@ -1,39 +1,109 @@
-/**
- * Unified Neuro-Symbolic Architecture Framework
- * Parameterized, modular architecture for breakthrough RL performance.
- */
 import { Component } from '../composable/Component.js';
 import { ComponentRegistry, globalRegistry } from '../composable/ComponentRegistry.js';
 import { CompositionEngine } from '../composable/CompositionEngine.js';
 import { TensorLogicBridge, SymbolicTensor } from '../neurosymbolic/TensorLogicBridge.js';
 import { WorldModel } from '../neurosymbolic/WorldModel.js';
 import { SkillLibrary, SkillDiscoveryEngine } from '../skills/HierarchicalSkillSystem.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
-/**
- * Neuro-Symbolic Architecture Configuration
- */
+const DEFAULTS = {
+    architecture: 'dual-process',
+    reasoning: 'metta',
+    grounding: 'learned',
+    planning: true,
+    skillDiscovery: false,
+    worldModel: false,
+    intrinsicMotivation: 'none',
+    distributed: false,
+    metaLearning: false,
+    hyperparams: {
+        learningRate: 0.001,
+        discountFactor: 0.99,
+        explorationRate: 0.1,
+        planningHorizon: 5,
+        worldModelHorizon: 10,
+        skillThreshold: 0.5
+    }
+};
+
+const LAYER_DEFAULTS = {
+    perception: { units: 32, symbolic: true, attention: true },
+    reasoning: { units: 64, symbolic: true, attention: false },
+    planning: { units: 48, symbolic: true, attention: true },
+    action: { units: 16, symbolic: false, attention: false },
+    input: { units: 16, symbolic: false },
+    hidden: { units: 64, symbolic: false },
+    output: { units: 16, symbolic: false },
+    encoder: { units: 64, symbolic: true, attention: true },
+    decoder: { units: 32, symbolic: true },
+    dynamics: { units: 64, symbolic: true },
+    predictor: { units: 32, symbolic: true },
+    actor: { units: 16, symbolic: true },
+    reactive: { units: 16, symbolic: false },
+    deliberative: { units: 32, symbolic: true },
+    strategic: { units: 24, symbolic: true },
+    attention: { units: 64, symbolic: true, attention: true }
+};
+
+const ARCHITECTURE_TEMPLATES = {
+    'dual-process': (config) => ({
+        layers: [
+            { type: 'perception', ...config.perception },
+            { type: 'reasoning', ...config.reasoning },
+            { type: 'planning', ...config.planning },
+            { type: 'action', ...config.action }
+        ],
+        residual: true
+    }),
+    neural: (config) => ({
+        layers: [
+            { type: 'input', ...config.input },
+            { type: 'hidden', ...config.hidden1 },
+            { type: 'hidden', ...config.hidden2 },
+            { type: 'output', ...config.output }
+        ],
+        residual: false
+    }),
+    symbolic: (config) => ({
+        layers: [
+            { type: 'perception', ...config.perception },
+            { type: 'reasoning', ...config.reasoning },
+            { type: 'action', ...config.action }
+        ],
+        residual: false
+    }),
+    hierarchical: (config) => ({
+        layers: [
+            { type: 'reactive', ...config.low },
+            { type: 'deliberative', ...config.mid },
+            { type: 'strategic', ...config.high }
+        ],
+        residual: true
+    }),
+    attention: (config) => ({
+        layers: [
+            { type: 'encoder', ...config.encoder },
+            { type: 'attention', ...config.attention },
+            { type: 'decoder', ...config.decoder }
+        ],
+        residual: false
+    }),
+    'world-model': (config) => ({
+        layers: [
+            { type: 'encoder', ...config.encoder },
+            { type: 'dynamics', ...config.dynamics },
+            { type: 'predictor', ...config.predictor },
+            { type: 'actor', ...config.actor }
+        ],
+        residual: false
+    })
+};
+
 export class ArchitectureConfig {
     constructor(config = {}) {
-        this.architecture = config.architecture ?? 'dual-process';
-        this.reasoning = config.reasoning ?? 'metta';
-        this.grounding = config.grounding ?? 'learned';
-        this.planning = config.planning ?? true;
-        this.skillDiscovery = config.skillDiscovery ?? false;
-        this.worldModel = config.worldModel ?? false;
-        this.intrinsicMotivation = config.intrinsicMotivation ?? 'none';
-        this.distributed = config.distributed ?? false;
-        this.metaLearning = config.metaLearning ?? false;
-        
-        // Hyperparameters
-        this.hyperparams = {
-            learningRate: config.learningRate ?? 0.001,
-            discountFactor: config.discountFactor ?? 0.99,
-            explorationRate: config.explorationRate ?? 0.1,
-            planningHorizon: config.planningHorizon ?? 5,
-            worldModelHorizon: config.worldModelHorizon ?? 10,
-            skillThreshold: config.skillThreshold ?? 0.5,
-            ...config.hyperparams
-        };
+        const { hyperparams = {}, ...rest } = mergeConfig(DEFAULTS, config);
+        Object.assign(this, rest);
+        this.hyperparams = mergeConfig(DEFAULTS.hyperparams, hyperparams);
     }
 
     clone(overrides = {}) {
@@ -45,21 +115,16 @@ export class ArchitectureConfig {
     }
 }
 
-/**
- * Neuro-Symbolic Processing Unit
- * Core computational unit that integrates neural and symbolic processing.
- */
 export class NeuroSymbolicUnit extends Component {
     constructor(config = {}) {
-        super({
-            inputDim: config.inputDim ?? 64,
-            hiddenDim: config.hiddenDim ?? 128,
-            outputDim: config.outputDim ?? 32,
-            symbolDim: config.symbolDim ?? 16,
-            activation: config.activation ?? 'relu',
-            ...config
-        });
-        
+        super(mergeConfig({
+            inputDim: 64,
+            hiddenDim: 128,
+            outputDim: 32,
+            symbolDim: 16,
+            activation: 'relu'
+        }, config));
+
         this.bridge = new TensorLogicBridge();
         this.state = null;
         this.symbols = new Map();
@@ -73,25 +138,14 @@ export class NeuroSymbolicUnit extends Component {
         };
     }
 
-    /**
-     * Process input through neural-symbolic pipeline.
-     */
     async process(input, context = {}) {
         const { lift = true, ground = false, attend = false } = context;
 
-        // Neural encoding
         const encoded = this.encode(input);
-
-        // Symbolic lifting
         const lifted = lift ? this.lift(encoded) : encoded;
-
-        // Attention modulation
         const attended = attend ? this.applyAttention(lifted) : lifted;
-
-        // Symbolic processing
         const processed = await this.symbolicProcess(attended);
 
-        // Grounding back to neural
         return ground ? this.ground(processed) : processed;
     }
 
@@ -111,17 +165,16 @@ export class NeuroSymbolicUnit extends Component {
 
     applyAttention(tensor) {
         if (!tensor.symbols?.size) return tensor;
-        
+
         const mask = this.bridge.createAttentionMask(
             tensor,
             new Set(Array.from(tensor.symbols.values()).map(s => s.symbol))
         );
-        
+
         return this.bridge.symbolicMul(tensor, mask, 'intersection');
     }
 
     async symbolicProcess(input) {
-        // Override in subclasses for specific symbolic reasoning
         return input;
     }
 
@@ -138,62 +191,50 @@ export class NeuroSymbolicUnit extends Component {
     }
 }
 
-/**
- * Neuro-Symbolic Layer
- * Composable layer that can be stacked to form architectures.
- */
 export class NeuroSymbolicLayer extends Component {
     constructor(config = {}) {
-        super({
-            type: config.type ?? 'feedforward',
-            units: config.units ?? 64,
-            activation: config.activation ?? 'relu',
-            symbolic: config.symbolic ?? true,
-            attention: config.attention ?? false,
-            residual: config.residual ?? false,
-            ...config
-        });
-        
+        super(mergeConfig({
+            type: 'feedforward',
+            units: 64,
+            activation: 'relu',
+            symbolic: true,
+            attention: false,
+            residual: false
+        }, config));
+
         this.units = [];
         this.connections = new Map();
     }
 
     async onInitialize() {
-        for (let i = 0; i < this.config.units; i++) {
-            const unit = new NeuroSymbolicUnit({
-                ...this.config,
-                id: `unit_${i}`
-            });
-            await unit.initialize();
-            this.units.push(unit);
-        }
+        this.units = Array.from({ length: this.config.units }, (_, i) => {
+            const unit = new NeuroSymbolicUnit({ ...this.config, id: `unit_${i}` });
+            unit.initialize();
+            return unit;
+        });
     }
 
     async process(inputs, context = {}) {
         const outputs = await Promise.all(
             this.units.map(unit => unit.process(inputs, context))
         );
-        
-        // Aggregate outputs
         return this.aggregate(outputs);
     }
 
     aggregate(outputs) {
-        // Mean aggregation for symbolic tensors
-        if (outputs[0] instanceof SymbolicTensor) {
-            const aggregated = outputs[0].clone();
-            for (let i = 1; i < outputs.length; i++) {
-                for (let j = 0; j < aggregated.data.length; j++) {
-                    aggregated.data[j] += outputs[i].data[j];
-                }
-            }
-            for (let i = 0; i < aggregated.data.length; i++) {
-                aggregated.data[i] /= outputs.length;
-            }
-            return aggregated;
-        }
-        
-        return outputs;
+        if (!(outputs[0] instanceof SymbolicTensor)) return outputs;
+
+        const aggregated = outputs[0].clone();
+        outputs.slice(1).forEach(output => {
+            output.data.forEach((val, i) => {
+                aggregated.data[i] += val;
+            });
+        });
+        aggregated.data.forEach((_, i) => {
+            aggregated.data[i] /= outputs.length;
+        });
+
+        return aggregated;
     }
 
     connect(sourceLayer, targetUnitIdx = null) {
@@ -206,10 +247,6 @@ export class NeuroSymbolicLayer extends Component {
     }
 }
 
-/**
- * Neuro-Symbolic Architecture Builder
- * Fluent API for constructing architectures.
- */
 export class ArchitectureBuilder {
     constructor() {
         this.layers = [];
@@ -234,39 +271,19 @@ export class ArchitectureBuilder {
     }
 
     addPerceptionLayer(options = {}) {
-        return this.addLayer('perception', {
-            units: 32,
-            symbolic: true,
-            attention: true,
-            ...options
-        });
+        return this.addLayer('perception', { ...LAYER_DEFAULTS.perception, ...options });
     }
 
     addReasoningLayer(options = {}) {
-        return this.addLayer('reasoning', {
-            units: 64,
-            symbolic: true,
-            attention: false,
-            ...options
-        });
+        return this.addLayer('reasoning', { ...LAYER_DEFAULTS.reasoning, ...options });
     }
 
     addPlanningLayer(options = {}) {
-        return this.addLayer('planning', {
-            units: 48,
-            symbolic: true,
-            attention: true,
-            ...options
-        });
+        return this.addLayer('planning', { ...LAYER_DEFAULTS.planning, ...options });
     }
 
     addActionLayer(options = {}) {
-        return this.addLayer('action', {
-            units: 16,
-            symbolic: false,
-            attention: false,
-            ...options
-        });
+        return this.addLayer('action', { ...LAYER_DEFAULTS.action, ...options });
     }
 
     connect(fromIdx, toIdx, targetUnits = null) {
@@ -275,16 +292,12 @@ export class ArchitectureBuilder {
     }
 
     chain() {
-        for (let i = 0; i < this.layers.length - 1; i++) {
-            this.connect(i, i + 1);
-        }
+        this.layers.slice(0, -1).forEach((_, i) => this.connect(i, i + 1));
         return this;
     }
 
     withResidualConnections() {
-        for (let i = 0; i < this.layers.length - 2; i++) {
-            this.connect(i, i + 2);
-        }
+        this.layers.slice(0, -2).forEach((_, i) => this.connect(i, i + 2));
         return this;
     }
 
@@ -297,25 +310,19 @@ export class ArchitectureBuilder {
 
     async build() {
         const architecture = new NeuroSymbolicArchitecture(this.config);
-        
-        for (const layer of this.layers) {
-            architecture.addLayer(layer.config.id, layer);
-        }
-        
-        for (const conn of this.connections) {
+
+        this.layers.forEach(layer => architecture.addLayer(layer.config.id, layer));
+
+        this.connections.forEach(conn => {
             const fromLayer = this.layers[conn.from];
             const toLayer = this.layers[conn.to];
             toLayer.connect(fromLayer, conn.targetUnits);
-        }
-        
+        });
+
         return architecture;
     }
 }
 
-/**
- * Neuro-Symbolic Architecture
- * Complete architecture composed of layers.
- */
 export class NeuroSymbolicArchitecture extends Component {
     constructor(config = new ArchitectureConfig()) {
         super(config);
@@ -326,10 +333,7 @@ export class NeuroSymbolicArchitecture extends Component {
     }
 
     async onInitialize() {
-        for (const layer of this.layers.values()) {
-            await layer.initialize();
-        }
-        
+        await Promise.all(Array.from(this.layers.values()).map(layer => layer.initialize()));
         this.buildExecutionOrder();
     }
 
@@ -344,8 +348,6 @@ export class NeuroSymbolicArchitecture extends Component {
     }
 
     buildExecutionOrder() {
-        // Topological sort based on connections
-        // For now, use insertion order
         this.executionOrder = Array.from(this.layers.keys());
     }
 
@@ -357,59 +359,49 @@ export class NeuroSymbolicArchitecture extends Component {
             const layer = this.layers.get(layerName);
             if (!layer) continue;
 
-            const output = await layer.process(current, {
-                ...context,
-                layer: layerName
-            });
-
+            const output = await layer.process(current, { ...context, layer: layerName });
             activations.set(layerName, output);
             current = output;
         }
 
-        return {
-            output: current,
-            activations: Object.fromEntries(activations)
-        };
+        return { output: current, activations: Object.fromEntries(activations) };
     }
 
     async act(observation, goal = null) {
         const context = goal ? { goal, lift: true, ground: true } : { lift: true, ground: true };
         const result = await this.process(observation, context);
-        
-        // Extract action from output
+
         if (result.output instanceof SymbolicTensor) {
             return this.extractAction(result.output);
         }
-        
+
         return result.output;
     }
 
     extractAction(tensor) {
-        // Argmax for discrete actions
         let maxIdx = 0;
         let maxVal = tensor.data[0];
-        
-        for (let i = 1; i < tensor.data.length; i++) {
-            if (tensor.data[i] > maxVal) {
-                maxVal = tensor.data[i];
-                maxIdx = i;
+
+        tensor.data.slice(1).forEach((val, i) => {
+            if (val > maxVal) {
+                maxVal = val;
+                maxIdx = i + 1;
             }
-        }
-        
+        });
+
         return maxIdx;
     }
 
     async learn(transition, reward) {
         const { state, action, nextState, done } = transition;
-        
-        // Propagate learning signal through layers
-        for (const layerName of [...this.executionOrder].reverse()) {
+
+        [...this.executionOrder].reverse().forEach(layerName => {
             const layer = this.layers.get(layerName);
             if (layer?.learn) {
-                await layer.learn(transition, reward);
+                layer.learn(transition, reward);
             }
-        }
-        
+        });
+
         this.emit('learning', { transition, reward });
     }
 
@@ -425,14 +417,7 @@ export class NeuroSymbolicArchitecture extends Component {
     }
 }
 
-/**
- * Pre-built Architecture Templates
- */
 export const ArchitectureTemplates = {
-    /**
-     * Dual-Process Architecture
-     * Fast neural (System 1) + Slow symbolic (System 2)
-     */
     dualProcess(config = {}) {
         return new ArchitectureBuilder()
             .withConfig({ ...config, architecture: 'dual-process' })
@@ -444,10 +429,6 @@ export const ArchitectureTemplates = {
             .withResidualConnections();
     },
 
-    /**
-     * Pure Neural Architecture
-     * Fast, end-to-end differentiable
-     */
     neural(config = {}) {
         return new ArchitectureBuilder()
             .withConfig({ ...config, architecture: 'neural' })
@@ -458,10 +439,6 @@ export const ArchitectureTemplates = {
             .chain();
     },
 
-    /**
-     * Pure Symbolic Architecture
-     * Interpretable, rule-based
-     */
     symbolic(config = {}) {
         return new ArchitectureBuilder()
             .withConfig({ ...config, architecture: 'symbolic' })
@@ -471,10 +448,6 @@ export const ArchitectureTemplates = {
             .chain();
     },
 
-    /**
-     * Hierarchical Architecture
-     * Multi-level abstraction
-     */
     hierarchical(config = {}) {
         return new ArchitectureBuilder()
             .withConfig({ ...config, architecture: 'hierarchical' })
@@ -485,10 +458,6 @@ export const ArchitectureTemplates = {
             .withResidualConnections();
     },
 
-    /**
-     * Attention-Based Architecture
-     * Focus on relevant features
-     */
     attention(config = {}) {
         return new ArchitectureBuilder()
             .withConfig({ ...config, architecture: 'attention' })
@@ -498,10 +467,6 @@ export const ArchitectureTemplates = {
             .chain();
     },
 
-    /**
-     * World Model Architecture
-     * Imagination-based planning
-     */
     worldModel(config = {}) {
         return new ArchitectureBuilder()
             .withConfig({ ...config, architecture: 'world-model' })
@@ -513,10 +478,6 @@ export const ArchitectureTemplates = {
     }
 };
 
-/**
- * Architecture Factory
- * Creates architectures from configuration.
- */
 export class ArchitectureFactory {
     static create(name, config = {}) {
         const template = ArchitectureTemplates[name];

@@ -70,3 +70,32 @@ export function extractConfig(config, keys) {
         return acc;
     }, {});
 }
+
+export function validateConfig(config, schema) {
+    const errors = [];
+    
+    for (const [key, { validate }] of Object.entries(schema)) {
+        if (key in config && validate && !validate(config[key])) {
+            errors.push(`Invalid value for ${key}: ${config[key]}`);
+        }
+    }
+    
+    return { valid: errors.length === 0, errors };
+}
+
+export function createConfiguredClass(defaults, schema = {}) {
+    return class {
+        constructor(overrides = {}) {
+            const merged = mergeConfig(defaults, overrides);
+            
+            if (schema) {
+                const { valid, errors } = validateConfig(merged, schema);
+                if (!valid) {
+                    throw new Error(`Config validation failed: ${errors.join(', ')}`);
+                }
+            }
+            
+            Object.assign(this, merged);
+        }
+    };
+}

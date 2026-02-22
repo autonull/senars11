@@ -6,45 +6,45 @@ import { SkillDiscovery } from '../skills/SkillDiscovery.js';
 import { DualProcessArchitecture } from '../architectures/DualProcessArchitecture.js';
 import { MeTTaPolicyArchitecture } from '../architectures/MeTTaPolicyArchitecture.js';
 import { EvolutionaryArchitecture } from '../architectures/EvolutionaryArchitecture.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
+
+const DEFAULTS = {
+    encoder: 'mlp',
+    reasoning: 'metta',
+    grounding: 'learned',
+    planning: true,
+    skillDiscovery: false,
+    usePolicy: false,
+    policyScript: null,
+    architecture: 'dual-process'
+};
+
+const ARCHITECTURE_MAP = {
+    'metta-policy': MeTTaPolicyArchitecture,
+    evolutionary: EvolutionaryArchitecture,
+    'dual-process': DualProcessArchitecture
+};
 
 export class NeuroSymbolicAgent extends RLAgent {
     constructor(env, config = {}) {
         super(env);
-        this.config = {
-            encoder: 'mlp',
-            reasoning: 'metta',
-            grounding: 'learned',
-            planning: true,
-            skillDiscovery: config.skillDiscovery ?? false,
-            usePolicy: false,
-            policyScript: null,
-            architecture: 'dual-process',
-            ...config
-        };
+        this.config = mergeConfig(DEFAULTS, config);
 
         this.grounding = new LearnedGrounding();
         this.memory = new EpisodicMemory();
         this.skills = new SkillManager();
-
-        // Optional skill discovery
         this.skillDiscovery = this.config.skillDiscovery ? new SkillDiscovery() : null;
 
-        // Select Architecture
-        if (this.config.architecture === 'metta-policy') {
-            this.architecture = new MeTTaPolicyArchitecture(this, this.config);
-        } else if (this.config.architecture === 'evolutionary') {
-            this.architecture = new EvolutionaryArchitecture(this, this.config);
-        } else {
-            this.architecture = new DualProcessArchitecture(this, this.config);
-        }
+        const ArchClass = ARCHITECTURE_MAP[this.config.architecture] ?? DualProcessArchitecture;
+        this.architecture = new ArchClass(this, this.config);
 
-        // Bridge aliases
+        this._setupBridgeAliases();
+    }
+
+    _setupBridgeAliases() {
         if (this.architecture instanceof DualProcessArchitecture) {
-            this.bridge = this.architecture.bridge;
-            this.planner = this.architecture.planner;
-            this.hierarchical = this.architecture.hierarchical;
-            this.inducer = this.architecture.inducer;
-            this.metta = this.architecture.metta;
+            const { bridge, planner, hierarchical, inducer, metta } = this.architecture;
+            Object.assign(this, { bridge, planner, hierarchical, inducer, metta });
         } else if (this.architecture instanceof MeTTaPolicyArchitecture) {
             this.metta = this.architecture.metta;
         }
@@ -55,26 +55,22 @@ export class NeuroSymbolicAgent extends RLAgent {
         await this.skillDiscovery?.initialize();
     }
 
-    async act(observation, goal) {
+    act(observation, goal) {
         return this.architecture.act(observation, goal);
     }
 
-    async learn(observation, action, reward, nextObservation, done) {
+    learn(observation, action, reward, nextObservation, done) {
         return this.architecture.learn(observation, action, reward, nextObservation, done);
     }
 
     async plan(goal) {
-        if (this.architecture.planner) {
-            return this.architecture.planner.act(null, goal);
-        }
-        return null;
+        return this.architecture.planner?.act(null, goal) ?? null;
     }
 
     async explain(decision) {
         if (this.bridge?.initialized) {
-            const query = `<(${decision}) --> ?explanation>?`;
             try {
-                const result = await this.bridge.ask(query);
+                const result = await this.bridge.ask(`<(${decision}) --> ?explanation>?`);
                 if (result?.term) {
                     return `Explanation: ${result.term}`;
                 }
@@ -82,34 +78,19 @@ export class NeuroSymbolicAgent extends RLAgent {
                 // Fallback
             }
         }
-        return "Explanation not found";
+        return 'Explanation not found';
     }
 
-    /**
-     * Discover skills from experiences.
-     */
     async discoverSkills(experiences, options = {}) {
-        if (!this.skillDiscovery) {
-            return [];
-        }
-        return this.skillDiscovery.discoverSkills(experiences, options);
+        return this.skillDiscovery?.discoverSkills(experiences, options) ?? [];
     }
 
-    /**
-     * Get discovered skills.
-     */
     getSkills() {
-        return this.skillDiscovery ? this.skillDiscovery.getState() : null;
+        return this.skillDiscovery?.getState() ?? null;
     }
 
-    /**
-     * Compose skills for a goal.
-     */
     async composeSkills(goal) {
-        if (!this.skillDiscovery) {
-            return null;
-        }
-        return this.skillDiscovery.composeSkills(goal);
+        return this.skillDiscovery?.composeSkills(goal) ?? null;
     }
 
     async close() {
@@ -118,9 +99,6 @@ export class NeuroSymbolicAgent extends RLAgent {
     }
 
     transferTo(newEnv) {
-        // Compositional transfer logic
-        if (this.skillDiscovery) {
-            return this.skillDiscovery.transferTo(newEnv);
-        }
+        return this.skillDiscovery?.transferTo(newEnv);
     }
 }

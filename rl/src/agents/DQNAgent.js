@@ -22,8 +22,6 @@ export class DQNAgent extends RLAgent {
         this.steps = 0;
         this.optimizer = new AdamOptimizer(this.config.learningRate);
         this.lossFn = new LossFunctor();
-
-        // Use ExperienceBuffer instead of raw array
         this.replayBuffer = new ExperienceBuffer({
             capacity: this.config.memorySize,
             batchSize: this.config.batchSize,
@@ -41,38 +39,33 @@ export class DQNAgent extends RLAgent {
     _initNetworks() {
         const obsDim = this.env.observationSpace.shape[0];
         const actionDim = this.env.actionSpace.n;
-
         this.qNet = this._buildModel(obsDim, this.config.hiddenSize, actionDim);
         this.targetNet = this._buildModel(obsDim, this.config.hiddenSize, actionDim);
         this._updateTargetNetwork();
     }
 
     _buildModel(input, hidden, output) {
-        const w1 = Tensor.randn([hidden, input], 0, 0.1);
-        const b1 = Tensor.zeros([hidden]);
-        const w2 = Tensor.randn([output, hidden], 0, 0.1);
-        const b2 = Tensor.zeros([output]);
+        const params = [
+            Tensor.randn([hidden, input], 0, 0.1),
+            Tensor.zeros([hidden]),
+            Tensor.randn([output, hidden], 0, 0.1),
+            Tensor.zeros([output])
+        ].map(p => (p.requiresGrad = true, p));
 
-        w1.requiresGrad = true;
-        b1.requiresGrad = true;
-        w2.requiresGrad = true;
-        b2.requiresGrad = true;
-
-        return { w1, b1, w2, b2, params: [w1, b1, w2, b2] };
+        return { w1: params[0], b1: params[1], w2: params[2], b2: params[3], params };
     }
 
     _forward(model, x) {
-        let input = x.ndim === 1 ? x.reshape([x.shape[0], 1]) : x.transpose();
+        const input = x.ndim === 1 ? x.reshape([x.shape[0], 1]) : x.transpose();
         const h = model.w1.matmul(input).add(model.b1.reshape([model.b1.shape[0], 1])).relu();
         const out = model.w2.matmul(h).add(model.b2.reshape([model.b2.shape[0], 1]));
         return x.ndim > 1 ? out.transpose() : out.reshape([out.shape[0]]);
     }
 
     _updateTargetNetwork() {
-        this.targetNet.w1.data = [...this.qNet.w1.data];
-        this.targetNet.b1.data = [...this.qNet.b1.data];
-        this.targetNet.w2.data = [...this.qNet.w2.data];
-        this.targetNet.b2.data = [...this.qNet.b2.data];
+        ['w1', 'b1', 'w2', 'b2'].forEach(key => {
+            this.targetNet[key].data = [...this.qNet[key].data];
+        });
     }
 
     act(observation) {
@@ -80,47 +73,30 @@ export class DQNAgent extends RLAgent {
             return Math.floor(Math.random() * this.env.actionSpace.n);
         }
 
-        const obsTensor = new Tensor(observation);
-        const qValues = this._forward(this.qNet, obsTensor);
+        const qValues = this._forward(this.qNet, new Tensor(observation));
         const data = qValues.data;
-        let maxIdx = 0;
-        for (let i = 1; i < data.length; i++) {
-            if (data[i] > data[maxIdx]) maxIdx = i;
-        }
-        return maxIdx;
+        return data.reduce((maxIdx, val, i) => val > data[maxIdx] ? i : maxIdx, 0);
     }
 
     async learn(obs, action, reward, nextObs, done) {
-        // Store experience in ExperienceBuffer
-        const experience = new CausalExperience({
-            state: obs,
-            action,
-            reward,
-            nextState: nextObs,
-            done
-        });
-        await this.replayBuffer.store(experience);
+        await this.replayBuffer.store(new CausalExperience({ state: obs, action, reward, nextState: nextObs, done }));
 
-        // Decay epsilon
         if (done && this.config.epsilon > this.config.epsilonMin) {
             this.config.epsilon *= this.config.epsilonDecay;
         }
 
-        this.steps++;
-        if (this.steps % this.config.targetUpdate === 0) {
+        if (++this.steps % this.config.targetUpdate === 0) {
             this._updateTargetNetwork();
         }
 
-        // Train if enough samples
         if (this.replayBuffer.totalSize >= this.config.batchSize) {
             await this._trainStep();
         }
     }
 
     async _trainStep() {
-        // Sample batch from ExperienceBuffer
         const batch = await this.replayBuffer.sample(this.config.batchSize);
-        if (batch.length === 0) return;
+        if (!batch.length) return;
 
         const obsDim = this.env.observationSpace.shape[0];
         const actionDim = this.env.actionSpace.n;
@@ -132,46 +108,41 @@ export class DQNAgent extends RLAgent {
         const rewards = batch.map(e => e.reward);
         const dones = batch.map(e => e.done);
 
-        // Compute Target Q
         const nextQ = this._forward(this.targetNet, nextStates);
-        const maxNextQ = [];
-        const nextQData = nextQ.data;
-
-        for (let i = 0; i < batchSize; i++) {
-            if (dones[i]) {
-                maxNextQ.push(0);
-            } else {
-                let maxVal = -Infinity;
-                for (let j = 0; j < actionDim; j++) {
-                    const val = nextQData[i * actionDim + j];
-                    if (val > maxVal) maxVal = val;
-                }
-                maxNextQ.push(maxVal);
-            }
-        }
-
+        const maxNextQ = this._computeMaxNextQ(nextQ.data, dones, batchSize, actionDim);
         const targets = rewards.map((r, i) => r + this.config.gamma * maxNextQ[i]);
+
         const currentQ = this._forward(this.qNet, states);
+        const { mask, targetTensor } = this._createTargetTensors(currentQ, targets, actions, batchSize, actionDim);
 
-        // Construct mask and target tensors
-        const maskData = new Array(batchSize * actionDim).fill(0);
-        const targetData = new Array(batchSize * actionDim).fill(0);
-
-        for (let i = 0; i < batchSize; i++) {
-            const idx = i * actionDim + actions[i];
-            maskData[idx] = 1;
-            targetData[idx] = targets[i];
-        }
-
-        const mask = new Tensor(maskData).reshape([batchSize, actionDim]);
-        const targetTensor = new Tensor(targetData).reshape([batchSize, actionDim]);
-
-        const diff = currentQ.sub(targetTensor).mul(mask);
-        const loss = diff.pow(2).mean();
-
+        const loss = currentQ.sub(targetTensor).mul(mask).pow(2).mean();
         this.optimizer.zeroGrad(this.qNet.params);
         loss.backward();
         this.optimizer.step(this.qNet.params);
+    }
+
+    _computeMaxNextQ(nextQData, dones, batchSize, actionDim) {
+        return Array.from({ length: batchSize }, (_, i) => {
+            if (dones[i]) return 0;
+            const offset = i * actionDim;
+            return Math.max(...nextQData.slice(offset, offset + actionDim));
+        });
+    }
+
+    _createTargetTensors(currentQ, targets, actions, batchSize, actionDim) {
+        const maskData = new Array(batchSize * actionDim).fill(0);
+        const targetData = new Array(batchSize * actionDim).fill(0);
+
+        actions.forEach((action, i) => {
+            const idx = i * actionDim + action;
+            maskData[idx] = 1;
+            targetData[idx] = targets[i];
+        });
+
+        return {
+            mask: new Tensor(maskData).reshape([batchSize, actionDim]),
+            targetTensor: new Tensor(targetData).reshape([batchSize, actionDim])
+        };
     }
 
     async getBufferStats() {

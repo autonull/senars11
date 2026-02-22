@@ -1,10 +1,69 @@
 import { Component } from '../composable/Component.js';
 import { SymbolicTensor } from '../neurosymbolic/TensorLogicBridge.js';
 import { TensorLogicPolicy } from '../policies/TensorLogicPolicy.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
+
+const DEFAULTS = {
+    minSupport: 5,
+    similarityThreshold: 0.8,
+    noveltyThreshold: 0.3,
+    maxLevels: 4,
+    learningRate: 0.1,
+    consolidationInterval: 100,
+    useNarseseGrounding: true,
+    useMettaRepresentation: true,
+    defaultHiddenDim: 32,
+    defaultNumLayers: 1,
+    policyLearningRate: 0.01,
+    predicateThreshold: 0.5,
+    mergeSimilarityThreshold: 0.9,
+    lowSuccessRateThreshold: 0.3,
+    maxCompositionDepth: 5
+};
+
+const PRIMITIVE_SKILLS = [
+    { id: 'move_forward', name: 'Move Forward' },
+    { id: 'move_backward', name: 'Move Backward' },
+    { id: 'turn_left', name: 'Turn Left' },
+    { id: 'turn_right', name: 'Turn Right' },
+    { id: 'grasp', name: 'Grasp Object' },
+    { id: 'release', name: 'Release Object' }
+];
+
+const SkillUtils = {
+    generateId() {
+        return `skill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    },
+
+    extractMettaField(mettaStr, pattern) {
+        return mettaStr.match(pattern)?.[1];
+    },
+
+    computeStringSimilarity(s1, s2) {
+        const set1 = new Set(s1.split(' '));
+        const set2 = new Set(s2.split(' '));
+        const intersection = new Set([...set1].filter(x => set2.has(x)));
+        const union = new Set([...set1, ...set2]);
+        return union.size > 0 ? intersection.size / union.size : 0;
+    },
+
+    determineSkillLevel(precondition, postcondition) {
+        const complexity = [precondition, postcondition]
+            .filter(Boolean)
+            .reduce((sum, cond) => sum + cond.split('&&').length, 0);
+
+        return complexity <= 1 ? 0 : complexity <= 3 ? 1 : complexity <= 5 ? 2 : 3;
+    },
+
+    roundState(state, decimals = 1) {
+        const factor = Math.pow(10, decimals);
+        return state.map(v => Math.round(v * factor) / factor);
+    }
+};
 
 export class Skill {
     constructor(config = {}) {
-        this.id = config.id ?? `skill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        this.id = config.id ?? SkillUtils.generateId();
         this.name = config.name ?? 'Unnamed Skill';
         this.precondition = config.precondition ?? null;
         this.postcondition = config.postcondition ?? null;
@@ -83,7 +142,7 @@ export class Skill {
         const idMatch = mettaStr.match(/skill (\S+)/);
         if (!idMatch) return null;
 
-        const extract = (pattern) => mettaStr.match(pattern)?.[1];
+        const extract = (pattern) => SkillUtils.extractMettaField(mettaStr, pattern);
 
         return new Skill({
             id: idMatch[1],
@@ -114,19 +173,58 @@ export class Skill {
     }
 }
 
+const ClusteringUtils = {
+    clusterExperiences(experiences) {
+        const clusters = new Map();
+
+        experiences.forEach(exp => {
+            const { state, action, nextState, reward } = exp;
+            const signature = `${SkillUtils.roundState(state).join(',')}_a${action}`;
+
+            let cluster = clusters.get(signature);
+            if (!cluster) {
+                cluster = { signature, states: [], nextStates: [], actions: [], rewards: [], support: 0 };
+                clusters.set(signature, cluster);
+            }
+
+            cluster.states.push(state);
+            cluster.nextStates.push(nextState);
+            cluster.actions.push(action);
+            cluster.rewards.push(reward);
+            cluster.support++;
+        });
+
+        return Array.from(clusters.values());
+    },
+
+    computeAverageReward(rewards) {
+        return rewards.length > 0 ? rewards.reduce((a, b) => a + b, 0) / rewards.length : 0;
+    }
+};
+
+const SimilarityComputer = {
+    computeSkillSimilarity(skill1, skill2) {
+        const similarities = [];
+
+        if (skill1.precondition && skill2.precondition) {
+            similarities.push(SkillUtils.computeStringSimilarity(skill1.precondition, skill2.precondition));
+        }
+
+        if (skill1.postcondition && skill2.postcondition) {
+            similarities.push(SkillUtils.computeStringSimilarity(skill1.postcondition, skill2.postcondition));
+        }
+
+        return similarities.length > 0 ? similarities.reduce((a, b) => a + b, 0) / similarities.length : 0;
+    },
+
+    findSimilarSkills(skill, skills, threshold) {
+        return skills.filter(existing => this.computeSkillSimilarity(skill, existing) >= threshold);
+    }
+};
+
 export class SkillDiscovery extends Component {
     constructor(config = {}) {
-        super({
-            minSupport: config.minSupport ?? 5,
-            similarityThreshold: config.similarityThreshold ?? 0.8,
-            noveltyThreshold: config.noveltyThreshold ?? 0.3,
-            maxLevels: config.maxLevels ?? 4,
-            learningRate: config.learningRate ?? 0.1,
-            consolidationInterval: config.consolidationInterval ?? 100,
-            useNarseseGrounding: config.useNarseseGrounding ?? true,
-            useMettaRepresentation: config.useMettaRepresentation ?? true,
-            ...config
-        });
+        super(mergeConfig(DEFAULTS, config));
 
         this.skills = new Map();
         this.primitiveSkills = new Set();
@@ -154,21 +252,12 @@ export class SkillDiscovery extends Component {
     }
 
     _registerDefaultPrimitives() {
-        const primitives = [
-            { id: 'move_forward', name: 'Move Forward' },
-            { id: 'move_backward', name: 'Move Backward' },
-            { id: 'turn_left', name: 'Turn Left' },
-            { id: 'turn_right', name: 'Turn Right' },
-            { id: 'grasp', name: 'Grasp Object' },
-            { id: 'release', name: 'Release Object' }
-        ];
-
-        for (const prim of primitives) {
+        PRIMITIVE_SKILLS.forEach(prim => {
             const skill = new Skill({ ...prim, policyType: 'neural', policy: null, level: 0 });
             this.skills.set(skill.id, skill);
             this.primitiveSkills.add(skill.id);
             this.metrics.skillsDiscovered++;
-        }
+        });
     }
 
     async discoverSkills(experiences, options = {}) {
@@ -178,7 +267,7 @@ export class SkillDiscovery extends Component {
             this.experienceBuffer.push(...experiences);
         }
 
-        const clusters = this._clusterExperiences(incremental ? experiences : this.experienceBuffer);
+        const clusters = ClusteringUtils.clusterExperiences(incremental ? experiences : this.experienceBuffer);
         const newSkills = [];
 
         for (const cluster of clusters) {
@@ -200,34 +289,11 @@ export class SkillDiscovery extends Component {
         return newSkills;
     }
 
-    _clusterExperiences(experiences) {
-        const clusters = new Map();
-
-        for (const exp of experiences) {
-            const { state, action, nextState, reward } = exp;
-            const signature = `${state.map(v => Math.round(v * 10) / 10).join(',')}_a${action}`;
-
-            let cluster = clusters.get(signature);
-            if (!cluster) {
-                cluster = { signature, states: [], nextStates: [], actions: [], rewards: [], support: 0 };
-                clusters.set(signature, cluster);
-            }
-
-            cluster.states.push(state);
-            cluster.nextStates.push(nextState);
-            cluster.actions.push(action);
-            cluster.rewards.push(reward);
-            cluster.support++;
-        }
-
-        return Array.from(clusters.values());
-    }
-
     async _discoverSkillFromCluster(cluster) {
         const precondition = this._inducePrecondition(cluster.states);
         const postcondition = this._inducePrecondition(cluster.nextStates);
         const policy = await this._trainPolicyFromCluster(cluster);
-        const level = this._determineSkillLevel(precondition, postcondition);
+        const level = SkillUtils.determineSkillLevel(precondition, postcondition);
 
         return new Skill({
             name: `skill_${Date.now()}`,
@@ -238,7 +304,7 @@ export class SkillDiscovery extends Component {
             level,
             metadata: {
                 support: cluster.support,
-                avgReward: cluster.rewards.reduce((a, b) => a + b, 0) / cluster.rewards.length
+                avgReward: ClusteringUtils.computeAverageReward(cluster.rewards)
             }
         });
     }
@@ -247,15 +313,15 @@ export class SkillDiscovery extends Component {
         if (!this.bridge || !this.config.useNarseseGrounding) return null;
 
         const predicateCounts = new Map();
-        for (const state of states) {
-            const narsese = this.bridge.observationToNarsese(state, { threshold: 0.5 });
+        states.forEach(state => {
+            const narsese = this.bridge.observationToNarsese(state, { threshold: this.config.predicateThreshold });
             const predicates = narsese.match(/<(\S+) --> observed>/g) ?? [];
-            for (const pred of predicates) {
+            predicates.forEach(pred => {
                 predicateCounts.set(pred, (predicateCounts.get(pred) ?? 0) + 1);
-            }
-        }
+            });
+        });
 
-        const threshold = states.length * 0.5;
+        const threshold = states.length * this.config.predicateThreshold;
         const commonPredicates = Array.from(predicateCounts.entries())
             .filter(([_, count]) => count >= threshold)
             .map(([pred, _]) => pred);
@@ -264,10 +330,16 @@ export class SkillDiscovery extends Component {
     }
 
     async _trainPolicyFromCluster(cluster) {
-        const inputDim = cluster.states[0]?.length ?? 64;
+        const inputDim = cluster.states[0]?.length ?? this.config.defaultHiddenDim;
         const outputDim = Math.max(...cluster.actions.map(a => typeof a === 'number' ? a : 0)) + 1;
 
-        const policy = new TensorLogicPolicy({ inputDim, hiddenDim: 32, outputDim, numLayers: 1, learningRate: 0.01 });
+        const policy = new TensorLogicPolicy({
+            inputDim,
+            hiddenDim: this.config.defaultHiddenDim,
+            outputDim,
+            numLayers: this.config.defaultNumLayers,
+            learningRate: this.config.policyLearningRate
+        });
         await policy.initialize();
 
         for (let i = 0; i < cluster.states.length; i++) {
@@ -283,48 +355,15 @@ export class SkillDiscovery extends Component {
         return policy;
     }
 
-    _determineSkillLevel(precondition, postcondition) {
-        let complexity = 0;
-        if (precondition) complexity += precondition.split('&&').length;
-        if (postcondition) complexity += postcondition.split('&&').length;
-
-        return complexity <= 1 ? 0 : complexity <= 3 ? 1 : complexity <= 5 ? 2 : 3;
-    }
-
     _isNovelSkill(skill) {
-        for (const existing of this.skills.values()) {
-            if (this._computeSkillSimilarity(skill, existing) >= this.config.similarityThreshold) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    _computeSkillSimilarity(skill1, skill2) {
-        const similarities = [];
-
-        if (skill1.precondition && skill2.precondition) {
-            similarities.push(this._stringSimilarity(skill1.precondition, skill2.precondition));
-        }
-
-        if (skill1.postcondition && skill2.postcondition) {
-            similarities.push(this._stringSimilarity(skill1.postcondition, skill2.postcondition));
-        }
-
-        return similarities.length > 0 ? similarities.reduce((a, b) => a + b, 0) / similarities.length : 0;
-    }
-
-    _stringSimilarity(s1, s2) {
-        const set1 = new Set(s1.split(' '));
-        const set2 = new Set(s2.split(' '));
-        const intersection = new Set([...set1].filter(x => set2.has(x)));
-        const union = new Set([...set1, ...set2]);
-        return intersection.size / union.size;
+        return SimilarityComputer.findSimilarSkills(skill, this.skills.values(), this.config.similarityThreshold).length === 0;
     }
 
     async _consolidateSkills() {
+        const skillArray = Array.from(this.skills.values());
+
         for (const [id, skill] of this.skills.entries()) {
-            if (skill.usageCount > 0 && skill.getSuccessRate() < 0.3) {
+            if (skill.usageCount > 0 && skill.getSuccessRate() < this.config.lowSuccessRateThreshold) {
                 this.skills.delete(id);
                 this.primitiveSkills.delete(id);
                 this.compositeSkills.delete(id);
@@ -332,20 +371,15 @@ export class SkillDiscovery extends Component {
         }
 
         const toMerge = [];
-        const skillArray = Array.from(this.skills.values());
-
         for (let i = 0; i < skillArray.length; i++) {
             for (let j = i + 1; j < skillArray.length; j++) {
-                if (this._computeSkillSimilarity(skillArray[i], skillArray[j]) > 0.9) {
+                if (SimilarityComputer.computeSkillSimilarity(skillArray[i], skillArray[j]) > this.config.mergeSimilarityThreshold) {
                     toMerge.push([skillArray[i], skillArray[j]]);
                 }
             }
         }
 
-        for (const [s1, s2] of toMerge) {
-            this._mergeSkills(s1, s2);
-        }
-
+        toMerge.forEach(([s1, s2]) => this._mergeSkills(s1, s2));
         this.metrics.skillsConsolidated++;
     }
 
@@ -358,13 +392,11 @@ export class SkillDiscovery extends Component {
         keep.totalReward += remove.totalReward;
         keep.usageCount += remove.usageCount;
 
-        this.skills.delete(remove.id);
-        this.primitiveSkills.delete(remove.id);
-        this.compositeSkills.delete(remove.id);
+        [this.skills, this.primitiveSkills, this.compositeSkills].forEach(collection => collection.delete(remove.id));
     }
 
     async composeSkills(goal, options = {}) {
-        const { maxDepth = 5, usePlanning = true } = options;
+        const { maxDepth = this.config.maxCompositionDepth, usePlanning = true } = options;
 
         if (usePlanning && this.bridge?.senarsBridge) {
             return this._planWithNARS(goal, maxDepth);
@@ -431,10 +463,10 @@ export class SkillDiscovery extends Component {
             metadata: { sequence: skillSequence.map(s => s.id), goal }
         });
 
-        for (const skill of skillSequence) {
+        skillSequence.forEach(skill => {
             skill.parent = composite.id;
             this.skillParents.set(skill.id, composite.id);
-        }
+        });
 
         this.skillHierarchy.set(composite.id, skillSequence.map(s => s.id));
         this.compositeSkills.add(composite.id);
