@@ -2,6 +2,86 @@ import { Component } from '../composable/Component.js';
 import { ComponentRegistry } from '../composable/ComponentRegistry.js';
 import { CompositionEngine } from '../composable/CompositionEngine.js';
 import { NeuroSymbolicBridge } from '../bridges/NeuroSymbolicBridge.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
+
+const DEFAULTS = {
+    metaLearningRate: 0.1,
+    explorationRate: 0.3,
+    modificationThreshold: 0.5,
+    evaluationWindow: 100,
+    populationSize: 10,
+    elitismRate: 0.2,
+    mutationRate: 0.3,
+    crossoverRate: 0.5,
+    useImagination: true,
+    imaginationHorizon: 10,
+    useNARSReasoning: true,
+    useMettaRepresentation: true
+};
+
+const DEFAULT_OPERATORS = [
+    { type: 'add', parameters: { stage: 'perception', componentId: 'attention' } },
+    { type: 'add', parameters: { stage: 'reasoning', componentId: 'causal_reasoner' } },
+    { type: 'add', parameters: { stage: 'action', componentId: 'uncertainty_estimator' } },
+    { type: 'modify', parameters: { componentId: 'policy', config: { learningRate: 0.001 } } },
+    { type: 'modify', parameters: { componentId: 'policy', config: { hiddenDim: 128 } } },
+    { type: 'connect', parameters: { fromId: 'perception', fromOutput: 'features', toId: 'reasoning', toInput: 'symbols' } }
+];
+
+const TypeMultipliers = { add: 1.2, remove: 0.8, modify: 1.0 };
+
+const ModificationExecutor = {
+    async add(architecture, params) {
+        const { componentId, stage, position } = params;
+        const component = ComponentRegistry.getInstance().create(componentId, params.config ?? {});
+        stage ? architecture.addToStage(stage, component, position) : architecture.addComponent(component);
+        return { success: true, component };
+    },
+
+    async remove(architecture, params) {
+        const { componentId } = params;
+        const component = architecture.getComponent(componentId);
+        if (component) {
+            await component.shutdown();
+            architecture.removeComponent(componentId);
+            return { success: true, component };
+        }
+        return { success: false, error: 'Component not found' };
+    },
+
+    async replace(architecture, params) {
+        const { oldComponentId, newComponentId, config } = params;
+        const newComponent = ComponentRegistry.getInstance().create(newComponentId, config ?? {});
+        const result = architecture.replaceComponent(oldComponentId, newComponent);
+        return result.success ? { success: true, oldComponent: result.old, newComponent } : result;
+    },
+
+    async modify(architecture, params) {
+        const { componentId, config, method, args } = params;
+        const component = architecture.getComponent(componentId);
+        if (!component) return { success: false, error: 'Component not found' };
+
+        if (config) Object.assign(component.config, config);
+        if (method && typeof component[method] === 'function') {
+            const result = await component[method](...(args ?? []));
+            return { success: true, result };
+        }
+
+        return { success: true, component };
+    },
+
+    async connect(architecture, params) {
+        const { fromId, fromOutput, toId, toInput } = params;
+        architecture.connect(fromId, fromOutput, toId, toInput);
+        return { success: true };
+    },
+
+    async disconnect(architecture, params) {
+        const { fromId, toId } = params;
+        architecture.disconnect(fromId, toId);
+        return { success: true };
+    }
+};
 
 export class ModificationOperator {
     constructor(config = {}) {
@@ -15,71 +95,23 @@ export class ModificationOperator {
     }
 
     async apply(architecture, context = {}) {
-        const methods = {
-            add: () => this._addComponent(architecture, context),
-            remove: () => this._removeComponent(architecture, context),
-            replace: () => this._replaceComponent(architecture, context),
-            modify: () => this._modifyComponent(architecture, context),
-            connect: () => this._connectComponents(architecture, context),
-            disconnect: () => this._disconnectComponents(architecture, context)
-        };
-
-        return methods[this.type]?.() ?? { success: false, error: `Unknown type: ${this.type}` };
-    }
-
-    async _addComponent(architecture) {
-        const { componentId, stage, position } = this.parameters;
-        const component = ComponentRegistry.getInstance().create(componentId, this.parameters.config ?? {});
-        stage ? architecture.addToStage(stage, component, position) : architecture.addComponent(component);
-        return { success: true, component };
-    }
-
-    async _removeComponent(architecture) {
-        const { componentId } = this.parameters;
-        const component = architecture.getComponent(componentId);
-        if (component) {
-            await component.shutdown();
-            architecture.removeComponent(componentId);
-            return { success: true, component };
+        const executor = ModificationExecutor[this.type];
+        if (!executor) {
+            return { success: false, error: `Unknown type: ${this.type}` };
         }
-        return { success: false, error: 'Component not found' };
-    }
-
-    async _replaceComponent(architecture) {
-        const { oldComponentId, newComponentId, config } = this.parameters;
-        const newComponent = ComponentRegistry.getInstance().create(newComponentId, config ?? {});
-        const result = architecture.replaceComponent(oldComponentId, newComponent);
-        return result.success ? { success: true, oldComponent: result.old, newComponent } : result;
-    }
-
-    async _modifyComponent(architecture) {
-        const { componentId, config, method, args } = this.parameters;
-        const component = architecture.getComponent(componentId);
-        if (!component) return { success: false, error: 'Component not found' };
-
-        if (config) Object.assign(component.config, config);
-        if (method && typeof component[method] === 'function') {
-            const result = await component[method](...(args ?? []));
-            return { success: true, result };
-        }
-
-        return { success: true, component };
-    }
-
-    async _connectComponents(architecture) {
-        const { fromId, fromOutput, toId, toInput } = this.parameters;
-        architecture.connect(fromId, fromOutput, toId, toInput);
-        return { success: true };
-    }
-
-    async _disconnectComponents(architecture) {
-        const { fromId, toId } = this.parameters;
-        architecture.disconnect(fromId, toId);
-        return { success: true };
+        return executor(architecture, this.parameters, context);
     }
 
     toJSON() {
-        return { type: this.type, target: this.target, parameters: { ...this.parameters }, priority: this.priority, expectedImprovement: this.expectedImprovement, applied: this.applied, successful: this.successful };
+        return {
+            type: this.type,
+            target: this.target,
+            parameters: { ...this.parameters },
+            priority: this.priority,
+            expectedImprovement: this.expectedImprovement,
+            applied: this.applied,
+            successful: this.successful
+        };
     }
 
     static fromJSON(json) {
@@ -89,21 +121,7 @@ export class ModificationOperator {
 
 export class MetaController extends Component {
     constructor(config = {}) {
-        super({
-            metaLearningRate: config.metaLearningRate ?? 0.1,
-            explorationRate: config.explorationRate ?? 0.3,
-            modificationThreshold: config.modificationThreshold ?? 0.5,
-            evaluationWindow: config.evaluationWindow ?? 100,
-            populationSize: config.populationSize ?? 10,
-            elitismRate: config.elitismRate ?? 0.2,
-            mutationRate: config.mutationRate ?? 0.3,
-            crossoverRate: config.crossoverRate ?? 0.5,
-            useImagination: config.useImagination ?? true,
-            imaginationHorizon: config.imaginationHorizon ?? 10,
-            useNARSReasoning: config.useNARSReasoning ?? true,
-            useMettaRepresentation: config.useMettaRepresentation ?? true,
-            ...config
-        });
+        super(mergeConfig(DEFAULTS, config));
 
         this.currentArchitecture = null;
         this.architectureHistory = [];
@@ -126,14 +144,7 @@ export class MetaController extends Component {
     }
 
     _initializeOperatorPool() {
-        this.operatorPool = [
-            new ModificationOperator({ type: 'add', parameters: { stage: 'perception', componentId: 'attention' } }),
-            new ModificationOperator({ type: 'add', parameters: { stage: 'reasoning', componentId: 'causal_reasoner' } }),
-            new ModificationOperator({ type: 'add', parameters: { stage: 'action', componentId: 'uncertainty_estimator' } }),
-            new ModificationOperator({ type: 'modify', parameters: { componentId: 'policy', config: { learningRate: 0.001 } } }),
-            new ModificationOperator({ type: 'modify', parameters: { componentId: 'policy', config: { hiddenDim: 128 } } }),
-            new ModificationOperator({ type: 'connect', parameters: { fromId: 'perception', fromOutput: 'features', toId: 'reasoning', toInput: 'symbols' } })
-        ];
+        this.operatorPool = DEFAULT_OPERATORS.map(config => new ModificationOperator(config));
     }
 
     setArchitecture(architecture) {
@@ -193,7 +204,9 @@ export class MetaController extends Component {
     }
 
     async _generateModificationCandidates() {
-        const candidates = this.operatorPool.map(operator => new ModificationOperator({ ...operator, priority: this._computeOperatorPriority(operator) }));
+        const candidates = this.operatorPool.map(operator =>
+            new ModificationOperator({ ...operator, priority: this._computeOperatorPriority(operator) })
+        );
 
         if (this.config.useNARSReasoning && this.bridge?.senarsBridge) {
             candidates.push(...await this._generateNARSOperators());
@@ -248,9 +261,7 @@ export class MetaController extends Component {
     async _evaluateWithHeuristics(candidates) {
         return candidates.map(candidate => {
             let score = candidate.priority;
-
-            const typeMultipliers = { add: 1.2, remove: 0.8, modify: 1.0 };
-            score *= typeMultipliers[candidate.type] ?? 1.0;
+            score *= TypeMultipliers[candidate.type] ?? 1.0;
 
             if (candidate.target) {
                 const component = this.currentArchitecture?.getComponent(candidate.target);
@@ -319,11 +330,11 @@ export class MetaController extends Component {
 
     _updateOperatorPriorities(success) {
         const factor = success ? 1.1 : 0.9;
-        for (const operator of this.operatorPool) {
+        this.operatorPool.forEach(operator => {
             if (operator.applied) {
                 operator.priority *= factor;
             }
-        }
+        });
     }
 
     async evolveArchitecture(generations = 10, options = {}) {
@@ -352,14 +363,11 @@ export class MetaController extends Component {
         return population;
     }
 
-    async _evaluatePopulation(population, fitnessFn, parallel) {
-        const fitnesses = [];
+    async _evaluatePopulation(population, fitnessFn) {
         for (const individual of population) {
-            const fitness = await fitnessFn(individual.architecture);
-            individual.fitness = fitness;
-            fitnesses.push(fitness);
+            individual.fitness = await fitnessFn(individual.architecture);
         }
-        return fitnesses;
+        return population.map(p => p.fitness);
     }
 
     _selectParents(population, fitnesses) {
@@ -367,11 +375,10 @@ export class MetaController extends Component {
         const tournamentSize = 3;
 
         for (let i = 0; i < this.config.populationSize * 0.5; i++) {
-            const tournament = [];
-            for (let j = 0; j < tournamentSize; j++) {
+            const tournament = Array.from({ length: tournamentSize }, () => {
                 const idx = Math.floor(Math.random() * population.length);
-                tournament.push({ individual: population[idx], fitness: fitnesses[idx] });
-            }
+                return { individual: population[idx], fitness: fitnesses[idx] };
+            });
 
             tournament.sort((a, b) => b.fitness - a.fitness);
             parents.push(tournament[0].individual);
@@ -402,7 +409,10 @@ export class MetaController extends Component {
     }
 
     _mutate(offspring) {
-        return offspring.map(individual => ({ ...individual, architecture: this._mutateArchitecture(individual.architecture) }));
+        return offspring.map(individual => ({
+            ...individual,
+            architecture: this._mutateArchitecture(individual.architecture)
+        }));
     }
 
     _mutateArchitecture(architecture) {
@@ -414,7 +424,11 @@ export class MetaController extends Component {
     getState() {
         return {
             currentArchitecture: this.currentArchitecture,
-            architectureHistory: this.architectureHistory.map(h => ({ timestamp: h.timestamp, generation: h.generation, hasModification: !!h.modification })),
+            architectureHistory: this.architectureHistory.map(h => ({
+                timestamp: h.timestamp,
+                generation: h.generation,
+                hasModification: !!h.modification
+            })),
             performanceHistory: this.performanceHistory.slice(-100),
             successfulOperators: this.successfulOperators.length,
             failedOperators: this.failedOperators.length,
@@ -427,9 +441,9 @@ export class MetaController extends Component {
 
         let metta = '(architecture\n';
         if (this.currentArchitecture?.components) {
-            for (const component of this.currentArchitecture.components) {
+            this.currentArchitecture.components.forEach(component => {
                 metta += `    (component ${component.id} ${component.type})\n`;
-            }
+            });
         }
         return metta + ')';
     }
