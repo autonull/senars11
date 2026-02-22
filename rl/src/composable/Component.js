@@ -7,15 +7,13 @@ export class Component {
         this._subscriptions = [];
         this._state = new Map();
         this._metrics = { calls: 0, totalTime: 0, lastCallTime: 0 };
+        this._eventListeners = new Map();
     }
 
     async initialize() {
         if (this.initialized) return;
 
-        for (const child of this.children.values()) {
-            await child.initialize();
-        }
-
+        await Promise.all(Array.from(this.children.values()).map(child => child.initialize()));
         await this.onInitialize();
         this.initialized = true;
         this.emit('initialized', this);
@@ -24,26 +22,16 @@ export class Component {
     async onInitialize() {}
 
     async shutdown() {
-        for (const child of this.children.values()) {
-            await child.shutdown();
-        }
-
+        await Promise.all(Array.from(this.children.values()).map(child => child.shutdown()));
         await this.onShutdown();
 
-        for (const sub of this._subscriptions) {
-            this.unsubscribe(sub);
-        }
-
+        this._subscriptions.forEach(sub => this.unsubscribe(sub));
         this.initialized = false;
         this.emit('shutdown', this);
     }
 
     async onShutdown() {}
 
-    /**
-     * @param {string} name
-     * @param {Component} component
-     */
     add(name, component) {
         if (this.children.has(name)) {
             throw new Error(`Child component '${name}' already exists`);
@@ -55,9 +43,6 @@ export class Component {
         return this;
     }
 
-    /**
-     * @param {string} name
-     */
     remove(name) {
         const component = this.children.get(name);
         if (component) {
@@ -68,24 +53,14 @@ export class Component {
         return this;
     }
 
-    /**
-     * @param {string} name
-     */
     get(name) {
         return this.children.get(name);
     }
 
-    /**
-     * @param {string} name
-     */
     has(name) {
         return this.children.has(name);
     }
 
-    /**
-     * @param {string} key
-     * @param {*} value
-     */
     setState(key, value) {
         const prev = this._state.get(key);
         this._state.set(key, value);
@@ -93,9 +68,6 @@ export class Component {
         return this;
     }
 
-    /**
-     * @param {string} key
-     */
     getState(key) {
         return this._state.get(key);
     }
@@ -104,63 +76,37 @@ export class Component {
         return new Map(this._state);
     }
 
-    /**
-     * @param {string} event
-     * @param {Function} callback
-     */
     subscribe(event, callback) {
-        if (!this._eventListeners) {
-            this._eventListeners = new Map();
-        }
-
         if (!this._eventListeners.has(event)) {
             this._eventListeners.set(event, new Set());
         }
 
         this._eventListeners.get(event).add(callback);
-        this._subscriptions.push({ event, callback });
-
-        return { event, callback };
+        const subscription = { event, callback };
+        this._subscriptions.push(subscription);
+        return subscription;
     }
 
-    /**
-     * @param {Object} subscription
-     */
-    unsubscribe(subscription) {
-        const { event, callback } = subscription;
-        if (this._eventListeners?.has(event)) {
-            this._eventListeners.get(event).delete(callback);
-        }
-        const idx = this._subscriptions.indexOf(subscription);
-        if (idx >= 0) {
-            this._subscriptions.splice(idx, 1);
-        }
+    unsubscribe({ event, callback }) {
+        this._eventListeners.get(event)?.delete(callback);
+        const idx = this._subscriptions.findIndex(s => s.event === event && s.callback === callback);
+        if (idx >= 0) this._subscriptions.splice(idx, 1);
     }
 
-    /**
-     * @param {string} event
-     * @param {*} data
-     */
     emit(event, data) {
-        if (this._eventListeners?.has(event)) {
-            for (const callback of this._eventListeners.get(event)) {
-                try {
-                    callback(data, this);
-                } catch (e) {
-                    console.error(`Error in event handler for '${event}':`, e);
-                }
+        this._eventListeners.get(event)?.forEach(callback => {
+            try {
+                callback(data, this);
+            } catch (e) {
+                console.error(`Error in event handler for '${event}':`, e);
             }
-        }
+        });
 
         if (this.parent) {
             this.parent.emit(event, { source: this, data });
         }
     }
 
-    /**
-     * @param {string} methodName
-     * @param {Function} fn
-     */
     wrapMethod(methodName, fn) {
         const self = this;
         return async function(...args) {
@@ -195,10 +141,6 @@ export class Component {
         };
     }
 
-    /**
-     * @param {Object} data
-     * @param {Map<string, typeof Component>} registry
-     */
     static deserialize(data, registry) {
         const ComponentClass = registry.get(data.type);
         if (!ComponentClass) {
@@ -207,38 +149,31 @@ export class Component {
 
         const component = new ComponentClass(data.config);
 
-        for (const [key, value] of Object.entries(data.state || {})) {
+        Object.entries(data.state || {}).forEach(([key, value]) => {
             component.setState(key, value);
-        }
+        });
 
-        for (const { name, data: childData } of data.children || []) {
+        (data.children || []).forEach(({ name, data: childData }) => {
             const child = Component.deserialize(childData, registry);
             component.add(name, child);
-        }
+        });
 
         return component;
     }
 
-    /**
-     * @param {Object} configOverrides
-     */
     clone(configOverrides = {}) {
         const serialized = this.serialize();
         const config = { ...serialized.config, ...configOverrides };
         const clone = new this.constructor(config);
 
-        for (const [key, value] of this._state.entries()) {
+        this._state.forEach((value, key) => {
             clone.setState(key, value);
-        }
+        });
 
         return clone;
     }
 }
 
-/**
- * @param {Function} fn
- * @param {Object} config
- */
 export function functionalComponent(fn, config = {}) {
     return class FunctionalComponent extends Component {
         async onInitialize() {

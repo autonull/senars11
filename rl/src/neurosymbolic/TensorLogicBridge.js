@@ -1,27 +1,22 @@
 import { Tensor, TensorFunctor } from '@senars/tensor';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
-export class SymbolicTensor extends Tensor {
-    constructor(data, shape, config = {}) {
-        let tensorData = data instanceof Float32Array || data instanceof Array
-            ? Array.from(data)
-            : data;
+const DEFAULTS = {
+    defaultSymbolThreshold: 0.5,
+    defaultConfidence: 0.8,
+    symbolGroundingFn: null,
+    confidenceDecay: 0.9,
+    minRuleConfidence: 0.7
+};
 
-        if (shape) {
-            tensorData = SymbolicTensor._reshapeData(tensorData, shape);
-        }
+const MergeOps = {
+    union: (a, b) => `${a}∪${b}`,
+    intersection: (a, b) => `${a}∩${b}`,
+    concat: (a, b) => `${a}_${b}`
+};
 
-        super(tensorData, config);
-        this.symbols = config.symbols || new Map();
-        this.provenance = config.provenance || [];
-        this.confidence = config.confidence || 1.0;
-        this.type = config.type || 'tensor';
-
-        if (shape) {
-            this.shape = shape;
-        }
-    }
-
-    static _reshapeData(flat, shape) {
+const TensorOps = {
+    reshape(flat, shape) {
         if (shape.length === 1) return Array.from(flat);
         if (shape.length === 2) {
             const [rows, cols] = shape;
@@ -30,40 +25,77 @@ export class SymbolicTensor extends Tensor {
             );
         }
         return Array.from(flat);
+    },
+
+    makeMask(length, symbolMask, symbols) {
+        const mask = new Float32Array(length);
+        symbols.forEach((annotation, i) => {
+            if (annotation && symbolMask.has(annotation.symbol)) {
+                mask[i] = 1.0;
+            }
+        });
+        return mask;
+    },
+
+    softmax(data, symbolWeights = null, shape) {
+        const expData = new Float32Array(data.map(Math.exp));
+        const sum = expData.reduce((a, b) => a + b, 0);
+        const result = expData.map(v => v / sum);
+
+        if (symbolWeights) {
+            symbolWeights.forEach((weight, key) => {
+                const idx = parseInt(key);
+                if (!isNaN(idx) && idx < result.length) {
+                    result[idx] *= weight;
+                }
+            });
+        }
+
+        return new SymbolicTensor(result, shape);
+    }
+};
+
+export class SymbolicTensor extends Tensor {
+    constructor(data, shape, config = {}) {
+        let tensorData = data instanceof Float32Array || data instanceof Array
+            ? Array.from(data)
+            : data;
+
+        if (shape) {
+            tensorData = TensorOps.reshape(tensorData, shape);
+        }
+
+        super(tensorData, config);
+        this.symbols = config.symbols || new Map();
+        this.provenance = config.provenance || [];
+        this.confidence = config.confidence ?? 1.0;
+        this.type = config.type || 'tensor';
+
+        if (shape) {
+            this.shape = shape;
+        }
     }
 
-    /**
-     * @param {number|number[]} indices
-     * @param {string} symbol
-     * @param {number} confidence
-     */
+    static _reshapeData(flat, shape) {
+        return TensorOps.reshape(flat, shape);
+    }
+
     annotate(indices, symbol, confidence = 1.0) {
         const key = Array.isArray(indices) ? indices.join(',') : String(indices);
         this.symbols.set(key, { symbol, confidence, timestamp: Date.now() });
         return this;
     }
 
-    /**
-     * @param {number|number[]} indices
-     */
     getAnnotation(indices) {
         const key = Array.isArray(indices) ? indices.join(',') : String(indices);
         return this.symbols.get(key);
     }
 
-    /**
-     * @param {string} source
-     * @param {string} operation
-     * @param {Object} metadata
-     */
     addProvenance(source, operation, metadata = {}) {
         this.provenance.push({ source, operation, metadata, timestamp: Date.now() });
         return this;
     }
 
-    /**
-     * @param {string} prefix
-     */
     toNarseseTerm(prefix = 'tensor') {
         const flatData = this.data.map(v => v.toFixed(4));
         const symbolParts = Array.from(this.symbols)
@@ -74,20 +106,19 @@ export class SymbolicTensor extends Tensor {
             : `(${prefix}_${this.shape.join('x')}:[${flatData.join(',')}])`;
     }
 
-    /**
-     * @param {number} threshold
-     */
-    projectToSymbols(threshold = 0.5) {
-        return Array.from(this.data).map((value, i) => {
-            const annotation = this.symbols.get(String(i));
-            if (annotation && annotation.confidence >= threshold) {
-                return { index: i, symbol: annotation.symbol, value, confidence: annotation.confidence };
-            }
-            if (Math.abs(value) >= threshold) {
-                return { index: i, symbol: `feature_${i}`, value, confidence: 0.5 };
-            }
-            return null;
-        }).filter(Boolean);
+    projectToSymbols(threshold = DEFAULTS.defaultSymbolThreshold) {
+        return Array.from(this.data)
+            .map((value, i) => {
+                const annotation = this.symbols.get(String(i));
+                if (annotation && annotation.confidence >= threshold) {
+                    return { index: i, symbol: annotation.symbol, value, confidence: annotation.confidence };
+                }
+                if (Math.abs(value) >= threshold) {
+                    return { index: i, symbol: `feature_${i}`, value, confidence: 0.5 };
+                }
+                return null;
+            })
+            .filter(Boolean);
     }
 
     clone() {
@@ -126,31 +157,17 @@ export class SymbolicTensor extends Tensor {
 
 export class TensorLogicBridge {
     constructor(config = {}) {
-        this.config = {
-            defaultSymbolThreshold: 0.5,
-            defaultConfidence: 0.8,
-            symbolGroundingFn: null,
-            ...config
-        };
-
+        this.config = mergeConfig(DEFAULTS, config);
         this.functor = new TensorFunctor();
         this.symbolRegistry = new Map();
         this.groundingModel = null;
     }
 
-    /**
-     * @param {string} name
-     * @param {Function} fn
-     */
     registerGrounding(name, fn) {
         this.symbolRegistry.set(name, fn);
         return this;
     }
 
-    /**
-     * @param {Tensor} tensor
-     * @param {Object} config
-     */
     liftToSymbols(tensor, config = {}) {
         const { threshold = this.config.defaultSymbolThreshold, useAnnotations = true } = config;
 
@@ -173,33 +190,23 @@ export class TensorLogicBridge {
             .filter(Boolean);
     }
 
-    /**
-     * @param {Array} symbols
-     * @param {number[]} shape
-     * @param {Object} config
-     */
     groundToTensor(symbols, shape, config = {}) {
         const { aggregation = 'sum', defaultWeight = 1.0 } = config;
         const data = new Float32Array(shape.reduce((a, b) => a * b, 1));
 
-        for (const sym of symbols) {
+        symbols.forEach(sym => {
             const idx = typeof sym.index === 'number' ? sym.index : 0;
             const weight = sym.confidence !== undefined ? sym.confidence : defaultWeight;
             if (idx >= 0 && idx < data.length) {
                 data[idx] += weight;
             }
-        }
+        });
 
         const tensor = new SymbolicTensor(data, shape);
         tensor.addProvenance('groundToTensor', aggregation, { symbols: symbols.length });
         return tensor;
     }
 
-    /**
-     * @param {SymbolicTensor} t1
-     * @param {SymbolicTensor} t2
-     * @param {string} mergeFn
-     */
     symbolicAdd(t1, t2, mergeFn = 'union') {
         if (!(t1 instanceof SymbolicTensor) || !(t2 instanceof SymbolicTensor)) {
             return this.functor.evaluate({ operator: 'add', components: [t1, t2] }, new Map());
@@ -212,30 +219,27 @@ export class TensorLogicBridge {
 
         const allSymbols = new Set([...t1.symbols.keys(), ...t2.symbols.keys()]);
 
-        for (const key of allSymbols) {
+        allSymbols.forEach(key => {
             const s1 = t1.symbols.get(key);
             const s2 = t2.symbols.get(key);
 
-            if (s1 && s2) {
-                result.symbols.set(key, {
-                    symbol: this.mergeSymbols(s1.symbol, s2.symbol, mergeFn),
-                    confidence: (s1.confidence + s2.confidence) / 2,
-                    timestamp: Date.now()
-                });
-            } else {
-                result.symbols.set(key, { ...(s1 || s2), timestamp: Date.now() });
-            }
-        }
+            result.symbols.set(key, {
+                symbol: this.mergeSymbols(s1?.symbol, s2?.symbol, mergeFn),
+                confidence: s1 && s2 ? (s1.confidence + s2.confidence) / 2 : (s1 || s2)?.confidence,
+                timestamp: Date.now()
+            });
+        });
 
         result.addProvenance('symbolicAdd', mergeFn, { t1, t2 });
         return result;
     }
 
-    /**
-     * @param {SymbolicTensor} t1
-     * @param {SymbolicTensor} t2
-     * @param {string} mergeFn
-     */
+    mergeSymbols(s1, s2, mode) {
+        if (!s1) return s2;
+        if (!s2) return s1;
+        return MergeOps[mode]?.(s1, s2) ?? s1;
+    }
+
     symbolicMul(t1, t2, mergeFn = 'intersection') {
         if (!(t1 instanceof SymbolicTensor) || !(t2 instanceof SymbolicTensor)) {
             return this.functor.evaluate({ operator: 'mul', components: [t1, t2] }, new Map());
@@ -246,7 +250,7 @@ export class TensorLogicBridge {
             t1.shape
         );
 
-        for (const [key, s1] of t1.symbols) {
+        t1.symbols.forEach((s1, key) => {
             const s2 = t2.symbols.get(key);
             if (s2) {
                 result.symbols.set(key, {
@@ -255,30 +259,12 @@ export class TensorLogicBridge {
                     timestamp: Date.now()
                 });
             }
-        }
+        });
 
         result.addProvenance('symbolicMul', mergeFn, { t1, t2 });
         return result;
     }
 
-    /**
-     * @param {string} s1
-     * @param {string} s2
-     * @param {string} mode
-     */
-    mergeSymbols(s1, s2, mode) {
-        const ops = {
-            union: (a, b) => `${a}∪${b}`,
-            intersection: (a, b) => `${a}∩${b}`,
-            concat: (a, b) => `${a}_${b}`
-        };
-        return ops[mode]?.(s1, s2) ?? s1;
-    }
-
-    /**
-     * @param {string} operation
-     * @param {Tensor} tensor
-     */
     neuralOp(operation, tensor, ...args) {
         const result = this.functor.evaluate(
             { operator: operation, components: [tensor, ...args] },
@@ -292,67 +278,32 @@ export class TensorLogicBridge {
         if (symbolicResult instanceof SymbolicTensor) {
             symbolicResult.addProvenance('neuralOp', operation, { args });
 
-            for (const [key, symbol] of tensor.symbols) {
+            tensor.symbols.forEach((symbol, key) => {
                 symbolicResult.symbols.set(key, {
                     ...symbol,
-                    confidence: symbol.confidence * 0.9
+                    confidence: symbol.confidence * this.config.confidenceDecay
                 });
-            }
+            });
         }
 
         return symbolicResult;
     }
 
-    /**
-     * @param {Tensor} tensor
-     * @param {Set} symbolMask
-     */
     createAttentionMask(tensor, symbolMask) {
-        const mask = new Float32Array(tensor.data.length);
-
-        for (let i = 0; i < tensor.data.length; i++) {
-            const annotation = tensor.symbols.get(String(i));
-            if (annotation && symbolMask.has(annotation.symbol)) {
-                mask[i] = 1.0;
-            }
-        }
+        const mask = TensorOps.makeMask(tensor.data.length, symbolMask, tensor.symbols);
 
         return new SymbolicTensor(mask, tensor.shape, {
             provenance: [{ operation: 'attentionMask', timestamp: Date.now() }]
         });
     }
 
-    /**
-     * @param {Tensor} tensor
-     * @param {Map} symbolWeights
-     */
     symbolicSoftmax(tensor, symbolWeights = null) {
-        const expData = new Float32Array(tensor.data.map(Math.exp));
-        const sum = expData.reduce((a, b) => a + b, 0);
-
-        const result = new SymbolicTensor(
-            expData.map(v => v / sum),
-            tensor.shape
-        );
-
-        if (symbolWeights) {
-            for (const [key, weight] of symbolWeights) {
-                const idx = parseInt(key);
-                if (!isNaN(idx) && idx < result.data.length) {
-                    result.data[idx] *= weight;
-                }
-            }
-        }
-
+        const result = TensorOps.softmax(tensor.data, symbolWeights, tensor.shape);
         result.addProvenance('symbolicSoftmax', 'attention', { symbolWeights: !!symbolWeights });
         return result;
     }
 
-    /**
-     * @param {Tensor} tensor
-     * @param {number} minConfidence
-     */
-    extractRules(tensor, minConfidence = 0.7) {
+    extractRules(tensor, minConfidence = this.config.minRuleConfidence) {
         return Array.from(tensor.symbols)
             .filter(([_, { confidence }]) => confidence >= minConfidence)
             .map(([key, { symbol, confidence }]) => {
@@ -376,42 +327,31 @@ export class TensorLogicBridge {
     }
 }
 
-/**
- * @param {Array} data
- * @param {number[]} shape
- * @param {Object} symbols
- */
 export function symbolicTensor(data, shape, symbols = {}) {
     const tensor = new SymbolicTensor(data, shape);
 
-    for (const [key, value] of Object.entries(symbols)) {
+    Object.entries(symbols).forEach(([key, value]) => {
         const indices = key.split(',').map(Number);
         tensor.annotate(indices.length === 1 ? indices[0] : indices, value);
-    }
+    });
 
     return tensor;
 }
 
-/**
- * @param {string} term
- * @param {number[]} shape
- * @param {Map} registry
- */
 export function termToTensor(term, shape, registry = new Map()) {
     const match = term.match(/\((\w+)_([\d x]+):\[(.*?)\]\)/);
     if (!match) return null;
 
     const [, _, shapeStr, content] = match;
     const dims = shapeStr.split('x').map(Number);
-
     const data = new Float32Array(dims.reduce((a, b) => a * b, 1));
     const tensor = new SymbolicTensor(data, dims);
 
-    for (const ann of content.split(',')) {
+    content.split(',').forEach(ann => {
         const [symbol, confidence] = ann.split(':');
         const idx = registry.get(symbol.trim()) || 0;
         tensor.annotate([idx], symbol.trim(), parseFloat(confidence) || 1.0);
-    }
+    });
 
     return tensor;
 }

@@ -1,18 +1,47 @@
-/**
- * Unified Configuration and Hyperparameter Management
- * Centralized, parameterized configuration for all RL components.
- */
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
-/**
- * Hyperparameter Space Definition
- */
+const ValidationFns = {
+    clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+    },
+
+    byType(type, value, min, max, choices) {
+        if (choices) return choices.includes(value) ? value : null;
+
+        switch (type) {
+            case 'float':
+            case 'int': {
+                const num = Number(value);
+                const clamped = this.clamp(num, min, max);
+                return type === 'int' ? Math.floor(clamped) : clamped;
+            }
+            case 'bool':
+                return !!value;
+            case 'categorical':
+                return choices?.includes(value) ? value : null;
+            default:
+                return value;
+        }
+    },
+
+    sample(param) {
+        if (param.choices) {
+            return param.choices[Math.floor(Math.random() * param.choices.length)];
+        }
+
+        const { min, max, scale, type } = param;
+        let value = scale === 'log'
+            ? Math.exp(Math.log(min) + Math.random() * (Math.log(max) - Math.log(min)))
+            : min + Math.random() * (max - min);
+
+        return type === 'int' ? Math.floor(value) : value;
+    }
+};
+
 export class HyperparameterSpace {
     constructor(params = {}) {
         this.params = new Map();
-        
-        for (const [name, spec] of Object.entries(params)) {
-            this.define(name, spec);
-        }
+        Object.entries(params).forEach(([name, spec]) => this.define(name, spec));
     }
 
     define(name, spec) {
@@ -24,93 +53,39 @@ export class HyperparameterSpace {
             scale = 'linear',
             choices = null
         } = spec;
-        
-        this.params.set(name, {
-            type,
-            min,
-            max,
-            default: def,
-            scale,
-            choices,
-            current: def
-        });
-        
+
+        this.params.set(name, { type, min, max, default: def, scale, choices, current: def });
         return this;
     }
 
     get(name) {
-        return this.params.get(name)?.current ?? this.params.get(name)?.default;
+        const param = this.params.get(name);
+        return param?.current ?? param?.default;
     }
 
     set(name, value) {
         const param = this.params.get(name);
-        if (!param) {
-            throw new Error(`Unknown hyperparameter: ${name}`);
-        }
-        
-        // Validate and clamp
-        const validated = this.validate(name, value);
-        param.current = validated;
-        
+        if (!param) throw new Error(`Unknown hyperparameter: ${name}`);
+
+        param.current = this.validate(name, value);
         return this;
     }
 
     validate(name, value) {
         const param = this.params.get(name);
-        if (!param) return value;
-        
-        if (param.choices) {
-            return param.choices.includes(value) ? value : param.default;
-        }
-        
-        switch (param.type) {
-            case 'float':
-                return Math.max(param.min, Math.min(param.max, Number(value)));
-            case 'int':
-                return Math.max(param.min, Math.min(param.max, Math.floor(Number(value))));
-            case 'bool':
-                return !!value;
-            case 'categorical':
-                return param.choices?.includes(value) ? value : param.default;
-            default:
-                return value;
-        }
+        return param ? ValidationFns.byType(param.type, value, param.min, param.max, param.choices) ?? param.default : value;
     }
 
     sample() {
         const config = {};
-        
-        for (const [name, param] of this.params) {
-            config[name] = this.sampleParam(param);
-        }
-        
+        this.params.forEach((param, name) => {
+            config[name] = ValidationFns.sample(param);
+        });
         return config;
     }
 
-    sampleParam(param) {
-        if (param.choices) {
-            return param.choices[Math.floor(Math.random() * param.choices.length)];
-        }
-        
-        const { min, max, scale, type } = param;
-        
-        let value;
-        switch (scale) {
-            case 'log':
-                value = Math.exp(Math.log(min) + Math.random() * (Math.log(max) - Math.log(min)));
-                break;
-            case 'linear':
-            default:
-                value = min + Math.random() * (max - min);
-        }
-        
-        return type === 'int' ? Math.floor(value) : value;
-    }
-
     reset() {
-        for (const param of this.params.values()) {
-            param.current = param.default;
-        }
+        this.params.forEach(param => param.current = param.default);
         return this;
     }
 
@@ -122,17 +97,11 @@ export class HyperparameterSpace {
 
     clone() {
         const clone = new HyperparameterSpace();
-        for (const [name, param] of this.params) {
-            clone.params.set(name, { ...param });
-        }
+        this.params.forEach((param, name) => clone.params.set(name, { ...param }));
         return clone;
     }
 }
 
-/**
- * Configuration Manager
- * Centralized configuration with validation and hot-reloading.
- */
 export class ConfigManager {
     constructor(defaults = {}) {
         this.defaults = { ...defaults };
@@ -145,61 +114,42 @@ export class ConfigManager {
 
     define(key, defaultValue, validator = null) {
         this.defaults[key] = defaultValue;
-        if (validator) {
-            this.validators.set(key, validator);
-        }
+        if (validator) this.validators.set(key, validator);
         return this;
     }
 
     get(key, defaultValue = undefined) {
-        // Check overrides first
         for (const override of this.overrides.values()) {
             if (key in override) return override[key];
         }
-        
-        // Then current config
-        if (key in this.current) return this.current[key];
-        
-        // Finally default
-        return defaultValue ?? this.defaults[key];
+        return key in this.current ? this.current[key] : defaultValue ?? this.defaults[key];
     }
 
     set(key, value, options = {}) {
         const { validate = true, persist = false, override = null } = options;
-        
-        // Validate
+
         if (validate) {
             const validator = this.validators.get(key);
             if (validator && !validator(value)) {
                 throw new Error(`Invalid value for ${key}: ${value}`);
             }
         }
-        
-        // Apply
+
         if (override) {
-            if (!this.overrides.has(override)) {
-                this.overrides.set(override, {});
-            }
+            if (!this.overrides.has(override)) this.overrides.set(override, {});
             this.overrides.get(override)[key] = value;
         } else {
             this.current[key] = value;
         }
-        
-        // Persist
-        if (persist) {
-            this.history.push({ key, value, timestamp: Date.now() });
-        }
-        
-        // Notify listeners
+
+        if (persist) this.history.push({ key, value, timestamp: Date.now() });
         this.notify(key, value);
-        
+
         return this;
     }
 
     batch(updates, options = {}) {
-        for (const [key, value] of Object.entries(updates)) {
-            this.set(key, value, options);
-        }
+        Object.entries(updates).forEach(([key, value]) => this.set(key, value, options));
         return this;
     }
 
@@ -220,13 +170,13 @@ export class ConfigManager {
     }
 
     notify(key, value) {
-        for (const fn of this.listeners) {
+        this.listeners.forEach(fn => {
             try {
                 fn(key, value, this.getAll());
             } catch (e) {
                 console.error('Config listener error:', e);
             }
-        }
+        });
     }
 
     getAll() {
@@ -234,13 +184,9 @@ export class ConfigManager {
     }
 
     getDiff() {
-        const diff = {};
-        for (const key of Object.keys(this.current)) {
-            if (this.current[key] !== this.defaults[key]) {
-                diff[key] = this.current[key];
-            }
-        }
-        return diff;
+        return Object.fromEntries(
+            Object.entries(this.current).filter(([_, v], k) => this.defaults[k] !== v)
+        );
     }
 
     toJSON() {
@@ -257,13 +203,7 @@ export class ConfigManager {
     }
 }
 
-/**
- * Pre-defined Hyperparameter Spaces
- */
 export const HyperparameterSpaces = {
-    /**
-     * Standard RL hyperparameters
-     */
     rl: new HyperparameterSpace({
         learningRate: { type: 'float', min: 1e-5, max: 1e-1, default: 1e-3, scale: 'log' },
         discountFactor: { type: 'float', min: 0.9, max: 0.999, default: 0.99 },
@@ -274,9 +214,6 @@ export const HyperparameterSpaces = {
         bufferCapacity: { type: 'int', min: 1000, max: 100000, default: 10000 }
     }),
 
-    /**
-     * Policy gradient hyperparameters
-     */
     policyGradient: new HyperparameterSpace({
         learningRate: { type: 'float', min: 1e-5, max: 1e-2, default: 3e-4, scale: 'log' },
         entropyWeight: { type: 'float', min: 0.001, max: 0.1, default: 0.01 },
@@ -285,9 +222,6 @@ export const HyperparameterSpaces = {
         gaeLambda: { type: 'float', min: 0.9, max: 0.99, default: 0.95 }
     }),
 
-    /**
-     * World model hyperparameters
-     */
     worldModel: new HyperparameterSpace({
         latentDim: { type: 'int', min: 8, max: 256, default: 32 },
         ensembleSize: { type: 'int', min: 2, max: 10, default: 5 },
@@ -296,18 +230,12 @@ export const HyperparameterSpaces = {
         learningRate: { type: 'float', min: 1e-5, max: 1e-2, default: 1e-3, scale: 'log' }
     }),
 
-    /**
-     * Attention hyperparameters
-     */
     attention: new HyperparameterSpace({
         heads: { type: 'int', min: 1, max: 16, default: 4 },
         dropout: { type: 'float', min: 0.0, max: 0.5, default: 0.1 },
         attentionDim: { type: 'int', min: 16, max: 256, default: 64 }
     }),
 
-    /**
-     * Meta-learning hyperparameters
-     */
     metaLearning: new HyperparameterSpace({
         metaLearningRate: { type: 'float', min: 1e-4, max: 0.1, default: 0.01, scale: 'log' },
         explorationRate: { type: 'float', min: 0.1, max: 0.9, default: 0.3 },
@@ -315,9 +243,6 @@ export const HyperparameterSpaces = {
         evaluationWindow: { type: 'int', min: 10, max: 500, default: 100 }
     }),
 
-    /**
-     * Skill discovery hyperparameters
-     */
     skillDiscovery: new HyperparameterSpace({
         bottleneckThreshold: { type: 'float', min: 0.1, max: 0.9, default: 0.3 },
         noveltyThreshold: { type: 'float', min: 0.1, max: 1.0, default: 0.5 },
@@ -326,60 +251,16 @@ export const HyperparameterSpaces = {
     })
 };
 
-/**
- * Configuration Presets
- */
 export const ConfigPresets = {
-    /**
-     * Fast prototyping
-     */
-    fast: {
-        learningRate: 0.01,
-        batchSize: 32,
-        explorationRate: 0.2,
-        discountFactor: 0.95
-    },
-
-    /**
-     * Standard training
-     */
-    standard: {
-        learningRate: 0.001,
-        batchSize: 64,
-        explorationRate: 0.1,
-        discountFactor: 0.99
-    },
-
-    /**
-     * High performance
-     */
-    performance: {
-        learningRate: 0.0003,
-        batchSize: 256,
-        explorationRate: 0.05,
-        discountFactor: 0.995
-    },
-
-    /**
-     * Maximum exploration
-     */
-    exploration: {
-        learningRate: 0.001,
-        batchSize: 64,
-        explorationRate: 0.5,
-        discountFactor: 0.9
-    }
+    fast: { learningRate: 0.01, batchSize: 32, explorationRate: 0.2, discountFactor: 0.95 },
+    standard: { learningRate: 0.001, batchSize: 64, explorationRate: 0.1, discountFactor: 0.99 },
+    performance: { learningRate: 0.0003, batchSize: 256, explorationRate: 0.05, discountFactor: 0.995 },
+    exploration: { learningRate: 0.001, batchSize: 64, explorationRate: 0.5, discountFactor: 0.9 }
 };
 
-/**
- * Hyperparameter Optimizer
- * Simple grid and random search.
- */
 export class HyperparameterOptimizer {
     constructor(space, objective) {
-        this.space = space instanceof HyperparameterSpace 
-            ? space 
-            : new HyperparameterSpace(space);
+        this.space = space instanceof HyperparameterSpace ? space : new HyperparameterSpace(space);
         this.objective = objective;
         this.results = [];
         this.best = null;
@@ -389,44 +270,39 @@ export class HyperparameterOptimizer {
         for (let i = 0; i < iterations; i++) {
             const config = this.space.sample();
             const score = await this.objective(config);
-            
             this.results.push({ config, score, iteration: i });
-            
+
             if (!this.best || score > this.best.score) {
                 this.best = { config, score, iteration: i };
             }
         }
-        
         return this.best;
     }
 
     async gridSearch(paramValues) {
-        const keys = Object.keys(paramValues);
-        const combinations = this.generateCombinations(paramValues);
-        
-        for (let i = 0; i < combinations.length; i++) {
-            const config = combinations[i];
-            const score = await this.objective(config);
-            
+        const combinations = this._generateCombinations(paramValues);
+
+        combinations.forEach((config, i) => {
+            const score = this.objective(config);
             this.results.push({ config, score, iteration: i });
-            
+
             if (!this.best || score > this.best.score) {
                 this.best = { config, score, iteration: i };
             }
-        }
-        
+        });
+
         return this.best;
     }
 
-    generateCombinations(paramValues) {
+    _generateCombinations(paramValues) {
         const keys = Object.keys(paramValues);
         if (keys.length === 0) return [{}];
-        
+
         const [firstKey, ...restKeys] = keys;
-        const restCombinations = this.generateCombinations(
+        const restCombinations = this._generateCombinations(
             Object.fromEntries(restKeys.map(k => [k, paramValues[k]]))
         );
-        
+
         return paramValues[firstKey].flatMap(value =>
             restCombinations.map(rest => ({ [firstKey]: value, ...rest }))
         );
@@ -437,24 +313,22 @@ export class HyperparameterOptimizer {
     }
 
     getImportance() {
-        // Simple feature importance based on correlation with score
         const importance = {};
-        
-        for (const [name] of this.space.params) {
+
+        this.space.params.forEach((_, name) => {
             const values = this.results.map(r => r.config[name]);
             const scores = this.results.map(r => r.score);
-            
-            importance[name] = this.correlation(values, scores);
-        }
-        
+            importance[name] = this._correlation(values, scores);
+        });
+
         return importance;
     }
 
-    correlation(x, y) {
+    _correlation(x, y) {
         const n = x.length;
         const meanX = x.reduce((a, b) => a + b, 0) / n;
         const meanY = y.reduce((a, b) => a + b, 0) / n;
-        
+
         let num = 0, denX = 0, denY = 0;
         for (let i = 0; i < n; i++) {
             const dx = x[i] - meanX;
@@ -463,7 +337,7 @@ export class HyperparameterOptimizer {
             denX += dx * dx;
             denY += dy * dy;
         }
-        
+
         return num / Math.sqrt(denX * denY) || 0;
     }
 }

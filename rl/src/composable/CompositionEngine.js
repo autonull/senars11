@@ -1,24 +1,51 @@
-/**
- * Composition Engine for building and executing component pipelines.
- * Supports parallel execution, conditional branching, and dynamic reconfiguration.
- */
+import { mergeConfig } from '../utils/ConfigHelper.js';
+
+const DEFAULTS = {
+    parallel: true,
+    timeout: 30000,
+    retry: 0
+};
+
+const PipelineStrategies = {
+    async executeSequential(stages, input, context, executor) {
+        let current = input;
+        const results = [];
+
+        for (const stage of stages) {
+            if (stage.condition && !await executor.evaluateCondition(stage.condition, current, context)) {
+                results.push({ stage: stage.id, skipped: true });
+                continue;
+            }
+
+            const result = await executor.executeStage(stage, current, context);
+            current = executor.transformResult(result, stage, current);
+            results.push({ stage: stage.id, result: current });
+        }
+
+        return { results, output: current };
+    },
+
+    async executeParallel(components, input, context, executor) {
+        const results = await Promise.allSettled(
+            components.map(comp => executor.executeComponent(comp, input, context, {}))
+        );
+
+        return results.map((result, idx) => ({
+            index: idx,
+            success: result.status === 'fulfilled',
+            value: result.status === 'fulfilled' ? result.value : null,
+            error: result.status === 'rejected' ? result.reason : null
+        }));
+    }
+};
+
 export class CompositionEngine {
     constructor(config = {}) {
-        this.config = {
-            parallel: true,
-            timeout: 30000,
-            retry: 0,
-            ...config
-        };
+        this.config = mergeConfig(DEFAULTS, config);
         this.pipelines = new Map();
         this.executing = new Set();
     }
 
-    /**
-     * Create a new pipeline from components.
-     * @param {string} name - Pipeline name
-     * @param {Array} stages - Pipeline stages
-     */
     createPipeline(name, stages) {
         const pipeline = {
             name,
@@ -38,12 +65,6 @@ export class CompositionEngine {
         return this;
     }
 
-    /**
-     * Execute a pipeline.
-     * @param {string} name - Pipeline name
-     * @param {*} input - Pipeline input
-     * @param {Object} context - Execution context
-     */
     async execute(name, input, context = {}) {
         const pipeline = this.pipelines.get(name);
         if (!pipeline) {
@@ -55,27 +76,16 @@ export class CompositionEngine {
         }
 
         this.executing.add(name);
-        let current = input;
-        const results = [];
         const startTime = performance.now();
 
         try {
-            for (const stage of pipeline.stages) {
-                // Check condition
-                if (stage.condition && !await this.evaluateCondition(stage.condition, current, context)) {
-                    results.push({ stage: stage.id, skipped: true });
-                    continue;
-                }
-
-                // Execute stage
-                const result = await this.executeStage(stage, current, context);
-                current = this.transformResult(result, stage, current);
-                results.push({ stage: stage.id, result: current });
-            }
+            const { results, output } = await PipelineStrategies.executeSequential(
+                pipeline.stages, input, context, this
+            );
 
             return {
                 success: true,
-                output: current,
+                output,
                 results,
                 duration: performance.now() - startTime
             };
@@ -83,7 +93,7 @@ export class CompositionEngine {
             return {
                 success: false,
                 error: error.message,
-                results,
+                results: [],
                 duration: performance.now() - startTime
             };
         } finally {
@@ -91,105 +101,56 @@ export class CompositionEngine {
         }
     }
 
-    /**
-     * Execute a single pipeline stage.
-     */
     async executeStage(stage, input, context) {
         const component = stage.component;
-        
+
         if (!component) {
             throw new Error(`Stage ${stage.id} has no component`);
         }
 
-        // Handle parallel execution for multiple components
         if (stage.parallel && Array.isArray(component)) {
-            return this.executeParallel(component, input, context);
+            return PipelineStrategies.executeParallel(component, input, context, this);
         }
 
-        // Single component execution
         return this.executeComponent(component, input, context, stage.config);
     }
 
-    /**
-     * Execute components in parallel.
-     */
-    async executeParallel(components, input, context) {
-        const results = await Promise.allSettled(
-            components.map(comp => this.executeComponent(comp, input, context, {}))
-        );
-
-        return results.map((result, idx) => ({
-            index: idx,
-            success: result.status === 'fulfilled',
-            value: result.status === 'fulfilled' ? result.value : null,
-            error: result.status === 'rejected' ? result.reason : null
-        }));
-    }
-
-    /**
-     * Execute a single component.
-     */
     async executeComponent(component, input, context, config) {
-        // Initialize if needed
         if (component.initialize && !component.initialized) {
             await component.initialize();
         }
 
-        // Determine method to call
         const method = config.method || 'act';
-        
+
         if (typeof component[method] !== 'function') {
             throw new Error(`Component does not have method: ${method}`);
         }
 
-        // Execute with timeout
         const timeout = config.timeout || this.config.timeout;
         const promise = component[method].call(component, input, context);
-        
-        const result = await Promise.race([
+
+        return Promise.race([
             promise,
-            new Promise((_, reject) => 
+            new Promise((_, reject) =>
                 setTimeout(() => reject(new Error(`Timeout after ${timeout}ms`)), timeout)
             )
         ]);
-
-        return result;
     }
 
-    /**
-     * Evaluate a condition function.
-     */
     async evaluateCondition(condition, input, context) {
-        if (typeof condition === 'function') {
-            return condition(input, context);
-        }
-        if (typeof condition === 'boolean') {
-            return condition;
-        }
+        if (typeof condition === 'function') return condition(input, context);
+        if (typeof condition === 'boolean') return condition;
         return true;
     }
 
-    /**
-     * Transform result using stage transform function.
-     */
     transformResult(result, stage, previous) {
-        if (stage.transform && typeof stage.transform === 'function') {
-            return stage.transform(result, previous);
-        }
-        return result;
+        return stage.transform?.(result, previous) ?? result;
     }
 
-    /**
-     * Get pipeline info.
-     * @param {string} name - Pipeline name
-     */
     getPipeline(name) {
         return this.pipelines.get(name);
     }
 
-    /**
-     * List all pipelines.
-     */
     listPipelines() {
         return Array.from(this.pipelines.entries()).map(([name, pipeline]) => ({
             name,
@@ -198,39 +159,22 @@ export class CompositionEngine {
         }));
     }
 
-    /**
-     * Remove a pipeline.
-     * @param {string} name - Pipeline name
-     */
     removePipeline(name) {
         return this.pipelines.delete(name);
     }
 
-    /**
-     * Chain multiple pipelines.
-     * @param {string} name - New chained pipeline name
-     * @param {Array<string>} pipelineNames - Names of pipelines to chain
-     */
     chain(name, pipelineNames) {
-        const stages = [];
-        
-        for (const pipelineName of pipelineNames) {
+        const stages = pipelineNames.flatMap(pipelineName => {
             const pipeline = this.pipelines.get(pipelineName);
             if (!pipeline) {
                 throw new Error(`Pipeline not found: ${pipelineName}`);
             }
-            stages.push(...pipeline.stages.map(s => ({ ...s, sourcePipeline: pipelineName })));
-        }
+            return pipeline.stages.map(s => ({ ...s, sourcePipeline: pipelineName }));
+        });
 
         return this.createPipeline(name, stages);
     }
 
-    /**
-     * Create a conditional branch.
-     * @param {Function} condition - Condition function
-     * @param {Array} trueStages - Stages if true
-     * @param {Array} falseStages - Stages if false
-     */
     branch(condition, trueStages, falseStages = []) {
         return [
             { id: 'branch_true', component: trueStages, condition, parallel: false },
@@ -238,12 +182,6 @@ export class CompositionEngine {
         ];
     }
 
-    /**
-     * Create a loop stage.
-     * @param {Array} stages - Stages to loop
-     * @param {Function} until - Termination condition
-     * @param {number} maxIterations - Maximum iterations
-     */
     loop(stages, until, maxIterations = 10) {
         return {
             id: `loop_${Date.now()}`,
@@ -257,7 +195,7 @@ export class CompositionEngine {
                             const result = await engine.execute('loop_stage', current, context);
                             current = result.output;
                         }
-                        
+
                         if (await until(current, context, i)) {
                             break;
                         }
@@ -269,14 +207,10 @@ export class CompositionEngine {
         };
     }
 
-    /**
-     * Serialize pipeline.
-     * @param {string} name - Pipeline name
-     */
     serialize(name) {
         const pipeline = this.pipelines.get(name);
         if (!pipeline) return null;
-        
+
         return {
             name: pipeline.name,
             stages: pipeline.stages.map(s => ({
@@ -293,9 +227,6 @@ export class CompositionEngine {
     }
 }
 
-/**
- * Pipeline builder for fluent API.
- */
 export class PipelineBuilder {
     constructor(engine) {
         this.engine = engine;
@@ -303,49 +234,31 @@ export class PipelineBuilder {
         this.name = null;
     }
 
-    /**
-     * Set pipeline name.
-     */
     named(name) {
         this.name = name;
         return this;
     }
 
-    /**
-     * Add a stage.
-     */
     add(component, config = {}) {
         this.stages.push({ component, config });
         return this;
     }
 
-    /**
-     * Add parallel stage.
-     */
     parallel(components) {
         this.stages.push({ component: components, parallel: true });
         return this;
     }
 
-    /**
-     * Add conditional stage.
-     */
     when(condition, component, config = {}) {
         this.stages.push({ component, config, condition });
         return this;
     }
 
-    /**
-     * Add transform stage.
-     */
     transform(fn) {
         this.stages.push({ transform: fn });
         return this;
     }
 
-    /**
-     * Build and register the pipeline.
-     */
     build() {
         if (!this.name) {
             throw new Error('Pipeline must have a name');
@@ -354,9 +267,6 @@ export class PipelineBuilder {
         return this.engine;
     }
 
-    /**
-     * Execute immediately.
-     */
     async run(input, context = {}) {
         const tempName = this.name || `temp_${Date.now()}`;
         this.engine.createPipeline(tempName, this.stages);

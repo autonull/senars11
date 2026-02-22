@@ -1,5 +1,83 @@
 import { Component } from '../composable/Component.js';
 import { CausalGraph, CausalReasoner } from '../reasoning/CausalReasoning.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
+
+const DEFAULTS = {
+    capacity: 100000,
+    minCapacity: 1000,
+    batchSize: 32,
+    sampleStrategy: 'prioritized',
+    prioritizationAlpha: 0.6,
+    prioritizationBeta: 0.4,
+    useCausalIndexing: true,
+    causalResolution: 0.1,
+    numBuffers: 4,
+    aggregationInterval: 100,
+    gamma: 0.99,
+    priorityDecay: 0.9
+};
+
+const SamplingStrategies = {
+    random(allExperiences, k) {
+        if (allExperiences.length === 0) return [];
+
+        const indices = new Set();
+        while (indices.size < Math.min(k, allExperiences.length)) {
+            indices.add(Math.floor(Math.random() * allExperiences.length));
+        }
+
+        return Array.from(indices).map(idx => allExperiences[idx]);
+    },
+
+    prioritized(sumTree, allExperiences, k) {
+        if (!sumTree || allExperiences.length === 0) {
+            return this.random(allExperiences, k);
+        }
+
+        const samples = [];
+        const segmentSize = sumTree.total / k;
+
+        for (let i = 0; i < k; i++) {
+            const value = segmentSize * i + Math.random() * segmentSize;
+            const idx = sumTree.find(value);
+            if (idx < allExperiences.length) {
+                samples.push(allExperiences[idx]);
+            }
+        }
+
+        return samples;
+    },
+
+    causal(causalIndex, causalGraph, allExperiences, query, k, resolution) {
+        if (!query || !causalIndex.size) {
+            return this.random(allExperiences, k);
+        }
+
+        const querySignature = CausalExperience.createCausalSignature(query, resolution);
+        const neighbors = [];
+
+        const direct = causalIndex.get(querySignature);
+        if (direct) {
+            direct.slice(0, k).forEach(idx => neighbors.push(allExperiences[idx]));
+        }
+
+        if (neighbors.length < k) {
+            const predecessors = causalGraph.getPredecessors(querySignature);
+            for (const pred of predecessors.slice(0, k - neighbors.length)) {
+                const predIds = causalIndex.get(pred.signature);
+                if (predIds?.length > 0) {
+                    neighbors.push(allExperiences[predIds[0]]);
+                }
+            }
+        }
+
+        return neighbors;
+    },
+
+    recent(allExperiences, k) {
+        return [...allExperiences].sort((a, b) => b.timestamp - a.timestamp).slice(0, k);
+    }
+};
 
 export class CausalExperience {
     constructor(config = {}) {
@@ -59,20 +137,7 @@ export class CausalExperience {
 
 export class ExperienceBuffer extends Component {
     constructor(config = {}) {
-        super({
-            capacity: config.capacity ?? 100000,
-            minCapacity: config.minCapacity ?? 1000,
-            batchSize: config.batchSize ?? 32,
-            sampleStrategy: config.sampleStrategy ?? 'prioritized',
-            prioritizationAlpha: config.prioritizationAlpha ?? 0.6,
-            prioritizationBeta: config.prioritizationBeta ?? 0.4,
-            useCausalIndexing: config.useCausalIndexing ?? true,
-            causalResolution: config.causalResolution ?? 0.1,
-            numBuffers: config.numBuffers ?? 4,
-            aggregationInterval: config.aggregationInterval ?? 100,
-            gamma: config.gamma ?? 0.99,
-            ...config
-        });
+        super(mergeConfig(DEFAULTS, config));
 
         this.buffers = [];
         this.currentBuffer = 0;
@@ -88,9 +153,7 @@ export class ExperienceBuffer extends Component {
 
     async onInitialize() {
         const bufferCapacity = Math.floor(this.config.capacity / this.config.numBuffers);
-        for (let i = 0; i < this.config.numBuffers; i++) {
-            this.buffers.push([]);
-        }
+        this.buffers = Array.from({ length: this.config.numBuffers }, () => []);
 
         if (this.config.sampleStrategy === 'prioritized') {
             this.prioritySumTree = new SumTree(this.config.capacity);
@@ -111,7 +174,6 @@ export class ExperienceBuffer extends Component {
         }
 
         const buffer = this.buffers[this.currentBuffer];
-        const experienceId = this.totalSize;
 
         if (buffer.length >= this.config.capacity / this.config.numBuffers) {
             this.currentBuffer = (this.currentBuffer + 1) % this.config.numBuffers;
@@ -122,7 +184,7 @@ export class ExperienceBuffer extends Component {
         this.totalSize++;
 
         if (this.prioritySumTree) {
-            this.prioritySumTree.update(experienceId, causalExp.priority);
+            this.prioritySumTree.update(this.totalSize - 1, causalExp.priority);
         }
 
         if (computeCausal) {
@@ -133,7 +195,7 @@ export class ExperienceBuffer extends Component {
         }
 
         this.metrics.experiencesAdded++;
-        return experienceId;
+        return this.totalSize - 1;
     }
 
     async storeBatch(experiences, options = {}) {
@@ -169,109 +231,44 @@ export class ExperienceBuffer extends Component {
         const size = batchSize ?? this.config.batchSize;
         const { strategy = this.config.sampleStrategy, causalQuery = null } = options;
 
+        const allExperiences = this._getAllExperiences();
         let samples;
 
         switch (strategy) {
-            case 'prioritized': samples = await this._samplePrioritized(size); break;
-            case 'causal': samples = await this._sampleCausal(size, causalQuery); break;
-            case 'recent': samples = await this._sampleRecent(size); break;
-            default: samples = await this._sampleRandom(size);
+            case 'prioritized':
+                samples = SamplingStrategies.prioritized(this.prioritySumTree, allExperiences, size);
+                break;
+            case 'causal':
+                samples = SamplingStrategies.causal(this.causalIndex, this.causalGraph, allExperiences, causalQuery, size, this.config.causalResolution);
+                if (samples.length < size) {
+                    const remaining = SamplingStrategies.random(allExperiences, size - samples.length);
+                    samples = [...samples, ...remaining];
+                }
+                break;
+            case 'recent':
+                samples = SamplingStrategies.recent(allExperiences, size);
+                break;
+            default:
+                samples = SamplingStrategies.random(allExperiences, size);
         }
 
         this.metrics.experiencesSampled += samples.length;
 
         if (strategy === 'prioritized') {
-            await this._updateSamplePriorities(samples);
+            this._updateSamplePriorities(samples);
         }
 
         return samples;
-    }
-
-    async _sampleRandom(k) {
-        const allExperiences = this._getAllExperiences();
-        if (allExperiences.length === 0) return [];
-
-        const indices = new Set();
-        while (indices.size < Math.min(k, allExperiences.length)) {
-            indices.add(Math.floor(Math.random() * allExperiences.length));
-        }
-
-        return Array.from(indices).map(idx => allExperiences[idx]);
-    }
-
-    async _samplePrioritized(k) {
-        if (!this.prioritySumTree || this.totalSize === 0) {
-            return this._sampleRandom(k);
-        }
-
-        const samples = [];
-        const segmentSize = this.prioritySumTree.total / k;
-        const allExperiences = this._getAllExperiences();
-
-        for (let i = 0; i < k; i++) {
-            const value = segmentSize * i + Math.random() * segmentSize;
-            const idx = this.prioritySumTree.find(value);
-            if (idx < allExperiences.length) {
-                samples.push(allExperiences[idx]);
-            }
-        }
-
-        return samples;
-    }
-
-    async _sampleCausal(k, query) {
-        if (!query || !this.config.useCausalIndexing) {
-            return this._sampleRandom(k);
-        }
-
-        const querySignature = CausalExperience.createCausalSignature(query, this.config.causalResolution);
-        const similar = this._findCausalNeighbors(querySignature, k);
-
-        if (similar.length >= k) return similar.slice(0, k);
-
-        const remaining = await this._sampleRandom(k - similar.length);
-        return [...similar, ...remaining];
-    }
-
-    async _sampleRecent(k) {
-        const allExperiences = this._getAllExperiences();
-        if (allExperiences.length === 0) return [];
-
-        return [...allExperiences].sort((a, b) => b.timestamp - a.timestamp).slice(0, k);
-    }
-
-    _findCausalNeighbors(signature, k, radius = 2) {
-        const neighbors = [];
-        const allExperiences = this._getAllExperiences();
-
-        const direct = this.causalIndex.get(signature);
-        if (direct) {
-            for (const idx of direct.slice(0, k)) {
-                neighbors.push(allExperiences[idx]);
-            }
-        }
-
-        if (neighbors.length < k) {
-            const predecessors = this.causalGraph.getPredecessors(signature);
-            for (const pred of predecessors.slice(0, k - neighbors.length)) {
-                const predIds = this.causalIndex.get(pred.signature);
-                if (predIds?.length > 0) {
-                    neighbors.push(allExperiences[predIds[0]]);
-                }
-            }
-        }
-
-        return neighbors;
     }
 
     async _updateSamplePriorities(samples) {
-        for (const sample of samples) {
-            sample.priority *= 0.9;
+        samples.forEach((sample, i) => {
+            sample.priority *= this.config.priorityDecay;
             if (this.prioritySumTree) {
-                const idx = this.totalSize - samples.indexOf(sample) - 1;
+                const idx = this.totalSize - i - 1;
                 this.prioritySumTree.update(idx, sample.priority);
             }
-        }
+        });
     }
 
     registerWorker(workerId, config = {}) {
@@ -286,10 +283,7 @@ export class ExperienceBuffer extends Component {
             workerBuffer = this.workerBuffers.get(workerId);
         }
 
-        for (const exp of experiences) {
-            exp.workerId = workerId;
-        }
-
+        experiences.forEach(exp => exp.workerId = workerId);
         workerBuffer.experiences.push(...experiences);
 
         if (this.totalSize - this.lastAggregation >= this.config.aggregationInterval) {
@@ -300,14 +294,14 @@ export class ExperienceBuffer extends Component {
     async aggregateWorkers() {
         let totalAggregated = 0;
 
-        for (const buffer of this.workerBuffers.values()) {
+        this.workerBuffers.forEach(buffer => {
             if (buffer.experiences.length > 0) {
-                await this.storeBatch(buffer.experiences);
+                this.storeBatch(buffer.experiences);
                 totalAggregated += buffer.experiences.length;
                 buffer.experiences = [];
                 buffer.lastSync = Date.now();
             }
-        }
+        });
 
         this.metrics.aggregationsPerformed++;
         this.lastAggregation = this.totalSize;
@@ -329,20 +323,20 @@ export class ExperienceBuffer extends Component {
     clearOld(maxAge = 3600000) {
         const cutoff = Date.now() - maxAge;
 
-        for (const buffer of this.buffers) {
+        this.buffers.forEach(buffer => {
             const initialLength = buffer.length;
             buffer.splice(0, buffer.findIndex(e => e.timestamp > cutoff));
             this.totalSize -= (initialLength - buffer.length);
-        }
+        });
 
-        for (const [signature, ids] of this.causalIndex) {
+        this.causalIndex.forEach((ids, signature) => {
             const validIds = ids.filter(id => id < this.totalSize);
             if (validIds.length === 0) {
                 this.causalIndex.delete(signature);
             } else {
                 this.causalIndex.set(signature, validIds);
             }
-        }
+        });
     }
 
     getStats() {
@@ -382,16 +376,16 @@ export class ExperienceBuffer extends Component {
         buffer.causalGraph = CausalGraph.fromJSON(json.causalGraph);
         buffer.metrics = { ...json.metrics };
 
-        for (const exp of buffer.buffers[0]) {
+        buffer.buffers[0].forEach((exp, idx) => {
             if (exp.causalSignature) {
                 let ids = buffer.causalIndex.get(exp.causalSignature);
                 if (!ids) {
                     ids = [];
                     buffer.causalIndex.set(exp.causalSignature, ids);
                 }
-                ids.push(buffer.totalSize - 1);
+                ids.push(idx);
             }
-        }
+        });
 
         return buffer;
     }

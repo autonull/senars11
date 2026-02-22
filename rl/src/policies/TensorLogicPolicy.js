@@ -1,28 +1,89 @@
 import { Component } from '../composable/Component.js';
 import { SymbolicTensor, TensorLogicBridge } from '../neurosymbolic/TensorLogicBridge.js';
 import { MetricsTracker } from '../utils/MetricsTracker.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
+
+const DEFAULTS = {
+    inputDim: 64,
+    hiddenDim: 128,
+    outputDim: 4,
+    numLayers: 2,
+    policyType: 'softmax',
+    actionType: 'discrete',
+    mettaInterpreter: null,
+    policyScript: null,
+    learningRate: 0.001,
+    gamma: 0.99,
+    entropyBonus: 0.01,
+    l2Regularization: 0.0001,
+    gradientClip: 0.5,
+    initialTemperature: 1.0,
+    minTemperature: 0.1,
+    temperatureDecay: 0.995
+};
+
+const InitFns = {
+    xavier(fanIn, fanOut) {
+        const limit = Math.sqrt(6 / (fanIn + fanOut));
+        return () => (Math.random() * 2 - 1) * limit;
+    }
+};
+
+const PolicyUtils = {
+    argmax(array) {
+        return array.reduce((maxIdx, val, i) => val > array[maxIdx] ? i : maxIdx, 0);
+    },
+
+    sampleCategorical(probs) {
+        const rand = Math.random();
+        let cumsum = 0;
+        for (let i = 0; i < probs.length; i++) {
+            cumsum += probs[i];
+            if (rand < cumsum) return i;
+        }
+        return probs.length - 1;
+    },
+
+    sampleGaussian() {
+        const u1 = Math.random();
+        const u2 = Math.random();
+        return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+    },
+
+    gaussianPdf(x, mu, std) {
+        if (Array.isArray(x)) {
+            return x.reduce((prod, xi, i) => prod * this.gaussianPdf(xi, mu[i], std), 1);
+        }
+        const coeff = 1 / (std * Math.sqrt(2 * Math.PI));
+        const exponent = -0.5 * Math.pow((x - mu) / std, 2);
+        return coeff * Math.exp(exponent);
+    },
+
+    findStateActionPatterns(pairs) {
+        const correlations = new Map();
+
+        pairs.forEach(({ state, action }) => {
+            state.forEach((val, i) => {
+                const key = `feature_${i}_action_${action}`;
+                const prev = correlations.get(key) ?? { count: 0, sum: 0 };
+                correlations.set(key, { count: prev.count + 1, sum: prev.sum + val });
+            });
+        });
+
+        return Array.from(correlations.entries())
+            .filter(([_, stats]) => stats.count > 5)
+            .map(([pattern, stats]) => ({
+                type: 'correlation',
+                pattern,
+                avgFeatureValue: stats.sum / stats.count,
+                frequency: stats.count
+            }));
+    }
+};
 
 export class TensorLogicPolicy extends Component {
     constructor(config = {}) {
-        super({
-            inputDim: config.inputDim ?? 64,
-            hiddenDim: config.hiddenDim ?? 128,
-            outputDim: config.outputDim ?? 4,
-            numLayers: config.numLayers ?? 2,
-            policyType: config.policyType ?? 'softmax',
-            actionType: config.actionType ?? 'discrete',
-            mettaInterpreter: config.mettaInterpreter ?? null,
-            policyScript: config.policyScript ?? null,
-            learningRate: config.learningRate ?? 0.001,
-            gamma: config.gamma ?? 0.99,
-            entropyBonus: config.entropyBonus ?? 0.01,
-            l2Regularization: config.l2Regularization ?? 0.0001,
-            gradientClip: config.gradientClip ?? 0.5,
-            initialTemperature: config.initialTemperature ?? 1.0,
-            minTemperature: config.minTemperature ?? 0.1,
-            temperatureDecay: config.temperatureDecay ?? 0.995,
-            ...config
-        });
+        super(mergeConfig(DEFAULTS, config));
 
         this.backend = null;
         this.tensorBridge = new TensorLogicBridge();
@@ -64,18 +125,14 @@ export class TensorLogicPolicy extends Component {
         if (!this.backend) return;
 
         const { inputDim, hiddenDim, outputDim, numLayers } = this.config;
-        const xavier = (fanIn, fanOut) => {
-            const limit = Math.sqrt(6 / (fanIn + fanOut));
-            return () => (Math.random() * 2 - 1) * limit;
-        };
 
         for (let i = 0; i < numLayers; i++) {
             const fanIn = i === 0 ? inputDim : hiddenDim;
-            this.parameters.set(`w${i}`, this._createParameter([fanIn, hiddenDim], xavier(fanIn, hiddenDim)));
+            this.parameters.set(`w${i}`, this._createParameter([fanIn, hiddenDim], InitFns.xavier(fanIn, hiddenDim)));
             this.parameters.set(`b${i}`, this._createParameter([hiddenDim], 0));
         }
 
-        this.parameters.set(`w${numLayers}`, this._createParameter([hiddenDim, outputDim], xavier(hiddenDim, outputDim)));
+        this.parameters.set(`w${numLayers}`, this._createParameter([hiddenDim, outputDim], InitFns.xavier(hiddenDim, outputDim)));
         this.parameters.set(`b${numLayers}`, this._createParameter([outputDim], 0));
     }
 
@@ -93,8 +150,8 @@ export class TensorLogicPolicy extends Component {
             const script = fs.readFileSync(this.config.policyScript, 'utf-8');
             await this.metta.run(script);
             this.emit('policy:loaded', this.config.policyScript);
-        } catch (e) {
-            // Silently continue if script loading fails
+        } catch {
+            // Silently continue
         }
     }
 
@@ -113,7 +170,7 @@ export class TensorLogicPolicy extends Component {
             const w = this.parameters.get(`w${i}`);
             const b = this.parameters.get(`b${i}`);
 
-            let linear = this.backend.add(this.backend.matmul(input.data, w.data), b.data);
+            const linear = this.backend.add(this.backend.matmul(input.data, w.data), b.data);
             const activated = this.backend.relu(linear);
 
             intermediates.push({ layer: i, linear, activated });
@@ -144,10 +201,10 @@ export class TensorLogicPolicy extends Component {
             if (this.config.policyType === 'softmax') {
                 const probs = this.backend.softmax(scaledLogits);
                 if (deterministic || exploration === 0) {
-                    action = this._argmax(probs);
+                    action = PolicyUtils.argmax(probs);
                     actionProb = probs[action];
                 } else {
-                    action = this._sampleCategorical(probs);
+                    action = PolicyUtils.sampleCategorical(probs);
                     actionProb = probs[action];
                 }
             } else {
@@ -155,7 +212,7 @@ export class TensorLogicPolicy extends Component {
                     action = Math.floor(Math.random() * this.config.outputDim);
                     actionProb = 1 / this.config.outputDim;
                 } else {
-                    action = this._argmax(logits.data);
+                    action = PolicyUtils.argmax(logits.data);
                     actionProb = 1.0;
                 }
             }
@@ -163,12 +220,10 @@ export class TensorLogicPolicy extends Component {
             const mu = this.backend.tanh(logits.data);
             const std = 0.1;
 
-            if (deterministic) {
-                action = Array.from(mu);
-            } else {
-                action = Array.from(mu).map(m => m + std * this._sampleGaussian());
-            }
-            actionProb = this._gaussianPdf(action, Array.from(mu), std);
+            action = deterministic
+                ? Array.from(mu)
+                : Array.from(mu).map(m => m + std * PolicyUtils.sampleGaussian());
+            actionProb = PolicyUtils.gaussianPdf(action, Array.from(mu), std);
         }
 
         if (exploration === null && this.temperature > this.config.minTemperature) {
@@ -201,8 +256,9 @@ export class TensorLogicPolicy extends Component {
             this._clipGradients(this.config.gradientClip);
         }
 
-        this.optimizer.step(Array.from(this.parameters.values()));
-        this.optimizer.zeroGrad(Array.from(this.parameters.values()));
+        const params = Array.from(this.parameters.values());
+        this.optimizer.step(params);
+        this.optimizer.zeroGrad(params);
 
         this.metrics.increment('updates');
         this.metrics.set('totalLoss', loss.data[0] ?? 0);
@@ -243,16 +299,16 @@ export class TensorLogicPolicy extends Component {
 
     _computeL2Regularization() {
         let l2 = 0;
-        for (const [name, param] of this.parameters) {
+        this.parameters.forEach((param, name) => {
             if (name.startsWith('w')) {
                 l2 += param.data.reduce((sum, val) => sum + val * val, 0);
             }
-        }
+        });
         return this.backend.scalar(l2 * 0.5);
     }
 
     _clipGradients(maxNorm) {
-        for (const param of this.parameters.values()) {
+        this.parameters.forEach(param => {
             if (param.grad) {
                 const norm = Math.sqrt(param.grad.reduce((s, g) => s + g * g, 0));
                 if (norm > maxNorm) {
@@ -260,36 +316,7 @@ export class TensorLogicPolicy extends Component {
                     param.grad = param.grad.map(g => g * scale);
                 }
             }
-        }
-    }
-
-    _argmax(array) {
-        return array.reduce((maxIdx, val, i) => val > array[maxIdx] ? i : maxIdx, 0);
-    }
-
-    _sampleCategorical(probs) {
-        const rand = Math.random();
-        let cumsum = 0;
-        for (let i = 0; i < probs.length; i++) {
-            cumsum += probs[i];
-            if (rand < cumsum) return i;
-        }
-        return probs.length - 1;
-    }
-
-    _sampleGaussian() {
-        const u1 = Math.random();
-        const u2 = Math.random();
-        return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-    }
-
-    _gaussianPdf(x, mu, std) {
-        if (Array.isArray(x)) {
-            return x.reduce((prod, xi, i) => prod * this._gaussianPdf(xi, mu[i], std), 1);
-        }
-        const coeff = 1 / (std * Math.sqrt(2 * Math.PI));
-        const exponent = -0.5 * Math.pow((x - mu) / std, 2);
-        return coeff * Math.exp(exponent);
+        });
     }
 
     async executeMettaPolicy(state, options = {}) {
@@ -319,8 +346,8 @@ export class TensorLogicPolicy extends Component {
         const { threshold = 0.5 } = options;
         const rules = [];
 
-        for (const [name, param] of this.parameters) {
-            if (!name.startsWith('w')) continue;
+        this.parameters.forEach((param, name) => {
+            if (!name.startsWith('w')) return;
 
             const maxWeight = Math.max(...param.data.map(Math.abs));
             if (maxWeight > threshold) {
@@ -330,48 +357,29 @@ export class TensorLogicPolicy extends Component {
 
                 rules.push({ parameter: name, importantFeatures: importantIndices, strength: maxWeight });
             }
-        }
+        });
 
         if (this.policyTrace.length > 0) {
-            rules.push(...this._findStateActionPatterns(this.policyTrace.map(t => ({ state: t.state, action: t.result }))));
+            rules.push(...PolicyUtils.findStateActionPatterns(this.policyTrace.map(t => ({ state: t.state, action: t.result }))));
         }
 
         return rules;
     }
 
-    _findStateActionPatterns(pairs) {
-        const featureActionCorrelation = new Map();
-
-        for (const { state, action } of pairs) {
-            for (let i = 0; i < state.length; i++) {
-                const key = `feature_${i}_action_${action}`;
-                const prev = featureActionCorrelation.get(key) ?? { count: 0, sum: 0 };
-                featureActionCorrelation.set(key, { count: prev.count + 1, sum: prev.sum + state[i] });
-            }
-        }
-
-        return Array.from(featureActionCorrelation.entries())
-            .filter(([_, stats]) => stats.count > 5)
-            .map(([pattern, stats]) => ({
-                type: 'correlation',
-                pattern,
-                avgFeatureValue: stats.sum / stats.count,
-                frequency: stats.count
-            }));
-    }
-
     getParameters() {
-        return Object.fromEntries(Array.from(this.parameters.entries()).map(([name, param]) => [name, { data: [...param.data], shape: [...param.shape] }]));
+        return Object.fromEntries(
+            Array.from(this.parameters.entries()).map(([name, param]) => [name, { data: [...param.data], shape: [...param.shape] }])
+        );
     }
 
     setParameters(params) {
-        for (const [name, paramData] of Object.entries(params)) {
+        Object.entries(params).forEach(([name, paramData]) => {
             const param = this.parameters.get(name);
             if (param) {
                 param.data = [...paramData.data];
                 if (paramData.shape) param.shape = [...paramData.shape];
             }
-        }
+        });
     }
 
     getState() {
