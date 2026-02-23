@@ -297,11 +297,11 @@ async function testSeNARSBridgeBasics() {
     await bridge.initialize();
     
     // Test input (may use fallback if SeNARS not available)
-    const result = await bridge.input('<test --> concept>.');
+    const result = await bridge.inputNarsese('<test --> concept>.');
     assert.ok(result, 'Input accepted');
     
     // Test goal stack
-    await bridge.achieve('test_goal');
+    await bridge.achieveGoal('test_goal');
     const state = bridge.getState();
     assert.ok(state.goals.length > 0, 'Has goals');
     

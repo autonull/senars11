@@ -70,8 +70,6 @@ const formatObservation = (observation) => {
 
 const stateToTerm = (state) => Array.isArray(state) ? state.map(v => Math.round(v * 10)).join('_') : String(state);
 
-export * from './deprecated.js';
-
 export class UnifiedNeuroSymbolicAgent extends Component {
     constructor(config = {}) {
         super(mergeConfig(AGENT_DEFAULTS, config));
@@ -159,7 +157,7 @@ export class UnifiedNeuroSymbolicAgent extends Component {
 
         // Use simple encoding for compatibility with previous behavior if needed
         const obsNarsese = this.senarsBridge.observationToNarsese(observation, { simple: true });
-        await this.senarsBridge.input(obsNarsese);
+        await this.senarsBridge.inputNarsese(obsNarsese);
 
         // NeuroSymbolicBridge doesn't expose runCycles directly if using SeNARS, but we can assume input triggers cycles
         // or check if we need to call something specific. SeNARS usually runs on input.
@@ -170,14 +168,14 @@ export class UnifiedNeuroSymbolicAgent extends Component {
 
         if (goal) {
             const goalNarsese = NarseseUtils.goalToNarsese(goal);
-            const result = await this.senarsBridge.achieve(goalNarsese, { cycles: this.config.reasoningCycles });
+            const result = await this.senarsBridge.achieveGoal(goalNarsese, { cycles: this.config.reasoningCycles });
 
             if (result?.executedOperations?.length > 0) {
                 return NarseseUtils.parseOperation(result.executedOperations[0]);
             }
         }
 
-        const result = await this.senarsBridge.ask('<(?action) --> good_action>?');
+        const result = await this.senarsBridge.askNarsese('<(?action) --> good_action>?');
         if (result?.substitution?.['?action']) {
             return NarseseUtils.parseOperation(result.substitution['?action']);
         }
@@ -209,7 +207,7 @@ export class UnifiedNeuroSymbolicAgent extends Component {
 
         if (this.senarsBridge && reward !== 0) {
             const valence = reward > 0 ? 'good' : 'bad';
-            await this.senarsBridge.input(`<(*, ${stateToTerm(nextState)}) --> ${valence}>.`);
+            await this.senarsBridge.inputNarsese(`<(*, ${stateToTerm(nextState)}) --> ${valence}>.`);
         }
 
         if (this.experienceBuffer.length > this.config.experienceBufferLimit) this.experienceBuffer.shift();
@@ -258,7 +256,7 @@ export class UnifiedNeuroSymbolicAgent extends Component {
 
     setGoal(goal) {
         this.currentGoal = goal;
-        if (this.senarsBridge) this.senarsBridge.input(NarseseUtils.goalToNarsese(goal));
+        if (this.senarsBridge) this.senarsBridge.inputNarsese(NarseseUtils.goalToNarsese(goal));
         this.emit('goalSet', { goal });
     }
 

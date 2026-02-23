@@ -99,11 +99,6 @@ export class NeuroSymbolicBridge extends Component {
             }
         }
 
-        // Aliases for compatibility
-        this.input = this.inputNarsese.bind(this);
-        this.ask = this.askNarsese.bind(this);
-        this.achieve = this.achieveGoal.bind(this);
-
         this._initializeMettaIntegration();
 
         if (!this.config.tensorBackend) {
