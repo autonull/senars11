@@ -1,6 +1,14 @@
+const MEMORY_DEFAULTS = {
+    capacity: 1000,
+    autoRebuildIndex: true
+};
+
+const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
+
 export class EpisodicMemory {
-    constructor(capacity = 1000) {
-        this.capacity = capacity;
+    constructor(config = {}) {
+        this.config = mergeConfig(MEMORY_DEFAULTS, typeof config === 'number' ? { capacity: config } : config);
+        this.capacity = this.config.capacity;
         this.buffer = [];
         this.symbolicIndex = new Map();
     }
@@ -11,13 +19,12 @@ export class EpisodicMemory {
 
         if (this.buffer.length > this.capacity) {
             this.buffer.shift();
-            this._rebuildIndex();
+            if (this.config.autoRebuildIndex) this._rebuildIndex();
         }
     }
 
     _indexItem(item, index) {
         if (!item.symbol) return;
-
         if (!this.symbolicIndex.has(item.symbol)) {
             this.symbolicIndex.set(item.symbol, []);
         }

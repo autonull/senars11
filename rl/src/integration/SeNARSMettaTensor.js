@@ -4,13 +4,43 @@ import { CausalGraph, CausalReasoner } from '../reasoning/CausalReasoning.js';
 import { Experience } from '../experience/ExperienceSystem.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 
-const DEFAULTS = {
+const BRIDGE_DEFAULTS = {
     senarsConfig: {},
     mettaInterpreter: null,
     autoGround: true,
     reasoningCycles: 50,
     actionLow: -1,
-    actionHigh: 1
+    actionHigh: 1,
+    beliefDecayRate: 0.1,
+    minPriority: 0.1,
+    beliefLimit: 100
+};
+
+const POLICY_DEFAULTS = {
+    mettaInterpreter: null,
+    tensorBridge: null,
+    policyScript: null,
+    inputDim: 64,
+    hiddenDim: 128,
+    outputDim: 16,
+    actionType: 'discrete',
+    learningRate: 0.01,
+    gamma: 0.99
+};
+
+const AGENT_DEFAULTS = {
+    senarsConfig: {},
+    mettaConfig: {},
+    policyScript: null,
+    tensorConfig: {},
+    actionSpace: null,
+    actionType: 'auto',
+    integrationMode: 'full',
+    reasoningCycles: 50,
+    experienceBufferLimit: 10000,
+    actionHistoryLimit: 1000,
+    maxCausalNodes: 100,
+    minCausalStrength: 0.1
 };
 
 const NarseseUtils = {
@@ -53,9 +83,18 @@ const NarseseUtils = {
     }
 };
 
+const formatObservation = (observation) => {
+    const data = observation instanceof SymbolicTensor
+        ? Array.from(observation.data)
+        : Array.isArray(observation) ? observation : [observation];
+    return `(${data.map(v => v.toFixed(4)).join(' ')})`;
+};
+
+const stateToTerm = (state) => Array.isArray(state) ? state.map(v => Math.round(v * 10)).join('_') : String(state);
+
 export class EnhancedSeNARSBridge extends Component {
     constructor(config = {}) {
-        super(mergeConfig(DEFAULTS, config));
+        super(mergeConfig(BRIDGE_DEFAULTS, config));
         this.bridge = null;
         this.metta = this.config.mettaInterpreter;
         this.tensorBridge = this.config.tensorBridge ?? new TensorLogicBridge();
@@ -69,9 +108,7 @@ export class EnhancedSeNARSBridge extends Component {
             const { SeNARS } = await import('@senars/core');
             this.bridge = new SeNARS(this.config.senarsConfig);
             await this.bridge.start();
-
             if (this.metta) this._connectMetta();
-
             this.emit('initialized', { senars: true, metta: !!this.metta });
         } catch {
             console.warn('SeNARS not available, using fallback mode');
@@ -81,21 +118,17 @@ export class EnhancedSeNARSBridge extends Component {
 
     _connectMetta() {
         if (!this.metta?.ground) return;
-
         const ops = {
             'senars-input': (narsese) => this.input(narsese.toString()),
             'senars-ask': (question) => this.ask(question.toString()),
             'senars-achieve': (goal) => this.achieve(goal.toString())
         };
-
         Object.entries(ops).forEach(([name, fn]) => this.metta.ground.register(name, fn));
     }
 
     async input(narsese, options = {}) {
         const { priority = 1.0, confidence = 0.9 } = options;
-
         if (this.bridge) return this.bridge.nar.input(narsese);
-
         const belief = { narsese, priority, confidence, timestamp: Date.now() };
         this.beliefBase.set(narsese, belief);
         return { success: true, belief };
@@ -103,29 +136,24 @@ export class EnhancedSeNARSBridge extends Component {
 
     async ask(question, options = {}) {
         const { cycles = 50, timeout = 5000 } = options;
-
         if (this.bridge) return this.bridge.ask(question, { cycles });
         return this._fallbackAsk(question);
     }
 
     async achieve(goal, options = {}) {
         const { cycles = 100, planning = true } = options;
-
         this.goalStack.push({ goal, timestamp: Date.now() });
-
         if (this.bridge) {
             const result = await this.bridge.achieve(goal, { cycles });
             if (result?.executedOperations) {
                 this.inferenceHistory.push({
-                    type: 'achieve',
-                    goal,
+                    type: 'achieve', goal,
                     operations: result.executedOperations,
                     timestamp: Date.now()
                 });
             }
             return result;
         }
-
         return this._fallbackAchieve(goal);
     }
 
@@ -153,7 +181,6 @@ export class EnhancedSeNARSBridge extends Component {
     narseseToTensor(narsese, shape) {
         const match = narsese.match(/\(\*,\s*(.*?)\)/);
         if (!match) return null;
-
         const symbols = match[1].split(',').map(s => s.trim());
         return this.tensorBridge.groundToTensor(
             symbols.map((s, i) => ({ index: i, symbol: s, confidence: 1.0 })),
@@ -174,25 +201,23 @@ export class EnhancedSeNARSBridge extends Component {
     _fallbackAchieve(goal) {
         const goalStr = goal.toString();
         const relevant = Array.from(this.beliefBase.values()).filter(b => b.narsese.includes(goalStr));
-
-        if (relevant.length > 0) {
-            return { achieved: true, evidence: relevant.map(r => r.narsese) };
-        }
-        return { achieved: false };
+        return relevant.length > 0
+            ? { achieved: true, evidence: relevant.map(r => r.narsese) }
+            : { achieved: false };
     }
 
     _processBeliefs() {
         const now = Date.now();
         this.beliefBase.forEach((belief, key) => {
             const age = (now - belief.timestamp) / 60000;
-            belief.priority *= Math.exp(-age * 0.1);
-            if (belief.priority < 0.1) this.beliefBase.delete(key);
+            belief.priority *= Math.exp(-age * this.config.beliefDecayRate);
+            if (belief.priority < this.config.minPriority) this.beliefBase.delete(key);
         });
         return { processed: this.beliefBase.size };
     }
 
     getBeliefs(options = {}) {
-        const { minPriority = 0.1, limit = 100 } = options;
+        const { minPriority = this.config.minPriority, limit = this.config.beliefLimit } = options;
         return Array.from(this.beliefBase.values())
             .filter(b => b.priority >= minPriority)
             .sort((a, b) => b.priority - a.priority)
@@ -211,16 +236,10 @@ export class EnhancedSeNARSBridge extends Component {
 
 export class MeTTaPolicyNetwork extends Component {
     constructor(config = {}) {
-        super({
-            mettaInterpreter: null,
-            tensorBridge: new TensorLogicBridge(),
-            policyScript: null,
-            inputDim: 64,
-            hiddenDim: 128,
-            outputDim: 16,
-            actionType: 'discrete',
-            ...config
-        });
+        super(mergeConfig(POLICY_DEFAULTS, {
+            ...config,
+            tensorBridge: config.tensorBridge ?? new TensorLogicBridge()
+        }));
 
         this.metta = this.config.mettaInterpreter;
         this.tensorBridge = this.config.tensorBridge;
@@ -265,7 +284,6 @@ export class MeTTaPolicyNetwork extends Component {
 
     _initializeDefaultPolicy() {
         if (!this.metta) return;
-
         const policyScript = `
             (= (get-action $obs) (let* (($x (&tensor $obs)) ($logits (forward $x))) (&argmax $logits)))
             (= (get-action-continuous $obs) (let* (($x (&tensor $obs)) ($output (forward $x))) (&tanh $output)))
@@ -277,9 +295,7 @@ export class MeTTaPolicyNetwork extends Component {
     async selectAction(observation, options = {}) {
         if (!this.metta || !this.policyLoaded) return this._fallbackAction('discrete');
 
-        const { temperature = 1.0, sample = false } = options;
-        const obsStr = this._observationToString(observation);
-
+        const obsStr = formatObservation(observation);
         try {
             const result = this.metta.run(`! (get-action ${obsStr})`);
             if (result?.length > 0) {
@@ -289,15 +305,14 @@ export class MeTTaPolicyNetwork extends Component {
         } catch {
             console.warn('Policy execution failed');
         }
-
         return this._fallbackAction('discrete');
     }
 
     async selectContinuousAction(observation, options = {}) {
         if (!this.metta || !this.policyLoaded) return this._fallbackAction('continuous');
 
-        const { actionLow = -1, actionHigh = 1 } = options;
-        const obsStr = this._observationToString(observation);
+        const { actionLow = this.config.actionLow ?? -1, actionHigh = this.config.actionHigh ?? 1 } = options;
+        const obsStr = formatObservation(observation);
 
         try {
             const result = this.metta.run(`! (get-action-continuous ${obsStr})`);
@@ -313,16 +328,15 @@ export class MeTTaPolicyNetwork extends Component {
         } catch {
             console.warn('Continuous policy execution failed');
         }
-
         return this._fallbackAction('continuous');
     }
 
     async updatePolicy(transition, options = {}) {
         if (!this.metta || !this.policyLoaded) return null;
 
-        const { learningRate = 0.01, gamma = 0.99 } = options;
+        const { learningRate = this.config.learningRate, gamma = this.config.gamma } = options;
         const { state, action, reward, nextState, done } = transition;
-        const obsStr = this._observationToString(state);
+        const obsStr = formatObservation(state);
         const target = done ? reward : reward + gamma * reward;
         const targetStr = this._createTargetTensor(action, target);
 
@@ -334,23 +348,16 @@ export class MeTTaPolicyNetwork extends Component {
         }
     }
 
-    _observationToString(observation) {
-        const data = observation instanceof SymbolicTensor
-            ? Array.from(observation.data)
-            : Array.isArray(observation) ? observation : [observation];
-        return `(${data.map(v => v.toFixed(4)).join(' ')})`;
-    }
-
     _createTargetTensor(action, value) {
         return `(${action.toFixed(4)} ${value.toFixed(4)})`;
     }
 
     _fallbackAction(type) {
+        const { actionLow = -1, actionHigh = 1, outputDim } = this.config;
         if (type === 'continuous') {
-            const { actionLow = -1, actionHigh = 1, outputDim } = this.config;
             return Array.from({ length: outputDim }, () => actionLow + Math.random() * (actionHigh - actionLow));
         }
-        return Math.floor(Math.random() * this.config.outputDim);
+        return Math.floor(Math.random() * outputDim);
     }
 
     getParameters() { return Object.fromEntries(this.parameters); }
@@ -364,17 +371,7 @@ export class MeTTaPolicyNetwork extends Component {
 
 export class UnifiedNeuroSymbolicAgent extends Component {
     constructor(config = {}) {
-        super({
-            senarsConfig: {},
-            mettaConfig: {},
-            policyScript: null,
-            tensorConfig: {},
-            actionSpace: null,
-            actionType: 'auto',
-            integrationMode: 'full',
-            reasoningCycles: 50,
-            ...config
-        });
+        super(mergeConfig(AGENT_DEFAULTS, config));
 
         this.senarsBridge = null;
         this.policyNetwork = null;
@@ -404,7 +401,7 @@ export class UnifiedNeuroSymbolicAgent extends Component {
             await this.policyNetwork.initialize();
         }
 
-        this.causalReasoner = new CausalReasoner({ graph: new CausalGraph({ maxNodes: 100 }) });
+        this.causalReasoner = new CausalReasoner({ graph: new CausalGraph({ maxNodes: this.config.maxCausalNodes }) });
         await this.causalReasoner.initialize();
 
         this.emit('initialized', {
@@ -449,7 +446,7 @@ export class UnifiedNeuroSymbolicAgent extends Component {
         }
 
         this.actionHistory.push({ observation, action, source, timestamp: Date.now() });
-        if (this.actionHistory.length > 1000) this.actionHistory.shift();
+        if (this.actionHistory.length > this.config.actionHistoryLimit) this.actionHistory.shift();
 
         return action;
     }
@@ -501,17 +498,12 @@ export class UnifiedNeuroSymbolicAgent extends Component {
 
         if (this.senarsBridge && reward !== 0) {
             const valence = reward > 0 ? 'good' : 'bad';
-            await this.senarsBridge.input(`<(*, ${this._stateToTerm(nextState)}) --> ${valence}>.`);
+            await this.senarsBridge.input(`<(*, ${stateToTerm(nextState)}) --> ${valence}>.`);
         }
 
-        if (this.experienceBuffer.length > 10000) this.experienceBuffer.shift();
+        if (this.experienceBuffer.length > this.config.experienceBufferLimit) this.experienceBuffer.shift();
 
         return { stored: true, experience };
-    }
-
-    _stateToTerm(state) {
-        if (Array.isArray(state)) return state.map(v => Math.round(v * 10)).join('_');
-        return String(state);
     }
 
     _updateCausalModel(transition) {
@@ -528,7 +520,7 @@ export class UnifiedNeuroSymbolicAgent extends Component {
 
         if (this.experienceBuffer.length > 100) {
             const trajectories = this._extractTrajectories();
-            graph.learnStructure(trajectories, { minStrength: 0.1 });
+            graph.learnStructure(trajectories, { minStrength: this.config.minCausalStrength });
         }
     }
 
@@ -560,6 +552,7 @@ export class UnifiedNeuroSymbolicAgent extends Component {
     }
 
     getGoal() { return this.currentGoal; }
+
     clearGoal() {
         this.currentGoal = null;
         this.senarsBridge?.clearGoals();

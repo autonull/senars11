@@ -2,15 +2,67 @@ import { Component } from '../composable/Component.js';
 import { ExperienceStore, SkillExtractor } from '../experience/ExperienceSystem.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 
-const DEFAULTS = {
+const MODULE_DEFAULTS = {
     name: 'CognitiveModule',
     enabled: true,
     priority: 0
 };
 
+const PERCEPTION_DEFAULTS = {
+    featureExtractors: [],
+    attentionMechanism: null
+};
+
+const REASONING_DEFAULTS = {
+    reasoningEngine: null,
+    inferenceDepth: 3,
+    causalReasoning: false
+};
+
+const PLANNING_DEFAULTS = {
+    planningStrategy: null,
+    worldModel: null,
+    horizon: 10,
+    planHistoryLimit: 100
+};
+
+const ACTION_DEFAULTS = {
+    explorationStrategy: null,
+    actionSpace: null,
+    actionHistoryLimit: 1000
+};
+
+const MEMORY_DEFAULTS = {
+    experienceStore: null,
+    retrievalStrategy: null,
+    workingMemoryLimit: 50
+};
+
+const SKILL_DEFAULTS = {
+    skillExtractor: null,
+    skillLibrary: null
+};
+
+const METACOGNITIVE_DEFAULTS = {
+    selfModel: null,
+    reflectionInterval: 100,
+    reflectionsLimit: 10,
+    recentInsightsLimit: 5
+};
+
+const ARCHITECTURE_DEFAULTS = {
+    name: 'CognitiveArchitecture',
+    modules: [],
+    integrationStrategy: 'sequential'
+};
+
+const PROCESSING_ORDER = ['perception', 'reasoning', 'planning', 'memory', 'skills', 'action'];
+const HIGH_LEVEL_MODULES = ['perception', 'reasoning', 'planning'];
+const LOW_LEVEL_MODULES = ['memory', 'skills', 'action'];
+
 export class CognitiveModule extends Component {
     constructor(config = {}) {
-        super(mergeConfig(DEFAULTS, config));
+        super(mergeConfig(MODULE_DEFAULTS, config));
         this.inputs = new Map();
         this.outputs = new Map();
         this.state = new Map();
@@ -23,6 +75,7 @@ export class CognitiveModule extends Component {
     connectInput(name, source) { this.inputs.set(name, source); return this; }
     connectOutput(name, target) { this.outputs.set(name, target); return this; }
     getState(key) { return this.state.get(key); }
+
     setState(key, value) {
         this.state.set(key, value);
         this.emit('stateChange', { key, value });
@@ -39,11 +92,7 @@ export class CognitiveModule extends Component {
 
 export class PerceptionModule extends CognitiveModule {
     constructor(config = {}) {
-        super({
-            ...config,
-            featureExtractors: config.featureExtractors ?? [],
-            attentionMechanism: config.attentionMechanism ?? null
-        });
+        super(mergeConfig(PERCEPTION_DEFAULTS, config));
         this.features = new Map();
         this.symbols = new Map();
     }
@@ -66,7 +115,7 @@ export class PerceptionModule extends CognitiveModule {
         const results = await Promise.all(
             this.config.featureExtractors.map(async extractor => {
                 try { return await extractor(observation); }
-                catch (e) { console.error('Feature extraction error:', e); return null; }
+                catch { return null; }
             })
         );
         const filtered = results.filter(r => r !== null);
@@ -74,39 +123,32 @@ export class PerceptionModule extends CognitiveModule {
     }
 
     async liftToSymbols(features) {
+        if (!Array.isArray(features)) return new Map();
         const symbols = new Map();
-        if (Array.isArray(features)) {
-            features.forEach((f, i) => {
-                if (Math.abs(f) > 0.5) {
-                    symbols.set(`f${i}`, { feature: i, value: f, salience: Math.abs(f) });
-                }
-            });
-        }
+        features.forEach((f, i) => {
+            if (Math.abs(f) > 0.5) {
+                symbols.set(`f${i}`, { feature: i, value: f, salience: Math.abs(f) });
+            }
+        });
         return symbols;
     }
 }
 
 export class ReasoningModule extends CognitiveModule {
     constructor(config = {}) {
-        super({
-            ...config,
-            reasoningEngine: config.reasoningEngine ?? null,
-            inferenceDepth: config.inferenceDepth ?? 3,
-            causalReasoning: config.causalReasoning ?? false
-        });
+        super(mergeConfig(REASONING_DEFAULTS, config));
         this.beliefs = new Map();
         this.inferences = [];
     }
 
     async process(input, context = {}) {
-        const { symbols, features } = input;
+        const { symbols } = input;
         this.updateBeliefs(symbols);
         const inferences = await this.performInference(context);
 
-        let causalAnalysis = null;
-        if (this.config.causalReasoning && this.config.reasoningEngine?.graph) {
-            causalAnalysis = this.analyzeCausally(symbols);
-        }
+        const causalAnalysis = this.config.causalReasoning && this.config.reasoningEngine?.graph
+            ? this.analyzeCausally(symbols)
+            : null;
 
         this.setState('lastInferences', inferences);
         this.setState('beliefs', new Map(this.beliefs));
@@ -126,7 +168,6 @@ export class ReasoningModule extends CognitiveModule {
             }
         });
 
-        // Decay old beliefs
         this.beliefs.forEach((belief, key) => {
             const age = now - belief.timestamp;
             belief.confidence *= Math.exp(-age / 3600000);
@@ -192,12 +233,7 @@ export class ReasoningModule extends CognitiveModule {
 
 export class PlanningModule extends CognitiveModule {
     constructor(config = {}) {
-        super({
-            ...config,
-            planningStrategy: config.planningStrategy ?? null,
-            worldModel: config.worldModel ?? null,
-            horizon: config.horizon ?? 10
-        });
+        super(mergeConfig(PLANNING_DEFAULTS, config));
         this.currentPlan = null;
         this.planHistory = [];
     }
@@ -210,7 +246,7 @@ export class PlanningModule extends CognitiveModule {
         if (plan) {
             this.currentPlan = plan;
             this.planHistory.push({ plan, timestamp: Date.now() });
-            if (this.planHistory.length > 100) this.planHistory.shift();
+            if (this.planHistory.length > this.config.planHistoryLimit) this.planHistory.shift();
         }
         return { plan, goal };
     }
@@ -245,11 +281,7 @@ export class PlanningModule extends CognitiveModule {
 
 export class ActionModule extends CognitiveModule {
     constructor(config = {}) {
-        super({
-            ...config,
-            explorationStrategy: config.explorationStrategy ?? null,
-            actionSpace: config.actionSpace ?? null
-        });
+        super(mergeConfig(ACTION_DEFAULTS, config));
         this.actionHistory = [];
         this.lastAction = null;
     }
@@ -258,7 +290,7 @@ export class ActionModule extends CognitiveModule {
         const { plan, policy, state } = context;
         let action, source;
 
-        if (plan && plan.length > 0) {
+        if (plan?.length > 0) {
             action = plan.shift();
             source = 'plan';
         } else if (policy) {
@@ -271,7 +303,7 @@ export class ActionModule extends CognitiveModule {
 
         this.lastAction = action;
         this.actionHistory.push({ action, timestamp: Date.now() });
-        if (this.actionHistory.length > 1000) this.actionHistory.shift();
+        if (this.actionHistory.length > this.config.actionHistoryLimit) this.actionHistory.shift();
 
         return { action, source };
     }
@@ -303,11 +335,10 @@ export class ActionModule extends CognitiveModule {
 
 export class MemoryModule extends CognitiveModule {
     constructor(config = {}) {
-        super({
+        super(mergeConfig(MEMORY_DEFAULTS, {
             ...config,
-            experienceStore: config.experienceStore ?? new ExperienceStore(),
-            retrievalStrategy: config.retrievalStrategy ?? null
-        });
+            experienceStore: config.experienceStore ?? new ExperienceStore()
+        }));
         this.workingMemory = new Map();
         this.retrievalHistory = [];
     }
@@ -317,9 +348,7 @@ export class MemoryModule extends CognitiveModule {
 
         if (store && input.experience) this.storeExperience(input.experience);
 
-        let retrieved = null;
-        if (query) retrieved = await this.retrieve(query);
-
+        const retrieved = query ? await this.retrieve(query) : null;
         return { retrieved, workingMemory: new Map(this.workingMemory) };
     }
 
@@ -343,9 +372,9 @@ export class MemoryModule extends CognitiveModule {
         const results = this.config.experienceStore.query(options).take(10).collect();
 
         this.retrievalHistory.push({ query, results, timestamp: Date.now() });
-
         results.forEach(result => this.workingMemory.set(result.id, result));
-        if (this.workingMemory.size > 50) {
+
+        if (this.workingMemory.size > this.config.workingMemoryLimit) {
             const firstKey = this.workingMemory.keys().next().value;
             this.workingMemory.delete(firstKey);
         }
@@ -366,9 +395,9 @@ export class MemoryModule extends CognitiveModule {
 
 export class SkillModule extends CognitiveModule {
     constructor(config = {}) {
-        super({ name: 'SkillModule', ...config });
-        this.config.skillExtractor = config.skillExtractor ?? new SkillExtractor();
-        this.config.skillLibrary = config.skillLibrary ?? new Map();
+        super(mergeConfig(SKILL_DEFAULTS, { name: 'SkillModule', ...config }));
+        this.config.skillExtractor = this.config.skillExtractor ?? new SkillExtractor();
+        this.config.skillLibrary = this.config.skillLibrary ?? new Map();
         this.activeSkill = null;
         this.skillUsage = new Map();
     }
@@ -401,10 +430,8 @@ export class SkillModule extends CognitiveModule {
     }
 
     selectSkill(state) {
-        const applicable = [];
-        this.config.skillLibrary.forEach(skill => {
-            if (skill.precondition?.(state)) applicable.push(skill);
-        });
+        const applicable = Array.from(this.config.skillLibrary.values())
+            .filter(skill => skill.precondition?.(state));
 
         if (applicable.length === 0) return null;
 
@@ -426,11 +453,7 @@ export class SkillModule extends CognitiveModule {
 
 export class MetaCognitiveModule extends CognitiveModule {
     constructor(config = {}) {
-        super({
-            ...config,
-            selfModel: config.selfModel ?? null,
-            reflectionInterval: config.reflectionInterval ?? 100
-        });
+        super(mergeConfig(METACOGNITIVE_DEFAULTS, config));
         this.reflections = [];
         this.selfKnowledge = new Map();
         this.stepCount = 0;
@@ -443,7 +466,10 @@ export class MetaCognitiveModule extends CognitiveModule {
             await this.reflect(input, context);
         }
 
-        return { selfState: this.monitorSelf(), reflections: this.reflections.slice(-10) };
+        return {
+            selfState: this.monitorSelf(),
+            reflections: this.reflections.slice(-this.config.reflectionsLimit)
+        };
     }
 
     async reflect(input, context) {
@@ -513,7 +539,7 @@ export class MetaCognitiveModule extends CognitiveModule {
             stepCount: this.stepCount,
             reflectionCount: this.reflections.length,
             selfKnowledgeSize: this.selfKnowledge.size,
-            recentInsights: this.reflections.slice(-5).flatMap(r => r.insights)
+            recentInsights: this.reflections.slice(-this.config.recentInsightsLimit).flatMap(r => r.insights)
         };
     }
 
@@ -522,12 +548,7 @@ export class MetaCognitiveModule extends CognitiveModule {
 
 export class CognitiveArchitecture extends Component {
     constructor(config = {}) {
-        super({
-            name: config.name ?? 'CognitiveArchitecture',
-            modules: config.modules ?? [],
-            integrationStrategy: config.integrationStrategy ?? 'sequential',
-            ...config
-        });
+        super(mergeConfig(ARCHITECTURE_DEFAULTS, config));
 
         this.modules = new Map();
         this.connections = [];
@@ -589,10 +610,9 @@ export class CognitiveArchitecture extends Component {
     }
 
     async processSequential(input, context, results) {
-        const order = ['perception', 'reasoning', 'planning', 'memory', 'skills', 'action'];
         let current = input;
 
-        for (const name of order) {
+        for (const name of PROCESSING_ORDER) {
             const module = this.modules.get(name);
             if (!module || !module.config.enabled) continue;
 
@@ -622,10 +642,9 @@ export class CognitiveArchitecture extends Component {
     }
 
     async processHierarchical(input, context, results) {
-        const highLevel = ['perception', 'reasoning', 'planning'];
         let current = input;
 
-        for (const name of highLevel) {
+        for (const name of HIGH_LEVEL_MODULES) {
             const module = this.modules.get(name);
             if (!module || !module.config.enabled) continue;
             const result = await module.process(current, context);
@@ -633,8 +652,7 @@ export class CognitiveArchitecture extends Component {
             current = { ...current, ...result };
         }
 
-        const lowLevel = ['memory', 'skills', 'action'];
-        for (const name of lowLevel) {
+        for (const name of LOW_LEVEL_MODULES) {
             const module = this.modules.get(name);
             if (!module || !module.config.enabled) continue;
             const result = await module.process(current, { ...context, highLevel: results });
@@ -658,7 +676,7 @@ export class CognitiveArchitecture extends Component {
 
         const skillModule = this.modules.get('skills');
         if (skillModule && Math.random() < 0.01) {
-            const episodes = memoryModule?.getExperienceStore().getRecentEpisodes(10);
+            const episodes = memoryModule?.getExperienceStore()?.getRecentEpisodes(10);
             if (episodes) skillModule.process({}, { episodes, extractSkills: true });
         }
     }

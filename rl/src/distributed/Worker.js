@@ -1,5 +1,21 @@
 import { parentPort, workerData } from 'worker_threads';
 
+const WORKER_DEFAULTS = {
+    maxSteps: 500,
+    defaultEpisodes: 10,
+    taskTimeout: 30000,
+    retryAttempts: 3
+};
+
+const TASK_DEFAULTS = {
+    steps: 500,
+    episodes: 10,
+    maxSteps: 500,
+    envConfig: {}
+};
+
+const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
+
 const TaskExecutors = {
     async rollout(env, policy, steps, envConfig, task) {
         const envModule = await import(`../environments/${env}.js`);
@@ -65,9 +81,9 @@ const TaskExecutors = {
 };
 
 class Worker {
-    constructor(id, config) {
+    constructor(id, config = {}) {
         this.id = id;
-        this.config = config;
+        this.config = mergeConfig(WORKER_DEFAULTS, config);
         this.status = 'idle';
         this.currentTask = null;
         this.tasksCompleted = 0;
@@ -97,16 +113,21 @@ class Worker {
     }
 
     async runTask(task) {
+        const mergedTask = { ...TASK_DEFAULTS, ...task };
         const executors = {
-            rollout: () => TaskExecutors.rollout(task.env, task.policy, task.steps, task.envConfig, task),
-            train: () => TaskExecutors.train(task.model, task.batch, task.config),
-            evaluate: () => TaskExecutors.evaluate(task.env, task.policy, task.episodes, task.maxSteps, task),
-            custom: () => TaskExecutors.custom(task.fn, task.args)
+            rollout: () => TaskExecutors.rollout(
+                mergedTask.env, mergedTask.policy, mergedTask.steps, mergedTask.envConfig, mergedTask
+            ),
+            train: () => TaskExecutors.train(mergedTask.model, mergedTask.batch, mergedTask.config),
+            evaluate: () => TaskExecutors.evaluate(
+                mergedTask.env, mergedTask.policy, mergedTask.episodes, mergedTask.maxSteps, mergedTask
+            ),
+            custom: () => TaskExecutors.custom(mergedTask.fn, mergedTask.args)
         };
 
-        const executor = executors[task.type];
+        const executor = executors[mergedTask.type];
         if (!executor) {
-            throw new Error(`Unknown task type: ${task.type}`);
+            throw new Error(`Unknown task type: ${mergedTask.type}`);
         }
 
         return executor();

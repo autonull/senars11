@@ -2,23 +2,25 @@ import { RLAgent } from '../core/RLAgent.js';
 import { ExperienceBuffer, CausalExperience } from '../experience/ExperienceBuffer.js';
 import { Tensor, AdamOptimizer, LossFunctor } from '@senars/tensor';
 
+const DQN_DEFAULTS = {
+    gamma: 0.99,
+    epsilon: 1.0,
+    epsilonMin: 0.01,
+    epsilonDecay: 0.995,
+    learningRate: 0.001,
+    batchSize: 64,
+    memorySize: 10000,
+    hiddenSize: 64,
+    targetUpdate: 100,
+    useCausalIndexing: false
+};
+
+const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
+
 export class DQNAgent extends RLAgent {
     constructor(env, config = {}) {
         super(env);
-        this.config = {
-            gamma: 0.99,
-            epsilon: 1.0,
-            epsilonMin: 0.01,
-            epsilonDecay: 0.995,
-            learningRate: 0.001,
-            batchSize: 64,
-            memorySize: 10000,
-            hiddenSize: 64,
-            targetUpdate: 100,
-            useCausalIndexing: config.useCausalIndexing ?? false,
-            ...config
-        };
-
+        this.config = mergeConfig(DQN_DEFAULTS, config);
         this.steps = 0;
         this.optimizer = new AdamOptimizer(this.config.learningRate);
         this.lossFn = new LossFunctor();

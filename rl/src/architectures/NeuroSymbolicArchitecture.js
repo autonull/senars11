@@ -6,7 +6,7 @@ import { WorldModel } from '../neurosymbolic/WorldModel.js';
 import { SkillLibrary, SkillDiscoveryEngine } from '../skills/HierarchicalSkillSystem.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 
-const DEFAULTS = {
+const ARCH_DEFAULTS = {
     architecture: 'dual-process',
     reasoning: 'metta',
     grounding: 'learned',
@@ -45,7 +45,24 @@ const LAYER_DEFAULTS = {
     attention: { units: 64, symbolic: true, attention: true }
 };
 
-const ARCHITECTURE_TEMPLATES = {
+const UNIT_DEFAULTS = {
+    inputDim: 64,
+    hiddenDim: 128,
+    outputDim: 32,
+    symbolDim: 16,
+    activation: 'relu'
+};
+
+const LAYER_CONFIG_DEFAULTS = {
+    type: 'feedforward',
+    units: 64,
+    activation: 'relu',
+    symbolic: true,
+    attention: false,
+    residual: false
+};
+
+const TEMPLATE_FACTORIES = {
     'dual-process': (config) => ({
         layers: [
             { type: 'perception', ...config.perception },
@@ -101,9 +118,9 @@ const ARCHITECTURE_TEMPLATES = {
 
 export class ArchitectureConfig {
     constructor(config = {}) {
-        const { hyperparams = {}, ...rest } = mergeConfig(DEFAULTS, config);
+        const { hyperparams = {}, ...rest } = mergeConfig(ARCH_DEFAULTS, config);
         Object.assign(this, rest);
-        this.hyperparams = mergeConfig(DEFAULTS.hyperparams, hyperparams);
+        this.hyperparams = mergeConfig(ARCH_DEFAULTS.hyperparams, hyperparams);
     }
 
     clone(overrides = {}) {
@@ -117,14 +134,7 @@ export class ArchitectureConfig {
 
 export class NeuroSymbolicUnit extends Component {
     constructor(config = {}) {
-        super(mergeConfig({
-            inputDim: 64,
-            hiddenDim: 128,
-            outputDim: 32,
-            symbolDim: 16,
-            activation: 'relu'
-        }, config));
-
+        super(mergeConfig(UNIT_DEFAULTS, config));
         this.bridge = new TensorLogicBridge();
         this.state = null;
         this.symbols = new Map();
@@ -140,12 +150,10 @@ export class NeuroSymbolicUnit extends Component {
 
     async process(input, context = {}) {
         const { lift = true, ground = false, attend = false } = context;
-
         const encoded = this.encode(input);
         const lifted = lift ? this.lift(encoded) : encoded;
         const attended = attend ? this.applyAttention(lifted) : lifted;
         const processed = await this.symbolicProcess(attended);
-
         return ground ? this.ground(processed) : processed;
     }
 
@@ -165,43 +173,27 @@ export class NeuroSymbolicUnit extends Component {
 
     applyAttention(tensor) {
         if (!tensor.symbols?.size) return tensor;
-
         const mask = this.bridge.createAttentionMask(
             tensor,
             new Set(Array.from(tensor.symbols.values()).map(s => s.symbol))
         );
-
         return this.bridge.symbolicMul(tensor, mask, 'intersection');
     }
 
-    async symbolicProcess(input) {
-        return input;
-    }
+    async symbolicProcess(input) { return input; }
 
     setState(neural, symbolic = null) {
         this.state.neural = neural;
-        if (symbolic) {
-            this.state.symbolic = symbolic;
-        }
+        if (symbolic) this.state.symbolic = symbolic;
         this.emit('stateUpdate', { neural, symbolic: this.state.symbolic });
     }
 
-    getState() {
-        return { ...this.state };
-    }
+    getState() { return { ...this.state }; }
 }
 
 export class NeuroSymbolicLayer extends Component {
     constructor(config = {}) {
-        super(mergeConfig({
-            type: 'feedforward',
-            units: 64,
-            activation: 'relu',
-            symbolic: true,
-            attention: false,
-            residual: false
-        }, config));
-
+        super(mergeConfig(LAYER_CONFIG_DEFAULTS, config));
         this.units = [];
         this.connections = new Map();
     }
@@ -226,14 +218,9 @@ export class NeuroSymbolicLayer extends Component {
 
         const aggregated = outputs[0].clone();
         outputs.slice(1).forEach(output => {
-            output.data.forEach((val, i) => {
-                aggregated.data[i] += val;
-            });
+            output.data.forEach((val, i) => { aggregated.data[i] += val; });
         });
-        aggregated.data.forEach((_, i) => {
-            aggregated.data[i] /= outputs.length;
-        });
-
+        aggregated.data.forEach((_, i) => { aggregated.data[i] /= outputs.length; });
         return aggregated;
     }
 
@@ -261,12 +248,9 @@ export class ArchitectureBuilder {
     }
 
     addLayer(type, options = {}) {
-        const layer = new NeuroSymbolicLayer({
-            type,
-            id: `layer_${this.layers.length}`,
-            ...options
-        });
-        this.layers.push(layer);
+        this.layers.push(new NeuroSymbolicLayer({
+            type, id: `layer_${this.layers.length}`, ...options
+        }));
         return this;
     }
 
@@ -302,23 +286,18 @@ export class ArchitectureBuilder {
     }
 
     withAttention() {
-        this.layers.forEach(layer => {
-            layer.config.attention = true;
-        });
+        this.layers.forEach(layer => { layer.config.attention = true; });
         return this;
     }
 
     async build() {
         const architecture = new NeuroSymbolicArchitecture(this.config);
-
         this.layers.forEach(layer => architecture.addLayer(layer.config.id, layer));
-
         this.connections.forEach(conn => {
             const fromLayer = this.layers[conn.from];
             const toLayer = this.layers[conn.to];
             toLayer.connect(fromLayer, conn.targetUnits);
         });
-
         return architecture;
     }
 }
@@ -343,13 +322,8 @@ export class NeuroSymbolicArchitecture extends Component {
         return this;
     }
 
-    getLayer(name) {
-        return this.layers.get(name);
-    }
-
-    buildExecutionOrder() {
-        this.executionOrder = Array.from(this.layers.keys());
-    }
+    getLayer(name) { return this.layers.get(name); }
+    buildExecutionOrder() { this.executionOrder = Array.from(this.layers.keys()); }
 
     async process(input, context = {}) {
         let current = input;
@@ -358,7 +332,6 @@ export class NeuroSymbolicArchitecture extends Component {
         for (const layerName of this.executionOrder) {
             const layer = this.layers.get(layerName);
             if (!layer) continue;
-
             const output = await layer.process(current, { ...context, layer: layerName });
             activations.set(layerName, output);
             current = output;
@@ -370,38 +343,27 @@ export class NeuroSymbolicArchitecture extends Component {
     async act(observation, goal = null) {
         const context = goal ? { goal, lift: true, ground: true } : { lift: true, ground: true };
         const result = await this.process(observation, context);
-
         if (result.output instanceof SymbolicTensor) {
             return this.extractAction(result.output);
         }
-
         return result.output;
     }
 
     extractAction(tensor) {
         let maxIdx = 0;
         let maxVal = tensor.data[0];
-
         tensor.data.slice(1).forEach((val, i) => {
-            if (val > maxVal) {
-                maxVal = val;
-                maxIdx = i + 1;
-            }
+            if (val > maxVal) { maxVal = val; maxIdx = i + 1; }
         });
-
         return maxIdx;
     }
 
     async learn(transition, reward) {
         const { state, action, nextState, done } = transition;
-
         [...this.executionOrder].reverse().forEach(layerName => {
             const layer = this.layers.get(layerName);
-            if (layer?.learn) {
-                layer.learn(transition, reward);
-            }
+            if (layer?.learn) layer.learn(transition, reward);
         });
-
         this.emit('learning', { transition, reward });
     }
 
@@ -409,8 +371,7 @@ export class NeuroSymbolicArchitecture extends Component {
         return {
             config: this.config.toJSON(),
             layers: Array.from(this.layers.entries()).map(([name, layer]) => ({
-                name,
-                config: layer.config
+                name, config: layer.config
             })),
             executionOrder: this.executionOrder
         };

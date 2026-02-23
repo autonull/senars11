@@ -4,94 +4,92 @@
  * For environments requiring mixed action types (e.g., discrete grip + continuous movement).
  */
 
-/**
- * Hybrid Action Space
- * Combines discrete and continuous action components into unified space.
- */
+const HYBRID_SPACE_DEFAULTS = {
+    discrete: {},
+    continuous: {},
+    defaultLow: -1,
+    defaultHigh: 1
+};
+
+const STRUCTURED_ACTION_DEFAULTS = {
+    maxMetadataSize: 100
+};
+
+const SELECTOR_DEFAULTS = {
+    discreteStrategy: 'argmax',
+    continuousStrategy: 'sample',
+    temperature: 1.0,
+    defaultExploration: 0.1
+};
+
+const ADAPTER_DEFAULTS = {
+    maxHistorySize: 100
+};
+
+const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
+
+const computeDim = (specs) =>
+    Object.values(specs).reduce((dim, spec) =>
+        dim + (spec.shape?.reduce((a, b) => a * b, 1) ?? 1), 0);
+
+const sampleRange = (low, high, shape) => {
+    const size = shape.reduce((a, b) => a * b, 1);
+    if (Array.isArray(low)) {
+        return low.map((l, i) => {
+            const h = Array.isArray(high) ? high[i] : high;
+            return l + Math.random() * (h - l);
+        });
+    }
+    return Array.from({ length: size }, () => low + Math.random() * (high - low));
+};
+
 export class HybridActionSpace {
     constructor(spec = {}) {
+        const config = mergeConfig(HYBRID_SPACE_DEFAULTS, spec);
         this.type = 'Hybrid';
-        
-        // Discrete components
-        this.discrete = spec.discrete ?? {};
-        // e.g., { grip: { n: 2 }, tool: { n: 4 } }
-        
-        // Continuous components  
-        this.continuous = spec.continuous ?? {};
-        // e.g., { joint1: { low: -1, high: 1 }, joint2: { low: -1, high: 1 } }
-        
-        // Compute total dimensions
+        this.discrete = config.discrete;
+        this.continuous = config.continuous;
         this.discreteCount = Object.keys(this.discrete).length;
         this.continuousCount = Object.keys(this.continuous).length;
-        this.continuousDim = this._computeContinuousDim();
+        this.continuousDim = computeDim(this.continuous);
     }
 
-    _computeContinuousDim() {
-        let dim = 0;
-        for (const spec of Object.values(this.continuous)) {
-            dim += spec.shape?.reduce((a, b) => a * b, 1) ?? 1;
-        }
-        return dim;
-    }
-
-    /**
-     * Sample from hybrid space
-     */
     sample() {
         const action = {};
-        
-        // Sample discrete components
-        for (const [name, spec] of Object.entries(this.discrete)) {
-            action[name] = Math.floor(Math.random() * spec.n);
-        }
 
-        // Sample continuous components
-        for (const [name, spec] of Object.entries(this.continuous)) {
+        Object.entries(this.discrete).forEach(([name, spec]) => {
+            action[name] = Math.floor(Math.random() * spec.n);
+        });
+
+        Object.entries(this.continuous).forEach(([name, spec]) => {
             const low = spec.low ?? -1;
             const high = spec.high ?? 1;
             const shape = spec.shape ?? [1];
-            const size = shape.reduce((a, b) => a * b, 1);
+            action[name] = sampleRange(low, high, shape);
 
-            if (Array.isArray(low)) {
-                action[name] = low.map((l, i) => {
-                    const h = Array.isArray(high) ? high[i] : high;
-                    return l + Math.random() * (h - l);
-                });
-            } else {
-                action[name] = Array.from({ length: size }, () =>
-                    low + Math.random() * (high - low)
-                );
-            }
-
-            // Only unwrap if shape is [1] (single value)
             if (shape.length === 1 && shape[0] === 1 && Array.isArray(action[name])) {
                 action[name] = action[name][0];
             }
-        }
+        });
 
         return action;
     }
 
-    /**
-     * Check if action is valid
-     */
     contains(action) {
         if (!action || typeof action !== 'object') return false;
-        
-        // Check discrete components
+
         for (const [name, spec] of Object.entries(this.discrete)) {
             if (!(name in action)) return false;
             const value = action[name];
             if (!Number.isInteger(value) || value < 0 || value >= spec.n) return false;
         }
-        
-        // Check continuous components
+
         for (const [name, spec] of Object.entries(this.continuous)) {
             if (!(name in action)) return false;
             const value = action[name];
             const low = spec.low ?? -1;
             const high = spec.high ?? 1;
-            
+
             if (Array.isArray(value)) {
                 for (let i = 0; i < value.length; i++) {
                     const l = Array.isArray(low) ? low[i] : low;
@@ -102,65 +100,48 @@ export class HybridActionSpace {
                 if (value < low || value > high) return false;
             }
         }
-        
+
         return true;
     }
 
-    /**
-     * Get flat representation for neural networks
-     */
     flatten(action) {
         const flat = [];
-        
-        // One-hot encode discrete
-        for (const [name, spec] of Object.entries(this.discrete)) {
+
+        Object.entries(this.discrete).forEach(([name, spec]) => {
             const oneHot = new Array(spec.n).fill(0);
             oneHot[action[name]] = 1;
             flat.push(...oneHot);
-        }
-        
-        // Flatten continuous
-        for (const [name, spec] of Object.entries(this.continuous)) {
+        });
+
+        Object.entries(this.continuous).forEach(([name]) => {
             const value = action[name];
-            if (Array.isArray(value)) {
-                flat.push(...value);
-            } else {
-                flat.push(value);
-            }
-        }
-        
+            flat.push(...(Array.isArray(value) ? value : [value]));
+        });
+
         return flat;
     }
 
-    /**
-     * Reconstruct action from flat representation
-     */
     unflatten(flat) {
         const action = {};
         let idx = 0;
-        
-        // Decode discrete (one-hot)
-        for (const [name, spec] of Object.entries(this.discrete)) {
+
+        Object.entries(this.discrete).forEach(([name, spec]) => {
             const oneHot = flat.slice(idx, idx + spec.n);
             action[name] = oneHot.indexOf(Math.max(...oneHot));
             idx += spec.n;
-        }
-        
-        // Decode continuous
-        for (const [name, spec] of Object.entries(this.continuous)) {
+        });
+
+        Object.entries(this.continuous).forEach(([name, spec]) => {
             const shape = spec.shape ?? [1];
             const size = shape.reduce((a, b) => a * b, 1);
             const value = flat.slice(idx, idx + size);
             action[name] = shape.length <= 1 ? value[0] : value;
             idx += size;
-        }
-        
+        });
+
         return action;
     }
 
-    /**
-     * Get space info
-     */
     toJSON() {
         return {
             type: 'Hybrid',
@@ -174,45 +155,25 @@ export class HybridActionSpace {
     }
 
     _getFlatDim() {
-        let dim = 0;
-        
-        // One-hot dimensions
-        for (const spec of Object.values(this.discrete)) {
-            dim += spec.n;
-        }
-        
-        // Continuous dimensions
-        dim += this.continuousDim;
-        
-        return dim;
+        const discreteDim = Object.values(this.discrete).reduce((sum, spec) => sum + spec.n, 0);
+        return discreteDim + this.continuousDim;
     }
 }
 
-/**
- * Structured Action
- * Represents a hybrid action with both discrete and continuous components.
- */
 export class StructuredAction {
     constructor(components = {}) {
+        const config = mergeConfig(STRUCTURED_ACTION_DEFAULTS, {});
         this.components = { ...components };
         this.timestamp = Date.now();
         this.metadata = new Map();
+        this._maxMetadata = config.maxMetadataSize;
     }
 
-    /**
-     * Set discrete component
-     */
     discrete(name, value) {
-        this.components[name] = {
-            type: 'discrete',
-            value
-        };
+        this.components[name] = { type: 'discrete', value };
         return this;
     }
 
-    /**
-     * Set continuous component
-     */
     continuous(name, value) {
         this.components[name] = {
             type: 'continuous',
@@ -221,52 +182,33 @@ export class StructuredAction {
         return this;
     }
 
-    /**
-     * Get discrete value
-     */
     getDiscrete(name) {
         const comp = this.components[name];
         return comp?.type === 'discrete' ? comp.value : null;
     }
 
-    /**
-     * Get continuous value
-     */
     getContinuous(name) {
         const comp = this.components[name];
         if (comp?.type !== 'continuous') return null;
         return comp.value.length === 1 ? comp.value[0] : comp.value;
     }
 
-    /**
-     * Get all discrete components
-     */
     getAllDiscrete() {
-        const result = {};
-        for (const [name, comp] of Object.entries(this.components)) {
-            if (comp.type === 'discrete') {
-                result[name] = comp.value;
-            }
-        }
-        return result;
+        return Object.fromEntries(
+            Object.entries(this.components)
+                .filter(([, comp]) => comp.type === 'discrete')
+                .map(([name, comp]) => [name, comp.value])
+        );
     }
 
-    /**
-     * Get all continuous components
-     */
     getAllContinuous() {
-        const result = {};
-        for (const [name, comp] of Object.entries(this.components)) {
-            if (comp.type === 'continuous') {
-                result[name] = comp.value.length === 1 ? comp.value[0] : comp.value;
-            }
-        }
-        return result;
+        return Object.fromEntries(
+            Object.entries(this.components)
+                .filter(([, comp]) => comp.type === 'continuous')
+                .map(([name, comp]) => [name, comp.value.length === 1 ? comp.value[0] : comp.value])
+        );
     }
 
-    /**
-     * Clone action
-     */
     clone() {
         const cloned = new StructuredAction();
         cloned.components = JSON.parse(JSON.stringify(this.components));
@@ -274,51 +216,33 @@ export class StructuredAction {
         return cloned;
     }
 
-    /**
-     * Set metadata
-     */
     setMetadata(key, value) {
-        this.metadata.set(key, value);
+        if (this.metadata.size < this._maxMetadata) {
+            this.metadata.set(key, value);
+        }
         return this;
     }
 
-    /**
-     * Get metadata
-     */
     getMetadata(key) {
         return this.metadata.get(key);
     }
 
-    /**
-     * Convert to flat array
-     */
     flatten() {
         const flat = [];
-        
-        // Discrete first (sorted by name for consistency)
+
         const discreteKeys = Object.keys(this.components)
             .filter(k => this.components[k].type === 'discrete')
             .sort();
-        
-        for (const key of discreteKeys) {
-            flat.push(this.components[key].value);
-        }
-        
-        // Continuous (sorted by name)
+        discreteKeys.forEach(key => flat.push(this.components[key].value));
+
         const continuousKeys = Object.keys(this.components)
             .filter(k => this.components[k].type === 'continuous')
             .sort();
-        
-        for (const key of continuousKeys) {
-            flat.push(...this.components[key].value);
-        }
-        
+        continuousKeys.forEach(key => flat.push(...this.components[key].value));
+
         return flat;
     }
 
-    /**
-     * To JSON
-     */
     toJSON() {
         return {
             components: { ...this.components },
@@ -327,64 +251,44 @@ export class StructuredAction {
         };
     }
 
-    /**
-     * From JSON
-     */
     static fromJSON(json) {
         const action = new StructuredAction(json.components);
         action.timestamp = json.timestamp;
-        
+
         if (json.metadata) {
-            for (const [key, value] of Object.entries(json.metadata)) {
+            Object.entries(json.metadata).forEach(([key, value]) => {
                 action.metadata.set(key, value);
-            }
+            });
         }
-        
+
         return action;
     }
 }
 
-/**
- * Hybrid Environment Adapter
- * Unified interface for environments with mixed action spaces.
- */
 export class HybridEnvironmentAdapter {
     constructor(baseEnv, hybridSpec = null) {
+        const config = mergeConfig(ADAPTER_DEFAULTS, {});
         this.baseEnv = baseEnv;
-        
-        // Create or use provided hybrid action space
-        if (hybridSpec) {
-            this.actionSpace = new HybridActionSpace(hybridSpec);
-        } else {
-            this.actionSpace = this._inferHybridSpace(baseEnv);
-        }
-        
-        // Observation space
+        this.actionSpace = hybridSpec
+            ? new HybridActionSpace(hybridSpec)
+            : this._inferHybridSpace(baseEnv);
         this.observationSpace = baseEnv.observationSpace;
-        
-        // Action decomposition
         this.discreteActions = Object.keys(this.actionSpace.discrete);
         this.continuousActions = Object.keys(this.actionSpace.continuous);
     }
 
-    /**
-     * Infer hybrid space from environment
-     */
     _inferHybridSpace(env) {
         const spec = { discrete: {}, continuous: {} };
-        
-        // Check if env has compound action space
+
         if (env.actionSpace?.type === 'Hybrid') {
             return new HybridActionSpace({
                 discrete: env.actionSpace.discrete ?? {},
                 continuous: env.actionSpace.continuous ?? {}
             });
         }
-        
-        // Check for tuple/multi-discrete + box
+
         if (env.actionSpace?.type === 'Tuple') {
-            for (let i = 0; i < env.actionSpace.length; i++) {
-                const space = env.actionSpace[i];
+            env.actionSpace.forEach((space, i) => {
                 if (space.type === 'Discrete') {
                     spec.discrete[`action_${i}`] = { n: space.n };
                 } else if (space.type === 'Box') {
@@ -394,10 +298,9 @@ export class HybridEnvironmentAdapter {
                         high: space.high
                     };
                 }
-            }
+            });
         }
-        
-        // Default: wrap single action space
+
         if (Object.keys(spec.discrete).length === 0 && Object.keys(spec.continuous).length === 0) {
             if (env.actionSpace?.type === 'Discrete') {
                 spec.discrete.main = { n: env.actionSpace.n };
@@ -409,30 +312,19 @@ export class HybridEnvironmentAdapter {
                 };
             }
         }
-        
+
         return new HybridActionSpace(spec);
     }
 
-    /**
-     * Reset environment
-     */
     reset(options = {}) {
         const result = this.baseEnv.reset(options);
-        return {
-            observation: result.observation,
-            info: result.info ?? {}
-        };
+        return { observation: result.observation, info: result.info ?? {} };
     }
 
-    /**
-     * Step with hybrid action
-     */
     step(action) {
-        // Convert structured action to environment format
         const envAction = this._convertToEnvAction(action);
-        
         const result = this.baseEnv.step(envAction);
-        
+
         return {
             observation: result.observation,
             reward: result.reward ?? 0,
@@ -442,33 +334,23 @@ export class HybridEnvironmentAdapter {
         };
     }
 
-    /**
-     * Convert structured action to environment format
-     */
     _convertToEnvAction(action) {
         if (action instanceof StructuredAction) {
-            // Extract components based on environment expectations
             if (this.baseEnv.actionSpace?.type === 'Hybrid') {
-                // Environment expects hybrid format
                 return {
                     discrete: action.getAllDiscrete(),
                     continuous: action.getAllContinuous()
                 };
             }
-            
+
             if (this.baseEnv.actionSpace?.type === 'Tuple') {
-                // Convert to tuple
-                const tuple = [];
-                for (const name of this.discreteActions) {
-                    tuple.push(action.getDiscrete(name));
-                }
-                for (const name of this.continuousActions) {
-                    tuple.push(action.getContinuous(name));
-                }
+                const tuple = [
+                    ...this.discreteActions.map(name => action.getDiscrete(name)),
+                    ...this.continuousActions.map(name => action.getContinuous(name))
+                ];
                 return tuple;
             }
-            
-            // Single action space - use primary component
+
             if (this.discreteActions.length > 0) {
                 return action.getDiscrete(this.discreteActions[0]);
             }
@@ -476,64 +358,42 @@ export class HybridEnvironmentAdapter {
                 return action.getContinuous(this.continuousActions[0]);
             }
         }
-        
-        // Pass through if already in correct format
+
         return action;
     }
 
-    /**
-     * Create structured action from components
-     */
     createAction(discrete = {}, continuous = {}) {
         const action = new StructuredAction();
-        
-        for (const [name, value] of Object.entries(discrete)) {
-            action.discrete(name, value);
-        }
-        
-        for (const [name, value] of Object.entries(continuous)) {
-            action.continuous(name, value);
-        }
-        
+        Object.entries(discrete).forEach(([name, value]) => action.discrete(name, value));
+        Object.entries(continuous).forEach(([name, value]) => action.continuous(name, value));
         return action;
     }
 
-    /**
-     * Sample from action space
-     */
     sample() {
         const sampled = this.actionSpace.sample();
-        return this.createAction(
-            this.discreteActions.reduce((acc, name) => {
-                acc[name] = sampled[name];
-                return acc;
-            }, {}),
-            this.continuousActions.reduce((acc, name) => {
-                acc[name] = sampled[name];
-                return acc;
-            }, {})
-        );
+        const discrete = this.discreteActions.reduce((acc, name) => {
+            acc[name] = sampled[name];
+            return acc;
+        }, {});
+        const continuous = this.continuousActions.reduce((acc, name) => {
+            acc[name] = sampled[name];
+            return acc;
+        }, {});
+        return this.createAction(discrete, continuous);
     }
 
-    /**
-     * Check if action is valid
-     */
     isValidAction(action) {
         if (action instanceof StructuredAction) {
             const flat = this.actionSpace.flatten({
                 ...action.getAllDiscrete(),
                 ...action.getAllContinuous()
             });
-            // Validate by reconstructing
             const reconstructed = this.actionSpace.unflatten(flat);
             return this.actionSpace.contains(reconstructed);
         }
         return this.actionSpace.contains(action);
     }
 
-    /**
-     * Get action space info
-     */
     getInfo() {
         return {
             type: 'Hybrid',
@@ -544,111 +404,75 @@ export class HybridEnvironmentAdapter {
         };
     }
 
-    /**
-     * Render
-     */
     render() {
         return this.baseEnv.render?.();
     }
 
-    /**
-     * Close
-     */
     close() {
         return this.baseEnv.close?.();
     }
 }
 
-/**
- * Hybrid Action Selector
- * Selects both discrete and continuous actions simultaneously.
- */
 export class HybridActionSelector {
     constructor(config = {}) {
-        this.config = {
-            discreteStrategy: config.discreteStrategy ?? 'argmax',
-            continuousStrategy: config.continuousStrategy ?? 'sample',
-            temperature: config.temperature ?? 1.0,
-            ...config
-        };
-        
+        this.config = mergeConfig(SELECTOR_DEFAULTS, config);
         this.discreteValues = new Map();
         this.continuousValues = new Map();
     }
 
-    /**
-     * Set action values
-     */
     setActionValues(neuralOutput, actionSpace) {
         let idx = 0;
-        
-        // Process discrete (one-hot)
-        for (const [name, spec] of Object.entries(actionSpace.discrete)) {
+
+        Object.entries(actionSpace.discrete).forEach(([name, spec]) => {
             const logits = neuralOutput.slice(idx, idx + spec.n);
             this.discreteValues.set(name, logits);
             idx += spec.n;
-        }
-        
-        // Process continuous
-        for (const [name, spec] of Object.entries(actionSpace.continuous)) {
+        });
+
+        Object.entries(actionSpace.continuous).forEach(([name, spec]) => {
             const shape = spec.shape ?? [1];
             const size = shape.reduce((a, b) => a * b, 1);
             const values = neuralOutput.slice(idx, idx + size);
             this.continuousValues.set(name, values);
             idx += size;
-        }
+        });
     }
 
-    /**
-     * Select hybrid action
-     */
     select(actionSpace, options = {}) {
         const action = new StructuredAction();
-        const { exploration = 0.1 } = options;
-        
-        // Select discrete actions
-        for (const [name, spec] of Object.entries(actionSpace.discrete)) {
+        const { exploration = this.config.defaultExploration } = options;
+
+        Object.entries(actionSpace.discrete).forEach(([name, spec]) => {
             const logits = this.discreteValues.get(name) ?? new Array(spec.n).fill(0);
-            
+
             if (Math.random() < exploration) {
-                // Explore: random action
                 action.discrete(name, Math.floor(Math.random() * spec.n));
+            } else if (this.config.discreteStrategy === 'argmax') {
+                action.discrete(name, this._argmax(logits));
             } else {
-                // Exploit: argmax or softmax sample
-                if (this.config.discreteStrategy === 'argmax') {
-                    action.discrete(name, this._argmax(logits));
-                } else {
-                    action.discrete(name, this._softmaxSample(logits, this.config.temperature));
-                }
+                action.discrete(name, this._softmaxSample(logits, this.config.temperature));
             }
-        }
-        
-        // Select continuous actions
-        for (const [name, spec] of Object.entries(actionSpace.continuous)) {
+        });
+
+        Object.entries(actionSpace.continuous).forEach(([name, spec]) => {
             const values = this.continuousValues.get(name) ?? [0];
             const low = spec.low ?? -1;
             const high = spec.high ?? 1;
-            
+
             if (Math.random() < exploration) {
-                // Explore: random
                 const randomVal = Array.isArray(low)
                     ? low.map((l, i) => l + Math.random() * ((Array.isArray(high) ? high[i] : high) - l))
                     : low + Math.random() * (high - low);
                 action.continuous(name, randomVal);
+            } else if (this.config.continuousStrategy === 'sample') {
+                const noise = values.map(() => (Math.random() - 0.5) * exploration);
+                const noisy = values.map((v, i) => v + noise[i]);
+                action.continuous(name, this._scaleToRange(noisy, low, high));
             } else {
-                // Exploit: network output with activation
-                if (this.config.continuousStrategy === 'sample') {
-                    // Add noise for sampling
-                    const noise = values.map(() => (Math.random() - 0.5) * exploration);
-                    const noisy = values.map((v, i) => v + noise[i]);
-                    action.continuous(name, this._scaleToRange(noisy, low, high));
-                } else {
-                    // Deterministic
-                    action.continuous(name, this._scaleToRange(values, low, high));
-                }
+                action.continuous(name, this._scaleToRange(values, low, high));
             }
-        }
-        
+        });
+
         return action;
     }
 
@@ -662,7 +486,7 @@ export class HybridActionSelector {
         const exp = scaled.map(l => Math.exp(l - maxLogit));
         const sum = exp.reduce((a, b) => a + b, 0);
         const probs = exp.map(e => e / sum);
-        
+
         const r = Math.random();
         let cumsum = 0;
         for (let i = 0; i < probs.length; i++) {
@@ -673,39 +497,27 @@ export class HybridActionSelector {
     }
 
     _scaleToRange(values, low, high) {
-        // Tanh scaling to [-1, 1] then to [low, high]
         const scaled = values.map(v => Math.tanh(v));
-        
+
         if (Array.isArray(low)) {
             return scaled.map((s, i) => {
                 const h = Array.isArray(high) ? high[i] : high;
                 return ((s + 1) / 2) * (h - low[i]) + low[i];
             });
         }
-        
+
         return scaled.map(s => ((s + 1) / 2) * (high - low) + low);
     }
 }
 
-/**
- * Factory for creating hybrid action spaces
- */
 export class HybridActionSpaceFactory {
-    /**
-     * Create robot arm action space
-     */
     static createRobotArm(joints = 3, gripActions = 2) {
-        const spec = {
-            discrete: {},
-            continuous: {}
-        };
-        
-        // Discrete grip actions
+        const spec = { discrete: {}, continuous: {} };
+
         for (let i = 0; i < gripActions; i++) {
-            spec.discrete[`grip_${i}`] = { n: 2 }; // open/close
+            spec.discrete[`grip_${i}`] = { n: 2 };
         }
-        
-        // Continuous joint angles
+
         for (let i = 0; i < joints; i++) {
             spec.continuous[`joint_${i}`] = {
                 shape: [1],
@@ -713,32 +525,21 @@ export class HybridActionSpaceFactory {
                 high: Math.PI
             };
         }
-        
+
         return new HybridActionSpace(spec);
     }
 
-    /**
-     * Create navigation + interaction space
-     */
     static createNavigationInteraction() {
         return new HybridActionSpace({
-            discrete: {
-                interact: { n: 3 } // none, use, examine
-            },
+            discrete: { interact: { n: 3 } },
             continuous: {
-                velocity: { shape: [2], low: -1, high: 1 }, // x, y
+                velocity: { shape: [2], low: -1, high: 1 },
                 rotation: { shape: [1], low: -1, high: 1 }
             }
         });
     }
 
-    /**
-     * Create custom hybrid space
-     */
     static createCustom(discreteSpec, continuousSpec) {
-        return new HybridActionSpace({
-            discrete: discreteSpec,
-            continuous: continuousSpec
-        });
+        return new HybridActionSpace({ discrete: discreteSpec, continuous: continuousSpec });
     }
 }

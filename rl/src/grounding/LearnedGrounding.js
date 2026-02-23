@@ -1,14 +1,22 @@
 import { Grounding } from '../core/Grounding.js';
 
+const GROUNDING_DEFAULTS = {
+    precision: 10,
+    prefix: 'state',
+    valuePrefix: 'val'
+};
+
+const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
+
 const GroundingUtils = {
-    liftNumber(val) {
-        const bin = Math.floor(val * 10) / 10;
-        return `val_${String(bin).replace('.', 'd')}`;
+    liftNumber(val, precision = 10, prefix = 'val') {
+        const bin = Math.floor(val * precision) / precision;
+        return `${prefix}_${String(bin).replace('.', 'd')}`;
     },
 
-    liftArray(arr) {
-        const key = arr.map(x => String(Math.floor(x * 10) / 10).replace('.', 'd')).join('_');
-        return `state_${key}`;
+    liftArray(arr, precision = 10, prefix = 'state') {
+        const key = arr.map(x => String(Math.floor(x * precision) / precision).replace('.', 'd')).join('_');
+        return `${prefix}_${key}`;
     },
 
     parseActionSymbol(symbols) {
@@ -38,15 +46,19 @@ const GroundingUtils = {
 export class LearnedGrounding extends Grounding {
     constructor(config = {}) {
         super(config);
+        this.config = mergeConfig(GROUNDING_DEFAULTS, config);
         this.conceptMap = new Map();
         this.valueMap = new Map();
         this.counter = 0;
     }
 
     lift(observation) {
-        return typeof observation === 'number' ? GroundingUtils.liftNumber(observation)
-            : Array.isArray(observation) ? GroundingUtils.liftArray(observation)
-            : String(observation);
+        const { precision, prefix, valuePrefix } = this.config;
+        return typeof observation === 'number'
+            ? GroundingUtils.liftNumber(observation, precision, valuePrefix)
+            : Array.isArray(observation)
+                ? GroundingUtils.liftArray(observation, precision, prefix)
+                : String(observation);
     }
 
     ground(symbols) {

@@ -1,17 +1,18 @@
-
 import { Architecture } from '../core/Architecture.js';
 import { MeTTaInterpreter } from '@senars/metta';
 import { registerTensorPrimitives } from '../core/TensorPrimitives.js';
 import fs from 'fs';
 
-/**
- * MeTTa Policy Architecture
- * A pure System 1 architecture that relies solely on a MeTTa-defined neural policy.
- * No symbolic reasoning or planning is involved.
- */
+const METTA_POLICY_DEFAULTS = {
+    policyScript: null,
+    fallbackActionSpace: 2
+};
+
+const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
+
 export class MeTTaPolicyArchitecture extends Architecture {
     constructor(agent, config = {}) {
-        super(agent, config);
+        super(agent, mergeConfig(METTA_POLICY_DEFAULTS, config));
         this.metta = new MeTTaInterpreter();
         registerTensorPrimitives(this.metta);
     }
@@ -36,14 +37,12 @@ export class MeTTaPolicyArchitecture extends Architecture {
         const obsStr = `(${observation.join(' ')})`;
         const result = this.metta.run(`! (get-action ${obsStr})`);
 
-        if (result && result.length > 0) {
-             const actionStr = result[0].toString();
-             const action = Number(actionStr);
-             if (!isNaN(action)) return action;
+        if (result?.length > 0) {
+            const action = Number(result[0].toString());
+            if (!isNaN(action)) return action;
         }
 
-        // Fallback random
-        return Math.floor(Math.random() * 2);
+        return Math.floor(Math.random() * this.config.fallbackActionSpace);
     }
 
     async learn(observation, action, reward, nextObservation, done) {
@@ -52,7 +51,7 @@ export class MeTTaPolicyArchitecture extends Architecture {
         const obsStr = `(${observation.join(' ')})`;
         const target = [0, 0];
         if (typeof action === 'number' && action < target.length) {
-             target[action] = reward;
+            target[action] = reward;
         }
         const targetStr = `(${target.join(' ')})`;
         this.metta.run(`! (update-policy ${obsStr} ${targetStr})`);

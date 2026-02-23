@@ -2,15 +2,20 @@
 import { SeNARS } from '@senars/core';
 import { SeNARSBridge as MettaBridge } from '@senars/metta';
 
-/**
- * SeNARS Bridge for RL Agent.
- * Integrates SeNARS reasoning engine and connects it to the agent's MeTTa interpreter.
- */
+const BRIDGE_DEFAULTS = {
+    cyclesPerStep: 1,
+    maxQuestions: 10,
+    maxGoals: 10,
+    autoStart: true
+};
+
+const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
+
 export class SeNARSBridge {
     constructor(agent, config = {}) {
         this.agent = agent;
-        this.config = config;
-        this.senars = new SeNARS(config);
+        this.config = mergeConfig(BRIDGE_DEFAULTS, config);
+        this.senars = new SeNARS(this.config);
         this.mettaBridge = null;
         this.initialized = false;
     }
@@ -20,14 +25,11 @@ export class SeNARSBridge {
 
         await this.senars.start();
 
-        // Check if MettaBridge is actually imported
-        if (this.agent?.metta) {
-             if (MettaBridge) {
-                 this.mettaBridge = new MettaBridge(this.senars.nar, this.agent.metta);
-                 if (this.agent.metta.ground) {
-                     this.mettaBridge.registerPrimitives(this.agent.metta.ground);
-                 }
-             }
+        if (this.agent?.metta && MettaBridge) {
+            this.mettaBridge = new MettaBridge(this.senars.nar, this.agent.metta);
+            if (this.agent.metta.ground) {
+                this.mettaBridge.registerPrimitives(this.agent.metta.ground);
+            }
         }
 
         this.initialized = true;
@@ -40,17 +42,17 @@ export class SeNARSBridge {
 
     async ask(question, options = {}) {
         await this.ensureInitialized();
-        return this.senars.ask(question, options);
+        return this.senars.ask(question, { maxQuestions: this.config.maxQuestions, ...options });
     }
 
     async achieve(goal, options = {}) {
         await this.ensureInitialized();
-        return this.senars.achieve(goal, options);
+        return this.senars.achieve(goal, { maxGoals: this.config.maxGoals, ...options });
     }
 
     async runCycles(count) {
         await this.ensureInitialized();
-        return this.senars.runCycles(count);
+        return this.senars.runCycles(count ?? this.config.cyclesPerStep);
     }
 
     async ensureInitialized() {
@@ -62,8 +64,6 @@ export class SeNARSBridge {
     }
 
     async close() {
-        if (this.senars) {
-            await this.senars.dispose();
-        }
+        if (this.senars) await this.senars.dispose();
     }
 }

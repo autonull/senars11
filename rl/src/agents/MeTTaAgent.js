@@ -3,19 +3,22 @@ import { RLAgent } from '../core/RLAgent.js';
 import { MeTTaInterpreter } from '@senars/metta';
 import fs from 'fs';
 
-/**
- * MeTTa-based RL Agent.
- * Delegates reasoning and learning to a MeTTa strategy script.
- */
-export class MeTTaAgent extends RLAgent {
-    constructor(env, strategyPath) {
-        super(env);
-        this.metta = new MeTTaInterpreter();
-        this.strategyPath = strategyPath;
-        this.initialized = false;
+const METTA_AGENT_DEFAULTS = {
+    strategyPath: null,
+    autoInitialize: true
+};
 
-        // Register Math helpers for MeTTa
-        // The Ground class has `register` method, not `registerOperation`.
+const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
+
+export class MeTTaAgent extends RLAgent {
+    constructor(env, config = {}) {
+        super(env);
+        const mergedConfig = mergeConfig(METTA_AGENT_DEFAULTS,
+            typeof config === 'string' ? { strategyPath: config } : config
+        );
+        this.metta = new MeTTaInterpreter();
+        this.strategyPath = mergedConfig.strategyPath;
+        this.initialized = false;
 
         this.metta.ground.register('random', () => Math.random());
         this.metta.ground.register('floor', (x) => Math.floor(x));

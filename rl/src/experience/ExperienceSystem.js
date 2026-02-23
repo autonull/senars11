@@ -1,6 +1,6 @@
 import { mergeConfig } from '../utils/ConfigHelper.js';
 
-const DEFAULTS = {
+const EXPERIENCE_DEFAULTS = {
     capacity: 100000,
     episodeCapacity: 10000,
     priorityReplay: false,
@@ -14,26 +14,60 @@ const DEFAULTS = {
     prioritizedReplay: false
 };
 
+const EXPERIENCE_INFO_DEFAULTS = {
+    timestamp: null,
+    episode: 0,
+    step: 0,
+    priority: 1.0,
+    tags: []
+};
+
+const SUM_TREE_DEFAULTS = {
+    epsilon: 1e-6,
+    alpha: 0.6,
+    beta: 0.4
+};
+
+const SkillExtractorDefaults = {
+    minSupport: 3,
+    minConfidence: 0.6,
+    maxSkillLength: 10,
+    stateSimilarityThreshold: 0.5
+};
+
+const ExperienceLearnerDefaults = {
+    batchSize: 32,
+    updateFrequency: 1,
+    prioritizedReplay: false
+};
+
+const generateId = (prefix = 'exp') => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+const serializeValue = (value) => {
+    if (value?.data) return Array.from(value.data);
+    if (Array.isArray(value)) return [...value];
+    return value;
+};
+
 export class Experience {
     constructor({ state, action, reward, nextState, done, info = {} }) {
-        this.id = info.id ?? this.generateId();
+        const mergedInfo = { ...EXPERIENCE_INFO_DEFAULTS, ...info };
+        this.id = info.id ?? generateId();
         this.state = state;
         this.action = action;
         this.reward = reward;
         this.nextState = nextState;
         this.done = done;
         this.info = {
-            timestamp: info.timestamp ?? Date.now(),
-            episode: info.episode ?? 0,
-            step: info.step ?? 0,
-            priority: info.priority ?? 1.0,
-            tags: info.tags ?? [],
+            timestamp: mergedInfo.timestamp ?? Date.now(),
+            episode: mergedInfo.episode,
+            step: mergedInfo.step,
+            priority: mergedInfo.priority,
+            tags: mergedInfo.tags,
             ...info
         };
         this.metadata = new Map();
     }
-
-    generateId() { return `exp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }
 
     withReward(reward) { return new Experience({ ...this, reward }); }
     withPriority(priority) { return new Experience({ ...this, info: { ...this.info, priority } }); }
@@ -49,19 +83,13 @@ export class Experience {
     toJSON() {
         return {
             id: this.id,
-            state: this.serialize(this.state),
+            state: serializeValue(this.state),
             action: this.action,
             reward: this.reward,
-            nextState: this.serialize(this.nextState),
+            nextState: serializeValue(this.nextState),
             done: this.done,
             info: this.info
         };
-    }
-
-    serialize(value) {
-        if (value?.data) return Array.from(value.data);
-        if (Array.isArray(value)) return [...value];
-        return value;
     }
 }
 
@@ -117,7 +145,7 @@ export class ExperienceStream {
 
 export class Episode {
     constructor(id = null) {
-        this.id = id ?? `ep_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        this.id = id ?? generateId('ep');
         this.experiences = [];
         this.startTime = Date.now();
         this.endTime = null;
@@ -129,7 +157,7 @@ export class Episode {
 
     get length() { return this.experiences.length; }
     get totalReward() { return this.experiences.reduce((sum, e) => sum + e.reward, 0); }
-    get success() { return this.experiences.length > 0 && this.experiences[this.experiences.length - 1].done && this.totalReward > 0; }
+    get success() { return this.experiences.length > 0 && this.experiences.at(-1).done && this.totalReward > 0; }
     get duration() { return (this.endTime ?? Date.now()) - this.startTime; }
 
     getTrajectory() { return this.experiences.map(e => e.toTransition()); }
@@ -150,6 +178,8 @@ export class Episode {
         };
     }
 }
+
+const hashState = (state) => Array.isArray(state) ? state.map(x => Math.round(x * 10)).join('_') : String(state);
 
 export class ExperienceIndex {
     constructor() {
@@ -177,7 +207,7 @@ export class ExperienceIndex {
         if (!this.byReward.has(rewardBin)) this.byReward.set(rewardBin, new Set());
         this.byReward.get(rewardBin).add(id);
 
-        const stateHash = this.hashState(experience.state);
+        const stateHash = hashState(experience.state);
         if (!this.byState.has(stateHash)) this.byState.set(stateHash, new Set());
         this.byState.get(stateHash).add(id);
     }
@@ -211,18 +241,12 @@ export class ExperienceIndex {
         }
 
         if (state) {
-            const similar = this.byState.get(this.hashState(state)) ?? new Set();
-            candidates = similar;
+            candidates = this.byState.get(hashState(state)) ?? new Set();
         }
 
         let result = Array.from(candidates);
         if (limit) result = result.slice(0, limit);
         return result;
-    }
-
-    hashState(state) {
-        if (Array.isArray(state)) return state.map(x => Math.round(x * 10)).join('_');
-        return String(state);
     }
 
     stats() {
@@ -243,7 +267,7 @@ export class ExperienceIndex {
 
 export class ExperienceStore {
     constructor(config = {}) {
-        this.config = mergeConfig(DEFAULTS, config);
+        this.config = mergeConfig(EXPERIENCE_DEFAULTS, config);
         this.experiences = new Map();
         this.episodes = new Map();
         this.index = new ExperienceIndex();
@@ -474,7 +498,7 @@ class SumTree {
 
 export class SkillExtractor {
     constructor(config = {}) {
-        this.config = mergeConfig(DEFAULTS, config);
+        this.config = mergeConfig(SkillExtractorDefaults, config);
     }
 
     extractSkills(episodes) {
@@ -520,7 +544,7 @@ export class SkillExtractor {
     patternToSkill(patternData) {
         const { pattern, support, confidence } = patternData;
         return {
-            name: `skill_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            name: generateId('skill'),
             type: 'extracted',
             sequence: pattern,
             precondition: this.inferPrecondition(pattern),
@@ -534,7 +558,7 @@ export class SkillExtractor {
         const firstState = pattern[0]?.state;
         return (state) => {
             if (!firstState) return true;
-            return this.stateSimilarity(state, firstState) > 0.5;
+            return this.stateSimilarity(state, firstState) > this.config.stateSimilarityThreshold;
         };
     }
 
@@ -569,7 +593,7 @@ export class SkillExtractor {
 export class ExperienceLearner {
     constructor(store, config = {}) {
         this.store = store;
-        this.config = mergeConfig(DEFAULTS, config);
+        this.config = mergeConfig(ExperienceLearnerDefaults, config);
         this.learningSteps = 0;
         this.callbacks = new Map();
     }
@@ -598,7 +622,7 @@ export class ExperienceLearner {
 
         if (prioritized) {
             const { losses, tdErrors } = await this.computeLosses(agent, samples);
-            const priorities = tdErrors.map(e => Math.abs(e) + 1e-6);
+            const priorities = tdErrors.map(e => Math.abs(e) + SUM_TREE_DEFAULTS.epsilon);
             this.store.updatePriorities(samples.map(s => s.id), priorities);
             return { losses, priorities };
         }

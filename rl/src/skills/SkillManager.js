@@ -1,42 +1,55 @@
+const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
 
-// Composable skill repository
+const SKILL_MANAGER_DEFAULTS = {
+    maxSkills: 1000,
+    autoPrune: false,
+    pruneThreshold: 0.1
+};
+
 export class SkillManager {
-    constructor() {
+    constructor(config = {}) {
+        this.config = mergeConfig(SKILL_MANAGER_DEFAULTS, config);
         this.skills = new Map();
     }
 
-    /**
-     * Register a new skill.
-     * @param {string} name
-     * @param {*} skill
-     */
     register(name, skill) {
+        if (this.config.autoPrune && this.skills.size >= this.config.maxSkills) {
+            this._pruneLowPerforming();
+        }
         this.skills.set(name, skill);
     }
 
-    /**
-     * Retrieve a skill by name.
-     * @param {string} name
-     * @returns {*} skill
-     */
     get(name) {
         return this.skills.get(name);
     }
 
-    /**
-     * List available skills for a given context.
-     * @param {*} context
-     * @returns {Array<string>} list of skill names
-     */
     available(context) {
-        // Filter skills based on preconditions
         return Array.from(this.skills.entries())
-            .filter(([name, skill]) => {
-                if (skill.precondition) {
-                    return skill.precondition(context);
-                }
-                return true; // Default: available
-            })
+            .filter(([, skill]) => !skill.precondition || skill.precondition(context))
             .map(([name]) => name);
+    }
+
+    list() {
+        return Array.from(this.skills.keys());
+    }
+
+    remove(name) {
+        return this.skills.delete(name);
+    }
+
+    clear() {
+        this.skills.clear();
+    }
+
+    get stats() {
+        return { totalSkills: this.skills.size };
+    }
+
+    _pruneLowPerforming() {
+        const lowPerformers = Array.from(this.skills.entries())
+            .filter(([, skill]) => skill.getSuccessRate?.() < this.config.pruneThreshold)
+            .map(([name]) => name);
+
+        lowPerformers.forEach(name => this.skills.delete(name));
     }
 }

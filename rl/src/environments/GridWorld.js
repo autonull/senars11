@@ -1,12 +1,31 @@
 import { RLEnvironment } from '../core/RLEnvironment.js';
 
+const GRID_DEFAULTS = {
+    size: 5,
+    start: [0, 0],
+    goal: [4, 4],
+    obstacles: [],
+    maxStepsMultiplier: 2,
+    goalReward: 10,
+    stepPenalty: -0.1
+};
+
+const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
+
 export class GridWorld extends RLEnvironment {
-    constructor(size = 5, start = [0, 0], goal = [4, 4], obstacles = []) {
+    constructor(config = {}) {
         super();
-        this.size = size;
-        this.start = start;
-        this.goal = goal;
-        this.obstacles = obstacles;
+        const merged = typeof config === 'number'
+            ? mergeConfig(GRID_DEFAULTS, { size: config })
+            : mergeConfig(GRID_DEFAULTS, config);
+        
+        this.size = merged.size;
+        this.start = merged.start;
+        this.goal = merged.goal;
+        this.obstacles = merged.obstacles;
+        this.maxSteps = merged.size * merged.size * merged.maxStepsMultiplier;
+        this.goalReward = merged.goalReward;
+        this.stepPenalty = merged.stepPenalty;
         this.reset();
     }
 
@@ -31,11 +50,11 @@ export class GridWorld extends RLEnvironment {
 
         const [gx, gy] = this.goal;
         const terminated = this.state[0] === gx && this.state[1] === gy;
-        const truncated = this.currentSteps >= this.size * this.size * 2;
+        const truncated = this.currentSteps >= this.maxSteps;
 
         return {
             observation: [...this.state],
-            reward: terminated ? 10 : -0.1,
+            reward: terminated ? this.goalReward : this.stepPenalty,
             terminated,
             truncated,
             info: {}
