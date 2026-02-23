@@ -45,3 +45,4 @@
     - Term Construction: Use fluent methods in `TermFactory` (e.g., `termFactory.inheritance(a, b)`,
       `termFactory.variable('x')`)
     - Tensor Operations: Prefer `@senars/tensor` for tensor operations. Use `SymbolicTensor` for neuro-symbolic integration.
+    - Deprecation: `EnhancedSeNARSBridge` and `MeTTaPolicyNetwork` are deprecated. Use `NeuroSymbolicBridge` and `TensorLogicPolicy`.

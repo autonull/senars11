@@ -70,19 +70,7 @@ const formatObservation = (observation) => {
 
 const stateToTerm = (state) => Array.isArray(state) ? state.map(v => Math.round(v * 10)).join('_') : String(state);
 
-// Deprecated: Use NeuroSymbolicBridge
-export class EnhancedSeNARSBridge extends NeuroSymbolicBridge {
-    constructor(config = {}) {
-        super({ ...config, useSeNARS: true });
-    }
-}
-
-// Deprecated: Use TensorLogicPolicy
-export class MeTTaPolicyNetwork extends TensorLogicPolicy {
-    constructor(config = {}) {
-        super({ ...config, policyType: 'metta' });
-    }
-}
+export * from './deprecated.js';
 
 export class UnifiedNeuroSymbolicAgent extends Component {
     constructor(config = {}) {
