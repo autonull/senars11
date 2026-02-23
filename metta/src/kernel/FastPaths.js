@@ -12,6 +12,7 @@ import { METTA_CONFIG } from '../config.js';
 export const TYPE_SYMBOL = 1;
 export const TYPE_VARIABLE = 2;
 export const TYPE_EXPRESSION = 3;
+export const TYPE_GROUNDED = 4;
 
 // Compiled regex for variable name detection (shared across all checks)
 const VARIABLE_NAME_REGEX = /^[?$]/;
@@ -51,6 +52,10 @@ export function getTypeTag(term) {
 
     if (term.type === 'compound') {
         return TYPE_EXPRESSION;
+    }
+
+    if (term.type === 'grounded') {
+        return TYPE_GROUNDED;
     }
 
     return 0;
@@ -93,6 +98,18 @@ export function isExpression(term) {
 
     const tag = getTypeTag(term);
     return tag === TYPE_EXPRESSION;
+}
+
+/**
+ * Type guard: is grounded?
+ */
+export function isGrounded(term) {
+    if (!METTA_CONFIG.fastPaths) {
+        return term?.type === 'grounded';
+    }
+
+    const tag = getTypeTag(term);
+    return tag === TYPE_GROUNDED;
 }
 
 /**
