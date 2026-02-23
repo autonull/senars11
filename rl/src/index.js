@@ -62,6 +62,7 @@ export { MetaController, ModificationOperator } from './meta/MetaController.js';
 // Neuro-Symbolic Primitives
 export { SymbolicTensor, TensorLogicBridge, symbolicTensor, termToTensor } from '@senars/tensor';
 export * from './neurosymbolic/WorldModel.js';
+export * from './neurosymbolic/SymbolicDifferentiation.js';
 
 // Attention
 export * from './attention/CrossModalAttention.js';
