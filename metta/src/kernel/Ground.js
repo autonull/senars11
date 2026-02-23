@@ -24,6 +24,7 @@ import { registerMathOps } from './ops/MathOps.js';
 import { registerSetOps } from './ops/SetOps.js';
 import { registerHOFOps } from './ops/HOFOps.js';
 import { registerMetaprogrammingOps } from './ops/MetaprogrammingOps.js';
+import { registerReflectionOps } from './ops/ReflectionOps.js';
 
 export class Ground extends CoreRegistry {
     constructor(context = {}) {
@@ -114,6 +115,7 @@ export class Ground extends CoreRegistry {
         registerMathOps(this);
         registerSetOps(this);
         registerHOFOps(this);
+        registerReflectionOps(this);
     }
 
     /**

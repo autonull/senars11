@@ -32,4 +32,6 @@ export * from './LossFunctor.js';
 export * from './Module.js';
 export * from './TruthTensorBridge.js';
 export * from './TensorFunctor.js';
+export * from './SymbolicTensor.js';
+export * from './TensorLogicBridge.js';
 export { T as torch };

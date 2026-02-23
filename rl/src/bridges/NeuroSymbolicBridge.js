@@ -6,6 +6,7 @@ import { handleError, NeuroSymbolicError } from '../utils/ErrorHandler.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const DEFAULTS = {
+    useSeNARS: true,
     senarsConfig: {},
     mettaConfig: {},
     mettaInterpreter: null,
@@ -87,13 +88,15 @@ export class NeuroSymbolicBridge extends Component {
     }
 
     async onInitialize() {
-        try {
-            const { SeNARS } = await import('@senars/core');
-            this.senarsBridge = new SeNARS(this.config.senarsConfig);
-            await this.senarsBridge.start();
-            this.emit('senars:initialized');
-        } catch {
-            this.senarsBridge = null;
+        if (this.config.useSeNARS) {
+            try {
+                const { SeNARS } = await import('@senars/core');
+                this.senarsBridge = new SeNARS(this.config.senarsConfig);
+                await this.senarsBridge.start();
+                this.emit('senars:initialized');
+            } catch {
+                this.senarsBridge = null;
+            }
         }
 
         this._initializeMettaIntegration();
