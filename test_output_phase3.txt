@@ -1,0 +1,363 @@
+(node:15220) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15219) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15221) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+FAIL rl/tests/integration/self_optimization.test.js
+  ● Console
+
+    console.log
+      Optimizing hyperparameters...
+
+      at MetaController.log [as optimizeHyperparameters] (rl/src/meta/MetaController.js:228:21)
+
+    console.log
+      Increased exploration to  0.55
+
+      at Object.apply [as fn] (metta/src/kernel/ops/ReflectionOps.js:79:27)
+          at executeGroundedOpND.next (<anonymous>)
+          at stepYield.next (<anonymous>)
+          at executeGroundedOpND.next (<anonymous>)
+          at stepYield.next (<anonymous>)
+          at executeGroundedOpND.next (<anonymous>)
+          at stepYield.next (<anonymous>)
+
+    console.log
+      Optimizing hyperparameters...
+
+      at MetaController.log [as optimizeHyperparameters] (rl/src/meta/MetaController.js:228:21)
+
+    console.log
+      Increased exploration to  0.55
+
+      at Object.apply [as fn] (metta/src/kernel/ops/ReflectionOps.js:79:27)
+          at executeGroundedOpND.next (<anonymous>)
+          at stepYield.next (<anonymous>)
+          at executeGroundedOpND.next (<anonymous>)
+          at stepYield.next (<anonymous>)
+          at executeGroundedOpND.next (<anonymous>)
+          at stepYield.next (<anonymous>)
+
+  ● MeTTa Self-Optimization › MetaController should optimize hyperparameters using MeTTa
+
+    assert(received)
+
+    Expected value to be equal to:
+      true
+    Received:
+      false
+
+    Message:
+      Should increase exploration rate
+
+      33 |         await controller.optimizeHyperparameters();
+      34 |
+    > 35 |         assert.ok(controller.config.explorationRate > 0.5, 'Should increase exploration rate');
+         |                ^
+      36 |         console.log('Optimized exploration rate:', controller.config.explorationRate);
+      37 |     });
+      38 |
+
+      at Object.ok (rl/tests/integration/self_optimization.test.js:35:16)
+
+  ● MeTTa Self-Optimization › MetaController should decrease exploration when success is high
+
+    assert(received)
+
+    Expected value to be equal to:
+      true
+    Received:
+      false
+
+    Message:
+      Should decrease exploration rate
+
+      60 |         await controller.optimizeHyperparameters();
+      61 |
+    > 62 |         assert.ok(controller.config.explorationRate < 0.5, 'Should decrease exploration rate');
+         |                ^
+      63 |         console.log('Optimized exploration rate:', controller.config.explorationRate);
+      64 |     });
+      65 |
+
+      at Object.ok (rl/tests/integration/self_optimization.test.js:62:16)
+
+PASS rl/tests/integration/metta_reflection.test.js
+  ● Console
+
+    console.log
+      Generated operator via reflection: ModificationOperator {
+        type: 'add',
+        target: null,
+        parameters: { componentId: 'causal_reasoner', stage: 'reasoning', type: 'add' },
+        priority: 1.5,
+        expectedImprovement: 0,
+        applied: false,
+        successful: null
+      }
+
+      at Object.log (rl/tests/integration/metta_reflection.test.js:42:17)
+
+    console.log
+      (&< 15 10) -> [False]
+
+      at Object.log (rl/tests/integration/metta_reflection.test.js:137:17)
+
+    console.log
+      (&< "15" "10") -> False
+
+      at Object.log (rl/tests/integration/metta_reflection.test.js:153:17)
+
+PASS rl/tests/integration/senars_metta_tensor.test.js
+FAIL rl/tests/unit/neurosymbolic_rl.test.js
+  ● Neuro-Symbolic RL Framework › HierarchicalSkillSystem › should export to MeTTa format
+
+    TypeError: Cannot read properties of undefined (reading 'slice')
+
+      510 |             bottlenecks: this.bottlenecks,
+      511 |             candidateSkills: this.candidateSkills.map(s => s.config.name),
+    > 512 |             discoveryLog: this.discoveryLog.slice(-this.config.discoveryLogLimit)
+          |                                             ^
+      513 |         };
+      514 |     }
+      515 | }
+
+      at SkillDiscoveryEngine.slice [as serialize] (rl/src/skills/HierarchicalSkillSystem.js:512:45)
+      at Object.serialize (rl/tests/unit/neurosymbolic_rl.test.js:256:44)
+
+  ● Neuro-Symbolic RL Framework › DistributedExperienceBuffer › should get statistics
+
+    expect(received).toBeDefined()
+
+    Received: undefined
+
+      329 |             expect(stats).toBeDefined();
+      330 |             expect(stats.totalSize).toBeDefined();
+    > 331 |             expect(stats.metrics).toBeDefined();
+          |                                   ^
+      332 |         });
+      333 |
+      334 |         it('should compute causal signatures', () => {
+
+      at Object.toBeDefined (rl/tests/unit/neurosymbolic_rl.test.js:331:35)
+
+FAIL rl/tests/integration/hybrid_emergent.test.js
+  ● Test suite failed to run
+
+    SyntaxError: The requested module '../../src/cognitive/EmergentArchitecture.js' does not provide an export named 'ActionSelectionPrimitive'
+
+      at Runtime.linkAndEvaluateModule (node_modules/jest-runtime/build/index.js:708:5)
+
+FAIL rl/tests/integration/higher_order.test.js
+  ● Test suite failed to run
+
+    SyntaxError: The requested module '../../src/strategies/StrategyPatterns.js' does not provide an export named 'CEMPlanning'
+
+      at Runtime.linkAndEvaluateModule (node_modules/jest-runtime/build/index.js:708:5)
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+FAIL rl/tests/integration/architecture.test.js
+  ● Test suite failed to run
+
+    Cannot find module '../../src/architecture/NeuroSymbolicArchitecture.js' from 'rl/tests/integration/architecture.test.js'
+
+      at Resolver._throwModNotFoundError (node_modules/jest-resolve/build/resolver.js:427:11)
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From rl/tests/integration/architecture.test.js.
+
+
+FAIL rl/tests/unit/composable.test.js
+  ● Test suite failed to run
+
+    SyntaxError: The requested module '../../src/index.js' does not provide an export named 'ArchitectureEvolver'
+
+      at Runtime.linkAndEvaluateModule (node_modules/jest-runtime/build/index.js:708:5)
+
+
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "  ✓ WorldModel training test passed
+    ".
+
+      439 |     await wm.shutdown();
+      440 |
+    > 441 |     console.log('  ✓ WorldModel training test passed\n');
+          |             ^
+      442 | }
+      443 |
+      444 | async function testWorldModelImagination() {
+
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at log (rl/tests/unit/neurosymbolic.test.js:441:13)
+      at runAllTests (rl/tests/unit/neurosymbolic.test.js:515:9)
+
+
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "  Testing WorldModel imagination...".
+
+      443 |
+      444 | async function testWorldModelImagination() {
+    > 445 |     console.log('  Testing WorldModel imagination...');
+          |             ^
+      446 |
+      447 |     const wm = new WorldModel({
+      448 |         latentDim: 4,
+
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at log (rl/tests/unit/neurosymbolic.test.js:445:13)
+      at testWorldModelImagination (rl/tests/unit/neurosymbolic.test.js:516:15)
+
+
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "  ✓ WorldModel imagination test passed
+    ".
+
+      460 |     await wm.shutdown();
+      461 |
+    > 462 |     console.log('  ✓ WorldModel imagination test passed\n');
+          |             ^
+      463 | }
+      464 |
+      465 | async function testWorldModelUncertainty() {
+
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at log (rl/tests/unit/neurosymbolic.test.js:462:13)
+      at runAllTests (rl/tests/unit/neurosymbolic.test.js:516:9)
+
+
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "  Testing WorldModel uncertainty...".
+
+      464 |
+      465 | async function testWorldModelUncertainty() {
+    > 466 |     console.log('  Testing WorldModel uncertainty...');
+          |             ^
+      467 |
+      468 |     const wm = new WorldModel({ latentDim: 4, ensembleSize: 3 });
+      469 |     await wm.initialize();
+
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at log (rl/tests/unit/neurosymbolic.test.js:466:13)
+      at testWorldModelUncertainty (rl/tests/unit/neurosymbolic.test.js:517:15)
+
+
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "  ✓ WorldModel uncertainty test passed
+    ".
+
+      477 |     await wm.shutdown();
+      478 |
+    > 479 |     console.log('  ✓ WorldModel uncertainty test passed\n');
+          |             ^
+      480 | }
+      481 |
+      482 | // ========== Run All Tests ==========
+
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at log (rl/tests/unit/neurosymbolic.test.js:479:13)
+      at runAllTests (rl/tests/unit/neurosymbolic.test.js:517:9)
+
+
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "✅ All Neuro-Symbolic Primitives Tests Passed!
+    ".
+
+      517 |         await testWorldModelUncertainty();
+      518 |
+    > 519 |         console.log('✅ All Neuro-Symbolic Primitives Tests Passed!\n');
+          |                 ^
+      520 |         return true;
+      521 |     } catch (error) {
+      522 |         console.error('❌ Test Failed:', error);
+
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at log (rl/tests/unit/neurosymbolic.test.js:519:17)
+
+FAIL rl/tests/unit/neurosymbolic.test.js
+  ● Test suite failed to run
+
+    Your test suite must contain at least one test.
+
+      at onResult (node_modules/@jest/core/build/TestScheduler.js:133:18)
+      at node_modules/@jest/core/build/TestScheduler.js:254:19
+      at node_modules/emittery/index.js:363:13
+          at Array.map (<anonymous>)
+      at Emittery.emit (node_modules/emittery/index.js:361:23)
+
+Test Suites: 7 failed, 2 passed, 9 total
+Tests:       4 failed, 1 skipped, 49 passed, 54 total
+Snapshots:   0 total
+Time:        4.349 s
+Ran all test suites matching /rl\//i.

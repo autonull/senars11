@@ -2,6 +2,7 @@ import { RLAgent } from '../core/RLAgent.js';
 import { ExperienceBuffer, CausalExperience } from '../experience/ExperienceBuffer.js';
 import { Tensor, AdamOptimizer } from '@senars/tensor';
 import { mergeConfig } from '../utils/ConfigHelper.js';
+import { PolicyUtils } from '../utils/PolicyUtils.js';
 
 const DEFAULTS = {
     gamma: 0.99,
@@ -35,13 +36,7 @@ const NetworkBuilder = {
     },
 
     sampleAction(probs) {
-        const r = Math.random();
-        let cumSum = 0;
-        for (let i = 0; i < probs.data.length; i++) {
-            cumSum += probs.data[i];
-            if (r <= cumSum) return i;
-        }
-        return probs.data.length - 1;
+        return PolicyUtils.sampleCategorical(probs.data);
     },
 
     createActionMask(actions, actionDim, batchLen) {
