@@ -15,7 +15,13 @@ export function registerReflectionOps(registry) {
             if (atom.name === 'False') return false;
             if (atom.name === 'Null') return null;
             if (atom.name === 'undefined') return undefined;
-            return atom.name;
+
+            // Strip quotes if present
+            let name = atom.name;
+            if (typeof name === 'string' && name.startsWith('"') && name.endsWith('"')) {
+                name = name.slice(1, -1);
+            }
+            return name;
         }
         return atom;
     };
@@ -71,7 +77,15 @@ export function registerReflectionOps(registry) {
     registry.register('&js-get', (obj, prop) => {
         const target = unwrap(obj);
         const p = unwrap(prop);
-        if (!target) throw new Error(`&js-get: Target object is null/undefined`);
+
+        if (typeof target !== 'undefined' && target !== null && typeof target[p] === 'undefined') {
+             // console.warn(`&js-get: Property '${p}' not found on target`, target);
+        }
+
+        if (!target) {
+            console.error(`&js-get failed: target is ${target}, obj is`, obj, 'prop is', p);
+            throw new Error(`&js-get: Target object is null/undefined`);
+        }
         const val = target[p];
         return grounded(val);
     });
@@ -87,6 +101,14 @@ export function registerReflectionOps(registry) {
     registry.register('&js-type', (obj) => {
         const val = unwrap(obj);
         return sym(typeof val);
+    });
+
+    registry.register('&js-global', (name) => {
+        const n = unwrap(name);
+        if (typeof globalThis !== 'undefined' && globalThis[n]) return grounded(globalThis[n]);
+        if (typeof global !== 'undefined' && global[n]) return grounded(global[n]);
+        if (typeof window !== 'undefined' && window[n]) return grounded(window[n]);
+        return grounded(null);
     });
 
     registry.register('&js-unwrap', (obj) => {

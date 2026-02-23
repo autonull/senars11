@@ -137,7 +137,25 @@ export class MetaController extends Component {
     }
 
     async onInitialize() {
-        this.bridge = new NeuroSymbolicBridge({ senarsConfig: this.config.senarsConfig, mettaConfig: this.config.mettaConfig });
+        let mettaInterpreter = this.config.mettaInterpreter;
+
+        if (!mettaInterpreter && this.config.useMettaRepresentation) {
+            try {
+                // Dynamically import MeTTa interpreter if available
+                const { MeTTaInterpreter } = await import('@senars/metta/src/MeTTaInterpreter.js');
+                mettaInterpreter = new MeTTaInterpreter();
+            } catch (e) {
+                console.warn('MeTTa Interpreter not available, running without MeTTa support.', e);
+                this.config.useMettaRepresentation = false;
+            }
+        }
+
+        this.bridge = new NeuroSymbolicBridge({
+            senarsConfig: this.config.senarsConfig,
+            mettaConfig: this.config.mettaConfig,
+            mettaInterpreter
+        });
+
         await this.bridge.initialize();
         this._initializeOperatorPool();
         this.emit('initialized', { operators: this.operatorPool.length, imagination: this.config.useImagination });
@@ -242,8 +260,71 @@ export class MetaController extends Component {
     async _generateMettaOperators() {
         if (!this.bridge?.metta) return [];
 
-        const result = await this.bridge.executeMetta('(generate-modifications (current-architecture) (performance-history) (modification-operators))');
-        return result.success && result.result ? [] : [];
+        try {
+            // Load the strategy script if not already loaded (simple memoization)
+            if (!this._mettaScriptLoaded) {
+                // Dynamically import fs to read the file
+                const fs = await import('fs');
+                const path = await import('path');
+                const scriptPath = path.resolve('rl/src/meta/strategies/architecture_search.metta');
+
+                if (fs.existsSync(scriptPath)) {
+                    const script = fs.readFileSync(scriptPath, 'utf-8');
+                    await this.bridge.metta.run(script);
+                    this._mettaScriptLoaded = true;
+                } else {
+                    console.warn(`MeTTa strategy script not found: ${scriptPath}`);
+                    return [];
+                }
+            }
+
+            // Execute the strategy using reflection
+            const { grounded, exp, sym } = await import('@senars/metta/src/kernel/Term.js');
+
+            // Pass the controller as a grounded atom
+            const controllerAtom = grounded(this);
+
+            // Construct the expression: (generate-modifications $controller)
+            const expr = exp(sym('generate-modifications'), [controllerAtom]);
+
+            // Evaluate the expression directly
+            const result = await this.bridge.metta.evaluateAsync(expr);
+
+            if (result) {
+                // Evaluate returns a single result or array?
+                // MeTTa reduce usually returns an array of results for ND.
+                // evaluateAsync calls reduceNDAsync which returns array.
+                // But the result might be wrapped in a list if the function returns a list?
+                // My function returns a single grounded object.
+
+                const results = Array.isArray(result) ? result : [result];
+                // Result should be a list of grounded objects (plain JS objects representing operators)
+                // Need to unwrap them and convert to ModificationOperator instances
+
+                const operators = [];
+                for (const atom of result) {
+                    if (atom.type === 'grounded' && atom.value) {
+                        // It's a JS object returned from MeTTa
+                        const opData = atom.value;
+                        if (opData.type && opData.parameters) {
+                            operators.push(new ModificationOperator({
+                                type: opData.type,
+                                parameters: opData.parameters,
+                                priority: opData.priority || 1.0
+                            }));
+                        }
+                    } else if (atom.type === 'compound' && atom.operator && atom.operator.name === 'make-operator') {
+                        // Handle compound MeTTa structures if needed
+                    }
+                }
+                return operators;
+            }
+
+        } catch (e) {
+            console.error('Error generating MeTTa operators:', e);
+        }
+
+        return [];
     }
 
     async _evaluateInImagination(candidates) {
