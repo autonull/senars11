@@ -1,5 +1,5 @@
 import { Component } from '../composable/Component.js';
-import { SymbolicTensor } from '../neurosymbolic/TensorLogicBridge.js';
+import { SymbolicTensor } from '@senars/tensor';
 import { TensorLogicPolicy } from '../policies/TensorLogicPolicy.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 

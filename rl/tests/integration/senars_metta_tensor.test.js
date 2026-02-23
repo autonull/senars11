@@ -23,7 +23,7 @@ import {
 } from '../../src/environments/UnifiedEnvironment.js';
 
 // Tensor Logic
-import { SymbolicTensor, TensorLogicBridge } from '../../src/neurosymbolic/TensorLogicBridge.js';
+import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
 
 console.log('🧪 Running SeNARS-MeTTa-Tensor Integration Tests...\n');
 

@@ -1,7 +1,7 @@
 import { Component } from '../composable/Component.js';
 import { ComponentRegistry, globalRegistry } from '../composable/ComponentRegistry.js';
 import { CompositionEngine } from '../composable/CompositionEngine.js';
-import { TensorLogicBridge, SymbolicTensor } from '../neurosymbolic/TensorLogicBridge.js';
+import { TensorLogicBridge, SymbolicTensor } from '@senars/tensor';
 import { WorldModel } from '../neurosymbolic/WorldModel.js';
 import { SkillLibrary, SkillDiscoveryEngine } from '../skills/HierarchicalSkillSystem.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
