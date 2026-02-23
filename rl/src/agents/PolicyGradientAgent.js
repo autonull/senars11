@@ -1,13 +1,85 @@
-
 import { RLAgent } from '../core/RLAgent.js';
 import { Tensor } from '@senars/tensor';
+import { mergeConfig } from '../utils/ConfigHelper.js';
+
+const DEFAULTS = {
+    lr: 0.01,
+    gamma: 0.99,
+    hiddenSize: 32
+};
+
+const PolicyUtils = {
+    buildNetwork(obsDim, hiddenSize, outputDim) {
+        const w1 = Tensor.zeros([hiddenSize, obsDim]);
+        const b1 = Tensor.zeros([hiddenSize]);
+        const w2 = Tensor.zeros([outputDim, hiddenSize]);
+        const b2 = Tensor.zeros([outputDim]);
+
+        [w1, b1, w2, b2].forEach(p => p.requiresGrad = true);
+
+        return { w1, b1, w2, b2, params: [w1, b1, w2, b2] };
+    },
+
+    forward(model, obs, outputDim) {
+        const x = new Tensor(obs, { requiresGrad: false });
+        const xCol = x.reshape([x.shape[0], 1]);
+        const h = model.w1.matmul(xCol).add(model.b1.reshape([model.b1.shape[0], 1])).relu();
+        return model.w2.matmul(h).add(model.b2.reshape([outputDim, 1])).reshape([outputDim]);
+    },
+
+    sampleDiscrete(probsTensor) {
+        const probs = probsTensor.data;
+        const rand = Math.random();
+        let sum = 0;
+        for (let i = 0; i < probs.length; i++) {
+            sum += probs[i];
+            if (rand < sum) return i;
+        }
+        return probs.length - 1;
+    },
+
+    sampleContinuous(mean, std = 1.0) {
+        const noise = Tensor.randn(mean.shape);
+        return mean.add(noise);
+    },
+
+    computeLogProbDiscrete(logits, action) {
+        const maskData = new Array(logits.shape[0]).fill(0);
+        maskData[action] = 1;
+        return logits.softmax().log().mul(new Tensor(maskData)).sum();
+    },
+
+    computeLogProbContinuous(action, mean, std = 1.0) {
+        const diff = action.sub(mean);
+        return diff.pow(2).mul(-0.5).sum();
+    },
+
+    computeReturns(rewards, gamma) {
+        const returns = [];
+        let R = 0;
+        for (let i = rewards.length - 1; i >= 0; i--) {
+            R = rewards[i] + gamma * R;
+            returns.unshift(R);
+        }
+        return returns;
+    },
+
+    updateParams(params, lr) {
+        params.forEach(p => {
+            if (p.grad) {
+                p.data.forEach((_, j) => {
+                    p.data[j] -= lr * p.grad[j];
+                });
+                p.grad.fill(0);
+            }
+        });
+    }
+};
 
 export class PolicyGradientAgent extends RLAgent {
     constructor(env, config = {}) {
         super(env);
-        this.lr = config.lr || 0.01;
-        this.gamma = config.gamma || 0.99;
-        this.hiddenSize = config.hiddenSize || 32;
+        this.config = mergeConfig(DEFAULTS, config);
 
         this.logProbs = [];
         this.rewards = [];
@@ -18,57 +90,26 @@ export class PolicyGradientAgent extends RLAgent {
         const obsDim = this.env.observationSpace.shape[0];
         const actionSpace = this.env.actionSpace;
 
-        try {
-            this.w1 = Tensor.zeros([this.hiddenSize, obsDim]);
-        } catch {
-            this.w1 = new Tensor(new Array(this.hiddenSize * obsDim).fill(0)).reshape([this.hiddenSize, obsDim]);
-        }
-        this.w1.requiresGrad = true;
-        this.b1 = Tensor.zeros([this.hiddenSize]);
-        this.b1.requiresGrad = true;
-
-        this.outputDim = actionSpace.type === 'Discrete' ? actionSpace.n : actionSpace.shape[0];
-        this.w2 = Tensor.zeros([this.outputDim, this.hiddenSize]);
-        this.w2.requiresGrad = true;
-        this.b2 = Tensor.zeros([this.outputDim]);
-        this.b2.requiresGrad = true;
-
-        this.params = [this.w1, this.b1, this.w2, this.b2];
-    }
-
-    forward(obs) {
-        const x = new Tensor(obs, { requiresGrad: false });
-        const xCol = x.reshape([x.shape[0], 1]);
-        const h = this.w1.matmul(xCol).add(this.b1.reshape([this.hiddenSize, 1])).relu();
-        return this.w2.matmul(h).add(this.b2.reshape([this.outputDim, 1])).reshape([this.outputDim]);
+        this.network = PolicyUtils.buildNetwork(obsDim, this.config.hiddenSize, 
+            actionSpace.type === 'Discrete' ? actionSpace.n : actionSpace.shape[0]
+        );
+        this.outputDim = this.network.w2.shape[0];
+        this.params = this.network.params;
     }
 
     act(observation) {
-        const logits = this.forward(observation);
+        const logits = PolicyUtils.forward(this.network, observation, this.outputDim);
 
         if (this.env.actionSpace.type === 'Discrete') {
             const probs = logits.softmax();
-            const action = this._sampleDiscrete(probs);
+            const action = PolicyUtils.sampleDiscrete(probs);
             this.logProbs.push({ logits, action, type: 'discrete' });
             return action;
         }
 
-        const mean = logits;
-        const noise = Tensor.randn(mean.shape);
-        const actionTensor = mean.add(noise);
-        this.logProbs.push({ distParams: { mean, std: 1.0 }, action: actionTensor, type: 'continuous' });
+        const actionTensor = PolicyUtils.sampleContinuous(logits);
+        this.logProbs.push({ distParams: { mean: logits, std: 1.0 }, action: actionTensor, type: 'continuous' });
         return actionTensor.data;
-    }
-
-    _sampleDiscrete(probsTensor) {
-        const probs = probsTensor.data;
-        const rand = Math.random();
-        let sum = 0;
-        for (let i = 0; i < probs.length; i++) {
-            sum += probs[i];
-            if (rand < sum) return i;
-        }
-        return probs.length - 1;
     }
 
     learn(observation, action, reward, nextObservation, done) {
@@ -81,12 +122,7 @@ export class PolicyGradientAgent extends RLAgent {
     }
 
     _updatePolicy() {
-        const returns = [];
-        let R = 0;
-        for (let i = this.rewards.length - 1; i >= 0; i--) {
-            R = this.rewards[i] + this.gamma * R;
-            returns.unshift(R);
-        }
+        const returns = PolicyUtils.computeReturns(this.rewards, this.config.gamma);
 
         let loss = new Tensor([0], { requiresGrad: true });
 
@@ -95,25 +131,14 @@ export class PolicyGradientAgent extends RLAgent {
             let logProb;
 
             if (item.type === 'discrete') {
-                const maskData = new Array(this.outputDim).fill(0);
-                maskData[item.action] = 1;
-                logProb = item.logits.softmax().log().mul(new Tensor(maskData)).sum();
+                logProb = PolicyUtils.computeLogProbDiscrete(item.logits, item.action);
             } else {
-                const diff = item.action.sub(item.distParams.mean);
-                logProb = diff.pow(2).mul(-0.5).sum();
+                logProb = PolicyUtils.computeLogProbContinuous(item.action, item.distParams.mean, item.distParams.std);
             }
             loss = loss.add(logProb.mul(-R_t));
         });
 
         loss.backward();
-
-        for (const p of this.params) {
-            if (p.grad) {
-                for (let j = 0; j < p.data.length; j++) {
-                    p.data[j] -= this.lr * p.grad[j];
-                }
-                p.grad.fill(0);
-            }
-        }
+        PolicyUtils.updateParams(this.params, this.config.lr);
     }
 }

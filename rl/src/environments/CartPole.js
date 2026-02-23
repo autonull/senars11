@@ -1,79 +1,77 @@
-
 import { RLEnvironment } from '../core/RLEnvironment.js';
+
+const PHYSICS = {
+    gravity: 9.8,
+    masscart: 1.0,
+    masspole: 0.1,
+    length: 0.5,
+    tau: 0.02,
+    forceMag: 10.0,
+    xThreshold: 2.4,
+    thetaThresholdRadians: 12 * 2 * Math.PI / 360,
+    maxSteps: 500
+};
 
 export class CartPole extends RLEnvironment {
     constructor() {
         super();
-        this.gravity = 9.8;
-        this.masscart = 1.0;
-        this.masspole = 0.1;
-        this.total_mass = this.masscart + this.masspole;
-        this.length = 0.5; // half the pole's length
-        this.polemass_length = this.masspole * this.length;
-        this.force_mag = 10.0;
-        this.tau = 0.02; // seconds between state updates
-
-        // Angle at which to fail the episode
-        this.theta_threshold_radians = 12 * 2 * Math.PI / 360;
-        this.x_threshold = 2.4;
-
+        Object.assign(this, PHYSICS);
+        this.totalMass = this.masscart + this.masspole;
+        this.polemassLength = this.masspole * this.length;
         this.reset();
     }
 
     reset() {
-        // Start with random state [-0.05, 0.05]
         this.state = Array.from({ length: 4 }, () => Math.random() * 0.1 - 0.05);
-        this.steps_beyond_done = null;
+        this.stepsBeyondDone = null;
         this.currentSteps = 0;
         return { observation: [...this.state], info: {} };
     }
 
     step(action) {
-        let [x, x_dot, theta, theta_dot] = this.state;
-        const force = action === 1 ? this.force_mag : -this.force_mag;
-        const costheta = Math.cos(theta);
-        const sintheta = Math.sin(theta);
+        let [x, xDot, theta, thetaDot] = this.state;
+        const force = action === 1 ? this.forceMag : -this.forceMag;
+        const cosTheta = Math.cos(theta);
+        const sinTheta = Math.sin(theta);
 
-        const temp = (force + this.polemass_length * theta_dot * theta_dot * sintheta) / this.total_mass;
-        const thetaacc = (this.gravity * sintheta - costheta * temp) / (this.length * (4.0 / 3.0 - this.masspole * costheta * costheta / this.total_mass));
-        const xacc = temp - this.polemass_length * thetaacc * costheta / this.total_mass;
+        const temp = (force + this.polemassLength * thetaDot * thetaDot * sinTheta) / this.totalMass;
+        const thetaAcc = (this.gravity * sinTheta - cosTheta * temp) / 
+            (this.length * (4.0 / 3.0 - this.masspole * cosTheta * cosTheta / this.totalMass));
+        const xAcc = temp - this.polemassLength * thetaAcc * cosTheta / this.totalMass;
 
-        x = x + this.tau * x_dot;
-        x_dot = x_dot + this.tau * xacc;
-        theta = theta + this.tau * theta_dot;
-        theta_dot = theta_dot + this.tau * thetaacc;
+        this.state = [
+            x + this.tau * xDot,
+            xDot + this.tau * xAcc,
+            theta + this.tau * thetaDot,
+            thetaDot + this.tau * thetaAcc
+        ];
 
-        this.state = [x, x_dot, theta, theta_dot];
-
-        const done = x < -this.x_threshold || x > this.x_threshold ||
-                     theta < -this.theta_threshold_radians || theta > this.theta_threshold_radians;
-
-        let reward;
-        if (!done) {
-            reward = 1.0;
-        } else if (this.steps_beyond_done === null) {
-            // Pole just fell!
-            this.steps_beyond_done = 0;
-            reward = 1.0;
-        } else {
-            if (this.steps_beyond_done === 0) {
-                 // console.warn("You are calling 'step()' even though this environment has already returned done = true. You should always call 'reset()' once you receive 'done = true' -- any further steps are undefined behavior.");
-            }
-            this.steps_beyond_done += 1;
-            reward = 0.0;
-        }
-
+        const done = this._isDone(this.state);
+        const reward = this._computeReward(done);
         this.currentSteps++;
-        // Truncate at 500 steps (standard CartPole-v1 limit)
-        const truncated = this.currentSteps >= 500;
 
         return {
             observation: [...this.state],
             reward,
             terminated: done,
-            truncated,
+            truncated: this.currentSteps >= this.maxSteps,
             info: {}
         };
+    }
+
+    _isDone([x, , theta]) {
+        return x < -this.xThreshold || x > this.xThreshold ||
+               theta < -this.thetaThresholdRadians || theta > this.thetaThresholdRadians;
+    }
+
+    _computeReward(done) {
+        if (!done) return 1.0;
+        if (this.stepsBeyondDone === null) {
+            this.stepsBeyondDone = 0;
+            return 1.0;
+        }
+        this.stepsBeyondDone += 1;
+        return 0.0;
     }
 
     get observationSpace() {

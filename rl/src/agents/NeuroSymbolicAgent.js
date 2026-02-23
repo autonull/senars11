@@ -1,166 +1,104 @@
-
 import { RLAgent } from '../core/RLAgent.js';
-import { SymbolGrounding } from '../core/SymbolGrounding.js';
-import { WorkingMemory } from '../core/WorkingMemory.js';
-import { SkillLibrary } from '../core/SkillLibrary.js';
-import { SeNARSBridge } from '../reasoning/SeNARSBridge.js';
-import { ModelBasedStrategy } from '../strategies/model-based.js';
-import { HierarchicalStrategy } from '../strategies/hierarchical.js';
-import { RuleInducer } from '../reasoning/RuleInducer.js';
-import { MeTTaInterpreter } from '@senars/metta';
-import { registerTensorPrimitives } from '../core/TensorPrimitives.js';
+import { LearnedGrounding } from '../grounding/LearnedGrounding.js';
+import { EpisodicMemory } from '../memory/EpisodicMemory.js';
+import { SkillManager } from '../skills/SkillManager.js';
+import { SkillDiscovery } from '../skills/SkillDiscovery.js';
+import { DualProcessArchitecture } from '../architectures/DualProcessArchitecture.js';
+import { MeTTaPolicyArchitecture } from '../architectures/MeTTaPolicyArchitecture.js';
+import { EvolutionaryArchitecture } from '../architectures/EvolutionaryArchitecture.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
+
+const DEFAULTS = {
+    encoder: 'mlp',
+    reasoning: 'metta',
+    grounding: 'learned',
+    planning: true,
+    skillDiscovery: false,
+    usePolicy: false,
+    policyScript: null,
+    architecture: 'dual-process'
+};
+
+const ARCHITECTURE_MAP = {
+    'metta-policy': MeTTaPolicyArchitecture,
+    evolutionary: EvolutionaryArchitecture,
+    'dual-process': DualProcessArchitecture
+};
 
 export class NeuroSymbolicAgent extends RLAgent {
-  constructor(env, config = {}) {
-    super(env);
-    this.config = {
-        encoder: 'mlp',
-        reasoning: 'metta',
-        grounding: 'learned',
-        planning: true,
-        skillDiscovery: false,
-        ...config
-    };
+    constructor(env, config = {}) {
+        super(env);
+        this.config = mergeConfig(DEFAULTS, config);
 
-    // Ensure config is an object for SeNARSBridge and filter out conflicting keys
-    const senarsConfig = typeof config === 'object' ? { ...config } : {};
-    // 'reasoning' in Agent config is a string (engine selection), but SeNARS expects an object (params)
-    // We remove it from the config passed to SeNARS to avoid validation error
-    if (typeof senarsConfig.reasoning !== 'object') {
-        delete senarsConfig.reasoning;
+        this.grounding = new LearnedGrounding();
+        this.memory = new EpisodicMemory();
+        this.skills = new SkillManager();
+        this.skillDiscovery = this.config.skillDiscovery ? new SkillDiscovery() : null;
+
+        const ArchClass = ARCHITECTURE_MAP[this.config.architecture] ?? DualProcessArchitecture;
+        this.architecture = new ArchClass(this, this.config);
+
+        this._setupBridgeAliases();
     }
 
-    this.grounding = new SymbolGrounding();
-    this.memory = new WorkingMemory();
-    this.skills = new SkillLibrary();
-
-    // If using MeTTa strategy, initialize interpreter
-    if (this.config.reasoning === 'metta') {
-        this.metta = new MeTTaInterpreter();
-        // Register Tensor Primitives for Neuro-Symbolic Logic
-        registerTensorPrimitives(this.metta);
+    _setupBridgeAliases() {
+        if (this.architecture instanceof DualProcessArchitecture) {
+            const { bridge, planner, hierarchical, inducer, metta } = this.architecture;
+            Object.assign(this, { bridge, planner, hierarchical, inducer, metta });
+        } else if (this.architecture instanceof MeTTaPolicyArchitecture) {
+            this.metta = this.architecture.metta;
+        }
     }
 
-    this.bridge = new SeNARSBridge(this, senarsConfig);
-    this.planner = new ModelBasedStrategy(this.bridge, this.config);
-    this.hierarchical = new HierarchicalStrategy(this.bridge, this.skills, this.config);
-    this.inducer = new RuleInducer(this.bridge, this.config);
-  }
+    async initialize() {
+        await this.architecture.initialize();
+        await this.skillDiscovery?.initialize();
+    }
 
-  async initialize() {
-      await this.bridge.initialize();
-  }
+    act(observation, goal) {
+        return this.architecture.act(observation, goal);
+    }
 
-  // Core interface
-  async act(observation, goal) {
-      if (!this.bridge.initialized) await this.initialize();
+    learn(observation, action, reward, nextObservation, done) {
+        return this.architecture.learn(observation, action, reward, nextObservation, done);
+    }
 
-      // 1. Perception -> Symbols
-      const symbols = this.grounding.lift(observation);
-      const goalSymbols = goal ? this.grounding.lift(goal) : 'goal';
+    async plan(goal) {
+        return this.architecture.planner?.act(null, goal) ?? null;
+    }
 
-      // 2. Reasoning / Planning
-      let actionSymbols;
+    async explain(decision) {
+        if (this.bridge?.initialized) {
+            try {
+                const result = await this.bridge.ask(`<(${decision}) --> ?explanation>?`);
+                if (result?.term) {
+                    return `Explanation: ${result.term}`;
+                }
+            } catch {
+                // Fallback
+            }
+        }
+        return 'Explanation not found';
+    }
 
-      // Try Hierarchical
-      const option = await this.hierarchical.selectOption(symbols, goalSymbols);
-      if (option) {
-          actionSymbols = await option.act(observation);
-      } else if (this.config.planning) {
-          // Model-based planning: "What action leads to goal?"
-          actionSymbols = await this.planner.act(symbols, goalSymbols);
-      }
+    async discoverSkills(experiences, options = {}) {
+        return this.skillDiscovery?.discoverSkills(experiences, options) ?? [];
+    }
 
-      // If planning failed or returned null, reactive fallback
-      if (!actionSymbols) {
-           return this._randomAction();
-      }
+    getSkills() {
+        return this.skillDiscovery?.getState() ?? null;
+    }
 
-      // 3. Symbols -> Action
-      const action = this.grounding.ground(actionSymbols);
+    async composeSkills(goal) {
+        return this.skillDiscovery?.composeSkills(goal) ?? null;
+    }
 
-      // Validate action against environment spec
-      const as = this.env?.actionSpace;
-      if (as && as.type === 'Discrete' && typeof action !== 'number') {
-           // Planning returned a non-action symbol (e.g. goal statement), fallback
-           return this._randomAction();
-      }
+    async close() {
+        await this.architecture.close();
+        await this.skillDiscovery?.shutdown();
+    }
 
-      return action;
-  }
-
-  _randomAction() {
-      const as = this.env?.actionSpace;
-      if (!as) return 0;
-
-      if (as.type === 'Discrete') {
-          return Math.floor(Math.random() * as.n);
-      }
-      // Continuous
-      return as.low.map((l, i) => l + Math.random() * (as.high[i] - l));
-  }
-
-  async learn(observation, action, reward, nextObservation, done) {
-      if (!this.bridge.initialized) await this.initialize();
-
-      // Lift inputs
-      const obsSym = this.grounding.lift(observation);
-      const nextObsSym = this.grounding.lift(nextObservation);
-      const actionSym = typeof action === 'number' ? `action_${action}` : `action_${action[0]}`; // Simplified action symbol
-
-      // 1. Store experience
-      const episode = {
-          obs: obsSym,
-          action: actionSym,
-          reward,
-          nextObs: nextObsSym,
-          done,
-          symbol: obsSym
-      };
-
-      this.memory.store(episode);
-
-      // 2. Update grounding (if learned)
-      if (this.config.grounding === 'learned') {
-          this.grounding.updateGrounding(observation, obsSym);
-      }
-
-      // 3. Rule Induction
-      this.inducer.induce([episode]);
-
-      // 4. Skill discovery / consolidation
-      if (this.config.skillDiscovery && done) {
-          this.memory.consolidate();
-      }
-  }
-
-  // Neuro-symbolic specific
-  async plan(goal) {
-      return this.planner.act(null, goal);
-  }
-
-  async explain(decision) {
-      if (this.bridge && this.bridge.initialized) {
-           const query = `<(${decision}) --> ?explanation>?`;
-           try {
-               const result = await this.bridge.ask(query);
-               if (result && result.term) {
-                   return `Explanation: ${result.term}`;
-               }
-           } catch (e) {
-               // Fallback if query fails
-           }
-      }
-      return "Explanation not found";
-  }
-
-  async close() {
-      if (this.bridge) {
-          await this.bridge.close();
-      }
-  }
-
-  transferTo(newEnv) {
-      // compositional transfer logic placeholder
-  }
+    transferTo(newEnv) {
+        return this.skillDiscovery?.transferTo(newEnv);
+    }
 }
