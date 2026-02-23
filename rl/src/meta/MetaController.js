@@ -195,7 +195,41 @@ export class MetaController extends Component {
             }
         }
 
+        // Periodic self-optimization
+        if (this.metrics.modificationsApplied % 10 === 0) {
+            await this.optimizeHyperparameters();
+        }
+
         return { modified: false };
+    }
+
+    async optimizeHyperparameters() {
+        if (!this.bridge?.metta) return;
+
+        try {
+            // Load script if needed
+            if (!this._optimizerScriptLoaded) {
+                const fs = await import('fs');
+                const path = await import('path');
+                const scriptPath = path.resolve('rl/src/meta/strategies/self_optimizer.metta');
+
+                if (fs.existsSync(scriptPath)) {
+                    const script = fs.readFileSync(scriptPath, 'utf-8');
+                    await this.bridge.metta.run(script);
+                    this._optimizerScriptLoaded = true;
+                }
+            }
+
+            // Execute optimization
+            const { grounded, exp, sym } = await import('@senars/metta/src/kernel/Term.js');
+            const controllerAtom = grounded(this);
+            const expr = exp(sym('optimize-hyperparameters'), [controllerAtom]);
+
+            console.log('Optimizing hyperparameters...');
+            await this.bridge.metta.evaluateAsync(expr);
+        } catch (e) {
+            console.error('Self-optimization failed:', e);
+        }
     }
 
     _shouldModifyArchitecture(currentPerformance) {

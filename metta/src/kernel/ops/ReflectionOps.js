@@ -27,9 +27,15 @@ export function registerReflectionOps(registry) {
     };
 
     registry.register('&js-import', async (path) => {
+        // Warning: this returns a promise if used in sync context?
+        // But &js-import should be async.
+        // Wait, import() returns a Promise<ModuleNamespace>.
+        // We wrap it in grounded().
+        // If we want to use it immediately in next step, we might need to await it.
+        // The interpreter handles async ops if they are registered as async.
         const mod = await import(unwrap(path));
         return grounded(mod);
-    });
+    }, { async: true });
 
     registry.register('&js-new', (cls, ...args) => {
         const Constructor = unwrap(cls);
