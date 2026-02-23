@@ -1,6 +1,6 @@
-
 import { SeNARS } from '@senars/core';
 import { SeNARSBridge as MettaToSeNARSBridge } from '@senars/metta';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const BRIDGE_DEFAULTS = {
     cyclesPerStep: 1,
@@ -8,8 +8,6 @@ const BRIDGE_DEFAULTS = {
     maxGoals: 10,
     autoStart: true
 };
-
-const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
 
 export class SeNARSBridge {
     constructor(agent, config = {}) {

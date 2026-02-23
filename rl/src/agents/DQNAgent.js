@@ -2,6 +2,8 @@ import { RLAgent } from '../core/RLAgent.js';
 import { ExperienceBuffer, CausalExperience } from '../experience/ExperienceBuffer.js';
 import { Tensor, AdamOptimizer, LossFunctor } from '@senars/tensor';
 import { PolicyUtils } from '../utils/PolicyUtils.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
+import { NetworkBuilder } from '../utils/NetworkBuilder.js';
 
 const DQN_DEFAULTS = {
     gamma: 0.99,
@@ -15,8 +17,6 @@ const DQN_DEFAULTS = {
     targetUpdate: 100,
     useCausalIndexing: false
 };
-
-const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
 
 export class DQNAgent extends RLAgent {
     constructor(env, config = {}) {
@@ -42,27 +42,9 @@ export class DQNAgent extends RLAgent {
     _initNetworks() {
         const obsDim = this.env.observationSpace.shape[0];
         const actionDim = this.env.actionSpace.n;
-        this.qNet = this._buildModel(obsDim, this.config.hiddenSize, actionDim);
-        this.targetNet = this._buildModel(obsDim, this.config.hiddenSize, actionDim);
+        this.qNet = NetworkBuilder.buildMLP(obsDim, this.config.hiddenSize, actionDim);
+        this.targetNet = NetworkBuilder.buildMLP(obsDim, this.config.hiddenSize, actionDim);
         this._updateTargetNetwork();
-    }
-
-    _buildModel(input, hidden, output) {
-        const params = [
-            Tensor.randn([hidden, input], 0, 0.1),
-            Tensor.zeros([hidden]),
-            Tensor.randn([output, hidden], 0, 0.1),
-            Tensor.zeros([output])
-        ].map(p => (p.requiresGrad = true, p));
-
-        return { w1: params[0], b1: params[1], w2: params[2], b2: params[3], params };
-    }
-
-    _forward(model, x) {
-        const input = x.ndim === 1 ? x.reshape([x.shape[0], 1]) : x.transpose();
-        const h = model.w1.matmul(input).add(model.b1.reshape([model.b1.shape[0], 1])).relu();
-        const out = model.w2.matmul(h).add(model.b2.reshape([model.b2.shape[0], 1]));
-        return x.ndim > 1 ? out.transpose() : out.reshape([out.shape[0]]);
     }
 
     _updateTargetNetwork() {
@@ -76,7 +58,7 @@ export class DQNAgent extends RLAgent {
             return Math.floor(Math.random() * this.env.actionSpace.n);
         }
 
-        const qValues = this._forward(this.qNet, new Tensor(observation));
+        const qValues = NetworkBuilder.forward(this.qNet, new Tensor(observation));
         return PolicyUtils.argmax(qValues.data);
     }
 
@@ -110,12 +92,12 @@ export class DQNAgent extends RLAgent {
         const rewards = batch.map(e => e.reward);
         const dones = batch.map(e => e.done);
 
-        const nextQ = this._forward(this.targetNet, nextStates);
+        const nextQ = NetworkBuilder.forward(this.targetNet, nextStates);
         const maxNextQ = this._computeMaxNextQ(nextQ.data, dones, batchSize, actionDim);
         const targets = rewards.map((r, i) => r + this.config.gamma * maxNextQ[i]);
 
-        const currentQ = this._forward(this.qNet, states);
-        const { mask, targetTensor } = this._createTargetTensors(currentQ, targets, actions, batchSize, actionDim);
+        const currentQ = NetworkBuilder.forward(this.qNet, states);
+        const { mask, targetTensor } = this._createTargetTensors(targets, actions, batchSize, actionDim);
 
         const loss = currentQ.sub(targetTensor).mul(mask).pow(2).mean();
         this.optimizer.zeroGrad(this.qNet.params);
@@ -131,7 +113,7 @@ export class DQNAgent extends RLAgent {
         });
     }
 
-    _createTargetTensors(currentQ, targets, actions, batchSize, actionDim) {
+    _createTargetTensors(targets, actions, batchSize, actionDim) {
         const maskData = new Array(batchSize * actionDim).fill(0);
         const targetData = new Array(batchSize * actionDim).fill(0);
 
