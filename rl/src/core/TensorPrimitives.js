@@ -1,4 +1,5 @@
 import { Tensor, TensorFunctor } from '@senars/tensor';
+import { PolicyUtils } from '../utils/PolicyUtils.js';
 
 const TensorWrapper = {
     wrap(t) {
@@ -84,7 +85,7 @@ export function registerTensorPrimitives(metta) {
 
     reg('&argmax', t => {
         const arr = TensorWrapper.unwrap(t).data;
-        const maxIdx = arr.reduce((maxIdx, val, i) => val > arr[maxIdx] ? i : maxIdx, 0);
+        const maxIdx = PolicyUtils.argmax(arr);
         return createSymbol(String(maxIdx));
     });
 }

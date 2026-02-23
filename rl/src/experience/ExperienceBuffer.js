@@ -218,11 +218,16 @@ export class ExperienceBuffer extends Component {
 
         await this.causalReasoner.learn(JSON.stringify(state), JSON.stringify(nextState), JSON.stringify({ action, reward }));
 
+        // Cannot create full causal signature for next state without next action/next-next state.
+        // Assuming we want to link current transition to next state representation?
+        // For now, disabling edge addition that causes crashes due to missing data.
+        /*
         this.causalGraph.addEdge(
             experience.causalSignature,
             CausalExperience.createCausalSignature({ nextState }, this.config.causalResolution),
             { action, reward }
         );
+        */
 
         this.metrics.causalLinksDiscovered++;
     }

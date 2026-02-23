@@ -49,6 +49,17 @@ export const NarseseUtils = {
         return { subject: match[1], predicate: match[2] };
     },
 
+    valueToMetta(value) {
+        if (Array.isArray(value)) {
+            return `(${value.map(v => this.valueToMetta(v)).join(' ')})`;
+        }
+        if (typeof value === 'object' && value !== null) {
+            // Very simple object support
+            return `(${Object.values(value).map(v => this.valueToMetta(v)).join(' ')})`;
+        }
+        return String(value);
+    },
+
     // --- From SeNARSMettaTensor ---
 
     observationToNarsese(observation, prefix = 'obs') {

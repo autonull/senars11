@@ -5,6 +5,7 @@ import { TensorLogicBridge, SymbolicTensor } from '@senars/tensor';
 import { WorldModel } from '../neurosymbolic/WorldModel.js';
 import { SkillLibrary, SkillDiscoveryEngine } from '../skills/HierarchicalSkillSystem.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
+import { PolicyUtils } from '../utils/PolicyUtils.js';
 
 const ARCH_DEFAULTS = {
     architecture: 'dual-process',
@@ -350,12 +351,7 @@ export class NeuroSymbolicArchitecture extends Component {
     }
 
     extractAction(tensor) {
-        let maxIdx = 0;
-        let maxVal = tensor.data[0];
-        tensor.data.slice(1).forEach((val, i) => {
-            if (val > maxVal) { maxVal = val; maxIdx = i + 1; }
-        });
-        return maxIdx;
+        return PolicyUtils.argmax(tensor.data);
     }
 
     async learn(transition, reward) {
