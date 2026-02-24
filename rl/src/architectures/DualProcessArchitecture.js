@@ -6,6 +6,7 @@ import { RuleInducer } from '../modules/RuleInducer.js';
 import { IntrinsicMotivation } from '../modules/IntrinsicMotivation.js';
 import { MeTTaInterpreter } from '@senars/metta';
 import { registerTensorPrimitives } from '../core/TensorPrimitives.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 import fs from 'fs';
 
 const DUAL_PROCESS_DEFAULTS = {
@@ -16,8 +17,6 @@ const DUAL_PROCESS_DEFAULTS = {
     skillDiscovery: false,
     grounding: 'symbolic'
 };
-
-const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
 
 export class DualProcessArchitecture extends Architecture {
     constructor(agent, config = {}) {
