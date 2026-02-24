@@ -2,7 +2,6 @@ import { RLAgent } from '../core/RLAgent.js';
 import { MeTTaInterpreter } from '@senars/metta';
 import { NarseseUtils } from '../utils/NarseseUtils.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
-import fs from 'fs';
 
 const METTA_AGENT_DEFAULTS = {
     strategyPath: null,
@@ -28,9 +27,14 @@ export class MeTTaAgent extends RLAgent {
 
         if (this.strategyPath) {
             console.log(`Loading strategy from ${this.strategyPath}`);
-            const content = fs.readFileSync(this.strategyPath, 'utf-8');
-            await this.metta.run(content);
-            console.log('Strategy loaded');
+            try {
+                const fs = await import('fs');
+                const content = await fs.promises.readFile(this.strategyPath, 'utf-8');
+                await this.metta.run(content);
+                console.log('Strategy loaded');
+            } catch (err) {
+                console.error(`Failed to load strategy from ${this.strategyPath}:`, err);
+            }
         }
         this.initialized = true;
     }
@@ -41,23 +45,17 @@ export class MeTTaAgent extends RLAgent {
         const program = `!(agent-act ${obsStr})`;
         const result = await this.metta.run(program);
 
-        if (result?.[0]) {
-            const atom = result[0];
-            const str = atom.toString();
+        const atom = result?.[0];
+        if (!atom) return 0;
 
-            // Try parsing as number
-            const val = parseFloat(str);
-            if (!isNaN(val)) return val;
+        const str = atom.toString();
+        const val = parseFloat(str);
 
-            // Try parsing as list
-            if (str.startsWith('(')) {
-                return str.slice(1, -1).trim().split(/\s+/).map(Number);
-            }
-
-            return str;
-        }
-
-        return 0; // Fallback
+        // Return number if valid, array if list-like, else string
+        if (!isNaN(val)) return val;
+        return str.startsWith('(')
+            ? str.slice(1, -1).trim().split(/\s+/).map(Number)
+            : str;
     }
 
     async learn(observation, action, reward, nextObservation, done) {

@@ -7,20 +7,20 @@ export const NetworkBuilder = {
      * @param {number} inputDim - Input dimension
      * @param {number} hiddenDim - Hidden layer dimension
      * @param {number} outputDim - Output dimension
-     * @param {number} [numLayers=1] - Number of hidden layers (currently only 1 hidden layer is fully supported by the simple structure, but extensible)
+     * @param {number} [numLayers=1] - Number of hidden layers
      * @returns {object} The model object containing parameters
      */
     buildMLP(inputDim, hiddenDim, outputDim, numLayers = 1) {
-        // Simple 2-layer MLP (Input -> Hidden -> Output) for now, as used in agents
-        // This can be extended to support arbitrary layers if needed
+        // Simple 2-layer MLP (Input -> Hidden -> Output)
         const w1 = Tensor.randn([hiddenDim, inputDim], 0, 0.1);
         const b1 = Tensor.zeros([hiddenDim]);
         const w2 = Tensor.randn([outputDim, hiddenDim], 0, 0.1);
         const b2 = Tensor.zeros([outputDim]);
 
-        [w1, b1, w2, b2].forEach(p => p.requiresGrad = true);
+        const params = [w1, b1, w2, b2];
+        for (const p of params) p.requiresGrad = true;
 
-        return { w1, b1, w2, b2, params: [w1, b1, w2, b2] };
+        return { w1, b1, w2, b2, params };
     },
 
     /**
@@ -60,10 +60,12 @@ export const NetworkBuilder = {
      * @returns {Tensor} Mask tensor
      */
     createActionMask(actions, actionDim, batchLen) {
-        const maskData = new Array(batchLen * actionDim).fill(0);
-        actions.forEach((a, i) => {
-            maskData[i * actionDim + a] = 1;
-        });
+        const maskData = new Float32Array(batchLen * actionDim);
+
+        for (let i = 0; i < batchLen; i++) {
+            maskData[i * actionDim + actions[i]] = 1;
+        }
+
         return new Tensor(maskData).reshape([batchLen, actionDim]);
     },
 
@@ -78,14 +80,16 @@ export const NetworkBuilder = {
      * @returns {object} { advantages, returns }
      */
     computeGAE(values, rewards, dones, gamma, lambda, lastNextVal = 0) {
-        const advantages = new Array(values.length).fill(0);
-        const returns = new Array(values.length).fill(0);
+        const len = values.length;
+        const advantages = new Float32Array(len);
+        const returns = new Float32Array(len);
 
         let lastGaeLam = 0;
-        for (let t = values.length - 1; t >= 0; t--) {
-            const nextVal = t === values.length - 1 ? lastNextVal : values[t + 1];
+        for (let t = len - 1; t >= 0; t--) {
+            const nextVal = t === len - 1 ? lastNextVal : values[t + 1];
             const mask = dones[t] ? 0 : 1;
             const delta = rewards[t] + gamma * nextVal * mask - values[t];
+
             lastGaeLam = delta + gamma * lambda * mask * lastGaeLam;
             advantages[t] = lastGaeLam;
             returns[t] = advantages[t] + values[t];

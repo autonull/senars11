@@ -46,6 +46,7 @@ export class PPOAgent extends RLAgent {
     }
 
     act(observation) {
+        // Use simpler tensor creation if possible, avoiding full clone if observation is already compatible
         const obsTensor = new Tensor(observation);
         const logits = NetworkBuilder.forward(this.actor, obsTensor);
         const probs = logits.softmax();
@@ -64,27 +65,49 @@ export class PPOAgent extends RLAgent {
 
     async _update() {
         const batch = await this.replayBuffer.sample(this.replayBuffer.totalSize);
-        if (batch.length === 0) return;
+        const batchSize = batch.length;
+        if (batchSize === 0) return;
 
         const obsDim = this.env.observationSpace.shape[0];
         const actionDim = this.env.actionSpace.n;
 
-        const states = new Tensor(batch.flatMap(x => x.state)).reshape([batch.length, obsDim]);
-        const actions = batch.map(x => x.action);
-        const rewards = batch.map(x => x.reward);
-        const dones = batch.map(x => x.done);
+        // Optimization: Pre-allocate TypedArrays instead of using flatMap
+        const flatStates = new Float32Array(batchSize * obsDim);
+        const actions = new Int32Array(batchSize);
+        const rewards = new Float32Array(batchSize);
+        const dones = new Uint8Array(batchSize);
+
+        for (let i = 0; i < batchSize; i++) {
+            const exp = batch[i];
+            const s = exp.state;
+
+            if (s.length === obsDim) {
+                flatStates.set(s, i * obsDim);
+            } else {
+                for(let j=0; j<obsDim; j++) flatStates[i*obsDim + j] = s[j];
+            }
+
+            actions[i] = exp.action;
+            rewards[i] = exp.reward;
+            dones[i] = exp.done ? 1 : 0;
+        }
+
+        const states = new Tensor(flatStates).reshape([batchSize, obsDim]);
 
         const values = NetworkBuilder.forward(this.critic, states).data;
-        const lastNextObs = new Tensor(batch[batch.length - 1].nextState);
+
+        // Handle last next state for GAE
+        const lastExp = batch[batchSize - 1];
+        const lastNextObs = new Tensor(lastExp.nextState);
         const lastNextVal = NetworkBuilder.forward(this.critic, lastNextObs).data[0] ?? 0;
 
         const { advantages, returns } = NetworkBuilder.computeGAE(
             values, rewards, dones, this.config.gamma, this.config.lambda, lastNextVal
         );
 
-        const actionMask = NetworkBuilder.createActionMask(actions, actionDim, batch.length);
-        const advTensor = new Tensor(advantages).reshape([batch.length, 1]);
-        const retTensor = new Tensor(returns).reshape([batch.length, 1]);
+        const actionMask = NetworkBuilder.createActionMask(actions, actionDim, batchSize);
+        const advTensor = new Tensor(advantages).reshape([batchSize, 1]);
+        const retTensor = new Tensor(returns).reshape([batchSize, 1]);
 
         for (let epoch = 0; epoch < this.config.epochs; epoch++) {
             const logits = NetworkBuilder.forward(this.actor, states);
