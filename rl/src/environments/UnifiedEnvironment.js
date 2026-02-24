@@ -186,11 +186,12 @@ export class EnvironmentAdapter {
         if (!Array.isArray(action)) return [action];
 
         if (!this.config.clipActions) return action;
-        const low = Array.isArray(this.actionSpace.low)
-            ? this.actionSpace.low : new Array(action.length).fill(this.actionSpace.low);
-        const high = Array.isArray(this.actionSpace.high)
-            ? this.actionSpace.high : new Array(action.length).fill(this.actionSpace.high);
-        return action.map((v, i) => Math.max(low[i], Math.min(high[i], v)));
+
+        const { low, high } = this.actionSpace;
+        const lowArr = Array.isArray(low) ? low : new Array(action.length).fill(low);
+        const highArr = Array.isArray(high) ? high : new Array(action.length).fill(high);
+
+        return action.map((v, i) => Math.max(lowArr[i], Math.min(highArr[i], v)));
     }
 
     render() { return this.env.render?.(); }
@@ -368,6 +369,11 @@ export class HybridEnvironment extends RLEnvironment {
 export class EnvironmentRegistry {
     constructor() {
         this.environments = new Map();
+        this._initBuiltins();
+    }
+
+    _initBuiltins() {
+        // Built-ins will be registered explicitly if needed, or via dynamic import if module system supports it
     }
 
     register(name, envClass, options = {}) {
@@ -381,7 +387,7 @@ export class EnvironmentRegistry {
             throw new Error(`Environment not found: ${name}`);
         }
         
-        const env = new entry.class(config);
+        const env = new entry.class({ ...entry.options, ...config });
         return new EnvironmentAdapter(env);
     }
 
@@ -410,22 +416,12 @@ export class EnvironmentRegistry {
  */
 export const globalEnvRegistry = new EnvironmentRegistry();
 
-// Register built-in environments
-try {
-    const envs = require('../environments');
-    
-    if (envs.CartPole) {
-        globalEnvRegistry.register('CartPole', envs.CartPole);
+// Async initialization of built-ins to support ES modules better
+(async () => {
+    try {
+        const envs = await import('./GridWorld.js'); // Assuming local relative import for now or direct file imports
+        if (envs.GridWorld) globalEnvRegistry.register('GridWorld', envs.GridWorld);
+    } catch (e) {
+        // Silent failure if module not found
     }
-    if (envs.GridWorld) {
-        globalEnvRegistry.register('GridWorld', envs.GridWorld);
-    }
-    if (envs.Continuous1D) {
-        globalEnvRegistry.register('Continuous1D', envs.Continuous1D);
-    }
-    if (envs.CompositionalWorld) {
-        globalEnvRegistry.register('CompositionalWorld', envs.CompositionalWorld);
-    }
-} catch (e) {
-    // Environments not available
-}
+})();

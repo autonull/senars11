@@ -19,13 +19,16 @@ export class GridWorld extends RLEnvironment {
             ? mergeConfig(GRID_DEFAULTS, { size: config })
             : mergeConfig(GRID_DEFAULTS, config);
         
-        this.size = merged.size;
-        this.start = merged.start;
-        this.goal = merged.goal;
-        this.obstacles = merged.obstacles;
-        this.maxSteps = merged.size * merged.size * merged.maxStepsMultiplier;
-        this.goalReward = merged.goalReward;
-        this.stepPenalty = merged.stepPenalty;
+        Object.assign(this, {
+            size: merged.size,
+            start: merged.start,
+            goal: merged.goal,
+            obstacles: merged.obstacles,
+            maxSteps: merged.size * merged.size * merged.maxStepsMultiplier,
+            goalReward: merged.goalReward,
+            stepPenalty: merged.stepPenalty
+        });
+
         this.reset();
     }
 
@@ -44,6 +47,7 @@ export class GridWorld extends RLEnvironment {
         const newX = Math.max(0, Math.min(this.size - 1, x + dx));
         const newY = Math.max(0, Math.min(this.size - 1, y + dy));
 
+        // Check obstacles
         if (!this.obstacles.some(([ox, oy]) => ox === newX && oy === newY)) {
             this.state = [newX, newY];
         }
