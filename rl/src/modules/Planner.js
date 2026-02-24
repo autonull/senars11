@@ -11,19 +11,14 @@ export class Planner {
         this.config = mergeConfig(DEFAULTS, config);
     }
 
-    async act(obs, goal) {
+    async act(obs, goal = 'goal') {
         if (!this.bridge) return null;
 
-        const obsTerm = this._term(obs);
-        await this.bridge.input(`<(*, ${obsTerm}) --> obs>.`);
+        const term = (val) => Array.isArray(val) ? `(${val.join(',')})` : String(val);
 
-        const goalTerm = `<(*, ${this._term(goal || 'goal')}) --> obs>`;
-        const result = await this.bridge.achieve(`${goalTerm}!`, { cycles: this.config.cycles });
+        await this.bridge.input(`<(*, ${term(obs)}) --> obs>.`);
+        const result = await this.bridge.achieve(`<(*, ${term(goal)}) --> obs>!`, { cycles: this.config.cycles });
 
         return result?.executedOperations?.[0] ?? null;
-    }
-
-    _term(val) {
-        return Array.isArray(val) ? `(${val.join(',')})` : String(val);
     }
 }

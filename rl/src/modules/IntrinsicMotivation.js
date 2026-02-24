@@ -6,10 +6,10 @@ const DEFAULTS = {
 };
 
 const NoveltyCalculators = {
-    countBased(visitCounts, key, weight) {
-        const count = visitCounts.get(key) || 0;
-        visitCounts.set(key, count + 1);
-        return weight / Math.sqrt(count + 1);
+    countBased: (counts, key, weight) => {
+        const count = (counts.get(key) || 0) + 1;
+        counts.set(key, count);
+        return weight / Math.sqrt(count);
     }
 };
 
@@ -20,18 +20,17 @@ export class IntrinsicMotivation {
     }
 
     calculate(transition) {
-        const { mode, weight } = this.config;
-        if (mode === 'none') return 0;
-        if (mode === 'novelty') {
-            return this._calculateNovelty(transition.nextObs);
-        }
-        return 0;
+        if (this.config.mode === 'none') return 0;
+
+        return this.config.mode === 'novelty'
+            ? this._calculateNovelty(transition.nextObs)
+            : 0;
     }
 
     _calculateNovelty(obs) {
         const key = Array.isArray(obs)
             ? obs.map(x => Math.floor(x * 10)).join('_')
-            : String(obs);
+            : `${obs}`;
 
         return NoveltyCalculators.countBased(this.visitCounts, key, this.config.intrinsicWeight);
     }
