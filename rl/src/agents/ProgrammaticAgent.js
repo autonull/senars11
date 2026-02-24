@@ -1,12 +1,11 @@
 import { MeTTaAgent } from './MeTTaAgent.js';
 import { registerTensorPrimitives } from '../core/TensorPrimitives.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const PROGRAMMATIC_DEFAULTS = {
     strategyPath: null,
     registerTensorPrimitives: true
 };
-
-const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
 
 export class ProgrammaticAgent extends MeTTaAgent {
     constructor(env, config = {}) {
