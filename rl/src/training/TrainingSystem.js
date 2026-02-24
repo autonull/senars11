@@ -12,6 +12,9 @@ import { mergeConfig } from '../utils/ConfigHelper.js';
 // Import core training classes from TrainingLoop.js
 export { TrainingConfig, EpisodeResult, TrainingLoop, TrainingPresets } from './TrainingLoop.js';
 
+// Import checkpoint manager
+export { CheckpointManager, createCheckpointCallback } from './CheckpointManager.js';
+
 // Conditional fork import - only available in parent process context
 let fork;
 try {
@@ -90,9 +93,10 @@ export class WorkerPool extends Component {
         worker.currentTask = task.id;
         this.activeTasks.set(task.id, { worker, task, startedAt: Date.now() });
 
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error(`Task timeout after ${this.config.workerTimeout}ms`)), this.config.workerTimeout)
-        );
+        const timeoutPromise = new Promise((_, reject) => {
+            const timer = setTimeout(() => reject(new Error(`Task timeout after ${this.config.workerTimeout}ms`)), this.config.workerTimeout);
+            timer.unref();
+        });
 
         const taskPromise = new Promise((resolve, reject) => {
             const handler = (message) => {
@@ -180,10 +184,12 @@ export class WorkerPool extends Component {
                     return reject(new Error('Task not found'));
                 }
 
-                setTimeout(check, 100);
+                const timer = setTimeout(check, 100);
+                timer.unref();
             };
 
-            setTimeout(() => reject(new Error('Timeout')), timeout);
+            const timeoutTimer = setTimeout(() => reject(new Error('Timeout')), timeout);
+            timeoutTimer.unref();
             check();
         });
     }

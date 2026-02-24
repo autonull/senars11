@@ -88,7 +88,9 @@ export {
     TrainingPresets,
     WorkerPool,
     ParallelExecutor,
-    DistributedTrainer
+    DistributedTrainer,
+    CheckpointManager,
+    createCheckpointCallback
 } from './training/TrainingSystem.js';
 
 // ==================== Environments ====================

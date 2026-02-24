@@ -490,9 +490,10 @@ export class EnhancedCompositionEngine extends Component {
         const promise = component[method].call(component, input, context);
         const output = await Promise.race([
             promise,
-            new Promise((_, reject) =>
-                setTimeout(() => reject(new Error(`Timeout after ${timeout}ms`)), timeout)
-            )
+            new Promise((_, reject) => {
+                const timer = setTimeout(() => reject(new Error(`Timeout after ${timeout}ms`)), timeout);
+                timer.unref();
+            })
         ]);
 
         return { success: true, output };
@@ -827,9 +828,10 @@ export const ComposableUtils = {
             async act(input, context) {
                 return Promise.race([
                     component.act(input, context),
-                    new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)
-                    )
+                    new Promise((_, reject) => {
+                        const timer = setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms);
+                        timer.unref();
+                    })
                 ]);
             }
         };

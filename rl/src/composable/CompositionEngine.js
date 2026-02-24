@@ -119,9 +119,10 @@ export class CompositionEngine {
 
         return Promise.race([
             promise,
-            new Promise((_, reject) =>
-                setTimeout(() => reject(new Error(`Timeout after ${timeout}ms`)), timeout)
-            )
+            new Promise((_, reject) => {
+                const timer = setTimeout(() => reject(new Error(`Timeout after ${timeout}ms`)), timeout);
+                timer.unref();
+            })
         ]);
     }
 

@@ -9,6 +9,20 @@ export { mergeConfig, createConfig, ConfigSchema, withDefaults, extractConfig, v
 // Error handling - RL-specific neuro-symbolic errors
 export { NeuroSymbolicError, handleError, validateConfig as validateNeuroConfig } from './ErrorHandler.js';
 
+// Enhanced error classes with helpful messages
+export {
+    EnhancedError,
+    LifecycleError,
+    EnvironmentError,
+    AgentError,
+    ConfigError,
+    TensorError,
+    TrainingError,
+    NeuroSymbolicError as NSSymbolicError,
+    Errors,
+    validateConfig as validateWithErrors
+} from './EnhancedErrors.js';
+
 // Metrics tracking for RL components
 export { MetricsTracker } from './MetricsTracker.js';
 
