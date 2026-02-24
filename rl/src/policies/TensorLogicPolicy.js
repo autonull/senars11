@@ -39,24 +39,18 @@ export class TensorLogicPolicy extends Component {
 
     async onInitialize() {
         try {
-            const { torch } = await import('@senars/tensor');
+            const { torch, AdamOptimizer, SGDOptimizer } = await import('@senars/tensor');
             this.backend = torch;
             this.tensorBridge.backend = this.backend;
+
+            try {
+                this.optimizer = new AdamOptimizer(this.config.learningRate, this.backend);
+            } catch {
+                this.optimizer = new SGDOptimizer(this.config.learningRate, this.backend);
+            }
         } catch (e) {
             console.warn('Failed to load tensor backend:', e);
             this.backend = null;
-        }
-
-        try {
-            const { AdamOptimizer } = await import('@senars/tensor');
-            this.optimizer = new AdamOptimizer(this.config.learningRate, this.backend);
-        } catch {
-            try {
-                const { SGDOptimizer } = await import('@senars/tensor');
-                this.optimizer = new SGDOptimizer(this.config.learningRate, this.backend);
-            } catch (e) {
-                console.warn('Failed to load optimizer:', e);
-            }
         }
 
         this._initializeParameters();
@@ -85,7 +79,10 @@ export class TensorLogicPolicy extends Component {
 
     _createParameter(shape, initFn) {
         const size = shape.reduce((a, b) => a * b, 1);
-        const data = typeof initFn === 'function' ? Array.from({ length: size }, initFn) : Array(size).fill(initFn);
+        const data = typeof initFn === 'function'
+            ? Array.from({ length: size }, initFn)
+            : new Array(size).fill(initFn);
+
         const t = new Tensor(data, { requiresGrad: true, backend: this.backend });
         t.shape = [...shape];
         return t;
@@ -99,9 +96,7 @@ export class TensorLogicPolicy extends Component {
             const script = fs.readFileSync(this.config.policyScript, 'utf-8');
             await this.metta.run(script);
             this.emit('policy:loaded', this.config.policyScript);
-        } catch {
-            // Silently continue
-        }
+        } catch { /* Silent */ }
     }
 
     forward(state, options = {}) {
@@ -122,7 +117,7 @@ export class TensorLogicPolicy extends Component {
             const linear = this.backend.add(this.backend.matmul(input, w), b);
             const activated = this.backend.relu(linear);
 
-            intermediates.push({ layer: i, linear, activated });
+            if (returnIntermediate) intermediates.push({ layer: i, linear, activated });
             input = activated;
         }
 
@@ -147,52 +142,61 @@ export class TensorLogicPolicy extends Component {
         const { logits } = this.forward(state);
 
         if (!this.backend) {
-            // Fallback if no backend
-            const action = Math.floor(Math.random() * this.config.outputDim);
-            return { action, actionProb: 1 / this.config.outputDim, logits: logits.data, state };
+            return {
+                action: Math.floor(Math.random() * this.config.outputDim),
+                actionProb: 1 / this.config.outputDim,
+                logits: logits.data,
+                state
+            };
         }
 
         const temp = exploration ?? this.temperature;
         const scaledLogits = this.backend.div(logits, temp);
 
-        let action, actionProb;
-
-        if (this.config.actionType === 'discrete') {
-            if (this.config.policyType === 'softmax') {
-                const probs = this.backend.softmax(scaledLogits);
-                const probsData = probs.data;
-                if (deterministic || exploration === 0) {
-                    action = PolicyUtils.argmax(probsData);
-                    actionProb = probsData[action];
-                } else {
-                    action = PolicyUtils.sampleCategorical(probsData);
-                    actionProb = probsData[action];
-                }
-            } else {
-                if (Math.random() < (exploration ?? 0.1)) {
-                    action = Math.floor(Math.random() * this.config.outputDim);
-                    actionProb = 1 / this.config.outputDim;
-                } else {
-                    action = PolicyUtils.argmax(logits.data);
-                    actionProb = 1.0;
-                }
-            }
-        } else {
-            const mu = this.backend.tanh(logits);
-            const muData = mu.data;
-            const std = 0.1;
-
-            action = deterministic
-                ? Array.from(muData)
-                : Array.from(muData).map(m => m + std * PolicyUtils.sampleGaussian());
-            actionProb = PolicyUtils.gaussianPdf(action, Array.from(muData), std);
-        }
+        const result = this.config.actionType === 'discrete'
+            ? this._selectDiscrete(scaledLogits, logits, exploration, deterministic)
+            : this._selectContinuous(logits, deterministic);
 
         if (exploration === null && this.temperature > this.config.minTemperature) {
             this.temperature *= this.config.temperatureDecay;
         }
 
-        return { action, actionProb, logits: logits.data, state };
+        return { ...result, logits: logits.data, state };
+    }
+
+    _selectDiscrete(scaledLogits, logits, exploration, deterministic) {
+        if (this.config.policyType === 'softmax') {
+            const probs = this.backend.softmax(scaledLogits);
+            const probsData = probs.data;
+            const action = (deterministic || exploration === 0)
+                ? PolicyUtils.argmax(probsData)
+                : PolicyUtils.sampleCategorical(probsData);
+            return { action, actionProb: probsData[action] };
+        }
+
+        // Epsilon-greedy
+        if (Math.random() < (exploration ?? 0.1)) {
+            return {
+                action: Math.floor(Math.random() * this.config.outputDim),
+                actionProb: 1 / this.config.outputDim
+            };
+        }
+        return {
+            action: PolicyUtils.argmax(logits.data),
+            actionProb: 1.0
+        };
+    }
+
+    _selectContinuous(logits, deterministic) {
+        const mu = this.backend.tanh(logits);
+        const muData = mu.data;
+        const std = 0.1;
+
+        const action = deterministic
+            ? Array.from(muData)
+            : Array.from(muData).map(m => m + std * PolicyUtils.sampleGaussian());
+        const actionProb = PolicyUtils.gaussianPdf(action, Array.from(muData), std);
+        return { action, actionProb };
     }
 
     async update(experience, options = {}) {
@@ -237,7 +241,6 @@ export class TensorLogicPolicy extends Component {
         const probs = this.backend.softmax(logits);
         const logProbs = this.backend.log(probs);
 
-        // Mask for selected action
         const numActions = logits.data.length;
         const maskData = new Float32Array(numActions).fill(0);
         maskData[action] = 1.0;
@@ -245,23 +248,16 @@ export class TensorLogicPolicy extends Component {
 
         const selectedLogProb = this.backend.sum(this.backend.mul(logProbs, mask));
 
+        let term;
         if (advantages) {
-            // Advantage Actor-Critic
             const adv = advantages instanceof Tensor ? advantages : new Tensor([advantages[0]], { backend: this.backend });
-            return this.backend.mul(selectedLogProb, this.backend.mul(adv, -1));
+            term = adv;
+        } else {
+             const rewardTensor = new Tensor([reward], { backend: this.backend });
+             term = rewardTensor;
         }
 
-        if (oldProbs) {
-            // PPO-like (simplified)
-            // Fallback to simple policy gradient for robustness if complex ops unavailable
-            // Ideally: ratio = exp(logProb - oldLogProb) * advantage
-            const rewardTensor = new Tensor([reward], { backend: this.backend });
-            return this.backend.mul(selectedLogProb, this.backend.mul(rewardTensor, -1));
-        }
-
-        // Vanilla Policy Gradient
-        const rewardTensor = new Tensor([reward], { backend: this.backend });
-        return this.backend.mul(selectedLogProb, this.backend.mul(rewardTensor, -1));
+        return this.backend.mul(selectedLogProb, this.backend.mul(term, -1));
     }
 
     _computeEntropy(logits) {
@@ -284,7 +280,7 @@ export class TensorLogicPolicy extends Component {
     }
 
     _clipGradients(maxNorm) {
-        this.parameters.forEach(param => {
+        for (const param of this.parameters.values()) {
             if (param.grad) {
                 const gradData = param.grad.data;
                 const norm = Math.sqrt(gradData.reduce((s, g) => s + g * g, 0));
@@ -293,7 +289,7 @@ export class TensorLogicPolicy extends Component {
                     param.grad = this.backend.mul(param.grad, scale);
                 }
             }
-        });
+        }
     }
 
     async executeMettaPolicy(state, options = {}) {
@@ -336,8 +332,8 @@ export class TensorLogicPolicy extends Component {
         const { threshold = 0.5 } = options;
         const rules = [];
 
-        this.parameters.forEach((param, name) => {
-            if (!name.startsWith('w')) return;
+        for (const [name, param] of this.parameters) {
+            if (!name.startsWith('w')) continue;
 
             const maxWeight = Math.max(...param.data.map(Math.abs));
             if (maxWeight > threshold) {
@@ -347,7 +343,7 @@ export class TensorLogicPolicy extends Component {
 
                 rules.push({ parameter: name, importantFeatures: importantIndices, strength: maxWeight });
             }
-        });
+        }
 
         if (this.policyTrace.length > 0) {
             rules.push(...PolicyUtils.findStateActionPatterns(this.policyTrace.map(t => ({ state: t.state, action: t.result }))));

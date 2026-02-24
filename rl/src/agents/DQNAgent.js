@@ -48,9 +48,11 @@ export class DQNAgent extends RLAgent {
     }
 
     _updateTargetNetwork() {
-        ['w1', 'b1', 'w2', 'b2'].forEach(key => {
-            this.targetNet[key].data = [...this.qNet[key].data];
-        });
+        for (const key of ['w1', 'b1', 'w2', 'b2']) {
+            if (this.qNet[key]) {
+                 this.targetNet[key].data = [...this.qNet[key].data];
+            }
+        }
     }
 
     act(observation) {
@@ -86,15 +88,44 @@ export class DQNAgent extends RLAgent {
         const actionDim = this.env.actionSpace.n;
         const batchSize = batch.length;
 
-        const states = new Tensor(batch.flatMap(e => e.state)).reshape([batchSize, obsDim]);
-        const nextStates = new Tensor(batch.flatMap(e => e.nextState)).reshape([batchSize, obsDim]);
-        const actions = batch.map(e => e.action);
-        const rewards = batch.map(e => e.reward);
-        const dones = batch.map(e => e.done);
+        const flatStates = new Float32Array(batchSize * obsDim);
+        const flatNextStates = new Float32Array(batchSize * obsDim);
+        const actions = new Int32Array(batchSize);
+        const rewards = new Float32Array(batchSize);
+        const dones = new Uint8Array(batchSize);
+
+        for (let i = 0; i < batchSize; i++) {
+            const e = batch[i];
+            const s = e.state;
+            const ns = e.nextState;
+
+            if (s.length === obsDim) {
+                flatStates.set(s, i * obsDim);
+            } else {
+                 for(let j=0; j<obsDim; j++) flatStates[i*obsDim + j] = s[j];
+            }
+
+            if (ns.length === obsDim) {
+                flatNextStates.set(ns, i * obsDim);
+            } else {
+                 for(let j=0; j<obsDim; j++) flatNextStates[i*obsDim + j] = ns[j];
+            }
+
+            actions[i] = e.action;
+            rewards[i] = e.reward;
+            dones[i] = e.done ? 1 : 0;
+        }
+
+        const states = new Tensor(flatStates).reshape([batchSize, obsDim]);
+        const nextStates = new Tensor(flatNextStates).reshape([batchSize, obsDim]);
 
         const nextQ = NetworkBuilder.forward(this.targetNet, nextStates);
         const maxNextQ = this._computeMaxNextQ(nextQ.data, dones, batchSize, actionDim);
-        const targets = rewards.map((r, i) => r + this.config.gamma * maxNextQ[i]);
+
+        const targets = new Float32Array(batchSize);
+        for(let i=0; i<batchSize; i++) {
+            targets[i] = rewards[i] + this.config.gamma * maxNextQ[i];
+        }
 
         const currentQ = NetworkBuilder.forward(this.qNet, states);
         const { mask, targetTensor } = this._createTargetTensors(targets, actions, batchSize, actionDim);
@@ -106,22 +137,32 @@ export class DQNAgent extends RLAgent {
     }
 
     _computeMaxNextQ(nextQData, dones, batchSize, actionDim) {
-        return Array.from({ length: batchSize }, (_, i) => {
-            if (dones[i]) return 0;
+        const maxQ = new Float32Array(batchSize);
+        for(let i=0; i<batchSize; i++) {
+            if (dones[i]) {
+                maxQ[i] = 0;
+                continue;
+            }
+            let maxVal = -Infinity;
             const offset = i * actionDim;
-            return Math.max(...nextQData.slice(offset, offset + actionDim));
-        });
+            for(let j=0; j<actionDim; j++) {
+                const val = nextQData[offset + j];
+                if (val > maxVal) maxVal = val;
+            }
+            maxQ[i] = maxVal;
+        }
+        return maxQ;
     }
 
     _createTargetTensors(targets, actions, batchSize, actionDim) {
-        const maskData = new Array(batchSize * actionDim).fill(0);
-        const targetData = new Array(batchSize * actionDim).fill(0);
+        const maskData = new Float32Array(batchSize * actionDim);
+        const targetData = new Float32Array(batchSize * actionDim);
 
-        actions.forEach((action, i) => {
-            const idx = i * actionDim + action;
+        for(let i=0; i<batchSize; i++) {
+            const idx = i * actionDim + actions[i];
             maskData[idx] = 1;
             targetData[idx] = targets[i];
-        });
+        }
 
         return {
             mask: new Tensor(maskData).reshape([batchSize, actionDim]),
