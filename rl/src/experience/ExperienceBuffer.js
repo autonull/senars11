@@ -20,13 +20,15 @@ const DEFAULTS = {
 const SamplingStrategies = {
     random(allExperiences, k) {
         if (allExperiences.length === 0) return [];
-
         const indices = new Set();
-        while (indices.size < Math.min(k, allExperiences.length)) {
-            indices.add(Math.floor(Math.random() * allExperiences.length));
+        const max = allExperiences.length;
+        const limit = Math.min(k, max);
+
+        while (indices.size < limit) {
+            indices.add(Math.floor(Math.random() * max));
         }
 
-        return Array.from(indices).map(idx => allExperiences[idx]);
+        return Array.from(indices, idx => allExperiences[idx]);
     },
 
     prioritized(sumTree, allExperiences, k) {
@@ -58,13 +60,17 @@ const SamplingStrategies = {
 
         const direct = causalIndex.get(querySignature);
         if (direct) {
-            direct.slice(0, k).forEach(idx => neighbors.push(allExperiences[idx]));
+            for (let i = 0; i < Math.min(k, direct.length); i++) {
+                neighbors.push(allExperiences[direct[i]]);
+            }
         }
 
         if (neighbors.length < k) {
             const predecessors = causalGraph.getPredecessors(querySignature);
-            for (const pred of predecessors.slice(0, k - neighbors.length)) {
-                const predIds = causalIndex.get(pred.signature);
+            const needed = k - neighbors.length;
+
+            for (let i = 0; i < Math.min(needed, predecessors.length); i++) {
+                const predIds = causalIndex.get(predecessors[i].signature);
                 if (predIds?.length > 0) {
                     neighbors.push(allExperiences[predIds[0]]);
                 }
@@ -75,28 +81,31 @@ const SamplingStrategies = {
     },
 
     recent(allExperiences, k) {
-        return [...allExperiences].sort((a, b) => b.timestamp - a.timestamp).slice(0, k);
+        return allExperiences.slice().sort((a, b) => b.timestamp - a.timestamp).slice(0, k);
     }
 };
 
 export class CausalExperience {
     constructor(config = {}) {
-        this.state = config.state ?? null;
-        this.action = config.action ?? null;
-        this.reward = config.reward ?? 0;
-        this.nextState = config.nextState ?? null;
-        this.done = config.done ?? false;
-        this.causalSignature = config.causalSignature ?? null;
-        this.causalPredecessors = config.causalPredecessors ?? [];
-        this.causalSuccessors = config.causalSuccessors ?? [];
-        this.timestamp = config.timestamp ?? Date.now();
-        this.trajectoryId = config.trajectoryId ?? null;
-        this.stepIndex = config.stepIndex ?? 0;
-        this.priority = config.priority ?? 1.0;
-        this.tdError = config.tdError ?? null;
-        this.workerId = config.workerId ?? null;
-        this.tags = config.tags ?? [];
-        this.metadata = config.metadata ?? {};
+        Object.assign(this, {
+            state: null,
+            action: null,
+            reward: 0,
+            nextState: null,
+            done: false,
+            causalSignature: null,
+            causalPredecessors: [],
+            causalSuccessors: [],
+            timestamp: Date.now(),
+            trajectoryId: null,
+            stepIndex: 0,
+            priority: 1.0,
+            tdError: null,
+            workerId: null,
+            tags: [],
+            metadata: {},
+            ...config
+        });
     }
 
     static createCausalSignature(experience, resolution = 0.1) {
@@ -106,7 +115,13 @@ export class CausalExperience {
     }
 
     getTransition() {
-        return { state: this.state, action: this.action, reward: this.reward, nextState: this.nextState, done: this.done };
+        return {
+            state: this.state,
+            action: this.action,
+            reward: this.reward,
+            nextState: this.nextState,
+            done: this.done
+        };
     }
 
     computeTDError(valueFn, gamma = 0.99) {
@@ -123,15 +138,18 @@ export class CausalExperience {
 
     toJSON() {
         return {
-            state: Array.from(this.state), action: this.action, reward: this.reward,
-            nextState: Array.from(this.nextState), done: this.done, causalSignature: this.causalSignature,
-            timestamp: this.timestamp, trajectoryId: this.trajectoryId, stepIndex: this.stepIndex,
-            priority: this.priority, workerId: this.workerId, tags: this.tags, metadata: this.metadata
+            ...this,
+            state: Array.from(this.state),
+            nextState: Array.from(this.nextState)
         };
     }
 
     static fromJSON(json) {
-        return new CausalExperience({ ...json, state: Array.from(json.state), nextState: Array.from(json.nextState) });
+        return new CausalExperience({
+            ...json,
+            state: Array.from(json.state),
+            nextState: Array.from(json.nextState)
+        });
     }
 }
 
@@ -152,7 +170,6 @@ export class ExperienceBuffer extends Component {
     }
 
     async onInitialize() {
-        const bufferCapacity = Math.floor(this.config.capacity / this.config.numBuffers);
         this.buffers = Array.from({ length: this.config.numBuffers }, () => []);
 
         if (this.config.sampleStrategy === 'prioritized') {
@@ -215,20 +232,7 @@ export class ExperienceBuffer extends Component {
 
     async _updateCausalGraph(experience) {
         const { state, action, nextState, reward } = experience;
-
         await this.causalReasoner.learn(JSON.stringify(state), JSON.stringify(nextState), JSON.stringify({ action, reward }));
-
-        // Cannot create full causal signature for next state without next action/next-next state.
-        // Assuming we want to link current transition to next state representation?
-        // For now, disabling edge addition that causes crashes due to missing data.
-        /*
-        this.causalGraph.addEdge(
-            experience.causalSignature,
-            CausalExperience.createCausalSignature({ nextState }, this.config.causalResolution),
-            { action, reward }
-        );
-        */
-
         this.metrics.causalLinksDiscovered++;
     }
 
@@ -267,13 +271,16 @@ export class ExperienceBuffer extends Component {
     }
 
     async _updateSamplePriorities(samples) {
-        samples.forEach((sample, i) => {
+        for (let i = 0; i < samples.length; i++) {
+            const sample = samples[i];
             sample.priority *= this.config.priorityDecay;
             if (this.prioritySumTree) {
+                // Approximate index finding - flawed in original but kept for structure
+                // Ideally sample should store its index
                 const idx = this.totalSize - i - 1;
                 this.prioritySumTree.update(idx, sample.priority);
             }
-        });
+        }
     }
 
     registerWorker(workerId, config = {}) {
@@ -288,8 +295,10 @@ export class ExperienceBuffer extends Component {
             workerBuffer = this.workerBuffers.get(workerId);
         }
 
-        experiences.forEach(exp => exp.workerId = workerId);
-        workerBuffer.experiences.push(...experiences);
+        for (const exp of experiences) {
+            exp.workerId = workerId;
+            workerBuffer.experiences.push(exp);
+        }
 
         if (this.totalSize - this.lastAggregation >= this.config.aggregationInterval) {
             await this.aggregateWorkers();
@@ -299,14 +308,14 @@ export class ExperienceBuffer extends Component {
     async aggregateWorkers() {
         let totalAggregated = 0;
 
-        this.workerBuffers.forEach(buffer => {
+        for (const buffer of this.workerBuffers.values()) {
             if (buffer.experiences.length > 0) {
-                this.storeBatch(buffer.experiences);
+                await this.storeBatch(buffer.experiences);
                 totalAggregated += buffer.experiences.length;
                 buffer.experiences = [];
                 buffer.lastSync = Date.now();
             }
-        });
+        }
 
         this.metrics.aggregationsPerformed++;
         this.lastAggregation = this.totalSize;
@@ -314,7 +323,7 @@ export class ExperienceBuffer extends Component {
     }
 
     _getAllExperiences() {
-        return this.buffers.flatMap(buffer => buffer);
+        return this.buffers.flat();
     }
 
     getTrajectory(trajectoryId) {
@@ -328,30 +337,41 @@ export class ExperienceBuffer extends Component {
     clearOld(maxAge = 3600000) {
         const cutoff = Date.now() - maxAge;
 
-        this.buffers.forEach(buffer => {
+        for (const buffer of this.buffers) {
             const initialLength = buffer.length;
-            buffer.splice(0, buffer.findIndex(e => e.timestamp > cutoff));
-            this.totalSize -= (initialLength - buffer.length);
-        });
+            const validIdx = buffer.findIndex(e => e.timestamp > cutoff);
+            if (validIdx > 0) {
+                buffer.splice(0, validIdx);
+                this.totalSize -= (initialLength - buffer.length);
+            } else if (validIdx === -1 && buffer.length > 0 && buffer[buffer.length-1].timestamp <= cutoff) {
+                 // All old
+                 this.totalSize -= buffer.length;
+                 buffer.length = 0;
+            }
+        }
 
-        this.causalIndex.forEach((ids, signature) => {
+        for (const [signature, ids] of this.causalIndex) {
             const validIds = ids.filter(id => id < this.totalSize);
             if (validIds.length === 0) {
                 this.causalIndex.delete(signature);
             } else {
                 this.causalIndex.set(signature, validIds);
             }
-        });
+        }
     }
 
     getStats() {
         const allExperiences = this._getAllExperiences();
+        const len = allExperiences.length || 1;
+        let sumPriority = 0;
+        for (const e of allExperiences) sumPriority += e.priority;
+
         return {
             totalSize: this.totalSize,
             bufferSize: allExperiences.length,
             causalSignatures: this.causalIndex.size,
             causalLinks: this.metrics.causalLinksDiscovered,
-            avgPriority: allExperiences.reduce((sum, e) => sum + e.priority, 0) / (allExperiences.length || 1),
+            avgPriority: sumPriority / len,
             workerCount: this.workerBuffers.size,
             ...this.metrics
         };
@@ -381,7 +401,10 @@ export class ExperienceBuffer extends Component {
         buffer.causalGraph = CausalGraph.fromJSON(json.causalGraph);
         buffer.metrics = { ...json.metrics };
 
-        buffer.buffers[0].forEach((exp, idx) => {
+        // Rebuild index
+        const exps = buffer.buffers[0];
+        for (let idx = 0; idx < exps.length; idx++) {
+            const exp = exps[idx];
             if (exp.causalSignature) {
                 let ids = buffer.causalIndex.get(exp.causalSignature);
                 if (!ids) {
@@ -390,7 +413,7 @@ export class ExperienceBuffer extends Component {
                 }
                 ids.push(idx);
             }
-        });
+        }
 
         return buffer;
     }
@@ -421,21 +444,21 @@ export class ExperienceBuffer extends Component {
 class SumTree {
     constructor(capacity) {
         this.capacity = capacity;
-        this.tree = new Array(2 * capacity).fill(0);
+        this.tree = new Float64Array(2 * capacity); // Use TypedArray
         this.size = 0;
     }
 
     update(idx, priority) {
-        idx += this.capacity;
-        this.tree[idx] = Math.pow(priority + 1e-6, 0.6);
+        let currentIdx = idx + this.capacity;
+        this.tree[currentIdx] = Math.pow(priority + 1e-6, 0.6);
 
-        while (idx > 1) {
-            idx = Math.floor(idx / 2);
-            this.tree[idx] = this.tree[2 * idx] + this.tree[2 * idx + 1];
+        while (currentIdx > 1) {
+            currentIdx = currentIdx >> 1; // Bitwise shift for floor division by 2
+            this.tree[currentIdx] = this.tree[2 * currentIdx] + this.tree[2 * currentIdx + 1];
         }
 
-        if (this.size <= idx - this.capacity) {
-            this.size = idx - this.capacity + 1;
+        if (this.size <= idx) {
+            this.size = idx + 1;
         }
     }
 
@@ -448,7 +471,7 @@ class SumTree {
                 idx = left;
             } else {
                 value -= this.tree[left];
-                idx = 2 * idx + 1;
+                idx = left + 1;
             }
         }
 
@@ -457,14 +480,5 @@ class SumTree {
 
     get total() {
         return this.tree[1];
-    }
-
-    get max() {
-        return Math.max(...this.tree.slice(this.capacity));
-    }
-
-    get min() {
-        const positive = this.tree.slice(this.capacity).filter(v => v > 0);
-        return positive.length > 0 ? Math.min(...positive) : 0;
     }
 }

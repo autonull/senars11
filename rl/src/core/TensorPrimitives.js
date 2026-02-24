@@ -14,15 +14,18 @@ const TensorWrapper = {
     },
 
     unwrap(atom) {
+        if (!atom) return null;
         if (atom.type === 'Value' && atom.value instanceof Tensor) return atom.value;
-        if (atom.type === 'Symbol' && atom.name.startsWith('(')) {
-            try {
-                return new Tensor(atom.name.slice(1, -1).trim().split(/\s+/).map(Number));
-            } catch {
-                // Fallback
+        if (atom.type === 'Symbol') {
+            const name = atom.name;
+            if (name.startsWith('(')) {
+                try {
+                    return new Tensor(name.slice(1, -1).trim().split(/\s+/).map(Number));
+                } catch { /* Fail silently */ }
             }
+            const num = Number(name);
+            if (!isNaN(num)) return num;
         }
-        if (atom.type === 'Symbol' && !isNaN(Number(atom.name))) return Number(atom.name);
         return atom;
     },
 
@@ -49,7 +52,6 @@ export function registerTensorPrimitives(metta) {
     const reg = (name, fn) => ground.register(name, fn);
 
     const { wrap, unwrap, createOp, parseShape, createSymbol } = TensorWrapper;
-    const op = (name) => createOp(name, functor);
 
     const ops = [
         'matmul', 'add', 'sub', 'mul', 'div',
@@ -63,7 +65,9 @@ export function registerTensorPrimitives(metta) {
         'grad', 'backward', 'zero_grad'
     ];
 
-    ops.forEach(name => reg(`&${name}`, op(name)));
+    for (const name of ops) {
+        reg(`&${name}`, createOp(name, functor));
+    }
 
     reg('&tensor', list => wrap(new Tensor(parseShape(list))));
     reg('&zeros', shape => wrap(Tensor.zeros(parseShape(shape))));
@@ -80,11 +84,11 @@ export function registerTensorPrimitives(metta) {
         return wrap(param);
     });
 
-    reg('&shape', t => createSymbol(`(${TensorWrapper.unwrap(t).shape.join(' ')})`));
-    reg('&get-data', t => createSymbol(`(${TensorWrapper.unwrap(t).data.join(' ')})`));
+    reg('&shape', t => createSymbol(`(${unwrap(t).shape.join(' ')})`));
+    reg('&get-data', t => createSymbol(`(${unwrap(t).data.join(' ')})`));
 
     reg('&argmax', t => {
-        const arr = TensorWrapper.unwrap(t).data;
+        const arr = unwrap(t).data;
         const maxIdx = PolicyUtils.argmax(arr);
         return createSymbol(String(maxIdx));
     });
