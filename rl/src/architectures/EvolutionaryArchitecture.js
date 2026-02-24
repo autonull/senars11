@@ -1,4 +1,4 @@
-import { Architecture } from '../core/Architecture.js';
+import { Architecture } from '../core/RLCore.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const EVOLUTIONARY_DEFAULTS = {

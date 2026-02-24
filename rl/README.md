@@ -266,6 +266,34 @@ node rl/tests/unit/core.test.js
 - **[Implementation Guide](IMPLEMENTATION_GUIDE.md)** - API reference
 - **[Advanced Architecture](ADVANCED_ARCHITECTURE.md)** - Advanced patterns
 
+### Interfaces
+
+The RL module provides formal interfaces for type checking and documentation:
+
+```javascript
+import { IAgent, IEnvironment, IArchitecture, IPolicy } from '@senars/rl';
+
+/**
+ * @implements {IAgent}
+ */
+class MyAgent extends Component {
+    async act(observation, options) { /* ... */ }
+    async learn(obs, action, reward, nextObs, done) { /* ... */ }
+    async save(path) { /* ... */ }
+    async load(path) { /* ... */ }
+    setTraining(training) { /* ... */ }
+    getStats() { /* ... */ }
+    reset() { /* ... */ }
+}
+```
+
+| Interface | Description |
+|-----------|-------------|
+| `IAgent` | Contract for all RL agents (act, learn, save, load, etc.) |
+| `IEnvironment` | Contract for environments (reset, step, spaces, etc.) |
+| `IArchitecture` | Contract for architectures (act, learn, close) |
+| `IPolicy` | Contract for policies (selectAction, update, etc.) |
+
 ---
 
 ## Dependencies

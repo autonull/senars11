@@ -1,46 +1,55 @@
 import { RLAgent } from '../core/RLAgent.js';
 import { MeTTaInterpreter } from '@senars/metta';
 import { NarseseUtils } from '../utils/NarseseUtils.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import { deepMergeConfig } from '../utils/ConfigHelper.js';
 
 const METTA_AGENT_DEFAULTS = {
     strategyPath: null,
     autoInitialize: true
 };
 
+/**
+ * MeTTaAgent - Agent with MeTTa-based policy representation
+ * Uses MeTTa interpreter for symbolic action selection and learning
+ */
 export class MeTTaAgent extends RLAgent {
     constructor(env, config = {}) {
-        super(env);
-        const mergedConfig = mergeConfig(METTA_AGENT_DEFAULTS,
-            typeof config === 'string' ? { strategyPath: config } : config
-        );
-        this.metta = new MeTTaInterpreter();
-        this.strategyPath = mergedConfig.strategyPath;
-        this.initialized = false;
+        // Handle string config (strategy path) for backward compatibility
+        const normalizedConfig = typeof config === 'string' ? { strategyPath: config } : config;
+        const mergedConfig = deepMergeConfig(METTA_AGENT_DEFAULTS, normalizedConfig);
+        super(env, mergedConfig);
 
+        this.metta = new MeTTaInterpreter();
         this.metta.ground.register('random', () => Math.random());
         this.metta.ground.register('floor', (x) => Math.floor(x));
     }
 
-    async _ensureInitialized() {
-        if (this.initialized) return;
+    get strategyPath() {
+        return this.config.strategyPath;
+    }
 
-        if (this.strategyPath) {
-            console.log(`Loading strategy from ${this.strategyPath}`);
+    async onInitialize() {
+        await super.onInitialize();
+
+        if (this.config.strategyPath) {
+            console.log(`Loading strategy from ${this.config.strategyPath}`);
             try {
                 const fs = await import('fs');
-                const content = await fs.promises.readFile(this.strategyPath, 'utf-8');
+                const content = await fs.promises.readFile(this.config.strategyPath, 'utf-8');
                 await this.metta.run(content);
                 console.log('Strategy loaded');
             } catch (err) {
-                console.error(`Failed to load strategy from ${this.strategyPath}:`, err);
+                console.error(`Failed to load strategy from ${this.config.strategyPath}:`, err);
             }
         }
-        this.initialized = true;
     }
 
     async act(observation) {
-        await this._ensureInitialized();
+        // Ensure initialized (Component lifecycle handles this)
+        if (!this._initialized) {
+            await this.initialize();
+        }
+
         const obsStr = NarseseUtils.valueToMetta(observation);
         const program = `!(agent-act ${obsStr})`;
         const result = await this.metta.run(program);
@@ -59,7 +68,10 @@ export class MeTTaAgent extends RLAgent {
     }
 
     async learn(observation, action, reward, nextObservation, done) {
-        await this._ensureInitialized();
+        if (!this._initialized) {
+            await this.initialize();
+        }
+
         const obsStr = NarseseUtils.valueToMetta(observation);
         const nextObsStr = NarseseUtils.valueToMetta(nextObservation);
         const actStr = NarseseUtils.valueToMetta(action);

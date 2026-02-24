@@ -215,3 +215,20 @@ export {
     symbolicTensor,
     termToTensor
 } from '@senars/tensor';
+
+// ==================== Interfaces ====================
+/**
+ * Formal interfaces for type checking and documentation.
+ * Use JSDoc @implements tag to indicate implementation.
+ * 
+ * @example
+ * ```javascript
+ * import { IAgent } from '@senars/rl';
+ * 
+ * /**
+ *  * @implements {IAgent}
+ *  *\/
+ * class MyAgent extends Component { ... }
+ * ```
+ */
+export * from './interfaces/index.js';

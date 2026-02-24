@@ -26,9 +26,15 @@ export class Component extends BaseComponent {
         this._subscriptions = [];
         this._state = new Map();
         this._localEventListeners = new Map();
-        this._metricsTracker = null;
+        // _metricsTracker is set by subclasses that need MetricsTracker
+        // Until then, metrics getter returns the base _metrics Map
     }
 
+    /**
+     * Metrics accessor - returns MetricsTracker if set, otherwise base Map
+     * For MetricsTracker usage: this.metrics = new MetricsTracker(...)
+     * For Map usage: this.metrics.set(), this.metrics.get() via base _metrics
+     */
     get metrics() {
         return this._metricsTracker ?? this._metrics;
     }
@@ -37,6 +43,20 @@ export class Component extends BaseComponent {
         this._metricsTracker = value;
     }
 
+    /**
+     * Override getMetrics to integrate MetricsTracker when available
+     */
+    getMetrics() {
+        if (this._metricsTracker && typeof this._metricsTracker.getAll === 'function') {
+            return this._metricsTracker.getAll();
+        }
+        return super.getMetrics();
+    }
+
+    /**
+     * Initialized state accessor for backward compatibility
+     * Maps to BaseComponent's _initialized
+     */
     get initialized() {
         return this._initialized;
     }

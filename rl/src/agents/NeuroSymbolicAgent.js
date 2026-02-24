@@ -6,9 +6,9 @@ import { SkillDiscovery } from '../skills/SkillDiscovery.js';
 import { DualProcessArchitecture } from '../architectures/DualProcessArchitecture.js';
 import { MeTTaPolicyArchitecture } from '../architectures/MeTTaPolicyArchitecture.js';
 import { EvolutionaryArchitecture } from '../architectures/EvolutionaryArchitecture.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import { deepMergeConfig } from '../utils/ConfigHelper.js';
 
-const DEFAULTS = {
+const NEUROSYMBOLIC_DEFAULTS = {
     encoder: 'mlp',
     reasoning: 'metta',
     grounding: 'learned',
@@ -25,10 +25,15 @@ const ARCHITECTURE_MAP = {
     'dual-process': DualProcessArchitecture
 };
 
+/**
+ * NeuroSymbolicAgent - Agent with neuro-symbolic integration
+ * Combines SeNARS reasoning, MeTTa policy representation, and Tensor learning
+ */
 export class NeuroSymbolicAgent extends RLAgent {
     constructor(env, config = {}) {
-        super(env);
-        this.config = mergeConfig(DEFAULTS, config);
+        // Merge configs before calling super to ensure proper inheritance
+        const mergedConfig = deepMergeConfig(NEUROSYMBOLIC_DEFAULTS, config);
+        super(env, mergedConfig);
 
         this.grounding = new LearnedGrounding();
         this.memory = new EpisodicMemory();

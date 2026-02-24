@@ -1,5 +1,5 @@
 import { RLEnvironment } from '../core/RLEnvironment.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import { deepMergeConfig } from '../utils/ConfigHelper.js';
 
 const DEFAULTS = {
     size: 10,
@@ -13,10 +13,13 @@ const DEFAULTS = {
     ]
 };
 
+/**
+ * CompositionalWorld - Environment with multiple objects for composition testing
+ */
 export class CompositionalWorld extends RLEnvironment {
     constructor(config = {}) {
-        super();
-        this.config = mergeConfig(DEFAULTS, config);
+        const mergedConfig = deepMergeConfig(DEFAULTS, config);
+        super(mergedConfig);
         this.reset();
     }
 

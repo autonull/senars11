@@ -118,6 +118,13 @@ export class ExperienceBuffer extends Component {
         return this._metricsTracker;
     }
 
+    /**
+     * Total number of experiences stored (for backward compatibility)
+     */
+    get totalSize() {
+        return this.count;
+    }
+
     async onInitialize() {
         if (this.config.sampleStrategy === 'prioritized') {
             this.sumTree = new SumTree(this.capacity);
