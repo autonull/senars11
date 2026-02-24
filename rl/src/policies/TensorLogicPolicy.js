@@ -543,3 +543,6 @@ export class TensorLogicPolicy extends Component {
         });
     }
 }
+
+// Alias for backward compatibility
+export { TensorLogicPolicy as Network };

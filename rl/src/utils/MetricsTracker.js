@@ -20,9 +20,12 @@ const StatsCalculator = {
     }
 };
 
-export class MetricsTracker extends Component {
+/**
+ * MetricsTracker - Standalone metrics tracking utility
+ * Does not extend Component to avoid conflicts with BaseComponent
+ */
+export class MetricsTracker {
     constructor(initialMetrics = {}) {
-        super({});
         this.metrics = { ...initialMetrics };
         this.history = new Map();
     }

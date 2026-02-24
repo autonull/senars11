@@ -1,24 +1,59 @@
-import { mergeConfig } from '../utils/ConfigHelper.js';
+/**
+ * RL Component System
+ * Leverages core/BaseComponent for unified lifecycle management
+ */
+import { BaseComponent } from '@senars/core';
+import { EventBus } from '@senars/core';
+import { deepMergeConfig } from '../utils/ConfigHelper.js';
 
-export class Component {
+const COMPONENT_DEFAULTS = {
+    autoInitialize: true,
+    trackMetrics: true,
+    enableEvents: true
+};
+
+/**
+ * Component - Base class for RL components
+ * Extends core/BaseComponent with RL-specific composition patterns
+ */
+export class Component extends BaseComponent {
     constructor(config = {}) {
-        this.config = mergeConfig(config);
-        this.initialized = false;
+        const mergedConfig = deepMergeConfig(COMPONENT_DEFAULTS, config);
+        super(mergedConfig, 'RLComponent', new EventBus());
+
         this.parent = null;
         this.children = new Map();
         this._subscriptions = [];
         this._state = new Map();
-        this._metrics = { calls: 0, totalTime: 0, lastCallTime: 0 };
-        this._eventListeners = new Map();
+        this._localEventListeners = new Map();
+        this._metricsTracker = null;
+    }
+
+    get metrics() {
+        return this._metricsTracker ?? this._metrics;
+    }
+
+    set metrics(value) {
+        this._metricsTracker = value;
+    }
+
+    get initialized() {
+        return this._initialized;
+    }
+
+    set initialized(value) {
+        this._initialized = value;
     }
 
     async initialize() {
-        if (this.initialized) return;
+        if (this.initialized) return this;
 
         await Promise.all(Array.from(this.children.values()).map(child => child.initialize()));
         await this.onInitialize();
-        this.initialized = true;
+        this._initialized = true;
+        this._started = true;
         this.emit('initialized', this);
+        return this;
     }
 
     async onInitialize() {}
@@ -26,10 +61,11 @@ export class Component {
     async shutdown() {
         await Promise.all(Array.from(this.children.values()).map(child => child.shutdown()));
         await this.onShutdown();
-
         this._subscriptions.forEach(sub => this.unsubscribe(sub));
-        this.initialized = false;
+        this._started = false;
+        this._disposed = true;
         this.emit('shutdown', this);
+        return this;
     }
 
     async onShutdown() {}
@@ -38,7 +74,6 @@ export class Component {
         if (this.children.has(name)) {
             throw new Error(`Child component '${name}' already exists`);
         }
-
         component.parent = this;
         this.children.set(name, component);
         this.emit('childAdded', { name, component });
@@ -79,30 +114,30 @@ export class Component {
     }
 
     subscribe(event, callback) {
-        if (!this._eventListeners.has(event)) {
-            this._eventListeners.set(event, new Set());
+        if (!this._localEventListeners.has(event)) {
+            this._localEventListeners.set(event, new Set());
         }
-
-        this._eventListeners.get(event).add(callback);
+        this._localEventListeners.get(event).add(callback);
         const subscription = { event, callback };
         this._subscriptions.push(subscription);
         return subscription;
     }
 
     unsubscribe({ event, callback }) {
-        this._eventListeners.get(event)?.delete(callback);
+        this._localEventListeners.get(event)?.delete(callback);
         const idx = this._subscriptions.findIndex(s => s.event === event && s.callback === callback);
         if (idx >= 0) this._subscriptions.splice(idx, 1);
     }
 
     emit(event, data) {
-        this._eventListeners.get(event)?.forEach(callback => {
+        this._localEventListeners.get(event)?.forEach(callback => {
             try {
                 callback(data, this);
             } catch (e) {
-                console.error(`Error in event handler for '${event}':`, e);
+                this.logger.error(`Error in event handler for '${event}':`, e);
             }
         });
+        this.eventBus.emit(event, data);
 
         if (this.parent) {
             this.parent.emit(event, { source: this, data });
@@ -134,7 +169,7 @@ export class Component {
     serialize() {
         return {
             type: this.constructor.name,
-            config: this.config,
+            config: this._config,
             state: Object.fromEntries(this._state),
             children: Array.from(this.children.entries()).map(([name, child]) => ({
                 name,
@@ -150,16 +185,13 @@ export class Component {
         }
 
         const component = new ComponentClass(data.config);
-
         Object.entries(data.state || {}).forEach(([key, value]) => {
             component.setState(key, value);
         });
-
         (data.children || []).forEach(({ name, data: childData }) => {
             const child = Component.deserialize(childData, registry);
             component.add(name, child);
         });
-
         return component;
     }
 
@@ -167,17 +199,23 @@ export class Component {
         const serialized = this.serialize();
         const config = { ...serialized.config, ...configOverrides };
         const clone = new this.constructor(config);
-
         this._state.forEach((value, key) => {
             clone.setState(key, value);
         });
-
         return clone;
     }
 }
 
+/**
+ * Functional component wrapper
+ */
 export function functionalComponent(fn, config = {}) {
     return class FunctionalComponent extends Component {
+        constructor(cfg) {
+            super({ ...config, ...cfg });
+            this.fn = null;
+        }
+
         async onInitialize() {
             if (typeof fn === 'function') {
                 this.fn = fn;

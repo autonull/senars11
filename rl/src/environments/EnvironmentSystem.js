@@ -460,8 +460,8 @@ export class EnhancedEnvironment extends RLEnvironment {
         super();
         this.env = env;
         this.config = mergeConfig(ENV_DEFAULTS, config);
-        
-        this.metrics = new MetricsTracker({
+
+        this._metricsTracker = new MetricsTracker({
             episodesCompleted: 0,
             totalSteps: 0,
             totalReward: 0,
@@ -472,6 +472,10 @@ export class EnhancedEnvironment extends RLEnvironment {
         this.currentEpisodeSteps = 0;
         this.episodeHistory = [];
         this.currentEpisode = null;
+    }
+
+    get metrics() {
+        return this._metricsTracker;
     }
 
     reset(options = {}) {

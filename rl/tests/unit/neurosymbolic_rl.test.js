@@ -8,7 +8,8 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 // Import modules to test
 import { NeuroSymbolicBridge } from '../../src/bridges/NeuroSymbolicBridge.js';
 import { TensorLogicPolicy } from '../../src/policies/TensorLogicPolicy.js';
-import { Skill, SkillLibrary, SkillDiscoveryEngine } from '../../src/skills/HierarchicalSkillSystem.js';
+import { SkillLibrary, SkillDiscoveryEngine } from '../../src/skills/HierarchicalSkillSystem.js';
+import { Skill } from '../../src/skills/SkillDiscovery.js';
 import { ExperienceBuffer, CausalExperience } from '../../src/experience/ExperienceBuffer.js';
 import { MetaController, ModificationOperator } from '../../src/meta/MetaControlSystem.js';
 import { SymbolicTensor } from '@senars/tensor';
@@ -192,13 +193,14 @@ describe('Neuro-Symbolic RL Framework', () => {
         });
 
         it('should create skill', () => {
-            const skill = new Skill('test_skill', {
+            const skill = new Skill({
+                name: 'test_skill',
                 precondition: () => true,
                 level: 0
             });
 
             expect(skill).toBeDefined();
-            expect(skill.config.name).toBe('test_skill');
+            expect(skill.name).toBe('test_skill');
         });
 
         it('should discover skills from experience', async () => {

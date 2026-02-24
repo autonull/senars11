@@ -1,10 +1,11 @@
 /**
  * Unified Cognitive System
- * Consolidates attention and reasoning modules
+ * Leverages core/reason/Reasoner and core/nar/NAR for reasoning
  */
 import { Component } from '../composable/Component.js';
 import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
 import { mergeConfig } from '../utils/ConfigHelper.js';
+import { Reasoner as CoreReasoner, NAR, TermFactory } from '@senars/core';
 
 const ATTENTION_DEFAULTS = {
     neuralDim: 64,
@@ -19,7 +20,10 @@ const REASONING_DEFAULTS = {
     maxNodes: 100,
     learningRate: 0.1,
     minStrength: 0.1,
-    maxEdges: 1000
+    maxEdges: 1000,
+    // Core NAR integration
+    useNAR: true,
+    narConfig: {}
 };
 
 const AttentionOps = {
@@ -442,11 +446,20 @@ export class ReasoningSystem extends Component {
         super(mergeConfig(REASONING_DEFAULTS, config));
         this.graph = config.graph ?? new CausalGraph(config);
         this.beliefs = new Map();
+        
+        // Optional core NAR integration for formal reasoning
+        this.nar = this.config.useNAR ? new NAR(this.config.narConfig) : null;
+        this.termFactory = this.nar?.termFactory ?? new TermFactory();
     }
 
     async initialize() {
         await this.graph.initialize();
-        this.emit('initialized', { nodes: this.graph.nodes.size, edges: this.graph.edges.size });
+        await this.nar?.start();
+        this.emit('initialized', { 
+            nodes: this.graph.nodes.size, 
+            edges: this.graph.edges.size,
+            narEnabled: !!this.nar
+        });
     }
 
     async learn(cause, effect, context = {}) {
@@ -460,6 +473,32 @@ export class ReasoningSystem extends Component {
         this.graph.observe(effect, reward);
 
         this.beliefs.set(`${cause}->${effect}`, { cause, effect, action, reward, confidence: 0.5, timestamp: Date.now() });
+        
+        // Also learn in NAR if enabled
+        if (this.nar) {
+            const narsese = `<${cause} --> ${effect}>.`;
+            this.nar.input(narsese);
+        }
+    }
+
+    /**
+     * Query using NAR reasoning if enabled, otherwise use causal graph
+     */
+    async reason(question, options = {}) {
+        const { cycles = 50 } = options;
+        
+        if (this.nar) {
+            // Use NAR for formal reasoning
+            const result = await this.nar.ask(question, { cycles });
+            return {
+                answer: result,
+                source: 'NAR',
+                confidence: result?.truth?.confidence ?? 0
+            };
+        }
+        
+        // Fallback to causal graph reasoning
+        return this.queryCauses(question);
     }
 
     queryCauses(effect) {
@@ -493,14 +532,23 @@ export class ReasoningSystem extends Component {
     }
 
     getGraph() { return this.graph; }
-    getState() { return { nodes: this.graph.nodes.size, edges: this.graph.edges.size, beliefs: this.beliefs.size }; }
+    getState() { 
+        return { 
+            nodes: this.graph.nodes.size, 
+            edges: this.graph.edges.size, 
+            beliefs: this.beliefs.size,
+            narEnabled: !!this.nar
+        }; 
+    }
 
     async shutdown() {
         await this.graph.shutdown();
+        await this.nar?.stop();
         this.beliefs.clear();
     }
 }
 
+export { ReasoningSystem as CausalReasoner };
 export class CognitiveSystem extends Component {
     constructor(config = {}) {
         super(config);

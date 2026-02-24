@@ -25,3 +25,6 @@ export * from './util/DesignTokens.js';
 export * from './SeNARS.js';
 export * from './util/CommandRegistry.js';
 export * from './util/IntrospectionEvents.js';
+export * from './util/BaseComponent.js';
+export * from './util/ConfigUtils.js';
+export * from './util/Metrics.js';

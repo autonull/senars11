@@ -6,14 +6,12 @@ import { Component } from '../composable/Component.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 import { MetricsTracker } from '../utils/MetricsTracker.js';
 import { handleError, NeuroSymbolicError } from '../utils/ErrorHandler.js';
-import { SymbolicTensor } from '@senars/tensor';
+import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
 
 const DEFAULTS = {
     useSeNARS: true,
     senarsConfig: {},
     mettaConfig: {},
-    mettaInterpreter: null,
-    tensorBackend: null,
     autoGround: true,
     gradientTracking: true,
     cacheInference: true,
@@ -31,7 +29,7 @@ const DEFAULTS = {
 export class NeuroSymbolicBridge extends Component {
     constructor(config = {}) {
         super(mergeConfig(DEFAULTS, config));
-        this.tensorBridge = null;
+        this.tensorBridge = new TensorLogicBridge();
         this.metrics = new MetricsTracker({
             narseseConversions: 0,
             mettaExecutions: 0,
@@ -42,21 +40,22 @@ export class NeuroSymbolicBridge extends Component {
         this.inferenceCache = new Map();
         this.beliefBase = new Map();
         this.goalStack = [];
-
         this.senars = null;
-        this.metta = this.config.mettaInterpreter;
+        this.metta = null;
         this.mettaBridge = null;
     }
 
     async onInitialize() {
-        await this._initializeSeNARS();
+        await Promise.all([
+            this._initializeSeNARS(),
+            this._initializeTensorBackend()
+        ]);
         this._initializeMettaIntegration();
-        await this._initializeTensorBackend();
 
         this.emit('initialized', {
             senars: !!this.senars,
             metta: !!this.metta,
-            tensor: !!this.tensorBridge.backend
+            tensor: !!this.tensorBridge
         });
     }
 
@@ -71,9 +70,7 @@ export class NeuroSymbolicBridge extends Component {
             if (this.metta) {
                 const { SeNARSBridge: MettaSeNARSBridge } = await import('@senars/metta');
                 this.mettaBridge = new MettaSeNARSBridge(this.senars.nar, this.metta);
-                if (this.metta.ground) {
-                    this.mettaBridge.registerPrimitives(this.metta.ground);
-                }
+                this.mettaBridge.registerPrimitives(this.metta.ground);
             }
 
             this.emit('senars:initialized');
@@ -102,7 +99,6 @@ export class NeuroSymbolicBridge extends Component {
             },
             'tensor-lift': (data, shape) => {
                 this.metrics.increment('tensorOperations');
-                const { SymbolicTensor } = require('@senars/tensor');
                 return {
                     type: 'tensor',
                     value: new SymbolicTensor(
@@ -112,28 +108,19 @@ export class NeuroSymbolicBridge extends Component {
                     )
                 };
             },
-            'tensor-ground': (symbolicTensor, shape) => {
-                this.metrics.increment('tensorOperations');
-                return {
-                    type: 'tensor',
-                    value: this.tensorBridge.groundToTensor(symbolicTensor, Array.from(shape))
-                };
-            }
+            'tensor-ground': (symbolicTensor, shape) =>
+                this.tensorBridge.groundToTensor(symbolicTensor, Array.from(shape))
         };
 
         Object.entries(registrations).forEach(([name, fn]) => ground.register(name, fn));
     }
 
     async _initializeTensorBackend() {
-        if (this.config.tensorBackend) {
-            this.tensorBridge.backend = this.config.tensorBackend;
-            return;
-        }
-
         try {
             const tensor = await import('@senars/tensor');
-            this.tensorBridge = new tensor.TensorLogicBridge();
-            this.tensorBridge.backend = tensor.torch;
+            if (tensor.torch) {
+                this.tensorBridge.backend = tensor.torch;
+            }
         } catch {
             // Backend unavailable - will use fallback operations
         }
@@ -141,9 +128,6 @@ export class NeuroSymbolicBridge extends Component {
 
     /**
      * Input Narsese statement to SeNARS or local belief base
-     * @param {string} narsese - Narsese statement
-     * @param {Object} options - Options (priority, confidence)
-     * @returns {Object} Input result
      */
     async inputNarsese(narsese, options = {}) {
         const { priority = this.config.defaultPriority, confidence = this.config.defaultConfidence } = options;
@@ -157,22 +141,13 @@ export class NeuroSymbolicBridge extends Component {
             }
         }
 
-        const belief = {
-            narsese,
-            priority,
-            confidence,
-            timestamp: Date.now(),
-            truth: { frequency: confidence, confidence: 0.8 }
-        };
+        const belief = { narsese, priority, confidence, timestamp: Date.now(), truth: { frequency: confidence, confidence: 0.8 } };
         this.beliefBase.set(narsese, belief);
         return { success: true, belief };
     }
 
     /**
      * Ask question to SeNARS or local belief base
-     * @param {string} question - Narsese question
-     * @param {Object} options - Options (cycles, timeout)
-     * @returns {Object|null} Answer or null
      */
     async askNarsese(question, options = {}) {
         const { cycles = this.config.maxReasoningCycles, timeout = this.config.defaultTimeout } = options;
@@ -222,9 +197,6 @@ export class NeuroSymbolicBridge extends Component {
 
     /**
      * Achieve goal via SeNARS planning or fallback
-     * @param {string} goal - Narsese goal
-     * @param {Object} options - Options (cycles, imagination)
-     * @returns {Object} Goal achievement result
      */
     async achieveGoal(goal, options = {}) {
         const { cycles = this.config.maxReasoningCycles, imagination = true } = options;
@@ -243,9 +215,6 @@ export class NeuroSymbolicBridge extends Component {
 
     /**
      * Execute MeTTa program with optional context
-     * @param {string} program - MeTTa program
-     * @param {Object} options - Options (timeout, context)
-     * @returns {Object} Execution result
      */
     async executeMetta(program, options = {}) {
         const { timeout = this.config.defaultTimeout, context = {} } = options;
@@ -255,9 +224,7 @@ export class NeuroSymbolicBridge extends Component {
             throw NeuroSymbolicError.unavailable('MeTTa', 'Interpreter not initialized');
         }
 
-        const contextBindings = Object.entries(context)
-            .map(([k, v]) => `(bind ${k} ${v})`)
-            .join('\n');
+        const contextBindings = Object.entries(context).map(([k, v]) => `(bind ${k} ${v})`).join('\n');
         const fullProgram = `${contextBindings}\n${program}`;
 
         try {
@@ -270,8 +237,6 @@ export class NeuroSymbolicBridge extends Component {
 
     /**
      * Convert Narsese to MeTTa expression
-     * @param {string} narsese - Narsese statement
-     * @returns {string} MeTTa expression
      */
     async narseseToMetta(narsese) {
         const { toMetta } = await import('../utils/NarseseUtils.js');
@@ -280,8 +245,6 @@ export class NeuroSymbolicBridge extends Component {
 
     /**
      * Convert MeTTa expression to Narsese
-     * @param {string} mettaExpr - MeTTa expression
-     * @returns {string} Narsese statement
      */
     async mettaToNarsese(mettaExpr) {
         const { toNarsese } = await import('../utils/NarseseUtils.js');
@@ -290,9 +253,6 @@ export class NeuroSymbolicBridge extends Component {
 
     /**
      * Lift tensor to symbolic representation
-     * @param {SymbolicTensor|Tensor} tensor - Input tensor
-     * @param {Object} options - Options (threshold, annotate)
-     * @returns {Array|Object} Symbolic representation
      */
     liftToSymbols(tensor, options = {}) {
         const { threshold = this.config.defaultThreshold, annotate = true } = options;
@@ -302,9 +262,7 @@ export class NeuroSymbolicBridge extends Component {
 
         if (Array.isArray(symbols) && annotate && this.metta) {
             symbols.forEach(sym => {
-                if (this.metta.ground) {
-                    this.metta.ground.register(sym.symbol, () => sym.value);
-                }
+                this.metta.ground?.register(sym.symbol, () => sym.value);
             });
         }
 
@@ -313,36 +271,22 @@ export class NeuroSymbolicBridge extends Component {
 
     /**
      * Ground symbols to tensor
-     * @param {Array|Object} symbols - Symbolic representation
-     * @param {Array} shape - Tensor shape
-     * @param {Object} options - Options (interpolate)
-     * @returns {SymbolicTensor} Grounded tensor
      */
     groundToTensor(symbols, shape, options = {}) {
         this.metrics.increment('tensorOperations');
-        return this.tensorBridge.groundToTensor(symbols, shape, {
-            interpolate: options.interpolate ?? true
-        });
+        return this.tensorBridge.groundToTensor(symbols, shape, { interpolate: options.interpolate ?? true });
     }
 
     /**
      * Convert observation to Narsese
-     * @param {Object|Array} observation - Observation data
-     * @param {Object} options - Options (threshold, predicates, prefix, simple)
-     * @returns {string} Narsese representation
      */
     async observationToNarsese(observation, options = {}) {
-        const {
-            threshold = this.config.defaultThreshold,
-            predicates = [],
-            prefix = 'obs',
-            simple = false
-        } = options;
+        const { threshold = this.config.defaultThreshold, predicates = [], prefix = 'obs', simple = false } = options;
         this.metrics.increment('narseseConversions');
 
         if (simple) {
-            const { observationToNarsese: obsToNarsese } = await import('../utils/NarseseUtils.js');
-            return obsToNarsese(observation, prefix);
+            const { observationToNarsese } = await import('../utils/NarseseUtils.js');
+            return observationToNarsese(observation, prefix);
         }
 
         const data = observation instanceof SymbolicTensor
@@ -364,9 +308,6 @@ export class NeuroSymbolicBridge extends Component {
 
     /**
      * Convert action to Narsese
-     * @param {*} action - Action
-     * @param {Object} options - Options (prefix)
-     * @returns {string} Narsese representation
      */
     async actionToNarsese(action, options = {}) {
         const { actionToNarsese } = await import('../utils/NarseseUtils.js');
@@ -375,23 +316,16 @@ export class NeuroSymbolicBridge extends Component {
 
     /**
      * Convert Narsese to tensor
-     * @param {string} narsese - Narsese statements
-     * @param {number} dimensions - Tensor dimensions
-     * @param {Object} options - Options
-     * @returns {SymbolicTensor} Tensor representation
      */
     narseseToTensor(narsese, dimensions, options = {}) {
         this.metrics.increment('narseseConversions');
-        const { SymbolicTensor } = require('@senars/tensor');
-
         const tensor = new Float32Array(dimensions);
+
         for (const statement of narsese.split('\n').filter(s => s.trim())) {
             tensor[this._hashStatement(statement, dimensions)] = 1.0;
         }
 
-        return new SymbolicTensor(tensor, dimensions, {
-            requiresGrad: this.config.gradientTracking
-        });
+        return new SymbolicTensor(tensor, dimensions, { requiresGrad: this.config.gradientTracking });
     }
 
     _hashStatement(statement, dimensions) {
@@ -405,8 +339,6 @@ export class NeuroSymbolicBridge extends Component {
 
     /**
      * Learn causal relation from transition
-     * @param {Object} transition - Transition (state, action, nextState, reward)
-     * @returns {Object} Learning result
      */
     async learnCausal(transition) {
         const { state, action, nextState, reward } = transition;
@@ -421,15 +353,11 @@ export class NeuroSymbolicBridge extends Component {
         const effect = nextStateSymbols.map(s => s.symbol).join('_');
 
         await this.inputNarsese(`<<${cause} &/ ^${action}> ==> ${effect}>.`);
-
         return { learned: true, cause, effect };
     }
 
     /**
      * Predict next state given current state and action
-     * @param {Array} currentState - Current state
-     * @param {*} action - Action
-     * @returns {Object} Prediction
      */
     predictCausal(currentState, action) {
         const stateTensor = new SymbolicTensor(Array.from(currentState), [currentState.length]);
@@ -444,18 +372,9 @@ export class NeuroSymbolicBridge extends Component {
 
     /**
      * Perceive-Reason-Act cycle
-     * @param {Object|Array} observation - Observation
-     * @param {Object} options - Options (useNARS, useMeTTa, useTensor, exploration, goal)
-     * @returns {Object} Result (action, reasoning, policy, symbolic, narsese)
      */
     async perceiveReasonAct(observation, options = {}) {
-        const {
-            useNARS = true,
-            useMeTTa = true,
-            useTensor = true,
-            exploration = this.config.explorationRate,
-            goal = null
-        } = options;
+        const { useNARS = true, useMeTTa = true, useTensor = true, exploration = this.config.explorationRate, goal = null } = options;
 
         const tensorObs = new SymbolicTensor(
             Array.isArray(observation) ? observation : Array.from(observation),
@@ -481,7 +400,6 @@ export class NeuroSymbolicBridge extends Component {
         }
 
         const action = this._selectAction(reasoningResult, policyResult, exploration);
-
         return { action, reasoning: reasoningResult, policy: policyResult, symbolic, narsese };
     }
 
@@ -506,7 +424,6 @@ export class NeuroSymbolicBridge extends Component {
 
     /**
      * Get bridge state
-     * @returns {Object} Bridge state
      */
     getState() {
         return {

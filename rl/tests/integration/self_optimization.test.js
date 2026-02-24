@@ -27,8 +27,8 @@ describe('MeTTa Self-Optimization', () => {
         await controller.bridge.initialize();
 
         // Simulate metrics: low success rate -> should increase exploration
-        controller.metrics.modificationsApplied = 10;
-        controller.metrics.modificationsSuccessful = 1; // 10% success rate < 20% threshold
+        controller.metrics.set('modificationsApplied', 10);
+        controller.metrics.set('modificationsSuccessful', 1); // 10% success rate < 20% threshold
 
         await controller.optimizeHyperparameters();
 
@@ -54,10 +54,16 @@ describe('MeTTa Self-Optimization', () => {
         await controller.bridge.initialize();
 
         // Simulate metrics: high success rate -> should decrease exploration
-        controller.metrics.modificationsApplied = 10;
-        controller.metrics.modificationsSuccessful = 9; // 90% success rate > 80% threshold
+        controller.metrics.set('modificationsApplied', 10);
+        controller.metrics.set('modificationsSuccessful', 9); // 90% success rate > 80% threshold
+
+        console.log('Before optimize - explorationRate:', controller.config.explorationRate);
+        console.log('Applied:', controller.metrics.get('modificationsApplied'));
+        console.log('Successful:', controller.metrics.get('modificationsSuccessful'));
 
         await controller.optimizeHyperparameters();
+
+        console.log('After optimize - explorationRate:', controller.config.explorationRate);
 
         assert.ok(controller.config.explorationRate < 0.5, 'Should decrease exploration rate');
         console.log('Optimized exploration rate:', controller.config.explorationRate);

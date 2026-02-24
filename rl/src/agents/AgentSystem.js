@@ -1,11 +1,10 @@
 /**
  * Unified Agent System
- * Consolidates DQN, PPO, PolicyGradient, and base agent utilities
+ * Leverages tensor/Module patterns for cleaner architecture
  */
 import { RLAgent } from '../core/RLAgent.js';
-import { Tensor, AdamOptimizer, LossFunctor } from '@senars/tensor';
+import { Tensor, AdamOptimizer, LossFunctor, Module, Linear, Sequential } from '@senars/tensor';
 import { ExperienceBuffer, CausalExperience } from '../experience/ExperienceBuffer.js';
-import { NetworkBuilder } from '../utils/NetworkBuilder.js';
 import { PolicyUtils } from '../utils/PolicyUtils.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 
@@ -15,6 +14,26 @@ const AGENT_DEFAULTS = {
     hiddenSize: 64,
     batchSize: 64
 };
+
+/**
+ * Q-Network Module using tensor/Module patterns
+ */
+class QNetwork extends Module {
+    constructor(inputDim, hiddenDim, outputDim, backend) {
+        super();
+        this.module('fc1', new Linear(inputDim, hiddenDim, { backend }));
+        this.module('fc2', new Linear(hiddenDim, outputDim, { backend }));
+        this.backend = backend;
+    }
+
+    forward(input) {
+        let x = input;
+        x = this._modules.get('fc1').forward(x);
+        x = this.backend.relu(x);
+        x = this._modules.get('fc2').forward(x);
+        return x;
+    }
+}
 
 const AgentFactoryUtils = {
     createSeededRandom(seed) {
@@ -44,8 +63,8 @@ const AgentFactoryUtils = {
         return policy.add(noise).data;
     },
 
-    buildNetwork(inputDim, hiddenDim, outputDim) {
-        return NetworkBuilder.buildMLP(inputDim, hiddenDim, outputDim);
+    createQNetwork(inputDim, hiddenDim, outputDim, backend) {
+        return new QNetwork(inputDim, hiddenDim, outputDim, backend);
     }
 };
 
@@ -112,29 +131,27 @@ export class DQNAgent extends NeuralAgent {
     }
 
     _initNetworks() {
-        super._initNetwork();
-        this.qNet = this.network;
-        this.targetNet = AgentFactoryUtils.buildNetwork(
-            AgentFactoryUtils.getObsDim(this.env.observationSpace),
-            this.config.hiddenSize,
-            AgentFactoryUtils.getActionDim(this.env.actionSpace)
-        );
+        const obsDim = AgentFactoryUtils.getObsDim(this.env.observationSpace);
+        const actionDim = AgentFactoryUtils.getActionDim(this.env.actionSpace);
+        const { torch } = require('@senars/tensor');
+        
+        this.qNet = AgentFactoryUtils.createQNetwork(obsDim, this.config.hiddenSize, actionDim, torch);
+        this.targetNet = AgentFactoryUtils.createQNetwork(obsDim, this.config.hiddenSize, actionDim, torch);
         this._updateTargetNetwork();
     }
 
     _updateTargetNetwork() {
-        ['w1', 'b1', 'w2', 'b2'].forEach(key => {
-            if (this.qNet[key] && this.targetNet[key]) {
-                this.targetNet[key].data = [...this.qNet[key].data];
-            }
-        });
+        // Copy parameters from qNet to targetNet using Module's state dict
+        const stateDict = this.qNet.stateDict();
+        this.targetNet.loadStateDict(stateDict);
     }
 
     act(observation) {
         if (Math.random() < this.config.epsilon) {
             return Math.floor(Math.random() * this.env.actionSpace.n);
         }
-        const qValues = NetworkBuilder.forward(this.qNet, new Tensor(observation));
+        const input = new Tensor(observation);
+        const qValues = this.qNet.forward(input);
         return PolicyUtils.argmax(qValues.data);
     }
 
@@ -520,4 +537,10 @@ export class AgentBuilder {
     }
 }
 
+export { AgentFactoryUtils };
 export { AgentFactoryUtils as AgentUtils };
+
+// Re-export specialized agents from standalone files
+export { MeTTaAgent } from './MeTTaAgent.js';
+export { ProgrammaticAgent } from './ProgrammaticAgent.js';
+export { NeuroSymbolicAgent } from './NeuroSymbolicAgent.js';

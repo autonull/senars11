@@ -20,9 +20,13 @@ const COMPOSABLE_DEFAULTS = {
 export class EnhancedComponent extends Component {
     constructor(config = {}) {
         super(mergeConfig(COMPOSABLE_DEFAULTS, config));
-        this.metrics = this.config.trackMetrics ? new MetricsTracker() : null;
+        this._metricsTracker = this.config.trackMetrics ? new MetricsTracker() : null;
         this._middleware = [];
         this._validators = [];
+    }
+
+    get metrics() {
+        return this._metricsTracker;
     }
 
     async initialize() {

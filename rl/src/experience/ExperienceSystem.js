@@ -1,3 +1,7 @@
+/**
+ * Experience System - Extended experience management
+ * Experience, Episode, ExperienceStream, ExperienceIndex, ExperienceStore, SkillExtractor, ExperienceLearner
+ */
 import { mergeConfig } from '../utils/ConfigHelper.js';
 import { SumTree, generateId, serializeValue, hashState } from '../utils/DataStructures.js';
 
@@ -21,25 +25,6 @@ const EXPERIENCE_INFO_DEFAULTS = {
     step: 0,
     priority: 1.0,
     tags: []
-};
-
-const SUM_TREE_DEFAULTS = {
-    epsilon: 1e-6,
-    alpha: 0.6,
-    beta: 0.4
-};
-
-const SkillExtractorDefaults = {
-    minSupport: 3,
-    minConfidence: 0.6,
-    maxSkillLength: 10,
-    stateSimilarityThreshold: 0.5
-};
-
-const ExperienceLearnerDefaults = {
-    batchSize: 32,
-    updateFrequency: 1,
-    prioritizedReplay: false
 };
 
 export class Experience {
@@ -110,24 +95,14 @@ export class ExperienceStream {
         const self = this;
         return new ExperienceStream((function*() {
             let count = 0;
-            for (const exp of self._iterator) { if (count++ >= n) break; yield exp; }
+            for (const exp of self._iterator) {
+                if (count++ >= n) break;
+                yield exp;
+            }
         })());
     }
 
-    sortBy(comparator) {
-        const items = this.collect();
-        items.sort(comparator);
-        return ExperienceStream.from(items);
-    }
-
-    sample(k) {
-        const items = this.collect().sort(() => Math.random() - 0.5);
-        return ExperienceStream.from(items.slice(0, k));
-    }
-
-    collect() { return Array.from(this._iterator); }
-    reduce(fn, initial) {
-        let acc = initial;
+    reduce(fn, acc) {
         for (const exp of this._iterator) acc = fn(acc, exp);
         return acc;
     }
@@ -232,355 +207,214 @@ export class ExperienceIndex {
         }
 
         if (state) {
-            candidates = this.byState.get(hashState(state)) ?? new Set();
+            const stateHash = hashState(state);
+            const stateExps = this.byState.get(stateHash) ?? new Set();
+            candidates = new Set([...candidates].filter(id => stateExps.has(id)));
         }
 
-        let result = Array.from(candidates);
-        if (limit) result = result.slice(0, limit);
-        return result;
+        const result = Array.from(candidates);
+        return limit ? result.slice(0, limit) : result;
     }
 
-    stats() {
+    clear() {
+        this.byTag.clear();
+        this.byEpisode.clear();
+        this.byReward.clear();
+        this.byState.clear();
+        this.timeline = [];
+    }
+
+    getStats() {
         return {
             total: this.timeline.length,
             tags: this.byTag.size,
             episodes: this.byEpisode.size,
             rewardBins: this.byReward.size,
-            stateHashes: this.byState.size
+            states: this.byState.size
         };
-    }
-
-    clear() {
-        [this.byTag, this.byEpisode, this.byReward, this.byState].forEach(m => m.clear());
-        this.timeline = [];
     }
 }
 
 export class ExperienceStore {
     constructor(config = {}) {
         this.config = mergeConfig(EXPERIENCE_DEFAULTS, config);
-        this.experiences = new Map();
+        this.buffer = [];
         this.episodes = new Map();
         this.index = new ExperienceIndex();
         this.currentEpisode = null;
-        this.totalExperiences = 0;
-        this.totalEpisodes = 0;
-        this.priorities = new Map();
-        this.sumTree = this.config.priorityReplay ? new SumTree(this.config.capacity) : null;
+    }
+
+    async initialize() {
+        this.currentEpisode = new Episode();
+        return this;
+    }
+
+    add(experience) {
+        const exp = experience instanceof Experience ? experience : new Experience(experience);
+        this.buffer.push(exp);
+        this.index.add(exp);
+
+        if (this.currentEpisode) {
+            this.currentEpisode.add(exp);
+        }
+
+        if (this.buffer.length > this.config.capacity) {
+            const removed = this.buffer.shift();
+            this.index.remove(removed.id);
+        }
+
+        return exp;
     }
 
     startEpisode(metadata = {}) {
+        if (this.currentEpisode) this.endEpisode();
         this.currentEpisode = new Episode();
-        Object.entries(metadata).forEach(([key, value]) => this.currentEpisode.setMetadata(key, value));
+        Object.entries(metadata).forEach(([k, v]) => this.currentEpisode.setMetadata(k, v));
         return this.currentEpisode;
     }
 
-    record(state, action, reward, nextState, done, info = {}) {
-        if (!this.currentEpisode) this.startEpisode();
-
-        const experience = new Experience({
-            state, action, reward, nextState, done,
-            info: { ...info, episode: this.currentEpisode.id, step: this.currentEpisode.length }
-        });
-
-        this.currentEpisode.add(experience);
-        this.experiences.set(experience.id, experience);
-        this.index.add(experience);
-
-        if (this.sumTree) this.sumTree.update(this.totalExperiences, experience.info.priority);
-
-        this.totalExperiences++;
-        if (done) this.finalizeEpisode();
-
-        return experience;
-    }
-
-    finalizeEpisode() {
+    endEpisode() {
         if (!this.currentEpisode) return null;
-
-        const episode = this.currentEpisode.finalize();
+        this.currentEpisode.finalize();
+        const episode = this.currentEpisode;
         this.episodes.set(episode.id, episode);
-        this.totalEpisodes++;
-
-        if (this.config.nStep > 1) this.computeNStepReturns(episode);
-
         this.currentEpisode = null;
         return episode;
     }
 
-    computeNStepReturns(episode) {
-        const { nStep: n, gamma } = this.config;
-        const experiences = episode.experiences;
-
-        for (let t = 0; t < experiences.length; t++) {
-            let G = 0;
-            for (let k = 0; k < n && t + k < experiences.length; k++) {
-                G += Math.pow(gamma, k) * experiences[t + k].reward;
-            }
-            if (t + n < experiences.length) {
-                G += Math.pow(gamma, n) * experiences[t + n].reward;
-            }
-            experiences[t].nStepReturn = G;
+    sample(batchSize = this.config.batchSize) {
+        if (this.buffer.length === 0) return [];
+        const indices = new Set();
+        while (indices.size < Math.min(batchSize, this.buffer.length)) {
+            indices.add(Math.floor(Math.random() * this.buffer.length));
         }
+        return Array.from(indices).map(i => this.buffer[i]);
     }
 
-    query(options = {}) {
-        const ids = this.index.query(options);
-        const experiences = ids.map(id => this.experiences.get(id)).filter(e => e !== undefined);
-        return ExperienceStream.from(experiences);
+    query(options) {
+        return this.index.query(options).map(id => this.buffer.find(e => e.id === id));
     }
 
-    sample(k = 32, options = {}) {
-        const { prioritized = false } = options;
-        if (prioritized && this.sumTree) return this.samplePrioritized(k);
-        return this.query(options).sample(k).collect();
-    }
-
-    samplePrioritized(k) {
-        const indices = this.sumTree.sample(k);
-        const exps = Array.from(this.experiences.values());
-        return indices.map(i => exps[i]).filter(e => e !== undefined);
-    }
-
-    updatePriorities(experienceIds, priorities) {
-        if (!this.config.priorityReplay) return;
-
-        experienceIds.forEach((id, i) => {
-            const exp = this.experiences.get(id);
-            if (exp) {
-                exp.info.priority = priorities[i];
-                const idx = Array.from(this.experiences.keys()).indexOf(id);
-                if (idx >= 0 && this.sumTree) this.sumTree.update(idx, priorities[i]);
-            }
-        });
-    }
-
-    getEpisode(episodeId) { return this.episodes.get(episodeId); }
-
-    getSuccessfulEpisodes(limit = 100) {
-        return Array.from(this.episodes.values())
-            .filter(ep => ep.success)
-            .sort((a, b) => b.totalReward - a.totalReward)
-            .slice(0, limit);
-    }
-
-    getRecentEpisodes(limit = 100) {
-        return Array.from(this.episodes.values())
-            .sort((a, b) => b.startTime - a.startTime)
-            .slice(0, limit);
-    }
+    getEpisode(id) { return this.episodes.get(id); }
+    getEpisodes() { return Array.from(this.episodes.values()); }
 
     getStats() {
-        const episodes = Array.from(this.episodes.values());
-        const rewards = episodes.map(ep => ep.totalReward);
-        const lengths = episodes.map(ep => ep.length);
-
         return {
-            totalExperiences: this.totalExperiences,
-            totalEpisodes: this.totalEpisodes,
-            storedExperiences: this.experiences.size,
-            indexStats: this.index.stats(),
-            episodeStats: {
-                avgReward: this.mean(rewards),
-                stdReward: this.std(rewards),
-                maxReward: Math.max(...rewards, 0),
-                avgLength: this.mean(lengths),
-                successRate: episodes.filter(ep => ep.success).length / episodes.length
-            }
+            buffer: this.buffer.length,
+            capacity: this.config.capacity,
+            episodes: this.episodes.size,
+            index: this.index.getStats()
         };
     }
 
-    export(options = {}) {
-        const { format = 'json', filter = null } = options;
-        let stream = this.query();
-        if (filter) stream = stream.filter(filter);
-        const experiences = stream.collect();
-        return format === 'json' ? JSON.stringify(experiences.map(e => e.toJSON())) : experiences;
-    }
-
-    import(data) {
-        const experiences = typeof data === 'string' ? JSON.parse(data) : data;
-        experiences.forEach(expData => {
-            const experience = new Experience(expData);
-            this.experiences.set(experience.id, experience);
-            this.index.add(experience);
-            this.totalExperiences++;
-        });
-    }
-
     clear() {
-        this.experiences.clear();
+        this.buffer = [];
         this.episodes.clear();
         this.index.clear();
-        this.priorities.clear();
-        if (this.sumTree) this.sumTree.clear();
-        this.totalExperiences = 0;
-        this.totalEpisodes = 0;
-    }
-
-    mean(arr) { return arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0; }
-    std(arr) {
-        if (arr.length < 2) return 0;
-        const m = this.mean(arr);
-        return Math.sqrt(arr.reduce((sum, v) => sum + Math.pow(v - m, 2), 0) / arr.length);
+        this.currentEpisode = null;
     }
 }
 
 export class SkillExtractor {
     constructor(config = {}) {
         this.config = mergeConfig(SkillExtractorDefaults, config);
+        this.patterns = new Map();
+        this.support = new Map();
     }
 
-    extractSkills(episodes) {
-        const successful = episodes.filter(ep => ep.success);
-        const sequences = successful.map(ep => ep.getTrajectory());
-        const patterns = this.findCommonPatterns(sequences);
-        return patterns.map(pattern => this.patternToSkill(pattern));
-    }
+    processEpisode(episode) {
+        const states = episode.getStates();
+        const actions = episode.getActions();
+        const rewards = episode.getRewards();
 
-    findCommonPatterns(sequences) {
-        const patternCounts = new Map();
+        for (let len = 2; len <= this.config.maxSkillLength; len++) {
+            for (let i = 0; i <= states.length - len; i++) {
+                const pattern = {
+                    states: states.slice(i, i + len),
+                    actions: actions.slice(i, i + len),
+                    totalReward: rewards.slice(i, i + len).reduce((a, b) => a + b, 0)
+                };
+                const key = this._patternKey(pattern);
 
-        sequences.forEach(seq => {
-            this.extractPatterns(seq).forEach(pattern => {
-                const key = JSON.stringify(pattern);
-                patternCounts.set(key, (patternCounts.get(key) ?? 0) + 1);
-            });
-        });
+                if (!this.patterns.has(key)) {
+                    this.patterns.set(key, { pattern, count: 0, totalReward: 0 });
+                }
 
-        return Array.from(patternCounts.entries())
-            .filter(([, count]) => count >= this.config.minSupport)
-            .map(([key, count]) => ({
-                pattern: JSON.parse(key),
-                support: count,
-                confidence: count / sequences.length
-            }))
-            .filter(p => p.confidence >= this.config.minConfidence)
-            .sort((a, b) => b.support - a.support);
-    }
-
-    extractPatterns(sequence) {
-        const patterns = [];
-        const maxLen = Math.min(this.config.maxSkillLength, sequence.length);
-
-        for (let len = 2; len <= maxLen; len++) {
-            for (let start = 0; start <= sequence.length - len; start++) {
-                patterns.push(sequence.slice(start, start + len));
+                const entry = this.patterns.get(key);
+                entry.count++;
+                entry.totalReward += pattern.totalReward;
             }
         }
-        return patterns;
     }
 
-    patternToSkill(patternData) {
-        const { pattern, support, confidence } = patternData;
-        return {
-            name: generateId('skill'),
-            type: 'extracted',
-            sequence: pattern,
-            precondition: this.inferPrecondition(pattern),
-            termination: this.inferTermination(pattern),
-            policy: this.extractPolicy(pattern),
-            metadata: { support, confidence, length: pattern.length }
-        };
+    _patternKey(pattern) {
+        return JSON.stringify({
+            states: pattern.states.map(s => serializeValue(s)),
+            actions: pattern.actions
+        });
     }
 
-    inferPrecondition(pattern) {
-        const firstState = pattern[0]?.state;
-        return (state) => {
-            if (!firstState) return true;
-            return this.stateSimilarity(state, firstState) > this.config.stateSimilarityThreshold;
-        };
+    getSkills(minSupport = this.config.minSupport, minConfidence = this.config.minConfidence) {
+        const skills = [];
+
+        this.patterns.forEach((entry, key) => {
+            const support = entry.count / this.patterns.size;
+            const confidence = entry.totalReward / entry.count;
+
+            if (support >= minSupport && confidence >= minConfidence) {
+                skills.push({
+                    pattern: entry.pattern,
+                    support,
+                    confidence,
+                    avgReward: confidence
+                });
+            }
+        });
+
+        return skills.sort((a, b) => b.support - a.support);
     }
 
-    inferTermination(pattern) {
-        const length = pattern.length;
-        return (state, stepsInSkill = 0) => stepsInSkill >= length;
-    }
-
-    extractPolicy(pattern) {
-        let step = 0;
-        return async (state) => {
-            if (step >= pattern.length) return null;
-            return pattern[step++].action;
-        };
-    }
-
-    stateSimilarity(s1, s2) {
-        const a1 = Array.isArray(s1) ? s1 : s1.data ?? [s1];
-        const a2 = Array.isArray(s2) ? s2 : s2.data ?? [s2];
-        let dot = 0, norm1 = 0, norm2 = 0;
-        const len = Math.min(a1.length, a2.length);
-
-        for (let i = 0; i < len; i++) {
-            dot += a1[i] * a2[i];
-            norm1 += a1[i] * a1[i];
-            norm2 += a2[i] * a2[i];
-        }
-        return dot / (Math.sqrt(norm1) * Math.sqrt(norm2) || 1);
+    clear() {
+        this.patterns.clear();
+        this.support.clear();
     }
 }
 
 export class ExperienceLearner {
-    constructor(store, config = {}) {
-        this.store = store;
+    constructor(agent, experienceStore, config = {}) {
+        this.agent = agent;
+        this.store = experienceStore;
         this.config = mergeConfig(ExperienceLearnerDefaults, config);
-        this.learningSteps = 0;
-        this.callbacks = new Map();
+        this.step = 0;
     }
 
-    on(event, callback) {
-        if (!this.callbacks.has(event)) this.callbacks.set(event, []);
-        this.callbacks.get(event).push(callback);
-        return () => {
-            const cbs = this.callbacks.get(event);
-            const idx = cbs.indexOf(callback);
-            if (idx >= 0) cbs.splice(idx, 1);
-        };
-    }
+    async learn() {
+        this.step++;
 
-    emit(event, data) {
-        const cbs = this.callbacks.get(event) ?? [];
-        cbs.forEach(cb => cb(data));
-    }
+        if (this.step % this.config.updateFrequency !== 0) return null;
 
-    async learn(agent, options = {}) {
-        const { batchSize = this.config.batchSize, prioritized = this.config.prioritizedReplay } = options;
+        const batch = this.store.sample(this.config.batchSize);
+        if (batch.length === 0) return null;
 
-        if (this.store.experiences.size < batchSize) return null;
-
-        const samples = this.store.sample(batchSize, { prioritized });
-
-        if (prioritized) {
-            const { losses, tdErrors } = await this.computeLosses(agent, samples);
-            const priorities = tdErrors.map(e => Math.abs(e) + SUM_TREE_DEFAULTS.epsilon);
-            this.store.updatePriorities(samples.map(s => s.id), priorities);
-            return { losses, priorities };
-        }
-
-        const losses = await this.computeLosses(agent, samples);
-        this.learningSteps++;
-        this.emit('learn', { step: this.learningSteps, losses });
-        return losses;
-    }
-
-    async computeLosses(agent, samples) {
-        const losses = [];
-        const tdErrors = [];
-
-        for (const sample of samples) {
-            const { state, action, reward, nextState, done } = sample.toTransition();
-            const loss = await agent.computeLoss(state, action, reward, nextState, done);
-            const tdError = await agent.computeTDError(state, action, reward, nextState);
-            losses.push(loss);
-            tdErrors.push(tdError);
+        let totalLoss = 0;
+        for (const exp of batch) {
+            const loss = await this.agent.learn(exp.toTransition(), exp.reward);
+            if (loss) totalLoss += loss.loss ?? 0;
         }
 
         return {
-            losses,
-            tdErrors,
-            meanLoss: losses.reduce((a, b) => a + b, 0) / losses.length
+            batch_size: batch.length,
+            avg_loss: totalLoss / batch.length,
+            step: this.step
         };
     }
 
-    shouldUpdate() { return this.learningSteps % this.config.updateFrequency === 0; }
+    async train(numSteps) {
+        const results = [];
+        for (let i = 0; i < numSteps; i++) {
+            const result = await this.learn();
+            if (result) results.push(result);
+        }
+        return results;
+    }
 }

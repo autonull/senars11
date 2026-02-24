@@ -1,34 +1,27 @@
 /**
  * Unified Training System
- * Consolidates TrainingLoop, WorkerPool, ParallelExecutor, DistributedTrainer
+ * WorkerPool, ParallelExecutor, DistributedTrainer for distributed training
  */
 import { Component } from '../composable/Component.js';
 import { EventEmitter } from 'events';
-import { Worker, fork } from 'worker_threads';
+import { Worker } from 'worker_threads';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { mergeConfig } from '../utils/ConfigHelper.js';
-import { ExperienceBuffer } from '../experience/ExperienceBuffer.js';
+
+// Import core training classes from TrainingLoop.js
+export { TrainingConfig, EpisodeResult, TrainingLoop, TrainingPresets } from './TrainingLoop.js';
+
+// Conditional fork import - only available in parent process context
+let fork;
+try {
+    const wt = await import('worker_threads');
+    fork = wt.fork;
+} catch {
+    fork = null;
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const TRAINING_DEFAULTS = {
-    episodes: 1000,
-    maxSteps: 500,
-    batchSize: 64,
-    updateFrequency: 1,
-    targetUpdateFrequency: 100,
-    evalFrequency: 50,
-    saveFrequency: 100,
-    seed: 42,
-    modelFree: true,
-    modelBased: false,
-    offline: false,
-    multiTask: false,
-    meta: false,
-    hierarchical: false,
-    causal: false
-};
 
 const DISTRIBUTED_DEFAULTS = {
     numWorkers: 4,
@@ -39,183 +32,6 @@ const DISTRIBUTED_DEFAULTS = {
     syncFrequency: 100,
     aggregationMethod: 'average'
 };
-
-export class TrainingConfig {
-    constructor(config = {}) {
-        const merged = mergeConfig(TRAINING_DEFAULTS, config);
-        Object.assign(this, merged);
-        this.paradigms = {
-            modelFree: merged.modelFree,
-            modelBased: merged.modelBased,
-            offline: merged.offline,
-            multiTask: merged.multiTask,
-            meta: merged.meta,
-            hierarchical: merged.hierarchical,
-            causal: merged.causal
-        };
-        this.hyperparams = config.hyperparams ?? {};
-    }
-}
-
-export class EpisodeResult {
-    constructor(episode, reward, steps, success = false, info = {}) {
-        this.episode = episode;
-        this.reward = reward;
-        this.steps = steps;
-        this.success = success;
-        this.info = info;
-        this.timestamp = Date.now();
-    }
-
-    toJSON() { return { ...this }; }
-}
-
-export class TrainingLoop extends Component {
-    constructor(agent, env, config = new TrainingConfig()) {
-        super(config);
-        this.agent = agent;
-        this.env = env;
-        this.config = config;
-
-        this.experienceBuffer = new ExperienceBuffer({
-            capacity: 50000,
-            batchSize: config.batchSize,
-            sampleStrategy: 'prioritized',
-            useCausalIndexing: config.causal
-        });
-
-        this.episodeHistory = [];
-        this.currentEpisode = 0;
-        this.bestReward = -Infinity;
-        this.metrics = { episodesCompleted: 0, totalSteps: 0, updatesPerformed: 0 };
-    }
-
-    async onInitialize() {
-        await this.experienceBuffer.initialize();
-        this.emit('initialized', { config: this.config });
-    }
-
-    async run() {
-        this.emit('trainingStarted', { episodes: this.config.episodes });
-
-        for (let ep = 0; ep < this.config.episodes; ep++) {
-            this.currentEpisode = ep;
-            const result = await this.runEpisode();
-
-            this.episodeHistory.push(result);
-            if (result.reward > this.bestReward) this.bestReward = result.reward;
-            this.metrics.episodesCompleted++;
-            this.metrics.totalSteps += result.steps;
-
-            await this.learn(result);
-
-            if (ep % this.config.evalFrequency === 0) {
-                const evalResult = await this.evaluate();
-                this.emit('evaluation', { episode: ep, ...evalResult });
-            }
-
-            if (ep % this.config.saveFrequency === 0) {
-                this.emit('checkpoint', { episode: ep, state: this.getState() });
-            }
-
-            if (ep % 10 === 0) {
-                this.emit('progress', {
-                    episode: ep,
-                    reward: result.reward,
-                    avgReward: this._runningAvg(10),
-                    bestReward: this.bestReward
-                });
-            }
-        }
-
-        this.emit('trainingCompleted', { bestReward: this.bestReward, history: this.episodeHistory, metrics: this.metrics });
-        return { bestReward: this.bestReward, history: this.episodeHistory, metrics: this.metrics };
-    }
-
-    async runEpisode() {
-        const { observation } = this.env.reset();
-        let state = observation;
-        let totalReward = 0;
-        let steps = 0;
-
-        for (let step = 0; step < this.config.maxSteps; step++) {
-            const action = await this.agent.act(state, {
-                explorationRate: 0.1,
-                useWorldModel: false
-            });
-
-            const result = this.env.step(action);
-            const { observation: nextState, reward, terminated, truncated } = result;
-
-            await this.agent.learn({ state, action, reward, nextState, done: terminated || truncated }, reward);
-            await this.experienceBuffer.store({ state, action, reward, nextState, done: terminated || truncated });
-
-            totalReward += reward;
-            state = nextState;
-            steps++;
-
-            if (terminated || truncated) break;
-        }
-
-        return new EpisodeResult(this.currentEpisode, totalReward, steps, totalReward > 0);
-    }
-
-    async learn(episodeResult) {
-        if (this.currentEpisode % this.config.updateFrequency !== 0) return;
-
-        const batch = await this.experienceBuffer.sample(this.config.batchSize);
-        if (batch.length === 0) return;
-
-        for (const experience of batch) {
-            await this.agent.learn(experience, experience.reward);
-        }
-
-        this.metrics.updatesPerformed++;
-    }
-
-    async evaluate(numEpisodes = 5) {
-        const evalEpisodes = [];
-
-        for (let ep = 0; ep < numEpisodes; ep++) {
-            const { observation } = this.env.reset();
-            let state = observation;
-            let totalReward = 0;
-
-            for (let step = 0; step < this.config.maxSteps; step++) {
-                const action = await this.agent.act(state, { explorationRate: 0 });
-                const result = this.env.step(action);
-                totalReward += result.reward;
-                state = result.observation;
-                if (result.terminated || result.truncated) break;
-            }
-
-            evalEpisodes.push(totalReward);
-        }
-
-        const mean = evalEpisodes.reduce((a, b) => a + b, 0) / evalEpisodes.length;
-        const std = Math.sqrt(evalEpisodes.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / evalEpisodes.length);
-
-        return { meanReward: mean, stdReward: std, episodes: evalEpisodes };
-    }
-
-    _runningAvg(window = 100) {
-        const recent = this.episodeHistory.slice(-window);
-        return recent.reduce((a, b) => a + b.reward, 0) / recent.length;
-    }
-
-    getState() {
-        return {
-            currentEpisode: this.currentEpisode,
-            bestReward: this.bestReward,
-            metrics: { ...this.metrics },
-            episodeHistory: this.episodeHistory.slice(-100)
-        };
-    }
-
-    async onShutdown() {
-        await this.experienceBuffer.shutdown();
-    }
-}
 
 export class WorkerPool extends Component {
     constructor(config = {}) {
@@ -495,28 +311,4 @@ export class DistributedTrainer extends Component {
     }
 }
 
-export class TrainingPresets {
-    static dqn(config = {}) {
-        return new TrainingConfig({ ...config, episodes: 500, batchSize: 32, modelBased: false });
-    }
-
-    static ppo(config = {}) {
-        return new TrainingConfig({ ...config, episodes: 1000, batchSize: 64, updateFrequency: 200 });
-    }
-
-    static modelBased(config = {}) {
-        return new TrainingConfig({ ...config, episodes: 500, modelBased: true });
-    }
-
-    static hierarchical(config = {}) {
-        return new TrainingConfig({ ...config, episodes: 2000, hierarchical: true });
-    }
-
-    static causal(config = {}) {
-        return new TrainingConfig({ ...config, episodes: 1000, causal: true });
-    }
-
-    static distributed(config = {}) {
-        return { ...config, numWorkers: config.numWorkers ?? 4, syncFrequency: 100 };
-    }
-}
+// TrainingPresets is exported from TrainingLoop.js

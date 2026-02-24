@@ -8,7 +8,7 @@
  * - Tensor Logic tensor/: Differentiable learning, tensor operations
  */
 
-// ==================== Core RL Abstractions ====================
+// ==================== Core Abstractions ====================
 export {
     Agent,
     Environment,
@@ -18,7 +18,23 @@ export {
     Grounding,
     SymbolicGrounding,
     LearnedGrounding
-} from './core/RL.js';
+} from './core/RLCore.js';
+
+// Backward compatibility
+export { RLAgent, RLEnvironment } from './core/RLCore.js';
+
+// ==================== Component System ====================
+export {
+    Component,
+    functionalComponent,
+    EnhancedComponent,
+    ComponentRegistry,
+    globalRegistry,
+    CompositionEngine,
+    EnhancedCompositionEngine,
+    ComposableUtils,
+    PipelineBuilder
+} from './composable/ComposableSystem.js';
 
 // ==================== Neuro-Symbolic Bridges ====================
 export { NeuroSymbolicBridge } from './bridges/NeuroSymbolicBridge.js';
@@ -33,41 +49,6 @@ export {
     Policy,
     Network
 } from './policies/PolicySystem.js';
-
-// ==================== Neuro-Symbolic Systems ====================
-export {
-    WorldModel,
-    SymbolicDifferentiation,
-    NeuroSymbolicSystem,
-    Model,
-    SymbolicGrad,
-    NeuroSymbolic
-} from './neurosymbolic/NeuroSymbolicSystem.js';
-
-// ==================== Composable Systems ====================
-export {
-    Component,
-    functionalComponent
-} from './composable/Component.js';
-
-export {
-    ComponentRegistry,
-    EnhancedComponent,
-    EnhancedCompositionEngine,
-    ComposableUtils,
-    CompositionEngine
-} from './composable/ComposableSystem.js';
-
-// ==================== Training Systems ====================
-export {
-    TrainingLoop,
-    TrainingConfig,
-    EpisodeResult,
-    TrainingPresets,
-    WorkerPool,
-    ParallelExecutor,
-    DistributedTrainer
-} from './training/TrainingSystem.js';
 
 // ==================== Agents ====================
 export {
@@ -92,29 +73,23 @@ export {
     EvolutionaryArchitecture
 } from './architectures/ArchitectureSystem.js';
 
-// ==================== Planning & Modules ====================
+// ==================== Neuro-Symbolic Systems ====================
 export {
-    PlanningSystem,
-    Planner,
-    HierarchicalPlanner,
-    PathPlanner,
-    RuleInducer,
-    IntrinsicMotivation
-} from './modules/PlanningSystem.js';
+    WorldModel,
+    SymbolicDifferentiation,
+    NeuroSymbolicSystem
+} from './neurosymbolic/NeuroSymbolicSystem.js';
 
-// ==================== Cognitive Systems ====================
-export { AttentionSystem, CognitiveSystem } from './cognitive/CognitiveSystem.js';
-export { ReasoningSystem, CausalGraph, CausalNode, CausalEdge } from './cognitive/CognitiveSystem.js';
-
-// ==================== Meta-Control ====================
+// ==================== Training ====================
 export {
-    MetaController,
-    ModificationOperator,
-    ArchitectureEvolver,
-    SelfModifier,
-    ArchitectureSearch,
-    Evolver
-} from './meta/MetaControlSystem.js';
+    TrainingLoop,
+    TrainingConfig,
+    EpisodeResult,
+    TrainingPresets,
+    WorkerPool,
+    ParallelExecutor,
+    DistributedTrainer
+} from './training/TrainingSystem.js';
 
 // ==================== Environments ====================
 export {
@@ -136,20 +111,7 @@ export {
     makeEnv
 } from './environments/EnvironmentSystem.js';
 
-// ==================== Evaluation ====================
-export {
-    BenchmarkRunner,
-    MetricsCollector,
-    StatisticalTests,
-    AgentComparator,
-    PowerAnalysis,
-    MultipleComparisonCorrection,
-    Evaluator,
-    Collector,
-    Statistics
-} from './evaluation/EvaluationSystem.js';
-
-// ==================== Memory Systems ====================
+// ==================== Memory ====================
 export {
     EpisodicMemory,
     SemanticMemory,
@@ -158,6 +120,48 @@ export {
     Knowledge,
     UnifiedMemory
 } from './memory/MemorySystem.js';
+
+// ==================== Experience ====================
+export {
+    ExperienceBuffer,
+    CausalExperience,
+    Experience,
+    ExperienceStream,
+    Episode,
+    ExperienceIndex,
+    ExperienceStore,
+    SkillExtractor,
+    ExperienceLearner
+} from './experience/ExperienceBuffer.js';
+
+// ==================== Planning & Modules ====================
+export {
+    PlanningSystem,
+    Planner,
+    HierarchicalPlanner,
+    PathPlanner,
+    RuleInducer,
+    IntrinsicMotivation
+} from './modules/PlanningSystem.js';
+
+// ==================== Cognitive Systems ====================
+export { AttentionSystem, CognitiveSystem } from './cognitive/CognitiveSystem.js';
+export { ReasoningSystem, CausalGraph, CausalNode, CausalEdge, CausalReasoner } from './cognitive/CognitiveSystem.js';
+
+// ==================== Meta-Control ====================
+export {
+    MetaController,
+    ModificationOperator,
+    ArchitectureEvolver,
+    SelfModifier,
+    ArchitectureSearch,
+    Evolver
+} from './meta/MetaControlSystem.js';
+
+// ==================== Skills ====================
+export { Skill, SkillDiscovery } from './skills/SkillDiscovery.js';
+export * from './skills/SkillManager.js';
+export * from './skills/HierarchicalSkillSystem.js';
 
 // ==================== Plugins & Strategies ====================
 export {
@@ -175,6 +179,22 @@ export {
     Explore
 } from './plugins/PluginStrategySystem.js';
 
+// ==================== Evaluation ====================
+export {
+    BenchmarkRunner,
+    MetricsCollector,
+    StatisticalTests,
+    AgentComparator,
+    PowerAnalysis,
+    MultipleComparisonCorrection,
+    Evaluator,
+    Collector,
+    Statistics
+} from './evaluation/EvaluationSystem.js';
+
+// ==================== Distributed Execution ====================
+export * from './distributed/ParallelExecution.js';
+
 // ==================== Configuration ====================
 export * from './config/ConfigManager.js';
 
@@ -185,13 +205,8 @@ export * from './functional/FunctionalUtils.js';
 export * from './cognitive/CognitiveArchitecture.js';
 export * from './cognitive/EmergentArchitecture.js';
 
-// ==================== Skills ====================
-export * from './skills/SkillManager.js';
-export * from './skills/HierarchicalSkillSystem.js';
-export { Skill, SkillDiscovery } from './skills/SkillDiscovery.js';
-
-// ==================== Distributed Execution ====================
-export * from './distributed/ParallelExecution.js';
+// ==================== Utilities ====================
+export * from './utils/index.js';
 
 // ==================== Tensor Logic Re-exports ====================
 export {
@@ -200,6 +215,3 @@ export {
     symbolicTensor,
     termToTensor
 } from '@senars/tensor';
-
-// ==================== All Utilities ====================
-export * from './utils/index.js';

@@ -1,11 +1,12 @@
 /**
  * Enhanced Memory and Grounding System
- * Unified framework for episodic memory, semantic memory, and neuro-symbolic grounding
+ * Leverages core/memory for unified memory management
  */
 import { Component } from '../composable/Component.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 import { MetricsTracker } from '../utils/MetricsTracker.js';
 import { CausalGraph } from '../cognitive/CognitiveSystem.js';
+import { Memory as CoreMemory } from '@senars/core';
 
 const MEMORY_DEFAULTS = {
     capacity: 10000,
@@ -16,7 +17,10 @@ const MEMORY_DEFAULTS = {
     retrievalK: 5,
     similarityThreshold: 0.7,
     useCausalIndexing: true,
-    decayRate: 0.01
+    decayRate: 0.01,
+    // Core memory integration
+    useCoreMemory: true,
+    coreMemoryConfig: {}
 };
 
 const GROUNDING_DEFAULTS = {
@@ -29,7 +33,7 @@ const GROUNDING_DEFAULTS = {
 };
 
 /**
- * Enhanced Episodic Memory with advanced retrieval
+ * Episodic Memory - Now leverages core/Memory for concept management
  */
 export class EpisodicMemory extends Component {
     constructor(config = {}) {
@@ -38,12 +42,24 @@ export class EpisodicMemory extends Component {
         this.symbolicIndex = new Map();
         this.temporalIndex = new Map();
         this.causalGraph = this.config.useCausalIndexing ? new CausalGraph() : null;
-        this.metrics = new MetricsTracker({
+        this._metricsTracker = new MetricsTracker({
             itemsStored: 0,
             itemsRetrieved: 0,
             consolidationsPerformed: 0
         });
         this.consolidationBuffer = [];
+        
+        // Optional core memory integration for concept-based storage
+        this.coreMemory = this.config.useCoreMemory
+            ? new CoreMemory({
+                ...this.config.coreMemoryConfig,
+                maxConcepts: this.config.semanticCapacity
+            })
+            : null;
+    }
+
+    get metrics() {
+        return this._metricsTracker;
     }
 
     store(item, options = {}) {
@@ -328,7 +344,11 @@ export class SemanticMemory extends Component {
         super(mergeConfig(MEMORY_DEFAULTS, config));
         this.concepts = new Map();
         this.relationships = new Map();
-        this.metrics = new MetricsTracker({ conceptsLearned: 0, relationshipsLearned: 0 });
+        this._metricsTracker = new MetricsTracker({ conceptsLearned: 0, relationshipsLearned: 0 });
+    }
+
+    get metrics() {
+        return this._metricsTracker;
     }
 
     learnConcept(name, features, metadata = {}) {
@@ -450,7 +470,11 @@ export class LearnedGrounding extends Component {
         this.valueMap = new Map();
         this.actionMap = new Map();
         this.counter = 0;
-        this.metrics = new MetricsTracker({ liftsPerformed: 0, groundingsPerformed: 0 });
+        this._metricsTracker = new MetricsTracker({ liftsPerformed: 0, groundingsPerformed: 0 });
+    }
+
+    get metrics() {
+        return this._metricsTracker;
     }
 
     lift(observation, options = {}) {
@@ -565,7 +589,11 @@ export class MemorySystem extends Component {
         this.episodic = new EpisodicMemory(config);
         this.semantic = new SemanticMemory(config);
         this.grounding = new LearnedGrounding(config);
-        this.metrics = new MetricsTracker({ queriesPerformed: 0 });
+        this._metricsTracker = new MetricsTracker({ queriesPerformed: 0 });
+    }
+
+    get metrics() {
+        return this._metricsTracker;
     }
 
     async onInitialize() {

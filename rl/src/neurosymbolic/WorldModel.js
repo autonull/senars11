@@ -1,5 +1,6 @@
 import { Component } from '../composable/Component.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
+import { MetricsTracker } from '../utils/MetricsTracker.js';
 import { SymbolicDifferentiation } from './SymbolicDifferentiation.js';
 import { Tensor } from '@senars/tensor';
 
@@ -10,7 +11,8 @@ const DEFAULTS = {
     ensembleSize: 5,
     learningRate: 0.001,
     imaginationHorizon: 10,
-    uncertaintyThreshold: 0.5
+    uncertaintyThreshold: 0.5,
+    trackMetrics: true
 };
 
 export class WorldModel extends Component {
@@ -27,6 +29,11 @@ export class WorldModel extends Component {
 
         this.experienceBuffer = [];
         this.symbolicDiff = new SymbolicDifferentiation(config);
+        this.metrics = this.config.trackMetrics ? new MetricsTracker({
+            updatesPerformed: 0,
+            imaginationsPerformed: 0,
+            predictionsMade: 0
+        }) : null;
     }
 
     async onInitialize() {
@@ -60,6 +67,8 @@ export class WorldModel extends Component {
         if (this.experienceBuffer.length >= 32) {
             await this._trainModels();
         }
+        this.metrics?.increment('updatesPerformed');
+        return { updated: true };
     }
 
     async _trainModels() {
@@ -257,12 +266,29 @@ export class WorldModel extends Component {
         return {
             experienceBufferSize: this.experienceBuffer.length,
             latentDim: this.latentDim,
-            ensembleSize: this.ensembleSize
+            ensembleSize: this.ensembleSize,
+            metrics: this.metrics?.getAll() ?? {}
         };
+    }
+
+    getStats() {
+        return this.getState();
     }
 
     async onShutdown() {
         this.experienceBuffer = [];
         this.symbolicDiff.clear();
+    }
+
+    static create(config = {}) {
+        return new WorldModel(config);
+    }
+
+    static createImaginationFocused(config = {}) {
+        return new WorldModel({ ...config, imaginationHorizon: 20, ensembleSize: 3 });
+    }
+
+    static createUncertaintyAware(config = {}) {
+        return new WorldModel({ ...config, ensembleSize: 10, uncertaintyThreshold: 0.3 });
     }
 }

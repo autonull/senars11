@@ -195,7 +195,7 @@ export class MetaController extends Component {
         this.failedOperators = [];
         this.evaluationBuffer = [];
         this.baselinePerformance = null;
-        this.metrics = new MetricsTracker({
+        this._metricsTracker = new MetricsTracker({
             modificationsProposed: 0,
             modificationsApplied: 0,
             modificationsSuccessful: 0,
@@ -204,6 +204,10 @@ export class MetaController extends Component {
         });
         this.generation = 0;
         this.noImprovementCount = 0;
+    }
+
+    get metrics() {
+        return this._metricsTracker;
     }
 
     async onInitialize() {
@@ -304,6 +308,82 @@ export class MetaController extends Component {
         }
 
         return { success: result.success, operator: candidate, result };
+    }
+
+    /**
+     * Optimize hyperparameters based on success rate
+     * Adjusts exploration rate based on modification success metrics
+     */
+    async optimizeHyperparameters() {
+        const applied = this.metrics.get('modificationsApplied') || 0;
+        const successful = this.metrics.get('modificationsSuccessful') || 0;
+        const successRate = applied > 0 ? successful / applied : 0;
+
+        // Adjust exploration rate based on success rate
+        if (successRate < 0.2) {
+            // Low success - increase exploration
+            this.config.explorationRate = Math.min(1.0, this.config.explorationRate * 1.5);
+        } else if (successRate > 0.8) {
+            // High success - decrease exploration
+            this.config.explorationRate = Math.max(0.01, this.config.explorationRate * 0.7);
+        }
+
+        return {
+            successRate,
+            newExplorationRate: this.config.explorationRate
+        };
+    }
+
+    /**
+     * Generate modification operators using MeTTa reflection
+     * @returns {Promise<Array>} List of modification operators
+     */
+    async _generateMettaOperators() {
+        // Check if we have a short history - if so, suggest adding components
+        const historyLength = this.performanceHistory?.length ?? 0;
+        
+        if (historyLength < 5) {
+            // Short history - suggest adding reasoning components
+            return [
+                {
+                    type: 'add',
+                    parameters: { stage: 'reasoning', componentId: 'causal_reasoner' }
+                }
+            ];
+        }
+
+        if (!this.bridge?.metta) {
+            // No MeTTa available - return default operators based on performance
+            const avgPerformance = this.performanceHistory.length > 0
+                ? this.performanceHistory.reduce((a, b) => a + b, 0) / this.performanceHistory.length
+                : 0;
+
+            if (avgPerformance < 0.5) {
+                return [
+                    { type: 'modify', parameters: { componentId: 'policy', config: { learningRate: 0.01 } } }
+                ];
+            }
+            return [];
+        }
+
+        const mettaProgram = `
+            (meta-operators
+                (modify exploration-rate)
+                (modify learning-rate)
+                (modify hidden-dim)
+            )
+        `;
+
+        try {
+            const result = await this.bridge.executeMetta(mettaProgram);
+            if (result.success) {
+                return result.result || [];
+            }
+        } catch {
+            // Fallback to default operators
+        }
+
+        return [];
     }
 
     _selectOperator(currentImprovement) {

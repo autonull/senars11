@@ -2,6 +2,14 @@ export function mergeConfig(defaults, overrides = {}) {
     return { ...defaults, ...overrides };
 }
 
+/**
+ * Merge configs without freezing - for mutable runtime configs
+ */
+export function mergeMutableConfig(defaults, overrides = {}) {
+    const result = { ...defaults, ...overrides };
+    return result;
+}
+
 export function createConfig(schema, overrides = {}) {
     const config = {};
 
@@ -100,14 +108,39 @@ export function createConfiguredClass(defaults, schema = {}) {
     };
 }
 
-export function deepMergeConfig(defaults, overrides = {}) {
+export function deepMergeConfig(defaults, overrides = {}, _visited = new WeakSet()) {
+    // Handle circular references
+    if (defaults && typeof defaults === 'object') {
+        if (_visited.has(defaults)) return defaults;
+        _visited.add(defaults);
+    }
+    if (overrides && typeof overrides === 'object') {
+        if (_visited.has(overrides)) return overrides;
+        _visited.add(overrides);
+    }
+
+    if (!defaults || typeof defaults !== 'object') {
+        return overrides ?? defaults;
+    }
+
+    if (!overrides || typeof overrides !== 'object') {
+        return defaults;
+    }
+
     const result = { ...defaults };
 
     for (const key of Object.keys(overrides)) {
-        if (overrides[key] && typeof overrides[key] === 'object' && !Array.isArray(overrides[key])) {
-            result[key] = deepMergeConfig(defaults[key] ?? {}, overrides[key]);
+        const overrideVal = overrides[key];
+        const defaultVal = defaults[key];
+
+        if (overrideVal && typeof overrideVal === 'object' && !Array.isArray(overrideVal)) {
+            result[key] = deepMergeConfig(
+                defaultVal && typeof defaultVal === 'object' && !Array.isArray(defaultVal) ? defaultVal : {},
+                overrideVal,
+                _visited
+            );
         } else {
-            result[key] = overrides[key];
+            result[key] = overrideVal;
         }
     }
 
