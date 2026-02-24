@@ -1,6 +1,8 @@
+import { mergeConfig } from '../utils/ConfigHelper.js';
+
 export class Component {
     constructor(config = {}) {
-        this.config = { ...config };
+        this.config = mergeConfig(config);
         this.initialized = false;
         this.parent = null;
         this.children = new Map();

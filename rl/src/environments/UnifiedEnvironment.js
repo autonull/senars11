@@ -3,8 +3,7 @@
  * Seamless operation in both discrete and continuous action domains.
  */
 import { RLEnvironment } from '../core/RLEnvironment.js';
-
-const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const ACTION_SPACE_DEFAULTS = {
     shape: null,

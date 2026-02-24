@@ -1,4 +1,4 @@
-const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const SKILL_MANAGER_DEFAULTS = {
     maxSkills: 1000,

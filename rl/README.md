@@ -1,74 +1,13 @@
+# SeNARS RL Module
 
-# Neuro-Symbolic RL Framework
+**General-purpose Reinforcement Learning with Neuro-Symbolic Integration**
 
-A **general-purpose, self-improving neuro-symbolic reinforcement learning framework** that leverages **SeNARS**, **MeTTa**, and **Tensor Logic** for building versatile, self-modifying cognitive architectures.
+A modular, extensible RL framework leveraging:
+- **SeNARS `core/`**: Uncertainty-aware reasoning, belief revision, goal management
+- **MeTTa `metta/`**: Self-modifying symbolic programs, grounded operations
+- **Tensor Logic `tensor/`**: Differentiable learning, automatic differentiation
 
-## 🚀 Key Features
-
-- **Neuro-Symbolic Integration**: Deep bidirectional bridge between NARS, MeTTa, and Tensor representations
-- **Tensor Logic Policies**: Policy networks with automatic differentiation and symbolic rule extraction
-- **Hierarchical Skill Discovery**: Automatic discovery and composition of skills with Narsese grounding
-- **Distributed Experience**: Causal-indexed experience replay with prioritized sampling
-- **Self-Modifying Architectures**: Meta-controller for automatic architecture evolution
-- **Comprehensive Benchmarking**: Neuro-symbolic metrics with statistical comparison
-- **Fine-Grained Composition**: Modular components that can be freely combined
-
-## 🏗️ Architecture
-
-### Core Components
-
-| Module | Purpose |
-|--------|---------|
-| **NeuroSymbolicBridge** | Unified NARS ↔ MeTTa ↔ Tensor bidirectional translation |
-| **TensorLogicPolicy** | Differentiable policy networks with rule extraction |
-| **HierarchicalSkillSystem** | Skill discovery with neuro-symbolic grounding |
-| **DistributedExperienceBuffer** | Causal-indexed experience replay |
-| **MetaController** | Self-modifying architecture controller |
-| **NeuroSymbolicBenchmarking** | Comprehensive evaluation suite |
-
-### Directory Structure
-
-```
-rl/
-├── src/
-│   ├── bridges/                # Neuro-symbolic bridges
-│   │   ├── SeNARSBridge.js
-│   │   └── NeuroSymbolicBridge.js
-│   ├── policies/               # Policy networks
-│   │   └── TensorLogicPolicy.js
-│   ├── skills/                 # Skill systems
-│   │   ├── Skill.js
-│   │   ├── SkillManager.js
-│   │   ├── HierarchicalSkillSystem.js
-│   │   └── HierarchicalSkillDiscovery.js
-│   ├── experience/             # Experience systems
-│   │   ├── ExperienceSystem.js
-│   │   └── DistributedExperienceBuffer.js
-│   ├── meta/                   # Meta-control
-│   │   └── MetaController.js
-│   ├── evaluation/             # Benchmarking
-│   │   ├── Benchmarking.js
-│   │   ├── NeuroSymbolicBenchmarking.js
-│   │   └── StatisticalTests.js
-│   ├── core/                   # Core abstractions
-│   ├── agents/                 # Agent implementations
-│   ├── environments/           # RL environments
-│   ├── composable/             # Component system
-│   ├── neurosymbolic/          # Tensor-logic primitives
-│   └── reasoning/              # Causal reasoning
-├── examples/
-│   ├── neurosymbolic_rl_demo.js    # Comprehensive demo
-│   ├── self_improving_agent.js     # Self-improvement demo
-│   └── neurosymbolic_integration.js # Integration demo
-├── tests/
-│   ├── unit/
-│   │   └── neurosymbolic_rl.test.js
-│   └── integration/
-└── docs/
-    ├── NEUROSYMBOLIC_RL_ARCHITECTURE.md
-    ├── IMPLEMENTATION_GUIDE.md
-    └── ADVANCED_ARCHITECTURE.md
-```
+---
 
 ## Quick Start
 
@@ -81,119 +20,134 @@ npm install @senars/rl
 ### Basic Usage
 
 ```javascript
-import { NeuroSymbolicAgent, CartPole } from '@senars/rl';
+import { Agent, Environment, TensorLogicPolicy } from '@senars/rl';
 
-const env = new CartPole();
-const agent = new NeuroSymbolicAgent(env, {
-    architecture: 'dual-process',
-    reasoning: 'metta',
-    planning: true
-});
+// Create environment
+const env = new Environment.createDiscrete(4, 4);
 
-await agent.initialize();
-const obs = env.reset().observation;
-const action = await agent.act(obs);
-```
+// Create policy
+const policy = TensorLogicPolicy.createDiscrete(4, 4);
+await policy.initialize();
 
-### Run Comprehensive Demo
+// Training loop
+for (let episode = 0; episode < 1000; episode++) {
+    const { observation } = env.reset();
+    let done = false;
 
-```bash
-node rl/examples/neurosymbolic_rl_demo.js
-```
-
-### Self-Improving Agent
-
-```javascript
-import { 
-    NeuroSymbolicAgent, 
-    MetaController, 
-    WorldModel,
-    SkillDiscoveryEngine 
-} from '@senars/rl';
-
-// Create components
-const agent = new NeuroSymbolicAgent(env);
-const metaController = new MetaController({ metaLearningRate: 0.1 });
-const worldModel = new WorldModel({ horizon: 10 });
-const skillDiscovery = new SkillDiscoveryEngine();
-
-// Initialize and set architecture
-await metaController.initialize();
-metaController.setArchitecture({
-    stages: [
-        { id: 'perception', component: agent.grounding },
-        { id: 'world_model', component: worldModel },
-        { id: 'reasoning', component: agent.bridge },
-        { id: 'action', component: agent.skills }
-    ]
-});
-
-// Training with self-improvement
-for (let gen = 0; gen < 100; gen++) {
-    // Collect experience, learn, discover skills
-    // Meta-controller will propose architecture modifications
+    while (!done) {
+        const { action } = await policy.selectAction(observation);
+        const { observation: nextObs, reward, terminated, truncated } = env.step(action);
+        
+        await policy.update({ state: observation, action, reward, nextState: nextObs, done: terminated || truncated });
+        
+        done = terminated || truncated;
+    }
 }
 ```
 
-### Neuro-Symbolic Integration
+### Neuro-Symbolic Agent
 
 ```javascript
-import { 
-    SymbolicTensor, 
-    TensorLogicBridge, 
-    symbolicTensor 
-} from '@senars/rl';
+import { NeuroSymbolicBridge, NeuroSymbolicAgent } from '@senars/rl';
 
-const bridge = new TensorLogicBridge();
+// Create bridge
+const bridge = NeuroSymbolicBridge.create({
+    useSeNARS: true,
+    maxReasoningCycles: 100
+});
 
-// Create symbolic tensor
-const tensor = symbolicTensor(
-    new Float32Array([0.8, 0.2, 0.9, 0.1]),
-    [2, 2],
-    { '0,0': 'goal_visible', '1,1': 'obstacle_near' }
-);
+await bridge.initialize();
 
-// Convert to/from symbols
-const symbols = bridge.liftToSymbols(tensor);
-const grounded = bridge.groundToTensor(symbols, [4]);
-
-// Symbolic operations
-const result = bridge.symbolicAdd(tensor1, tensor2, 'union');
-
-// Extract rules
-const rules = bridge.extractRules(tensor, 0.7);
-```
-
-### Distributed Training
-
-```javascript
-import { WorkerPool, DistributedExperienceBuffer } from '@senars/rl';
-
-// Create worker pool
-const pool = new WorkerPool({ numWorkers: 8 });
-await pool.initialize();
-
-// Submit parallel rollouts
-const results = await pool.submitBatch([
-    { type: 'rollout', env: 'CartPole', policy, steps: 500 },
-    { type: 'rollout', env: 'CartPole', policy, steps: 500 },
-    // ...
-]);
-
-// Distributed experience buffer
-const buffer = new DistributedExperienceBuffer({
-    capacity: 100000,
-    numBuffers: 4,
-    sampleStrategy: 'prioritized'
+// Perceive-Reason-Act cycle
+const { action, reasoning, symbolic } = await bridge.perceiveReasonAct(observation, {
+    useNARS: true,
+    useMeTTa: true,
+    useTensor: true
 });
 ```
 
-## Advanced Features
+---
 
-### Component System
+## Core Components
+
+### Agents
+
+| Agent | Description |
+|-------|-------------|
+| `Agent` | Base class for all RL agents |
+| `NeuralAgent` | Neural network-based agent |
+| `DQNAgent` | Deep Q-Network agent |
+| `PPOAgent` | Proximal Policy Optimization agent |
+| `PolicyGradientAgent` | Policy gradient agent |
+| `RandomAgent` | Random action baseline |
+
+### Environments
+
+| Environment | Description |
+|-------------|-------------|
+| `Environment` | Base class for RL environments |
+| `DiscreteEnvironment` | Discrete action space environment |
+| `ContinuousEnvironment` | Continuous action space environment |
+| `EnhancedEnvironment` | Environment with wrappers |
+
+### Policies
+
+| Policy | Description |
+|--------|-------------|
+| `TensorLogicPolicy` | Tensor-based policy with symbolic integration |
+| `PolicyNetwork` | Neural network policy |
+| `AttentionPolicy` | Multi-head attention policy |
+| `EnsemblePolicy` | Ensemble policy for uncertainty |
+
+### Bridges
+
+| Bridge | Description |
+|--------|-------------|
+| `NeuroSymbolicBridge` | Unified NARS ↔ MeTTa ↔ Tensor bridge |
+| `SeNARSBridge` | SeNARS integration bridge |
+
+### Neuro-Symbolic Systems
+
+| System | Description |
+|--------|-------------|
+| `WorldModel` | Learned world model with imagination |
+| `SymbolicDifferentiation` | Symbolic gradient computation |
+| `NeuroSymbolicSystem` | Unified neuro-symbolic system |
+
+---
+
+## Architecture
+
+```
+rl/
+├── src/
+│   ├── core/           # Core RL abstractions (Agent, Environment, Architecture)
+│   ├── bridges/        # Neuro-symbolic bridges
+│   ├── policies/       # Policy implementations
+│   ├── agents/         # Agent implementations
+│   ├── environments/   # Environment implementations
+│   ├── neurosymbolic/  # Neuro-symbolic primitives
+│   ├── composable/     # Component system
+│   ├── training/       # Training loops
+│   ├── evaluation/     # Benchmarking
+│   ├── memory/         # Memory systems
+│   ├── meta/           # Meta-control
+│   ├── modules/        # Planning, reasoning modules
+│   ├── cognitive/      # Cognitive architectures
+│   ├── skills/         # Skill systems
+│   ├── plugins/        # Plugin system
+│   ├── utils/          # Utilities
+│   └── index.js        # Unified exports
+```
+
+---
+
+## Advanced Usage
+
+### Component Composition
 
 ```javascript
-import { Component, ComponentRegistry } from '@senars/rl';
+import { Component, CompositionEngine } from '@senars/rl';
 
 class MyModule extends Component {
     async process(input) {
@@ -201,92 +155,126 @@ class MyModule extends Component {
     }
 }
 
-// Register and create
-const registry = new ComponentRegistry();
-registry.register('myModule', MyModule);
-const module = registry.create('myModule', { config });
-```
-
-### Pipeline Composition
-
-```javascript
-import { CompositionEngine, PipelineBuilder } from '@senars/rl';
-
 const engine = new CompositionEngine();
-
-// Create pipeline
 engine.createPipeline('sense-act', [
     { id: 'perceive', component: sensor },
     { id: 'decide', component: policy },
     { id: 'act', component: actuator }
 ]);
 
-// Execute
 const result = await engine.execute('sense-act', observation);
 ```
 
-### Benchmarking
+### Meta-Control
 
 ```javascript
-import { BenchmarkRunner, MetricsCollector } from '@senars/rl';
+import { MetaController } from '@senars/rl';
 
-const runner = new BenchmarkRunner({ numEpisodes: 100 });
-const results = await runner.run(agent, [
-    { name: 'CartPole' },
-    { name: 'GridWorld' }
+const metaController = new MetaController({
+    metaLearningRate: 0.1,
+    evolutionInterval: 100
+});
+
+await metaController.initialize();
+
+// Propose architecture modification
+const modification = await metaController.proposeModification(performance);
+if (modification) {
+    agent.applyModification(modification);
+}
+```
+
+### Distributed Training
+
+```javascript
+import { WorkerPool, DistributedExperienceBuffer } from '@senars/rl';
+
+const pool = new WorkerPool({ numWorkers: 8 });
+await pool.initialize();
+
+const results = await pool.submitBatch([
+    { type: 'rollout', policy, steps: 500 },
+    { type: 'rollout', policy, steps: 500 }
 ]);
 
-console.log(results.overall.avgReward);
+const buffer = new DistributedExperienceBuffer({
+    capacity: 100000,
+    sampleStrategy: 'prioritized'
+});
 ```
 
-## Examples
+---
 
-Run the self-improving agent demo:
+## API Reference
 
-```bash
-node rl/examples/self_improving_agent.js
+### Agent
+
+```javascript
+class Agent extends Component {
+    act(observation, options)      // Select action
+    learn(obs, act, rew, next, done) // Learn from transition
+    save(path)                      // Save to disk
+    load(path)                      // Load from disk
+    getStats()                      // Get statistics
+}
 ```
 
-Run the neuro-symbolic integration demo:
+### Environment
 
-```bash
-node rl/examples/neurosymbolic_integration.js
+```javascript
+class Environment extends Component {
+    reset(options)                  // Reset environment
+    step(action)                    // Execute action
+    render(mode)                    // Render
+    sampleAction()                  // Sample random action
+    get observationSpace()          // Observation space
+    get actionSpace()               // Action space
+}
 ```
+
+### NeuroSymbolicBridge
+
+```javascript
+class NeuroSymbolicBridge extends Component {
+    inputNarsese(narsese, options)  // Input Narsese statement
+    askNarsese(question, options)   // Ask question
+    achieveGoal(goal, options)      // Achieve goal
+    executeMetta(program, options)  // Execute MeTTa program
+    liftToSymbols(tensor, options)  // Tensor → Symbols
+    groundToTensor(symbols, shape)  // Symbols → Tensor
+    perceiveReasonAct(obs, options) // Full P-R-A cycle
+}
+```
+
+---
 
 ## Testing
 
 ```bash
 # Run unit tests
-node rl/tests/unit/composable.test.js
-node rl/tests/unit/neurosymbolic.test.js
-
-# Run all tests
 npm test
+
+# Run specific test
+node rl/tests/unit/core.test.js
 ```
+
+---
 
 ## Documentation
 
-- **[Neuro-Symbolic Architecture](NEUROSYMBOLIC_RL_ARCHITECTURE.md)** - Complete architecture design
-- **[Implementation Guide](IMPLEMENTATION_GUIDE.md)** - API reference and usage details
-- **[Advanced Architecture](ADVANCED_ARCHITECTURE.md)** - Advanced patterns and examples
-- **[SeNARS-MeTTa Integration](SENARS_METTA_TENSOR_INTEGRATION.md)** - Integration details
-- **[Hybrid Emergent Architecture](HYBRID_EMERGENT_ARCHITECTURE.md)** - Hybrid action spaces
+- **[Neuro-Symbolic Architecture](NEUROSYMBOLIC_RL_ARCHITECTURE.md)** - Complete architecture
+- **[Implementation Guide](IMPLEMENTATION_GUIDE.md)** - API reference
+- **[Advanced Architecture](ADVANCED_ARCHITECTURE.md)** - Advanced patterns
+
+---
 
 ## Dependencies
 
 - `@senars/core`: SeNARS reasoning engine
-- `@senars/metta`: MeTTa interpreter with tensor primitives
-- `@senars/tensor`: Tensor operations and autodiff
+- `@senars/metta`: MeTTa interpreter
+- `@senars/tensor`: Tensor operations
 
-## Architecture Philosophy
-
-This framework is designed for **bootstrap general-purpose self-improving systems**:
-
-1. **Composability**: All components are fine-grained and freely composable
-2. **Self-Modification**: Architectures can evolve through meta-learning
-3. **Neuro-Symbolic**: Seamless integration of neural and symbolic processing
-4. **Scalability**: Distributed execution for large-scale training
-5. **Explainability**: Symbolic grounding provides interpretable decisions
+---
 
 ## License
 

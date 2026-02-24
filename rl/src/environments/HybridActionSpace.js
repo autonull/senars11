@@ -1,8 +1,9 @@
 /**
  * Hybrid Action Space System
- * True simultaneous control of both continuous and discrete actions.
+ * True simultaneous operation of both continuous and discrete actions.
  * For environments requiring mixed action types (e.g., discrete grip + continuous movement).
  */
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const HYBRID_SPACE_DEFAULTS = {
     discrete: {},
@@ -25,8 +26,6 @@ const SELECTOR_DEFAULTS = {
 const ADAPTER_DEFAULTS = {
     maxHistorySize: 100
 };
-
-const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
 
 const computeDim = (specs) =>
     Object.values(specs).reduce((dim, spec) =>

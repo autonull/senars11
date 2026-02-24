@@ -1,107 +1,205 @@
-// Core RL Components
-export * from './core/RLAgent.js';
-export * from './core/RLEnvironment.js';
-export * from './core/Architecture.js';
-export * from './core/Grounding.js';
-export * from './core/TensorPrimitives.js';
+/**
+ * SeNARS RL Module - Unified Exports
+ * General-purpose Reinforcement Learning with Neuro-Symbolic Integration
+ *
+ * Leverages:
+ * - SeNARS core/: Reasoning, belief management, goal stacks
+ * - MeTTa metta/: Policy representation, symbolic programs
+ * - Tensor Logic tensor/: Differentiable learning, tensor operations
+ */
 
-// Grounding & Memory
-export * from './grounding/LearnedGrounding.js';
-export * from './memory/EpisodicMemory.js';
+// ==================== Core RL Abstractions ====================
+export {
+    Agent,
+    Environment,
+    DiscreteEnvironment,
+    ContinuousEnvironment,
+    Architecture,
+    Grounding,
+    SymbolicGrounding,
+    LearnedGrounding
+} from './core/RL.js';
 
-// Skills
+// ==================== Neuro-Symbolic Bridges ====================
+export { NeuroSymbolicBridge } from './bridges/NeuroSymbolicBridge.js';
+export { SeNARSBridge } from './bridges/SeNARSBridge.js';
+
+// ==================== Policies ====================
+export { TensorLogicPolicy } from './policies/TensorLogicPolicy.js';
+export {
+    PolicyNetwork,
+    AttentionPolicy,
+    EnsemblePolicy,
+    Policy,
+    Network
+} from './policies/PolicySystem.js';
+
+// ==================== Neuro-Symbolic Systems ====================
+export {
+    WorldModel,
+    SymbolicDifferentiation,
+    NeuroSymbolicSystem,
+    Model,
+    SymbolicGrad,
+    NeuroSymbolic
+} from './neurosymbolic/NeuroSymbolicSystem.js';
+
+// ==================== Composable Systems ====================
+export {
+    Component,
+    functionalComponent
+} from './composable/Component.js';
+
+export {
+    ComponentRegistry,
+    EnhancedComponent,
+    EnhancedCompositionEngine,
+    ComposableUtils,
+    CompositionEngine
+} from './composable/ComposableSystem.js';
+
+// ==================== Training Systems ====================
+export {
+    TrainingLoop,
+    TrainingConfig,
+    EpisodeResult,
+    TrainingPresets,
+    WorkerPool,
+    ParallelExecutor,
+    DistributedTrainer
+} from './training/TrainingSystem.js';
+
+// ==================== Agents ====================
+export {
+    NeuralAgent,
+    DQNAgent,
+    PPOAgent,
+    PolicyGradientAgent,
+    RandomAgent,
+    AgentBuilder,
+    AgentFactoryUtils
+} from './agents/AgentSystem.js';
+
+// ==================== Architectures ====================
+export {
+    NeuroSymbolicArchitecture,
+    ArchitectureConfig,
+    ArchitectureBuilder,
+    NeuroSymbolicUnit,
+    NeuroSymbolicLayer,
+    ArchitectureTemplates,
+    ArchitectureFactory,
+    EvolutionaryArchitecture
+} from './architectures/ArchitectureSystem.js';
+
+// ==================== Planning & Modules ====================
+export {
+    PlanningSystem,
+    Planner,
+    HierarchicalPlanner,
+    PathPlanner,
+    RuleInducer,
+    IntrinsicMotivation
+} from './modules/PlanningSystem.js';
+
+// ==================== Cognitive Systems ====================
+export { AttentionSystem, CognitiveSystem } from './cognitive/CognitiveSystem.js';
+export { ReasoningSystem, CausalGraph, CausalNode, CausalEdge } from './cognitive/CognitiveSystem.js';
+
+// ==================== Meta-Control ====================
+export {
+    MetaController,
+    ModificationOperator,
+    ArchitectureEvolver,
+    SelfModifier,
+    ArchitectureSearch,
+    Evolver
+} from './meta/MetaControlSystem.js';
+
+// ==================== Environments ====================
+export {
+    ActionSpace,
+    ObservationSpace,
+    EnvironmentWrapper,
+    NormalizeObservationWrapper,
+    ClipActionWrapper,
+    TimeLimitWrapper,
+    RewardScaleWrapper,
+    FrameStackWrapper,
+    DiscreteToContinuousWrapper,
+    ContinuousToDiscreteWrapper,
+    EnhancedEnvironment,
+    EnvironmentFactory,
+    EnvironmentRegistry,
+    globalEnvRegistry,
+    wrapEnv,
+    makeEnv
+} from './environments/EnvironmentSystem.js';
+
+// ==================== Evaluation ====================
+export {
+    BenchmarkRunner,
+    MetricsCollector,
+    StatisticalTests,
+    AgentComparator,
+    PowerAnalysis,
+    MultipleComparisonCorrection,
+    Evaluator,
+    Collector,
+    Statistics
+} from './evaluation/EvaluationSystem.js';
+
+// ==================== Memory Systems ====================
+export {
+    EpisodicMemory,
+    SemanticMemory,
+    MemorySystem,
+    Memory,
+    Knowledge,
+    UnifiedMemory
+} from './memory/MemorySystem.js';
+
+// ==================== Plugins & Strategies ====================
+export {
+    Plugin,
+    PluginManager,
+    Strategy,
+    StrategyRegistry,
+    ExplorationStrategy,
+    EpsilonGreedy,
+    BoltzmannExploration,
+    UCB,
+    ThompsonSampling,
+    PluginSystem,
+    StrategySystem,
+    Explore
+} from './plugins/PluginStrategySystem.js';
+
+// ==================== Configuration ====================
+export * from './config/ConfigManager.js';
+
+// ==================== Functional Utilities ====================
+export * from './functional/FunctionalUtils.js';
+
+// ==================== Cognitive Architectures ====================
+export * from './cognitive/CognitiveArchitecture.js';
+export * from './cognitive/EmergentArchitecture.js';
+
+// ==================== Skills ====================
 export * from './skills/SkillManager.js';
 export * from './skills/HierarchicalSkillSystem.js';
 export { Skill, SkillDiscovery } from './skills/SkillDiscovery.js';
 
-// Policies
-export { TensorLogicPolicy } from './policies/TensorLogicPolicy.js';
-
-// Planning & Modules
-export * from './modules/Planner.js';
-export * from './modules/HierarchicalPlanner.js';
-export * from './modules/PathPlanner.js';
-export * from './modules/RuleInducer.js';
-export * from './modules/IntrinsicMotivation.js';
-
-// Bridges
-export * from './bridges/SeNARSBridge.js';
-export { NeuroSymbolicBridge } from './bridges/NeuroSymbolicBridge.js';
-
-// Architectures
-export * from './architectures/DualProcessArchitecture.js';
-export * from './architectures/MeTTaPolicyArchitecture.js';
-export * from './architectures/EvolutionaryArchitecture.js';
-export { NeuroSymbolicArchitecture, ArchitectureConfig } from './architectures/NeuroSymbolicArchitecture.js';
-
-// Agents
-export * from './agents/NeuroSymbolicAgent.js';
-export * from './agents/MeTTaAgent.js';
-export * from './agents/RandomAgent.js';
-export * from './agents/PolicyGradientAgent.js';
-export * from './agents/ProgrammaticAgent.js';
-export * from './agents/DQNAgent.js';
-export * from './agents/PPOAgent.js';
-
-// Environments
-export * from './environments/GridWorld.js';
-export * from './environments/Continuous1D.js';
-export * from './environments/CompositionalWorld.js';
-export * from './environments/CartPole.js';
-export * from './environments/UnifiedEnvironment.js';
-export * from './environments/HybridActionSpace.js';
-
-// Composable
-export * from './composable/Component.js';
-export * from './composable/ComponentRegistry.js';
-export * from './composable/CompositionEngine.js';
-
-// Meta-Controller
-export { MetaController, ModificationOperator } from './meta/MetaController.js';
-
-// Neuro-Symbolic Primitives
-export { SymbolicTensor, TensorLogicBridge, symbolicTensor, termToTensor } from '@senars/tensor';
-export * from './neurosymbolic/WorldModel.js';
-export * from './neurosymbolic/SymbolicDifferentiation.js';
-
-// Attention
-export * from './attention/CrossModalAttention.js';
-
-// Causal Reasoning
-export * from './reasoning/CausalReasoning.js';
-
-// Plugin System
-export * from './plugins/PluginSystem.js';
-
-// Strategy Patterns
-export * from './strategies/StrategyPatterns.js';
-
-// Configuration
-export * from './config/ConfigManager.js';
-
-// Functional Utilities
-export * from './functional/FunctionalUtils.js';
-
-// Experience
-export * from './experience/ExperienceSystem.js';
-export { ExperienceBuffer, CausalExperience } from './experience/ExperienceBuffer.js';
-
-// Cognitive Architecture
-export * from './cognitive/CognitiveArchitecture.js';
-export * from './cognitive/EmergentArchitecture.js';
-
-// Integration
-export * from './integration/SeNARSMettaTensor.js';
-
-// Training
-export * from './training/TrainingLoop.js';
-
-// Distributed
+// ==================== Distributed Execution ====================
 export * from './distributed/ParallelExecution.js';
 
-// Evaluation
-export * from './evaluation/Benchmarking.js';
-export * from './evaluation/Statistics.js';
+// ==================== Tensor Logic Re-exports ====================
+export {
+    SymbolicTensor,
+    TensorLogicBridge,
+    symbolicTensor,
+    termToTensor
+} from '@senars/tensor';
 
-// Utilities
+// ==================== All Utilities ====================
 export * from './utils/index.js';

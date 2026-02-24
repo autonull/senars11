@@ -1,5 +1,8 @@
+/**
+ * Unified Architecture System
+ * Consolidates NeuroSymbolicArchitecture, EvolutionaryArchitecture, and architecture utilities
+ */
 import { Component } from '../composable/Component.js';
-import { globalRegistry } from '../composable/ComponentRegistry.js';
 import { CompositionEngine } from '../composable/CompositionEngine.js';
 import { TensorLogicBridge, SymbolicTensor } from '@senars/tensor';
 import { mergeConfig } from '../utils/ConfigHelper.js';
@@ -149,28 +152,28 @@ export class NeuroSymbolicUnit extends Component {
 
     async process(input, context = {}) {
         const { lift = true, ground = false, attend = false } = context;
-        const encoded = this.encode(input);
-        const lifted = lift ? this.lift(encoded) : encoded;
-        const attended = attend ? this.applyAttention(lifted) : lifted;
+        const encoded = this._encode(input);
+        const lifted = lift ? this._lift(encoded) : encoded;
+        const attended = attend ? this._applyAttention(lifted) : lifted;
         const processed = await this.symbolicProcess(attended);
-        return ground ? this.ground(processed) : processed;
+        return ground ? this._ground(processed) : processed;
     }
 
-    encode(input) {
+    _encode(input) {
         if (input instanceof SymbolicTensor) return input;
         const data = Array.isArray(input) ? new Float32Array(input) : new Float32Array([input]);
         return new SymbolicTensor(data, [data.length]);
     }
 
-    lift(tensor) {
+    _lift(tensor) {
         return this.bridge.liftToSymbols(tensor, { threshold: 0.3 });
     }
 
-    ground(symbols) {
+    _ground(symbols) {
         return this.bridge.groundToTensor(symbols, [this.config.outputDim]);
     }
 
-    applyAttention(tensor) {
+    _applyAttention(tensor) {
         if (!tensor.symbols?.size) return tensor;
         const mask = this.bridge.createAttentionMask(
             tensor,
@@ -189,9 +192,7 @@ export class NeuroSymbolicUnit extends Component {
 
     getState() { return { ...this.state }; }
 
-    async learn(transition, reward) {
-        // Placeholder for future learning implementation
-    }
+    async learn(transition, reward) { /* Placeholder */ }
 }
 
 export class NeuroSymbolicLayer extends Component {
@@ -211,12 +212,11 @@ export class NeuroSymbolicLayer extends Component {
 
     async process(inputs, context = {}) {
         const outputs = await Promise.all(this.units.map(unit => unit.process(inputs, context)));
-        return this.aggregate(outputs);
+        return this._aggregate(outputs);
     }
 
-    aggregate(outputs) {
+    _aggregate(outputs) {
         if (!(outputs[0] instanceof SymbolicTensor)) return outputs;
-
         const aggregated = outputs[0].clone();
         outputs.slice(1).forEach(output => {
             output.data.forEach((val, i) => { aggregated.data[i] += val; });
@@ -243,7 +243,6 @@ export class ArchitectureBuilder {
         this.layers = [];
         this.connections = [];
         this.config = new ArchitectureConfig();
-        this.registry = globalRegistry;
     }
 
     withConfig(config) {
@@ -348,11 +347,11 @@ export class NeuroSymbolicArchitecture extends Component {
         const context = goal ? { goal, lift: true, ground: true } : { lift: true, ground: true };
         const result = await this.process(observation, context);
         return result.output instanceof SymbolicTensor
-            ? this.extractAction(result.output)
+            ? this._extractAction(result.output)
             : result.output;
     }
 
-    extractAction(tensor) {
+    _extractAction(tensor) {
         return PolicyUtils.argmax(tensor.data);
     }
 
@@ -367,9 +366,7 @@ export class NeuroSymbolicArchitecture extends Component {
     serialize() {
         return {
             config: this.config.toJSON(),
-            layers: Array.from(this.layers.entries()).map(([name, layer]) => ({
-                name, config: layer.config
-            })),
+            layers: Array.from(this.layers.entries()).map(([name, layer]) => ({ name, config: layer.config })),
             executionOrder: this.executionOrder
         };
     }
@@ -453,3 +450,33 @@ export class ArchitectureFactory {
         return Object.keys(ArchitectureTemplates);
     }
 }
+
+export class EvolutionaryArchitecture extends Component {
+    constructor(agent, config = {}) {
+        super(mergeConfig({
+            populationSize: 10,
+            mutationRate: 0.1,
+            elitismRatio: 0.2
+        }, config));
+        this.agent = agent;
+        this.generation = 0;
+    }
+
+    async initialize() {
+        this.emit('initialized', { generation: this.generation, populationSize: this.config.populationSize });
+    }
+
+    async act(observation, goal) {
+        return Math.floor(Math.random() * 2);
+    }
+
+    async learn(observation, action, reward, nextObservation, done) {
+        if (done) this.generation++;
+    }
+
+    evolve(architectures, fitnessFn) {
+        return architectures[0]; // Placeholder
+    }
+}
+
+export { NeuroSymbolicArchitecture as Architecture };

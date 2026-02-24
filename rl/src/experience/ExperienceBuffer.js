@@ -1,6 +1,7 @@
 import { Component } from '../composable/Component.js';
 import { CausalGraph, CausalReasoner } from '../reasoning/CausalReasoning.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
+import { SumTree } from '../utils/DataStructures.js';
 
 const DEFAULTS = {
     capacity: 100000,
@@ -438,47 +439,5 @@ export class ExperienceBuffer extends Component {
 
     static createMinimal(capacity = 1000, config = {}) {
         return new ExperienceBuffer({ capacity, numBuffers: 1, useCausalIndexing: false, ...config });
-    }
-}
-
-class SumTree {
-    constructor(capacity) {
-        this.capacity = capacity;
-        this.tree = new Float64Array(2 * capacity); // Use TypedArray
-        this.size = 0;
-    }
-
-    update(idx, priority) {
-        let currentIdx = idx + this.capacity;
-        this.tree[currentIdx] = Math.pow(priority + 1e-6, 0.6);
-
-        while (currentIdx > 1) {
-            currentIdx = currentIdx >> 1; // Bitwise shift for floor division by 2
-            this.tree[currentIdx] = this.tree[2 * currentIdx] + this.tree[2 * currentIdx + 1];
-        }
-
-        if (this.size <= idx) {
-            this.size = idx + 1;
-        }
-    }
-
-    find(value) {
-        let idx = 1;
-
-        while (idx < this.capacity) {
-            const left = 2 * idx;
-            if (value <= this.tree[left]) {
-                idx = left;
-            } else {
-                value -= this.tree[left];
-                idx = left + 1;
-            }
-        }
-
-        return idx - this.capacity;
-    }
-
-    get total() {
-        return this.tree[1];
     }
 }

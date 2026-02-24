@@ -27,7 +27,7 @@ export class ExplanationService extends BaseComponent {
     }
 
     async _initialize() {
-        this.logInfo('ExplanationService initialized');
+        // Initialization handled by base class lifecycle logging
     }
 
     /**

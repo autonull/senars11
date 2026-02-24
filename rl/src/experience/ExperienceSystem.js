@@ -1,4 +1,5 @@
 import { mergeConfig } from '../utils/ConfigHelper.js';
+import { SumTree, generateId, serializeValue, hashState } from '../utils/DataStructures.js';
 
 const EXPERIENCE_DEFAULTS = {
     capacity: 100000,
@@ -39,14 +40,6 @@ const ExperienceLearnerDefaults = {
     batchSize: 32,
     updateFrequency: 1,
     prioritizedReplay: false
-};
-
-const generateId = (prefix = 'exp') => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-const serializeValue = (value) => {
-    if (value?.data) return Array.from(value.data);
-    if (Array.isArray(value)) return [...value];
-    return value;
 };
 
 export class Experience {
@@ -178,8 +171,6 @@ export class Episode {
         };
     }
 }
-
-const hashState = (state) => Array.isArray(state) ? state.map(x => Math.round(x * 10)).join('_') : String(state);
 
 export class ExperienceIndex {
     constructor() {
@@ -432,67 +423,6 @@ export class ExperienceStore {
         if (arr.length < 2) return 0;
         const m = this.mean(arr);
         return Math.sqrt(arr.reduce((sum, v) => sum + Math.pow(v - m, 2), 0) / arr.length);
-    }
-}
-
-class SumTree {
-    constructor(capacity) {
-        this.capacity = capacity;
-        this.tree = new Float32Array(2 * capacity - 1);
-        this.data = new Array(capacity).fill(null);
-        this.size = 0;
-        this.writeIdx = 0;
-    }
-
-    update(idx, priority) {
-        const treeIdx = idx + this.capacity - 1;
-        const change = priority - this.tree[treeIdx];
-        this.tree[treeIdx] = priority;
-        this._propagate(treeIdx, change);
-    }
-
-    add(priority, data) {
-        this.data[this.writeIdx] = data;
-        this.update(this.writeIdx, priority);
-        this.writeIdx = (this.writeIdx + 1) % this.capacity;
-        this.size = Math.min(this.size + 1, this.capacity);
-    }
-
-    sample(k) {
-        const indices = [];
-        const segmentSize = this.total / k;
-        for (let i = 0; i < k; i++) {
-            const target = segmentSize * i + Math.random() * segmentSize;
-            indices.push(this._retrieve(target));
-        }
-        return indices;
-    }
-
-    _retrieve(target, idx = 0) {
-        const left = 2 * idx + 1;
-        const right = 2 * idx + 2;
-        if (left >= this.tree.length) return idx - (this.capacity - 1);
-        return target <= this.tree[left]
-            ? this._retrieve(target, left)
-            : this._retrieve(target - this.tree[left], right);
-    }
-
-    _propagate(idx, change) {
-        const parent = Math.floor((idx - 1) / 2);
-        if (parent >= 0) {
-            this.tree[parent] += change;
-            this._propagate(parent, change);
-        }
-    }
-
-    get total() { return this.tree[0]; }
-    get maxPriority() { return Math.max(...this.tree.slice(this.capacity - 1)); }
-
-    clear() {
-        this.tree.fill(0);
-        this.data.fill(null);
-        this.size = 0;
-        this.writeIdx = 0;
     }
 }
 

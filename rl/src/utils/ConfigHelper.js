@@ -73,13 +73,13 @@ export function extractConfig(config, keys) {
 
 export function validateConfig(config, schema) {
     const errors = [];
-    
+
     for (const [key, { validate }] of Object.entries(schema)) {
         if (key in config && validate && !validate(config[key])) {
             errors.push(`Invalid value for ${key}: ${config[key]}`);
         }
     }
-    
+
     return { valid: errors.length === 0, errors };
 }
 
@@ -87,15 +87,47 @@ export function createConfiguredClass(defaults, schema = {}) {
     return class {
         constructor(overrides = {}) {
             const merged = mergeConfig(defaults, overrides);
-            
+
             if (schema) {
                 const { valid, errors } = validateConfig(merged, schema);
                 if (!valid) {
                     throw new Error(`Config validation failed: ${errors.join(', ')}`);
                 }
             }
-            
+
             Object.assign(this, merged);
         }
     };
+}
+
+export function deepMergeConfig(defaults, overrides = {}) {
+    const result = { ...defaults };
+
+    for (const key of Object.keys(overrides)) {
+        if (overrides[key] && typeof overrides[key] === 'object' && !Array.isArray(overrides[key])) {
+            result[key] = deepMergeConfig(defaults[key] ?? {}, overrides[key]);
+        } else {
+            result[key] = overrides[key];
+        }
+    }
+
+    return result;
+}
+
+export class ConfigValidator {
+    constructor(schema) {
+        this.schema = schema;
+    }
+
+    validate(config) {
+        return validateConfig(config, this.schema);
+    }
+
+    createConfig(overrides = {}) {
+        const { valid, errors } = this.validate(overrides);
+        if (!valid) {
+            throw new Error(`Config validation failed: ${errors.join(', ')}`);
+        }
+        return overrides;
+    }
 }

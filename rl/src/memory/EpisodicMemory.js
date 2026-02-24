@@ -1,14 +1,13 @@
+import { mergeConfig } from '../utils/ConfigHelper.js';
+
 const MEMORY_DEFAULTS = {
     capacity: 1000,
     autoRebuildIndex: true
 };
 
-const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
-
 export class EpisodicMemory {
     constructor(config = {}) {
-        this.config = mergeConfig(MEMORY_DEFAULTS, typeof config === 'number' ? { capacity: config } : config);
-        this.capacity = this.config.capacity;
+        this.config = mergeConfig(MEMORY_DEFAULTS, config);
         this.buffer = [];
         this.symbolicIndex = new Map();
     }
@@ -17,7 +16,7 @@ export class EpisodicMemory {
         this.buffer.push(item);
         this._indexItem(item, this.buffer.length - 1);
 
-        if (this.buffer.length > this.capacity) {
+        if (this.buffer.length > this.config.capacity) {
             this.buffer.shift();
             if (this.config.autoRebuildIndex) this._rebuildIndex();
         }

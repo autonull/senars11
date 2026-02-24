@@ -1,4 +1,5 @@
 import { RLEnvironment } from '../core/RLEnvironment.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const GRID_DEFAULTS = {
     size: 5,
@@ -9,8 +10,6 @@ const GRID_DEFAULTS = {
     goalReward: 10,
     stepPenalty: -0.1
 };
-
-const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
 
 export class GridWorld extends RLEnvironment {
     constructor(config = {}) {
