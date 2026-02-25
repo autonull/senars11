@@ -16,8 +16,12 @@ import * as UnifyCore from '../../../core/src/term/UnifyCore.js';
 /**
  * Safely substitute variables in a term with their bindings
  * Includes cycle detection to prevent stack overflow
+ * @param {Atom} term The term to substitute into
+ * @param {Object} bindings Map of variable names to values
+ * @param {Set} visited Set of visited variables to detect cycles
+ * @param {boolean} recursive Whether to recursively substitute values from bindings (default: true)
  */
-const safeSubstitute = (term, bindings, visited = new Set()) => {
+const safeSubstitute = (term, bindings, visited = new Set(), recursive = true) => {
     if (!term) return term;
 
     if (isVariable(term)) {
@@ -26,33 +30,27 @@ const safeSubstitute = (term, bindings, visited = new Set()) => {
 
         // Prevent immediate self-reference and cycles
         if (val !== undefined && val !== term) {
-             if (visited.has(name)) return val; // Return value but stop recursing? Or return term? UnifyCore returns term.
-             // If we found a cycle A->B->A, and we are at A. val is B.
-             // If we recurse on B, we eventually hit A again.
-             // UnifyCore stops if visited.
+             if (!recursive) return val;
+
+             if (visited.has(name)) return val;
 
              const newVisited = new Set(visited);
              newVisited.add(name);
-             return safeSubstitute(val, bindings, newVisited);
+             return safeSubstitute(val, bindings, newVisited, recursive);
         }
         return term;
     }
 
     if (isExpression(term)) {
         if (isList(term)) {
-            return substituteInList(term, bindings, visited);
+            return substituteInList(term, bindings, visited, recursive);
         }
 
         const op = typeof term.operator === 'object'
-            ? safeSubstitute(term.operator, bindings, visited)
+            ? safeSubstitute(term.operator, bindings, visited, recursive)
             : term.operator;
 
-        // Pass visited set (cloned? No, parallel branches don't affect each other's variable chain)
-        // But for components, they are parallel.
-        // So we pass new Set(visited) or just visited?
-        // UnifyCore passes new Set(visited) to map.
-
-        const comps = term.components.map(c => safeSubstitute(c, bindings, new Set(visited)));
+        const comps = term.components.map(c => safeSubstitute(c, bindings, new Set(visited), recursive));
 
         if (op === term.operator && comps.every((c, i) => c === term.components[i])) return term;
         return exp(op, comps);
@@ -64,10 +62,10 @@ const safeSubstitute = (term, bindings, visited = new Set()) => {
 /**
  * Helper function to substitute in list structures
  */
-const substituteInList = (term, bindings, visited) => {
+const substituteInList = (term, bindings, visited, recursive) => {
     const { elements, tail } = flattenList(term);
-    const subEls = elements.map(e => safeSubstitute(e, bindings, new Set(visited)));
-    const subTail = safeSubstitute(tail, bindings, new Set(visited));
+    const subEls = elements.map(e => safeSubstitute(e, bindings, new Set(visited), recursive));
+    const subTail = safeSubstitute(tail, bindings, new Set(visited), recursive);
     if (subTail === tail && subEls.every((e, i) => e === elements[i])) return term;
     return constructList(subEls, subTail);
 };
@@ -108,7 +106,7 @@ const mettaAdapter = {
     getOperator: t => t.operator?.name ? t.operator : t.operator,
     getComponents: t => t.components || [], // Structural: (; A B) -> (: A (: B ()))
     equals: (t1, t2) => t1 === t2 || (t1?.equals?.(t2) ?? false),
-    substitute: (t, b) => safeSubstitute(t, b),
+    substitute: (t, b, opts) => safeSubstitute(t, b, undefined, opts?.recursive),
     reconstruct: (t, comps) => {
         if (isList(t)) {
             const { tail } = flattenList(t);
@@ -154,7 +152,7 @@ export const Unify = {
     /**
      * Substitute variables in a term with their bindings
      */
-    subst: safeSubstitute,
+    subst: (term, bindings, options) => safeSubstitute(term, bindings, undefined, options?.recursive),
 
     /**
      * Match a pattern against a term
