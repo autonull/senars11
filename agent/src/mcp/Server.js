@@ -8,9 +8,10 @@ import {Safety} from "./Safety.js";
  * MCP Server for exposing SeNARS services as MCP tools.
  */
 export class Server {
-    constructor({nar = null, ...options} = {}) {
+    constructor({nar = null, mettaInterpreter = null, ...options} = {}) {
         this.options = options;
         this.nar = nar;
+        this.mettaInterpreter = mettaInterpreter;
         this.safety = new Safety(options.safety);
 
         this.server = new McpServer({
@@ -163,6 +164,36 @@ export class Server {
                     };
                 } catch (error) {
                     return this._error(`Sync error: ${error.message}`);
+                }
+            }
+        );
+
+        this.server.tool(
+            "metta-eval",
+            {
+                code: z.string().describe('MeTTa expression(s) to evaluate'),
+                mode: z.enum(['run', 'load', 'query']).default('run'),
+                pattern: z.string().optional().describe('Query pattern (for query mode)'),
+                template: z.string().optional().describe('Result template (for query mode)')
+            },
+            async ({ code, mode, pattern, template }) => {
+                const interp = this.mettaInterpreter;
+                if (!interp) return this._error('MeTTa interpreter not attached. Pass {mettaInterpreter} to Server constructor.');
+                try {
+                    let result;
+                    if (mode === 'load') {
+                        interp.load(code);
+                        result = 'loaded';
+                    } else if (mode === 'query') {
+                        const p = pattern || code;
+                        const t = template || code;
+                        result = interp.query(p, t);
+                    } else {
+                        result = interp.run(code);
+                    }
+                    return { content: [{ type: 'text', text: String(result) }] };
+                } catch (e) {
+                    return this._error(`MeTTa error: ${e.message}`);
                 }
             }
         );
