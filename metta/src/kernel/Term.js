@@ -5,24 +5,16 @@
 import { intern, symbolEq } from './Interning.js';
 import { TYPE_SYMBOL, TYPE_VARIABLE, TYPE_EXPRESSION, TYPE_GROUNDED, isVariableName } from './FastPaths.js';
 import { METTA_CONFIG } from '../config.js';
+import { SymbolAtom, VariableAtom, GroundedAtom, ExpressionAtom } from './AtomTypes.js';
+
+export { SymbolAtom, VariableAtom, GroundedAtom, ExpressionAtom };
 
 const expCache = new Map();
 const varCache = new Map();
 
 export const sym = (name) => {
     if (METTA_CONFIG.interning) return intern(name);
-
-    return {
-        type: 'atom',
-        name,
-        operator: null,
-        components: [],
-        _typeTag: TYPE_SYMBOL,
-        _hash: null,
-        _metadata: null,
-        toString: () => name,
-        equals: o => symbolEq({ name }, o)
-    };
+    return new SymbolAtom(name);
 };
 
 export const variable = (name) => {
@@ -32,18 +24,7 @@ export const variable = (name) => {
 
     if (varCache.has(fullName)) return varCache.get(fullName);
 
-    const atom = {
-        type: 'atom',
-        name: fullName,
-        operator: null,
-        components: [],
-        _typeTag: TYPE_VARIABLE,
-        _hash: null,
-        _metadata: null,
-        toString: () => fullName,
-        equals: o => o?.type === 'atom' && o.name === fullName
-    };
-
+    const atom = new VariableAtom(fullName);
     varCache.set(fullName, atom);
     return atom;
 };
@@ -60,27 +41,7 @@ export const grounded = (value) => {
         }
     }
 
-    return {
-        type: 'grounded',
-        name,
-        value,
-        operator: null,
-        components: [],
-        _typeTag: TYPE_GROUNDED,
-        _hash: null,
-        _metadata: null,
-        toString: () => {
-            try {
-                if (value && typeof value.toString === 'function' && value.toString !== Object.prototype.toString) {
-                    return value.toString();
-                }
-            } catch (e) {
-                // Fallback
-            }
-            return name;
-        },
-        equals: (other) => other?.type === 'grounded' && other.value === value
-    };
+    return new GroundedAtom(value, name);
 };
 
 export const exp = (operator, components) => {
@@ -102,21 +63,7 @@ export const exp = (operator, components) => {
 
     const name = `(${op.toString()}${components.length ? ' ' + components.map(c => c.name || c).join(' ') : ''})`;
 
-    const atom = {
-        type: 'compound',
-        name,
-        operator: op,
-        components: Object.freeze([...components]),
-        _typeTag: TYPE_EXPRESSION,
-        _hash: null,
-        _metadata: null,
-        toString: () => name,
-        equals: (other) => {
-            if (other?.type !== 'compound' || other.components.length !== components.length) return false;
-            const opEq = op.equals ? op.equals(other.operator) : op === other.operator;
-            return opEq && components.every((c, i) => c.equals(other.components[i]));
-        }
-    };
+    const atom = new ExpressionAtom(name, op, components);
 
     expCache.set(key, atom);
     return atom;
