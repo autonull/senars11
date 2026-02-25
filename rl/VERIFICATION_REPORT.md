@@ -13,42 +13,50 @@ The `rl/` module has been fully refactored, enhanced, and decomposed into modula
 
 ## File Decomposition Summary
 
-### Completed Decompositions
+### Completed Decompositions (4 large files → 16 modular files)
 
 | Original File | Before | After | Files Created |
 |---------------|--------|-------|---------------|
 | `ComposableSystem.js` | 845 lines | 28 lines | 4 new files |
-| `EnvironmentSystem.js` | 695 lines | 33 lines | 4 new files |
-| `PluginStrategySystem.js` | 620 lines | 28 lines | 4 new files |
+| `EnvironmentSystem.js` | 695 lines | 18 lines | 4 new files |
+| `PluginStrategySystem.js` | 620 lines | 18 lines | 4 new files |
+| `EvaluationSystem.js` | 722 lines | 18 lines | 3 new files |
 
 ### New Modular Files
 
-**Composable Module:**
+**Composable Module (538 lines total):**
 - `EnhancedComponent.js` (145 lines) - Enhanced component with middleware
 - `EnhancedCompositionEngine.js` (155 lines) - Pipeline/graph execution
 - `ComposablePatterns.js` (210 lines) - Branch, loop, parallel patterns
 
-**Environment Module:**
+**Environment Module (685 lines total):**
 - `ActionSpace.js` (95 lines) - Action space definitions
 - `ObservationSpace.js` (110 lines) - Observation space definitions
-- `EnvironmentWrappers.js` (230 lines) - Environment wrapper classes
-- `EnvironmentFactory.js` (210 lines) - Factory and registry
+- `EnvironmentWrappers.js` (230 lines) - 7 wrapper classes
+- `EnvironmentFactory.js` (210 lines) - Factory + registry
 
-**Plugin/Strategy Module:**
+**Plugin/Strategy Module (650 lines total):**
 - `Plugin.js` (145 lines) - Plugin class with hooks
 - `PluginManager.js` (185 lines) - Plugin lifecycle management
-- `Strategy.js` (290 lines) - Exploration strategies
+- `Strategy.js` (290 lines) - 4 exploration strategies
+
+**Evaluation Module (717 lines total):**
+- `StatisticalTests.js` (359 lines) - Statistical hypothesis testing
+- `MetricsCollector.js` (235 lines) - Metrics collection & analysis
+- `BenchmarkRunner.js` (324 lines) - Benchmarking framework
 
 ### Remaining Large Files (Future Work)
 
-| File | Lines | Priority |
-|------|-------|----------|
-| `EvaluationSystem.js` | 721 | Medium |
-| `CognitiveArchitecture.js` | 713 | Medium |
-| `MetaControlSystem.js` | 689 | Medium |
-| `MemorySystem.js` | 651 | Low |
-| `CognitiveSystem.js` | 640 | Low |
-| `RLCore.js` | 581 | Low (core abstractions) |
+| File | Lines | Priority | Notes |
+|------|-------|--------|-------|
+| `CognitiveArchitecture.js` | 713 | Medium | Could split cognitive modules |
+| `MetaControlSystem.js` | 689 | Medium | Could split meta-controller, evolver |
+| `MemorySystem.js` | 651 | Low | Already has some modularity |
+| `CognitiveSystem.js` | 640 | Low | Could split attention, reasoning |
+| `RLCore.js` | 581 | Low | Core abstractions - keep intact |
+| `SkillDiscovery.js` | 554 | Low | Skill system |
+| `TensorLogicPolicy.js` | 548 | Low | Policy implementation |
+| `HybridActionSpace.js` | 544 | Low | Specialized environment |
 
 ---
 
