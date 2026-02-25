@@ -716,3 +716,6 @@ export class MultipleComparisonCorrection {
 export { BenchmarkRunner as Evaluator };
 export { MetricsCollector as Collector };
 export { StatisticalTests as Statistics };
+
+// Monitoring and metrics export
+export { MetricsExporter, TrainingMonitor, createMonitor, createMonitorCallback } from './MonitoringSystem.js';

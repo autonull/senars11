@@ -83,6 +83,7 @@ export class Component extends BaseComponent {
         await this.onShutdown();
         this._subscriptions.forEach(sub => this.unsubscribe(sub));
         this._started = false;
+        this._initialized = false;
         this._disposed = true;
         this.emit('shutdown', this);
         return this;

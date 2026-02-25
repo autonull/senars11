@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the recent enhancements to the `rl/` module, including the checkpointing system and enhanced error handling.
+This document describes the recent enhancements to the `rl/` module, including checkpointing, monitoring, enhanced error handling, architecture modularization, and Gymnasium compatibility.
 
 ---
 
@@ -340,7 +340,272 @@ throw new CustomError('something_went_wrong');
 
 ---
 
-## 3. Timer Leak Fixes
+## 3. Monitoring and Metrics Export
+
+### Purpose
+
+Export training metrics to Prometheus, TensorBoard, Weights & Biases, or JSON for monitoring and analysis.
+
+### Features
+
+- **Multiple export formats** - JSON, Prometheus, TensorBoard, WandB
+- **Real-time logging** - Console logging with configurable intervals
+- **Training progress tracking** - Trend detection (improving/declining/stable)
+- **Callback integration** - Easy integration with training loops
+
+### Usage
+
+#### Basic Monitoring
+
+```javascript
+import { createMonitor, createMonitorCallback } from '@senars/rl';
+
+// Create monitor with JSON export
+const { exporter, monitor } = createMonitor({
+    exportDirectory: './logs',
+    logToConsole: true,
+    logInterval: 10,
+    json: { enabled: true, filename: 'metrics.json' }
+});
+
+await exporter.initialize();
+
+// Training loop
+for (let episode = 0; episode < 1000; episode++) {
+    const reward = await trainEpisode();
+    monitor.logEpisode(episode, { reward, loss: 0.5 });
+}
+
+// Export metrics
+await exporter.export();
+await exporter.shutdown();
+```
+
+#### Prometheus Export
+
+```javascript
+const { exporter } = createMonitor({
+    exportDirectory: './logs',
+    prometheus: {
+        enabled: true,
+        port: 9090
+    }
+});
+
+// After training, metrics available at /metrics endpoint
+const prometheusFormat = exporter.getPrometheusFormat();
+// # HELP senars_rl_metric SeNARS RL Training Metric
+// # TYPE senars_rl_metric gauge
+// senars_rl_episode_reward 500
+```
+
+#### TensorBoard Export
+
+```javascript
+const { exporter } = createMonitor({
+    exportDirectory: './logs',
+    tensorboard: {
+        enabled: true,
+        logDir: 'tensorboard_logs'
+    }
+});
+
+// View with: tensorboard --logdir ./logs/tensorboard_logs
+```
+
+#### Training Loop Integration
+
+```javascript
+import { TrainingLoop, createMonitor, createMonitorCallback } from '@senars/rl';
+
+const { exporter, monitor } = createMonitor({
+    logInterval: 10,
+    json: { enabled: true }
+});
+
+const callback = createMonitorCallback(monitor);
+
+const trainingLoop = new TrainingLoop(agent, env, { episodes: 1000 });
+await trainingLoop.run({
+    callbacks: [callback]
+});
+```
+
+#### Get Training Progress
+
+```javascript
+const progress = monitor.getProgress();
+console.log(`
+    Episodes: ${progress.totalEpisodes}
+    Best Reward: ${progress.bestReward}
+    Avg Reward (10): ${progress.avgReward}
+    Trend: ${progress.trend}
+`);
+```
+
+### API Reference
+
+| Class/Function | Description |
+|----------------|-------------|
+| `MetricsExporter` | Base exporter with multi-format support |
+| `TrainingMonitor` | Real-time monitoring with logging |
+| `createMonitor(config)` | Create exporter + monitor pair |
+| `createMonitorCallback(monitor)` | Create training loop callback |
+
+### Configuration Options
+
+```javascript
+{
+    enabled: true,
+    logInterval: 10,
+    exportFormat: 'json',
+    exportDirectory: './logs',
+    prometheus: { enabled: false, port: 9090 },
+    tensorboard: { enabled: false, logDir: './tensorboard_logs' },
+    wandb: { enabled: false, project: 'senars-rl' },
+    json: { enabled: true, filename: 'training_metrics.json' }
+}
+```
+
+---
+
+## 4. Architecture Modularization
+
+### Purpose
+
+Split large architecture files into focused, maintainable modules following single-responsibility principle.
+
+### Before
+
+```
+rl/src/architectures/ArchitectureSystem.js (483 lines)
+├── ArchitectureConfig
+├── NeuroSymbolicUnit
+├── NeuroSymbolicLayer
+├── ArchitectureBuilder
+├── NeuroSymbolicArchitecture
+├── ArchitectureTemplates
+├── ArchitectureFactory
+└── EvolutionaryArchitecture
+```
+
+### After
+
+```
+rl/src/architectures/
+├── ArchitectureSystem.js (re-exports)
+├── ArchitectureConfig.js (configuration & templates)
+├── NeuroSymbolicUnit.js (base processing unit)
+├── NeuroSymbolicLayer.js (layer of units)
+├── ArchitectureBuilder.js (fluent builder)
+├── NeuroSymbolicArchitecture.js (main architecture)
+├── ArchitectureFactory.js (factory & templates)
+└── EvolutionaryArchitecture.js (evolutionary optimization)
+```
+
+### Benefits
+
+- **Easier navigation** - Each file <150 lines
+- **Better testability** - Test each component independently
+- **Clearer dependencies** - Import only what you need
+- **Maintainable** - Changes isolated to single files
+
+### Usage
+
+```javascript
+// Import specific components
+import { ArchitectureBuilder } from '@senars/rl/architectures/ArchitectureBuilder.js';
+import { NeuroSymbolicUnit } from '@senars/rl/architectures/NeuroSymbolicUnit.js';
+
+// Or use main export
+import { ArchitectureFactory, Architectures } from '@senars/rl';
+
+// Quick architecture creation
+const arch = await Architectures.dualProcess({ units: 64 });
+```
+
+---
+
+## 5. Gymnasium Compatibility
+
+### Purpose
+
+Use any Gymnasium (Python) environment with SeNARS RL agents.
+
+### Features
+
+- **Automatic space inference** - Observation and action spaces detected
+- **Python bridge** - Communicates with gymnasium via subprocess
+- **Common env support** - CartPole, MountainCar, Pendulum, LunarLander
+
+### Installation
+
+```bash
+pip install gymnasium[classic-control]
+# For LunarLander:
+pip install "gymnasium[box2d]"
+```
+
+### Usage
+
+#### Basic Usage
+
+```javascript
+import { gym } from '@senars/rl';
+
+// Create Gymnasium environment
+const env = await gym('CartPole-v1');
+
+// Use like any RL environment
+const { observation } = await env.reset();
+const action = env.sampleAction();
+const result = await env.step(action);
+```
+
+#### With Agent Training
+
+```javascript
+import { gym, DQNAgent } from '@senars/rl';
+
+const env = await gym('CartPole-v1');
+const agent = new DQNAgent(env);
+await agent.initialize();
+await agent.train(env, { episodes: 1000 });
+```
+
+#### Check Availability
+
+```javascript
+import { isGymnasiumAvailable } from '@senars/rl';
+
+if (await isGymnasiumAvailable()) {
+    const env = await gym('Pendulum-v1');
+    // ...
+} else {
+    console.log('Gymnasium not installed');
+}
+```
+
+### Supported Environments
+
+| Environment | Observation Space | Action Space |
+|-------------|-------------------|--------------|
+| `CartPole-v1` | [4] | Discrete(2) |
+| `MountainCar-v0` | [2] | Discrete(3) |
+| `Pendulum-v1` | [3] | Continuous(1) |
+| `LunarLander-v3` | [8] | Discrete(4) |
+
+### API Reference
+
+| Function/Class | Description |
+|----------------|-------------|
+| `gym(envName, config)` | Create and initialize GymWrapper |
+| `GymWrapper` | Gymnasium environment wrapper class |
+| `isGymnasiumAvailable()` | Check if gymnasium is installed |
+
+---
+
+## 6. Timer Leak Fixes
 
 ### Issue
 
@@ -370,12 +635,14 @@ Tests now complete cleanly without timer-related warnings.
 |------------|-------|--------|
 | `checkpoint.test.js` | 19 | ✅ Pass |
 | `enhanced-errors.test.js` | 28 | ✅ Pass |
+| `monitoring.test.js` | 20 | ✅ Pass |
+| `gymnasium.test.js` | 13 | ✅ Pass |
 
 ### Overall RL Tests
 
 | Suite | Tests | Status |
 |-------|-------|--------|
-| Unit Tests | 117/117 | ✅ 100% |
+| Unit Tests | 150/150 | ✅ 100% |
 | Integration Tests | 12/12 | ✅ 100% |
 
 ---

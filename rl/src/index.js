@@ -110,7 +110,10 @@ export {
     EnvironmentRegistry,
     globalEnvRegistry,
     wrapEnv,
-    makeEnv
+    makeEnv,
+    GymWrapper,
+    gym,
+    isGymnasiumAvailable
 } from './environments/EnvironmentSystem.js';
 
 // ==================== Memory ====================
@@ -191,7 +194,11 @@ export {
     MultipleComparisonCorrection,
     Evaluator,
     Collector,
-    Statistics
+    Statistics,
+    MetricsExporter,
+    TrainingMonitor,
+    createMonitor,
+    createMonitorCallback
 } from './evaluation/EvaluationSystem.js';
 
 // ==================== Distributed Execution ====================
