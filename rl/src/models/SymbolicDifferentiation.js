@@ -93,5 +93,12 @@ export class SymbolicDifferentiation {
         };
     }
 
+    getStats() {
+        return {
+            gradientGraphSize: this.gradientGraph.size,
+            symbolicGradientsCount: this.symbolicGradients.size
+        };
+    }
+
     clear() { this.gradientGraph.clear(); this.symbolicGradients.clear(); }
 }

@@ -24,6 +24,7 @@ import { ReductionCache } from './kernel/ReductionCache.js';
 import {
     reduce, reduceND, step, match, reduceAsync, reduceNDAsync,
     setInternalReferences, setNDInternalReferences, setDeterministicInternalReference,
+    setReduceNDInternalReference, setReduceDeterministicInternalReference,
     stepYield, step as stepFunc
 } from './kernel/Reduce.js';
 import { Space } from './kernel/Space.js';
@@ -88,24 +89,29 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      * Inject function references to break circular dependencies in reduction logic
      */
     _injectReductionDependencies() {
-        // Set deterministic reduction refs (DeterministicReduction.js needs StepFunctions)
+        // DeterministicReduction.js needs StepFunctions
         setInternalReferences(stepFunc, stepYield);
 
-        // Set ND reduction refs (NonDeterministicReduction.js needs StepFunctions)
+        // NonDeterministicReduction.js needs StepFunctions
         setNDInternalReferences(stepYield);
 
-        // Set StepFunctions refs (StepFunctions.js needs ND and Det reduction)
-        // Wait, setReduceNDInternalReference is not exported from Reduce.js yet?
-        // In previous step I checked Reduce.js but maybe I missed it.
-        // StepFunctions.js exports: setReduceNDInternalReference, setReduceDeterministicInternalReference
-        // Reduce.js exports * from reduction/index.js
-        // reduction/index.js exports * from StepFunctions.js
-        // So yes, reduceND should be available.
-        // Wait, I need to import setReduceNDInternalReference here to use it.
-        // I didn't import it above. Let me add it.
+        // StepFunctions.js needs ND and Det reduction
+        setReduceNDInternalReference(reduceND);
 
-        // Dynamic import workaround if static import fails or circularity issues
-        // But better to fix imports.
+        // Note: setDeterministicInternalReference is actually from StepFunctions.js (naming confusion in Reduce.js exports)
+        // In Reduce.js: setDeterministicInternalReference comes from reduction/index.js
+        // reduction/index.js exports * from DeterministicReduction.js and StepFunctions.js
+        // DeterministicReduction.js exports setInternalReferences
+        // StepFunctions.js exports setReduceDeterministicInternalReference
+        // So setDeterministicInternalReference in Reduce.js likely refers to the one in DeterministicReduction if collision?
+        // No, DeterministicReduction exports setInternalReferences.
+        // StepFunctions exports setReduceDeterministicInternalReference.
+        // So I should use setReduceDeterministicInternalReference.
+
+        setReduceDeterministicInternalReference((atom, space, ground, limit) => {
+            // Bind cache automatically for internal calls
+            return reduce(atom, space, ground, limit, this.reductionCache);
+        });
     }
 
     /**

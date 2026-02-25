@@ -2,6 +2,7 @@
  * Unify.js - Pattern Matching & Unification
  * Adapter for Core Unification Logic
  * With Tier 1 Performance Optimization: Fast-Path Type Guards
+ * And Cycle Detection in Substitution
  */
 
 // Local imports
@@ -14,24 +15,44 @@ import * as UnifyCore from '../../../core/src/term/UnifyCore.js';
 
 /**
  * Safely substitute variables in a term with their bindings
+ * Includes cycle detection to prevent stack overflow
  */
-const safeSubstitute = (term, bindings) => {
+const safeSubstitute = (term, bindings, visited = new Set()) => {
     if (!term) return term;
 
     if (isVariable(term)) {
-        const val = bindings[term.name];
-        return (val !== undefined && val !== term) ? safeSubstitute(val, bindings) : term;
+        const name = term.name;
+        const val = bindings[name];
+
+        // Prevent immediate self-reference and cycles
+        if (val !== undefined && val !== term) {
+             if (visited.has(name)) return val; // Return value but stop recursing? Or return term? UnifyCore returns term.
+             // If we found a cycle A->B->A, and we are at A. val is B.
+             // If we recurse on B, we eventually hit A again.
+             // UnifyCore stops if visited.
+
+             const newVisited = new Set(visited);
+             newVisited.add(name);
+             return safeSubstitute(val, bindings, newVisited);
+        }
+        return term;
     }
 
     if (isExpression(term)) {
         if (isList(term)) {
-            return substituteInList(term, bindings);
+            return substituteInList(term, bindings, visited);
         }
 
         const op = typeof term.operator === 'object'
-            ? safeSubstitute(term.operator, bindings)
+            ? safeSubstitute(term.operator, bindings, visited)
             : term.operator;
-        const comps = term.components.map(c => safeSubstitute(c, bindings));
+
+        // Pass visited set (cloned? No, parallel branches don't affect each other's variable chain)
+        // But for components, they are parallel.
+        // So we pass new Set(visited) or just visited?
+        // UnifyCore passes new Set(visited) to map.
+
+        const comps = term.components.map(c => safeSubstitute(c, bindings, new Set(visited)));
 
         if (op === term.operator && comps.every((c, i) => c === term.components[i])) return term;
         return exp(op, comps);
@@ -43,10 +64,10 @@ const safeSubstitute = (term, bindings) => {
 /**
  * Helper function to substitute in list structures
  */
-const substituteInList = (term, bindings) => {
+const substituteInList = (term, bindings, visited) => {
     const { elements, tail } = flattenList(term);
-    const subEls = elements.map(e => safeSubstitute(e, bindings));
-    const subTail = safeSubstitute(tail, bindings);
+    const subEls = elements.map(e => safeSubstitute(e, bindings, new Set(visited)));
+    const subTail = safeSubstitute(tail, bindings, new Set(visited));
     if (subTail === tail && subEls.every((e, i) => e === elements[i])) return term;
     return constructList(subEls, subTail);
 };

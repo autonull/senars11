@@ -21,5 +21,7 @@ export {
     match,
     setInternalReferences,
     setNDInternalReferences,
-    setDeterministicInternalReference
+    setDeterministicInternalReference,
+    setReduceNDInternalReference,
+    setReduceDeterministicInternalReference
 } from './reduction/index.js';
