@@ -3,7 +3,8 @@
  */
 import { describe, it, expect } from '@jest/globals';
 import { SymbolicTensor, TensorLogicBridge, symbolicTensor, termToTensor } from '@senars/tensor';
-import { SymbolicDifferentiation, WorldModel } from '../../src/neurosymbolic/NeuroSymbolicSystem.js';
+import { SymbolicDifferentiation } from '../../src/models/SymbolicDifferentiation.js';
+import { WorldModel } from '../../src/models/WorldModel.js';
 
 // ========== SymbolicTensor Tests ==========
 describe('SymbolicTensor', () => {
