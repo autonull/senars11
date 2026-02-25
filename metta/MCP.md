@@ -1,2641 +1,1090 @@
-# MeTTa MCP Integration Specification
+# MeTTa MCP Integration
 
-**Model Context Protocol Interface for MeTTa Reasoning Engine**
+**Deliberate Tool Use + Cognitive Service Exposure**
 
-*Version 2.0 - Complete Specification with Advanced Metaprogramming*
-
----
-
-## Executive Summary
-
-This specification defines a **complete, robust MCP integration** for MeTTa that achieves:
-
-1. **Full MCP Protocol Compliance** - Bidirectional client/server with all capability classes
-2. **MeTTa-Native Integration** - MCP tools as first-class grounded atoms with type safety
-3. **Advanced Metaprogramming** - JavaScript reflection, Proxy-based wrappers, dynamic composition
-4. **LangChain Interoperability** - Seamless tool exchange between MCP and LangChain ecosystems
-5. **Reasoning Parity** - MeTTa achieves LLM-level MCP integration capabilities
-
-### Key Innovations
-
-| Feature | Technique | Benefit |
-|---------|-----------|---------|
-| **Dynamic Tool Registration** | Proxy-based metaprogramming | Zero-boilerplate tool binding |
-| **Schema Translation** | Zod ↔ MeTTa type system | Type-safe parameter passing |
-| **Composable Pipelines** | MeTTa HOFs + MCP tools | Complex workflows as expressions |
-| **Reflective Discovery** | JavaScript Reflection API | Runtime introspection of capabilities |
-| **Bidirectional Bridge** | SeNARSBridge integration | NAL reasoning + external tools |
+*Version 4.0 — 2026-02-25*
 
 ---
 
-## 1. MCP Protocol Specification
+## Vision
 
-### 1.1 Protocol Architecture
+There are **two distinct, complementary use cases**. Conflating them causes confusion:
+
+| Use Case | Direction | The Power |
+|----------|-----------|-----------|
+| **MeTTa consumes MCPs** | External tools → MeTTa reasoning | MeTTa's reduction rules *decide* which tools to invoke, *compose* their outputs, and *learn from* results — autonomous tool-using cognition |
+| **SeNARS provides MCP** | MeTTa/NAR → external AI clients | Claude, Cursor, and any MCP host can call SeNARS reasoning, query its memory, and control its inference cycles |
+
+**Why not Narsese in the consumer path?** MeTTa's rule-based reduction is the reasoning substrate. Narsese/NAL belongs to SeNARS — a separate (but connected) subsystem. When MeTTa calls an external tool, it uses its own term-rewriting machinery. When SeNARS *provides* capabilities over MCP, its output may be Narsese-structured — but that is the server's concern, not the client's.
+
+**What makes this powerful?** Compare:
+- *Weak*: `fetch('https://api.example.com/data')` ← dumb HTTP call
+- *Powerful*: MeTTa rules decide *if*, *when*, and *how* to call a tool based on reasoning state; results flow into the knowledge space and trigger further inference; the system learns which tools reliably answer which kinds of queries
+
+---
+
+## 1. Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         MCP Protocol Stack                          │
-├─────────────────────────────────────────────────────────────────────┤
-│  Application Layer    │  MeTTa Expressions / LangChain Agents      │
-│  ─────────────────    │  ─────────────────────────────────────     │
-│  Capability Layer     │  Tools │ Resources │ Prompts               │
-│                       │  Sampling │ Roots │ Elicitation            │
-│  ─────────────────    │  ─────────────────────────────────────     │
-│  Message Layer        │  JSON-RPC 2.0 (requests, responses, errors)│
-│  ─────────────────    │  ─────────────────────────────────────     │
-│  Transport Layer      │  Stdio │ HTTP/SSE │ WebSocket              │
-└─────────────────────────────────────────────────────────────────────┘
+╔══════════════════════════════════════════════════════════════════╗
+║                     USE CASE A: MeTTa CONSUMES                  ║
+║                                                                  ║
+║  MeTTa Space         MeTTa Rules           Grounded Layer        ║
+║  ───────────         ───────────           ───────────────       ║
+║  (tool weather)  →  (= (need-tool $t)  →  mcp-call              ║
+║  (tool search)       (when-available      (wraps MCP SDK)        ║
+║  (tool code)          (mcp-call $t ...))) ←results→             ║
+║                                           McpPool                ║
+║                         ↕ JS Reflection   (multi-server)         ║
+║                    (discover, introspect)                        ║
+╚══════════════════════════════════════════════════════════════════╝
+                              ↕ MCP Protocol
+╔══════════════════════════════════════════════════════════════════╗
+║                  USE CASE B: SeNARS PROVIDES                     ║
+║                                                                  ║
+║  agent/src/mcp/Server.js  ← WORKING TODAY                       ║
+║  Tools: ping, reason, memory-query, execute-tool,               ║
+║         evaluate_js, get-focus, sync-beliefs                     ║
+║                                                                  ║
+║  AI Clients (Claude Desktop, Cursor, any MCP host) call          ║
+║  SeNARS reasoning as structured tools                            ║
+╚══════════════════════════════════════════════════════════════════╝
 ```
 
-### 1.2 Message Types
+### Where each subsystem lives
 
-```typescript
-// JSON-RPC 2.0 Request
-interface MCPRequest {
-  jsonrpc: "2.0";
-  id: number | string;
-  method: MCPMethod;
-  params?: MCPParams;
-}
-
-type MCPMethod = 
-  | "initialize"
-  | "tools/list"
-  | "tools/call"
-  | "resources/list"
-  | "resources/read"
-  | "prompts/list"
-  | "prompts/get"
-  | "sampling/createMessage"
-  | "roots/list"
-  | "elicitation/create";
-
-// JSON-RPC 2.0 Response
-interface MCPResponse {
-  jsonrpc: "2.0";
-  id: number | string;
-  result?: MCPResult;
-  error?: MCPError;
-}
-
-interface MCPError {
-  code: number;
-  message: string;
-  data?: unknown;
-}
-
-// Error Codes
-const MCPErrorCode = {
-  PARSE_ERROR: -32700,
-  INVALID_REQUEST: -32600,
-  METHOD_NOT_FOUND: -32601,
-  INVALID_PARAMS: -32602,
-  INTERNAL_ERROR: -32603,
-  RESOURCE_NOT_FOUND: -32001,
-  TOOL_NOT_FOUND: -32002,
-  PROMPT_NOT_FOUND: -32003,
-  CAPABILITY_NOT_SUPPORTED: -32004,
-  RATE_LIMIT_EXCEEDED: -32005,
-  PERMISSION_DENIED: -32006,
-  TIMEOUT: -32007
-} as const;
 ```
+agent/src/mcp/          ← EXISTING, WORKING
+├── Server.js           MCP server — SeNARS as tool provider
+├── Client.js           Basic MCP client (Stdio)
+├── Safety.js           PII scrubbing (Narsese-safe: no < > escaping)
+├── index.js            MCPManager + convenience exports
+└── start-server.js     Entry point for Claude Desktop etc.
 
-### 1.3 Capability Negotiation
-
-```typescript
-interface MCPCapabilities {
-  // Client → Server capabilities
-  client?: {
-    sampling?: {
-      models?: string[];  // Supported model families
-    };
-    roots?: {
-      listChanged?: boolean;  // Subscribe to root changes
-    };
-    elicitation?: object;     // User input requests
-  };
-  
-  // Server → Client capabilities
-  server?: {
-    tools?: {
-      listChanged?: boolean;  // Dynamic tool registration
-    };
-    resources?: {
-      subscribe?: boolean;    // Resource subscriptions
-      listChanged?: boolean;  // Dynamic resource registration
-    };
-    prompts?: {
-      listChanged?: boolean;  // Dynamic prompt registration
-    };
-  };
-}
-```
-
-### 1.4 Tool Schema (Zod → MCP)
-
-```typescript
-interface MCPTool {
-  name: string;
-  description?: string;
-  inputSchema: {
-    type: "object";
-    properties: Record<string, ZodSchema>;
-    required?: string[];
-  };
-  outputSchema?: {
-    type: "object";
-    properties: Record<string, ZodSchema>;
-  };
-  annotations?: {
-    title?: string;
-    readOnlyHint?: boolean;
-    destructiveHint?: boolean;
-    idempotentHint?: boolean;
-    openWorldHint?: boolean;
-  };
-}
+metta/src/mcp/          ← TO BUILD (this spec)
+├── McpPool.js          Multi-server connection pool
+├── McpGrounded.js      registerMcpGrounded() → MeTTa ground atoms
+├── McpTranslator.js    JSON ↔ MeTTa Term (with MCP content-block unwrap)
+├── McpDiscovery.js     Tool → Space facts + JS Reflection integration
+├── McpAdapters.js      REST/GraphQL/OpenAPI → MCP tool wrappers
+└── index.js            MeTTaMCPManager
 ```
 
 ---
 
-## 2. Architecture
+## 2. Use Case A: MeTTa Deliberately Consuming MCPs
 
-### 2.1 Module Structure
+### 2.1 The Core Idea
 
-```
-metta/src/mcp/
-├── index.js                  # Unified export + MeTTaMCPManager
-├── McpClient.js              # MCP client with auto-discovery
-├── McpServer.js              # MCP server exposing MeTTa/NAL
-├── McpGrounded.js            # Grounded atom factory for tools
-├── McpTranslator.js          # Bidirectional schema translation
-├── McpSafety.js              # Security layer with capabilities
-├── LangChainAdapter.js       # MCP ↔ LangChain tool bridge
-├── ReflectionAPI.js          # JavaScript reflection utilities
-├── McpComposition.js         # Tool composition pipelines
-├── McpResources.js           # Resource handling (files, URIs)
-├── McpPrompts.js             # Prompt templates and workflows
-└── types.js                  # TypeScript-style type definitions
-```
+When MeTTa discovers a tool, it **adds facts about it to its knowledge space**:
 
-### 2.2 System Architecture
+```metta
+; After connecting to a filesystem MCP server, these atoms are added:
+(tool-available read_file)
+(tool-description read_file "Read the contents of a file")
+(tool-param read_file path String required)
+(tool-category read_file filesystem)
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           MeTTa Runtime                                 │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────────┐ │
-│  │   MeTTa         │  │   Grounded      │  │   NAL Reasoning         │ │
-│  │   Interpreter   │  │   Atoms (Ground)│  │   Engine                │ │
-│  │   ──────────    │  │   ───────────   │  │   ──────────────        │ │
-│  │   • Parser      │  │   • Operations  │  │   • Inference           │ │
-│  │   • Reducer     │  │   • Registry    │  │   • Truth Values        │ │
-│  │   • Space       │  │   • Types       │  │   • Budgets             │ │
-│  └────────┬────────┘  └────────┬────────┘  └───────────┬─────────────┘ │
-│           │                    │                       │               │
-│           └────────────────────┼───────────────────────┘               │
-│                                │                                       │
-│                    ┌───────────▼────────────┐                          │
-│                    │   MCP Integration      │                          │
-│                    │   Layer                │                          │
-│                    │   ─────────────────    │                          │
-│                    │   • Translation        │                          │
-│                    │   • Safety             │                          │
-│                    │   • Discovery          │                          │
-│                    └───────────┬────────────┘                          │
-└────────────────────────────────┼────────────────────────────────────────┘
-                                 │
-         ┌───────────────────────┼───────────────────────┐
-         │                       │                       │
-┌────────▼────────┐     ┌────────▼──────┐      ┌────────▼────────┐
-│ MCP Client      │     │ MCP Server    │      │ LangChain       │
-│ ─────────────   │     │ ───────────   │      │ Adapter         │
-│ • Discovery     │     │ • Expose      │      │ ───────────     │
-│ • Invocation    │     │ • Reasoning   │      │ • Tool Wrap     │
-│ • Streaming     │     │ • Introspect  │      │ • Agent Create  │
-└────────┬────────┘     └────────┬──────┘      └────────┬────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-              ┌──────────────────▼──────────────────┐
-              │       External MCP Ecosystem        │
-              │  ─────────────────────────────      │
-              │  • Filesystem │ Database │ API      │
-              │  • Git │ Docker │ Kubernetes        │
-              │  • Custom servers (any language)    │
-              └─────────────────────────────────────┘
+; And MeTTa rules can reason about them:
+(= (can-answer-query ?q)
+   (if (query-needs-filesystem ?q)
+       (mcp-call read_file (object (: path (query-target ?q))))
+       (escalate ?q)))
 ```
 
-### 2.3 Data Flow
+This is the critical difference: MeTTa **reasons about which tools to use**, rather than hardcoding calls.
 
-```
-User MeTTa Expression
-       │
-       ▼
-┌─────────────────┐
-│ Parser          │ → AST (Term)
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Reducer         │ → Matches (mcp-call ...)
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ McpGrounded     │ → Tool lookup
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ McpTranslator   │ → MCP params (JS object)
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ McpClient       │ → JSON-RPC request
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ External MCP    │ → Tool execution
-│ Server          │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ McpTranslator   │ ← Result (JSON)
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Ground.toTerm() │ ← MeTTa Term
-└────────┬────────┘
-         │
-         ▼
-Result in MeTTa Space
-```
+### 2.2 McpPool — Multi-Server Connection Management
 
----
-
-## 3. Core Implementation
-
-### 3.1 Unified Entry Point
-
-**File: `metta/src/mcp/index.js`**
-
-```javascript
-/**
- * MeTTa MCP Integration - Main Entry Point
- * 
- * Provides unified interface for:
- * - Connecting to external MCP servers
- * - Exposing MeTTa as MCP server
- * - LangChain tool interoperability
- * - Reflective tool discovery
- */
-
-// Core exports
-export { McpClient } from './McpClient.js';
-export { McpServer } from './McpServer.js';
-export { McpGrounded, mcpCall, mcpDiscover, mcpAsMeTTa } from './McpGrounded.js';
-export { McpTranslator, TermToSchema, SchemaToTerm } from './McpTranslator.js';
-export { McpSafety, CapabilityMask } from './McpSafety.js';
-export { LangChainAdapter } from './LangChainAdapter.js';
-export { ReflectionAPI } from './ReflectionAPI.js';
-export { McpComposition, pipeline, parallel, branch } from './McpComposition.js';
-export { McpResources } from './McpResources.js';
-export { McpPrompts } from './McpPrompts.js';
-
-// Type definitions (for documentation/IDE support)
-export * from './types.js';
-
-/**
- * MeTTaMCPManager - Unified MCP orchestration
- * 
- * Manages bidirectional MCP operations:
- * - Client mode: Connect to external MCP servers
- * - Server mode: Expose MeTTa reasoning capabilities
- * - Bridge mode: LangChain ↔ MCP tool exchange
- */
-export class MeTTaMCPManager {
-  /**
-   * @param {import('../MeTTaInterpreter.js').MeTTaInterpreter} interpreter
-   * @param {MCPManagerOptions} options
-   */
-  constructor(interpreter, options = {}) {
-    this.interpreter = interpreter;
-    this.options = {
-      autoDiscover: true,
-      autoRegister: true,
-      safety: {},
-      ...options
-    };
-    
-    /** @type {McpClient|null} */
-    this.client = null;
-    
-    /** @type {McpServer|null} */
-    this.server = null;
-    
-    /** @type {LangChainAdapter|null} */
-    this.langchain = null;
-    
-    /** @type {Map<string, MCPTool>} */
-    this.discoveredTools = new Map();
-    
-    /** @type {Set<string>} */
-    this.connectedServers = new Set();
-    
-    this._setupEventHandlers();
-  }
-
-  /**
-   * Initialize MCP subsystem
-   * @param {'client' | 'server' | 'bridge' | 'full'} mode
-   * @param {MCPInitConfig} config
-   */
-  async initialize(mode = 'client', config = {}) {
-    const { interpreter, options } = this;
-    
-    switch (mode) {
-      case 'client':
-        this.client = new McpClient(interpreter, { ...options, ...config.client });
-        break;
-        
-      case 'server':
-        this.server = new McpServer(interpreter, { ...options, ...config.server });
-        break;
-        
-      case 'bridge':
-        this.langchain = new LangChainAdapter(interpreter, { ...options, ...config.bridge });
-        break;
-        
-      case 'full':
-        // Initialize all modes
-        this.client = new McpClient(interpreter, { ...options, ...config.client });
-        this.server = new McpServer(interpreter, { ...options, ...config.server });
-        this.langchain = new LangChainAdapter(interpreter, { ...options, ...config.bridge });
-        break;
-    }
-    
-    // Register MCP operations in Ground
-    this._registerMCPOperations();
-    
-    return this;
-  }
-
-  /**
-   * Connect to external MCP server
-   * @param {string} command - Server command (e.g., 'npx')
-   * @param {string[]} args - Server arguments
-   * @returns {Promise<McpClient>}
-   */
-  async connectToServer(command, args = []) {
-    if (!this.client) {
-      throw new Error('MCP client not initialized. Call initialize() first.');
-    }
-    
-    const serverKey = `${command} ${args.join(' ')}`;
-    if (this.connectedServers.has(serverKey)) {
-      console.warn(`Already connected to: ${serverKey}`);
-      return this.client;
-    }
-    
-    await this.client.connect(command, args);
-    this.connectedServers.add(serverKey);
-    
-    // Auto-discover and register tools
-    if (this.options.autoDiscover) {
-      const tools = await this.client.discoverTools();
-      tools.forEach(tool => this.discoveredTools.set(tool.name, tool));
-      
-      if (this.options.autoRegister) {
-        await this._autoRegisterTools(tools);
-      }
-    }
-    
-    return this.client;
-  }
-
-  /**
-   * Start MeTTa as MCP server
-   * @param {MCPServerOptions} options
-   * @returns {Promise<McpServer>}
-   */
-  async startServer(options = {}) {
-    if (!this.server) {
-      this.server = new McpServer(this.interpreter, { ...this.options, ...options });
-    }
-    
-    await this.server.start();
-    return this.server;
-  }
-
-  /**
-   * Discover available MCP tools
-   * @returns {Promise<MCPTool[]>}
-   */
-  async discoverTools() {
-    if (!this.client) {
-      throw new Error('MCP client not connected');
-    }
-    
-    const tools = await this.client.discoverTools();
-    tools.forEach(tool => this.discoveredTools.set(tool.name, tool));
-    return tools;
-  }
-
-  /**
-   * Call MCP tool
-   * @param {string} toolName
-   * @param {Record<string, any>} params
-   * @returns {Promise<any>}
-   */
-  async callTool(toolName, params = {}) {
-    if (!this.client) {
-      // Try to find tool in registered grounded atoms
-      const grounded = this.interpreter.ground.getOperation(toolName);
-      if (grounded) {
-        return grounded(params);
-      }
-      throw new Error('MCP client not connected and tool not registered');
-    }
-    
-    return this.client.callTool(toolName, params);
-  }
-
-  /**
-   * Get LangChain tools (for agent integration)
-   * @returns {import('@langchain/core/tools').Tool[]}
-   */
-  getLangChainTools() {
-    if (!this.langchain) {
-      throw new Error('LangChain adapter not initialized');
-    }
-    return this.langchain.getTools();
-  }
-
-  /**
-   * Create LangChain agent with MeTTa tools
-   * @param {any} llm - LangChain LLM instance
-   * @param {AgentOptions} options
-   * @returns {Promise<any>}
-   */
-  async createAgent(llm, options = {}) {
-    if (!this.langchain) {
-      this.langchain = new LangChainAdapter(this.interpreter, this.options);
-      await this.langchain.connectToMCP(...arguments);
-    }
-    return this.langchain.createAgent(llm, options);
-  }
-
-  /**
-   * Disconnect from all servers
-   */
-  async disconnect() {
-    if (this.client) {
-      await this.client.disconnect();
-    }
-    if (this.server) {
-      await this.server.stop();
-    }
-    this.connectedServers.clear();
-    this.discoveredTools.clear();
-  }
-
-  /**
-   * Setup event handlers for MCP events
-   * @private
-   */
-  _setupEventHandlers() {
-    const { interpreter } = this;
-    
-    // Listen for MCP-related events
-    interpreter.on?.('mcp:connected', (tools) => {
-      console.log(`MCP connected: ${tools.length} tools available`);
-    });
-    
-    interpreter.on?.('mcp:disconnected', () => {
-      console.log('MCP disconnected');
-    });
-    
-    interpreter.on?.('mcp:tool-called', ({ name, params, result }) => {
-      console.debug(`MCP tool called: ${name}`, { params, result });
-    });
-  }
-
-  /**
-   * Register MCP operations in Ground registry
-   * @private
-   */
-  _registerMCPOperations() {
-    const { ground, interpreter } = this;
-    const self = this;
-    
-    // (mcp-connect command &args)
-    ground.register('mcp-connect', async (command, ...args) => {
-      await self.connectToServer(command, args);
-      return Term.sym('(mcp-connected)');
-    });
-    
-    // (mcp-discover)
-    ground.register('mcp-discover', async () => {
-      const tools = await self.discoverTools();
-      return Term.exp('list', tools.map(t => Term.sym(t.name)));
-    });
-    
-    // (mcp-call tool-name params)
-    ground.register('mcp-call', async (toolName, params) => {
-      const result = await self.callTool(toolName.toString(), params);
-      return interpreter.ground.toTerm(result);
-    });
-    
-    // (mcp-as-meTTa tool-name)
-    ground.register('mcp-as-meTTa', async (toolName) => {
-      const name = toolName.toString();
-      const tool = this.discoveredTools.get(name);
-      if (!tool) {
-        throw new Error(`Tool not found: ${name}`);
-      }
-      
-      // Register as grounded atom
-      ground.register(name, async (...args) => {
-        const params = this._argsToParams(args, tool.inputSchema);
-        const result = await self.callTool(name, params);
-        return interpreter.ground.toTerm(result);
-      });
-      
-      return Term.sym(`(registered ${name})`);
-    });
-    
-    // (mcp-list)
-    ground.register('mcp-list', () => {
-      const tools = Array.from(this.discoveredTools.values());
-      return Term.exp('list', tools.map(t => 
-        Term.exp('tool', [
-          Term.sym('name', t.name),
-          Term.sym('description', t.description || '')
-        ])
-      ));
-    });
-    
-    // (mcp-disconnect)
-    ground.register('mcp-disconnect', async () => {
-      await self.disconnect();
-      return Term.sym('(mcp-disconnected)');
-    });
-  }
-
-  /**
-   * Auto-register tools as grounded atoms
-   * @private
-   */
-  async _autoRegisterTools(tools) {
-    const { ground, interpreter } = this;
-    
-    for (const tool of tools) {
-      try {
-        ground.register(tool.name, async (...args) => {
-          const params = this._argsToParams(args, tool.inputSchema);
-          const result = await this.callTool(tool.name, params);
-          return interpreter.ground.toTerm(result);
-        });
-      } catch (error) {
-        console.warn(`Failed to register tool ${tool.name}:`, error);
-      }
-    }
-  }
-
-  /**
-   * Convert MeTTa arguments to MCP params
-   * @private
-   */
-  _argsToParams(args, schema) {
-    const params = {};
-    const properties = schema?.properties || {};
-    const required = schema?.required || [];
-    
-    // Handle single object argument
-    if (args.length === 1 && args[0]?.type === 'compound') {
-      const obj = args[0];
-      if (obj.operator?.name === ':') {
-        // Handle key-value pairs
-        for (const pair of obj.components) {
-          if (pair.operator?.name === ':') {
-            const key = pair.components[0]?.name;
-            const value = pair.components[1];
-            if (key) {
-              params[key] = this._termToValue(value);
-            }
-          }
-        }
-      }
-    }
-    
-    // Handle positional arguments
-    const keys = Object.keys(properties);
-    for (let i = 0; i < args.length && i < keys.length; i++) {
-      params[keys[i]] = this._termToValue(args[i]);
-    }
-    
-    return params;
-  }
-
-  /**
-   * Convert MeTTa term to JavaScript value
-   * @private
-   */
-  _termToValue(term) {
-    if (!term) return null;
-    if (term.type === 'atom') {
-      const num = Number(term.name);
-      if (!isNaN(num)) return num;
-      if (term.name === 'True') return true;
-      if (term.name === 'False') return false;
-      if (term.name === 'Null') return null;
-      return term.name;
-    }
-    if (term.type === 'compound') {
-      if (term.operator?.name === ':') {
-        // Key-value pair
-        const key = term.components[0]?.name;
-        const value = this._termToValue(term.components[1]);
-        return { [key]: value };
-      }
-      // Array
-      return term.components.map(c => this._termToValue(c));
-    }
-    return term;
-  }
-}
-
-export default MeTTaMCPManager;
-```
-
-### 3.2 MCP Client with Auto-Discovery
-
-**File: `metta/src/mcp/McpClient.js`**
+**File: `metta/src/mcp/McpPool.js`**
 
 ```javascript
 import { Client as McpClientSDK } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-import { EventEmitter } from 'events';
-import { McpTranslator } from './McpTranslator.js';
-import { McpSafety } from './McpSafety.js';
-import { ReflectionAPI } from './ReflectionAPI.js';
 
 /**
- * MCP Client for MeTTa
- * 
- * Features:
- * - Auto-discovery of tools, resources, prompts
- * - Schema validation with Zod
- * - Event-driven architecture
- * - Streaming support
+ * Manages connections to multiple MCP servers simultaneously.
+ * Provides a unified tool namespace across all servers.
+ * Integrates with MeTTa's knowledge space via McpDiscovery.
  */
-export class McpClient extends EventEmitter {
-  /**
-   * @param {import('../MeTTaInterpreter.js').MeTTaInterpreter} interpreter
-   * @param {MCPClientOptions} options
-   */
+export class McpPool {
   constructor(interpreter, options = {}) {
-    super();
     this.interpreter = interpreter;
-    this.options = {
-      name: 'MeTTa-MCP-Client',
-      version: '2.0.0',
-      capabilities: {
-        sampling: {},
-        roots: { listChanged: true },
-        elicitation: {}
-      },
-      safety: {},
-      transport: 'stdio',
-      ...options
-    };
+    this.opts = { conflictStrategy: 'last', timeout: 30_000, ...options };
     
-    this.safety = new McpSafety(options.safety);
-    this.translator = new McpTranslator(interpreter);
-    this.reflection = new ReflectionAPI(interpreter);
+    /** @type {Map<string, {client: McpClientSDK, transport: any, meta: object}>} */
+    this.connections = new Map();
     
-    this.client = new McpClientSDK({
-      name: this.options.name,
-      version: this.options.version
-    }, {
-      capabilities: this.options.capabilities
-    });
+    /** @type {Map<string, string>} toolName → serverKey */
+    this.toolIndex = new Map();
     
-    /** @type {StdioClientTransport|SSEClientTransport|null} */
-    this.transport = null;
-    
-    /** @type {Map<string, MCPTool>} */
-    this.discoveredTools = new Map();
-    
-    /** @type {Map<string, MCPResource>} */
-    this.discoveredResources = new Map();
-    
-    /** @type {Map<string, MCPPrompt>} */
-    this.discoveredPrompts = new Map();
-    
-    /** @type {boolean} */
-    this.isConnected = false;
-    
-    this._setupClientHandlers();
+    /** @type {Map<string, object>} toolName → full tool schema */
+    this.toolSchemas = new Map();
   }
 
   /**
-   * Connect to MCP server
-   * @param {string} command
-   * @param {string[]} args
-   * @returns {Promise<this>}
+   * Connect to an MCP server.
+   * @param {string} key - Logical name for this server
+   * @param {string} commandOrUrl - Stdio command or SSE URL
+   * @param {string[]} args - Args for Stdio transport
+   * @param {'stdio'|'sse'} transport
+   * @returns {Promise<string[]>} List of discovered tool names
    */
-  async connect(command, args = []) {
-    if (this.isConnected) {
-      throw new Error('Already connected');
-    }
-    
-    // Create transport based on configuration
-    if (this.options.transport === 'sse') {
-      this.transport = new SSEClientTransport(new URL(command));
-    } else {
-      this.transport = new StdioClientTransport({ command, args });
-    }
-    
-    // Setup transport handlers
-    this.transport.onclose = () => this._onDisconnect();
-    this.transport.onerror = (error) => this._onError(error);
-    
-    // Connect
-    await this.client.connect(this.transport);
-    this.isConnected = true;
-    
-    // Initialize and discover capabilities
-    await this._initialize();
-    
-    this.emit('connected');
-    return this;
-  }
+  async connect(key, commandOrUrl, args = [], transport = 'stdio') {
+    if (this.connections.has(key)) return this._toolsForKey(key);
 
-  /**
-   * Discover all available capabilities
-   * @returns {Promise<DiscoveredCapabilities>}
-   */
-  async discoverAll() {
-    const [tools, resources, prompts] = await Promise.all([
-      this.discoverTools(),
-      this.discoverResources(),
-      this.discoverPrompts()
-    ]);
-    
-    return { tools, resources, prompts };
-  }
+    const sdk = new McpClientSDK(
+      { name: 'MeTTa', version: '4.0.0' },
+      { capabilities: { sampling: {}, roots: { listChanged: true } } }
+    );
 
-  /**
-   * Discover available tools
-   * @returns {Promise<MCPTool[]>}
-   */
-  async discoverTools() {
-    const result = await this.client.listTools();
-    const tools = result.tools || [];
+    const tp = transport === 'sse'
+      ? new SSEClientTransport(new URL(commandOrUrl))
+      : new StdioClientTransport({ command: commandOrUrl, args });
+
+    tp.onclose = () => this._onServerDisconnect(key);
+
+    await sdk.connect(tp);
+    
+    const { tools = [] } = await sdk.listTools();
     
     for (const tool of tools) {
-      this.discoveredTools.set(tool.name, tool);
-      this._registerAsGroundedAtom(tool);
+      const conflict = this.toolIndex.has(tool.name);
+      if (!conflict || this.opts.conflictStrategy === 'last') {
+        this.toolIndex.set(tool.name, key);
+        this.toolSchemas.set(tool.name, tool);
+      }
     }
-    
-    this.emit('tools-discovered', tools);
-    return tools;
+
+    this.connections.set(key, { client: sdk, transport: tp, meta: { tools } });
+
+    // Notify change handlers
+    this._onChange?.({ type: 'connected', key, tools: tools.map(t => t.name) });
+
+    return tools.map(t => t.name);
   }
 
   /**
-   * Discover available resources
-   * @returns {Promise<MCPResource[]>}
-   */
-  async discoverResources() {
-    const result = await this.client.listResources();
-    const resources = result.resources || [];
-    
-    for (const resource of resources) {
-      this.discoveredResources.set(resource.uri, resource);
-    }
-    
-    this.emit('resources-discovered', resources);
-    return resources;
-  }
-
-  /**
-   * Discover available prompts
-   * @returns {Promise<MCPPrompt[]>}
-   */
-  async discoverPrompts() {
-    const result = await this.client.listPrompts();
-    const prompts = result.prompts || [];
-    
-    for (const prompt of prompts) {
-      this.discoveredPrompts.set(prompt.name, prompt);
-    }
-    
-    this.emit('prompts-discovered', prompts);
-    return prompts;
-  }
-
-  /**
-   * Call MCP tool
-   * @param {string} toolName
-   * @param {Record<string, any>} params
-   * @returns {Promise<any>}
+   * Call any tool across the pool.
    */
   async callTool(toolName, params = {}) {
-    if (!this.isConnected) {
-      throw new Error('Not connected to MCP server');
-    }
+    const key = this.toolIndex.get(toolName);
+    if (!key) throw new Error(`Tool not found in pool: ${toolName}. Available: ${[...this.toolIndex.keys()].join(', ')}`);
     
-    const tool = this.discoveredTools.get(toolName);
-    if (!tool) {
-      throw new Error(`Tool not found: ${toolName}`);
-    }
+    const { client } = this.connections.get(key);
     
-    // Safety validation
-    const safeParams = this.safety.validateInput(params, tool.inputSchema);
-    
-    // Call tool
-    const result = await this.client.callTool({
-      name: toolName,
-      arguments: safeParams
-    });
-    
-    // Validate and translate output
-    const translatedResult = this.translator.toMeTTaTerm(result);
-    
-    this.emit('tool-called', { name: toolName, params: safeParams, result: translatedResult });
-    
-    return translatedResult;
-  }
-
-  /**
-   * Read MCP resource
-   * @param {string} uri
-   * @returns {Promise<any>}
-   */
-  async readResource(uri) {
-    if (!this.isConnected) {
-      throw new Error('Not connected');
-    }
-    
-    const resource = this.discoveredResources.get(uri);
-    if (!resource) {
-      throw new Error(`Resource not found: ${uri}`);
-    }
-    
-    const result = await this.client.readResource({ uri });
-    return this.translator.toMeTTaTerm(result);
-  }
-
-  /**
-   * Get MCP prompt
-   * @param {string} name
-   * @param {Record<string, any>} args
-   * @returns {Promise<any>}
-   */
-  async getPrompt(name, args = {}) {
-    if (!this.isConnected) {
-      throw new Error('Not connected');
-    }
-    
-    const prompt = this.discoveredPrompts.get(name);
-    if (!prompt) {
-      throw new Error(`Prompt not found: ${name}`);
-    }
-    
-    const result = await this.client.getPrompt({ name, arguments: args });
-    return this.translator.toMeTTaTerm(result);
-  }
-
-  /**
-   * Request LLM sampling (recursive MCP)
-   * @param {SamplingRequest} request
-   * @returns {Promise<SamplingResult>}
-   */
-  async createMessage(request) {
-    if (!this.isConnected) {
-      throw new Error('Not connected');
-    }
-    
-    const result = await this.client.createMessage({
-      messages: request.messages,
-      systemPrompt: request.systemPrompt,
-      includeContext: request.includeContext,
-      temperature: request.temperature,
-      maxTokens: request.maxTokens,
-      modelPreferences: request.modelPreferences
-    });
-    
-    return result;
-  }
-
-  /**
-   * List roots (filesystem boundaries)
-   * @returns {Promise<Root[]>}
-   */
-  async listRoots() {
-    if (!this.isConnected) {
-      throw new Error('Not connected');
-    }
-    
-    const result = await this.client.listRoots();
-    return result.roots || [];
-  }
-
-  /**
-   * Request elicitation (user input)
-   * @param {ElicitationRequest} request
-   * @returns {Promise<ElicitationResult>}
-   */
-  async elicit(request) {
-    if (!this.isConnected) {
-      throw new Error('Not connected');
-    }
-    
-    const result = await this.client.elicit({
-      message: request.message,
-      requestedSchema: request.requestedSchema
-    });
-    
-    return result;
-  }
-
-  /**
-   * Disconnect from server
-   * @returns {Promise<void>}
-   */
-  async disconnect() {
-    if (this.transport) {
-      await this.transport.close();
-      this.transport = null;
-    }
-    this.isConnected = false;
-    this.discoveredTools.clear();
-    this.discoveredResources.clear();
-    this.discoveredPrompts.clear();
-  }
-
-  /**
-   * Setup client event handlers
-   * @private
-   */
-  _setupClientHandlers() {
-    // Handle server notifications
-    this.client.setNotificationHandler('notifications/tools/list_changed', () => {
-      this.emit('tools-changed');
-      this.discoverTools(); // Auto-rediscover
-    });
-    
-    this.client.setNotificationHandler('notifications/resources/list_changed', () => {
-      this.emit('resources-changed');
-      this.discoverResources();
-    });
-    
-    this.client.setNotificationHandler('notifications/prompts/list_changed', () => {
-      this.emit('prompts-changed');
-      this.discoverPrompts();
-    });
-  }
-
-  /**
-   * Initialize connection with server
-   * @private
-   */
-  async _initialize() {
-    // Perform capability negotiation
-    const initializeResult = await this.client.initialize({
-      capabilities: this.options.capabilities,
-      clientInfo: {
-        name: this.options.name,
-        version: this.options.version
-      }
-    });
-    
-    this.serverCapabilities = initializeResult.capabilities;
-    this.serverInfo = initializeResult.serverInfo;
-    
-    this.emit('initialized', {
-      server: this.serverInfo,
-      capabilities: this.serverCapabilities
-    });
-  }
-
-  /**
-   * Register tool as grounded atom in MeTTa
-   * @private
-   */
-  _registerAsGroundedAtom(tool) {
-    const { ground, interpreter } = this;
-    const self = this;
-    
-    // Use Proxy for dynamic tool wrapper
-    const toolProxy = new Proxy({}, {
-      get: (target, prop) => {
-        if (prop === Symbol.toPrimitive) {
-          return () => tool.name;
-        }
-        if (prop === 'schema') {
-          return tool.inputSchema;
-        }
-        if (prop === 'description') {
-          return tool.description;
-        }
-        return target[prop];
-      },
-      apply: async (target, thisArg, args) => {
-        const params = self._argsToParams(args, tool.inputSchema);
-        return await self.callTool(tool.name, params);
-      }
-    });
-    
-    // Register in Ground
-    try {
-      ground.register(tool.name, toolProxy);
-    } catch (error) {
-      console.warn(`Failed to register tool ${tool.name} as grounded atom:`, error);
-    }
-  }
-
-  /**
-   * Convert MeTTa arguments to MCP params
-   * @private
-   */
-  _argsToParams(args, schema) {
-    return this.translator.argsToParams(args, schema);
-  }
-
-  /**
-   * Handle disconnection
-   * @private
-   */
-  _onDisconnect() {
-    this.isConnected = false;
-    this.emit('disconnected');
-  }
-
-  /**
-   * Handle errors
-   * @private
-   */
-  _onError(error) {
-    this.emit('error', error);
-  }
-}
-```
-
-### 3.3 Bidirectional Schema Translator
-
-**File: `metta/src/mcp/McpTranslator.js`**
-
-```javascript
-import { z } from 'zod';
-import { Term, sym, exp, constructList } from '../kernel/Term.js';
-
-/**
- * Bidirectional translator between MCP schemas and MeTTa terms
- * 
- * Handles:
- * - Zod schema → MeTTa type expressions
- * - MeTTa terms → JavaScript values (for MCP params)
- * - MCP results → MeTTa terms
- */
-export class McpTranslator {
-  /**
-   * @param {import('../MeTTaInterpreter.js').MeTTaInterpreter} interpreter
-   */
-  constructor(interpreter) {
-    this.interpreter = interpreter;
-    this.typeCache = new Map();
-  }
-
-  /**
-   * Convert MCP tool result to MeTTa term
-   * @param {any} result
-   * @returns {Term}
-   */
-  toMeTTaTerm(result) {
-    if (result === null || result === undefined) {
-      return sym('Null');
-    }
-    
-    if (typeof result === 'boolean') {
-      return sym(result ? 'True' : 'False');
-    }
-    
-    if (typeof result === 'number') {
-      return sym(String(result));
-    }
-    
-    if (typeof result === 'string') {
-      // Check if it's a MeTTa expression
-      if (result.startsWith('(') && result.endsWith(')')) {
-        try {
-          return this.interpreter.parser.parseExpression(result);
-        } catch {
-          return sym(result);
-        }
-      }
-      return sym(result);
-    }
-    
-    if (Array.isArray(result)) {
-      const elements = result.map(item => this.toMeTTaTerm(item));
-      return constructList(elements, sym('()'));
-    }
-    
-    if (typeof result === 'object') {
-      // Convert object to MeTTa expression
-      const pairs = Object.entries(result).map(([key, value]) => 
-        exp(':', [sym(key), this.toMeTTaTerm(value)])
-      );
-      return exp('object', pairs);
-    }
-    
-    // Fallback
-    return sym(String(result));
-  }
-
-  /**
-   * Convert MeTTa term to JavaScript value
-   * @param {Term} term
-   * @returns {any}
-   */
-  termToValue(term) {
-    if (!term) return null;
-    
-    if (term.type === 'atom') {
-      const name = term.name;
-      
-      // Boolean
-      if (name === 'True') return true;
-      if (name === 'False') return false;
-      if (name === 'Null') return null;
-      
-      // Numeric
-      const num = Number(name);
-      if (!isNaN(num)) return num;
-      
-      // String
-      return name;
-    }
-    
-    if (term.type === 'compound') {
-      // List
-      if (term.operator?.name === ':') {
-        // Key-value pair in list
-        const elements = this._flattenList(term);
-        return elements.map(e => this.termToValue(e));
-      }
-      
-      // Object expression
-      if (term.operator?.name === 'object') {
-        const obj = {};
-        for (const pair of term.components) {
-          if (pair.operator?.name === ':') {
-            const key = pair.components[0]?.name;
-            const value = this.termToValue(pair.components[1]);
-            if (key) obj[key] = value;
-          }
-        }
-        return obj;
-      }
-      
-      // Generic compound term → array
-      return term.components.map(c => this.termToValue(c));
-    }
-    
-    return term;
-  }
-
-  /**
-   * Convert MeTTa arguments to MCP parameters
-   * @param {Term[]} args
-   * @param {object} schema
-   * @returns {Record<string, any>}
-   */
-  argsToParams(args, schema) {
-    const params = {};
-    const properties = schema?.properties || {};
-    const required = schema?.required || [];
-    
-    // Handle single object argument
-    if (args.length === 1) {
-      const arg = args[0];
-      
-      // Object expression: (object (: key value) ...)
-      if (arg.operator?.name === 'object') {
-        for (const pair of arg.components) {
-          if (pair.operator?.name === ':') {
-            const key = pair.components[0]?.name;
-            const value = this.termToValue(pair.components[1]);
-            if (key) params[key] = value;
-          }
-        }
-        return params;
-      }
-      
-      // List of key-value pairs
-      if (arg.operator?.name === ':') {
-        const elements = this._flattenList(arg);
-        for (const elem of elements) {
-          if (elem.operator?.name === ':') {
-            const key = elem.components[0]?.name;
-            const value = this.termToValue(elem.components[1]);
-            if (key) params[key] = value;
-          }
-        }
-        return params;
-      }
-    }
-    
-    // Positional arguments
-    const keys = Object.keys(properties);
-    for (let i = 0; i < args.length && i < keys.length; i++) {
-      params[keys[i]] = this.termToValue(args[i]);
-    }
-    
-    return params;
-  }
-
-  /**
-   * Convert Zod schema to MeTTa type expression
-   * @param {z.ZodSchema} schema
-   * @returns {Term}
-   */
-  schemaToMeTTaType(schema) {
-    const cached = this.typeCache.get(schema);
-    if (cached) return cached;
-    
-    const type = this._schemaToType(schema);
-    this.typeCache.set(schema, type);
-    return type;
-  }
-
-  /**
-   * Create Zod schema from MeTTa type hints
-   * @param {Term} typeExpr
-   * @returns {z.ZodSchema}
-   */
-  meTTaTypeToSchema(typeExpr) {
-    // Parse MeTTa type expression
-    // (type :name "string" :required true :default "hello")
-    
-    if (!typeExpr || typeExpr.type !== 'compound') {
-      return z.any();
-    }
-    
-    const name = typeExpr.components?.[0]?.name || 'unknown';
-    
-    switch (name) {
-      case 'String':
-      case 'string':
-        return z.string();
-      case 'Number':
-      case 'number':
-        return z.number();
-      case 'Boolean':
-      case 'boolean':
-        return z.boolean();
-      case 'Array':
-      case 'array':
-        return z.array();
-      case 'Object':
-      case 'object':
-        return z.object({});
-      default:
-        return z.any();
-    }
-  }
-
-  /**
-   * Flatten list structure
-   * @private
-   */
-  _flattenList(term) {
-    const elements = [];
-    let current = term;
-    
-    while (current) {
-      if (current.operator?.name === ':' && current.components?.length === 2) {
-        elements.push(current.components[0]);
-        current = current.components[1];
-      } else {
-        if (current.name !== '()') {
-          elements.push(current);
-        }
-        break;
-      }
-    }
-    
-    return elements;
-  }
-
-  /**
-   * Internal schema to type conversion
-   * @private
-   */
-  _schemaToType(schema) {
-    if (schema instanceof z.ZodString) {
-      return sym('String');
-    }
-    if (schema instanceof z.ZodNumber) {
-      return sym('Number');
-    }
-    if (schema instanceof z.ZodBoolean) {
-      return sym('Boolean');
-    }
-    if (schema instanceof z.ZodArray) {
-      const elementType = this._schemaToType(schema.element);
-      return exp('Array', [elementType]);
-    }
-    if (schema instanceof z.ZodObject) {
-      const shape = schema.shape;
-      const fields = Object.entries(shape).map(([key, value]) => 
-        exp(':', [sym(key), this._schemaToType(value)])
-      );
-      return exp('Object', fields);
-    }
-    if (schema instanceof z.ZodOptional) {
-      const inner = this._schemaToType(schema.unwrap());
-      return exp('Optional', [inner]);
-    }
-    if (schema instanceof z.ZodNullable) {
-      const inner = this._schemaToType(schema.unwrap());
-      return exp('Nullable', [inner]);
-    }
-    
-    return sym('Any');
-  }
-}
-
-// Convenience exports
-export const TermToSchema = (term) => new McpTranslator(null).meTTaTypeToSchema(term);
-export const SchemaToTerm = (schema, interpreter) => new McpTranslator(interpreter).schemaToMeTTaType(schema);
-```
-
-### 3.4 Advanced Safety Layer
-
-**File: `metta/src/mcp/McpSafety.js`**
-
-```javascript
-import { z } from 'zod';
-
-/**
- * Comprehensive safety layer for MCP operations
- * 
- * Features:
- * - Input/output validation
- * - PII scrubbing
- * - Rate limiting with circuit breaker
- * - Capability-based access control
- * - Path restriction
- */
-export class McpSafety {
-  /**
-   * @param {MCPSafetyOptions} options
-   */
-  constructor(options = {}) {
-    this.options = {
-      maxToolCalls: 100,
-      windowMs: 60000, // 1 minute
-      timeout: 30000,
-      allowedPaths: [],
-      blockedPatterns: [],
-      piiPatterns: {
-        email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
-        phone: /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g,
-        ssn: /\b\d{3}-\d{2}-\d{4}\b/g,
-        creditCard: /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/g,
-        ipAddress: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g
-      },
-      ...options
-    };
-    
-    this.callHistory = [];
-    this.circuitBreaker = false;
-    this.circuitBreakerReset = null;
-    
-    /** @type {CapabilityMask} */
-    this.capabilities = new CapabilityMask();
-  }
-
-  /**
-   * Validate input against schema
-   * @param {any} input
-   * @param {z.ZodSchema|object} schema
-   * @returns {any}
-   */
-  validateInput(input, schema = null) {
-    // Scrub PII first
-    const sanitized = this.scrubPII(input);
-    
-    // Schema validation
-    if (schema) {
-      const zodSchema = this._toZodSchema(schema);
-      const result = zodSchema.safeParse(sanitized);
-      if (!result.success) {
-        throw new Error(`Validation failed: ${result.error.message}`);
-      }
-      return result.data;
-    }
-    
-    // Pattern blocking
-    this._checkBlockedPatterns(sanitized);
-    
-    return sanitized;
-  }
-
-  /**
-   * Validate output before returning
-   * @param {any} output
-   * @returns {any}
-   */
-  validateOutput(output) {
-    return this.scrubPII(output);
-  }
-
-  /**
-   * Check rate limits
-   * @throws {Error} If rate limit exceeded
-   */
-  checkRateLimit() {
-    const now = Date.now();
-    const windowStart = now - this.options.windowMs;
-    
-    // Clean old entries
-    this.callHistory = this.callHistory.filter(t => t > windowStart);
-    
-    // Check limit
-    if (this.callHistory.length >= this.options.maxToolCalls) {
-      this.circuitBreaker = true;
-      
-      // Set reset timeout
-      if (!this.circuitBreakerReset) {
-        this.circuitBreakerReset = setTimeout(() => {
-          this.circuitBreaker = false;
-          this.circuitBreakerReset = null;
-        }, this.options.windowMs);
-      }
-      
-      throw new Error('Rate limit exceeded. Circuit breaker activated.');
-    }
-    
-    this.callHistory.push(now);
-  }
-
-  /**
-   * Scrub PII from data
-   * @param {any} data
-   * @returns {any}
-   */
-  scrubPII(data) {
-    const str = JSON.stringify(data);
-    let scrubbed = str;
-    
-    for (const [type, pattern] of Object.entries(this.options.piiPatterns)) {
-      scrubbed = scrubbed.replace(pattern, `[${type.toUpperCase()}_REDACTED]`);
-    }
-    
-    try {
-      return JSON.parse(scrubbed);
-    } catch {
-      return scrubbed;
-    }
-  }
-
-  /**
-   * Check if path is allowed
-   * @param {string} path
-   * @returns {boolean}
-   */
-  isPathAllowed(path) {
-    if (!this.options.allowedPaths.length) {
-      return true; // No restrictions
-    }
-    
-    return this.options.allowedPaths.some(allowed => {
-      if (allowed.endsWith('**')) {
-        return path.startsWith(allowed.slice(0, -2));
-      }
-      return path === allowed || path.startsWith(allowed + '/');
-    });
-  }
-
-  /**
-   * Set capability for tool category
-   * @param {string} category
-   * @param {string} action
-   * @param {boolean} allowed
-   */
-  setCapability(category, action, allowed) {
-    this.capabilities.set(category, action, allowed);
-  }
-
-  /**
-   * Check if action is allowed
-   * @param {string} category
-   * @param {string} action
-   * @returns {boolean}
-   */
-  checkCapability(category, action) {
-    return this.capabilities.check(category, action);
-  }
-
-  /**
-   * Check for blocked patterns
-   * @private
-   */
-  _checkBlockedPatterns(data) {
-    const str = JSON.stringify(data);
-    
-    for (const pattern of this.options.blockedPatterns) {
-      if (pattern.test(str)) {
-        throw new Error('Input contains blocked pattern');
-      }
-    }
-  }
-
-  /**
-   * Convert object schema to Zod
-   * @private
-   */
-  _toZodSchema(schema) {
-    if (schema instanceof z.ZodSchema) {
-      return schema;
-    }
-    
-    if (schema.type === 'object') {
-      const shape = {};
-      const properties = schema.properties || {};
-      
-      for (const [key, value] of Object.entries(properties)) {
-        shape[key] = this._toZodSchema(value);
-      }
-      
-      let result = z.object(shape);
-      
-      if (schema.required) {
-        result = result.partial();
-        for (const key of schema.required) {
-          result = result.extend({ [key]: shape[key] });
-        }
-      }
-      
-      return result;
-    }
-    
-    return z.any();
-  }
-}
-
-/**
- * Capability-based access control
- */
-export class CapabilityMask {
-  constructor() {
-    /** @type {Map<string, Set<string>>} */
-    this.allowed = new Map();
-    /** @type {Map<string, Set<string>>} */
-    this.denied = new Map();
-  }
-
-  /**
-   * Allow action for category
-   * @param {string} category
-   * @param {string} action
-   */
-  allow(category, action) {
-    if (!this.allowed.has(category)) {
-      this.allowed.set(category, new Set());
-    }
-    this.allowed.get(category).add(action);
-  }
-
-  /**
-   * Deny action for category
-   * @param {string} category
-   * @param {string} action
-   */
-  deny(category, action) {
-    if (!this.denied.has(category)) {
-      this.denied.set(category, new Set());
-    }
-    this.denied.get(category).add(action);
-  }
-
-  /**
-   * Set capability
-   * @param {string} category
-   * @param {string} action
-   * @param {boolean} allowed
-   */
-  set(category, action, allowed) {
-    if (allowed) {
-      this.allow(category, action);
-    } else {
-      this.deny(category, action);
-    }
-  }
-
-  /**
-   * Check if action is allowed
-   * @param {string} category
-   * @param {string} action
-   * @returns {boolean}
-   */
-  check(category, action) {
-    // Deny takes precedence
-    if (this.denied.has(category) && this.denied.get(category).has(action)) {
-      return false;
-    }
-    
-    // If allowed list exists, check it
-    if (this.allowed.has(category)) {
-      return this.allowed.get(category).has(action);
-    }
-    
-    // Default: allow
-    return true;
-  }
-}
-```
-
----
-
-## 4. Advanced Features
-
-### 4.1 Tool Composition Pipeline
-
-**File: `metta/src/mcp/McpComposition.js`**
-
-```javascript
-import { Term, sym, exp } from '../kernel/Term.js';
-
-/**
- * MCP Tool Composition
- * 
- * Enables building complex workflows from MCP tools:
- * - Sequential pipelines
- * - Parallel execution
- * - Conditional branching
- * - Error handling
- */
-export class McpComposition {
-  /**
-   * @param {MeTTaMCPManager} mcpManager
-   */
-  constructor(mcpManager) {
-    this.mcpManager = mcpManager;
-  }
-
-  /**
-   * Create sequential pipeline
-   * @param  {...string} toolNames - Tool names in order
-   * @returns {Function} Composed function
-   */
-  pipeline(...toolNames) {
-    return async (...initialArgs) => {
-      let result = initialArgs;
-      
-      for (const toolName of toolNames) {
-        result = await this.mcpManager.callTool(toolName, this._normalizeParams(result));
-      }
-      
-      return result;
-    };
-  }
-
-  /**
-   * Execute tools in parallel
-   * @param  {Array<{name: string, params: any}>} toolCalls
-   * @returns {Promise<any[]>}
-   */
-  parallel(...toolCalls) {
-    return Promise.all(
-      toolCalls.map(({ name, params }) => this.mcpManager.callTool(name, params))
-    );
-  }
-
-  /**
-   * Conditional branching
-   * @param {string} conditionTool - Tool to evaluate condition
-   * @param {Function} trueBranch - Function if true
-   * @param {Function} falseBranch - Function if false
-   * @returns {Function}
-   */
-  branch(conditionTool, trueBranch, falseBranch = null) {
-    return async (...args) => {
-      const conditionResult = await this.mcpManager.callTool(conditionTool, this._normalizeParams(args));
-      
-      if (this._isTruthy(conditionResult)) {
-        return typeof trueBranch === 'function' 
-          ? trueBranch(conditionResult) 
-          : trueBranch;
-      } else {
-        return typeof falseBranch === 'function'
-          ? falseBranch(conditionResult)
-          : falseBranch;
-      }
-    };
-  }
-
-  /**
-   * Retry with backoff
-   * @param {string} toolName
-   * @param {RetryOptions} options
-   * @returns {Function}
-   */
-  retry(toolName, options = {}) {
-    const { maxRetries = 3, backoffMs = 1000 } = options;
-    
-    return async (...args) => {
-      let lastError;
-      
-      for (let i = 0; i < maxRetries; i++) {
-        try {
-          return await this.mcpManager.callTool(toolName, this._normalizeParams(args));
-        } catch (error) {
-          lastError = error;
-          if (i < maxRetries - 1) {
-            await this._sleep(backoffMs * Math.pow(2, i));
-          }
-        }
-      }
-      
-      throw lastError;
-    };
-  }
-
-  /**
-   * Timeout wrapper
-   * @param {string} toolName
-   * @param {number} timeoutMs
-   * @returns {Function}
-   */
-  withTimeout(toolName, timeoutMs) {
-    return async (...args) => {
-      const timeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs);
-      });
-      
-      const call = this.mcpManager.callTool(toolName, this._normalizeParams(args));
-      
-      return Promise.race([call, timeout]);
-    };
-  }
-
-  /**
-   * Normalize parameters for tool call
-   * @private
-   */
-  _normalizeParams(params) {
-    if (params.length === 0) return {};
-    if (params.length === 1) return params[0];
-    return params;
-  }
-
-  /**
-   * Check truthiness
-   * @private
-   */
-  _isTruthy(value) {
-    if (value === null || value === undefined) return false;
-    if (typeof value === 'boolean') return value;
-    if (typeof value === 'number') return value !== 0;
-    if (typeof value === 'string') return value !== '' && value !== 'False' && value !== 'Null';
-    return true;
-  }
-
-  /**
-   * Sleep helper
-   * @private
-   */
-  _sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-}
-
-// Convenience functions
-export const pipeline = (...tools) => new McpComposition(null).pipeline(...tools);
-export const parallel = (...calls) => new McpComposition(null).parallel(...calls);
-export const branch = (cond, trueFn, falseFn) => new McpComposition(null).branch(cond, trueFn, falseFn);
-```
-
-### 4.2 JavaScript Reflection API
-
-**File: `metta/src/mcp/ReflectionAPI.js`**
-
-```javascript
-/**
- * JavaScript Reflection API for MeTTa
- * 
- * Provides runtime introspection capabilities:
- * - Grounded operation discovery
- * - Term structure analysis
- * - Dynamic tool wrapper creation
- * - Interpreter state introspection
- */
-export class ReflectionAPI {
-  /**
-   * @param {import('../MeTTaInterpreter.js').MeTTaInterpreter} interpreter
-   */
-  constructor(interpreter) {
-    this.interpreter = interpreter;
-    this.termFactory = interpreter.termFactory;
-  }
-
-  /**
-   * Discover all grounded operations
-   * @returns {GroundedOpInfo[]}
-   */
-  discoverGroundedOps() {
-    const ops = [];
-    const ground = this.interpreter.ground;
-    
-    // Iterate through registered operations
-    for (const [name, fn] of ground.getOperations()) {
-      ops.push({
-        name,
-        type: 'grounded',
-        arity: this._getFunctionArity(fn),
-        signature: this._extractSignature(fn),
-        description: fn.description || fn.doc || 'No description',
-        isAsync: fn.constructor.name === 'AsyncFunction'
-      });
-    }
-    
-    return ops;
-  }
-
-  /**
-   * Get detailed term structure
-   * @param {Term} term
-   * @returns {TermInfo}
-   */
-  getTermInfo(term) {
-    return {
-      name: term.name,
-      type: term.type,
-      semanticType: term.semanticType,
-      isAtomic: term.isAtomic,
-      isCompound: term.isCompound,
-      isVariable: term.isVariable,
-      isBoolean: term.isBoolean,
-      isNumeric: term.isNumeric,
-      operator: term.operator?.name || null,
-      components: term.components?.length || 0,
-      hash: term.hash,
-      complexity: term.complexity,
-      children: term.components?.map(c => this.getTermInfo(c)) || []
-    };
-  }
-
-  /**
-   * Create dynamic Proxy wrapper for tool
-   * @param {string} toolName
-   * @param {Function} handler
-   * @returns {Proxy}
-   */
-  createToolProxy(toolName, handler) {
-    return new Proxy({}, {
-      get: (target, prop, receiver) => {
-        // Special properties
-        if (prop === Symbol.toPrimitive) {
-          return () => toolName;
-        }
-        if (prop === 'name') {
-          return toolName;
-        }
-        if (prop === 'call') {
-          return handler;
-        }
-        
-        // Delegate to handler
-        if (prop in handler) {
-          return handler[prop];
-        }
-        
-        // Default
-        return undefined;
-      },
-      apply: async (target, thisArg, args) => {
-        return await handler.apply(thisArg, args);
-      }
-    });
-  }
-
-  /**
-   * Introspect interpreter state
-   * @returns {InterpreterState}
-   */
-  introspectInterpreter() {
-    const { interpreter } = this;
-    
-    return {
-      space: {
-        size: interpreter.space?.size?.() || 0,
-        stats: interpreter.space?.getStats?.() || {}
-      },
-      ground: {
-        operations: interpreter.ground?.getOperations?.()?.length || 0,
-        ops: this.discoverGroundedOps()
-      },
-      rules: {
-        count: interpreter.space?.getRuleCount?.() || 0
-      },
-      metrics: Object.fromEntries(interpreter._mettaMetrics || []),
-      modules: Array.from(interpreter.moduleLoader?.loadedModules || []),
-      config: interpreter.config
-    };
-  }
-
-  /**
-   * Get prototype chain
-   * @param {object} obj
-   * @returns {string[]}
-   */
-  getPrototypeChain(obj) {
-    const chain = [];
-    let current = obj;
-    
-    while (current) {
-      const name = current.constructor?.name || 'Object';
-      chain.push(name);
-      current = Object.getPrototypeOf(current);
-    }
-    
-    return chain;
-  }
-
-  /**
-   * Get all properties (including non-enumerable)
-   * @param {object} obj
-   * @returns {PropertyInfo[]}
-   */
-  getAllProperties(obj) {
-    const props = [];
-    
-    for (const key of Object.getOwnPropertyNames(obj)) {
-      const descriptor = Object.getOwnPropertyDescriptor(obj, key);
-      props.push({
-        name: key,
-        value: obj[key],
-        writable: descriptor?.writable,
-        enumerable: descriptor?.enumerable,
-        configurable: descriptor?.configurable
-      });
-    }
-    
-    return props;
-  }
-
-  /**
-   * Get function arity
-   * @private
-   */
-  _getFunctionArity(fn) {
-    if (typeof fn !== 'function') return 0;
-    return fn.length;
-  }
-
-  /**
-   * Extract function signature
-   * @private
-   */
-  _extractSignature(fn) {
-    if (typeof fn !== 'function') return [];
-    
-    const str = fn.toString();
-    const match = str.match(/(?:function|\=>)\s*(?:\w+)?\s*\(([^)]*)\)/);
-    
-    if (match) {
-      return match[1]
-        .split(',')
-        .map(p => p.trim())
-        .filter(Boolean)
-        .map(p => {
-          const [name, defaultValue] = p.split('=');
-          return {
-            name: name.trim(),
-            hasDefault: !!defaultValue,
-            defaultValue: defaultValue?.trim()
-          };
-        });
-    }
-    
-    return [];
-  }
-}
-```
-
-### 4.3 LangChain Adapter
-
-**File: `metta/src/mcp/LangChainAdapter.js`**
-
-```javascript
-import { Tool } from '@langchain/core/tools';
-import { ChatPromptTemplate } from '@langchain/core/prompts';
-
-/**
- * LangChain ↔ MCP Adapter
- * 
- * Enables:
- * - MCP tools as LangChain tools
- * - LangChain tools as MCP tools
- * - Agent creation with hybrid tooling
- */
-export class LangChainAdapter {
-  /**
-   * @param {import('../MeTTaInterpreter.js').MeTTaInterpreter} interpreter
-   * @param {LangChainAdapterOptions} options
-   */
-  constructor(interpreter, options = {}) {
-    this.interpreter = interpreter;
-    this.options = options;
-    this.mcpClient = null;
-    
-    /** @type {Map<string, Tool>} */
-    this.langchainTools = new Map();
-    
-    /** @type {Map<string, MCPTool>} */
-    this.mcpTools = new Map();
-  }
-
-  /**
-   * Connect to MCP server and wrap tools
-   * @param {string} command
-   * @param {string[]} args
-   * @returns {Promise<this>}
-   */
-  async connectToMCP(command, args = []) {
-    const { McpClient } = await import('./McpClient.js');
-    this.mcpClient = new McpClient(this.interpreter, this.options);
-    
-    await this.mcpClient.connect(command, args);
-    await this._wrapMcpTools();
-    
-    return this;
-  }
-
-  /**
-   * Wrap MCP tools as LangChain tools
-   * @private
-   */
-  async _wrapMcpTools() {
-    const tools = await this.mcpClient.discoverTools();
-    
-    for (const toolSchema of tools) {
-      const lcTool = this._createLangChainTool(toolSchema);
-      this.langchainTools.set(toolSchema.name, lcTool);
-      this.mcpTools.set(toolSchema.name, toolSchema);
-    }
-  }
-
-  /**
-   * Create LangChain Tool from MCP schema
-   * @private
-   */
-  _createLangChainTool(toolSchema) {
-    const { name, description, inputSchema } = toolSchema;
-    const self = this;
-    
-    return new Tool({
-      name,
-      description: description || `Tool: ${name}`,
-      
-      async _call(input) {
-        try {
-          const result = await self.mcpClient.callTool(name, input);
-          
-          // Convert result to string for LangChain
-          if (typeof result === 'object') {
-            return JSON.stringify(result, null, 2);
-          }
-          return String(result);
-        } catch (error) {
-          return `Error: ${error.message}`;
-        }
-      }
-    });
-  }
-
-  /**
-   * Get LangChain tools array
-   * @returns {Tool[]}
-   */
-  getTools() {
-    return Array.from(this.langchainTools.values());
-  }
-
-  /**
-   * Create LangChain agent executor
-   * @param {any} llm - LangChain LLM instance
-   * @param {AgentExecutorOptions} options
-   * @returns {Promise<any>}
-   */
-  async createAgent(llm, options = {}) {
-    // Dynamic import to avoid LangChain dependency if not used
-    const { createToolCallingAgent } = await import('@langchain/langgraph/prebuilt');
-    const { AgentExecutor } = await import('langchain/agents');
-    
-    const tools = this.getTools();
-    
-    // Create agent with tool calling
-    const agent = createToolCallingAgent(llm, tools, {
-      name: 'MeTTa-MCP-Agent',
-      ...options
-    });
-    
-    return agent;
-  }
-
-  /**
-   * Wrap LangChain tool as MCP tool
-   * @param {Tool} lcTool
-   * @returns {MCPTool}
-   */
-  wrapLangChainTool(lcTool) {
-    const mcpTool = {
-      name: lcTool.name,
-      description: lcTool.description,
-      inputSchema: {
-        type: 'object',
-        properties: lcTool.schema?.properties || {},
-        required: lcTool.schema?.required || []
-      }
-    };
-    
-    this.mcpTools.set(lcTool.name, mcpTool);
-    
-    return mcpTool;
-  }
-
-  /**
-   * Register LangChain tools as MCP tools
-   * @param {Tool[]} lcTools
-   */
-  registerLangChainTools(lcTools) {
-    for (const tool of lcTools) {
-      this.wrapLangChainTool(tool);
-      this.langchainTools.set(tool.name, tool);
-    }
-  }
-
-  /**
-   * Create chat prompt with tool context
-   * @param {string} systemPrompt
-   * @param {ToolContext} context
-   * @returns {ChatPromptTemplate}
-   */
-  createPrompt(systemPrompt, context = {}) {
-    const toolList = this.getTools()
-      .map(t => `- ${t.name}: ${t.description}`)
-      .join('\n');
-    
-    const fullPrompt = `${systemPrompt}
-
-Available Tools:
-${toolList}
-
-Use the tools to accomplish the task.`;
-    
-    return ChatPromptTemplate.fromMessages([
-      ['system', fullPrompt],
-      ['human', '{input}']
+    const result = await Promise.race([
+      client.callTool({ name: toolName, arguments: params }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error(`Tool timeout: ${toolName}`)), this.opts.timeout))
     ]);
+    
+    return result;
   }
 
   /**
-   * Disconnect from MCP
+   * Call multiple tools in parallel.
    */
-  async disconnect() {
-    if (this.mcpClient) {
-      await this.mcpClient.disconnect();
-      this.mcpClient = null;
+  async callParallel(calls) {
+    return Promise.allSettled(calls.map(({ tool, params }) => this.callTool(tool, params)));
+  }
+
+  get allTools() {
+    return [...this.toolSchemas.values()];
+  }
+
+  get allToolNames() {
+    return [...this.toolIndex.keys()];
+  }
+
+  async disconnectAll() {
+    for (const { transport } of this.connections.values()) await transport.close?.();
+    this.connections.clear();
+    this.toolIndex.clear();
+    this.toolSchemas.clear();
+  }
+
+  onChange(fn) { this._onChange = fn; }
+
+  _toolsForKey(key) {
+    return [...this.toolIndex.entries()]
+      .filter(([, k]) => k === key)
+      .map(([name]) => name);
+  }
+
+  _onServerDisconnect(key) {
+    // Remove tools belonging to disconnected server
+    for (const [name, k] of this.toolIndex) {
+      if (k === key) { this.toolIndex.delete(name); this.toolSchemas.delete(name); }
     }
+    this.connections.delete(key);
+    this._onChange?.({ type: 'disconnected', key });
   }
 }
 ```
 
----
+### 2.3 McpDiscovery — Tools as MeTTa Knowledge
 
-## 5. MeTTa Operations
+**File: `metta/src/mcp/McpDiscovery.js`**
 
-### 5.1 MCP Expression Reference
+This is the key file that makes MeTTa *understand* tools rather than just call them.
+
+```javascript
+import { sym, exp, constructList } from '../kernel/Term.js';
+
+/**
+ * Integrates MCP tool discovery with MeTTa's knowledge space.
+ *
+ * For each discovered tool, asserts facts about it:
+ *   (tool-available <name>)
+ *   (tool-description <name> "<desc>")
+ *   (tool-param <name> <paramName> <type> <required|optional>)
+ *   (tool-category <name> <category>)
+ *   (tool-server <name> <serverKey>)
+ *
+ * This enables MeTTa rules to reason about tool selection.
+ */
+export class McpDiscovery {
+  constructor(interpreter, pool) {
+    this.interpreter = interpreter;
+    this.pool = pool;
+    this.space = interpreter.space;
+  }
+
+  /**
+   * Connect to a server and populate the knowledge space with tool facts.
+   */
+  async connectAndLearn(key, commandOrUrl, args = [], transport = 'stdio') {
+    const toolNames = await this.pool.connect(key, commandOrUrl, args, transport);
+    
+    for (const name of toolNames) {
+      const schema = this.pool.toolSchemas.get(name);
+      this._assertToolFacts(name, schema, key);
+    }
+
+    // Also register as grounded atoms (see McpGrounded)
+    this._registerGroundedAtoms(toolNames);
+
+    return toolNames;
+  }
+
+  /**
+   * Assert tool facts into MeTTa space for reasoning.
+   */
+  _assertToolFacts(name, schema, serverKey) {
+    const sp = this.space;
+
+    // Core facts
+    sp.add(exp('tool-available', [sym(name)]));
+    sp.add(exp('tool-server', [sym(name), sym(serverKey)]));
+    
+    if (schema.description) {
+      sp.add(exp('tool-description', [sym(name), sym(schema.description)]));
+    }
+
+    // Parameter facts
+    const props = schema.inputSchema?.properties ?? {};
+    const required = new Set(schema.inputSchema?.required ?? []);
+
+    for (const [paramName, paramSchema] of Object.entries(props)) {
+      const type = sym(paramSchema.type ?? 'any');
+      const req  = sym(required.has(paramName) ? 'required' : 'optional');
+      sp.add(exp('tool-param', [sym(name), sym(paramName), type, req]));
+    }
+
+    // Infer category from name patterns
+    const category = this._inferCategory(name);
+    if (category) sp.add(exp('tool-category', [sym(name), sym(category)]));
+  }
+
+  _inferCategory(name) {
+    const patterns = [
+      [/file|read|write|list_dir|path/i,     'filesystem'],
+      [/search|query|find|lookup/i,           'search'],
+      [/git|commit|branch|repo/i,             'version-control'],
+      [/http|fetch|request|api/i,             'network'],
+      [/sql|db|database|query/i,              'database'],
+      [/shell|exec|run|command/i,             'execution'],
+      [/browser|web|page|click/i,             'browser'],
+    ];
+    for (const [re, cat] of patterns) {
+      if (re.test(name)) return cat;
+    }
+    return null;
+  }
+
+  _registerGroundedAtoms(toolNames) {
+    const { ground } = this.interpreter;
+    const pool = this.pool;
+
+    for (const name of toolNames) {
+      // Each tool becomes callable as a native MeTTa function
+      ground.register(name, async (...args) => {
+        const schema = pool.toolSchemas.get(name);
+        const params = this._argsToParams(args, schema?.inputSchema);
+        const result = await pool.callTool(name, params);
+        return this._resultToTerm(result);
+      });
+    }
+  }
+
+  _argsToParams(args, schema) {
+    if (!args.length) return {};
+    const params = {};
+    // Single object arg: (object (: key val) ...)
+    if (args[0]?.operator?.name === 'object') {
+      for (const pair of args[0].components) {
+        if (pair.operator?.name === ':') {
+          const [k, v] = pair.components;
+          if (k?.name) params[k.name] = this._termToJS(v);
+        }
+      }
+      return params;
+    }
+    // Positional
+    const keys = Object.keys(schema?.properties ?? {});
+    args.forEach((a, i) => { if (keys[i]) params[keys[i]] = this._termToJS(a); });
+    return params;
+  }
+
+  _termToJS(term) {
+    if (!term) return null;
+    if (term.name === 'True') return true;
+    if (term.name === 'False') return false;
+    if (term.name === 'Null' || term.name === '()') return null;
+    const n = Number(term.name);
+    if (!isNaN(n)) return n;
+    if (term.operator?.name === 'object') return this._argsToParams([term], null);
+    return term.name ?? String(term);
+  }
+
+  _resultToTerm(result) {
+    if (!result) return sym('Null');
+    // Unwrap MCP content blocks
+    if (Array.isArray(result.content)) {
+      const text = result.content.filter(c => c.type === 'text').map(c => c.text).join('\n');
+      return sym(text);
+    }
+    if (typeof result === 'string') return sym(result);
+    if (typeof result === 'number') return sym(String(result));
+    if (typeof result === 'boolean') return sym(result ? 'True' : 'False');
+    return sym(JSON.stringify(result));
+  }
+}
+```
+
+### 2.4 MeTTa-Native Tool Use: Rules for Autonomous Tool Calling
+
+Once tools are in the space, MeTTa rules express **tool selection strategy**:
 
 ```metta
-;; === Connection Management ===
+;; === Tool Selection Strategy ===
 
-;; Connect to MCP server
-(mcp-connect "npx" "-y" "@modelcontextprotocol/server-filesystem" "/home/user")
+;; Prefer the most specific tool for a task
+(= (best-tool-for filesystem $op)
+   (if (tool-available $op) $op read_file))
 
-;; Discover available tools
-(mcp-discover)
-;; => (list read_file write_file list_directory delete_file)
+;; Route by capability
+(= (answer-file-query $path)
+   (read_file (object (: path $path))))
 
-;; List all registered tools
-(mcp-list)
-;; => (list (tool :name "read_file" :description "...") ...)
+;; Conditional: only call if tool is available
+(= (safe-search $q)
+   (if (tool-available brave_search)
+       (brave_search (object (: query $q)))
+       (fallback-search $q)))
 
-;; Disconnect from all servers
-(mcp-disconnect)
+;; Compose tool results (pipeline via MeTTa reduction)
+(= (summarize-file $path)
+   (let* (($content (read_file    (object (: path $path))))
+          ($summary (summarize    (object (: text $content)))))
+     $summary))
 
+;; Parallel tool evaluation (MeTTa's non-determinism)
+(= (search-all $q)
+   (collapse (search-tool $q)))
 
-;; === Tool Invocation ===
+(= (search-tool $q) (brave_search   (object (: query $q))))
+(= (search-tool $q) (duckduckgo     (object (: query $q))))
+(= (search-tool $q) (wikipedia_search (object (: query $q))))
 
-;; Direct tool call
-(mcp-call "read_file" (object (: path "/home/user/config.json")))
-
-;; Register tool as native MeTTa function
-(mcp-as-meTTa "read_file")
-
-;; Now use as native function
-(read_file "/home/user/data.txt")
-
-
-;; === Tool Composition ===
-
-;; Sequential pipeline
-(define process-data
-  (pipeline "read_file" "transform_data" "write_file"))
-
-;; Parallel execution
-(parallel 
-  (call "fetch_users")
-  (call "fetch_products")
-  (call "fetch_orders"))
-
-;; Conditional branching
-(branch "check_cache"
-  (use_cached_result)
-  (fetch_fresh_data))
-
-;; With retry
-(retry "unstable_api" :max-retries 3 :backoff 1000)
-
-;; With timeout
-(with-timeout "slow_query" 5000)
-
-
-;; === Resources ===
-
-;; List available resources
-(mcp-resources-list)
-
-;; Read resource
-(mcp-resource-read "file:///home/user/data.json")
-
-
-;; === Prompts ===
-
-;; List available prompts
-(mcp-prompts-list)
-
-;; Get prompt with arguments
-(mcp-prompt-get "code_review" (object (: language "javascript") (: style "strict")))
-
-
-;; === Advanced ===
-
-;; Introspect interpreter state
-(mcp-introspect)
-
-;; Get grounded operations
-(mcp-list-grounded)
-
-;; Create tool composition
-(define my-pipeline
-  (mcp-compose "tool1" "tool2" "tool3"))
+;; Tool-selection by reliability (learned preference)
+(= (prefer-tool $cat $tool)
+   (and (tool-category $tool $cat)
+        (tool-success-rate $tool $rate)
+        (> $rate 0.8)))
 ```
 
-### 5.2 Grounded Operations Registration
+### 2.5 JavaScript Reflection Integration
 
-**File: `metta/src/interp/McpOps.js`**
+The existing `ReflectionAPI` in `metta/src/mcp/ReflectionAPI.js` lets MeTTa treat its own grounded operations as discoverable entities. We extend this for MCP:
 
 ```javascript
-import { Term, sym, exp, constructList } from '../kernel/Term.js';
+// In McpGrounded.js — using Reflection to expose MCP state
+import { ReflectionAPI } from './ReflectionAPI.js';
+
+export function registerMcpGrounded(interpreter, pool, discovery) {
+  const { ground } = interpreter;
+  const reflection = new ReflectionAPI(interpreter);
+  const reg = (name, fn) => ground.register(name, fn);
+
+  // ── Connection ──────────────────────────────────────────────────
+  reg('mcp-connect', async (key, command, ...args) => {
+    const tools = await discovery.connectAndLearn(
+      key.toString(), command.toString(), args.map(a => a.toString())
+    );
+    return constructList(tools.map(t => sym(t)), sym('()'));
+  });
+
+  reg('mcp-connect-sse', async (key, url) => {
+    const tools = await discovery.connectAndLearn(key.toString(), url.toString(), [], 'sse');
+    return constructList(tools.map(t => sym(t)), sym('()'));
+  });
+
+  reg('mcp-disconnect', async (key) => {
+    if (key) pool._onServerDisconnect(key.toString());
+    else await pool.disconnectAll();
+    return sym('ok');
+  });
+
+  // ── Tool info queries ───────────────────────────────────────────
+  reg('mcp-tools', () =>
+    constructList(pool.allToolNames.map(t => sym(t)), sym('()'))
+  );
+
+  reg('mcp-tool-schema', (toolName) => {
+    const schema = pool.toolSchemas.get(toolName.toString());
+    if (!schema) return sym('not-found');
+    return sym(JSON.stringify(schema));
+  });
+
+  // ── Invocation ──────────────────────────────────────────────────
+  reg('mcp-call', async (toolName, params) => {
+    const name = toolName.toString();
+    const jsParams = discovery._termToJS(params) ?? {};
+    // Remap: if termToJS returns a string, wrap it
+    const finalParams = typeof jsParams === 'object' && !Array.isArray(jsParams)
+      ? jsParams : { value: jsParams };
+    const result = await pool.callTool(name, finalParams);
+    return discovery._resultToTerm(result);
+  });
+
+  // ── Parallel call ───────────────────────────────────────────────
+  reg('mcp-parallel', async (...toolCallTerms) => {
+    const calls = toolCallTerms.map(t => ({
+      tool: t.operator?.name ?? t.name,
+      params: discovery._termToJS(t.components?.[0]) ?? {}
+    }));
+    const results = await pool.callParallel(calls);
+    return constructList(
+      results.map(r => r.status === 'fulfilled'
+        ? discovery._resultToTerm(r.value)
+        : sym(`error-${r.reason?.message}`)
+      ),
+      sym('()')
+    );
+  });
+
+  // ── Reflection: what can MeTTa do? ─────────────────────────────
+  reg('mcp-reflect', () => {
+    const groundedOps = reflection.discoverGroundedOps();
+    const mcpTools = pool.allToolNames;
+    return sym(JSON.stringify({
+      groundedOps: groundedOps.map(o => ({ name: o.name, arity: o.arity })),
+      mcpTools,
+      totalCapabilities: groundedOps.length + mcpTools.length
+    }));
+  });
+
+  // ── Resource and prompt access ──────────────────────────────────
+  reg('mcp-resource', async (serverKey, uri) => {
+    const key = serverKey.toString();
+    const conn = pool.connections.get(key);
+    if (!conn) return sym(`error-no-server-${key}`);
+    const result = await conn.client.readResource({ uri: uri.toString() });
+    return discovery._resultToTerm(result);
+  });
+
+  reg('mcp-prompt', async (serverKey, promptName, args) => {
+    const key = serverKey.toString();
+    const conn = pool.connections.get(key);
+    if (!conn) return sym(`error-no-server-${key}`);
+    const jsArgs = discovery._termToJS(args) ?? {};
+    const result = await conn.client.getPrompt({
+      name: promptName.toString(),
+      arguments: typeof jsArgs === 'object' ? jsArgs : {}
+    });
+    return discovery._resultToTerm(result);
+  });
+}
+```
+
+### 2.6 Arbitrary APIs as MCP: The Universality Principle
+
+Any HTTP API—REST, GraphQL, WebSocket—can be wrapped as an MCP tool. Since MeTTa can call MCP tools natively, this makes MeTTa a universal API client.
+
+**File: `metta/src/mcp/McpAdapters.js`**
+
+```javascript
+/**
+ * Wraps arbitrary external APIs as MCP-compatible tool functions.
+ * The resulting objects can be registered directly in McpPool.
+ *
+ * Principle: REST API = MCP tool with HTTP transport
+ *            GraphQL  = MCP tool with query parameter
+ *            OpenAPI  = set of MCP tools (one per endpoint)
+ */
 
 /**
- * Register MCP operations in interpreter
+ * Build a synthetic MCP tool from a REST endpoint.
+ * @example
+ * const weatherTool = restTool({
+ *   name: 'get_weather',
+ *   description: 'Get current weather for a city',
+ *   url: (p) => `https://api.weatherapi.com/v1/current.json?key=${KEY}&q=${p.city}`,
+ *   params: { city: { type: 'string', description: 'City name' } }
+ * });
+ * pool.registerSyntheticTool(weatherTool);
  */
-export function registerMcpOps(interpreter) {
-  const { ground } = interpreter;
-  
-  // Get MCP manager (attached to interpreter)
-  const getMCP = () => interpreter.mcpManager;
-  
-  /**
-   * (mcp-connect command &args)
-   */
-  ground.register('mcp-connect', async (command, ...args) => {
-    const mcp = getMCP();
-    await mcp.connectToServer(command.toString(), args.map(a => a.toString()));
-    return sym('(mcp-connected)');
-  });
-  
-  /**
-   * (mcp-discover)
-   */
-  ground.register('mcp-discover', async () => {
-    const mcp = getMCP();
-    const tools = await mcp.discoverTools();
-    return constructList(tools.map(t => sym(t.name)), sym('()'));
-  });
-  
-  /**
-   * (mcp-call tool-name params)
-   */
-  ground.register('mcp-call', async (toolName, params) => {
-    const mcp = getMCP();
-    const name = toolName.toString();
-    const mcpParams = interpreter.mcpTranslator?.termToValue(params) || {};
-    const result = await mcp.callTool(name, mcpParams);
-    return interpreter.ground.toTerm(result);
-  });
-  
-  /**
-   * (mcp-as-meTTa tool-name)
-   */
-  ground.register('mcp-as-meTTa', async (toolName) => {
-    const mcp = getMCP();
-    const name = toolName.toString();
-    const tool = mcp.discoveredTools.get(name);
-    
-    if (!tool) {
-      return sym(`(error "Tool not found: ${name}")`);
+export function restTool({ name, description, url, method = 'GET', headers = {}, params = {}, transform }) {
+  return {
+    schema: {
+      name,
+      description,
+      inputSchema: {
+        type: 'object',
+        properties: params,
+        required: Object.entries(params).filter(([, v]) => v.required).map(([k]) => k)
+      }
+    },
+    async call(p) {
+      const endpoint = typeof url === 'function' ? url(p) : url;
+      const opts = { method, headers: { 'Content-Type': 'application/json', ...headers } };
+      if (method !== 'GET') opts.body = JSON.stringify(p);
+      const resp = await fetch(endpoint, opts);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+      const data = await resp.json();
+      const out = transform ? transform(data) : data;
+      return { content: [{ type: 'text', text: typeof out === 'string' ? out : JSON.stringify(out) }] };
     }
-    
-    // Register as grounded atom
-    ground.register(name, async (...args) => {
-      const params = mcp._argsToParams(args, tool.inputSchema);
-      const result = await mcp.callTool(name, params);
-      return interpreter.ground.toTerm(result);
+  };
+}
+
+/**
+ * Generate MCP tools from an OpenAPI 3.x spec URL.
+ * Fetches the spec, parses endpoints, returns array of synthetic tools.
+ */
+export async function openApiTools(specUrl, baseUrl, { filterTag, maxTools = 50 } = {}) {
+  const resp = await fetch(specUrl);
+  const spec = await resp.json();
+  const tools = [];
+
+  for (const [path, methods] of Object.entries(spec.paths ?? {})) {
+    for (const [method, op] of Object.entries(methods)) {
+      if (!['get', 'post', 'put', 'patch', 'delete'].includes(method)) continue;
+      if (filterTag && !op.tags?.includes(filterTag)) continue;
+      if (tools.length >= maxTools) break;
+
+      const params = {};
+      for (const p of op.parameters ?? []) {
+        params[p.name] = { type: p.schema?.type ?? 'string', description: p.description ?? '' };
+      }
+      if (op.requestBody?.content?.['application/json']?.schema?.properties) {
+        Object.assign(params, op.requestBody.content['application/json'].schema.properties);
+      }
+
+      const name = op.operationId ?? `${method}_${path.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+      tools.push(restTool({
+        name: name.slice(0, 64),
+        description: op.summary ?? op.description ?? name,
+        url: (p) => {
+          let u = (baseUrl ?? spec.servers?.[0]?.url ?? '') + path;
+          u = u.replace(/\{(\w+)\}/g, (_, k) => encodeURIComponent(p[k] ?? ''));
+          const qs = Object.entries(p)
+            .filter(([k]) => !path.includes(`{${k}}`))
+            .map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+          return qs ? `${u}?${qs}` : u;
+        },
+        method: method.toUpperCase(),
+        params
+      }));
+    }
+  }
+  return tools;
+}
+
+/**
+ * Register synthetic (non-MCP-SDK) tools directly into a McpPool.
+ * Extend McpPool with this method.
+ */
+export function extendPoolWithSyntheticTools(pool) {
+  pool.registerSyntheticTool = function(tool) {
+    const { name } = tool.schema;
+    this.toolSchemas.set(name, tool.schema);
+    this.toolIndex.set(name, '__synthetic__');
+
+    // Patch callTool to handle synthetic tools
+    const origCall = this.callTool.bind(this);
+    this.callTool = async (toolName, params) => {
+      const key = this.toolIndex.get(toolName);
+      if (key === '__synthetic__') {
+        const t = [...this.connections.entries()]
+          .find(([k]) => k === '__synthetic__');
+        // Run directly
+        const synth = this._syntheticTools?.get(toolName);
+        if (synth) return synth.call(params);
+      }
+      return origCall(toolName, params);
+    };
+
+    if (!this._syntheticTools) this._syntheticTools = new Map();
+    this._syntheticTools.set(name, tool);
+  };
+
+  pool.loadOpenApi = async (key, specUrl, baseUrl, options = {}) => {
+    const tools = await openApiTools(specUrl, baseUrl, options);
+    for (const tool of tools) pool.registerSyntheticTool(tool);
+    return tools.map(t => t.schema.name);
+  };
+}
+```
+
+### 2.7 LangChain + Vercel AI SDK Integration
+
+The system's `AIClient` uses the **Vercel AI SDK** (`ai`, `@ai-sdk/*`). MCP tools integrate naturally:
+
+```javascript
+import { generateText, tool } from 'ai';
+import { z } from 'zod';
+import { McpPool }      from './metta/src/mcp/McpPool.js';
+import { McpDiscovery } from './metta/src/mcp/McpDiscovery.js';
+
+/**
+ * Convert all tools in an McpPool into Vercel AI SDK tools.
+ * The LLM can then call them via tool-calling protocol.
+ */
+export function poolToAITools(pool) {
+  const tools = {};
+  for (const [name, schema] of pool.toolSchemas) {
+    const props = schema.inputSchema?.properties ?? {};
+    const required = new Set(schema.inputSchema?.required ?? []);
+
+    // Build Zod schema dynamically from MCP JSON schema
+    const zodShape = {};
+    for (const [k, v] of Object.entries(props)) {
+      let zodType = z.string();
+      if (v.type === 'number') zodType = z.number();
+      else if (v.type === 'boolean') zodType = z.boolean();
+      else if (v.type === 'array') zodType = z.array(z.any());
+      else if (v.type === 'object') zodType = z.record(z.any());
+      if (v.description) zodType = zodType.describe(v.description);
+      zodShape[k] = required.has(k) ? zodType : zodType.optional();
+    }
+
+    tools[name] = tool({
+      description: schema.description ?? name,
+      parameters: z.object(zodShape),
+      execute: async (params) => {
+        const result = await pool.callTool(name, params);
+        return Array.isArray(result.content)
+          ? result.content.filter(c => c.type === 'text').map(c => c.text).join('\n')
+          : JSON.stringify(result);
+      }
     });
-    
-    return sym(`(registered ${name})`);
-  });
-  
-  /**
-   * (mcp-list)
-   */
-  ground.register('mcp-list', () => {
-    const mcp = getMCP();
-    const tools = Array.from(mcp.discoveredTools.values());
-    
-    const toolTerms = tools.map(t => 
-      exp('tool', [
-        exp(':', [sym('name'), sym(t.name)]),
-        exp(':', [sym('description'), sym(t.description || '')])
-      ])
-    );
-    
-    return constructList(toolTerms, sym('()'));
-  });
-  
-  /**
-   * (mcp-disconnect)
-   */
-  ground.register('mcp-disconnect', async () => {
-    const mcp = getMCP();
-    await mcp.disconnect();
-    return sym('(mcp-disconnected)');
-  });
-  
-  /**
-   * (pipeline tool1 tool2 ...)
-   */
-  ground.register('pipeline', (...toolNames) => {
-    const mcp = getMCP();
-    const { McpComposition } = require('../mcp/McpComposition.js');
-    const composer = new McpComposition(mcp);
-    
-    const names = toolNames.map(t => t.toString());
-    const pipelineFn = composer.pipeline(...names);
-    
-    // Return as grounded function
-    return pipelineFn;
-  });
-  
-  /**
-   * (mcp-introspect)
-   */
-  ground.register('mcp-introspect', () => {
-    const { ReflectionAPI } = require('../mcp/ReflectionAPI.js');
-    const reflection = new ReflectionAPI(interpreter);
-    const state = reflection.introspectInterpreter();
-    return interpreter.ground.toTerm(state);
-  });
+  }
+  return tools;
+}
+
+/**
+ * Example: Agent with MCP tools via Vercel AI SDK
+ */
+export async function createMcpAgent(pool, aiClient, systemPrompt) {
+  const aiTools = poolToAITools(pool);
+
+  return {
+    async run(userMessage) {
+      const result = await aiClient.generate(userMessage, {
+        system: systemPrompt,
+        tools: aiTools,
+        maxSteps: 10  // Allow multi-step tool use
+      });
+      return result.text;
+    },
+
+    async stream(userMessage, onChunk) {
+      const { fullStream } = await aiClient.stream(userMessage, {
+        system: systemPrompt,
+        tools: aiTools,
+        maxSteps: 10
+      });
+      for await (const chunk of fullStream) {
+        if (chunk.type === 'text-delta') onChunk({ type: 'text', content: chunk.textDelta });
+        else if (chunk.type === 'tool-call') onChunk({ type: 'tool_call', name: chunk.toolName });
+        else if (chunk.type === 'tool-result') onChunk({ type: 'tool_result', content: chunk.result });
+      }
+    }
+  };
 }
 ```
 
 ---
 
-## 6. Testing Strategy
+## 3. Use Case B: SeNARS as MCP Provider
 
-### 6.1 Unit Tests
+> **Status: Working.** The code in `agent/src/mcp/` is production-ready.
 
-```javascript
-// metta/tests/mcp/McpTranslator.test.js
-import { describe, it, expect, beforeEach } from '@jest/globals';
-import { MeTTaInterpreter } from '../../src/MeTTaInterpreter.js';
-import { McpTranslator } from '../../src/mcp/McpTranslator.js';
-import { z } from 'zod';
+### 3.1 What's Exposed
 
-describe('McpTranslator', () => {
-  let interpreter, translator;
-  
-  beforeEach(() => {
-    interpreter = new MeTTaInterpreter();
-    translator = new McpTranslator(interpreter);
-  });
-  
-  describe('toMeTTaTerm', () => {
-    it('converts primitives', () => {
-      expect(translator.toMeTTaTerm(true).name).toBe('True');
-      expect(translator.toMeTTaTerm(false).name).toBe('False');
-      expect(translator.toMeTTaTerm(42).name).toBe('42');
-      expect(translator.toMeTTaTerm('hello').name).toBe('hello');
-    });
-    
-    it('converts arrays', () => {
-      const result = translator.toMeTTaTerm([1, 2, 3]);
-      expect(result.type).toBe('compound');
-    });
-    
-    it('converts objects', () => {
-      const result = translator.toMeTTaTerm({ name: 'test', value: 42 });
-      expect(result.operator?.name).toBe('object');
-    });
-  });
-  
-  describe('termToValue', () => {
-    it('converts MeTTa terms to JS', () => {
-      const term = interpreter.parser.parseExpression('True');
-      expect(translator.termToValue(term)).toBe(true);
-    });
-    
-    it('converts compound terms', () => {
-      const term = interpreter.parser.parseExpression('(object (: name "test"))');
-      expect(translator.termToValue(term)).toEqual({ name: 'test' });
-    });
-  });
-});
+```bash
+node agent/src/mcp/start-server.js
 ```
 
-### 6.2 Integration Tests
+| Tool | What it does |
+|------|-------------|
+| `ping` | Health check |
+| `reason` | Feed premises into NAL, run N cycles, return derived beliefs with truth values |
+| `memory-query` | Query the concept memory by term string |
+| `get-focus` | Return top-N tasks from the attention focus buffer |
+| `execute-tool` | Invoke a registered NAR tool |
+| `evaluate_js` | Sandboxed JS execution (1s timeout, vm context) |
+| `sync-beliefs` | Bidirectional belief delta reconciliation |
+
+### 3.2 Adding MeTTa Eval to the Provider
+
+The one meaningful extension: expose MeTTa evaluation through the MCP server too.
 
 ```javascript
-// metta/tests/mcp/McpIntegration.test.js
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import { MeTTaInterpreter } from '../../src/MeTTaInterpreter.js';
-import { MeTTaMCPManager } from '../../src/mcp/index.js';
+// Append to agent/src/mcp/Server.js → registerTools():
 
-describe('MCP Integration', () => {
-  let interpreter, mcpManager;
-  
-  beforeAll(async () => {
-    interpreter = new MeTTaInterpreter();
-    mcpManager = new MeTTaMCPManager(interpreter);
-    await mcpManager.initialize('client');
-  });
-  
-  afterAll(async () => {
-    await mcpManager.disconnect();
-  });
-  
-  it('connects to MCP server', async () => {
-    await mcpManager.connectToServer('node', ['test-server.js']);
-    expect(mcpManager.connectedServers.size).toBe(1);
-  });
-  
-  it('discovers tools', async () => {
-    const tools = await mcpManager.discoverTools();
-    expect(tools.length).toBeGreaterThan(0);
-  });
-  
-  it('calls tool via MeTTa expression', async () => {
-    const result = interpreter.run(`
-      (mcp-call "add" (object (: a 5) (: b 3)))
-    `);
-    expect(result.toString()).toContain('8');
-  });
-  
-  it('registers tool as grounded atom', async () => {
-    interpreter.run('(mcp-as-meTTa "add")');
-    const result = interpreter.run('(add 10 20)');
-    expect(result.toString()).toContain('30');
-  });
-});
+this.server.tool('metta-eval',
+  {
+    code: z.string().describe('MeTTa expression(s) to evaluate'),
+    mode: z.enum(['run', 'load', 'query']).default('run')
+  },
+  async ({ code, mode }) => {
+    const interp = this.mettaInterpreter;
+    if (!interp) return this._error('MeTTa interpreter not attached. Pass {mettaInterpreter} to Server constructor.');
+    try {
+      let result;
+      if (mode === 'load')  { interp.load(code); result = 'loaded'; }
+      else if (mode === 'query') { result = interp.query(code, code); }
+      else { result = interp.run(code); }
+      return { content: [{ type: 'text', text: String(result) }] };
+    } catch (e) {
+      return this._error(`MeTTa error: ${e.message}`);
+    }
+  }
+);
 ```
 
-### 6.3 End-to-End Tests
-
-```javascript
-// metta/tests/mcp/McpE2E.test.js
-import { test, expect } from '@playwright/test';
-
-test('MCP tool workflow', async () => {
-  // Start MCP test server
-  // Connect MeTTa interpreter
-  // Execute full workflow
-  // Verify results
-});
-```
-
----
-
-## 7. Success Metrics
-
-| Metric | Target | Measurement Method |
-|--------|--------|-------------------|
-| **Tool Discovery Latency** | <100ms for 100 tools | Time from connect to registered |
-| **Tool Call Latency** | <50ms average | Round-trip time measurement |
-| **Schema Translation** | 100% fidelity | Round-trip tests |
-| **Safety Coverage** | 100% inputs validated | Test suite coverage |
-| **LangChain Compat** | All core features | Integration tests |
-| **Memory Overhead** | <5MB baseline | Heap measurement |
-| **Concurrent Calls** | 100+ parallel | Load testing |
-
----
-
-## 8. Dependencies
+### 3.3 Claude Desktop Configuration
 
 ```json
 {
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.21.1",
-    "@langchain/core": "^1.0.6",
-    "@langchain/langgraph": "^1.0.0",
-    "langchain": "^1.0.2",
-    "zod": "^3.25.76"
-  },
-  "peerDependencies": {
-    "@senars/core": "^1.0.0"
+  "mcpServers": {
+    "senars": {
+      "command": "node",
+      "args": ["/absolute/path/to/agent/src/mcp/start-server.js"]
+    }
   }
 }
 ```
 
+### 3.4 Why Narsese Appears Here
+
+The `reason` tool accepts Narsese-formatted premises (`<bird --> animal>.`) because the *NAL inference engine* speaks Narsese — that's its native language. AI clients (Claude, Cursor) can send Narsese or natural language; the `reason` tool accepts both. This is **server-side logic** and has nothing to do with how MeTTa calls external tools (Use Case A).
+
 ---
 
-## 9. Quick Start
+## 4. Unified Entry Point
+
+**File: `metta/src/mcp/index.js`**
 
 ```javascript
-import { MeTTaInterpreter } from '@senars/metta';
-import { MeTTaMCPManager } from '@senars/metta/mcp';
+import { McpPool }      from './McpPool.js';
+import { McpDiscovery } from './McpDiscovery.js';
+import { registerMcpGrounded } from './McpGrounded.js';
+import { extendPoolWithSyntheticTools } from './McpAdapters.js';
 
-// Create interpreter
-const interpreter = new MeTTaInterpreter();
+export { McpPool, McpDiscovery, registerMcpGrounded, extendPoolWithSyntheticTools };
+export { restTool, openApiTools } from './McpAdapters.js';
+export { poolToAITools, createMcpAgent } from './McpAgentBridge.js';
 
-// Initialize MCP
-const mcpManager = new MeTTaMCPManager(interpreter, {
-  autoDiscover: true,
-  autoRegister: true
-});
+/**
+ * MeTTaMCPManager — one-call setup for MeTTa as MCP consumer.
+ *
+ * Usage:
+ *   const mcp = new MeTTaMCPManager(interpreter);
+ *   await mcp.connect('fs', 'npx', ['-y', '@modelcontextprotocol/server-filesystem', '/']);
+ *   // Now MeTTa can call: !(read_file (object (: path "/tmp/x.txt")))
+ */
+export class MeTTaMCPManager {
+  constructor(interpreter, options = {}) {
+    this.interpreter = interpreter;
+    this.pool = new McpPool(interpreter, options);
+    this.discovery = new McpDiscovery(interpreter, this.pool);
 
-await mcpManager.initialize('client');
+    extendPoolWithSyntheticTools(this.pool);
+    registerMcpGrounded(interpreter, this.pool, this.discovery);
+  }
 
-// Connect to filesystem server
-await mcpManager.connectToServer(
-  'npx', 
-  ['-y', '@modelcontextprotocol/server-filesystem', '/home/user']
+  /** Connect to an MCP server (Stdio) and learn its tools */
+  async connect(key, command, args = []) {
+    return this.discovery.connectAndLearn(key, command, args, 'stdio');
+  }
+
+  /** Connect to an MCP server (SSE/HTTP) and learn its tools */
+  async connectSSE(key, url) {
+    return this.discovery.connectAndLearn(key, url, [], 'sse');
+  }
+
+  /** Load an OpenAPI spec and make its endpoints callable from MeTTa */
+  async loadOpenApi(key, specUrl, baseUrl, options = {}) {
+    return this.pool.loadOpenApi(key, specUrl, baseUrl, options);
+  }
+
+  /** Register a single REST endpoint as a MeTTa-callable tool */
+  registerRestTool(toolDef) {
+    const { restTool } = require('./McpAdapters.js');
+    this.pool.registerSyntheticTool(restTool(toolDef));
+  }
+
+  /** Convert pool tools to Vercel AI SDK tools for AIClient */
+  toAITools() {
+    const { poolToAITools } = require('./McpAgentBridge.js');
+    return poolToAITools(this.pool);
+  }
+
+  async disconnect(key) {
+    if (key) this.pool._onServerDisconnect(key);
+    else await this.pool.disconnectAll();
+  }
+
+  get tools() { return this.pool.allToolNames; }
+}
+
+export default MeTTaMCPManager;
+```
+
+---
+
+## 5. Complete Usage Examples
+
+### 5.1 MeTTa Calls Filesystem + Search (Consumer Mode)
+
+```javascript
+import { MeTTaInterpreter } from './metta/src/MeTTaInterpreter.js';
+import { MeTTaMCPManager }  from './metta/src/mcp/index.js';
+
+const interp = new MeTTaInterpreter();
+const mcp    = new MeTTaMCPManager(interp);
+
+// Connect to MCP servers — tools auto-register as grounded atoms
+// and facts appear in the knowledge space
+await mcp.connect('fs',     'npx', ['-y', '@modelcontextprotocol/server-filesystem', '/tmp']);
+await mcp.connect('search', 'npx', ['-y', '@modelcontextprotocol/server-brave-search']);
+
+// MeTTa now knows about all tools:
+interp.run('!(mcp-tools)');
+// => (: read_file (: write_file (: brave_search ...))
+
+// Direct invocation
+const result = interp.run('!(read_file (object (: path "/tmp/notes.txt")))');
+
+// Rule-based tool selection in MeTTa code:
+interp.run(`
+  (= (research $topic)
+     (let* (($web    (brave_search (object (: query $topic))))
+            ($cached (read_file    (object (: path (cache-path $topic))))))
+       (if (cache-fresh? $topic) $cached $web)))
+`);
+```
+
+### 5.2 Load Any REST API into MeTTa (Arbitrary API Universality)
+
+```javascript
+// Instant GitHub API → MeTTa tools via OpenAPI spec
+await mcp.loadOpenApi('github', 
+  'https://raw.githubusercontent.com/github/rest-api-description/main/descriptions/api.github.com/api.github.com.json',
+  'https://api.github.com',
+  { filterTag: 'repos', maxTools: 20 }
 );
 
-// Use in MeTTa
-const result = interpreter.run(`
-  ;; Discover tools
-  (mcp-discover)
-  
-  ;; Read file
-  (mcp-call "read_file" (object (: path "/home/user/config.json")))
-  
-  ;; Register as native
-  (mcp-as-meTTa "read_file")
-  (read_file "/home/user/data.txt")
-`);
+// Now usable from MeTTa:
+interp.run('!(repos_list_for_authenticated_user (object (: per_page 10)))');
 
-console.log(result.toString());
+// Or register a single endpoint manually:
+mcp.registerRestTool({
+  name: 'get_weather',
+  description: 'Current weather for a city',
+  url: p => `https://wttr.in/${p.city}?format=j1`,
+  params: { city: { type: 'string', description: 'City name' } },
+  transform: d => `${d.current_condition[0].temp_C}°C, ${d.current_condition[0].weatherDesc[0].value}`
+});
+
+interp.run('!(get_weather (object (: city "London")))');
+// => "12°C, Partly cloudy"
 ```
+
+### 5.3 MeTTa + Vercel AI SDK: LLM with MCP Tools
+
+```javascript
+import { AIClient }       from './agent/src/ai/AIClient.js';
+import { createMcpAgent } from './metta/src/mcp/McpAgentBridge.js';
+
+const ai  = new AIClient({ ollama: { baseURL: 'http://localhost:11434' } });
+const mcp = new MeTTaMCPManager(interp);
+await mcp.connect('fs', 'npx', ['-y', '@modelcontextprotocol/server-filesystem', '/']);
+
+const agent = await createMcpAgent(mcp.pool, ai, 
+  'You are a helpful assistant that can read files and search the web.');
+
+const answer = await agent.run('What is in /tmp/report.txt?');
+```
+
+### 5.4 MeTTa Self-Discovery via JS Reflection
+
+```javascript
+// MeTTa can introspect everything it can do:
+interp.run('!(mcp-reflect)');
+// => JSON with:
+// { groundedOps: [{name: "+", arity: 2}, {name: "read_file", arity: 1}, ...],
+//   mcpTools: ["read_file", "write_file", "brave_search", "get_weather"],
+//   totalCapabilities: 47 }
+
+// A MeTTa rule can use this to adapt behavior:
+interp.run(`
+  (= (can-do? $capability)
+     (tool-available $capability))
+
+  (= (fallback-plan $goal)
+     (let ($tools (mcp-tools))
+       (find-useful-tool $goal $tools)))
+`);
+```
+
+### 5.5 SeNARS Server Used by Claude (Provider Mode)
+
+```json
+// ~/.config/Claude/claude_desktop_config.json
+{
+  "mcpServers": {
+    "senars": {
+      "command": "node",
+      "args": ["/home/me/senars10/agent/src/mcp/start-server.js"]
+    }
+  }
+}
+```
+
+Claude can now ask SeNARS to reason:
+> *"Use the reason tool with premises `<AI --> technology>.` and `<technology --> valuable>.` to derive whether AI is valuable."*
+
+---
+
+## 6. KnowledgeBaseConnector as MCP Backend
+
+The existing `agent/src/know/KnowledgeBaseConnector.js` (Wikipedia, Wikidata, Custom APIs) can be wrapped as MCP synthetic tools, providing a clean migration path:
+
+```javascript
+import { createKnowledgeBaseConnector } from '../agent/src/know/KnowledgeBaseConnector.js';
+
+const kb = createKnowledgeBaseConnector({ cacheTTL: 300_000 });
+
+mcp.registerRestTool({
+  name: 'wikipedia_search',
+  description: 'Search Wikipedia for a topic',
+  url: () => 'synthetic://kb',  // not used — direct call
+  params: { query: { type: 'string', description: 'Search term' } },
+  // Override call instead of HTTP
+});
+
+// Better: wrap directly
+pool.registerSyntheticTool({
+  schema: {
+    name: 'wikipedia_search',
+    description: 'Search Wikipedia',
+    inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] }
+  },
+  async call({ query }) {
+    const result = await kb.query('wikipedia', query);
+    const text = result.results.map(r => r.extract ?? r.title).join('\n\n');
+    return { content: [{ type: 'text', text }] };
+  }
+});
+```
+
+---
+
+## 7. Safety
+
+The existing `agent/src/mcp/Safety.js` is the authoritative implementation. Key invariants:
+
+- **PII scrubbing is opt-in** (disabled by default)
+- **`<` and `>` are never HTML-escaped** — Narsese syntax `<bird --> animal>` must survive unchanged
+- **Sandboxed JS**: `evaluate_js` runs in a `vm.createContext` with 1s timeout
+- **Rate limiting**: `McpPool` enforces a configurable calls-per-minute ceiling per server
+
+```javascript
+// The McpPool timeout (default 30s) is the primary concurrency safety mechanism.
+// For additional control per tool:
+const pool = new McpPool(interpreter, {
+  timeout: 10_000,             // 10s per tool call
+  conflictStrategy: 'last'     // last-connected server wins on name conflict
+});
+```
+
+---
+
+## 8. Transport Reference
+
+| Transport | Status | When to Use |
+|-----------|--------|-------------|
+| Stdio | ✅ Working | Local servers; Claude Desktop; subprocesses |
+| SSE/HTTP | 🔧 `McpPool` supports it | Multi-client web servers; remote services |
+| WebSocket | 🔧 SDK-dependent | Real-time streaming (future) |
+| Synthetic | ✅ Working | REST, GraphQL, OpenAPI, KnowledgeBaseConnector |
+
+---
+
+## 9. What to Build (Roadmap)
+
+| Priority | Item | Effort |
+|----------|------|--------|
+| P0 | `McpPool.js` — multi-server connection | 1 day |
+| P0 | `McpDiscovery.js` — tool facts into space | 1 day |
+| P0 | `McpGrounded.js` — registerMcpGrounded | 1 day |
+| P1 | `McpAdapters.js` — restTool + openApiTools | 2 days |
+| P1 | `McpAgentBridge.js` — poolToAITools | 1 day |
+| P1 | Add `metta-eval` to agent/src/mcp/Server.js | 1 hour |
+| P2 | MeTTa stdlib rules for tool selection strategy | ongoing |
+| P2 | `AgentBuilder.withMCP({...})` one-call setup | 1 day |
+| P3 | Tool reliability tracking in knowledge space | ongoing |
 
 ---
 
 ## 10. References
 
-- [MCP Specification](https://modelcontextprotocol.io/specification/2025-11-25)
+| File | Purpose | Status |
+|------|---------|--------|
+| [agent/src/mcp/Server.js](../agent/src/mcp/Server.js) | SeNARS MCP provider | ✅ Working |
+| [agent/src/mcp/Client.js](../agent/src/mcp/Client.js) | Basic Stdio client | ✅ Working |
+| [agent/src/mcp/Safety.js](../agent/src/mcp/Safety.js) | PII + validation | ✅ Working |
+| [agent/src/ai/AIClient.js](../agent/src/ai/AIClient.js) | Vercel AI SDK wrapper | ✅ Working |
+| [agent/src/know/KnowledgeBaseConnector.js](../agent/src/know/KnowledgeBaseConnector.js) | Wikipedia/Wikidata/Custom | ✅ Working |
+| [agent/src/agent/AgentStreamer.js](../agent/src/agent/AgentStreamer.js) | Streaming with tool events | ✅ Working |
+| [metta/src/SeNARSBridge.js](./src/SeNARSBridge.js) | MeTTa ↔ NAR translation | ✅ Working |
+| metta/src/mcp/McpPool.js | Multi-server connection pool | 🔧 Spec |
+| metta/src/mcp/McpDiscovery.js | Tool → Space facts | 🔧 Spec |
+| metta/src/mcp/McpGrounded.js | Ground atom registration | 🔧 Spec |
+| metta/src/mcp/McpAdapters.js | REST/OpenAPI → MCP tools | 🔧 Spec |
+| metta/src/mcp/McpAgentBridge.js | Pool → Vercel AI SDK tools | 🔧 Spec |
+
+- [MCP Specification 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25)
 - [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/sdk)
-- [LangChain.js](https://js.langchain.com/)
-- [Zod Schema](https://zod.dev/)
-- [Existing MCP Implementation](../agent/src/mcp/)
-- [MeTTa Architecture](./README.md)
-- [SeNARS Bridge](./src/SeNARSBridge.js)
+- [Vercel AI SDK](https://sdk.vercel.ai/)
 
 ---
 
-*Document Version: 2.0*  
-*Last Updated: 2026-02-25*  
-*Status: Complete Specification*
+*Version 4.0 — 2026-02-25*
