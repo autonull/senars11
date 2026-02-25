@@ -8,97 +8,96 @@
 
 ## 1. Executive Summary
 
-SeNARS represents a sophisticated **Neuro-Symbolic** kernel that successfully bridges rigorous Non-Axiomatic Logic (NAL) with the fluid intuition of Large Language Models (LLMs). The codebase is clean, modular, and exhibits a high degree of architectural thought.
+SeNARS is not just another "Neuro-Symbolic" framework; it is an **Autonomous Epistemic Engine**. Unlike static RAG systems or stateless LLM agents, SeNARS offers a **stateful, self-optimizing reasoning kernel** that operates in real-time.
 
-However, to maximize its usefulness in the modern software ecosystem, SeNARS must transition from a "research framework" to a **consumable platform**. The current state requires deep internal knowledge to operate. The strategic goal is to invert this: make SeNARS a "black box" reasoning engine that any agent, LLM, or developer can plug into their stack via standard protocols (MCP, HTTP, NPM).
+The codebase reveals a sophisticated architecture capable of:
+1.  **Hybrid Reasoning**: Seamlessly blending NAL (Non-Axiomatic Logic) with LLM intuition.
+2.  **Meta-Cognition**: Using MeTTa for introspection and self-modification.
+3.  **Self-Optimization**: Built-in genetic algorithms (`scripts/utils/autonomous-development.js`) that tune system hyperparameters against performance goals.
 
-**Key Recommendation:** Pivot development focus from core algorithmic enhancements to **Developer Experience (DX)** and **Integration Surfaces**.
+However, the current form is a **"Research Monolith"**. To dominate the modern ecosystem, SeNARS must pivot to become a **"Plug-and-Play Brain"**—a black-box microservice that adds long-term memory and rigorous logic to any AI stack (LangChain, AutoGen, Claude).
+
+**Strategic Goal:** Transition from *Framework* to *Platform*.
 
 ---
 
 ## 2. System Health & Architecture Assessment
 
-### Strengths
-*   **Code Quality:** The codebase follows modern ESM standards, uses clear naming conventions, and implements a robust event-driven architecture (`EventBus`).
-*   **Modularity:** The separation of `core`, `agent`, `metta`, and `ui` is logical and supports independent scaling.
-*   **Test Coverage:** Core logic is well-tested (1500+ passing tests). The recent fix to Babel dependencies ensures the test suite is stable.
-*   **MeTTa Integration:** The `SeNARSBridge` provides a powerful, bidirectional link to the MeTTa runtime, enabling advanced meta-cognition scenarios.
+### 2.1 Core Kernel (`@senars/core`)
+*   **Strengths:** High code quality, ESM standards, 1500+ passing tests. The event-driven design (`EventBus`) is excellent for decoupling.
+*   **Weaknesses:**
+    *   **Packaging:** Exports internal paths (`./src/*`), leaking implementation details.
+    *   **Type Safety:** Lack of TypeScript definitions makes integration error-prone for external developers.
+    *   **Performance:** While logic is fast, the bridge to LLMs needs robust circuit breakers (which exist but need tuning).
 
-### Weaknesses & Gaps
-*   **Type Safety:** The project is written in untyped JavaScript. While JSDoc exists, it is not enforced. This makes external integration error-prone, as consumers have no IntelliSense or compile-time guarantees.
-*   **Packaging Fragility:** The `@senars/core` package exports internal paths (`./src/*`), which leaks implementation details and prevents safe refactoring. There is no build step (e.g., `tsup`, `rollup`) to generate optimized bundles or type definitions (`.d.ts`).
-*   **Deployment Story:** There is no `Dockerfile` or containerization strategy. Running SeNARS requires a specific Node.js setup, which hinders drop-in usage as a microservice.
-*   **CI/CD:** No automated pipelines (GitHub Actions, etc.) were found to run tests or linting on PRs.
+### 2.2 User Interface (`@senars/ui`)
+*   **Status:** A feature-rich React/Vite application with Cytoscape.js visualization.
+*   **Potential:** Currently tied to a local backend. It should be refactored into a **Standalone Dashboard** that can connect to *any* remote SeNARS MCP server, acting as a debugger for the agent's "mind".
+
+### 2.3 Research Modules (`rl` & `tensor`)
+*   **Observation:** The `rl` directory contains ambitious forward-looking research (`NEUROSYMBOLIC_RL_ARCHITECTURE.md`).
+*   **Risk:** These modules rely on complex dependencies (TensorFlow/Torch via JS bindings) which can be brittle.
+*   **Recommendation:** Keep `rl` as an optional "Pro" module. The core distribution should remain lightweight and CPU-only to ensure broad compatibility.
+
+### 2.4 Autonomous Development
+*   **Hidden Gem:** The `scripts/utils/autonomous-development.js` script is a key differentiator. It allows the system to "evolve" its own configuration (memory decay rates, attention spans) based on feedback. This feature should be exposed as a first-class API endpoint ("Auto-Tune Mode").
 
 ---
 
-## 3. Ecosystem Relevance: The "Why Now?"
+## 3. Ecosystem Relevance: The "Reasoning Gap"
 
-SeNARS is uniquely positioned to solve the **"Reasoning Gap"** in current GenAI architectures.
-
-### The Problem
-Modern Agents (built on LangChain, AutoGen, etc.) rely entirely on LLMs for reasoning. This leads to:
-1.  **Hallucination:** LLMs cannot guarantee logical consistency.
-2.  **Context Window Limits:** "Memory" is just a sliding window of text, not a structured knowledge base.
-3.  **Cost:** Every reasoning step requires expensive token generation.
-
-### The SeNARS Solution
-SeNARS operates as an **Epistemic Engine**:
-*   **Real-time Learning:** Unlike vector DBs (static retrieval), SeNARS updates its beliefs *during* interaction.
-*   **Transparent Logic:** Every conclusion has a derivation trace.
-*   **Resource Efficiency:** It runs on a CPU, handling thousands of logical steps for the cost of zero tokens.
+The modern AI stack has a hole:
+*   **Vector DBs** give *Memory*, but it's static and dumb.
+*   **LLMs** give *Reasoning*, but it's expensive and hallucination-prone.
+*   **SeNARS** fills this gap: **Dynamic, Logical Memory.**
 
 ### The Killer App: SeNARS as an MCP Server
-The **Model Context Protocol (MCP)** is the perfect delivery mechanism. By exposing SeNARS as an MCP server, it becomes an instant "brain upgrade" for:
-*   **Claude Desktop / Cursor:** Users can ask their IDE to "reason about this code architecture" using SeNARS's logic, not just LLM pattern matching.
-*   **Autonomous Agents:** Agents can offload complex logical puzzles or long-term memory management to SeNARS via a standardized tool interface.
+The **Model Context Protocol (MCP)** is the perfect delivery mechanism.
+*   **For Developers:** "Add SeNARS to my agent" becomes `mcp install senars`.
+*   **For Users:** Claude Desktop users can grant their AI "Logic Superpowers" to analyze codebases or manage complex projects.
 
 ---
 
 ## 4. Integration & Usability Analysis
 
 ### Current API Surface
-The `NAR` class is a solid entry point, but the "Stream Reasoner" API is too low-level for most users.
+*   **Good:** `NAR` class is a solid entry point.
+*   **Bad:** No "Client SDK". Users must write raw WebSocket/JSON code.
+*   **Missing:**
+    *   **Python SDK:** Essential for the AI research community.
+    *   **HTTP API:** MCP is great for tools, but a REST/GraphQL API is needed for web apps.
 
-*   **Good:** `nar.input('string')` is simple.
-*   **Bad:** Configuring the system requires constructing deep nested objects (`SystemConfig`).
-*   **Missing:** A "Client SDK" that wraps the MCP or WebSocket connection for Python/Node.js apps.
-
-### MCP Implementation
-The current `agent/src/mcp/Server.js` is functional but basic.
-*   **Transport:** Only supports `Stdio`. This limits it to local sub-processes. Adding `SSE` (Server-Sent Events) support would allow remote hosting.
-*   **Security:** `Safety.js` has PII detection, but it defaults to `false`. For a reasoning engine that might ingest sensitive user data, security-by-default is preferred.
+### Deployment Story
+*   **Current:** `npm install` -> `node server.js`. Fragile and environment-dependent.
+*   **Target:** `docker run -p 8080:8080 senars/core`.
+    *   **No Dockerfile currently exists.** This is a critical blocker for cloud deployment.
 
 ---
 
 ## 5. Strategic Roadmap
 
-To achieve the goal of "maximizing usefulness," we recommend the following phased approach:
+### Phase 0: Stabilization (Weeks 1-2)
+*   **Fix Packaging:** Implement a build step (using `tsup`) for `@senars/core`. Stop exporting raw source files.
+*   **Dockerize:** Create a multi-stage `Dockerfile` that builds the Core and UI, serving them as a single deployable unit.
+*   **CI/CD:** Set up GitHub Actions to run tests and the "Autonomous Dev" script on every commit to prevent regression.
 
-### Phase 1: The "consumable" Pivot (Weeks 1-4)
-*   **Goal:** Make it trivial for a stranger to run SeNARS.
-*   **Actions:**
-    1.  **Dockerize:** Create a production-ready `Dockerfile` that exposes the MCP server and Web UI.
-    2.  **Fix Packaging:** Implement a build step (using `tsup`) for `@senars/core`. Generate `.d.ts` type definitions from JSDoc. Stop exporting raw source files.
-    3.  **NPM Publish:** Publish alpha versions of `@senars/core` and `@senars/client` to NPM.
+### Phase 1: The "Consumable" Pivot (Weeks 3-6)
+*   **MCP-First:** Expand `agent/src/mcp/Server.js` to support **SSE (Server-Sent Events)** for remote connections.
+*   **NPM Publish:** Release `@senars/core` and `@senars/client` (new package) to NPM.
+*   **Documentation:** Rewrite READMEs to focus on "How to use" rather than "How it works".
 
-### Phase 2: The TypeScript Migration (Weeks 5-8)
-*   **Goal:** Developer confidence and safety.
-*   **Actions:**
-    1.  **Migrate to TypeScript:** Rename `.js` to `.ts` incrementally, starting with `core/src/api` and `core/src/term`.
-    2.  **Strict Mode:** Enable `strict: true` in `tsconfig` to catch null pointer errors that plague complex logic systems.
+### Phase 2: The TypeScript Migration (Weeks 7-10)
+*   **Goal:** Developer confidence.
+*   **Action:** incremental migration of `core/src/api` and `core/src/term` to TypeScript. Generate `.d.ts` files.
 
-### Phase 3: The Integration Ecosystem (Weeks 9-12)
-*   **Goal:** SeNARS everywhere.
-*   **Actions:**
-    1.  **MCP-First:** Expand the MCP server to support **SSE** transport. Host a public demo endpoint.
-    2.  **LangChain/LlamaIndex Integrations:** Write official `Retriever` and `Tool` classes for these popular libraries.
-    3.  **Python SDK:** Since AI research happens in Python, a lightweight Python wrapper around the MCP client is essential.
+### Phase 3: "Autonomous Ops" (Weeks 11+)
+*   **Feature:** Expose the `autonomous-development.js` logic via the API.
+*   **Use Case:** "Deploy SeNARS -> Run 'Self-Optimize' -> System tunes itself to your specific workload over 24 hours."
 
 ---
 
-## 6. Immediate Next Steps
+## 6. Immediate Next Steps (Action Items)
 
-1.  **Create a `Dockerfile`** in the root to enable "one-command" startup.
-2.  **Add `tsup`** to `@senars/core` to generate proper CommonJS/ESM bundles and Type Definitions.
-3.  **Refactor `package.json` exports** to be robust and standard-compliant.
+1.  **Author `Dockerfile`:** Create a production-ready container definition.
+2.  **Refactor Exports:** Clean up `package.json` in `core` to use `exports` correctly.
+3.  **Create Client SDK:** Scaffold a new `@senars/client` package for easy interaction.
