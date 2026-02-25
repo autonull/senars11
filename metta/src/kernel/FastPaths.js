@@ -1,5 +1,5 @@
 /**
- * Fast-Path Type Guards
+ * FastPaths.js - Optimized Type Guards
  * Q2: Monomorphic type checks for V8 inline caching
  * 
  * Key optimization: Pre-computed type tags enable fast dispatch

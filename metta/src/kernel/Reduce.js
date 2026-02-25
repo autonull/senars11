@@ -18,5 +18,8 @@ export {
     reduceAsync,
     reduceNDAsync,
     isGroundedCall,
-    match
+    match,
+    setInternalReferences,
+    setNDInternalReferences,
+    setDeterministicInternalReference
 } from './reduction/index.js';

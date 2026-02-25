@@ -2,12 +2,15 @@
  * Term.js - Optimized MeTTa atoms with Tier 1 performance enhancements
  */
 
-import { intern, symbolEq } from './Interning.js';
+import { intern, symbolEq as internSymbolEq } from './Interning.js';
 import { TYPE_SYMBOL, TYPE_VARIABLE, TYPE_EXPRESSION, TYPE_GROUNDED, isVariableName } from './FastPaths.js';
 import { METTA_CONFIG } from '../config.js';
 import { SymbolAtom, VariableAtom, GroundedAtom, ExpressionAtom } from './AtomTypes.js';
 
 export { SymbolAtom, VariableAtom, GroundedAtom, ExpressionAtom };
+
+// Export symbolEq for benchmarks/tests
+export const symbolEq = internSymbolEq;
 
 const expCache = new Map();
 const varCache = new Map();

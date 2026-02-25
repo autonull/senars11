@@ -1,7 +1,7 @@
 /**
  * Ground.js - Native function registry
  * Registry for grounded operations in MeTTa
- * Following AGENTS.md: Elegant, Consolidated, Consistent, Organized, Deeply deduplicated
+ * With Tier 1 Performance Optimization: Grounded Operation Lookup Table (Q4)
  */
 
 import { sym, exp, isExpression, constructList, isList, flattenList } from './Term.js';
@@ -25,11 +25,18 @@ import { registerSetOps } from './ops/SetOps.js';
 import { registerHOFOps } from './ops/HOFOps.js';
 import { registerMetaprogrammingOps } from './ops/MetaprogrammingOps.js';
 import { registerReflectionOps } from './ops/ReflectionOps.js';
+import { METTA_CONFIG } from '../config.js';
 
 export class Ground extends CoreRegistry {
     constructor(context = {}) {
         super();
         this.context = context;
+
+        // Q4: Optimized lookup structures
+        this.opsById = [];          // id -> op
+        this.nameToId = new Map();  // name -> id
+        this.nextId = 0;
+
         this._registerCoreOperations();
     }
 
@@ -71,6 +78,47 @@ export class Ground extends CoreRegistry {
     _isList(atom) { return OperationHelpers.isList(atom); }
 
     // === Registration ===
+
+    /**
+     * Override register to support optimized lookup
+     */
+    register(name, op, options = {}) {
+        super.register(name, op, options);
+
+        // Q4: Assign integer ID for fast lookup
+        if (METTA_CONFIG.fastPaths) {
+            const id = this.nextId++;
+            this.nameToId.set(name, id);
+            this.opsById[id] = { op, options };
+
+            // If op is a grounded atom, attach the ID
+            if (op && typeof op === 'object') {
+                op._opId = id;
+            }
+        }
+    }
+
+    /**
+     * Override lookup to use fast path if available
+     */
+    lookup(symbol) {
+        if (METTA_CONFIG.fastPaths) {
+            // Check if symbol has pre-assigned ID (from Q1 interning or registration)
+            if (symbol._opId !== undefined) {
+                return this.opsById[symbol._opId]?.op;
+            }
+
+            // Check if we have an ID for this name
+            const id = this.nameToId.get(symbol.name);
+            if (id !== undefined) {
+                // Cache ID on symbol for future lookups
+                symbol._opId = id;
+                return this.opsById[id]?.op;
+            }
+        }
+
+        return super.get(symbol.name);
+    }
 
     /**
      * Register all core operations
