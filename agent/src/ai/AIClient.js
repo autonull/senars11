@@ -4,6 +4,7 @@ import {createAnthropic} from '@ai-sdk/anthropic';
 import {createOllama} from 'ollama-ai-provider';
 import {TransformersJSProvider} from '../../../core/src/lm/TransformersJSProvider.js';
 import {WebLLMProvider} from '../../../core/src/lm/WebLLMProvider.js';
+import {DummyProvider} from '../../../core/src/lm/DummyProvider.js';
 
 export class AIClient {
     constructor(config = {}) {
@@ -54,33 +55,36 @@ export class AIClient {
 
         this.providers.set('transformers', (modelName) => this._createTransformersModel(modelName));
         this.providers.set('webllm', (modelName) => this._createWebLLMModel(modelName));
+        this.providers.set('dummy', (modelName) => this._createDummyModel(modelName));
     }
 
-    _createWebLLMModel(modelName) {
-        const effectiveModel = modelName || 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
-        const cacheKey = `webllm:${effectiveModel}`;
-
-        if (!this.modelInstances.has(cacheKey)) {
-            this.modelInstances.set(cacheKey, new WebLLMProvider({
-                modelName: effectiveModel
-            }));
-        }
-        const provider = this.modelInstances.get(cacheKey);
-
+    _createAIProviderAdapter(provider, effectiveModel) {
         return {
-            specificationVersion: 'v2',
-            provider: 'webllm',
+            specificationVersion: 'v1',
+            provider: provider.constructor.name,
             modelId: effectiveModel,
             defaultObjectGenerationMode: undefined,
 
             async doGenerate(options) {
                 const prompt = AIClient._extractPrompt(options);
-                const result = await provider.generate(prompt, {
-                    temperature: options.temperature ?? 0.7,
-                    maxTokens: options.maxTokens ?? 256,
-                    tools: options.tools,
-                    toolChoice: options.toolChoice
-                });
+                let result;
+
+                // Support both generate (WebLLM) and generateText (Transformers/Dummy)
+                // Also WebLLM supports tools, others might not yet fully
+                if (typeof provider.generate === 'function') {
+                    result = await provider.generate(prompt, {
+                        temperature: options.temperature ?? 0.7,
+                        maxTokens: options.maxTokens ?? 256,
+                        tools: options.tools,
+                        toolChoice: options.toolChoice
+                    });
+                } else {
+                     const text = await provider.generateText(prompt, {
+                        temperature: options.temperature ?? 0.7,
+                        maxTokens: options.maxTokens ?? 256
+                    });
+                    result = { text };
+                }
 
                 const responseText = result.text || '';
                 const toolCalls = (result.toolCalls || []).map(tc => ({
@@ -103,13 +107,14 @@ export class AIClient {
 
                 return {
                     text: responseText,
+                    // COMPATIBILITY: internal SDK processing requires content array
                     content: content,
                     finishReason: result.finishReason || 'stop',
                     usage: result.usage || {
-                        promptTokens: 0,
-                        completionTokens: 0,
-                        inputTokens: 0,
-                        outputTokens: 0
+                        promptTokens: prompt.length,
+                        completionTokens: responseText.length,
+                        inputTokens: prompt.length,
+                        outputTokens: responseText.length
                     },
                     rawCall: {rawPrompt: prompt, rawSettings: {}},
                     toolCalls: toolCalls,
@@ -124,13 +129,31 @@ export class AIClient {
 
                 (async () => {
                     try {
-                        const stream = provider.streamText(prompt, {
-                            temperature: options.temperature ?? 0.7,
-                            maxTokens: options.maxTokens ?? 256
-                        });
+                        let stream;
+                        if (typeof provider.streamText === 'function') {
+                            stream = provider.streamText(prompt, {
+                                temperature: options.temperature ?? 0.7,
+                                maxTokens: options.maxTokens ?? 256
+                            });
+                        } else {
+                            // Fallback if no streaming supported: generate full text and stream it as one chunk
+                             const text = await provider.generateText(prompt, {
+                                temperature: options.temperature ?? 0.7,
+                                maxTokens: options.maxTokens ?? 256
+                            });
+                            stream = (async function*() { yield text; })();
+                        }
 
-                        for await (const chunk of stream) {
-                            controller.enqueue({type: 'text-delta', textDelta: chunk});
+                        // Handle both AsyncIterable (stream) and Promise (fallback) if implementation varies
+                        // But here we ensured stream is iterable or generator
+                        if (stream && typeof stream[Symbol.asyncIterator] === 'function') {
+                             for await (const chunk of stream) {
+                                controller.enqueue({type: 'text-delta', textDelta: chunk});
+                            }
+                        } else {
+                            // Should not happen with current logic, but safe fallback
+                             const text = await stream;
+                             controller.enqueue({type: 'text-delta', textDelta: text});
                         }
 
                         controller.enqueue({
@@ -153,6 +176,31 @@ export class AIClient {
         };
     }
 
+    _createDummyModel(modelName) {
+        const effectiveModel = modelName || 'dummy-model';
+        const cacheKey = `dummy:${effectiveModel}`;
+
+        if (!this.modelInstances.has(cacheKey)) {
+            this.modelInstances.set(cacheKey, new DummyProvider({
+                ...this.config,
+                modelName: effectiveModel
+            }));
+        }
+        return this._createAIProviderAdapter(this.modelInstances.get(cacheKey), effectiveModel);
+    }
+
+    _createWebLLMModel(modelName) {
+        const effectiveModel = modelName || 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
+        const cacheKey = `webllm:${effectiveModel}`;
+
+        if (!this.modelInstances.has(cacheKey)) {
+            this.modelInstances.set(cacheKey, new WebLLMProvider({
+                modelName: effectiveModel
+            }));
+        }
+        return this._createAIProviderAdapter(this.modelInstances.get(cacheKey), effectiveModel);
+    }
+
     _createTransformersModel(modelName) {
         const effectiveModel = modelName || 'Xenova/t5-small';
         const cacheKey = `transformers:${effectiveModel}`;
@@ -163,70 +211,7 @@ export class AIClient {
                 loadTimeout: 120000
             }));
         }
-        const provider = this.modelInstances.get(cacheKey);
-
-        return {
-            specificationVersion: 'v2', // COMPATIBILITY: Must be v2 for AI SDK 5.0+
-            provider: 'transformers-js',
-            modelId: effectiveModel,
-            defaultObjectGenerationMode: undefined,
-
-            async doGenerate(options) {
-                const prompt = AIClient._extractPrompt(options);
-                const text = await provider.generateText(prompt, {
-                    temperature: options.temperature ?? 0.7,
-                    maxTokens: options.maxTokens ?? 256
-                });
-
-                const responseText = text || '';
-
-                return {
-                    text: responseText,
-                    // COMPATIBILITY: internal SDK processing requires content array
-                    content: [{type: 'text', text: responseText}],
-                    finishReason: 'stop',
-                    usage: {
-                        promptTokens: 0,
-                        completionTokens: 0,
-                        inputTokens: 0,
-                        outputTokens: 0
-                    },
-                    rawCall: {rawPrompt: prompt, rawSettings: {}},
-                    toolCalls: [],
-                    warnings: [],
-                    logprobs: undefined
-                };
-            },
-
-            async doStream(options) {
-                const prompt = AIClient._extractPrompt(options);
-                const controller = new TransformableStream();
-
-                (async () => {
-                    try {
-                        const text = await provider.generateText(prompt, {
-                            temperature: options.temperature ?? 0.7,
-                            maxTokens: options.maxTokens ?? 256
-                        });
-                        controller.enqueue({type: 'text-delta', textDelta: text || ''});
-                        controller.enqueue({
-                            type: 'finish',
-                            finishReason: 'stop',
-                            usage: {promptTokens: 0, completionTokens: 0, inputTokens: 0, outputTokens: 0}
-                        });
-                        controller.close();
-                    } catch (error) {
-                        controller.error(error);
-                    }
-                })();
-
-                return {
-                    stream: controller.readable,
-                    rawCall: {rawPrompt: prompt, rawSettings: {}},
-                    warnings: []
-                };
-            }
-        };
+        return this._createAIProviderAdapter(this.modelInstances.get(cacheKey), effectiveModel);
     }
 
     getModel(providerName, modelName) {
