@@ -1,8 +1,12 @@
+/**
+ * Tensor Logic Policy
+ * Policy networks using @senars/tensor with MeTTa integration
+ */
 import { Component } from '../composable/Component.js';
-import { SymbolicTensor, TensorLogicBridge, Tensor } from '@senars/tensor';
-import { MetricsTracker } from '../utils/MetricsTracker.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
+import { MetricsTracker } from '../utils/MetricsTracker.js';
 import { PolicyUtils, ParameterInitializer } from '../utils/PolicyUtils.js';
+import { Tensor, SymbolicTensor } from '@senars/tensor';
 
 const DEFAULTS = {
     inputDim: 64,
@@ -28,44 +32,50 @@ export class TensorLogicPolicy extends Component {
         super(mergeConfig(DEFAULTS, config));
 
         this.backend = null;
-        this.tensorBridge = new TensorLogicBridge();
+        this.tensorBridge = null;
         this.parameters = new Map();
         this.optimizer = null;
         this.metta = this.config.mettaInterpreter;
-        this.policyTrace = [];
         this.temperature = this.config.initialTemperature;
-        this.metrics = new MetricsTracker({ updates: 0, totalLoss: 0, avgEntropy: 0, gradientNorm: 0 });
+        this.metrics = new MetricsTracker({
+            updates: 0,
+            totalLoss: 0,
+            avgEntropy: 0,
+            gradientNorm: 0
+        });
     }
 
     async onInitialize() {
-        try {
-            const { torch } = await import('@senars/tensor');
-            this.backend = torch;
-            this.tensorBridge.backend = this.backend;
-        } catch (e) {
-            console.warn('Failed to load tensor backend:', e);
-            this.backend = null;
-        }
-
-        try {
-            const { AdamOptimizer } = await import('@senars/tensor');
-            this.optimizer = new AdamOptimizer(this.config.learningRate, this.backend);
-        } catch {
-            try {
-                const { SGDOptimizer } = await import('@senars/tensor');
-                this.optimizer = new SGDOptimizer(this.config.learningRate, this.backend);
-            } catch (e) {
-                console.warn('Failed to load optimizer:', e);
-            }
-        }
-
+        await this._initializeTensorBackend();
         this._initializeParameters();
 
         if (this.config.policyScript) {
             await this._loadPolicyScript();
         }
 
-        this.emit('initialized', { parameters: this.parameters.size, backend: !!this.backend, metta: !!this.metta });
+        this.emit('initialized', {
+            parameters: this.parameters.size,
+            backend: !!this.backend,
+            metta: !!this.metta
+        });
+    }
+
+    async _initializeTensorBackend() {
+        try {
+            const tensor = await import('@senars/tensor');
+            this.backend = tensor.torch;
+            this.tensorBridge = new tensor.TensorLogicBridge();
+            this.tensorBridge.backend = this.backend;
+
+            try {
+                this.optimizer = new tensor.AdamOptimizer(this.config.learningRate, this.backend);
+            } catch {
+                this.optimizer = new tensor.SGDOptimizer(this.config.learningRate, this.backend);
+            }
+        } catch (e) {
+            console.warn('Failed to load tensor backend:', e);
+            this.backend = null;
+        }
     }
 
     _initializeParameters() {
@@ -75,17 +85,24 @@ export class TensorLogicPolicy extends Component {
 
         for (let i = 0; i < numLayers; i++) {
             const fanIn = i === 0 ? inputDim : hiddenDim;
-            this.parameters.set(`w${i}`, this._createParameter([fanIn, hiddenDim], ParameterInitializer.xavier(fanIn, hiddenDim)));
+            const initVal = ParameterInitializer.xavier(fanIn, hiddenDim);
+
+            this.parameters.set(`w${i}`, this._createParameter([fanIn, hiddenDim], initVal));
             this.parameters.set(`b${i}`, this._createParameter([hiddenDim], 0));
         }
 
-        this.parameters.set(`w${numLayers}`, this._createParameter([hiddenDim, outputDim], ParameterInitializer.xavier(hiddenDim, outputDim)));
+        const initOut = ParameterInitializer.xavier(hiddenDim, outputDim);
+        this.parameters.set(`w${numLayers}`, this._createParameter([hiddenDim, outputDim], initOut));
         this.parameters.set(`b${numLayers}`, this._createParameter([outputDim], 0));
     }
 
     _createParameter(shape, initFn) {
         const size = shape.reduce((a, b) => a * b, 1);
-        const data = typeof initFn === 'function' ? Array.from({ length: size }, initFn) : Array(size).fill(initFn);
+
+        const data = typeof initFn === 'function'
+            ? Array.from({ length: size }, initFn)
+            : new Array(size).fill(initFn);
+
         const t = new Tensor(data, { requiresGrad: true, backend: this.backend });
         t.shape = [...shape];
         return t;
@@ -100,19 +117,35 @@ export class TensorLogicPolicy extends Component {
             await this.metta.run(script);
             this.emit('policy:loaded', this.config.policyScript);
         } catch {
-            // Silently continue
+            // Silent fail
         }
     }
 
+    /**
+     * Forward pass through policy network
+     * @param {Array|SymbolicTensor} state - Input state
+     * @param {Object} options - Options (trackGradient, returnIntermediate)
+     * @returns {Object} Forward result (logits, hidden, intermediates)
+     */
     forward(state, options = {}) {
         const { trackGradient = true, returnIntermediate = false } = options;
 
         if (!this.backend) {
-            return { logits: new SymbolicTensor([0, 0, 0, 0], [4]), hidden: null };
+            return {
+                logits: new SymbolicTensor([0, 0, 0, 0], [4]),
+                hidden: null
+            };
         }
 
         const intermediates = [];
-        let input = new SymbolicTensor(Array.isArray(state) ? state : Array.from(state), [state.length], { requiresGrad: trackGradient });
+        let input = state instanceof SymbolicTensor
+            ? state
+            : new SymbolicTensor(
+                Array.isArray(state) ? state : Array.from(state),
+                [state.length],
+                { requiresGrad: trackGradient }
+            );
+
         const numLayers = this.config.numLayers;
 
         for (let i = 0; i < numLayers; i++) {
@@ -122,7 +155,9 @@ export class TensorLogicPolicy extends Component {
             const linear = this.backend.add(this.backend.matmul(input, w), b);
             const activated = this.backend.relu(linear);
 
-            intermediates.push({ layer: i, linear, activated });
+            if (returnIntermediate) {
+                intermediates.push({ layer: i, linear, activated });
+            }
             input = activated;
         }
 
@@ -137,6 +172,12 @@ export class TensorLogicPolicy extends Component {
         };
     }
 
+    /**
+     * Select action given state
+     * @param {Array|SymbolicTensor} state - Input state
+     * @param {Object} options - Options (exploration, deterministic)
+     * @returns {Object} Action selection result
+     */
     async selectAction(state, options = {}) {
         const { exploration = null, deterministic = false } = options;
 
@@ -147,54 +188,73 @@ export class TensorLogicPolicy extends Component {
         const { logits } = this.forward(state);
 
         if (!this.backend) {
-            // Fallback if no backend
-            const action = Math.floor(Math.random() * this.config.outputDim);
-            return { action, actionProb: 1 / this.config.outputDim, logits: logits.data, state };
+            return {
+                action: Math.floor(Math.random() * this.config.outputDim),
+                actionProb: 1 / this.config.outputDim,
+                logits: logits.data,
+                state
+            };
         }
 
         const temp = exploration ?? this.temperature;
         const scaledLogits = this.backend.div(logits, temp);
 
-        let action, actionProb;
-
-        if (this.config.actionType === 'discrete') {
-            if (this.config.policyType === 'softmax') {
-                const probs = this.backend.softmax(scaledLogits);
-                const probsData = probs.data;
-                if (deterministic || exploration === 0) {
-                    action = PolicyUtils.argmax(probsData);
-                    actionProb = probsData[action];
-                } else {
-                    action = PolicyUtils.sampleCategorical(probsData);
-                    actionProb = probsData[action];
-                }
-            } else {
-                if (Math.random() < (exploration ?? 0.1)) {
-                    action = Math.floor(Math.random() * this.config.outputDim);
-                    actionProb = 1 / this.config.outputDim;
-                } else {
-                    action = PolicyUtils.argmax(logits.data);
-                    actionProb = 1.0;
-                }
-            }
-        } else {
-            const mu = this.backend.tanh(logits);
-            const muData = mu.data;
-            const std = 0.1;
-
-            action = deterministic
-                ? Array.from(muData)
-                : Array.from(muData).map(m => m + std * PolicyUtils.sampleGaussian());
-            actionProb = PolicyUtils.gaussianPdf(action, Array.from(muData), std);
-        }
+        const result = this.config.actionType === 'discrete'
+            ? this._selectDiscrete(scaledLogits, logits, exploration, deterministic)
+            : this._selectContinuous(logits, deterministic);
 
         if (exploration === null && this.temperature > this.config.minTemperature) {
             this.temperature *= this.config.temperatureDecay;
         }
 
-        return { action, actionProb, logits: logits.data, state };
+        return { ...result, logits: logits.data, state };
     }
 
+    _selectDiscrete(scaledLogits, logits, exploration, deterministic) {
+        
+
+        if (this.config.policyType === 'softmax') {
+            const probs = this.backend.softmax(scaledLogits);
+            const probsData = probs.data;
+            const action = (deterministic || exploration === 0)
+                ? PolicyUtils.argmax(probsData)
+                : PolicyUtils.sampleCategorical(probsData);
+            return { action, actionProb: probsData[action] };
+        }
+
+        if (Math.random() < (exploration ?? 0.1)) {
+            return {
+                action: Math.floor(Math.random() * this.config.outputDim),
+                actionProb: 1 / this.config.outputDim
+            };
+        }
+
+        return {
+            action: PolicyUtils.argmax(logits.data),
+            actionProb: 1.0
+        };
+    }
+
+    _selectContinuous(logits, deterministic) {
+        
+        const mu = this.backend.tanh(logits);
+        const muData = mu.data;
+        const std = 0.1;
+
+        const action = deterministic
+            ? Array.from(muData)
+            : Array.from(muData).map(m => m + std * PolicyUtils.sampleGaussian());
+
+        const actionProb = PolicyUtils.gaussianPdf(action, Array.from(muData), std);
+        return { action, actionProb };
+    }
+
+    /**
+     * Update policy from experience
+     * @param {Object} experience - Experience (state, action, reward, nextState, done)
+     * @param {Object} options - Options (advantages, returns, oldProbs)
+     * @returns {Object} Update result
+     */
     async update(experience, options = {}) {
         const { advantages = null, returns = null, oldProbs = null } = options;
 
@@ -206,6 +266,7 @@ export class TensorLogicPolicy extends Component {
             return { loss: 0, success: false };
         }
 
+        
         const { state, action, reward, nextState, done } = experience;
         const { logits } = this.forward(state, { returnIntermediate: true });
 
@@ -230,14 +291,18 @@ export class TensorLogicPolicy extends Component {
         this.metrics.set('totalLoss', loss.data[0] ?? 0);
         this.metrics.set('avgEntropy', entropy.data[0] ?? 0);
 
-        return { loss: loss.data[0] ?? 0, entropy: entropy.data[0] ?? 0, success: true };
+        return {
+            loss: loss.data[0] ?? 0,
+            entropy: entropy.data[0] ?? 0,
+            success: true
+        };
     }
 
     _computeLoss(logits, action, reward, advantages, oldProbs) {
+        
         const probs = this.backend.softmax(logits);
         const logProbs = this.backend.log(probs);
 
-        // Mask for selected action
         const numActions = logits.data.length;
         const maskData = new Float32Array(numActions).fill(0);
         maskData[action] = 1.0;
@@ -245,23 +310,18 @@ export class TensorLogicPolicy extends Component {
 
         const selectedLogProb = this.backend.sum(this.backend.mul(logProbs, mask));
 
+        let term;
         if (advantages) {
-            // Advantage Actor-Critic
-            const adv = advantages instanceof Tensor ? advantages : new Tensor([advantages[0]], { backend: this.backend });
-            return this.backend.mul(selectedLogProb, this.backend.mul(adv, -1));
-        }
-
-        if (oldProbs) {
-            // PPO-like (simplified)
-            // Fallback to simple policy gradient for robustness if complex ops unavailable
-            // Ideally: ratio = exp(logProb - oldLogProb) * advantage
+            const adv = advantages instanceof Tensor
+                ? advantages
+                : new Tensor([advantages[0]], { backend: this.backend });
+            term = adv;
+        } else {
             const rewardTensor = new Tensor([reward], { backend: this.backend });
-            return this.backend.mul(selectedLogProb, this.backend.mul(rewardTensor, -1));
+            term = rewardTensor;
         }
 
-        // Vanilla Policy Gradient
-        const rewardTensor = new Tensor([reward], { backend: this.backend });
-        return this.backend.mul(selectedLogProb, this.backend.mul(rewardTensor, -1));
+        return this.backend.mul(selectedLogProb, this.backend.mul(term, -1));
     }
 
     _computeEntropy(logits) {
@@ -273,18 +333,21 @@ export class TensorLogicPolicy extends Component {
     }
 
     _computeL2Regularization() {
+        
         const params = Array.from(this.parameters.entries())
             .filter(([name]) => name.startsWith('w'))
             .map(([_, p]) => this.backend.sum(this.backend.mul(p, p)));
 
-        if (params.length === 0) return new Tensor([0], { backend: this.backend });
+        if (params.length === 0) {
+            return new Tensor([0], { backend: this.backend });
+        }
 
         const sumL2 = params.reduce((acc, p) => this.backend.add(acc, p));
         return this.backend.mul(sumL2, 0.5);
     }
 
     _clipGradients(maxNorm) {
-        this.parameters.forEach(param => {
+        for (const param of this.parameters.values()) {
             if (param.grad) {
                 const gradData = param.grad.data;
                 const norm = Math.sqrt(gradData.reduce((s, g) => s + g * g, 0));
@@ -293,19 +356,28 @@ export class TensorLogicPolicy extends Component {
                     param.grad = this.backend.mul(param.grad, scale);
                 }
             }
-        });
+        }
     }
 
+    /**
+     * Execute MeTTa policy
+     * @param {Array|SymbolicTensor} state - Input state
+     * @param {Object} options - Options
+     * @returns {Object} Action result
+     */
     async executeMettaPolicy(state, options = {}) {
-        if (!this.metta) return this.selectAction(state, { ...options, policyType: 'softmax' });
+        if (!this.metta) {
+            return this.selectAction(state, { ...options, policyType: 'softmax' });
+        }
 
         const stateExpr = `(${Array.isArray(state) ? state.join(' ') : state})`;
         let action = 0;
+
         try {
             const result = await this.metta.run(`! (get-action ${stateExpr})`);
             if (result && result.length > 0) {
-                 const val = parseFloat(result[0].toString());
-                 if (!isNaN(val)) action = Math.floor(val);
+                const val = parseFloat(result[0].toString());
+                if (!isNaN(val)) action = Math.floor(val);
             }
         } catch (e) {
             console.warn('Metta policy execution failed:', e);
@@ -314,6 +386,12 @@ export class TensorLogicPolicy extends Component {
         return { action, state };
     }
 
+    /**
+     * Update MeTTa policy
+     * @param {Object} transition - Transition
+     * @param {Object} options - Options
+     * @returns {Object} Update result
+     */
     async updateMettaPolicy(transition, options = {}) {
         if (!this.metta) return { success: false };
 
@@ -332,12 +410,17 @@ export class TensorLogicPolicy extends Component {
         }
     }
 
+    /**
+     * Extract symbolic rules from policy
+     * @param {Object} options - Options (threshold)
+     * @returns {Array} Extracted rules
+     */
     extractRules(options = {}) {
         const { threshold = 0.5 } = options;
         const rules = [];
 
-        this.parameters.forEach((param, name) => {
-            if (!name.startsWith('w')) return;
+        for (const [name, param] of this.parameters) {
+            if (!name.startsWith('w')) continue;
 
             const maxWeight = Math.max(...param.data.map(Math.abs));
             if (maxWeight > threshold) {
@@ -345,23 +428,34 @@ export class TensorLogicPolicy extends Component {
                     .map((w, i) => ({ w, i }))
                     .filter(x => Math.abs(x.w) > threshold * maxWeight);
 
-                rules.push({ parameter: name, importantFeatures: importantIndices, strength: maxWeight });
+                rules.push({
+                    parameter: name,
+                    importantFeatures: importantIndices,
+                    strength: maxWeight
+                });
             }
-        });
-
-        if (this.policyTrace.length > 0) {
-            rules.push(...PolicyUtils.findStateActionPatterns(this.policyTrace.map(t => ({ state: t.state, action: t.result }))));
         }
 
         return rules;
     }
 
+    /**
+     * Get policy parameters
+     * @returns {Object} Parameters
+     */
     getParameters() {
         return Object.fromEntries(
-            Array.from(this.parameters.entries()).map(([name, param]) => [name, { data: [...param.data], shape: [...param.shape] }])
+            Array.from(this.parameters.entries()).map(([name, param]) => [
+                name,
+                { data: [...param.data], shape: [...param.shape] }
+            ])
         );
     }
 
+    /**
+     * Set policy parameters
+     * @param {Object} params - Parameters
+     */
     setParameters(params) {
         Object.entries(params).forEach(([name, paramData]) => {
             const param = this.parameters.get(name);
@@ -372,6 +466,10 @@ export class TensorLogicPolicy extends Component {
         });
     }
 
+    /**
+     * Get policy state
+     * @returns {Object} Policy state
+     */
     getState() {
         return {
             parameters: this.getParameters(),
@@ -386,6 +484,10 @@ export class TensorLogicPolicy extends Component {
         };
     }
 
+    /**
+     * Load policy state
+     * @param {Object} state - State to load
+     */
     loadState(state) {
         if (state.parameters) this.setParameters(state.parameters);
         if (state.metrics) this.metrics.reset();
@@ -395,22 +497,52 @@ export class TensorLogicPolicy extends Component {
     async onShutdown() {
         this.parameters.clear();
         this.optimizer = null;
-        this.policyTrace = [];
     }
 
     static createDiscrete(inputDim, outputDim, config = {}) {
-        return new TensorLogicPolicy({ inputDim, outputDim, actionType: 'discrete', policyType: 'softmax', ...config });
+        return new TensorLogicPolicy({
+            inputDim,
+            outputDim,
+            actionType: 'discrete',
+            policyType: 'softmax',
+            ...config
+        });
     }
 
     static createContinuous(inputDim, actionDim, config = {}) {
-        return new TensorLogicPolicy({ inputDim, outputDim: actionDim, actionType: 'continuous', policyType: 'gaussian', ...config });
+        return new TensorLogicPolicy({
+            inputDim,
+            outputDim: actionDim,
+            actionType: 'continuous',
+            policyType: 'gaussian',
+            ...config
+        });
     }
 
     static createMettaPolicy(inputDim, outputDim, mettaInterpreter, policyScript, config = {}) {
-        return new TensorLogicPolicy({ inputDim, outputDim, mettaInterpreter, policyScript, actionType: 'discrete', policyType: 'softmax', ...config });
+        return new TensorLogicPolicy({
+            inputDim,
+            outputDim,
+            mettaInterpreter,
+            policyScript,
+            actionType: 'discrete',
+            policyType: 'softmax',
+            ...config
+        });
     }
 
     static createMinimal(inputDim, outputDim, config = {}) {
-        return new TensorLogicPolicy({ inputDim, outputDim, numLayers: 1, hiddenDim: 32, l2Regularization: 0, entropyBonus: 0, ...config });
+        return new TensorLogicPolicy({
+            inputDim,
+            outputDim,
+            numLayers: 1,
+            hiddenDim: 32,
+            l2Regularization: 0,
+            entropyBonus: 0,
+            ...config
+        });
     }
 }
+
+// Alias for backward compatibility
+export { TensorLogicPolicy as Network };

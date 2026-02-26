@@ -4,6 +4,7 @@
   "type": "module",
   "main": "src/index.js",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.21.1",
     "@senars/core": "^1.0.0"
   },
   "devDependencies": {

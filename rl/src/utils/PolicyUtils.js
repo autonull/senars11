@@ -9,7 +9,15 @@ export const ParameterInitializer = {
 export const PolicyUtils = {
     argmax(array) {
         if (!array || array.length === 0) return -1;
-        return array.reduce((maxIdx, val, i) => val > array[maxIdx] ? i : maxIdx, 0);
+        let maxIdx = 0;
+        let maxVal = array[0];
+        for (let i = 1; i < array.length; i++) {
+            if (array[i] > maxVal) {
+                maxVal = array[i];
+                maxIdx = i;
+            }
+        }
+        return maxIdx;
     },
 
     sampleCategorical(probs) {
@@ -40,15 +48,17 @@ export const PolicyUtils = {
     findStateActionPatterns(pairs) {
         const correlations = new Map();
 
-        pairs.forEach(({ state, action }) => {
+        for (const { state, action } of pairs) {
             if (Array.isArray(state) || ArrayBuffer.isView(state)) {
-                state.forEach((val, i) => {
+                for (let i = 0; i < state.length; i++) {
                     const key = `feature_${i}_action_${action}`;
-                    const prev = correlations.get(key) ?? { count: 0, sum: 0 };
-                    correlations.set(key, { count: prev.count + 1, sum: prev.sum + val });
-                });
+                    const prev = correlations.get(key);
+                    const count = prev ? prev.count + 1 : 1;
+                    const sum = prev ? prev.sum + state[i] : state[i];
+                    correlations.set(key, { count, sum });
+                }
             }
-        });
+        }
 
         return Array.from(correlations.entries())
             .filter(([_, stats]) => stats.count > 5)

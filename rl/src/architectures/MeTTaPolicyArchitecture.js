@@ -1,4 +1,4 @@
-import { Architecture } from '../core/Architecture.js';
+import { Architecture } from '../core/RLCore.js';
 import { MeTTaInterpreter } from '@senars/metta';
 import { registerTensorPrimitives } from '../core/TensorPrimitives.js';
 import { NarseseUtils } from '../utils/NarseseUtils.js';

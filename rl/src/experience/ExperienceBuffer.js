@@ -1,6 +1,12 @@
+/**
+ * Experience Buffer - Core replay buffer functionality
+ * Leverages Experience from ExperienceSystem.js for unified experience representation
+ */
 import { Component } from '../composable/Component.js';
-import { CausalGraph, CausalReasoner } from '../reasoning/CausalReasoning.js';
+import { CausalGraph } from '../cognitive/CognitiveSystem.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
+import { SumTree } from '../utils/DataStructures.js';
+import { Experience } from './ExperienceSystem.js';
 
 const DEFAULTS = {
     capacity: 100000,
@@ -20,13 +26,15 @@ const DEFAULTS = {
 const SamplingStrategies = {
     random(allExperiences, k) {
         if (allExperiences.length === 0) return [];
-
         const indices = new Set();
-        while (indices.size < Math.min(k, allExperiences.length)) {
-            indices.add(Math.floor(Math.random() * allExperiences.length));
+        const max = allExperiences.length;
+        const limit = Math.min(k, max);
+
+        while (indices.size < limit) {
+            indices.add(Math.floor(Math.random() * max));
         }
 
-        return Array.from(indices).map(idx => allExperiences[idx]);
+        return Array.from(indices, idx => allExperiences[idx]);
     },
 
     prioritized(sumTree, allExperiences, k) {
@@ -48,423 +56,207 @@ const SamplingStrategies = {
         return samples;
     },
 
-    causal(causalIndex, causalGraph, allExperiences, query, k, resolution) {
-        if (!query || !causalIndex.size) {
-            return this.random(allExperiences, k);
-        }
-
-        const querySignature = CausalExperience.createCausalSignature(query, resolution);
-        const neighbors = [];
-
-        const direct = causalIndex.get(querySignature);
-        if (direct) {
-            direct.slice(0, k).forEach(idx => neighbors.push(allExperiences[idx]));
-        }
-
-        if (neighbors.length < k) {
-            const predecessors = causalGraph.getPredecessors(querySignature);
-            for (const pred of predecessors.slice(0, k - neighbors.length)) {
-                const predIds = causalIndex.get(pred.signature);
-                if (predIds?.length > 0) {
-                    neighbors.push(allExperiences[predIds[0]]);
-                }
-            }
-        }
-
-        return neighbors;
-    },
-
     recent(allExperiences, k) {
-        return [...allExperiences].sort((a, b) => b.timestamp - a.timestamp).slice(0, k);
+        return allExperiences.slice().sort((a, b) => b.info.timestamp - a.info.timestamp).slice(0, k);
     }
 };
 
-export class CausalExperience {
+/**
+ * CausalExperience - Extends Experience with causal signatures
+ */
+export class CausalExperience extends Experience {
     constructor(config = {}) {
-        this.state = config.state ?? null;
-        this.action = config.action ?? null;
-        this.reward = config.reward ?? 0;
-        this.nextState = config.nextState ?? null;
-        this.done = config.done ?? false;
+        const { state, action, reward, nextState, done, info = {} } = config;
+        super({ state, action, reward, nextState, done, info });
+        
         this.causalSignature = config.causalSignature ?? null;
         this.causalPredecessors = config.causalPredecessors ?? [];
         this.causalSuccessors = config.causalSuccessors ?? [];
-        this.timestamp = config.timestamp ?? Date.now();
-        this.trajectoryId = config.trajectoryId ?? null;
-        this.stepIndex = config.stepIndex ?? 0;
-        this.priority = config.priority ?? 1.0;
-        this.tdError = config.tdError ?? null;
-        this.workerId = config.workerId ?? null;
-        this.tags = config.tags ?? [];
-        this.metadata = config.metadata ?? {};
+        
+        if (!this.causalSignature && state && action && nextState) {
+            this.causalSignature = CausalExperience.createCausalSignature(this, config.resolution ?? 0.1);
+        }
+    }
+
+    static create(state, action, reward, nextState, done = false) {
+        return new CausalExperience({ state, action, reward, nextState, done });
     }
 
     static createCausalSignature(experience, resolution = 0.1) {
-        const { state, action, nextState } = experience;
-        const discretize = (s) => s.map(v => Math.round(v / resolution) * resolution);
-        return `${discretize(state).join(',')}_a${action}_→${discretize(nextState).join(',')}`;
-    }
-
-    getTransition() {
-        return { state: this.state, action: this.action, reward: this.reward, nextState: this.nextState, done: this.done };
-    }
-
-    computeTDError(valueFn, gamma = 0.99) {
-        if (this.tdError !== null) return this.tdError;
-
-        const currentV = valueFn(this.state);
-        const nextV = this.done ? 0 : valueFn(this.nextState);
-        const target = this.reward + gamma * nextV;
-
-        this.tdError = Math.abs(target - currentV);
-        this.priority = Math.pow(this.tdError + 0.01, 0.6);
-        return this.tdError;
+        if (!experience) return null;
+        const { state, action, nextState, reward } = experience;
+        const discretize = (v) => Math.round(v / resolution) * resolution;
+        const stateSig = Array.isArray(state) ? state.map(discretize).join(',') : discretize(state);
+        const nextSig = Array.isArray(nextState) ? nextState.map(discretize).join(',') : discretize(nextState);
+        return `${stateSig}|${action}|${discretize(reward)}|${nextSig}`;
     }
 
     toJSON() {
         return {
-            state: Array.from(this.state), action: this.action, reward: this.reward,
-            nextState: Array.from(this.nextState), done: this.done, causalSignature: this.causalSignature,
-            timestamp: this.timestamp, trajectoryId: this.trajectoryId, stepIndex: this.stepIndex,
-            priority: this.priority, workerId: this.workerId, tags: this.tags, metadata: this.metadata
+            ...super.toJSON(),
+            causalSignature: this.causalSignature,
+            causalPredecessors: this.causalPredecessors,
+            causalSuccessors: this.causalSuccessors
         };
-    }
-
-    static fromJSON(json) {
-        return new CausalExperience({ ...json, state: Array.from(json.state), nextState: Array.from(json.nextState) });
     }
 }
 
 export class ExperienceBuffer extends Component {
     constructor(config = {}) {
         super(mergeConfig(DEFAULTS, config));
-
-        this.buffers = [];
-        this.currentBuffer = 0;
-        this.totalSize = 0;
+        this.capacity = this.config.capacity;
+        this.experiences = [];
+        this.sumTree = null;
         this.causalIndex = new Map();
-        this.causalGraph = new CausalGraph();
-        this.causalReasoner = new CausalReasoner();
-        this.prioritySumTree = null;
-        this.workerBuffers = new Map();
-        this.lastAggregation = 0;
-        this.metrics = { experiencesAdded: 0, experiencesSampled: 0, causalLinksDiscovered: 0, aggregationsPerformed: 0 };
+        this.causalGraph = this.config.useCausalIndexing ? new CausalGraph() : null;
+        this.pos = 0;
+        this.count = 0;
+        this._metricsTracker = { additions: 0, samples: 0, causalLinksDiscovered: 0 };
+    }
+
+    get metrics() {
+        return this._metricsTracker;
+    }
+
+    /**
+     * Total number of experiences stored (for backward compatibility)
+     */
+    get totalSize() {
+        return this.count;
     }
 
     async onInitialize() {
-        const bufferCapacity = Math.floor(this.config.capacity / this.config.numBuffers);
-        this.buffers = Array.from({ length: this.config.numBuffers }, () => []);
-
         if (this.config.sampleStrategy === 'prioritized') {
-            this.prioritySumTree = new SumTree(this.config.capacity);
+            this.sumTree = new SumTree(this.capacity);
         }
-
-        this.emit('initialized', { buffers: this.config.numBuffers, capacity: this.config.capacity, causalIndexing: this.config.useCausalIndexing });
+        this.emit('initialized', { capacity: this.capacity, strategy: this.config.sampleStrategy });
     }
 
-    async store(experience, options = {}) {
-        const { computeCausal = this.config.useCausalIndexing, updateGraph = true } = options;
+    async store(experience) {
+        const exp = experience instanceof CausalExperience ? experience : new CausalExperience(experience);
+        const id = this.count;
 
-        const causalExp = experience instanceof CausalExperience
-            ? experience
-            : new CausalExperience(experience);
-
-        if (computeCausal && !causalExp.causalSignature) {
-            causalExp.causalSignature = CausalExperience.createCausalSignature(causalExp, this.config.causalResolution);
+        if (this.count >= this.capacity) {
+            this.experiences[this.pos] = exp;
+            if (this.sumTree) this.sumTree.update(this.pos, 1.0);
+        } else {
+            this.experiences.push(exp);
+            if (this.sumTree) this.sumTree.add(1.0);
+            this.count++;
         }
 
-        const buffer = this.buffers[this.currentBuffer];
-
-        if (buffer.length >= this.config.capacity / this.config.numBuffers) {
-            this.currentBuffer = (this.currentBuffer + 1) % this.config.numBuffers;
-            this.buffers[this.currentBuffer] = [];
+        if (this.config.useCausalIndexing && this.causalGraph) {
+            await this._updateCausalGraph(exp);
         }
 
-        this.buffers[this.currentBuffer].push(causalExp);
-        this.totalSize++;
-
-        if (this.prioritySumTree) {
-            this.prioritySumTree.update(this.totalSize - 1, causalExp.priority);
-        }
-
-        if (computeCausal) {
-            this._updateCausalIndex(causalExp);
-            if (updateGraph && causalExp.causalSignature) {
-                await this._updateCausalGraph(causalExp);
-            }
-        }
-
-        this.metrics.experiencesAdded++;
-        return this.totalSize - 1;
+        this.pos = (this.pos + 1) % this.capacity;
+        this.metrics.additions++;
+        return id;
     }
 
-    async storeBatch(experiences, options = {}) {
-        return Promise.all(experiences.map(exp => this.store(exp, options)));
-    }
-
-    _updateCausalIndex(experience) {
-        if (!experience.causalSignature) return;
-
-        let ids = this.causalIndex.get(experience.causalSignature);
-        if (!ids) {
-            ids = [];
-            this.causalIndex.set(experience.causalSignature, ids);
-        }
-        ids.push(this.totalSize - 1);
+    async storeBatch(experiences) {
+        return Promise.all(experiences.map(exp => this.store(exp)));
     }
 
     async _updateCausalGraph(experience) {
         const { state, action, nextState, reward } = experience;
-
-        await this.causalReasoner.learn(JSON.stringify(state), JSON.stringify(nextState), JSON.stringify({ action, reward }));
-
-        // Cannot create full causal signature for next state without next action/next-next state.
-        // Assuming we want to link current transition to next state representation?
-        // For now, disabling edge addition that causes crashes due to missing data.
-        /*
-        this.causalGraph.addEdge(
-            experience.causalSignature,
-            CausalExperience.createCausalSignature({ nextState }, this.config.causalResolution),
-            { action, reward }
-        );
-        */
-
+        await this.causalReasoner?.learn(JSON.stringify(state), JSON.stringify(nextState), JSON.stringify({ action, reward }));
         this.metrics.causalLinksDiscovered++;
     }
 
-    async sample(batchSize = null, options = {}) {
-        const size = batchSize ?? this.config.batchSize;
-        const { strategy = this.config.sampleStrategy, causalQuery = null } = options;
+    async sample(batchSize = this.config.batchSize) {
+        const { sampleStrategy, prioritizedAlpha, prioritizedBeta } = this.config;
+        const strategyFn = SamplingStrategies[sampleStrategy] ?? SamplingStrategies.random;
 
-        const allExperiences = this._getAllExperiences();
         let samples;
-
-        switch (strategy) {
-            case 'prioritized':
-                samples = SamplingStrategies.prioritized(this.prioritySumTree, allExperiences, size);
-                break;
-            case 'causal':
-                samples = SamplingStrategies.causal(this.causalIndex, this.causalGraph, allExperiences, causalQuery, size, this.config.causalResolution);
-                if (samples.length < size) {
-                    const remaining = SamplingStrategies.random(allExperiences, size - samples.length);
-                    samples = [...samples, ...remaining];
-                }
-                break;
-            case 'recent':
-                samples = SamplingStrategies.recent(allExperiences, size);
-                break;
-            default:
-                samples = SamplingStrategies.random(allExperiences, size);
+        if (sampleStrategy === 'prioritized') {
+            samples = strategyFn(this.sumTree, this.experiences, batchSize);
+        } else if (sampleStrategy === 'causal') {
+            samples = strategyFn(this.causalIndex, this.causalGraph, this.experiences, null, batchSize, this.config.causalResolution);
+        } else {
+            samples = strategyFn(this.experiences, batchSize);
         }
 
-        this.metrics.experiencesSampled += samples.length;
-
-        if (strategy === 'prioritized') {
-            this._updateSamplePriorities(samples);
-        }
-
+        this.metrics.samples += samples.length;
         return samples;
     }
 
-    async _updateSamplePriorities(samples) {
-        samples.forEach((sample, i) => {
-            sample.priority *= this.config.priorityDecay;
-            if (this.prioritySumTree) {
-                const idx = this.totalSize - i - 1;
-                this.prioritySumTree.update(idx, sample.priority);
-            }
-        });
+    async prioritize(index, priority) {
+        if (!this.sumTree) return;
+        const oldPriority = this.sumTree.get(index);
+        const importance = Math.pow(priority / this.sumTree.max, -this.config.prioritizedBeta);
+        this.sumTree.update(index, priority);
+        return importance;
     }
 
-    registerWorker(workerId, config = {}) {
-        this.workerBuffers.set(workerId, { id: workerId, experiences: [], lastSync: Date.now(), config });
-    }
-
-    async receiveFromWorker(workerId, experiences) {
-        let workerBuffer = this.workerBuffers.get(workerId);
-
-        if (!workerBuffer) {
-            this.registerWorker(workerId);
-            workerBuffer = this.workerBuffers.get(workerId);
-        }
-
-        experiences.forEach(exp => exp.workerId = workerId);
-        workerBuffer.experiences.push(...experiences);
-
-        if (this.totalSize - this.lastAggregation >= this.config.aggregationInterval) {
-            await this.aggregateWorkers();
-        }
-    }
-
-    async aggregateWorkers() {
-        let totalAggregated = 0;
-
-        this.workerBuffers.forEach(buffer => {
-            if (buffer.experiences.length > 0) {
-                this.storeBatch(buffer.experiences);
-                totalAggregated += buffer.experiences.length;
-                buffer.experiences = [];
-                buffer.lastSync = Date.now();
-            }
-        });
-
-        this.metrics.aggregationsPerformed++;
-        this.lastAggregation = this.totalSize;
-        return totalAggregated;
-    }
-
-    _getAllExperiences() {
-        return this.buffers.flatMap(buffer => buffer);
-    }
-
-    getTrajectory(trajectoryId) {
-        return this._getAllExperiences().filter(e => e.trajectoryId === trajectoryId);
-    }
-
-    getWorkerExperiences(workerId) {
-        return this._getAllExperiences().filter(e => e.workerId === workerId);
-    }
-
-    clearOld(maxAge = 3600000) {
-        const cutoff = Date.now() - maxAge;
-
-        this.buffers.forEach(buffer => {
-            const initialLength = buffer.length;
-            buffer.splice(0, buffer.findIndex(e => e.timestamp > cutoff));
-            this.totalSize -= (initialLength - buffer.length);
-        });
-
-        this.causalIndex.forEach((ids, signature) => {
-            const validIds = ids.filter(id => id < this.totalSize);
-            if (validIds.length === 0) {
-                this.causalIndex.delete(signature);
-            } else {
-                this.causalIndex.set(signature, validIds);
-            }
-        });
+    clear() {
+        this.experiences = [];
+        this.pos = 0;
+        this.count = 0;
+        if (this.sumTree) this.sumTree = new SumTree(this.capacity);
+        if (this.causalIndex) this.causalIndex.clear();
+        this._metricsTracker = { additions: 0, samples: 0, causalLinksDiscovered: 0 };
     }
 
     getStats() {
-        const allExperiences = this._getAllExperiences();
         return {
-            totalSize: this.totalSize,
-            bufferSize: allExperiences.length,
-            causalSignatures: this.causalIndex.size,
-            causalLinks: this.metrics.causalLinksDiscovered,
-            avgPriority: allExperiences.reduce((sum, e) => sum + e.priority, 0) / (allExperiences.length || 1),
-            workerCount: this.workerBuffers.size,
-            ...this.metrics
+            count: this.count,
+            totalSize: this.count,
+            capacity: this.capacity,
+            strategy: this.config.sampleStrategy,
+            ...this.metrics,
+            causalIndexSize: this.causalIndex?.size ?? 0
         };
-    }
-
-    getCausalGraph() {
-        return this.causalGraph;
-    }
-
-    queryCausal(query) {
-        return this.causalReasoner.queryCauses(JSON.stringify(query));
-    }
-
-    toJSON() {
-        return {
-            experiences: this._getAllExperiences().map(e => e.toJSON()),
-            causalGraph: this.causalGraph.toJSON(),
-            metrics: { ...this.metrics },
-            config: { ...this.config }
-        };
-    }
-
-    static fromJSON(json, config = {}) {
-        const buffer = new ExperienceBuffer(config);
-        buffer.totalSize = json.experiences.length;
-        buffer.buffers[0] = json.experiences.map(e => CausalExperience.fromJSON(e));
-        buffer.causalGraph = CausalGraph.fromJSON(json.causalGraph);
-        buffer.metrics = { ...json.metrics };
-
-        buffer.buffers[0].forEach((exp, idx) => {
-            if (exp.causalSignature) {
-                let ids = buffer.causalIndex.get(exp.causalSignature);
-                if (!ids) {
-                    ids = [];
-                    buffer.causalIndex.set(exp.causalSignature, ids);
-                }
-                ids.push(idx);
-            }
-        });
-
-        return buffer;
     }
 
     async onShutdown() {
-        this.buffers = [];
-        this.causalIndex.clear();
-        this.workerBuffers.clear();
+        this.clear();
+    }
+
+    static create(config = {}) {
+        return new ExperienceBuffer(config);
+    }
+
+    static createMinimal(capacity = 10000, config = {}) {
+        return new ExperienceBuffer({
+            capacity,
+            batchSize: 32,
+            sampleStrategy: 'random',
+            useCausalIndexing: false,
+            ...config
+        });
     }
 
     static createPrioritized(capacity = 100000, config = {}) {
-        return new ExperienceBuffer({ capacity, sampleStrategy: 'prioritized', ...config });
+        return new ExperienceBuffer({
+            capacity,
+            batchSize: 64,
+            sampleStrategy: 'prioritized',
+            prioritizationAlpha: 0.6,
+            prioritizationBeta: 0.4,
+            ...config
+        });
     }
 
-    static createCausal(capacity = 100000, config = {}) {
-        return new ExperienceBuffer({ capacity, sampleStrategy: 'causal', useCausalIndexing: true, ...config });
-    }
-
-    static createDistributed(capacity = 100000, numWorkers = 8, config = {}) {
-        return new ExperienceBuffer({ capacity, numBuffers: numWorkers, aggregationInterval: 100, ...config });
-    }
-
-    static createMinimal(capacity = 1000, config = {}) {
-        return new ExperienceBuffer({ capacity, numBuffers: 1, useCausalIndexing: false, ...config });
-    }
-}
-
-class SumTree {
-    constructor(capacity) {
-        this.capacity = capacity;
-        this.tree = new Array(2 * capacity).fill(0);
-        this.size = 0;
-    }
-
-    update(idx, priority) {
-        idx += this.capacity;
-        this.tree[idx] = Math.pow(priority + 1e-6, 0.6);
-
-        while (idx > 1) {
-            idx = Math.floor(idx / 2);
-            this.tree[idx] = this.tree[2 * idx] + this.tree[2 * idx + 1];
-        }
-
-        if (this.size <= idx - this.capacity) {
-            this.size = idx - this.capacity + 1;
-        }
-    }
-
-    find(value) {
-        let idx = 1;
-
-        while (idx < this.capacity) {
-            const left = 2 * idx;
-            if (value <= this.tree[left]) {
-                idx = left;
-            } else {
-                value -= this.tree[left];
-                idx = 2 * idx + 1;
-            }
-        }
-
-        return idx - this.capacity;
-    }
-
-    get total() {
-        return this.tree[1];
-    }
-
-    get max() {
-        return Math.max(...this.tree.slice(this.capacity));
-    }
-
-    get min() {
-        const positive = this.tree.slice(this.capacity).filter(v => v > 0);
-        return positive.length > 0 ? Math.min(...positive) : 0;
+    static createCausal(capacity = 50000, config = {}) {
+        return new ExperienceBuffer({
+            capacity,
+            batchSize: 32,
+            sampleStrategy: 'causal',
+            useCausalIndexing: true,
+            causalResolution: 0.1,
+            ...config
+        });
     }
 }
+
+// Re-export Experience classes from ExperienceSystem.js for convenience
+export {
+    Experience,
+    ExperienceStream,
+    Episode,
+    ExperienceIndex,
+    ExperienceStore,
+    SkillExtractor,
+    ExperienceLearner
+} from './ExperienceSystem.js';

@@ -1,4 +1,4 @@
-import { Architecture } from '../core/Architecture.js';
+import { Architecture } from '../core/RLCore.js';
 import { SeNARSBridge } from '../bridges/SeNARSBridge.js';
 import { Planner } from '../modules/Planner.js';
 import { HierarchicalPlanner } from '../modules/HierarchicalPlanner.js';

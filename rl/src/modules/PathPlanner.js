@@ -1,10 +1,10 @@
+import { mergeConfig } from '../utils/ConfigHelper.js';
+
 const PLANNER_DEFAULTS = {
     maxPathLength: 100,
     timeout: 5000,
     useCache: true
 };
-
-const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
 
 export class PathPlanner {
     constructor(bridge, config = {}) {

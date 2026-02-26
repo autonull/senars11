@@ -1,17 +1,17 @@
+/**
+ * Neuro-Symbolic Bridge
+ * Bidirectional integration between SeNARS, MeTTa, and Tensor Logic
+ */
 import { Component } from '../composable/Component.js';
-import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
-import { CausalReasoner } from '../reasoning/CausalReasoning.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 import { MetricsTracker } from '../utils/MetricsTracker.js';
 import { handleError, NeuroSymbolicError } from '../utils/ErrorHandler.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { NarseseUtils } from '../utils/NarseseUtils.js';
+import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
 
 const DEFAULTS = {
     useSeNARS: true,
     senarsConfig: {},
     mettaConfig: {},
-    mettaInterpreter: null,
-    tensorBackend: null,
     autoGround: true,
     gradientTracking: true,
     cacheInference: true,
@@ -29,13 +29,7 @@ const DEFAULTS = {
 export class NeuroSymbolicBridge extends Component {
     constructor(config = {}) {
         super(mergeConfig(DEFAULTS, config));
-        this.tensorBridge = this.config.tensorBridge ?? new TensorLogicBridge();
-        this.causalReasoner = new CausalReasoner();
-        this.senarsBridge = null;
-        this.metta = this.config.mettaInterpreter;
-        this.inferenceCache = new Map();
-        this.beliefBase = new Map();
-        this.goalStack = [];
+        this.tensorBridge = new TensorLogicBridge();
         this.metrics = new MetricsTracker({
             narseseConversions: 0,
             mettaExecutions: 0,
@@ -43,38 +37,47 @@ export class NeuroSymbolicBridge extends Component {
             cacheHits: 0,
             cacheMisses: 0
         });
+        this.inferenceCache = new Map();
+        this.beliefBase = new Map();
+        this.goalStack = [];
+        this.senars = null;
+        this.metta = null;
+        this.mettaBridge = null;
     }
 
     async onInitialize() {
-        if (this.config.useSeNARS) {
-            try {
-                const { SeNARS } = await import('@senars/core');
-                this.senarsBridge = new SeNARS(this.config.senarsConfig);
-                await this.senarsBridge.start();
-                this.emit('senars:initialized');
-            } catch {
-                this.senarsBridge = null;
-            }
-        }
-
+        await Promise.all([
+            this._initializeSeNARS(),
+            this._initializeTensorBackend()
+        ]);
         this._initializeMettaIntegration();
 
-        if (!this.config.tensorBackend) {
-            try {
-                const { torch } = await import('@senars/tensor');
-                this.tensorBridge.backend = torch;
-            } catch {
-                // Fallback to existing backend or native if available
-            }
-        } else {
-             this.tensorBridge.backend = this.config.tensorBackend;
-        }
-
         this.emit('initialized', {
-            senars: !!this.senarsBridge,
+            senars: !!this.senars,
             metta: !!this.metta,
-            tensor: !!this.tensorBridge.backend
+            tensor: !!this.tensorBridge
         });
+    }
+
+    async _initializeSeNARS() {
+        if (!this.config.useSeNARS) return;
+
+        try {
+            const { SeNARS } = await import('@senars/core');
+            this.senars = new SeNARS(this.config.senarsConfig);
+            await this.senars.start();
+
+            if (this.metta) {
+                const { SeNARSBridge: MettaSeNARSBridge } = await import('@senars/metta');
+                this.mettaBridge = new MettaSeNARSBridge(this.senars.nar, this.metta);
+                this.mettaBridge.registerPrimitives(this.metta.ground);
+            }
+
+            this.emit('senars:initialized');
+        } catch (e) {
+            console.warn('SeNARS initialization failed:', e);
+            this.senars = null;
+        }
     }
 
     _initializeMettaIntegration() {
@@ -96,28 +99,43 @@ export class NeuroSymbolicBridge extends Component {
             },
             'tensor-lift': (data, shape) => {
                 this.metrics.increment('tensorOperations');
-                return { type: 'tensor', value: new SymbolicTensor(Array.from(data), Array.from(shape), { requiresGrad: this.config.gradientTracking }) };
+                return {
+                    type: 'tensor',
+                    value: new SymbolicTensor(
+                        Array.from(data),
+                        Array.from(shape),
+                        { requiresGrad: this.config.gradientTracking }
+                    )
+                };
             },
-            'tensor-ground': (symbolicTensor, shape) => {
-                this.metrics.increment('tensorOperations');
-                return { type: 'tensor', value: this.tensorBridge.groundToTensor(symbolicTensor, Array.from(shape)) };
-            },
-            'learn-cause': async (cause, effect, context) => {
-                await this.causalReasoner.learn(cause.toString(), effect.toString(), context?.toString() ?? null);
-                return { type: 'ok', value: true };
-            }
+            'tensor-ground': (symbolicTensor, shape) =>
+                this.tensorBridge.groundToTensor(symbolicTensor, Array.from(shape))
         };
 
         Object.entries(registrations).forEach(([name, fn]) => ground.register(name, fn));
     }
 
+    async _initializeTensorBackend() {
+        try {
+            const tensor = await import('@senars/tensor');
+            if (tensor.torch) {
+                this.tensorBridge.backend = tensor.torch;
+            }
+        } catch {
+            // Backend unavailable - will use fallback operations
+        }
+    }
+
+    /**
+     * Input Narsese statement to SeNARS or local belief base
+     */
     async inputNarsese(narsese, options = {}) {
         const { priority = this.config.defaultPriority, confidence = this.config.defaultConfidence } = options;
         this.metrics.increment('narseseConversions');
 
-        if (this.senarsBridge) {
+        if (this.senars) {
             try {
-                return this.senarsBridge.nar.input(narsese);
+                return this.senars.nar.input(narsese);
             } catch (e) {
                 handleError(e, { narsese });
             }
@@ -128,6 +146,9 @@ export class NeuroSymbolicBridge extends Component {
         return { success: true, belief };
     }
 
+    /**
+     * Ask question to SeNARS or local belief base
+     */
     async askNarsese(question, options = {}) {
         const { cycles = this.config.maxReasoningCycles, timeout = this.config.defaultTimeout } = options;
         this.metrics.increment('narseseConversions');
@@ -141,9 +162,9 @@ export class NeuroSymbolicBridge extends Component {
             this.metrics.increment('cacheMisses');
         }
 
-        if (this.senarsBridge) {
+        if (this.senars) {
             try {
-                const result = await this.senarsBridge.ask(question, { cycles });
+                const result = await this.senars.ask(question, { cycles });
                 if (this.config.cacheInference) {
                     this.inferenceCache.set(question, { result, timestamp: Date.now() });
                 }
@@ -157,7 +178,7 @@ export class NeuroSymbolicBridge extends Component {
     }
 
     _fallbackAsk(question) {
-        const parsed = NarseseUtils.parseQuestion(question);
+        const parsed = this._parseQuestion(question);
         if (!parsed) return null;
 
         const { subject, predicate } = parsed;
@@ -169,14 +190,21 @@ export class NeuroSymbolicBridge extends Component {
         return null;
     }
 
+    _parseQuestion(question) {
+        const match = question.match(/<(\w+)\s*-->\s*(\w+)>/);
+        return match ? { subject: match[1], predicate: match[2] } : null;
+    }
+
+    /**
+     * Achieve goal via SeNARS planning or fallback
+     */
     async achieveGoal(goal, options = {}) {
         const { cycles = this.config.maxReasoningCycles, imagination = true } = options;
-
         this.goalStack.push({ goal, timestamp: Date.now() });
 
-        if (this.senarsBridge) {
+        if (this.senars) {
             try {
-                return await this.senarsBridge.achieve(goal, { cycles });
+                return await this.senars.achieve(goal, { cycles });
             } catch (e) {
                 handleError(e, { goal });
             }
@@ -185,6 +213,9 @@ export class NeuroSymbolicBridge extends Component {
         return { success: true, goal, planned: false };
     }
 
+    /**
+     * Execute MeTTa program with optional context
+     */
     async executeMetta(program, options = {}) {
         const { timeout = this.config.defaultTimeout, context = {} } = options;
         this.metrics.increment('mettaExecutions');
@@ -204,76 +235,92 @@ export class NeuroSymbolicBridge extends Component {
         }
     }
 
-    narseseToMetta(narsese) {
-        return NarseseUtils.toMetta(narsese);
+    /**
+     * Convert Narsese to MeTTa expression
+     */
+    async narseseToMetta(narsese) {
+        const { toMetta } = await import('../utils/NarseseUtils.js');
+        return toMetta(narsese);
     }
 
-    mettaToNarsese(mettaExpr) {
-        return NarseseUtils.toNarsese(mettaExpr);
+    /**
+     * Convert MeTTa expression to Narsese
+     */
+    async mettaToNarsese(mettaExpr) {
+        const { toNarsese } = await import('../utils/NarseseUtils.js');
+        return toNarsese(mettaExpr);
     }
 
+    /**
+     * Lift tensor to symbolic representation
+     */
     liftToSymbols(tensor, options = {}) {
         const { threshold = this.config.defaultThreshold, annotate = true } = options;
         this.metrics.increment('tensorOperations');
 
         const symbols = this.tensorBridge.liftToSymbols(tensor, { threshold });
 
-        // If returns array of symbols, wrap in SymbolicTensor-like structure or just return
-        // Assuming symbols is Array<{ index, symbol, confidence }> based on usage
         if (Array.isArray(symbols) && annotate && this.metta) {
-            // Annotations not easily attachable to array if it's not an object
+            symbols.forEach(sym => {
+                this.metta.ground?.register(sym.symbol, () => sym.value);
+            });
         }
 
         return symbols;
     }
 
+    /**
+     * Ground symbols to tensor
+     */
     groundToTensor(symbols, shape, options = {}) {
-        const { interpolate = true } = options;
         this.metrics.increment('tensorOperations');
-        return this.tensorBridge.groundToTensor(symbols, shape, { interpolate });
+        return this.tensorBridge.groundToTensor(symbols, shape, { interpolate: options.interpolate ?? true });
     }
 
-    observationToNarsese(observation, options = {}) {
+    /**
+     * Convert observation to Narsese
+     */
+    async observationToNarsese(observation, options = {}) {
         const { threshold = this.config.defaultThreshold, predicates = [], prefix = 'obs', simple = false } = options;
         this.metrics.increment('narseseConversions');
+
+        if (simple) {
+            const { observationToNarsese } = await import('../utils/NarseseUtils.js');
+            return observationToNarsese(observation, prefix);
+        }
 
         const data = observation instanceof SymbolicTensor
             ? Array.from(observation.data)
             : Array.isArray(observation) ? observation : [observation];
 
-        // Simple encoding: (0.1 0.2 ...) --> obs
-        if (simple) {
-            return NarseseUtils.observationToNarsese(observation, prefix);
-        }
-
-        const tensor = new SymbolicTensor(data, [data.length]);
-        const symbols = this.liftToSymbols(tensor, { threshold });
-
-        // Handle array of symbols
-        const symbolList = Array.isArray(symbols) ? symbols : Array.from(symbols.symbols || []);
+        const symTensor = new SymbolicTensor(data, [data.length]);
+        const symbols = this.liftToSymbols(symTensor, { threshold });
+        const symbolList = Array.isArray(symbols) ? symbols : Array.from(symbols.symbols ?? []);
 
         return symbolList
             .map((item, i) => {
-                // item might be { index, symbol, confidence } or [index, { ... }]
                 const index = item.index ?? i;
-                const confidence = item.confidence ?? 1.0;
                 const predicate = predicates[index] ?? `feature_${index}`;
-                // Only include if confidence is high enough (already filtered by liftToSymbols usually)
                 return `<${predicate} --> ${prefix}>. :|:`;
             })
             .join('\n');
     }
 
-    actionToNarsese(action, options = {}) {
-        const { prefix = 'op' } = options;
-        return NarseseUtils.actionToNarsese(action, prefix);
+    /**
+     * Convert action to Narsese
+     */
+    async actionToNarsese(action, options = {}) {
+        const { actionToNarsese } = await import('../utils/NarseseUtils.js');
+        return actionToNarsese(action, options.prefix ?? 'op');
     }
 
+    /**
+     * Convert Narsese to tensor
+     */
     narseseToTensor(narsese, dimensions, options = {}) {
-        const { encoding = 'one-hot' } = options;
         this.metrics.increment('narseseConversions');
-
         const tensor = new Float32Array(dimensions);
+
         for (const statement of narsese.split('\n').filter(s => s.trim())) {
             tensor[this._hashStatement(statement, dimensions)] = 1.0;
         }
@@ -290,6 +337,9 @@ export class NeuroSymbolicBridge extends Component {
         return Math.abs(hash) % dimensions;
     }
 
+    /**
+     * Learn causal relation from transition
+     */
     async learnCausal(transition) {
         const { state, action, nextState, reward } = transition;
 
@@ -299,45 +349,45 @@ export class NeuroSymbolicBridge extends Component {
         const nextStateTensor = new SymbolicTensor(Array.from(nextState), [nextState.length]);
         const nextStateSymbols = this.liftToSymbols(nextStateTensor);
 
-        await this.causalReasoner.learn(
-            JSON.stringify(stateSymbols),
-            JSON.stringify(nextStateSymbols),
-            JSON.stringify({ action, reward })
-        );
-
-        // Assume liftToSymbols populates tensor.symbols if possible, otherwise construct term manually
-        // If stateSymbols is just array, we can't use toNarseseTerm directly if it's on the tensor
-        // We will assume stateTensor was mutated by liftToSymbols or use stateSymbols to construct Narsese
-        const cause = stateTensor.symbols?.size > 0 ? stateTensor.toNarseseTerm('state') : `state_(${stateSymbols.map(s => s.symbol).join('_')})`;
-        const effect = nextStateTensor.symbols?.size > 0 ? nextStateTensor.toNarseseTerm('next_state') : `next_state_(${nextStateSymbols.map(s => s.symbol).join('_')})`;
+        const cause = stateSymbols.map(s => s.symbol).join('_');
+        const effect = nextStateSymbols.map(s => s.symbol).join('_');
 
         await this.inputNarsese(`<<${cause} &/ ^${action}> ==> ${effect}>.`);
+        return { learned: true, cause, effect };
     }
 
+    /**
+     * Predict next state given current state and action
+     */
     predictCausal(currentState, action) {
         const stateTensor = new SymbolicTensor(Array.from(currentState), [currentState.length]);
         const stateSymbols = this.liftToSymbols(stateTensor);
-        const causes = this.causalReasoner.queryCauses(JSON.stringify(stateSymbols));
 
         return {
-            predictedState: causes,
-            confidence: causes.length > 0 ? 0.8 : 0.5,
+            predictedState: stateSymbols,
+            confidence: stateSymbols.length > 0 ? 0.8 : 0.5,
             symbolic: stateSymbols
         };
     }
 
+    /**
+     * Perceive-Reason-Act cycle
+     */
     async perceiveReasonAct(observation, options = {}) {
         const { useNARS = true, useMeTTa = true, useTensor = true, exploration = this.config.explorationRate, goal = null } = options;
 
-        const tensorObs = new SymbolicTensor(Array.isArray(observation) ? observation : Array.from(observation), [observation.length]);
+        const tensorObs = new SymbolicTensor(
+            Array.isArray(observation) ? observation : Array.from(observation),
+            [observation.length]
+        );
         const symbolic = this.liftToSymbols(tensorObs);
-        const narsese = this.observationToNarsese(observation);
+        const narsese = await this.observationToNarsese(observation);
 
         let reasoningResult = null;
-        if (useNARS && this.senarsBridge) {
+        if (useNARS && this.senars) {
             await this.inputNarsese(narsese);
             if (goal) await this.inputNarsese(goal);
-            await this.senarsBridge?.runCycles(50);
+            await this.senars.runCycles(50);
             if (goal) {
                 reasoningResult = await this.askNarsese('<(?action) --> candidate_action>?');
             }
@@ -350,7 +400,6 @@ export class NeuroSymbolicBridge extends Component {
         }
 
         const action = this._selectAction(reasoningResult, policyResult, exploration);
-
         return { action, reasoning: reasoningResult, policy: policyResult, symbolic, narsese };
     }
 
@@ -373,17 +422,22 @@ export class NeuroSymbolicBridge extends Component {
         return Math.floor(Math.random() * this.config.actionSpaceSize);
     }
 
+    /**
+     * Get bridge state
+     */
     getState() {
         return {
             beliefs: Array.from(this.beliefBase.values()),
             goals: this.goalStack,
-            causalGraph: this.causalReasoner.getGraph(),
             metrics: this.metrics.getAll(),
-            senarsActive: !!this.senarsBridge,
+            senarsActive: !!this.senars,
             mettaActive: !!this.metta
         };
     }
 
+    /**
+     * Clear bridge state
+     */
     clear() {
         this.inferenceCache.clear();
         this.goalStack = [];
@@ -391,7 +445,7 @@ export class NeuroSymbolicBridge extends Component {
     }
 
     async onShutdown() {
-        await this.senarsBridge?.stop();
+        await this.senars?.stop();
         this.clear();
     }
 

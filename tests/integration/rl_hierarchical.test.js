@@ -1,7 +1,7 @@
 
 import { NeuroSymbolicAgent } from '../../rl/src/agents/NeuroSymbolicAgent.js';
 import { GridWorld } from '../../rl/src/environments/GridWorld.js';
-import { Skill } from '../../rl/src/core/Skill.js';
+import { Skill } from '../../rl/src/skills/SkillDiscovery.js';
 
 describe('RL Hierarchical Integration Tests', () => {
 
@@ -14,10 +14,12 @@ describe('RL Hierarchical Integration Tests', () => {
 
         // 1. Define a Skill
         // A "MoveRight" skill that always returns action 1
-        const moveRightSkill = new Skill('move_right', {
-            action: () => 1, // Action 1 is Right in GridWorld
-            precondition: (obs) => true, // Always applicable
-            termination: (obs) => false // Never terminates (for this test)
+        const moveRightSkill = new Skill({
+            id: 'move_right',
+            name: 'MoveRight',
+            policy: () => 1, // Policy function that returns action 1 (Right in GridWorld)
+            precondition: 'true', // Always applicable
+            terminationCondition: () => false // Never terminates (for this test)
         });
 
         // 2. Register Skill
@@ -58,7 +60,7 @@ describe('RL Hierarchical Integration Tests', () => {
 
         // Check internal state (optional, but good for debugging)
         expect(agent.hierarchical.currentOption).toBeDefined();
-        expect(agent.hierarchical.currentOption.name).toBe('move_right');
+        expect(agent.hierarchical.currentOption.name).toBe('MoveRight');
     });
 
     test('Agent falls back if no skill found', async () => {

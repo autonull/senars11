@@ -6,36 +6,34 @@ const DEFAULTS = {
     retry: 0
 };
 
-const PipelineStrategies = {
-    async executeSequential(stages, input, context, executor) {
+const PipelineExecutor = {
+    async executeSequential(stages, input, context, engine) {
         let current = input;
         const results = [];
 
         for (const stage of stages) {
-            if (stage.condition && !await executor.evaluateCondition(stage.condition, current, context)) {
+            if (stage.condition && !(await engine.evaluateCondition(stage.condition, current, context))) {
                 results.push({ stage: stage.id, skipped: true });
                 continue;
             }
 
-            const result = await executor.executeStage(stage, current, context);
-            current = executor.transformResult(result, stage, current);
+            const result = await engine.executeStage(stage, current, context);
+            current = engine.transformResult(result, stage, current);
             results.push({ stage: stage.id, result: current });
         }
 
         return { results, output: current };
     },
 
-    async executeParallel(components, input, context, executor) {
-        const results = await Promise.allSettled(
-            components.map(comp => executor.executeComponent(comp, input, context, {}))
-        );
-
-        return results.map((result, idx) => ({
+    executeParallel(components, input, context, engine) {
+        return Promise.allSettled(
+            components.map(comp => engine.executeComponent(comp, input, context, {}))
+        ).then(results => results.map((result, idx) => ({
             index: idx,
             success: result.status === 'fulfilled',
             value: result.status === 'fulfilled' ? result.value : null,
             error: result.status === 'rejected' ? result.reason : null
-        }));
+        })));
     }
 };
 
@@ -79,23 +77,13 @@ export class CompositionEngine {
         const startTime = performance.now();
 
         try {
-            const { results, output } = await PipelineStrategies.executeSequential(
+            const { results, output } = await PipelineExecutor.executeSequential(
                 pipeline.stages, input, context, this
             );
 
-            return {
-                success: true,
-                output,
-                results,
-                duration: performance.now() - startTime
-            };
+            return { success: true, output, results, duration: performance.now() - startTime };
         } catch (error) {
-            return {
-                success: false,
-                error: error.message,
-                results: [],
-                duration: performance.now() - startTime
-            };
+            return { success: false, error: error.message, results: [], duration: performance.now() - startTime };
         } finally {
             this.executing.delete(name);
         }
@@ -109,7 +97,7 @@ export class CompositionEngine {
         }
 
         if (stage.parallel && Array.isArray(component)) {
-            return PipelineStrategies.executeParallel(component, input, context, this);
+            return PipelineExecutor.executeParallel(component, input, context, this);
         }
 
         return this.executeComponent(component, input, context, stage.config);
@@ -120,24 +108,25 @@ export class CompositionEngine {
             await component.initialize();
         }
 
-        const method = config.method || 'act';
+        const method = config.method ?? 'act';
 
         if (typeof component[method] !== 'function') {
             throw new Error(`Component does not have method: ${method}`);
         }
 
-        const timeout = config.timeout || this.config.timeout;
+        const timeout = config.timeout ?? this.config.timeout;
         const promise = component[method].call(component, input, context);
 
         return Promise.race([
             promise,
-            new Promise((_, reject) =>
-                setTimeout(() => reject(new Error(`Timeout after ${timeout}ms`)), timeout)
-            )
+            new Promise((_, reject) => {
+                const timer = setTimeout(() => reject(new Error(`Timeout after ${timeout}ms`)), timeout);
+                timer.unref();
+            })
         ]);
     }
 
-    async evaluateCondition(condition, input, context) {
+    evaluateCondition(condition, input, context) {
         if (typeof condition === 'function') return condition(input, context);
         if (typeof condition === 'boolean') return condition;
         return true;

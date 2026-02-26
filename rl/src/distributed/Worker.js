@@ -1,4 +1,5 @@
 import { parentPort, workerData } from 'worker_threads';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const WORKER_DEFAULTS = {
     maxSteps: 500,
@@ -13,8 +14,6 @@ const TASK_DEFAULTS = {
     maxSteps: 500,
     envConfig: {}
 };
-
-const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
 
 const TaskExecutors = {
     async rollout(env, policy, steps, envConfig, task) {

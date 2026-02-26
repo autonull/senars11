@@ -28,7 +28,6 @@ export class ToolIntegration extends BaseComponent {
         if (this.reasoningCore) {
             await this.initializeTools();
         }
-        this.logInfo('ToolIntegration initialized');
     }
 
     /**

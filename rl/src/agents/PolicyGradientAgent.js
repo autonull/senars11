@@ -1,94 +1,52 @@
-import { RLAgent } from '../core/RLAgent.js';
+/**
+ * Policy Gradient Agent
+ * 
+ * Implements REINFORCE algorithm with baseline.
+ * 
+ * @implements {import('../interfaces/IAgent.js').IAgent}
+ */
+import { NeuralAgent } from './NeuralAgent.js';
 import { Tensor } from '@senars/tensor';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import { deepMergeConfig } from '../utils/ConfigHelper.js';
+import { AgentFactoryUtils, buildNetwork } from './QNetwork.js';
+import { NetworkBuilder } from '../utils/index.js';
 import { PolicyUtils } from '../utils/PolicyUtils.js';
 
-const DEFAULTS = {
+const PG_DEFAULTS = {
     lr: 0.01,
     gamma: 0.99,
     hiddenSize: 32
 };
 
-const AgentUtils = {
-    buildNetwork(obsDim, hiddenSize, outputDim) {
-        const w1 = Tensor.zeros([hiddenSize, obsDim]);
-        const b1 = Tensor.zeros([hiddenSize]);
-        const w2 = Tensor.zeros([outputDim, hiddenSize]);
-        const b2 = Tensor.zeros([outputDim]);
-
-        [w1, b1, w2, b2].forEach(p => p.requiresGrad = true);
-
-        return { w1, b1, w2, b2, params: [w1, b1, w2, b2] };
-    },
-
-    forward(model, obs, outputDim) {
-        const x = new Tensor(obs, { requiresGrad: false });
-        const xCol = x.reshape([x.shape[0], 1]);
-        const h = model.w1.matmul(xCol).add(model.b1.reshape([model.b1.shape[0], 1])).relu();
-        return model.w2.matmul(h).add(model.b2.reshape([outputDim, 1])).reshape([outputDim]);
-    },
-
-    sampleContinuous(mean, std = 1.0) {
-        const noise = Tensor.randn(mean.shape);
-        return mean.add(noise);
-    },
-
-    computeLogProbDiscrete(logits, action) {
-        const maskData = new Array(logits.shape[0]).fill(0);
-        maskData[action] = 1;
-        return logits.softmax().log().mul(new Tensor(maskData)).sum();
-    },
-
-    computeLogProbContinuous(action, mean, std = 1.0) {
-        const diff = action.sub(mean);
-        return diff.pow(2).mul(-0.5).sum();
-    },
-
-    computeReturns(rewards, gamma) {
-        const returns = [];
-        let R = 0;
-        for (let i = rewards.length - 1; i >= 0; i--) {
-            R = rewards[i] + gamma * R;
-            returns.unshift(R);
-        }
-        return returns;
-    },
-
-    updateParams(params, lr) {
-        params.forEach(p => {
-            if (p.grad) {
-                p.data.forEach((_, j) => {
-                    p.data[j] -= lr * p.grad[j];
-                });
-                p.grad.fill(0);
-            }
-        });
-    }
-};
-
-export class PolicyGradientAgent extends RLAgent {
+/**
+ * Policy Gradient Agent (REINFORCE)
+ */
+export class PolicyGradientAgent extends NeuralAgent {
     constructor(env, config = {}) {
-        super(env);
-        this.config = mergeConfig(DEFAULTS, config);
+        super(env, deepMergeConfig(PG_DEFAULTS, config));
 
         this.logProbs = [];
         this.rewards = [];
+    }
+
+    async initialize() {
+        await super.initialize();
         this._initNetwork();
     }
 
     _initNetwork() {
-        const obsDim = this.env.observationSpace.shape[0];
-        const actionSpace = this.env.actionSpace;
-
-        this.network = AgentUtils.buildNetwork(obsDim, this.config.hiddenSize,
-            actionSpace.type === 'Discrete' ? actionSpace.n : actionSpace.shape[0]
-        );
+        super._initNetwork();
         this.outputDim = this.network.w2.shape[0];
         this.params = this.network.params;
     }
 
+    /**
+     * Select action using policy
+     * @param {*} observation - Current observation
+     * @returns {*} Selected action
+     */
     act(observation) {
-        const logits = AgentUtils.forward(this.network, observation, this.outputDim);
+        const logits = NetworkBuilder.forward(this.network, observation, this.outputDim);
 
         if (this.env.actionSpace.type === 'Discrete') {
             const probs = logits.softmax();
@@ -97,38 +55,76 @@ export class PolicyGradientAgent extends RLAgent {
             return action;
         }
 
-        const actionTensor = AgentUtils.sampleContinuous(logits);
+        const actionTensor = this._sampleContinuous(logits);
         this.logProbs.push({ distParams: { mean: logits, std: 1.0 }, action: actionTensor, type: 'continuous' });
         return actionTensor.data;
     }
 
-    learn(observation, action, reward, nextObservation, done) {
+    _sampleContinuous(mean) {
+        const noise = Tensor.randn(mean.shape);
+        return mean.add(noise);
+    }
+
+    /**
+     * Learn from experience (episodic update)
+     * @param {*} observation - Current observation
+     * @param {*} action - Action taken
+     * @param {number} reward - Reward received
+     * @param {*} nextObservation - Next observation
+     * @param {boolean} done - Whether episode terminated
+     */
+    async learn(observation, action, reward, nextObservation, done) {
         this.rewards.push(reward);
         if (done) {
-            this._updatePolicy();
+            await this._updatePolicy();
             this.logProbs = [];
             this.rewards = [];
         }
     }
 
-    _updatePolicy() {
-        const returns = AgentUtils.computeReturns(this.rewards, this.config.gamma);
-
+    async _updatePolicy() {
+        const returns = this._computeReturns(this.rewards, this.config.gamma);
         let loss = new Tensor([0], { requiresGrad: true });
 
         this.logProbs.forEach((item, i) => {
             const R_t = returns[i];
-            let logProb;
-
-            if (item.type === 'discrete') {
-                logProb = AgentUtils.computeLogProbDiscrete(item.logits, item.action);
-            } else {
-                logProb = AgentUtils.computeLogProbContinuous(item.action, item.distParams.mean, item.distParams.std);
-            }
+            const logProb = item.type === 'discrete'
+                ? this._computeLogProbDiscrete(item.logits, item.action)
+                : this._computeLogProbContinuous(item.action, item.distParams.mean, item.distParams.std);
             loss = loss.add(logProb.mul(-R_t));
         });
 
         loss.backward();
-        AgentUtils.updateParams(this.params, this.config.lr);
+        this._updateParams(this.params, this.config.lr);
+    }
+
+    _computeLogProbDiscrete(logits, action) {
+        const maskData = new Array(logits.shape[0]).fill(0);
+        maskData[action] = 1;
+        return logits.softmax().log().mul(new Tensor(maskData)).sum();
+    }
+
+    _computeLogProbContinuous(action, mean, std = 1.0) {
+        const diff = action.sub(mean);
+        return diff.pow(2).mul(-0.5).sum();
+    }
+
+    _computeReturns(rewards, gamma) {
+        const returns = [];
+        let R = 0;
+        for (let i = rewards.length - 1; i >= 0; i--) {
+            R = rewards[i] + gamma * R;
+            returns.unshift(R);
+        }
+        return returns;
+    }
+
+    _updateParams(params, lr) {
+        params.forEach(p => {
+            if (p.grad) {
+                p.data.forEach((_, j) => { p.data[j] -= lr * p.grad[j]; });
+                p.grad.fill(0);
+            }
+        });
     }
 }

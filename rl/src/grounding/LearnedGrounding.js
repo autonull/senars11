@@ -1,12 +1,11 @@
 import { Grounding } from '../core/Grounding.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const GROUNDING_DEFAULTS = {
     precision: 10,
     prefix: 'state',
     valuePrefix: 'val'
 };
-
-const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
 
 const GroundingUtils = {
     liftNumber(val, precision = 10, prefix = 'val') {

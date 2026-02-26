@@ -1,25 +1,36 @@
+/**
+ * Random Agent
+ * 
+ * Takes random actions. Useful for baseline comparison and data collection.
+ * 
+ * @implements {import('../interfaces/IAgent.js').IAgent}
+ */
 import { RLAgent } from '../core/RLAgent.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import { deepMergeConfig } from '../utils/ConfigHelper.js';
+import { AgentFactoryUtils } from './QNetwork.js';
 
-const RANDOM_AGENT_DEFAULTS = {
-    seed: null
-};
-
+/**
+ * Random Agent - Takes random actions
+ */
 export class RandomAgent extends RLAgent {
     constructor(env, config = {}) {
-        super(env);
-        this.config = mergeConfig(RANDOM_AGENT_DEFAULTS, config);
+        const mergedConfig = deepMergeConfig({ seed: null }, config);
+        super(env, mergedConfig);
         if (this.config.seed !== null) {
-            this._seededRandom = this._createSeededRandom(this.config.seed);
+            this._random = AgentFactoryUtils.createSeededRandom(this.config.seed);
         }
     }
 
+    /**
+     * Select random action
+     * @param {*} observation - Current observation (ignored)
+     * @returns {*} Random action from action space
+     */
     act(observation) {
         const actionSpace = this.env.actionSpace;
         if (actionSpace.type === 'Discrete') {
             return Math.floor(this._random() * actionSpace.n);
         }
-
         if (actionSpace.type === 'Box') {
             const { shape, low, high } = actionSpace;
             return Array.from({ length: shape[0] }, (_, i) => {
@@ -31,19 +42,14 @@ export class RandomAgent extends RLAgent {
         throw new Error('Unknown action space type');
     }
 
-    learn(observation, action, reward, nextObservation, done) {
-        // Random agent doesn't learn
+    /**
+     * Random agent doesn't learn
+     */
+    learn() {
+        // No-op
     }
 
     _random() {
-        return this._seededRandom ? this._seededRandom() : Math.random();
-    }
-
-    _createSeededRandom(seed) {
-        let state = seed;
-        return () => {
-            state = (state * 1103515245 + 12345) & 0x7fffffff;
-            return state / 0x7fffffff;
-        };
+        return this._random ?? Math.random;
     }
 }

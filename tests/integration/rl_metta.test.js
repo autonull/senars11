@@ -10,7 +10,7 @@ describe('RL MeTTa Integration Tests', () => {
         const strategyPath = 'rl/src/strategies/q-learning.metta';
         const agent = new MeTTaAgent(env, strategyPath);
 
-        await agent._ensureInitialized();
+        await agent.initialize();
 
         // 1. Act
         const obs = env.reset().observation;
@@ -36,7 +36,7 @@ describe('RL MeTTa Integration Tests', () => {
             (= (agent-learn $s $a $r $ns $d) (nop))
         `;
         await agent.metta.run(code);
-        agent.initialized = true;
+        await agent.initialize();
 
         const action = await agent.act([0,0]);
         expect(action).toBe(2);

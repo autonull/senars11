@@ -1,8 +1,10 @@
-import { SeNARS } from '@senars/core';
-import { SeNARSBridge as MettaToSeNARSBridge } from '@senars/metta';
+/**
+ * SeNARS Bridge
+ * Integration layer for SeNARS reasoning engine
+ */
 import { mergeConfig } from '../utils/ConfigHelper.js';
 
-const BRIDGE_DEFAULTS = {
+const DEFAULTS = {
     cyclesPerStep: 1,
     maxQuestions: 10,
     maxGoals: 10,
@@ -12,8 +14,8 @@ const BRIDGE_DEFAULTS = {
 export class SeNARSBridge {
     constructor(agent, config = {}) {
         this.agent = agent;
-        this.config = mergeConfig(BRIDGE_DEFAULTS, config);
-        this.senars = new SeNARS(this.config);
+        this.config = mergeConfig(DEFAULTS, config);
+        this.senars = null;
         this.mettaBridge = null;
         this.initialized = false;
     }
@@ -21,13 +23,14 @@ export class SeNARSBridge {
     async initialize() {
         if (this.initialized) return;
 
+        const { SeNARS } = await import('@senars/core');
+        this.senars = new SeNARS(this.config);
         await this.senars.start();
 
-        if (this.agent?.metta && MettaToSeNARSBridge) {
+        if (this.agent?.metta) {
+            const { SeNARSBridge: MettaToSeNARSBridge } = await import('@senars/metta');
             this.mettaBridge = new MettaToSeNARSBridge(this.senars.nar, this.agent.metta);
-            if (this.agent.metta.ground) {
-                this.mettaBridge.registerPrimitives(this.agent.metta.ground);
-            }
+            this.mettaBridge.registerPrimitives(this.agent.metta.ground);
         }
 
         this.initialized = true;
@@ -58,10 +61,10 @@ export class SeNARSBridge {
     }
 
     reset() {
-        this.senars.reset();
+        this.senars?.reset();
     }
 
     async close() {
-        if (this.senars) await this.senars.dispose();
+        await this.senars?.dispose();
     }
 }

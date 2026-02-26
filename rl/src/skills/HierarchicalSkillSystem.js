@@ -3,169 +3,15 @@
  * Enables automatic discovery, learning, and composition of skills.
  */
 import { Component } from '../composable/Component.js';
-import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
-
-const SKILL_DEFAULTS = {
-    precondition: null,
-    termination: null,
-    policy: null,
-    initiationSet: null,
-    terminalSet: null,
-    subSkills: [],
-    abstractionLevel: 0,
-    discoverySource: 'manual',
-    experienceCapacity: 1000,
-    experiencePruneThreshold: 500
-};
-
-const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
-
-export class Skill extends Component {
-    constructor(name, config = {}) {
-        const mergedConfig = mergeConfig(SKILL_DEFAULTS, { name, ...config });
-        super({
-            name: mergedConfig.name,
-            precondition: mergedConfig.precondition,
-            termination: mergedConfig.termination,
-            policy: mergedConfig.policy,
-            initiationSet: mergedConfig.initiationSet,
-            terminalSet: mergedConfig.terminalSet,
-            subSkills: mergedConfig.subSkills,
-            abstractionLevel: mergedConfig.abstractionLevel,
-            discoverySource: mergedConfig.discoverySource,
-            ...config
-        });
-
-        this.experience = [];
-        this.successRate = 0;
-        this.usageCount = 0;
-        this.discoverySource = mergedConfig.discoverySource;
-        this.parent = null;
-        this.children = new Map();
-        this._capacity = mergedConfig.experienceCapacity;
-        this._pruneThreshold = mergedConfig.experiencePruneThreshold;
-    }
-
-    async onInitialize() {
-        this.children.forEach(skill => skill.initialize());
-        this.setState('active', false);
-        this.setState('currentStep', 0);
-    }
-
-    canInitiate(observation, context = {}) {
-        return this.config.initiationSet?.(observation, context)
-            ?? this.config.precondition?.(observation, context)
-            ?? true;
-    }
-
-    shouldTerminate(observation, context = {}) {
-        return this.config.termination?.(observation, context)
-            ?? this.config.terminalSet?.(observation, context)
-            ?? false;
-    }
-
-    async act(observation, context = {}) {
-        this.setState('active', true);
-        this.setState('currentStep', this.getState('currentStep') + 1);
-        this.usageCount++;
-
-        const action = this.config.policy
-            ? await this.config.policy(observation, context, this)
-            : this.children.size > 0
-                ? await this.executeHierarchical(observation, context)
-                : this.defaultPolicy(observation, context);
-
-        this.experience.push({
-            observation,
-            action,
-            context: { ...context },
-            step: this.getState('currentStep'),
-            timestamp: Date.now()
-        });
-
-        if (this.shouldTerminate(observation, context)) {
-            this.setState('active', false);
-            this.setState('currentStep', 0);
-        }
-
-        return action;
-    }
-
-    async executeHierarchical(observation, context) {
-        const selectedSkill = this.selectSubSkill(observation, context);
-        return selectedSkill?.act(observation, context) ?? this.defaultPolicy(observation, context);
-    }
-
-    selectSubSkill(observation, context) {
-        for (const skill of this.children.values()) {
-            if (skill.canInitiate(observation, context)) return skill;
-        }
-        return null;
-    }
-
-    defaultPolicy(observation, context) {
-        return Math.floor(Math.random() * (context.actionSpace ?? 2));
-    }
-
-    async learn(reward, done = false) {
-        if (done) {
-            const success = reward > 0;
-            this.successRate = (this.successRate * this.usageCount + (success ? 1 : 0)) / (this.usageCount + 1);
-        }
-
-        if (this.config.policy?.update) {
-            const lastExperience = this.experience.at(-1);
-            if (lastExperience) await this.config.policy.update(lastExperience, reward, done);
-        }
-
-        if (this.experience.length > this._capacity) {
-            this.experience = this.experience.slice(-this._pruneThreshold);
-        }
-    }
-
-    addSubSkill(name, skill) {
-        skill.parent = this;
-        this.children.set(name, skill);
-        return this;
-    }
-
-    removeSubSkill(name) {
-        const skill = this.children.get(name);
-        if (skill) {
-            skill.parent = null;
-            this.children.delete(name);
-        }
-        return this;
-    }
-
-    toSymbolicTerm() {
-        return {
-            type: 'Skill',
-            name: this.config.name,
-            abstractionLevel: this.config.abstractionLevel,
-            successRate: this.successRate,
-            usageCount: this.usageCount,
-            subSkills: Array.from(this.children.keys())
-        };
-    }
-
-    serialize() {
-        return {
-            ...super.serialize(),
-            experience: this.experience.slice(-100),
-            successRate: this.successRate,
-            usageCount: this.usageCount,
-            discoverySource: this.discoverySource
-        };
-    }
-}
+import { SymbolicTensor } from '@senars/tensor';
+import { mergeConfig } from '../utils/ConfigHelper.js';
+import { Skill } from './Skill.js';
 
 const SKILL_LIBRARY_DEFAULTS = {
     capacity: 100,
     similarityThreshold: 0.8,
     retrievalStrategy: 'relevance',
-    pruneRatio: 0.2,
-    experienceCapacity: 100
+    pruneRatio: 0.2
 };
 
 export class SkillLibrary extends Component {
@@ -326,6 +172,7 @@ export class SkillDiscoveryEngine extends Component {
         this.transitionGraph = new Map();
         this.bottlenecks = [];
         this.candidateSkills = [];
+        this.discoveryLog = [];
     }
 
     processTransition(transition) {
@@ -513,3 +360,7 @@ export class SkillDiscoveryEngine extends Component {
         };
     }
 }
+
+// Re-exports for convenience
+export { Skill } from './Skill.js';
+export { SkillDiscovery } from './SkillDiscovery.js';
