@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import {basename, dirname} from 'path';
-import {ArgParser} from './src/util/ArgParser.js';
-import {ToolSoftwareAnalyzer} from './src/tool/software/ToolSoftwareAnalyzer.js';
+import {ArgParser} from '../../core/src/util/ArgParser.js';
+import {ToolSoftwareAnalyzer} from '../../core/src/tool/software/ToolSoftwareAnalyzer.js';
 // Check if this script is being run directly (not imported)
 import {fileURLToPath} from 'url';
 

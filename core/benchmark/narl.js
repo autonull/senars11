@@ -17,7 +17,7 @@
  * 10: Compose - Novel combinations
  */
 
-import { SeNARS } from '../../core/src/SeNARS.js';
+import { SeNARS } from '../src/SeNARS.js';
 
 class NARLBenchmarkRunner {
     constructor() {

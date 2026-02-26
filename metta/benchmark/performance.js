@@ -3,7 +3,7 @@
  * Runs basic performance tests without Jest
  */
 
-import { MeTTaInterpreter } from '../core/src/metta/MeTTaInterpreter.js';
+import { MeTTaInterpreter } from '../src/MeTTaInterpreter.js';
 
 async function runBenchmark() {
     console.log('Starting MeTTa Performance Benchmark...');
