@@ -15,59 +15,169 @@ import * as UnifyCore from '../../../core/src/term/UnifyCore.js';
 
 /**
  * Safely substitute variables in a term with their bindings
- * Includes cycle detection to prevent stack overflow
- * @param {Atom} term The term to substitute into
+ * Iterative implementation to prevent stack overflow on deep structures
+ * @param {Atom} rootTerm The term to substitute into
  * @param {Object} bindings Map of variable names to values
- * @param {Set} visited Set of visited variables to detect cycles
+ * @param {Set} rootVisited Set of visited variables to detect cycles
  * @param {boolean} recursive Whether to recursively substitute values from bindings (default: true)
  */
-const safeSubstitute = (term, bindings, visited = new Set(), recursive = true) => {
-    if (!term) return term;
+const safeSubstitute = (rootTerm, bindings, rootVisited = new Set(), recursive = true) => {
+    // 1. Initial Check
+    if (!rootTerm) return rootTerm;
+    if (!bindings || Object.keys(bindings).length === 0) return rootTerm;
 
-    if (isVariable(term)) {
-        const name = term.name;
-        const val = bindings[name];
+    // 2. Setup Stack for Iterative Processing
+    // Commands: PROCESS (visit node), CONSTRUCT_EXPR (build expression), CONSTRUCT_LIST (build list)
+    const stack = [];
+    stack.push({ type: 'PROCESS', term: rootTerm, visited: rootVisited });
 
-        // Prevent immediate self-reference and cycles
-        if (val !== undefined && val !== term) {
-             if (!recursive) return val;
+    const resultStack = []; // Stores processed terms
 
-             if (visited.has(name)) return val;
+    while (stack.length > 0) {
+        const cmd = stack.pop();
 
-             const newVisited = new Set(visited);
-             newVisited.add(name);
-             return safeSubstitute(val, bindings, newVisited, recursive);
+        if (cmd.type === 'PROCESS') {
+            const { term, visited } = cmd;
+
+            if (!term) {
+                resultStack.push(term);
+                continue;
+            }
+
+            if (isVariable(term)) {
+                const name = term.name;
+                const val = bindings[name];
+
+                // Check if variable is bound and not to itself
+                if (val !== undefined && val !== term) {
+                     // Stop recursion if disabled or cycle detected
+                     if (!recursive || visited.has(name)) {
+                         resultStack.push(val);
+                     } else {
+                         // Recurse on value (push new PROCESS frame)
+                         // Cycle detection: add current var to visited
+                         const newVisited = new Set(visited);
+                         newVisited.add(name);
+                         stack.push({ type: 'PROCESS', term: val, visited: newVisited });
+                     }
+                } else {
+                    // Not bound or self-bound
+                    resultStack.push(term);
+                }
+                continue;
+            }
+
+            if (isExpression(term)) {
+                if (isList(term)) {
+                    // Handle lists: flatten -> process elements -> construct
+                    const { elements, tail } = flattenList(term);
+
+                    // Push CONSTRUCT command first (executed last)
+                    stack.push({
+                        type: 'CONSTRUCT_LIST',
+                        elemCount: elements.length,
+                        hasTail: !!tail,
+                        // Optimizing identity check would require storing original components
+                        // For lists, we'll rely on constructList's efficiency or structural eq later if needed
+                        original: term
+                    });
+
+                    // Push tail processing (if exists)
+                    if (tail) {
+                        stack.push({ type: 'PROCESS', term: tail, visited: new Set(visited) });
+                    }
+
+                    // Push elements in reverse order so they are processed first-to-last
+                    // (Stack LIFO: push C, push B, push A -> pop A, pop B, pop C)
+                    for (let i = elements.length - 1; i >= 0; i--) {
+                         stack.push({ type: 'PROCESS', term: elements[i], visited: new Set(visited) });
+                    }
+                    continue;
+                }
+
+                // Generic Expression
+                const op = term.operator;
+                const comps = term.components;
+
+                stack.push({
+                    type: 'CONSTRUCT_EXPR',
+                    original: term,
+                    compCount: comps.length,
+                    opIsObj: typeof op === 'object'
+                });
+
+                // Process components (reverse order)
+                for (let i = comps.length - 1; i >= 0; i--) {
+                     stack.push({ type: 'PROCESS', term: comps[i], visited: new Set(visited) });
+                }
+
+                // Process operator if it's an object (first to be popped/processed)
+                if (typeof op === 'object') {
+                    stack.push({ type: 'PROCESS', term: op, visited });
+                }
+                continue;
+            }
+
+            // Atomic / Symbol
+            resultStack.push(term);
+            continue;
         }
-        return term;
+
+        if (cmd.type === 'CONSTRUCT_EXPR') {
+            const { original, compCount, opIsObj } = cmd;
+
+            // Pop components + op from resultStack
+            const totalToPop = compCount + (opIsObj ? 1 : 0);
+            // Splice removes from end, returns array [op, c1, c2...]
+            const items = resultStack.splice(resultStack.length - totalToPop, totalToPop);
+
+            let newOp = original.operator;
+
+            if (opIsObj) {
+                newOp = items[0];
+                items.shift();
+            }
+
+            // items now contains components [c1, c2, ...]
+
+            // Check for identity to avoid allocation
+            const changed = (newOp !== original.operator) ||
+                            items.some((c, i) => c !== original.components[i]);
+
+            if (changed) {
+                resultStack.push(exp(newOp, items));
+            } else {
+                resultStack.push(original);
+            }
+            continue;
+        }
+
+        if (cmd.type === 'CONSTRUCT_LIST') {
+             const { elemCount, hasTail, original } = cmd;
+
+             const totalToPop = elemCount + (hasTail ? 1 : 0);
+             const items = resultStack.splice(resultStack.length - totalToPop, totalToPop);
+
+             let newTail = hasTail ? items.pop() : undefined;
+             const newElements = items;
+
+             // Check for identity
+             // Flatten original again to check identity is expensive but safeSubstitute did it implicitly via recursion return checks
+             const { elements: origElements, tail: origTail } = flattenList(original);
+             const changed = (newTail !== origTail) ||
+                             newElements.length !== origElements.length ||
+                             newElements.some((e, i) => e !== origElements[i]);
+
+             if (changed) {
+                 resultStack.push(constructList(newElements, newTail));
+             } else {
+                 resultStack.push(original);
+             }
+             continue;
+        }
     }
 
-    if (isExpression(term)) {
-        if (isList(term)) {
-            return substituteInList(term, bindings, visited, recursive);
-        }
-
-        const op = typeof term.operator === 'object'
-            ? safeSubstitute(term.operator, bindings, visited, recursive)
-            : term.operator;
-
-        const comps = term.components.map(c => safeSubstitute(c, bindings, new Set(visited), recursive));
-
-        if (op === term.operator && comps.every((c, i) => c === term.components[i])) return term;
-        return exp(op, comps);
-    }
-
-    return term;
-};
-
-/**
- * Helper function to substitute in list structures
- */
-const substituteInList = (term, bindings, visited, recursive) => {
-    const { elements, tail } = flattenList(term);
-    const subEls = elements.map(e => safeSubstitute(e, bindings, new Set(visited), recursive));
-    const subTail = safeSubstitute(tail, bindings, new Set(visited), recursive);
-    if (subTail === tail && subEls.every((e, i) => e === elements[i])) return term;
-    return constructList(subEls, subTail);
+    return resultStack[0];
 };
 
 /**

@@ -1,7 +1,7 @@
 /**
  * Example demonstrating the AgentBuilder functionality
  */
-import {AgentBuilder} from '../../core/src/agent/AgentBuilder.js';
+import {AgentBuilder} from '../../agent/src/AgentBuilder.js';
 
 async function main() {
     console.log('=== Creating agent with default configuration ===');

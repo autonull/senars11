@@ -10,9 +10,12 @@
  * @param {*} t2 - Second term
  * @param {Object} bindings - Current variable bindings
  * @param {Object} adapter - Adapter for term operations
+ * @param {number} depth - Recursion depth
  * @returns {Object|null} - Updated bindings or null if unification fails
  */
-export const unify = (t1, t2, bindings = {}, adapter) => {
+export const unify = (t1, t2, bindings = {}, adapter, depth = 0) => {
+    if (depth > 2000) return null; // Prevent stack overflow by failing unification on deep recursion
+
     const b1 = adapter.substitute(t1, bindings);
     const b2 = adapter.substitute(t2, bindings);
 
@@ -21,7 +24,7 @@ export const unify = (t1, t2, bindings = {}, adapter) => {
     if (adapter.isVariable(b2)) return bindVariable(b2, b1, bindings, adapter);
 
     if (adapter.isCompound(b1) && adapter.isCompound(b2)) {
-        return unifyCompounds(b1, b2, bindings, adapter);
+        return unifyCompounds(b1, b2, bindings, adapter, depth);
     }
 
     return null;
@@ -30,7 +33,7 @@ export const unify = (t1, t2, bindings = {}, adapter) => {
 /**
  * Unify two compound terms
  */
-const unifyCompounds = (t1, t2, bindings, adapter) => {
+const unifyCompounds = (t1, t2, bindings, adapter, depth) => {
     const comps1 = adapter.getComponents(t1);
     const comps2 = adapter.getComponents(t2);
 
@@ -41,11 +44,11 @@ const unifyCompounds = (t1, t2, bindings, adapter) => {
 
     // Unify operators instead of identity check to support variable operators
     // (e.g., in lambda patterns like ((λ $x $x) 5) where operator is an expression)
-    const opResult = unify(op1, op2, bindings, adapter);
+    const opResult = unify(op1, op2, bindings, adapter, depth + 1);
     if (!opResult) return null;
 
     return comps1.reduce((current, comp1, i) => {
-        return current ? unify(comp1, comps2[i], current, adapter) : null;
+        return current ? unify(comp1, comps2[i], current, adapter, depth + 1) : null;
     }, opResult);
 };
 
@@ -68,17 +71,24 @@ const bindVariable = (variable, term, bindings, adapter) => {
 
 /**
  * Occurs check: prevent infinite structures
+ * Iterative implementation to avoid stack overflow
  */
 const occursCheck = (varName, term, bindings, adapter) => {
-    const substituted = adapter.substitute(term, bindings);
+    const root = adapter.substitute(term, bindings);
+    const stack = [root];
 
-    if (adapter.isVariable(substituted)) {
-        return adapter.getVariableName(substituted) === varName;
-    }
+    while (stack.length > 0) {
+        const curr = stack.pop();
 
-    if (adapter.isCompound(substituted)) {
-        const comps = adapter.getComponents(substituted);
-        return comps.some(c => occursCheck(varName, c, bindings, adapter));
+        if (adapter.isVariable(curr)) {
+            if (adapter.getVariableName(curr) === varName) return true;
+        } else if (adapter.isCompound(curr)) {
+            const comps = adapter.getComponents(curr);
+            // Push in reverse order to process first component first (DFS)
+            for (let i = comps.length - 1; i >= 0; i--) {
+                stack.push(comps[i]);
+            }
+        }
     }
 
     return false;

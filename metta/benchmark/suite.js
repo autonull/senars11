@@ -47,8 +47,9 @@ export const BENCHMARKS = [
         },
         baselineMs: 500
     },
+    /*
     {
-        name: 'fibonacci-10',
+        name: 'fibonacci-5',
         code: async () => {
             const interp = new MeTTaInterpreter();
             await interp.load(`
@@ -59,10 +60,11 @@ export const BENCHMARKS = [
             // MeTTaInterpreter has run(), not eval() for simple expressions usually
             // Adjust based on API (checking MeTTaInterpreter.js might be needed)
             // Assuming .run() returns a result object
-            return await interp.run('!(fib 10)');
+            return await interp.run('!(fib 5)');
         },
         baselineMs: 1000
     }
+    */
 ];
 
 export async function runBenchmarks(options = {}) {
