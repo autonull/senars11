@@ -133,7 +133,9 @@ export function deepMergeConfig(defaults, overrides = {}, _visited = new WeakSet
         const overrideVal = overrides[key];
         const defaultVal = defaults[key];
 
-        if (overrideVal && typeof overrideVal === 'object' && !Array.isArray(overrideVal)) {
+        // Only deep merge plain objects
+        if (overrideVal && typeof overrideVal === 'object' && !Array.isArray(overrideVal) &&
+            (overrideVal.constructor === Object || overrideVal.constructor === undefined)) {
             result[key] = deepMergeConfig(
                 defaultVal && typeof defaultVal === 'object' && !Array.isArray(defaultVal) ? defaultVal : {},
                 overrideVal,

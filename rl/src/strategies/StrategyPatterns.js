@@ -8,6 +8,7 @@ export {
     ExplorationStrategy,
     EpsilonGreedy,
     BoltzmannExploration,
+    Softmax,
     UCB,
     ThompsonSampling,
     OptimizationStrategy,
@@ -17,5 +18,17 @@ export {
     SimilarityRetrieval,
     PriorityRetrieval,
     RecencyRetrieval,
-    CEMPlanning
-} from './PluginStrategySystem.js';
+    CEMPlanning,
+    ConstantLR,
+    StepDecayLR,
+    CosineAnnealingLR,
+    PotentialBasedShaping,
+    IntrinsicShaping,
+    RandomShooting,
+    UniformReplay,
+    PrioritizedReplay,
+    composeStrategies,
+    withRetry,
+    withCaching,
+    StrategyPresets
+} from '../plugins/PluginStrategySystem.js';
