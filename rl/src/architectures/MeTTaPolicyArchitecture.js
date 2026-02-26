@@ -2,15 +2,13 @@ import { Architecture } from '../core/Architecture.js';
 import { MeTTaInterpreter } from '@senars/metta';
 import { registerTensorPrimitives } from '../core/TensorPrimitives.js';
 import { NarseseUtils } from '../utils/NarseseUtils.js';
-import { PolicyUtils } from '../utils/PolicyUtils.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 import fs from 'fs';
 
 const METTA_POLICY_DEFAULTS = {
     policyScript: null,
     fallbackActionSpace: 2
 };
-
-const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
 
 export class MeTTaPolicyArchitecture extends Architecture {
     constructor(agent, config = {}) {

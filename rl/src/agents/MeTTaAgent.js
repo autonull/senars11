@@ -1,15 +1,13 @@
-
 import { RLAgent } from '../core/RLAgent.js';
 import { MeTTaInterpreter } from '@senars/metta';
 import { NarseseUtils } from '../utils/NarseseUtils.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 import fs from 'fs';
 
 const METTA_AGENT_DEFAULTS = {
     strategyPath: null,
     autoInitialize: true
 };
-
-const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
 
 export class MeTTaAgent extends RLAgent {
     constructor(env, config = {}) {

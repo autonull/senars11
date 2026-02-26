@@ -2,7 +2,7 @@ import { RLAgent } from '../core/RLAgent.js';
 import { ExperienceBuffer, CausalExperience } from '../experience/ExperienceBuffer.js';
 import { Tensor, AdamOptimizer } from '@senars/tensor';
 import { mergeConfig } from '../utils/ConfigHelper.js';
-import { PolicyUtils } from '../utils/PolicyUtils.js';
+import { NetworkBuilder } from '../utils/NetworkBuilder.js';
 
 const DEFAULTS = {
     gamma: 0.99,
@@ -14,55 +14,6 @@ const DEFAULTS = {
     hiddenSize: 64,
     epochs: 4,
     criticLossWeight: 0.5
-};
-
-const NetworkBuilder = {
-    buildMLP(input, hidden, output) {
-        const w1 = Tensor.randn([hidden, input], 0, 0.1);
-        const b1 = Tensor.zeros([hidden]);
-        const w2 = Tensor.randn([output, hidden], 0, 0.1);
-        const b2 = Tensor.zeros([output]);
-
-        [w1, b1, w2, b2].forEach(p => p.requiresGrad = true);
-
-        return { w1, b1, w2, b2, params: [w1, b1, w2, b2] };
-    },
-
-    forward(model, x) {
-        let input = x.ndim === 1 ? x.reshape([x.shape[0], 1]) : x.transpose();
-        const h = model.w1.matmul(input).add(model.b1.reshape([model.b1.shape[0], 1])).relu();
-        const out = model.w2.matmul(h).add(model.b2.reshape([model.b2.shape[0], 1]));
-        return x.ndim > 1 ? out.transpose() : out.reshape([out.shape[0]]);
-    },
-
-    sampleAction(probs) {
-        return PolicyUtils.sampleCategorical(probs.data);
-    },
-
-    createActionMask(actions, actionDim, batchLen) {
-        const maskData = new Array(batchLen * actionDim).fill(0);
-        actions.forEach((a, i) => {
-            maskData[i * actionDim + a] = 1;
-        });
-        return new Tensor(maskData).reshape([batchLen, actionDim]);
-    },
-
-    computeGAE(values, rewards, dones, gamma, lambda, lastNextVal = 0) {
-        const advantages = new Array(values.length).fill(0);
-        const returns = new Array(values.length).fill(0);
-
-        let lastGaeLam = 0;
-        for (let t = values.length - 1; t >= 0; t--) {
-            const nextVal = t === values.length - 1 ? lastNextVal : values[t + 1];
-            const mask = dones[t] ? 0 : 1;
-            const delta = rewards[t] + gamma * nextVal * mask - values[t];
-            lastGaeLam = delta + gamma * lambda * mask * lastGaeLam;
-            advantages[t] = lastGaeLam;
-            returns[t] = advantages[t] + values[t];
-        }
-
-        return { advantages, returns };
-    }
 };
 
 export class PPOAgent extends RLAgent {

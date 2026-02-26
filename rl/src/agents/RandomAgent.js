@@ -1,10 +1,9 @@
 import { RLAgent } from '../core/RLAgent.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const RANDOM_AGENT_DEFAULTS = {
     seed: null
 };
-
-const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
 
 export class RandomAgent extends RLAgent {
     constructor(env, config = {}) {

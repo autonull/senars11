@@ -36,10 +36,13 @@ export class SymbolicDifferentiation {
 
         for (let i = 0; i < param.data.length; i++) {
             const original = param.data[i];
-            param.data[i] = original + eps;
-            const lossPlus = typeof loss === 'function' ? loss() : loss.data ? loss.data[0] : loss;
-            grad[i] = (lossPlus - lossBase) / eps;
-            param.data[i] = original;
+            try {
+                param.data[i] = original + eps;
+                const lossPlus = typeof loss === 'function' ? loss() : loss.data ? loss.data[0] : loss;
+                grad[i] = (lossPlus - lossBase) / eps;
+            } finally {
+                param.data[i] = original;
+            }
         }
 
         if (this.config.trackProvenance) this.trackGradientFlow(param, grad, context);

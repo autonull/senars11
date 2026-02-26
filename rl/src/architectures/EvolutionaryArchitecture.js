@@ -1,14 +1,11 @@
 import { Architecture } from '../core/Architecture.js';
-import { MeTTaInterpreter } from '@senars/metta';
-import { registerTensorPrimitives } from '../core/TensorPrimitives.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const EVOLUTIONARY_DEFAULTS = {
     populationSize: 10,
     mutationRate: 0.1,
     elitismRatio: 0.2
 };
-
-const mergeConfig = (defaults, config) => ({ ...defaults, ...config });
 
 export class EvolutionaryArchitecture extends Architecture {
     constructor(agent, config = {}) {
