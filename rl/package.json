@@ -1,0 +1,11 @@
+{
+  "name": "@senars/rl",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.js",
+  "dependencies": {
+    "@senars/core": "^1.0.0",
+    "@senars/metta": "^1.0.0",
+    "@senars/tensor": "^1.0.0"
+  }
+}

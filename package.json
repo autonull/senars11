@@ -8,7 +8,8 @@
     "agent",
     "ui",
     "tensor",
-    "metta"
+    "metta",
+    "rl"
   ],
   "bin": {
     "senars": "./scripts/cli/senars.js"

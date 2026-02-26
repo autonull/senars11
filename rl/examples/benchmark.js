@@ -4,6 +4,7 @@ import { Continuous1D } from '../src/environments/Continuous1D.js';
 import { RandomAgent } from '../src/agents/RandomAgent.js';
 import { PolicyGradientAgent } from '../src/agents/PolicyGradientAgent.js';
 import { MeTTaAgent } from '../src/agents/MeTTaAgent.js';
+import { NeuroSymbolicAgent } from '../src/agents/NeuroSymbolicAgent.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -72,29 +73,33 @@ async function main() {
     console.log("=== GRID WORLD BENCHMARK ===");
 
     // Random
-    await benchmark('GridWorld', 'Random', RandomAgent, 5);
+    await benchmark('GridWorld', 'Random', RandomAgent, 1);
 
     // Policy Gradient
     // Note: PG might need more episodes to learn, but we keep it short for demo
-    await benchmark('GridWorld', 'PolicyGradient', PolicyGradientAgent, 5);
+    await benchmark('GridWorld', 'PolicyGradient', PolicyGradientAgent, 1);
 
     // MeTTa Q-Learning
     const qStrategy = path.join(__dirname, '../strategies/q-learning.metta');
-    await benchmark('GridWorld', 'MeTTa-Q', MeTTaAgent, 5, qStrategy);
+    await benchmark('GridWorld', 'MeTTa-Q', MeTTaAgent, 1, qStrategy);
 
     // MeTTa Neuro-Symbolic
     const nsStrategy = path.join(__dirname, '../strategies/neuro-symbolic.metta');
-    await benchmark('GridWorld', 'MeTTa-NeuroSymbolic', MeTTaAgent, 5, nsStrategy);
+    await benchmark('GridWorld', 'MeTTa-NeuroSymbolic', MeTTaAgent, 1, nsStrategy);
+
+    // MeTTa Neuro-Symbolic Tensor
+    const nsTensorStrategy = path.join(__dirname, '../strategies/neuro-symbolic-tensor.metta');
+    await benchmark('GridWorld', 'MeTTa-NeuroSymbolic-Tensor', NeuroSymbolicAgent, 1, nsTensorStrategy);
 
 
     // 2. Continuous Benchmark (Continuous)
     console.log("\n=== CONTINUOUS 1D BENCHMARK ===");
 
     // Random
-    await benchmark('Continuous1D', 'Random', RandomAgent, 5);
+    await benchmark('Continuous1D', 'Random', RandomAgent, 1);
 
     // Policy Gradient
-    await benchmark('Continuous1D', 'PolicyGradient', PolicyGradientAgent, 5);
+    await benchmark('Continuous1D', 'PolicyGradient', PolicyGradientAgent, 1);
 }
 
 main().catch(console.error);
