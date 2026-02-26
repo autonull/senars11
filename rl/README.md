@@ -17,6 +17,18 @@ A modular, extensible RL framework leveraging:
 npm install @senars/rl
 ```
 
+### Python Dependencies
+
+The RL module requires a Python environment with `gymnasium` and `numpy` installed.
+
+1. Install Node.js dependencies: `npm install`
+2. Run setup script: `./rl/scripts/setup_env.sh`
+
+Or manually:
+```bash
+pip install -r rl/requirements.txt
+```
+
 ### Basic Usage
 
 ```javascript
@@ -126,6 +138,7 @@ rl/
 │   ├── policies/       # Policy implementations
 │   ├── agents/         # Agent implementations
 │   ├── environments/   # Environment implementations
+│   ├── models/         # Learned models (WorldModel, SymbolicDifferentiation)
 │   ├── neurosymbolic/  # Neuro-symbolic primitives
 │   ├── composable/     # Component system
 │   ├── training/       # Training loops

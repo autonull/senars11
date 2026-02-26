@@ -72,5 +72,34 @@ export function getConfig() {
     return METTA_CONFIG;
 }
 
+/**
+ * Compare optimized vs baseline performance
+ */
+export async function runComparison(code) {
+    const baseline = { ...METTA_CONFIG };
+
+    // Run with all optimizations OFF
+    Object.keys(METTA_CONFIG).forEach(k => {
+        if (typeof METTA_CONFIG[k] === 'boolean') METTA_CONFIG[k] = false;
+    });
+
+    const startBaseline = performance.now();
+    await code();
+    const baselineTime = performance.now() - startBaseline;
+
+    // Restore and run with optimizations ON
+    Object.assign(METTA_CONFIG, baseline);
+
+    const startOptimized = performance.now();
+    await code();
+    const optimizedTime = performance.now() - startOptimized;
+
+    return {
+        baseline: baselineTime.toFixed(2) + 'ms',
+        optimized: optimizedTime.toFixed(2) + 'ms',
+        speedup: (baselineTime / optimizedTime).toFixed(2) + 'x'
+    };
+}
+
 // Initialize config on load
 getConfig();

@@ -2,7 +2,7 @@ import { Component } from '../composable/Component.js';
 import { ConfigManager } from '../config/ConfigManager.js';
 import { PluginManager } from '../plugins/PluginSystem.js';
 import { ArchitectureFactory } from '../architectures/NeuroSymbolicArchitecture.js';
-import { WorldModel } from '../neurosymbolic/WorldModel.js';
+import { WorldModel } from '../models/WorldModel.js';
 import { SkillDiscovery } from '../skills/SkillDiscovery.js';
 import { CausalReasoner, CausalGraph } from '../reasoning/CausalReasoning.js';
 import { ExperienceBuffer } from '../experience/ExperienceBuffer.js';

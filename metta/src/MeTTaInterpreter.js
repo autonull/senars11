@@ -1,7 +1,7 @@
 /**
  * MeTTaInterpreter.js - Main Interpreter
  * Components wiring and standard library loading.
- * Following AGENTS.md: Elegant, Consolidated, Consistent, Organized, Deeply deduplicated
+ * With Tier 1 Performance Optimization: Reduction Result Caching (Q5)
  */
 
 // Standard library imports
@@ -20,7 +20,13 @@ import { TypeChecker, TypeSystem } from './TypeSystem.js';
 import { objToBindingsAtom, bindingsAtomToObj } from './kernel/Bindings.js';
 import { Ground } from './kernel/Ground.js';
 import { MemoizationCache } from './kernel/MemoizationCache.js';
-import { reduce, reduceND, step, match, reduceAsync, reduceNDAsync } from './kernel/Reduce.js';
+import { ReductionCache } from './kernel/ReductionCache.js';
+import {
+    reduce, reduceND, step, match, reduceAsync, reduceNDAsync,
+    setInternalReferences, setNDInternalReferences, setDeterministicInternalReference,
+    setReduceNDInternalReference, setReduceDeterministicInternalReference,
+    stepYield, step as stepFunc
+} from './kernel/Reduce.js';
 import { Space } from './kernel/Space.js';
 import { Term, isList, flattenList, isExpression } from './kernel/Term.js';
 import { Unify } from './kernel/Unify.js';
@@ -64,11 +70,48 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
         this.parser = new Parser();
         this.typeSystem = new TypeSystem();
         this.typeChecker = new TypeChecker(this.typeSystem);
+
+        // Legacy cache
         this.memoCache = new MemoizationCache(opts.cacheCapacity || 1000);
+
+        // Q5: New ReductionCache
+        this.reductionCache = new ReductionCache(opts.cacheCapacity || 1000);
+
+        // Circular Dependency Resolution: Inject dependencies into reduction modules
+        this._injectReductionDependencies();
 
         this._initializeOperations();
         this._initializeBridge();
         this._loadStandardLibrary();
+    }
+
+    /**
+     * Inject function references to break circular dependencies in reduction logic
+     */
+    _injectReductionDependencies() {
+        // DeterministicReduction.js needs StepFunctions
+        setInternalReferences(stepFunc, stepYield);
+
+        // NonDeterministicReduction.js needs StepFunctions
+        setNDInternalReferences(stepYield);
+
+        // StepFunctions.js needs ND and Det reduction
+        setReduceNDInternalReference(reduceND);
+
+        // Note: setDeterministicInternalReference is actually from StepFunctions.js (naming confusion in Reduce.js exports)
+        // In Reduce.js: setDeterministicInternalReference comes from reduction/index.js
+        // reduction/index.js exports * from DeterministicReduction.js and StepFunctions.js
+        // DeterministicReduction.js exports setInternalReferences
+        // StepFunctions.js exports setReduceDeterministicInternalReference
+        // So setDeterministicInternalReference in Reduce.js likely refers to the one in DeterministicReduction if collision?
+        // No, DeterministicReduction exports setInternalReferences.
+        // StepFunctions exports setReduceDeterministicInternalReference.
+        // So I should use setReduceDeterministicInternalReference.
+
+        setReduceDeterministicInternalReference((atom, space, ground, limit) => {
+            // Bind cache automatically for internal calls
+            return reduce(atom, space, ground, limit, this.reductionCache);
+        });
     }
 
     /**
@@ -100,17 +143,6 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
             }
         }
     }
-
-
-
-    /**
-     * Register parallel evaluation operations
-     */
-
-
-    /**
-     * Register minimal core operations
-     */
 
     /**
      * Convert array to list representation
@@ -260,14 +292,14 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      * Helper method to perform deterministic reduction with common parameters
      */
     _reduceDeterministic(atom) {
-        return reduce(atom, this.space, this.ground, this.config.maxReductionSteps, this.memoCache);
+        return reduce(atom, this.space, this.ground, this.config.maxReductionSteps, this.reductionCache);
     }
 
     /**
      * Perform a single reduction step
      */
     step(atom) {
-        return step(atom, this.space, this.ground, this.config.maxReductionSteps, this.memoCache);
+        return step(atom, this.space, this.ground, this.config.maxReductionSteps, this.reductionCache);
     }
 
     /**
@@ -294,6 +326,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
                 typeVariables: this.typeSystem?.nextTypeVarId || 0
             },
             groundOps: this.ground.getOperations().length,
+            reductionCache: this.reductionCache.stats(),
             ...super.getStats()
         };
     }

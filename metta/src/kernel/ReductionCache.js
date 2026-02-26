@@ -1,81 +1,37 @@
 /**
- * Reduction Result Caching
- * Q5: Wraps SeNARS TermCache for reduction memoization
- * 
- * Key optimization: Cache frequently reduced subexpressions
- * Dramatically speeds up repeated computations (e.g., recursive functions)
+ * ReductionCache.js - Memoization for reduction results
+ * Q5: Reuse SeNARS TermCache for reduction memoization
  */
 
 import { TermCache } from '../../../core/src/term/TermCache.js';
 import { METTA_CONFIG } from '../config.js';
 
-// Shared cache for reduction results
-let reductionCache = null;
-
-/**
- * Initialize reduction cache
- */
-export function initReductionCache() {
-    if (METTA_CONFIG.caching && !reductionCache) {
-        reductionCache = new TermCache({
-            maxSize: METTA_CONFIG.maxCacheSize
-        });
-    }
-}
-
-/**
- * Get cached reduction result
- * @param {object} atom - The atom to lookup
- * @returns {object|null} Cached result or null
- */
-export function getCachedReduction(atom) {
-    if (!METTA_CONFIG.caching || !reductionCache) {
-        return null;
+export class ReductionCache {
+    constructor(maxSize = METTA_CONFIG.maxCacheSize) {
+        this.cache = new TermCache({ maxSize });
+        this.enabled = METTA_CONFIG.caching;
     }
 
-    // Use atom's string representation as cache key
-    // (or _hash if available for faster lookup)
-    const key = atom._hash || atom.toString();
-    return reductionCache.get(key);
-}
-
-/**
- * Cache a reduction result
- * @param {object} atom - The original atom
- * @param {object} result - The reduction result
- */
-export function cacheReduction(atom, result) {
-    if (!METTA_CONFIG.caching || !reductionCache) {
-        return;
+    get(atom) {
+        if (!this.enabled) return undefined;
+        return this.cache.get(this._key(atom));
     }
 
-    const key = atom._hash || atom.toString();
-    reductionCache.setWithEviction(key, result);
-}
-
-/**
- * Clear reduction cache (for testing)
- */
-export function clearReductionCache() {
-    if (reductionCache) {
-        reductionCache.clear();
-    }
-}
-
-/**
- * Get reduction cache statistics
- */
-export function getReductionCacheStats() {
-    if (!reductionCache) {
-        return { enabled: false };
+    set(atom, result) {
+        if (!this.enabled) return;
+        this.cache.put(this._key(atom), result);
     }
 
-    return {
-        enabled: METTA_CONFIG.caching,
-        size: reductionCache.size,
-        ...reductionCache.stats
-    };
-}
+    _key(atom) {
+        // Use hash if available, otherwise string representation
+        return atom._hash || (atom._hash = atom.toString());
+    }
 
-// Initialize on module load
-initReductionCache();
+    stats() {
+        return this.cache.stats;
+    }
+
+    clear() {
+        this.cache.clear();
+    }
+}

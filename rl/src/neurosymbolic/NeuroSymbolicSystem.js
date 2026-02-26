@@ -4,8 +4,8 @@
  */
 import { Component } from '../composable/Component.js';
 import { TensorLogicBridge } from '@senars/tensor';
-import { WorldModel } from './WorldModel.js';
-import { SymbolicDifferentiation } from './SymbolicDifferentiation.js';
+import { WorldModel } from '../models/WorldModel.js';
+import { SymbolicDifferentiation } from '../models/SymbolicDifferentiation.js';
 
 /**
  * Unified Neuro-Symbolic System
