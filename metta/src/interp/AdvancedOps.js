@@ -28,7 +28,7 @@ export function registerAdvancedOps(interpreter) {
             opts: { lazy: true }
         },
         '&let': {
-            fn: (vari, val, body) => Unify.subst(body, vari?.name ? { [vari.name]: val } : {}),
+            fn: (vari, val, body) => Unify.subst(body, vari?.name ? { [vari.name]: val } : {}, { recursive: false }),
             opts: { lazy: true }
         },
 
