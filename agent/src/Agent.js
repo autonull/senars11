@@ -1,10 +1,10 @@
 import {FormattingUtils, Input, NAR} from '@senars/core';
-import {PersistenceManager} from '../io/PersistenceManager.js';
-import * as Commands from '../commands/Commands.js';
+import {PersistenceManager} from './io/PersistenceManager.js';
+import * as Commands from './commands/Commands.js';
 import {AGENT_EVENTS} from './constants.js';
 import {InputProcessor} from './InputProcessor.js';
 import {AgentStreamer} from './AgentStreamer.js';
-import {AIClient} from '../ai/AIClient.js';
+import {AIClient} from './ai/AIClient.js';
 
 export class Agent extends NAR {
     constructor(config = {}) {

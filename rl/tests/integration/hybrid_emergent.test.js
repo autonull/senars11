@@ -21,7 +21,7 @@ import {
     MemoryPrimitive,
     EmergentCognitiveArchitecture,
     EmergentArchitectureFactory
-} from '../../src/cognitive/EmergentArchitecture.js';
+} from '../../src/systems/EmergentArchitecture.js';
 
 console.log('🧪 Running Hybrid Action & Emergent Architecture Tests...\n');
 

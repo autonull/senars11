@@ -34,7 +34,7 @@ import {
     PerceptionModule, ReasoningModule, PlanningModule,
     ActionModule, MemoryModule, SkillModule, MetaCognitiveModule,
     CognitiveArchitecture, ArchitecturePresets
-} from '../../src/cognitive/CognitiveArchitecture.js';
+} from '../../src/systems/CognitiveArchitecture.js';
 
 console.log('🧪 Running Higher-Order Abstractions Tests...\n');
 

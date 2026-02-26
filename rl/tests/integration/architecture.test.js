@@ -39,7 +39,7 @@ import {
 import {
     CausalGraph,
     CausalReasoner
-} from '../../src/reasoning/CausalReasoning.js';
+} from '../../src/systems/CognitiveSystem.js';
 
 import {
     TrainingConfig,

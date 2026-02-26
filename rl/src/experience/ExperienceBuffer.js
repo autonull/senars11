@@ -3,7 +3,7 @@
  * Leverages Experience from ExperienceSystem.js for unified experience representation
  */
 import { Component } from '../composable/Component.js';
-import { CausalGraph } from '../cognitive/CognitiveSystem.js';
+import { CausalGraph } from '../systems/CognitiveSystem.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 import { SumTree } from '../utils/DataStructures.js';
 import { Experience } from './ExperienceSystem.js';

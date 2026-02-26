@@ -4,7 +4,7 @@ import { PluginManager } from '../plugins/PluginSystem.js';
 import { ArchitectureFactory } from '../architectures/NeuroSymbolicArchitecture.js';
 import { WorldModel } from '../models/WorldModel.js';
 import { SkillDiscovery } from '../skills/SkillDiscovery.js';
-import { CausalReasoner, CausalGraph } from '../reasoning/CausalReasoning.js';
+import { CausalReasoner, CausalGraph } from '../systems/CognitiveSystem.js';
 import { ExperienceBuffer } from '../experience/ExperienceBuffer.js';
 import { MetaController } from '../meta/MetaController.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
