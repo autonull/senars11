@@ -1,6 +1,7 @@
 import { NAR } from './nar/NAR.js';
 import { Logger } from './util/Logger.js';
 import { Unifier } from './term/Unifier.js';
+import { IntrospectionEvents } from './util/IntrospectionEvents.js';
 
 /**
  * SeNARS Facade - A simplified API for SeNARS reasoning system
@@ -141,10 +142,32 @@ export class SeNARS {
         try {
             const goalTerm = this._parseTerm(goalInput);
 
-            await this.nar.input(goalInput);
+            const executedOperations = [];
+            const opListener = (event) => {
+                // Handle different event structures
+                let task = event.task || event.payload?.task;
 
-            if (cycles > 0) {
-                await this.nar.runCycles(cycles);
+                if (task) {
+                    // Check if it's an operation
+                    const term = task.term;
+                    const isOp = term?.isOperation || term?.toString().startsWith('^');
+
+                    if (isOp) {
+                        executedOperations.push(term.toString());
+                    }
+                }
+            };
+
+            this.nar.on(IntrospectionEvents.TASK_ADDED, opListener);
+
+            try {
+                await this.nar.input(goalInput);
+
+                if (cycles > 0) {
+                    await this.nar.runCycles(cycles);
+                }
+            } finally {
+                this.nar.off(IntrospectionEvents.TASK_ADDED, opListener);
             }
 
             // Check if goal is satisfied (belief exists with high expectation)
@@ -179,6 +202,7 @@ export class SeNARS {
                 achieved,
                 term: bestTerm,
                 truth: bestTruth,
+                executedOperations,
                 cyclesRun: cycles,
                 timestamp: Date.now()
             };

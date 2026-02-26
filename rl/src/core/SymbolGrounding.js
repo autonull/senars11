@@ -47,8 +47,25 @@ export class SymbolGrounding {
         }
 
         if (typeof symbols === 'string') {
+            // Strip operation prefix
+            if (symbols.startsWith('^')) {
+                symbols = symbols.slice(1);
+            }
+            if (symbols.startsWith('op_')) {
+                symbols = symbols.slice(3);
+            }
+
             if (symbols.startsWith('(')) {
-                return symbols.slice(1, -1).trim().split(/\s+/).map(Number);
+                const content = symbols.slice(1, -1).trim();
+                // Check if it looks like a vector (numbers separated by space or comma)
+                // Heuristic: if it contains letters or '-->', it's likely a Narsese term
+                if (!/[a-zA-Z>]/.test(content)) {
+                    const parts = content.split(/[\s,]+/).filter(s => s.length > 0);
+                    const numbers = parts.map(Number);
+                    if (numbers.every(n => !isNaN(n))) {
+                         return numbers;
+                    }
+                }
             }
             if (symbols.startsWith('action_')) {
                 return parseInt(symbols.split('_')[1], 10);

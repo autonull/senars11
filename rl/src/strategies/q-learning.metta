@@ -15,9 +15,10 @@
 
 ; Action Selection (Epsilon-Greedy)
 (= (agent-act $obs)
-   (if (< (&random) (epsilon))
-       (rand-int 0 3) ; Random action 0-3
-       (best-action $obs)))
+   (let $r (rand-float 0 1)
+     (if (< $r (epsilon))
+         (rand-int 0 3) ; Random action 0-3
+         (best-action $obs))))
 
 ; Find best action
 (= (best-action $s)
@@ -47,5 +48,13 @@
    (add-atom &self (= (q $s $a) $v)))
 
 ; Stdlib helpers if not present
+; We assume rand-float is available or provided by the environment bindings
+; If not, we might need a JS binding for it.
+; For now, let's assume &random is not standard but custom.
+; The MeTTaInterpreter usually provides some math functions.
+
+(= (rand-float $min $max)
+   (+ $min (* (random) (- $max $min))))
+
 (= (rand-int $min $max)
-   (floor-math (+ $min (* (&random) (+ 1 (- $max $min))))))
+   (floor (+ $min (* (random) (+ 1 (- $max $min))))))

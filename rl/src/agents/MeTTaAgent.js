@@ -13,6 +13,12 @@ export class MeTTaAgent extends RLAgent {
         this.metta = new MeTTaInterpreter();
         this.strategyPath = strategyPath;
         this.initialized = false;
+
+        // Register Math helpers for MeTTa
+        // The Ground class has `register` method, not `registerOperation`.
+
+        this.metta.ground.register('random', () => Math.random());
+        this.metta.ground.register('floor', (x) => Math.floor(x));
     }
 
     async _ensureInitialized() {
