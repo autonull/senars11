@@ -229,10 +229,10 @@ class NARLBenchmarkRunner {
         await brain.start();
 
         // Test if system can reason about its own reasoning
-        await brain.learn('(system --> can-reason).');
-        await brain.learn('(can-reason --> intelligent).');
+        await brain.learn('(ai_system --> can_reason).');
+        await brain.learn('(can_reason --> intelligent).');
 
-        const result = await brain.ask('(system --> intelligent)?');
+        const result = await brain.ask('(ai_system --> intelligent)?');
 
         await brain.dispose();
 

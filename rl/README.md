@@ -275,9 +275,9 @@ node rl/tests/unit/core.test.js
 
 ## Documentation
 
-- **[Neuro-Symbolic Architecture](NEUROSYMBOLIC_RL_ARCHITECTURE.md)** - Complete architecture
-- **[Implementation Guide](IMPLEMENTATION_GUIDE.md)** - API reference
-- **[Advanced Architecture](ADVANCED_ARCHITECTURE.md)** - Advanced patterns
+- **[Neuro-Symbolic Architecture](docs/NEUROSYMBOLIC_RL_ARCHITECTURE.md)** - Complete architecture
+- **[Implementation Guide](docs/IMPLEMENTATION_GUIDE.md)** - API reference
+- **[Advanced Architecture](docs/ADVANCED_ARCHITECTURE.md)** - Advanced patterns
 
 ### Interfaces
 
