@@ -305,51 +305,54 @@ export class MemoryConsolidation extends ConfigurableComponent {
      * @private
      */
     _calculateTaskDecayRate(task, concept, baseDecayRate) {
-        // Base decay rate from concept
         let taskDecayRate = baseDecayRate;
 
-        // Factor 1: Task recency factor (recent tasks decay slower)
+        taskDecayRate *= this._getRecencyDecayFactor(task);
+        taskDecayRate *= this._getTaskTypeDecayFactor(task);
+        taskDecayRate *= this._getPriorityDecayFactor(task);
+        taskDecayRate *= this._getContextDecayFactor(concept);
+
+        return Math.max(0, Math.min(1, taskDecayRate));
+    }
+
+    _getRecencyDecayFactor(task) {
         const taskAge = Date.now() - task.stamp.creationTime;
-        const recencyThresholds = this.getConfigValue('recencyDecayThresholds', {short: 60000, medium: 300000});
-        const recencyFactors = this.getConfigValue('recencyDecayFactors', {short: 0.2, medium: 0.5, long: 1});
+        const recencyThresholds = this.getConfigValue('recencyDecayThresholds', {
+            short: 60000,
+            medium: 300000
+        });
+        const recencyFactors = this.getConfigValue('recencyDecayFactors', {
+            short: 0.2,
+            medium: 0.5,
+            long: 1
+        });
 
-        taskDecayRate *= taskAge < recencyThresholds.short ? recencyFactors.short :
-            taskAge < recencyThresholds.medium ? recencyFactors.medium :
-                recencyFactors.long;
+        if (taskAge < recencyThresholds.short) return recencyFactors.short;
+        if (taskAge < recencyThresholds.medium) return recencyFactors.medium;
+        return recencyFactors.long;
+    }
 
-        // Factor 2: Task type factor (goals may decay differently than beliefs)
-        switch (task.type) {
-            case 'GOAL':
-                // Goals decay at a different rate than beliefs
-                taskDecayRate *= 1.2; // Goals may decay faster if not acted upon
-                break;
-            case 'BELIEF':
-                // Beliefs might have standard decay unless they're very high quality
-                if (task.truth && task.truth.confidence > 0.9) {
-                    taskDecayRate *= 0.7; // High confidence beliefs decay slower
-                }
-                break;
-            case 'QUESTION':
-                // Questions may have their own decay rate
-                taskDecayRate *= 0.8; // Questions might decay slower to maintain curiosity
-                break;
-        }
+    _getTaskTypeDecayFactor(task) {
+        const typeFactors = {
+            'GOAL': 1.2,
+            'BELIEF': task.truth?.confidence > 0.9 ? 0.7 : 1.0,
+            'QUESTION': 0.8
+        };
+        return typeFactors[task.type] ?? 1.0;
+    }
 
-        // Factor 3: Task priority factor (high priority tasks decay slower)
-        if (task.budget.priority > 0.8) {
-            taskDecayRate *= 0.5; // High priority tasks decay much slower
-        } else if (task.budget.priority < 0.2) {
-            taskDecayRate *= 1.5; // Low priority tasks decay faster
-        }
+    _getPriorityDecayFactor(task) {
+        const priority = task.budget?.priority ?? 0.5;
+        if (priority > 0.8) return 0.5;
+        if (priority < 0.2) return 1.5;
+        return 1.0;
+    }
 
-        // Factor 4: Concept context factor (tasks in high activation concepts decay differently)
-        if (concept.activation > 0.7) {
-            taskDecayRate *= 0.6; // Tasks in high activation concepts decay slower
-        } else if (concept.activation < 0.2) {
-            taskDecayRate *= 1.3; // Tasks in low activation concepts decay faster
-        }
-
-        return Math.max(0, Math.min(1, taskDecayRate)); // Clamp between 0 and 1
+    _getContextDecayFactor(concept) {
+        const activation = concept.activation ?? 0.5;
+        if (activation > 0.7) return 0.6;
+        if (activation < 0.2) return 1.3;
+        return 1.0;
     }
 
     /**

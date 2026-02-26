@@ -283,12 +283,12 @@ class FocusSet {
     _removeLowestPriorityTask() {
         if (this._tasks.size === 0) return;
 
-        let minP = Infinity;
+        let minPriority = Infinity;
         let minKey = null;
 
         for (const [key, val] of this._tasks) {
-            if (val.priority < minP) {
-                minP = val.priority;
+            if (val.priority < minPriority) {
+                minPriority = val.priority;
                 minKey = key;
             }
         }

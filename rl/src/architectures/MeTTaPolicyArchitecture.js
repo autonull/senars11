@@ -4,6 +4,7 @@ import { registerTensorPrimitives } from '../core/TensorPrimitives.js';
 import { NarseseUtils } from '../utils/NarseseUtils.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 import fs from 'fs';
+import {Logger} from '@senars/core';
 
 const METTA_POLICY_DEFAULTS = {
     policyScript: null,
@@ -25,7 +26,7 @@ export class MeTTaPolicyArchitecture extends Architecture {
                 const scriptContent = fs.readFileSync(this.config.policyScript, 'utf8');
                 this.metta.run(scriptContent);
             } catch (e) {
-                console.error(`Failed to load policy script: ${e.message}`);
+                Logger.error(`Failed to load policy script: ${e.message}`);
             }
         }
         await super.initialize();

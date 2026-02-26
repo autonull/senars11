@@ -166,14 +166,8 @@ export class TermFactory extends BaseComponent {
     _canonicalizeComponents(operator, components) {
         if (!operator) return components;
 
-        switch (operator) {
-            case '<->':
-            case '<=>':
-                return (components.length > 2 ? components.slice(0, 2) : [...components])
-                    .sort((a, b) => (b.complexity - a.complexity) || a.name.localeCompare(b.name));
-            case '-->':
-                return components.length > 2 ? components.slice(0, 2) : components;
-        }
+        const handler = CANONICALIZATION_HANDLERS[operator];
+        if (handler) return handler.call(this, components);
 
         if (COMMUTATIVE_OPERATORS.has(operator)) {
             const comps = [...components].sort(this._compareTermsAlphabetically);
@@ -181,6 +175,15 @@ export class TermFactory extends BaseComponent {
         }
 
         return components;
+    }
+
+    _handleEquivalenceOperators(components) {
+        return (components.length > 2 ? components.slice(0, 2) : [...components])
+            .sort((a, b) => (b.complexity - a.complexity) || a.name.localeCompare(b.name));
+    }
+
+    _handleImplicationOperators(components) {
+        return components.length > 2 ? components.slice(0, 2) : components;
     }
 
     _removeRedundancy(comps) {
@@ -253,3 +256,15 @@ export class TermFactory extends BaseComponent {
         this._cache = null;
     }
 }
+
+const CANONICALIZATION_HANDLERS = Object.freeze({
+    '<->': function(components) {
+        return this._handleEquivalenceOperators(components);
+    },
+    '<=>': function(components) {
+        return this._handleEquivalenceOperators(components);
+    },
+    '-->': function(components) {
+        return this._handleImplicationOperators(components);
+    }
+});

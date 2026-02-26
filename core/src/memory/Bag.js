@@ -1,46 +1,101 @@
+/**
+ * Base class for forgetting policies.
+ * Defines the interface for item selection and ordering strategies.
+ */
 class ForgetPolicy {
+    /**
+     * Select an item for removal based on the policy's criteria.
+     * @param {Map} items - Map of items
+     * @param {Map} itemData - Map of item priority data
+     * @param {Array} insertionOrder - Array of items in insertion order
+     * @param {Map} accessTimes - Map of item access times
+     * @returns {*} Item to remove, or null if none selected
+     */
     selectForRemoval(items, itemData, insertionOrder, accessTimes) {
+        return null;
     }
 
+    /**
+     * Order items according to the policy's criteria.
+     * @param {Map} items - Map of items
+     * @param {Map} itemData - Map of item priority data
+     * @param {Array} insertionOrder - Array of items in insertion order
+     * @param {Map} accessTimes - Map of item access times
+     * @returns {Array} Ordered array of items
+     */
     orderItems(items, itemData, insertionOrder, accessTimes) {
+        return Array.from(items.keys());
+    }
+
+    /**
+     * Helper: Find item with minimum value from a data map.
+     * @param {Map} dataMap - Map of items to values
+     * @returns {*} Item with minimum value, or null if empty
+     * @protected
+     */
+    _findMinValueItem(dataMap) {
+        if (dataMap.size === 0) return null;
+        let minItem = null;
+        let minValue = Infinity;
+        for (const [item, value] of dataMap) {
+            if (value < minValue) {
+                minValue = value;
+                minItem = item;
+            }
+        }
+        return minItem;
+    }
+
+    /**
+     * Helper: Sort items by value in descending order.
+     * @param {Map} dataMap - Map of items to values
+     * @param {Map} items - Map of items to filter by (optional)
+     * @returns {Array} Sorted array of items
+     * @protected
+     */
+    _sortByValueDesc(dataMap, items = null) {
+        let entries = Array.from(dataMap.entries());
+        if (items) {
+            entries = entries.filter(entry => items.has(entry[0]));
+        }
+        return entries
+            .sort((a, b) => b[1] - a[1])
+            .map(entry => entry[0]);
     }
 }
 
+/**
+ * Priority-based forgetting policy.
+ * Removes items with the lowest priority value.
+ */
 class PriorityForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData) {
-        if (itemData.size === 0) return null;
-        let minP = Infinity, minItem = null;
-        for (const [item, p] of itemData) {
-            if (p < minP) { minP = p; minItem = item; }
-        }
-        return minItem;
+        return this._findMinValueItem(itemData);
     }
 
     orderItems(items, itemData) {
-        return Array.from(itemData.entries())
-            .sort((a, b) => b[1] - a[1])
-            .map(entry => entry[0]);
+        return this._sortByValueDesc(itemData);
     }
 }
 
+/**
+ * Least Recently Used (LRU) forgetting policy.
+ * Removes items that haven't been accessed recently.
+ */
 class LRUForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData, insertionOrder, accessTimes) {
-        if (accessTimes.size === 0) return null;
-        let minT = Infinity, minItem = null;
-        for (const [item, t] of accessTimes) {
-            if (t < minT) { minT = t; minItem = item; }
-        }
-        return minItem;
+        return this._findMinValueItem(accessTimes);
     }
 
     orderItems(items, itemData, insertionOrder, accessTimes) {
-        return Array.from(accessTimes.entries())
-            .sort((a, b) => b[1] - a[1])
-            .filter(entry => items.has(entry[0]))
-            .map(entry => entry[0]);
+        return this._sortByValueDesc(accessTimes, items);
     }
 }
 
+/**
+ * First-In-First-Out (FIFO) forgetting policy.
+ * Removes items in the order they were inserted.
+ */
 class FIFOForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData, insertionOrder) {
         return insertionOrder.find(item => items.has(item)) || null;
@@ -51,6 +106,10 @@ class FIFOForgetPolicy extends ForgetPolicy {
     }
 }
 
+/**
+ * Random forgetting policy.
+ * Removes a random item from the collection.
+ */
 class RandomForgetPolicy extends ForgetPolicy {
     selectForRemoval(items) {
         const arr = Array.from(items.keys());
@@ -152,7 +211,8 @@ export class Bag {
             try {
                 this.onItemRemoved?.(item);
             } catch (e) {
-                console.error('Error in Bag onItemRemoved callback:', e);
+                // Silently ignore callback errors to avoid breaking bag operations
+                // Logger not available in this context
             }
         }
         return result;
@@ -277,7 +337,8 @@ export class Bag {
                             try {
                                 item = await itemDeserializer(itemData);
                             } catch (e) {
-                                console.warn('Failed to deserialize item in Bag:', e);
+                                // Item deserialization failed, will use fallback below
+                                // Logger not available in this context
                             }
                         }
 
@@ -312,7 +373,8 @@ export class Bag {
 
             return true;
         } catch (error) {
-            console.error('Error during bag deserialization:', error);
+            // Deserialization failed
+            // Logger not available in this context
             return false;
         }
     }

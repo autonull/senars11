@@ -7,6 +7,7 @@ import { SymbolicTensor, TensorLogicBridge, Tensor, Module, Linear, Sequential }
 import { mergeConfig } from '../utils/ConfigHelper.js';
 import { MetricsTracker } from '../utils/MetricsTracker.js';
 import { PolicyUtils, ParameterInitializer } from '../utils/PolicyUtils.js';
+import {Logger} from '@senars/core';
 
 const POLICY_DEFAULTS = {
     inputDim: 64,
@@ -119,7 +120,7 @@ export class PolicyNetwork extends Component {
                 this.optimizer = new SGDOptizer(this.config.learningRate, this.backend);
             }
         } catch (e) {
-            console.warn('Failed to load tensor backend:', e.message);
+            Logger.warn('Failed to load tensor backend:', e.message);
             this.backend = null;
         }
 

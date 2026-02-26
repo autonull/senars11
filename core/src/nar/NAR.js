@@ -5,6 +5,7 @@ import { Truth } from '../Truth.js';
 import { Stamp } from '../Stamp.js';
 import { Task } from '../task/Task.js';
 import { NARInitializer } from './NARInitializer.js';
+import { validateSchema } from '../util/InputValidator.js';
 
 export class NAR extends BaseComponent {
     constructor(config = {}) {
@@ -140,8 +141,20 @@ export class NAR extends BaseComponent {
     }
 
     async input(input, options = {}) {
+        // Validate input at API boundary
+        if (input === null || input === undefined) {
+            throw new Error('NAR.input: input parameter is required');
+        }
+
+        // Validate options schema
+        const validatedOptions = validateSchema(options, {
+            traceId: { type: 'string', optional: true },
+            priority: { type: 'number', min: 0, max: 1, optional: true },
+            durability: { type: 'number', min: 0, max: 1, optional: true }
+        }, 'NAR.input');
+
         try {
-            const task = this._inputProcessor.processInput(input, options);
+            const task = this._inputProcessor.processInput(input, validatedOptions);
             if (!task) throw new Error('Input processing failed to create task');
 
             const parsed = {
@@ -152,9 +165,9 @@ export class NAR extends BaseComponent {
             };
             const originalInput = typeof input === 'string' ? input : task.toString();
 
-            return await this._processNewTask(task, 'user', originalInput, parsed, options);
+            return await this._processNewTask(task, 'user', originalInput, parsed, validatedOptions);
         } catch (error) {
-            this._handleInputError(error, input, options);
+            this._handleInputError(error, input, validatedOptions);
         }
     }
 
@@ -396,46 +409,11 @@ export class NAR extends BaseComponent {
             if (this._isRunning) this.stop();
             if (state.config) this._configManager = new ConfigManager(state.config);
 
-            const componentsToDeserialize = [
-                { key: 'memory', component: this._memory },
-                { key: 'taskManager', component: this._taskManager },
-                { key: 'focus', component: this._focus }
-            ];
-
-            for (const { key, component } of componentsToDeserialize) {
-                if (state[key] && typeof component.deserialize === 'function') {
-                    await component.deserialize(state[key]);
-                }
-            }
-
+            await this._deserializeComponents(state);
+            
             if (state.isRunning !== undefined) this._isRunning = state.isRunning;
 
-            await this._componentManager.disposeAll();
-            // Re-initialize using config
-            this._initializer = new NARInitializer(this, this.config, this._eventBus);
-            const components = this._initializer.initialize();
-
-            Object.assign(this, {
-                 _componentManager: components.componentManager,
-                 _termFactory: components.termFactory,
-                 _parser: components.parser,
-                 _lm: components.lm,
-                 _memory: components.memory,
-                 _focus: components.focus,
-                 _termLayer: components.termLayer,
-                 _embeddingLayer: components.embeddingLayer,
-                 _taskManager: components.taskManager,
-                 _evaluator: components.evaluator,
-                 _budgetManager: components.budgetManager,
-                 _inputProcessor: components.inputProcessor,
-                 _reasoningAboutReasoning: components.reasoningAboutReasoning,
-                 _toolIntegration: components.toolIntegration,
-                 _explanationService: components.explanationService,
-                 _metricsMonitor: components.metricsMonitor
-            });
-
-            await this._componentManager.initializeAll();
-            await this._setupDefaultRules();
+            await this._reinitializeAfterDeserialization(state);
 
             this._eventBus.emit(IntrospectionEvents.SYSTEM_LOADED, {
                 timestamp: Date.now(),
@@ -450,6 +428,60 @@ export class NAR extends BaseComponent {
             this.logError(deserializationError.message, deserializationError);
             return false;
         }
+    }
+
+    _deserializeComponents(state) {
+        const componentsToDeserialize = [
+            { key: 'memory', component: this._memory },
+            { key: 'taskManager', component: this._taskManager },
+            { key: 'focus', component: this._focus }
+        ];
+
+        return Promise.all(componentsToDeserialize.map(
+            async ({ key, component }) => {
+                if (state[key] && typeof component.deserialize === 'function') {
+                    await component.deserialize(state[key]);
+                }
+            }
+        ));
+    }
+
+    async _reinitializeAfterDeserialization(state) {
+        await this._componentManager.disposeAll();
+        
+        this._initializer = new NARInitializer(this, this.config, this._eventBus);
+        const components = this._initializer.initialize();
+
+        this._assignDeserializedComponents(components);
+
+        await this._componentManager.initializeAll();
+        await this._setupDefaultRules();
+    }
+
+    _assignDeserializedComponents(components) {
+        const { componentManager, termFactory, parser, lm, memory, focus, 
+                termLayer, embeddingLayer, taskManager, evaluator, budgetManager,
+                inputProcessor, reasoningAboutReasoning, toolIntegration,
+                explanationService, metricsMonitor } = components;
+
+        Object.assign(this, {
+            _componentManager: componentManager,
+            _termFactory: termFactory,
+            _parser: parser,
+            _lm: lm,
+            _memory: memory,
+            _focus: focus,
+            _termLayer: termLayer,
+            _embeddingLayer: embeddingLayer,
+            _taskManager: taskManager,
+            _evaluator: evaluator,
+            _budgetManager: budgetManager,
+            _inputProcessor: inputProcessor,
+            _reasoningAboutReasoning: reasoningAboutReasoning,
+            _toolIntegration: toolIntegration,
+            _explanationService: explanationService,
+            _metricsMonitor: metricsMonitor
+        });
     }
 
     query(queryTerm) {

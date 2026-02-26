@@ -79,8 +79,11 @@ export class NeuroSymbolicAgent extends RLAgent {
                 if (result?.term) {
                     return `Explanation: ${result.term}`;
                 }
-            } catch {
-                // Fallback
+            } catch (error) {
+                this.logWarn?.('Explanation query failed, using fallback', {
+                    decision,
+                    error: error.message
+                });
             }
         }
         return 'Explanation not found';

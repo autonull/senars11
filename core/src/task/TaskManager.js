@@ -240,7 +240,7 @@ export class TaskManager extends BaseComponent {
 
             return true;
         } catch (error) {
-            console.error('Error during task manager deserialization:', error);
+            this.logError('Error during task manager deserialization', error);
             return false;
         }
     }

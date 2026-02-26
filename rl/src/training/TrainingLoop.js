@@ -135,38 +135,53 @@ export class TrainingLoop extends Component {
         let steps = 0;
 
         for (let step = 0; step < this.config.maxSteps; step++) {
-            const action = await this.agent.act(state, {
-                explorationRate: this.configManager.get('explorationRate'),
-                useWorldModel: this.worldModel !== null
-            });
-
-            const result = this.env.step(action);
-            const { observation: nextState, reward, terminated, truncated } = result;
-
-            await this.agent.learn({ state, action, reward, nextState, done: terminated || truncated }, reward);
-
-            await this.experienceBuffer.store({ state, action, reward, nextState, done: terminated || truncated });
-
-            if (this.worldModel) {
-                await this.worldModel.update(state, action, nextState, reward);
-            }
-
-            if (this.causalReasoner) {
-                await this.causalReasoner.learn(
-                    NarseseUtils.valueToMetta(state),
-                    NarseseUtils.valueToMetta(nextState),
-                    { action, reward }
-                );
-            }
-
-            totalReward += reward;
-            state = nextState;
+            const result = await this._runEpisodeStep(state, step);
+            
+            totalReward += result.reward;
+            state = result.nextState;
             steps++;
 
-            if (terminated || truncated) break;
+            if (result.done) break;
         }
 
         return new EpisodeResult(this.currentEpisode, totalReward, steps, totalReward > 0);
+    }
+
+    async _runEpisodeStep(state, step) {
+        const action = await this.agent.act(state, {
+            explorationRate: this.configManager.get('explorationRate'),
+            useWorldModel: this.worldModel !== null
+        });
+
+        const result = this.env.step(action);
+        const { observation: nextState, reward, terminated, truncated } = result;
+        const done = terminated || truncated;
+
+        await this.agent.learn({ state, action, reward, nextState, done }, reward);
+        await this.experienceBuffer.store({ state, action, reward, nextState, done });
+
+        await Promise.all([
+            this._updateWorldModel(state, action, nextState, reward),
+            this._updateCausalReasoner(state, nextState, { action, reward })
+        ]);
+
+        return { nextState, reward, done };
+    }
+
+    async _updateWorldModel(state, action, nextState, reward) {
+        if (this.worldModel) {
+            await this.worldModel.update(state, action, nextState, reward);
+        }
+    }
+
+    async _updateCausalReasoner(state, nextState, context) {
+        if (this.causalReasoner) {
+            await this.causalReasoner.learn(
+                NarseseUtils.valueToMetta(state),
+                NarseseUtils.valueToMetta(nextState),
+                context
+            );
+        }
     }
 
     async learn(episodeResult) {

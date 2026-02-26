@@ -8,6 +8,7 @@ import { MeTTaInterpreter } from '@senars/metta';
 import { registerTensorPrimitives } from '../core/TensorPrimitives.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 import fs from 'fs';
+import {Logger} from '@senars/core';
 
 const DUAL_PROCESS_DEFAULTS = {
     reasoning: 'senars',
@@ -47,7 +48,7 @@ export class DualProcessArchitecture extends Architecture {
                 const scriptContent = fs.readFileSync(this.config.policyScript, 'utf8');
                 this.metta.run(scriptContent);
             } catch (e) {
-                console.error(`Failed to load policy script: ${e.message}`);
+                Logger.error(`Failed to load policy script: ${e.message}`);
             }
         }
 

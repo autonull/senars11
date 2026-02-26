@@ -2,6 +2,8 @@
  * Async iteration and stream processing utilities for the reasoner
  */
 
+import { Logger } from '../../util/Logger.js';
+
 /**
  * Create an async generator from an array with optional processing
  * @param {Array} array - Array to convert
@@ -140,7 +142,7 @@ export async function* mergeAsyncGenerators(generators, selector = 'round-robin'
                 }
             } catch (error) {
                 active[iteratorIndex] = false;
-                console.error(`Error reading from generator ${iteratorIndex}:`, error);
+                Logger.error(`Error reading from generator ${iteratorIndex}`, error);
             }
         }
 
@@ -244,7 +246,7 @@ export async function* bufferedAsyncGenerator(asyncGen, bufferSize = 5) {
                 }
             }
         } catch (error) {
-            console.error('Error during preloading:', error);
+            Logger.error('Error during preloading', error);
         }
         generatorDone = true;
     };
