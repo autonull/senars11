@@ -6,12 +6,18 @@ export class DummyProvider extends BaseProvider {
         this.id = options.id || 'dummy';
         this.latency = options.latency || 0;
         this.responseTemplate = options.responseTemplate || 'Response to: {prompt}';
+        this.mockResponses = options.mockResponses || {};
     }
 
     async generateText(prompt, options = {}) {
         if (this.latency > 0) {
             await new Promise(resolve => setTimeout(resolve, this.latency));
         }
+
+        if (this.mockResponses && this.mockResponses[prompt]) {
+            return this.mockResponses[prompt];
+        }
+
         return this.responseTemplate.replace('{prompt}', prompt);
     }
 
