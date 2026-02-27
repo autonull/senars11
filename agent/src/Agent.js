@@ -1,5 +1,6 @@
 import {FormattingUtils, Input, NAR, Logger} from '@senars/core';
 import {PersistenceManager} from './io/PersistenceManager.js';
+import {ChannelManager} from './io/ChannelManager.js';
 import * as Commands from './commands/Commands.js';
 import {AGENT_EVENTS} from './constants.js';
 import {InputProcessor} from './InputProcessor.js';
@@ -34,6 +35,9 @@ export class Agent extends NAR {
             defaultPath: config.persistence?.defaultPath ?? './agent.json'
         });
 
+        this.channelManager = new ChannelManager();
+        this._setupChannelRouting();
+
         this.commandRegistry = this._initializeCommandRegistry();
 
         this.uiState = {
@@ -49,6 +53,67 @@ export class Agent extends NAR {
 
         // Initialize Vercel AI SDK Client
         this.ai = new AIClient(config.lm || {});
+
+        // Ensure MeTTa interpreter gets the channel manager
+        if (this.metta) {
+             // If metta was already init by super(), we might need to re-init extensions or pass it now
+             // But super() creates it. Let's see if we can attach it.
+             // The cleanest way is to pass it in options if possible, but super() calls initialize.
+             // We can manually register the extension here if we have access to this.metta.
+             this._registerMeTTaExtensions();
+        }
+    }
+
+    _registerMeTTaExtensions() {
+        if (this.metta && !this._channelExtensionRegistered) {
+            // Lazy load to avoid circular deps if needed, but we imported it in Interpreter
+            // The Interpreter constructor now takes channelManager in options, but super() didn't pass it.
+            // So we manually instantiate and register.
+             import('../../../metta/src/extensions/ChannelExtension.js').then(({ ChannelExtension }) => {
+                 const ext = new ChannelExtension(this.metta, this.channelManager);
+                 ext.register();
+                 this._channelExtensionRegistered = true;
+             }).catch(err => Logger.error("Failed to register ChannelExtension:", err));
+        }
+    }
+
+    // Override initialize to ensure extensions are ready
+    async initialize() {
+        await super.initialize();
+        this._registerMeTTaExtensions();
+        this._registerEventHandlers();
+        this.emit(AGENT_EVENTS.ENGINE_READY, {success: true, message: 'Agent initialized successfully'});
+        return true;
+    }
+
+    _setupChannelRouting() {
+        this.channelManager.on('message', async (msg) => {
+            // Route incoming channel message to Agent input
+            // msg: { channelId, protocol, from, content, ... }
+            Logger.info(`[Agent] Received from ${msg.protocol}:${msg.from}: ${msg.content}`);
+
+            // Format input for the agent (e.g. including source context)
+            const inputContext = `[${msg.protocol}:${msg.from}] ${msg.content}`;
+
+            // We can treat this as Narsese input or Natural Language
+            // For now, feed it to processInput
+            try {
+                // If it's a metta-based agent, we might want to insert it into the space directly
+                // or trigger a specific event.
+                // Let's treat it as generic input.
+                const result = await this.processInput(inputContext);
+
+                // If agent produces a result, we might want to reply back?
+                // Currently processInput returns a result object.
+                // If the result contains a response intended for the user, we should send it back.
+                // This logic depends on how the Agent decides to reply.
+                // For parity with mettaclaw, the MeTTa logic often handles the reply via (send-message).
+                // So we might not auto-reply here unless configured.
+
+            } catch (err) {
+                Logger.error('Error processing channel message:', err);
+            }
+        });
     }
 
     get agentLM() {
@@ -57,13 +122,6 @@ export class Agent extends NAR {
 
     emit(event, ...args) {
         this._eventBus?.emit(event, ...args);
-    }
-
-    async initialize() {
-        await super.initialize();
-        this._registerEventHandlers();
-        this.emit(AGENT_EVENTS.ENGINE_READY, {success: true, message: 'Agent initialized successfully'});
-        return true;
     }
 
     _initializeCommandRegistry() {
@@ -223,5 +281,10 @@ export class Agent extends NAR {
 
     formatTaskForDisplay(task) {
         return FormattingUtils.formatTask(task);
+    }
+
+    async shutdown() {
+        await this.channelManager.shutdown();
+        if (super.shutdown) await super.shutdown();
     }
 }

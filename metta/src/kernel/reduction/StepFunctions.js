@@ -9,7 +9,7 @@
 import { isExpression, exp, isList, flattenList } from '../../kernel/Term.js';
 import { Unify } from '../../kernel/Unify.js';
 import { METTA_CONFIG } from '../../config.js';
-import {Logger} from '../../../core/src/util/Logger.js';
+import {Logger} from '../../../../core/src/util/Logger.js';
 
 // Internal function for non-deterministic reduction within ND context
 let reduceNDInternalFunc = null;
