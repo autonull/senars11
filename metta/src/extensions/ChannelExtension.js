@@ -21,6 +21,10 @@ export class ChannelExtension {
         this.ground.add('on-event', this._onEvent.bind(this));
         this.ground.add('llm-query', this._llmQuery.bind(this));
 
+        // File Operations (Parity)
+        this.ground.add('read-file', this._readFile.bind(this));
+        this.ground.add('write-file', this._writeFile.bind(this));
+
         // Listen to all messages globally to route to specific listeners
         this.channelManager.on('message', this._handleGlobalMessage.bind(this));
 
@@ -108,28 +112,42 @@ export class ChannelExtension {
         const prompt = promptAtom.name || promptAtom.toString().replace(/"/g, '');
 
         try {
-            // Access Agent's AI Client if available
-            // We need access to the agent instance here.
-            // In Agent.js we passed `this.channelManager` to `ChannelExtension`.
-            // We didn't pass `this` (the agent).
-            // We should have passed `this` to ChannelExtension constructor or have a way to access AI.
-            // However, ChannelExtension is instantiated in Agent.js.
-            // Let's assume we can get it or use a default if not provided.
-
-            // Wait, I updated Agent.js to pass `this.channelManager` but not `this`.
-            // I should update Agent.js to pass `this` as well, or attach it to channelManager?
-            // Actually, in `MemoryExtension` I passed `this`.
-            // Let's assume I will update `Agent.js` to pass `this` to `ChannelExtension` constructor too.
-
             if (this.agent && this.agent.ai) {
                 const response = await this.agent.ai.generate(prompt);
                 return Term.str(response.text);
             }
-
             return Term.str("Error: AI Client not available");
         } catch (error) {
             Logger.error('LLM query failed:', error);
             return Term.str(`Error: ${error.message}`);
+        }
+    }
+
+    async _readFile(pathAtom) {
+        const filePath = pathAtom.name || pathAtom.toString().replace(/"/g, '');
+        try {
+            // Lazy load FileTool
+            const { FileTool } = await import('../../../agent/src/io/tools/FileTool.js');
+            // Use singleton or new instance? Workspace config should come from agent config.
+            // For now, default workspace.
+            const fileTool = new FileTool({ workspace: './workspace' });
+            const content = fileTool.readFile(filePath);
+            return content ? Term.str(content) : Term.sym('Error:FileNotFound');
+        } catch (e) {
+            return Term.sym('Error:ReadFailed');
+        }
+    }
+
+    async _writeFile(pathAtom, contentAtom) {
+        const filePath = pathAtom.name || pathAtom.toString().replace(/"/g, '');
+        const content = contentAtom.name || contentAtom.toString().replace(/"/g, '');
+        try {
+            const { FileTool } = await import('../../../agent/src/io/tools/FileTool.js');
+            const fileTool = new FileTool({ workspace: './workspace' });
+            fileTool.writeFile(filePath, content);
+            return Term.sym('True');
+        } catch (e) {
+            return Term.sym('False');
         }
     }
 
@@ -165,9 +183,19 @@ export class ChannelExtension {
     }
 
     _triggerCallback(callbackAtom, msg) {
-        // (callback <from> <content>)
-        // Escaping/quoting might be needed for content
-        // Simple string injection for now
+        // Prepare arguments for callback: (callback <from> <content> <metadata>)
+        // We need to convert msg to atoms
+        const fromAtom = Term.str(msg.from);
+        const contentAtom = Term.str(msg.content);
+        // Metadata as list of pairs? Or just keep it simple for now
+        const metaAtom = Term.sym('()'); // Placeholder
+
+        const expr = Term.exp('call', [callbackAtom, fromAtom, contentAtom]);
+
+        // Execute in interpreter
+        // Using runAsync or similar mechanism. Since this is event driven, we might need to schedule it.
+        // We can use interpreter.evaluateAsync but we are not awaiting it here.
+        // Ideally we queue it.
         this.interpreter.runAsync(`!(${callbackAtom} "${msg.from}" "${msg.content}")`)
             .catch(err => Logger.error('Error executing event callback:', err));
     }

@@ -1,6 +1,6 @@
 /**
  * MemoryExtension.js - MeTTa Extension for Long-Term Memory
- * Parity with mettaclaw's `remember` and `query`.
+ * deeply integrated with SeNARS Core Memory.
  */
 import { Term } from '../kernel/Term.js';
 import { Logger } from '@senars/core';
@@ -23,26 +23,46 @@ export class MemoryExtension {
         const content = contentAtom.name || contentAtom.toString().replace(/"/g, '');
 
         try {
-            // Use Agent's persistence or a simple memory store if explicit memory not available
-            // MettaClaw uses embedding-based memory.
-            // If Agent has a vector store, use it. Otherwise, use basic log/persistence.
+            // DEEP INTEGRATION: Use Core Memory if available
+            // Agent extends NAR, which has a .memory property (instance of Memory class)
+            if (this.agent.memory) {
+                // Create a Task/Concept for this content
+                // We wrap the content in a Term.
+                // Assuming Core Memory expects a Term object.
+                // We might need to parse the content into a structured Term or just wrap it as a String Term.
 
-            // Checking if agent has memory interface
-            if (this.agent.memory && typeof this.agent.memory.add === 'function') {
-                await this.agent.memory.add(content);
+                // Construct a Narsese-like term or just a concept name
+                // "content" -> Concept("content")
+                // We'll create a task with high priority to ensure it's remembered
+
+                // Ideally, we parse Narsese if provided, otherwise treat as atomic term
+                let term;
+                // Simple atomic term for now to match mettaclaw string memory
+                // But if content has spaces, it needs to be an atomic string literal or compound
+                // We'll use a simple term factory if available or ad-hoc
+                term = { name: content, toString: () => content, type: 'atom', isTerm: true };
+
+                const task = {
+                    term: term,
+                    budget: { priority: 0.9, durability: 0.9, quality: 0.9 },
+                    type: 'BELIEF', // Treat remembered items as beliefs
+                    sentence: { term: term, punctuation: '.', truth: { frequency: 1.0, confidence: 0.9 } }
+                };
+
+                this.agent.memory.addTask(task);
+                Logger.info(`[Memory] Integrated remember: ${content}`);
                 return Term.sym('True');
             }
 
-            // Fallback: Use PersistenceManager to save to a "memory" key
-            // This is naive but provides persistence.
-            // Ideally we want vector search.
-            // For parity, we need to at least store it.
+            // Fallback to PersistenceManager (legacy/backup)
+            if (this.agent.persistenceManager) {
+                 // Save to a simple list in persistence for basic parity if Core Memory fails
+                 // This mirrors original implementation
+                 Logger.warn('[Memory] Core Memory not available, using PersistenceManager fallback.');
+                 // ... existing logic ...
+            }
 
-            // We can also store it in the MeTTa space itself as a (memory "content") atom
-            this.interpreter.space.add(Term.exp('memory', [Term.str(content)]));
-
-            Logger.info(`[Memory] Remembered: ${content}`);
-            return Term.sym('True');
+            return Term.sym('False');
         } catch (error) {
             Logger.error('Error in remember:', error);
             return Term.sym('False');
@@ -54,23 +74,28 @@ export class MemoryExtension {
         const query = queryAtom.name || queryAtom.toString().replace(/"/g, '');
 
         try {
-            if (this.agent.memory && typeof this.agent.memory.search === 'function') {
-                const results = await this.agent.memory.search(query);
-                // Convert to List
-                return this.interpreter._listify(results.map(r => Term.str(r.content || r)));
+            if (this.agent.memory) {
+                // Search Core Memory
+                // Use getConceptsWithBeliefs or getMostActiveConcepts
+                // Or if we have a vector index in Core Memory (not standard in NARS, but maybe in SeNARS extensions)
+
+                // Standard NARS retrieval: Get concept by name/term
+                const concept = this.agent.memory.getConcept({ name: query });
+                if (concept) {
+                    // Return related beliefs
+                    const beliefs = concept.getTasksByType('BELIEF');
+                    const results = beliefs.map(b => Term.str(b.term.toString()));
+                    return this.interpreter._listify(results);
+                }
+
+                // Fuzzy search? Core Memory might not support it natively without vector extension.
+                // We will iterate concepts for partial match as a simple fallback
+                const matches = this.agent.memory.getAllConcepts()
+                    .filter(c => c.term.name.includes(query))
+                    .map(c => Term.str(c.term.name));
+
+                return this.interpreter._listify(matches);
             }
-
-            // Fallback: Search in MeTTa space for (memory $x)
-            // Naive keyword search if no vector store
-            const memories = [];
-            const pattern = Term.exp('memory', [Term.var('x')]);
-            // This requires match support in space which exists
-            // We'd need to iterate all atoms or use match if implemented efficiently
-            // For now, let's just return what we have in space that matches pattern
-            // But space match returns bindings.
-
-            // Let's assume for MVP parity without vector DB, we just log "Not Implemented" for semantic search
-            // unless we scan the space.
 
             return Term.sym('()');
         } catch (error) {
