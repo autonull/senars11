@@ -4,12 +4,18 @@
  */
 import { EventEmitter } from 'events';
 import { Logger } from '@senars/core';
+import { RateLimiter } from './RateLimiter.js';
 
 export class ChannelManager extends EventEmitter {
-    constructor() {
+    constructor(config = {}) {
         super();
         this.channels = new Map();
         this.middleware = [];
+        // Global rate limiter: 10 messages per 2 seconds default
+        this.rateLimiter = new RateLimiter(
+            config.rateLimit?.max || 10,
+            config.rateLimit?.interval || 2000
+        );
     }
 
     /**
@@ -106,6 +112,10 @@ export class ChannelManager extends EventEmitter {
         if (!channel) {
             throw new Error(`Channel ${channelId} not found`);
         }
+
+        // Apply rate limiting
+        await this.rateLimiter.wait();
+
         return await channel.sendMessage(target, content, metadata);
     }
 
@@ -116,6 +126,8 @@ export class ChannelManager extends EventEmitter {
         const promises = [];
         for (const channel of this.channels.values()) {
             if (channel.status === 'connected') {
+                // Apply rate limiting per message call inside loop
+                await this.rateLimiter.wait();
                 promises.push(channel.sendMessage(target, content).catch(err =>
                     Logger.warn(`Failed to broadcast to ${channel.id}:`, err)
                 ));

@@ -1,6 +1,7 @@
 import {FormattingUtils, Input, NAR, Logger} from '@senars/core';
 import {PersistenceManager} from './io/PersistenceManager.js';
 import {ChannelManager} from './io/ChannelManager.js';
+import {ChannelConfig} from './io/ChannelConfig.js';
 import * as Commands from './commands/Commands.js';
 import {AGENT_EVENTS} from './constants.js';
 import {InputProcessor} from './InputProcessor.js';
@@ -35,7 +36,12 @@ export class Agent extends NAR {
             defaultPath: config.persistence?.defaultPath ?? './agent.json'
         });
 
-        this.channelManager = new ChannelManager();
+        // Initialize Channels with Config
+        const channelConfig = ChannelConfig.load(config.channelConfigPath);
+        this.channelManager = new ChannelManager(channelConfig);
+
+        // Auto-join if configured
+        this._autoJoinChannels(channelConfig);
         this._setupChannelRouting();
 
         this.commandRegistry = this._initializeCommandRegistry();
@@ -54,21 +60,41 @@ export class Agent extends NAR {
         // Initialize Vercel AI SDK Client
         this.ai = new AIClient(config.lm || {});
 
-        // Ensure MeTTa interpreter gets the channel manager
         if (this.metta) {
-             // If metta was already init by super(), we might need to re-init extensions or pass it now
-             // But super() creates it. Let's see if we can attach it.
-             // The cleanest way is to pass it in options if possible, but super() calls initialize.
-             // We can manually register the extension here if we have access to this.metta.
              this._registerMeTTaExtensions();
+        }
+    }
+
+    async _autoJoinChannels(config) {
+        if (config.channels) {
+            // Lazy load specific channels to avoid circular deps
+            const { IRCChannel, NostrChannel } = await import('./io/index.js');
+
+            if (config.channels.irc) {
+                try {
+                    const irc = new IRCChannel(config.channels.irc);
+                    this.channelManager.register(irc);
+                    // Connect asynchronously
+                    irc.connect().catch(e => Logger.error('Auto-connect IRC failed:', e));
+                } catch (e) {
+                    Logger.error('Failed to init IRC channel:', e);
+                }
+            }
+
+            if (config.channels.nostr) {
+                try {
+                    const nostr = new NostrChannel(config.channels.nostr);
+                    this.channelManager.register(nostr);
+                    nostr.connect().catch(e => Logger.error('Auto-connect Nostr failed:', e));
+                } catch (e) {
+                    Logger.error('Failed to init Nostr channel:', e);
+                }
+            }
         }
     }
 
     _registerMeTTaExtensions() {
         if (this.metta && !this._channelExtensionRegistered) {
-            // Lazy load to avoid circular deps if needed, but we imported it in Interpreter
-            // The Interpreter constructor now takes channelManager in options, but super() didn't pass it.
-            // So we manually instantiate and register.
              import('../../../metta/src/extensions/ChannelExtension.js').then(({ ChannelExtension }) => {
                  const ext = new ChannelExtension(this.metta, this.channelManager);
                  ext.register();
@@ -77,7 +103,6 @@ export class Agent extends NAR {
         }
     }
 
-    // Override initialize to ensure extensions are ready
     async initialize() {
         await super.initialize();
         this._registerMeTTaExtensions();
@@ -88,28 +113,11 @@ export class Agent extends NAR {
 
     _setupChannelRouting() {
         this.channelManager.on('message', async (msg) => {
-            // Route incoming channel message to Agent input
-            // msg: { channelId, protocol, from, content, ... }
             Logger.info(`[Agent] Received from ${msg.protocol}:${msg.from}: ${msg.content}`);
-
-            // Format input for the agent (e.g. including source context)
-            const inputContext = `[${msg.protocol}:${msg.from}] ${msg.content}`;
-
-            // We can treat this as Narsese input or Natural Language
-            // For now, feed it to processInput
+            // Pass the structured message object to input processor
             try {
-                // If it's a metta-based agent, we might want to insert it into the space directly
-                // or trigger a specific event.
-                // Let's treat it as generic input.
-                const result = await this.processInput(inputContext);
-
-                // If agent produces a result, we might want to reply back?
-                // Currently processInput returns a result object.
-                // If the result contains a response intended for the user, we should send it back.
-                // This logic depends on how the Agent decides to reply.
-                // For parity with mettaclaw, the MeTTa logic often handles the reply via (send-message).
-                // So we might not auto-reply here unless configured.
-
+                // We'll let InputProcessor handle the structure now
+                const result = await this.inputProcessor.processChannelMessage(msg);
             } catch (err) {
                 Logger.error('Error processing channel message:', err);
             }
@@ -142,7 +150,6 @@ export class Agent extends NAR {
     }
 
     _registerEventHandlers() {
-        // No longer automatically emit log events for task.focus - UI handles task.focus directly
     }
 
     async processInput(input) {
@@ -178,7 +185,6 @@ export class Agent extends NAR {
         return `❌ Unknown command: ${command} `;
     }
 
-    // Delegate methods for backward compatibility and API
     async processNarsese(input) {
         return this.inputProcessor.processNarsese(input);
     }

@@ -31,8 +31,36 @@ export class InputProcessor {
         return this._processAgentInput(trimmed);
     }
 
-    async _processAgentInput(input) {
+    /**
+     * Process structured message from a Channel
+     * @param {object} msg - { protocol, from, content, metadata, timestamp }
+     */
+    async processChannelMessage(msg) {
+        // Enrich context based on metadata
+        const context = {
+            source: msg.protocol,
+            author: msg.from,
+            timestamp: msg.timestamp || Date.now(),
+            channelId: msg.channelId,
+            ...msg.metadata
+        };
+
+        // Format input for the agent
+        // We can prepend context info or keep it separate
+        // For Narsese, we might want to wrap it: <(author * content) --> communication>.
+
+        // For now, standard text input with prefix
+        const input = `[${msg.protocol}:${msg.from}] ${msg.content}`;
+
+        // Push to history
+        this.agent.sessionState.history.push(input);
+
+        return this._processAgentInput(input, context);
+    }
+
+    async _processAgentInput(input, context = {}) {
         try {
+            // Pass context to streamer if supported
             return await this.agent.agentStreamer.accumulateStreamResponse(input);
         } catch (error) {
             logError(error, 'LM processing');
