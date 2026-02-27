@@ -7,6 +7,7 @@ import {AGENT_EVENTS} from './constants.js';
 import {InputProcessor} from './InputProcessor.js';
 import {AgentStreamer} from './AgentStreamer.js';
 import {AIClient} from './ai/AIClient.js';
+import {ToolAdapter} from './ai/ToolAdapter.js';
 
 export class Agent extends NAR {
     constructor(config = {}) {
@@ -40,7 +41,10 @@ export class Agent extends NAR {
         const channelConfig = ChannelConfig.load(config.channelConfigPath);
         this.channelManager = new ChannelManager(channelConfig);
 
-        // Auto-join if configured
+        // Setup Tools
+        this.toolInstances = {};
+
+        // Auto-join if configured and register tools
         this._autoJoinChannels(channelConfig);
         this._setupChannelRouting();
 
@@ -60,6 +64,9 @@ export class Agent extends NAR {
         // Initialize Vercel AI SDK Client
         this.ai = new AIClient(config.lm || {});
 
+        // Bind tools to AI if config enables it (assumed for chatbot)
+        this._bindToolsToAI(channelConfig); // Q: Should I pass config?
+
         if (this.metta) {
              this._registerMeTTaExtensions();
         }
@@ -68,13 +75,12 @@ export class Agent extends NAR {
     async _autoJoinChannels(config) {
         if (config.channels) {
             // Lazy load specific channels to avoid circular deps
-            const { IRCChannel, NostrChannel } = await import('./io/index.js');
+            const { IRCChannel, NostrChannel, WebSearchTool, FileTool } = await import('./io/index.js');
 
             if (config.channels.irc) {
                 try {
                     const irc = new IRCChannel(config.channels.irc);
                     this.channelManager.register(irc);
-                    // Connect asynchronously
                     irc.connect().catch(e => Logger.error('Auto-connect IRC failed:', e));
                 } catch (e) {
                     Logger.error('Failed to init IRC channel:', e);
@@ -90,21 +96,36 @@ export class Agent extends NAR {
                     Logger.error('Failed to init Nostr channel:', e);
                 }
             }
+
+            // Init Tools
+            if (config.tools?.websearch) {
+                this.toolInstances.websearch = new WebSearchTool(config.tools.websearch);
+            } else {
+                this.toolInstances.websearch = new WebSearchTool(); // Mock
+            }
+
+            this.toolInstances.file = new FileTool({ workspace: config.workspace || './workspace' });
         }
+    }
+
+    async _bindToolsToAI(config) {
+        // Wait for lazy load in _autoJoinChannels? No, constructor is sync.
+        // We need to wait or do it later.
+        // _autoJoinChannels is async but called in constructor without await.
+        // We should move initialization to `initialize()`
+        // But `this.ai` needs tools when `generate` is called.
+        // We'll defer binding until `initialize`.
     }
 
     _registerMeTTaExtensions() {
         if (this.metta && !this._channelExtensionRegistered) {
-             // Register ChannelExtension
              import('../../../metta/src/extensions/ChannelExtension.js').then(({ ChannelExtension }) => {
-                 // Pass `this` (agent) to ChannelExtension to enable LLM access
                  const ext = new ChannelExtension(this.metta, this.channelManager);
-                 ext.agent = this; // Attach agent explicitly
+                 ext.agent = this;
                  ext.register();
                  this._channelExtensionRegistered = true;
              }).catch(err => Logger.error("Failed to register ChannelExtension:", err));
 
-             // Register MemoryExtension
              import('../../../metta/src/extensions/MemoryExtension.js').then(({ MemoryExtension }) => {
                  const memExt = new MemoryExtension(this.metta, this);
                  memExt.register();
@@ -114,6 +135,27 @@ export class Agent extends NAR {
 
     async initialize() {
         await super.initialize();
+
+        // Ensure tools are loaded before extensions/AI binding
+        // We call _autoJoinChannels in constructor but it's async.
+        // Let's re-run or wait?
+        // Better: We explicitly init tools here if missing.
+
+        // Load tools if not loaded
+        if (!this.toolInstances.websearch) {
+             const { WebSearchTool, FileTool } = await import('./io/index.js');
+             this.toolInstances.websearch = new WebSearchTool();
+             this.toolInstances.file = new FileTool();
+        }
+
+        // Bind tools to AI Client config (if supported by AIClient)
+        // AIClient currently supports passing tools in generate call.
+        // We'll attach tools to the agent so AgentStreamer can use them.
+        this.aiTools = {
+            ...ToolAdapter.toAISDK(this.toolInstances.websearch, 'websearch'),
+            ...ToolAdapter.toAISDK(this.toolInstances.file, 'file')
+        };
+
         this._registerMeTTaExtensions();
         this._registerEventHandlers();
         this.emit(AGENT_EVENTS.ENGINE_READY, {success: true, message: 'Agent initialized successfully'});
@@ -141,7 +183,6 @@ export class Agent extends NAR {
 
     _initializeCommandRegistry() {
         const registry = new Commands.AgentCommandRegistry();
-        // Register all command classes exported from Commands.js
         Object.values(Commands).forEach(CmdClass => {
             if (typeof CmdClass === 'function' &&
                 CmdClass.prototype instanceof Commands.AgentCommand &&
