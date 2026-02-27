@@ -5,7 +5,7 @@
  * Starts the SeNARS Agent with the MettaClaw parity script.
  */
 
-import { Agent } from '../Agent.js';
+import { Agent } from '../../src/Agent.js';
 import { Logger } from '@senars/core';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -18,7 +18,7 @@ async function main() {
     Logger.info('🤖 Starting SeNARS ChatBot Demo...');
 
     // Path to the parity verification script
-    const parityScriptPath = join(__dirname, '../../demo/mettaclaw_parity.metta');
+    const parityScriptPath = join(__dirname, 'mettaclaw_parity.metta');
 
     // Load script content
     let scriptContent;
@@ -33,7 +33,7 @@ async function main() {
     // We can pass dummy config for channels to ensure they initialize even without env vars
     const agent = new Agent({
         id: 'chatbot-demo',
-        channelConfigPath: join(__dirname, '../../config/channels.json'), // Optional
+        // channelConfigPath: join(__dirname, '../../config/channels.json'), // Optional
         lm: { provider: 'dummy' }, // Use dummy LM for demo
         inputProcessing: { enableNarseseFallback: true }
     });
@@ -67,7 +67,7 @@ async function main() {
 
         if (agent.channelManager) {
             // Register a mock channel to simulate input
-            const { Channel } = await import('../io/Channel.js');
+            const { Channel } = await import('../../src/io/Channel.js');
             class MockLoopback extends Channel {
                 constructor() { super({id: 'irc'}); this.type = 'irc'; this.status='connected'; }
                 async sendMessage(t, c) { Logger.info(`[MockIRC] Sending: ${c} to ${t}`); return true; }

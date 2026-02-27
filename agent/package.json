@@ -5,12 +5,12 @@
   "main": "src/index.js",
   "bin": {
     "senars-agent": "./src/bin/cli.js",
-    "senars-chat": "./src/bin/chat-bot.js",
+    "senars-chat": "./examples/chatbot/run.js",
     "senars": "../../scripts/cli/senars.js"
   },
   "scripts": {
     "repl": "node src/bin/cli.js",
-    "chat-bot": "node src/bin/chat-bot.js",
+    "chat-bot": "node examples/chatbot/run.js",
     "demo:mcp": "node ../examples/mcp-demo.js"
   },
   "dependencies": {
