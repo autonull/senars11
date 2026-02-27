@@ -1,6 +1,8 @@
 import { Logger } from '../util/Logger.js';
 import { Punctuation } from '../task/Task.js';
-import { cleanText, isValidLength } from '../util/common.js';
+import { cleanText as cleanTextCommon, isValidLength } from '../util/common.js';
+
+export const cleanText = cleanTextCommon;
 
 export const extractPrimaryTask = (primaryPremise) => primaryPremise ?? null;
 export const extractSecondaryTask = (secondaryPremise) => secondaryPremise ?? null;

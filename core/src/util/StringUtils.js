@@ -36,3 +36,16 @@ export const safeJSONParse = (jsonString, fallback = null) => {
         return fallback;
     }
 };
+
+/**
+ * Validates if a string's length is within a specified range.
+ * @param {string} str - The string to validate.
+ * @param {number} min - The minimum length.
+ * @param {number} max - The maximum length.
+ * @returns {boolean} - True if length is valid, false otherwise.
+ */
+export const isValidLength = (str, min, max) => {
+    if (typeof str !== 'string') return false;
+    const len = str.length;
+    return len >= min && len <= max;
+};

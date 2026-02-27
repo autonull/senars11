@@ -12,7 +12,9 @@ export function registerHofOps(interpreter) {
 
     // Override HOF operations with interpreter-aware versions
     reg('map-atom-fast', (list, varName, transformFn) => {
-        const elements = interpreter.ground._flattenExpr(list);
+        const flattener = interpreter.ground._flattenExpr ? interpreter.ground : interpreter;
+        const elements = flattener._flattenExpr ? flattener._flattenExpr(list) : interpreter._flattenToList(list);
+
         const mapped = elements.map(el => reduce(
             Unify.subst(transformFn, { [varName.name]: el }),
             interpreter.space,
@@ -24,7 +26,9 @@ export function registerHofOps(interpreter) {
     }, { lazy: true });
 
     reg('filter-atom-fast', (list, varName, predFn) => {
-        const elements = interpreter.ground._flattenExpr(list);
+        const flattener = interpreter.ground._flattenExpr ? interpreter.ground : interpreter;
+        const elements = flattener._flattenExpr ? flattener._flattenExpr(list) : interpreter._flattenToList(list);
+
         const filtered = elements.filter(el =>
             interpreter.ground._truthy(reduce(
                 Unify.subst(predFn, { [varName.name]: el }),
@@ -38,7 +42,9 @@ export function registerHofOps(interpreter) {
     }, { lazy: true });
 
     reg('foldl-atom-fast', (list, init, aVar, bVar, opFn) => {
-        const elements = interpreter.ground._flattenExpr(list);
+        const flattener = interpreter.ground._flattenExpr ? interpreter.ground : interpreter;
+        const elements = flattener._flattenExpr ? flattener._flattenExpr(list) : interpreter._flattenToList(list);
+
         return elements.reduce((acc, el) => {
             const substituted = Unify.subst(opFn, { [aVar.name]: acc, [bVar.name]: el });
             return reduce(substituted, interpreter.space, interpreter.ground, interpreter.config.maxReductionSteps, interpreter.memoCache);
