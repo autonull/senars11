@@ -138,7 +138,8 @@ export function registerAdvancedOps(interpreter) {
             fn: (list) => {
                 if (list?.name === '()') return formatNum(0);
                 if (list?.operator?.name === ':' && list?.components) {
-                    const flattened = interpreter.ground._flattenExpr(list);
+                    const flattener = interpreter.ground._flattenExpr ? interpreter.ground : interpreter;
+                    const flattened = flattener._flattenExpr ? flattener._flattenExpr(list) : interpreter._flattenToList(list);
                     return formatNum(flattened.length);
                 }
                 return formatNum(list?.components ? list.components.length + 1 : 1);
@@ -163,36 +164,49 @@ export function registerAdvancedOps(interpreter) {
 
         // Higher-order function operations
         '&map-fast': {
-            fn: (fn, list) => interpreter._listify(interpreter.ground._flattenExpr(list).map(el =>
-                interpreter._reduceDeterministic(exp(fn, [el]))
-            )),
+            fn: (fn, list) => {
+                const flattener = interpreter.ground._flattenExpr ? interpreter.ground : interpreter;
+                const listToMap = flattener._flattenExpr ? flattener._flattenExpr(list) : interpreter._flattenToList(list);
+                return interpreter._listify(listToMap.map(el =>
+                    interpreter._reduceDeterministic(exp(fn, [el]))
+                ));
+            },
             opts: { lazy: true }
         },
         '&filter-fast': {
             fn: (pred, list) => {
-                const elements = interpreter.ground._flattenExpr(list);
-                const filtered = elements.filter(el => {
+                const flattener = interpreter.ground._flattenExpr ? interpreter.ground : interpreter;
+                const listToFilter = flattener._flattenExpr ? flattener._flattenExpr(list) : interpreter._flattenToList(list);
+
+                const filtered = listToFilter.filter(el => {
                     if (!el) return false;
                     try {
                         const expr = exp(pred, [el]);
                         const result = interpreter._reduceDeterministic(expr);
-                        return interpreter.ground._truthy(result);
+                        return interpreter._truthy(result);
                     } catch (e) {
                         return false;
                     }
                 });
-                return interpreter.ground._listify(filtered);
+                return interpreter._listify(filtered);
             },
             opts: { lazy: true }
         },
         '&foldl-fast': {
-            fn: (fn, init, list) => interpreter.ground._flattenExpr(list).reduce((acc, el) =>
-                interpreter._reduceDeterministic(exp(fn, [acc, el])), init),
+            fn: (fn, init, list) => {
+                const flattener = interpreter.ground._flattenExpr ? interpreter.ground : interpreter;
+                const listToFold = flattener._flattenExpr ? flattener._flattenExpr(list) : interpreter._flattenToList(list);
+
+                return listToFold.reduce((acc, el) =>
+                    interpreter._reduceDeterministic(exp(fn, [acc, el])), init);
+            },
             opts: { lazy: true }
         },
         'reduce-atom': {
             fn: (list, accVar, elVar, op) => {
-                const elements = interpreter.ground._flattenExpr(list);
+                const flattener = interpreter.ground._flattenExpr ? interpreter.ground : interpreter;
+                const elements = flattener._flattenExpr ? flattener._flattenExpr(list) : interpreter._flattenToList(list);
+
                 if (elements.length === 0) return sym('()');
 
                 return elements.slice(1).reduce((result, el) => {

@@ -18,7 +18,9 @@ export function registerParallelOps(interpreter) {
             if (evalRes && evalRes.length > 0) list = evalRes[0];
         }
 
-        const items = interpreter.ground._flattenExpr(list);
+        const flattener = interpreter.ground._flattenExpr ? interpreter.ground : interpreter;
+        const items = flattener._flattenExpr ? flattener._flattenExpr(list) : interpreter._flattenToList(list);
+
         if (!interpreter.workerPool) {
             interpreter.workerPool = new WorkerPool(
                 interpreter.config.workerScript || (ENV.isNode ?
