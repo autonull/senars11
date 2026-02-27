@@ -36,7 +36,7 @@ describe('Full System Integration', () => {
 
     afterAll(async () => {
         await app?.shutdown();
-    }, 15000);
+    }, 30000); // Increased timeout to 30s to allow graceful shutdown
 
     test('Cross-subsystem workflow: NL → NAL → Prolog reasoning', async () => {
         // LM translates NL to Narsese

@@ -1,3 +1,5 @@
+import {Logger} from '../util/Logger.js';
+
 export class ValidationUtils {
     constructor() {
         this._validation = {
@@ -575,7 +577,7 @@ export class ValidationUtils {
                 }
             }
         } catch (error) {
-            if (console?.warn) console.warn('Failed to repair term consistency:', error);
+            Logger.warn('Failed to repair term consistency:', error);
         }
 
         return repairedCount;
@@ -656,7 +658,7 @@ export class ValidationUtils {
                 }
             }
         } catch (error) {
-            if (console?.warn) console.warn('Failed to remove orphaned entries:', error);
+            Logger.warn('Failed to remove orphaned entries:', error);
         }
 
         return removedCount;
@@ -682,7 +684,7 @@ export class ValidationUtils {
                 }
             }
         } catch (error) {
-            if (console?.warn) console.warn('Failed to remove duplicates:', error);
+            Logger.warn('Failed to remove duplicates:', error);
         }
 
         return removedCount;

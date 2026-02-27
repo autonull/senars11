@@ -1,4 +1,4 @@
-import {handleError} from '@senars/core';
+import {handleError, Logger} from '@senars/core';
 import {AGENT_EVENTS} from './constants.js';
 
 export class AgentStreamer {
@@ -64,7 +64,7 @@ export class AgentStreamer {
 
     async* _handleStreamingError(error, input) {
         if (!this.agent.inputProcessingConfig.enableNarseseFallback || !this.agent.inputProcessor._isPotentialNarsese(input)) {
-            console.error('Streaming execution error:', {error, input});
+            Logger.error('Streaming execution error:', {error, input});
         }
         yield {type: "error", content: `❌ Streaming error: ${error.message}`};
     }

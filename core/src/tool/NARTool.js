@@ -91,7 +91,7 @@ export class NARTool extends BaseTool {
             this.prologStrategy.updateKnowledgeBase(tasks);
             return {success: true, message: 'Prolog assertion successful.'};
         } catch (error) {
-            console.error('NARTool _assertProlog error:', error);
+            this.nar?.logError?.('NARTool _assertProlog error', error);
             return {success: false, error: `Failed to assert Prolog: ${error.message}`};
         }
     }
@@ -108,7 +108,7 @@ export class NARTool extends BaseTool {
             const result = await this.nar.ask(tasks[0]);
             return {success: result && result.length > 0, result};
         } catch (error) {
-            console.error('NARTool _queryProlog error:', error);
+            this.nar?.logError?.('NARTool _queryProlog error', error);
             return {success: false, error: `Failed to query Prolog: ${error.message}`};
         }
     }

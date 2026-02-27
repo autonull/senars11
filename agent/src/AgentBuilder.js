@@ -1,5 +1,5 @@
 import {Agent} from './Agent.js';
-import {LMConfig, PluginManager} from '@senars/core';
+import {LMConfig, Logger, PluginManager} from '@senars/core';
 import {FunctorProvider} from './FunctorProvider.js';
 
 export class AgentBuilder {
@@ -173,7 +173,7 @@ export class AgentBuilder {
                     await agent._pluginManager.startAll();
                 }
             } catch (e) {
-                console.error('Failed to initialize or start plugins:', e);
+                Logger.error('Failed to initialize or start plugins:', e);
             }
         }
     }

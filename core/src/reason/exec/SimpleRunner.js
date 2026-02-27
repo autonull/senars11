@@ -1,4 +1,5 @@
 import {Runner} from './Runner.js';
+import {Logger} from '../../util/Logger.js';
 
 /**
  * A simple, sequential execution runner that processes reasoning steps in a loop.
@@ -45,7 +46,7 @@ export class SimpleRunner extends Runner {
 
                 await this._wait(delay);
             } catch (error) {
-                console.error('SimpleRunner loop error:', error);
+                Logger.error('SimpleRunner loop error:', error);
                 await this._wait(1000);
             }
         }

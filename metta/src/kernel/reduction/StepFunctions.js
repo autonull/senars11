@@ -9,6 +9,7 @@
 import { isExpression, exp, isList, flattenList } from '../../kernel/Term.js';
 import { Unify } from '../../kernel/Unify.js';
 import { METTA_CONFIG } from '../../config.js';
+import {Logger} from '../../../core/src/util/Logger.js';
 
 // Internal function for non-deterministic reduction within ND context
 let reduceNDInternalFunc = null;
@@ -148,7 +149,7 @@ export function* executeGroundedOpND(atom, op, space, ground, limit) {
         try {
             yield { reduced: ground.execute(op, ...args), applied: true };
         } catch (e) {
-            console.error('Lazy op error', op, e);
+            Logger.error('Lazy op error', { op, error: e });
         }
         return;
     }
@@ -196,8 +197,7 @@ export function* executeGroundedOpND(atom, op, space, ground, limit) {
 
     // Check if ND reduction is initialized
     if (!reduceNDInternalFunc) {
-        // Should throw or log, but for safety yielding unreduced
-        console.warn("reduceNDInternalFunc not initialized in executeGroundedOpND");
+        Logger.warn('reduceNDInternalFunc not initialized in executeGroundedOpND');
         yield { reduced: atom, applied: false };
         return;
     }
@@ -215,7 +215,7 @@ export function* executeGroundedOpND(atom, op, space, ground, limit) {
             if (res === undefined || res === null) throw new Error(`Grounded op ${op} returned ${res}`);
             yield { reduced: res, applied: true };
         } catch (e) {
-            console.error('Grounded op error', op, e);
+            Logger.error('Grounded op error', { op, error: e });
         }
     }
 }
@@ -230,13 +230,13 @@ export function* executeGroundedOpWithArgsND(atom, op, args, space, ground, limi
             if (res === undefined || res === null) throw new Error(`Lazy op ${op} returned ${res}`);
             yield { reduced: res, applied: true };
         } catch (e) {
-            console.error('Lazy op args error', op, e);
+            Logger.error('Lazy op args error', { op, error: e });
         }
         return;
     }
 
     if (!reduceNDInternalFunc) {
-        console.warn("reduceNDInternalFunc not initialized in executeGroundedOpWithArgsND");
+        Logger.warn('reduceNDInternalFunc not initialized in executeGroundedOpWithArgsND');
         return;
     }
 
@@ -249,7 +249,7 @@ export function* executeGroundedOpWithArgsND(atom, op, args, space, ground, limi
             if (res === undefined || res === null) throw new Error(`Grounded op ${op} returned ${res}`);
             yield { reduced: res, applied: true };
         } catch (e) {
-            console.error('Grounded op args error', op, e);
+            Logger.error('Grounded op args error', { op, error: e });
         }
     }
 }

@@ -1,29 +1,15 @@
+import { envDetector } from './EnvironmentDetector.js';
+
 class Logger {
     constructor() {
-        this.isTestEnv = this._detectTestEnvironment();
+        this.isTestEnv = envDetector.isTest();
         this.silent = this.isTestEnv;
         this.levels = { ERROR: 0, WARN: 1, INFO: 2, DEBUG: 3 };
         this.currentLevel = this.levels.INFO;
     }
 
-    _detectTestEnvironment() {
-        if (typeof process !== 'undefined') {
-            if (process.env.NODE_ENV === 'test' ||
-                process.env.JEST_WORKER_ID !== undefined ||
-                process.env.VITEST === 'true') return true;
-        }
-
-        const g = typeof globalThis !== 'undefined' ? globalThis :
-                  typeof window !== 'undefined' ? window : {};
-
-        return !!(g.__JEST__ || g.__VITEST__);
-    }
-
     _isDebugMode() {
-        if (typeof process !== 'undefined' && process.env) {
-             return process.env.NODE_ENV === 'development' || process.env.DEBUG;
-        }
-        return false;
+        return envDetector.isDebug();
     }
 
     shouldLog(level) {

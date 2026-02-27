@@ -1,21 +1,11 @@
-import { GraphPanel } from '../components/GraphPanel.js';
 import { eventBus } from '../core/EventBus.js';
 import { EVENTS } from '../config/constants.js';
+import { BaseApp } from '../components/BaseApp.js';
 import { HUDContextMenu } from '../explorer/HUDContextMenu.js';
 import { ExplorerToolbar } from '../explorer/ExplorerToolbar.js';
-import { Logger } from '../logging/Logger.js';
 import { LMConfigDialog } from '../agent/LMConfigDialog.js';
-import { StatusBar } from '../components/StatusBar.js';
 import { SystemMetricsPanel } from '../components/SystemMetricsPanel.js';
-import { HUDLayoutManager } from '../layout/HUDLayoutManager.js';
 import { ExplorerInfoPanel } from '../explorer/ExplorerInfoPanel.js';
-import { VisualizationPanel } from '../components/VisualizationPanel.js';
-import { LogPanel } from '../components/LogPanel.js';
-import { InspectorPanel } from '../components/InspectorPanel.js';
-import { TaskBrowser } from '../explorer/TaskBrowser.js';
-import { CommandPalette } from '../components/CommandPalette.js';
-import { ToastManager } from '../components/ToastManager.js';
-import { getTacticalStyle } from '../visualization/ExplorerGraphTheme.js';
 import { CodeEditorPanel } from '../components/CodeEditorPanel.js';
 
 import { InputManager } from '../explorer/managers/InputManager.js';
@@ -24,56 +14,26 @@ import { FileManager } from '../explorer/managers/FileManager.js';
 
 /**
  * Main application controller for the SeNARS MeTTa UI.
- * Coordinates between Graph, HUD, Agent/Reasoner, and User Input.
+ * Extends BaseApp with MeTTa-specific functionality.
  */
-export class MettaApp {
+export class MettaApp extends BaseApp {
     constructor() {
-        this.mappings = { size: 'priority', color: 'hash' };
-        const themeStyle = getTacticalStyle(this.mappings, this._getColorFromHash.bind(this));
-
-        this.graphPanel = new GraphPanel('graph-container', {
-            useBag: true,
-            bagCapacity: 50,
-            style: themeStyle,
-            showToolbar: true
-        });
-
-        this.contextMenu = null;
-        this.commandPalette = new CommandPalette();
-        this.toastManager = ToastManager;
-        this.logger = new Logger();
-        this.mode = 'visualization';
-
-        this.statusBar = null;
-        this.metricsPanel = null;
-        this.isDecayEnabled = false;
-        this.isFocusMode = false;
-        this.decayLoopId = null;
-
-        // Components Map for cross-referencing (needed by CodeEditorPanel)
-        this.components = new Map();
+        super('graph-container', { bagCapacity: 50, showToolbar: true });
 
         // Managers
         this.inputManager = new InputManager(this);
         this.reasoningManager = new ReasoningManager(this);
         this.fileManager = new FileManager(this);
 
-        // Layout & Panels
-        this.layoutManager = new HUDLayoutManager('hud-overlay');
+        // MeTTa-specific components
         this.infoPanel = new ExplorerInfoPanel();
-        this.visualizationPanel = new VisualizationPanel();
-        this.logPanel = new LogPanel();
-        this.inspectorPanel = new InspectorPanel();
-        this.taskBrowser = new TaskBrowser();
-
+        
         // Editor Panel Setup
         this.codeEditorPanel = new CodeEditorPanel(null);
         this.codeEditorPanel.app = this;
-        // Patch initialize to prevent unsetting app when called by HUDLayoutManager without args
         const originalInit = this.codeEditorPanel.initialize.bind(this.codeEditorPanel);
         this.codeEditorPanel.initialize = (app) => {
-            if (app) originalInit(app);
-            else this.codeEditorPanel.render();
+            app ? originalInit(app) : this.codeEditorPanel.render();
         };
 
         this.inspectorPanel.onSave = (id, updates) => this.saveNodeChanges(id, updates);
@@ -82,26 +42,14 @@ export class MettaApp {
         this.inspectorPanel.onSelect = (term) => eventBus.emit(EVENTS.CONCEPT_SELECT, { id: term });
     }
 
-    get graph() { return this.graphPanel.graphManager; }
-    get isReasonerRunning() { return this.reasoningManager.isReasonerRunning; }
-    get lmController() { return this.reasoningManager.lmController; }
-    get localToolsBridge() {
-        if (this.reasoningManager.lmController && this.reasoningManager.lmController.toolsBridge) {
-            return this.reasoningManager.lmController.toolsBridge;
-        }
-        return this.reasoningManager.localToolsBridge;
-    }
-
-    // Bridge for CodeEditorPanel
     get commandProcessor() {
         return {
             processCommand: (text, isSystem, language) => {
-                 let cmd = text;
-                 // If it's MeTTa and not a system command (!), prepend !
-                 if (language === 'metta' && !cmd.trim().startsWith('!')) {
-                     cmd = '!' + cmd;
-                 }
-                 this.handleReplCommand(cmd);
+                let cmd = text;
+                if (language === 'metta' && !cmd.trim().startsWith('!')) {
+                    cmd = '!' + cmd;
+                }
+                this.handleReplCommand(cmd);
             }
         };
     }
@@ -110,21 +58,7 @@ export class MettaApp {
         this._setupHUD();
         this.graphPanel.initialize();
         this.contextMenu = new HUDContextMenu(this.graph, this);
-
-        if (!this.graph) {
-            console.error("GraphPanel failed to initialize graphManager");
-        } else {
-            this.graph.on('nodeClick', ({ node }) => this._handleNodeClick(node));
-            this.graph.on('nodeDblClick', ({ node }) => this.log(`Focused: ${node.id()}`, 'system'));
-            this.graph.on('contextMenu', ({ target, originalEvent }) => {
-                const type = target && target !== this.graph.cy ? (target.isNode() ? 'node' : 'edge') : 'background';
-                const evt = originalEvent;
-                if (type === 'background') this.contextMenu.show(evt.x, evt.y, null, 'background');
-                else this.contextMenu.show(evt.x, evt.y, target, type);
-            });
-            this.graph.on('backgroundDoubleClick', ({ position }) => this.inputManager.handleAddConcept(position));
-        }
-
+        this._setupGraphEvents();
         this._initWidgets();
 
         this.statusBar = new StatusBar('status-bar-container');
@@ -232,16 +166,14 @@ export class MettaApp {
 
     // UI Helpers used by managers
     _getColorFromHash(str) {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            hash = str.charCodeAt(i) + ((hash << 5) - hash);
-        }
+        if (!str) return { hue: 0, color: '#cccccc' };
+        const hash = [...str].reduce((h, c) => c.charCodeAt(0) + ((h << 5) - h), 0);
         const hue = Math.abs(hash % 360);
         return { hue, color: `hsl(${hue}, 70%, 50%)` };
     }
 
     _updateGraphStyle() {
-        if (this.graph && this.graph.cy) {
+        if (this.graph?.cy) {
             const style = getTacticalStyle(this.mappings, this._getColorFromHash.bind(this));
             this.graph.cy.style(style);
         }
@@ -427,29 +359,19 @@ export class MettaApp {
 
     processNALContent(content, filename) {
         this.log(`Loading NAL content: ${filename}`, 'system');
-        const lines = content.split('\n');
-        let count = 0;
-        const nar = this.reasoningManager._getNAR();
-        lines.forEach(line => {
-            const trim = line.trim();
-            if (trim && !trim.startsWith('//') && !trim.startsWith(';')) {
-                if (nar) { try { nar.input(trim); count++; } catch (e) { } }
-            }
-        });
-        if (!nar) this.log('Reasoner not available to process NAL', 'warning');
-        else this.log(`Processed ${count} NAL lines`, 'success');
+        this._processNalInput(content);
     }
 
     _deepMerge(target, source) {
         const isObject = (item) => (item && typeof item === 'object' && !Array.isArray(item));
-        const output = Object.assign({}, target);
+        const output = { ...target };
+        
         if (isObject(target) && isObject(source)) {
-            Object.keys(source).forEach(key => {
-                if (isObject(source[key])) {
-                    if (!(key in target)) Object.assign(output, { [key]: source[key] });
-                    else output[key] = this._deepMerge(target[key], source[key]);
-                } else Object.assign(output, { [key]: source[key] });
-            });
+            for (const key of Object.keys(source)) {
+                output[key] = isObject(source[key]) && key in target
+                    ? this._deepMerge(target[key], source[key])
+                    : source[key];
+            }
         }
         return output;
     }
@@ -460,16 +382,22 @@ export class MettaApp {
             if (!nar) return;
 
             const stats = nar.getStats();
-            const memoryStats = stats.memoryStats || {};
-            const totalConcepts = memoryStats.conceptCount || memoryStats.totalConcepts || (memoryStats.memoryUsage ? memoryStats.memoryUsage.concepts : 0);
-            const maxConcepts = (stats.config && stats.config.memory) ? stats.config.memory.maxConcepts : 1000;
+            const memoryStats = stats.memoryStats ?? {};
+            const totalConcepts = memoryStats.conceptCount ?? memoryStats.totalConcepts ?? memoryStats.memoryUsage?.concepts ?? 0;
+            const maxConcepts = stats.config?.memory?.maxConcepts ?? 1000;
             const tps = this.isReasonerRunning ? (1000 / Math.max(this.reasoningManager.reasonerDelay, 1)).toFixed(1) : 0;
-            const activeNodes = (this.graph && this.graph.cy) ? this.graph.cy.nodes().length : 0;
+            const activeNodes = this.graph?.cy?.nodes().length ?? 0;
 
-            const statsPayload = { cycles: stats.cycleCount || 0, nodes: totalConcepts, activeNodes, maxNodes: maxConcepts, tps };
+            const statsPayload = { 
+                cycles: stats.cycleCount ?? 0, 
+                nodes: totalConcepts, 
+                activeNodes, 
+                maxNodes: maxConcepts, 
+                tps 
+            };
 
-            if (this.statusBar) this.statusBar.updateStats(statsPayload);
-            if (this.infoPanel && this.infoPanel.updateStats) this.infoPanel.updateStats(statsPayload);
+            this.statusBar?.updateStats(statsPayload);
+            this.infoPanel?.updateStats(statsPayload);
 
             if (this.metricsPanel) {
                 this.metricsPanel.update({

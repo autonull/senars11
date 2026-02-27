@@ -1,3 +1,5 @@
+import {Logger} from './Logger.js';
+
 export class PersistenceManager {
     constructor(options = {}) {
         this.options = {
@@ -19,7 +21,7 @@ export class PersistenceManager {
             this.isInitialized = true;
             return true;
         } catch (error) {
-            console.error('Failed to initialize persistence manager:', error);
+            Logger.error('Failed to initialize persistence manager:', error);
             return false;
         }
     }
@@ -38,7 +40,7 @@ export class PersistenceManager {
         try {
             return operation();
         } catch (error) {
-            console.error(errorMessage, error);
+            Logger.error(errorMessage, error);
             return typeof operation() === 'boolean' ? false :
                 typeof operation() === 'object' ? {} :
                     Array.isArray(operation()) ? [] : null;

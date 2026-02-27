@@ -3,9 +3,9 @@ import {clamp} from '../util/common.js';
 import {BaseComponent} from '../util/BaseComponent.js';
 import {Task} from '../task/Task.js';
 import {Logger} from '../util/Logger.js';
+import { CONCEPT_CAPACITY, CONCEPT_ACTIVATION, CONCEPT_DECAY } from '../config/ConceptConstants.js';
 
 const TASK_TYPES = Object.freeze({BELIEF: 'BELIEF', GOAL: 'GOAL', QUESTION: 'QUESTION'});
-const CAPACITY_DISTRIBUTION = Object.freeze({[TASK_TYPES.BELIEF]: 0.6, [TASK_TYPES.GOAL]: 0.3, [TASK_TYPES.QUESTION]: 0.1});
 
 export class Concept extends BaseComponent {
     static DEFAULT_CONFIG = {
@@ -13,8 +13,8 @@ export class Concept extends BaseComponent {
         maxGoals: 50,
         maxQuestions: 20,
         defaultDecayRate: 0.01,
-        defaultActivationBoost: 0.1,
-        maxActivation: 1.0,
+        defaultActivationBoost: CONCEPT_DECAY.PROPAGATION_STRENGTH,
+        maxActivation: CONCEPT_ACTIVATION.MAX_ACTIVATION,
         minQuality: 0,
         maxQuality: 1
     };
@@ -85,6 +85,12 @@ export class Concept extends BaseComponent {
     }
 
     enforceCapacity(maxTasksPerType) {
+        const CAPACITY_DISTRIBUTION = {
+            [TASK_TYPES.BELIEF]: CONCEPT_CAPACITY.BELIEF_CAPACITY,
+            [TASK_TYPES.GOAL]: CONCEPT_CAPACITY.GOAL_CAPACITY,
+            [TASK_TYPES.QUESTION]: CONCEPT_CAPACITY.QUESTION_CAPACITY
+        };
+
         for (const [type, factor] of Object.entries(CAPACITY_DISTRIBUTION)) {
             this._getStorage(type).pruneTo(maxTasksPerType * factor);
         }

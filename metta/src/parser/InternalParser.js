@@ -3,6 +3,7 @@
  */
 
 import { sym, variable, exp } from '../kernel/Term.js';
+import {Logger} from '../../core/src/util/Logger.js';
 
 export class InternalParser {
     constructor(tokens) {
@@ -88,7 +89,7 @@ export class InternalParser {
                 }
             } catch (error) {
                 // Skip invalid tokens and continue parsing
-                console.warn(`Skipping invalid token: ${this.peek()}, Error: ${error.message}`);
+                Logger.warn(`Skipping invalid token: ${this.peek()}`, error);
                 this.consume();
             }
         }

@@ -4,6 +4,7 @@
  * For environments requiring mixed action types (e.g., discrete grip + continuous movement).
  */
 import { mergeConfig } from '../utils/ConfigHelper.js';
+import { deepClone } from '../../../core/src/util/CloneUtils.js';
 
 const HYBRID_SPACE_DEFAULTS = {
     discrete: {},
@@ -210,7 +211,7 @@ export class StructuredAction {
 
     clone() {
         const cloned = new StructuredAction();
-        cloned.components = JSON.parse(JSON.stringify(this.components));
+        cloned.components = deepClone(this.components);
         cloned.timestamp = this.timestamp;
         return cloned;
     }

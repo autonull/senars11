@@ -5,6 +5,7 @@
  * This supports "anytime" reasoning under resource constraints.
  */
 import {Strategy} from '../Strategy.js';
+import {Logger} from '../../util/Logger.js';
 
 export class BagStrategy extends Strategy {
     /**
@@ -38,7 +39,7 @@ export class BagStrategy extends Strategy {
                     yield [primaryPremise, secondaryPremise];
                 }
             } catch (error) {
-                console.error('Error processing primary premise in BagStrategy:', error);
+                Logger.error(`Error processing primary premise in ${this.constructor.name}:`, error);
 
             }
         }

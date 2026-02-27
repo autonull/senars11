@@ -1,5 +1,6 @@
 import {z} from 'zod';
 import {CYCLE, MEMORY, PERFORMANCE, SYSTEM} from './constants.js';
+import { deepClone } from '../util/CloneUtils.js';
 
 export const DEFAULT_CONFIG = {
     system: {
@@ -181,7 +182,7 @@ export class SystemConfig {
     }
 
     toJSON() {
-        return JSON.parse(JSON.stringify(this._config));
+        return deepClone(this._config);
     }
 
     getAll() {

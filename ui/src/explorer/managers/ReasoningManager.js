@@ -23,7 +23,6 @@ export class ReasoningManager {
                 this.app._updateReasonerStatus('Online (via LLM Bridge)', 'online');
                 this._bindNAREvents();
             } catch (e) {
-                console.warn('LLM init failed (might need config):', e);
                 if (!this.lmController.toolsBridge) {
                     await this._initLocalBridge();
                     this.app._updateLLMStatus('Config Required', 'warning');
@@ -33,7 +32,6 @@ export class ReasoningManager {
                 }
             }
         } catch (e) {
-            console.error('Failed to load LMAgentController module:', e);
             await this._initLocalBridge();
 
             if (this.localToolsBridge) {
@@ -58,7 +56,6 @@ export class ReasoningManager {
             this.app._updateReasonerStatus('Online (Local)', 'online');
             this._bindNAREvents();
         } catch (e) {
-            console.error('Failed to load AgentToolsBridge:', e);
             this.app.log('Failed to load local reasoner', 'error');
             this.app._updateReasonerStatus('Load Failed', 'error');
         }
@@ -84,33 +81,28 @@ export class ReasoningManager {
 
         if (nar.on) {
             nar.on(IntrospectionEvents.TASK_ADDED, (data) => {
-                console.log('ExplorerApp: TASK_ADDED event received', data);
                 this.app.log(`INPUT: ${data.task.term}`, 'user');
                 this.app._onTaskAdded(data.task);
             });
 
             nar.on(IntrospectionEvents.REASONING_DERIVATION, (data) => {
-                console.log('ExplorerApp: REASONING_DERIVATION event received', data);
                 this.app.log(`DERIVED: ${data.derivedTask.term} (${data.inferenceRule})`, 'system');
-
                 this.app._onDerivation(data);
 
                 const sourceId = data.task?.term?.toString();
                 const beliefId = data.belief?.term?.toString();
                 const derivedId = data.derivedTask?.term?.toString();
 
-                if (this.app.graph && this.app.graph.animateReasoning) {
+                if (this.app.graph?.animateReasoning) {
                      this.app.graph.animateReasoning(sourceId, beliefId, derivedId);
                 }
             });
 
             nar.on(IntrospectionEvents.TASK_ERROR, (data) => {
-                console.error('ExplorerApp: TASK_ERROR event received', data);
                 this.app.log(`ERROR: ${data.error}`, 'error');
             });
 
             this._narEventsBound = true;
-            console.log('ExplorerApp: Bound to NAR events');
         }
     }
 

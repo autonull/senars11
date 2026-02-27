@@ -5,6 +5,12 @@
  */
 
 /**
+ * Maximum recursion depth for unification to prevent stack overflow
+ * @constant {number}
+ */
+const MAX_UNIFICATION_DEPTH = 2000;
+
+/**
  * Core unification algorithm
  * @param {*} t1 - First term
  * @param {*} t2 - Second term
@@ -14,7 +20,7 @@
  * @returns {Object|null} - Updated bindings or null if unification fails
  */
 export const unify = (t1, t2, bindings = {}, adapter, depth = 0) => {
-    if (depth > 2000) return null; // Prevent stack overflow by failing unification on deep recursion
+    if (depth > MAX_UNIFICATION_DEPTH) return null; // Prevent stack overflow by failing unification on deep recursion
 
     const b1 = adapter.substitute(t1, bindings);
     const b2 = adapter.substitute(t2, bindings);

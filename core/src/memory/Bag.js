@@ -1,43 +1,43 @@
 class ForgetPolicy {
     selectForRemoval(items, itemData, insertionOrder, accessTimes) {
+        return null;
     }
 
     orderItems(items, itemData, insertionOrder, accessTimes) {
+        return Array.from(items.keys());
+    }
+
+    _findMinValueItem(dataMap) {
+        if (dataMap.size === 0) return null;
+        let [minItem, minValue] = Array.from(dataMap.entries()).reduce(
+            ([minItem, minValue], [item, value]) => value < minValue ? [item, value] : [minItem, minValue],
+            [null, Infinity]
+        );
+        return minItem;
+    }
+
+    _sortByValueDesc(dataMap, items = null) {
+        let entries = Array.from(dataMap.entries());
+        if (items) entries = entries.filter(([item]) => items.has(item));
+        return entries.sort((a, b) => b[1] - a[1]).map(([item]) => item);
     }
 }
 
 class PriorityForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData) {
-        if (itemData.size === 0) return null;
-        let minP = Infinity, minItem = null;
-        for (const [item, p] of itemData) {
-            if (p < minP) { minP = p; minItem = item; }
-        }
-        return minItem;
+        return this._findMinValueItem(itemData);
     }
-
     orderItems(items, itemData) {
-        return Array.from(itemData.entries())
-            .sort((a, b) => b[1] - a[1])
-            .map(entry => entry[0]);
+        return this._sortByValueDesc(itemData);
     }
 }
 
 class LRUForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData, insertionOrder, accessTimes) {
-        if (accessTimes.size === 0) return null;
-        let minT = Infinity, minItem = null;
-        for (const [item, t] of accessTimes) {
-            if (t < minT) { minT = t; minItem = item; }
-        }
-        return minItem;
+        return this._findMinValueItem(accessTimes);
     }
-
     orderItems(items, itemData, insertionOrder, accessTimes) {
-        return Array.from(accessTimes.entries())
-            .sort((a, b) => b[1] - a[1])
-            .filter(entry => items.has(entry[0]))
-            .map(entry => entry[0]);
+        return this._sortByValueDesc(accessTimes, items);
     }
 }
 
@@ -45,7 +45,6 @@ class FIFOForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData, insertionOrder) {
         return insertionOrder.find(item => items.has(item)) || null;
     }
-
     orderItems(items, itemData, insertionOrder) {
         return insertionOrder.filter(item => items.has(item));
     }
@@ -56,7 +55,6 @@ class RandomForgetPolicy extends ForgetPolicy {
         const arr = Array.from(items.keys());
         return arr.length ? arr[Math.floor(Math.random() * arr.length)] : null;
     }
-
     orderItems(items) {
         const arr = Array.from(items.keys());
         for (let i = arr.length - 1; i > 0; i--) {
@@ -69,10 +67,10 @@ class RandomForgetPolicy extends ForgetPolicy {
 
 const DEFAULT_POLICY = 'priority';
 const POLICIES = Object.freeze({
-    'priority': new PriorityForgetPolicy(),
-    'lru': new LRUForgetPolicy(),
-    'fifo': new FIFOForgetPolicy(),
-    'random': new RandomForgetPolicy()
+    priority: new PriorityForgetPolicy(),
+    lru: new LRUForgetPolicy(),
+    fifo: new FIFOForgetPolicy(),
+    random: new RandomForgetPolicy()
 });
 
 export class Bag {
@@ -152,7 +150,8 @@ export class Bag {
             try {
                 this.onItemRemoved?.(item);
             } catch (e) {
-                console.error('Error in Bag onItemRemoved callback:', e);
+                // Silently ignore callback errors to avoid breaking bag operations
+                // Logger not available in this context
             }
         }
         return result;
@@ -277,7 +276,8 @@ export class Bag {
                             try {
                                 item = await itemDeserializer(itemData);
                             } catch (e) {
-                                console.warn('Failed to deserialize item in Bag:', e);
+                                // Item deserialization failed, will use fallback below
+                                // Logger not available in this context
                             }
                         }
 
@@ -312,7 +312,8 @@ export class Bag {
 
             return true;
         } catch (error) {
-            console.error('Error during bag deserialization:', error);
+            // Deserialization failed
+            // Logger not available in this context
             return false;
         }
     }

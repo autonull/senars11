@@ -1,14 +1,14 @@
-import {TRUTH} from '../../../core/src/config/constants.js';
+import {TRUTH_DEFAULTS, TRUTH_THRESHOLDS} from '../../../core/src/config/TruthConstants.js';
 import {Truth} from '../../../core/src/Truth.js';
 
 describe('Truth', () => {
     test('initialization', () => {
-        expect(new Truth()).toMatchObject({frequency: TRUTH.DEFAULT_FREQUENCY, confidence: TRUTH.DEFAULT_CONFIDENCE});
-        expect(new Truth(0.8, 0.9)).toMatchObject({frequency: 0.8, confidence: 0.9});
-        expect(new Truth(-0.5, 1.5)).toMatchObject({frequency: 0, confidence: 1});
+        expect(new Truth()).toMatchObject({_frequency: TRUTH_DEFAULTS.NEUTRAL_FREQUENCY, _confidence: TRUTH_DEFAULTS.DEFAULT_CONFIDENCE});
+        expect(new Truth(0.8, 0.9)).toMatchObject({_frequency: 0.8, _confidence: 0.9});
+        expect(new Truth(-0.5, 1.5)).toMatchObject({_frequency: 0, _confidence: 1});
         expect(new Truth(NaN, NaN)).toMatchObject({
-            frequency: TRUTH.DEFAULT_FREQUENCY,
-            confidence: TRUTH.DEFAULT_CONFIDENCE
+            _frequency: TRUTH_DEFAULTS.NEUTRAL_FREQUENCY,
+            _confidence: TRUTH_DEFAULTS.DEFAULT_CONFIDENCE
         });
     });
 

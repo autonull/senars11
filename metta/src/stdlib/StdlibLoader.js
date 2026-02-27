@@ -6,6 +6,7 @@
 import { ENV, getEnvironment } from '../platform/env.js';
 import { FileLoader } from '../platform/node/FileLoader.js';
 import { VirtualFS } from '../platform/browser/VirtualFS.js';
+import {Logger} from '../../core/src/util/Logger.js';
 
 const DEFAULT_MODULES = ['core', 'list', 'match', 'types', 'hof'];
 
@@ -58,7 +59,7 @@ export class StdlibLoader {
                 this.loadedModules.add(mod);
             } catch (err) {
                 stats.failed.push({ module: mod, error: err.message });
-                console.warn(`Failed to load '${mod}': ${err.message}`);
+                Logger.warn(`Failed to load stdlib module '${mod}':`, err);
             }
         }
 

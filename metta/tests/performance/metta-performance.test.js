@@ -3,7 +3,7 @@
  * Tests various performance aspects and scalability
  */
 
-import { MeTTaInterpreter } from '../../../core/src/metta/MeTTaInterpreter.js';
+import { MeTTaInterpreter } from '../../src/MeTTaInterpreter.js';
 
 describe('MeTTa Performance Benchmarks', () => {
     let interpreter;

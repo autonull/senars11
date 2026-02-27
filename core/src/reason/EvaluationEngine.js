@@ -4,35 +4,33 @@
  */
 import {FunctorRegistry} from './FunctorRegistry.js';
 import {logError} from './utils/error.js';
+import {OperationRegistry} from './OperationRegistry.js';
 
 export class EvaluationEngine {
     constructor(context = null, termFactory = null) {
         this.context = context;
         this.termFactory = termFactory;
-        this.operationRegistry = new Map();
+        this.operationRegistry = new OperationRegistry();
         this.variableBindings = new Map();
         this._functorRegistry = new FunctorRegistry();
         this._initDefaultOperations();
     }
 
     _initDefaultOperations() {
-        // Updated _op logic to handle recursive evaluation correctly
         const ops = [
-            ['+', (a, b) => this._op(a, b, (x, y) => x + y, 0)],
-            ['-', (a, b) => this._op(a, b, (x, y) => x - y, 0, true)],
-            ['*', (a, b) => this._op(a, b, (x, y) => x * y, 1)],
-            ['/', (a, b) => this._op(a, b, (x, y) => x / (y || 1), 1, true)],
-            ['>', (a, b) => this._cmp(a, b, (x, y) => x > y)],
-            ['<', (a, b) => this._cmp(a, b, (x, y) => x < y)],
-            ['>=', (a, b) => this._cmp(a, b, (x, y) => x >= y)],
-            ['<=', (a, b) => this._cmp(a, b, (x, y) => x <= y)],
-            ['==', (a, b) => a === b],
-            ['!=', (a, b) => a !== b]
+            ['+', (a, b) => this._op(a, b, (x, y) => x + y, 0), { arity: 2, category: 'arithmetic', identity: 0 }],
+            ['-', (a, b) => this._op(a, b, (x, y) => x - y, 0, true), { arity: 2, category: 'arithmetic', identity: 0 }],
+            ['*', (a, b) => this._op(a, b, (x, y) => x * y, 1), { arity: 2, category: 'arithmetic', identity: 1 }],
+            ['/', (a, b) => this._op(a, b, (x, y) => x / (y || 1), 1, true), { arity: 2, category: 'arithmetic', identity: 1 }],
+            ['>', (a, b) => this._cmp(a, b, (x, y) => x > y), { arity: 2, category: 'comparison' }],
+            ['<', (a, b) => this._cmp(a, b, (x, y) => x < y), { arity: 2, category: 'comparison' }],
+            ['>=', (a, b) => this._cmp(a, b, (x, y) => x >= y), { arity: 2, category: 'comparison' }],
+            ['<=', (a, b) => this._cmp(a, b, (x, y) => x <= y), { arity: 2, category: 'comparison' }],
+            ['==', (a, b) => a === b, { arity: 2, category: 'logical' }],
+            ['!=', (a, b) => a !== b, { arity: 2, category: 'logical' }]
         ];
 
-        for (const [symbol, func] of ops) {
-            this.operationRegistry.set(symbol, func.bind(this));
-        }
+        this.operationRegistry.registerAll(ops);
     }
 
     _op(a, b, fn, identity, strictOrder = false) {

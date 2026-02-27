@@ -1,16 +1,17 @@
 import { TRUTH } from './config/constants.js';
+import { TRUTH_DEFAULTS, TRUTH_THRESHOLDS, TRUTH_WEIGHTS, TRUTH_PRECISION } from './config/TruthConstants.js';
 import { clamp } from './util/common.js';
 
 export class Truth {
-    constructor(frequency = TRUTH.DEFAULT_FREQUENCY, confidence = TRUTH.DEFAULT_CONFIDENCE) {
-        this._frequency = clamp(isNaN(frequency) ? TRUTH.DEFAULT_FREQUENCY : frequency, 0, 1);
-        this._confidence = clamp(isNaN(confidence) ? TRUTH.DEFAULT_CONFIDENCE : confidence, 0, 1);
+    constructor(frequency = TRUTH_DEFAULTS.NEUTRAL_FREQUENCY, confidence = TRUTH_DEFAULTS.DEFAULT_CONFIDENCE) {
+        this._frequency = clamp(isNaN(frequency) ? TRUTH_DEFAULTS.NEUTRAL_FREQUENCY : frequency, 0, 1);
+        this._confidence = clamp(isNaN(confidence) ? TRUTH_DEFAULTS.DEFAULT_CONFIDENCE : confidence, 0, 1);
         Object.freeze(this);
     }
 
-    static get TRUE() { return Truth._TRUE || (Truth._TRUE = new Truth(1.0, TRUTH.DEFAULT_CONFIDENCE)); }
-    static get FALSE() { return Truth._FALSE || (Truth._FALSE = new Truth(0.0, TRUTH.DEFAULT_CONFIDENCE)); }
-    static get NEUTRAL() { return Truth._NEUTRAL || (Truth._NEUTRAL = new Truth(0.5, TRUTH.DEFAULT_CONFIDENCE)); }
+    static get TRUE() { return Truth._TRUE || (Truth._TRUE = new Truth(1.0, TRUTH_DEFAULTS.DEFAULT_CONFIDENCE)); }
+    static get FALSE() { return Truth._FALSE || (Truth._FALSE = new Truth(0.0, TRUTH_DEFAULTS.DEFAULT_CONFIDENCE)); }
+    static get NEUTRAL() { return Truth._NEUTRAL || (Truth._NEUTRAL = new Truth(TRUTH_DEFAULTS.NEUTRAL_FREQUENCY, TRUTH_DEFAULTS.DEFAULT_CONFIDENCE)); }
 
     get frequency() { return this._frequency; }
     get confidence() { return this._confidence; }
@@ -18,10 +19,10 @@ export class Truth {
     get c() { return this._confidence; }
 
     static create(f, c) {
-        if (Math.abs(c - TRUTH.DEFAULT_CONFIDENCE) < TRUTH.EPSILON) {
-            if (Math.abs(f - 1.0) < TRUTH.EPSILON) return Truth.TRUE;
-            if (Math.abs(f - 0.0) < TRUTH.EPSILON) return Truth.FALSE;
-            if (Math.abs(f - 0.5) < TRUTH.EPSILON) return Truth.NEUTRAL;
+        if (Math.abs(c - TRUTH_DEFAULTS.DEFAULT_CONFIDENCE) < TRUTH_THRESHOLDS.EPSILON) {
+            if (Math.abs(f - 1.0) < TRUTH_THRESHOLDS.EPSILON) return Truth.TRUE;
+            if (Math.abs(f - 0.0) < TRUTH_THRESHOLDS.EPSILON) return Truth.FALSE;
+            if (Math.abs(f - TRUTH_DEFAULTS.NEUTRAL_FREQUENCY) < TRUTH_THRESHOLDS.EPSILON) return Truth.NEUTRAL;
         }
         return new Truth(f, c);
     }
@@ -194,11 +195,11 @@ export class Truth {
 
     equals(other) {
         return other instanceof Truth &&
-            Math.abs(this._frequency - other.frequency) < TRUTH.EPSILON &&
-            Math.abs(this._confidence - other.confidence) < TRUTH.EPSILON;
+            Math.abs(this._frequency - other.frequency) < TRUTH_THRESHOLDS.EPSILON &&
+            Math.abs(this._confidence - other.confidence) < TRUTH_THRESHOLDS.EPSILON;
     }
 
     toString() {
-        return `%${this._frequency.toFixed(TRUTH.PRECISION)};${this._confidence.toFixed(TRUTH.PRECISION)}%`;
+        return `%${this._frequency.toFixed(TRUTH_PRECISION.DECIMAL_PLACES)};${this._confidence.toFixed(TRUTH_PRECISION.DECIMAL_PLACES)}%`;
     }
 }

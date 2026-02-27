@@ -10,6 +10,7 @@
  */
 import {Strategy} from '../Strategy.js';
 import {Unifier} from '../../term/Unifier.js';
+import {Logger} from '../../util/Logger.js';
 
 export class ResolutionStrategy extends Strategy {
     /**
@@ -55,7 +56,7 @@ export class ResolutionStrategy extends Strategy {
                     }
                 }
             } catch (error) {
-                console.error('Error processing primary premise in ResolutionStrategy:', error);
+                Logger.error(`Error processing primary premise in ${this.constructor.name}:`, error);
 
             }
         }

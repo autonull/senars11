@@ -22,8 +22,6 @@ export class ZUIApp {
     async initialize() {
         if (!this.graph.initialize()) return;
 
-        console.log('SeNARS ZUI Initialized');
-
         setTimeout(() => { $('#loader').addClass('hidden'); }, 500);
 
         this.setupEventListeners();
@@ -210,8 +208,7 @@ export class ZUIApp {
 
         try {
             await this.connectionManager.connect(Config.getWebSocketUrl());
-        } catch (e) {
-            console.error('Failed to connect:', e);
+        } catch {
             if (statusEl.dom) {
                 statusEl.text('Connection Failed').class('disconnected');
             }

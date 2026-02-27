@@ -13,6 +13,7 @@ import {Unifier} from '../../term/Unifier.js';
 import {FunctorRegistry} from '../FunctorRegistry.js';
 import {isQuestion} from '../RuleHelpers.js';
 import {getComponents, getVariableName, isCompound, isVariable} from '../../term/TermUtils.js';
+import {Logger} from '../../util/Logger.js';
 
 export class PrologStrategy extends Strategy {
     constructor(config = {}) {
@@ -74,7 +75,7 @@ export class PrologStrategy extends Strategy {
             const results = await this._resolveGoal(primaryPremise);
             return results.map(r => r.task);
         } catch (error) {
-            console.error('Error in PrologStrategy resolution:', error);
+            Logger.error('Error in PrologStrategy resolution', error);
             return [];
         }
     }
@@ -325,7 +326,7 @@ export class PrologStrategy extends Strategy {
         try {
             this.updateKnowledgeBase(this.prologParser.parseProlog(prologRuleString));
         } catch (error) {
-            console.error('Error adding Prolog rule:', error);
+            Logger.error('Error adding Prolog rule', error);
         }
     }
 

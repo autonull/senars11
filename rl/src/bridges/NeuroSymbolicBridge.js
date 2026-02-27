@@ -7,6 +7,7 @@ import { mergeConfig } from '../utils/ConfigHelper.js';
 import { MetricsTracker } from '../utils/MetricsTracker.js';
 import { handleError, NeuroSymbolicError } from '../utils/ErrorHandler.js';
 import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
+import {Logger} from '@senars/core';
 
 const DEFAULTS = {
     useSeNARS: true,
@@ -75,7 +76,7 @@ export class NeuroSymbolicBridge extends Component {
 
             this.emit('senars:initialized');
         } catch (e) {
-            console.warn('SeNARS initialization failed:', e);
+            Logger.warn('SeNARS initialization failed:', e);
             this.senars = null;
         }
     }

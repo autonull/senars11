@@ -7,6 +7,7 @@ import { mergeConfig } from '../utils/ConfigHelper.js';
 import { MetricsTracker } from '../utils/MetricsTracker.js';
 import { PolicyUtils, ParameterInitializer } from '../utils/PolicyUtils.js';
 import { Tensor, SymbolicTensor } from '@senars/tensor';
+import {Logger} from '@senars/core';
 
 const DEFAULTS = {
     inputDim: 64,
@@ -73,7 +74,7 @@ export class TensorLogicPolicy extends Component {
                 this.optimizer = new tensor.SGDOptimizer(this.config.learningRate, this.backend);
             }
         } catch (e) {
-            console.warn('Failed to load tensor backend:', e);
+            Logger.warn('Failed to load tensor backend:', e);
             this.backend = null;
         }
     }
@@ -380,7 +381,7 @@ export class TensorLogicPolicy extends Component {
                 if (!isNaN(val)) action = Math.floor(val);
             }
         } catch (e) {
-            console.warn('Metta policy execution failed:', e);
+            Logger.warn('Metta policy execution failed:', e);
         }
 
         return { action, state };

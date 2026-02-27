@@ -1,4 +1,4 @@
-import {FormattingUtils, Input, NAR} from '@senars/core';
+import {FormattingUtils, Input, NAR, Logger} from '@senars/core';
 import {PersistenceManager} from './io/PersistenceManager.js';
 import * as Commands from './commands/Commands.js';
 import {AGENT_EVENTS} from './constants.js';
@@ -76,7 +76,7 @@ export class Agent extends NAR {
                 try {
                     registry.register(new CmdClass());
                 } catch (e) {
-                    console.warn(`Failed to register command ${CmdClass.name}: ${e.message} `);
+                    Logger.warn(`Failed to register command ${CmdClass.name}: ${e.message}`);
                 }
             }
         });
@@ -168,7 +168,7 @@ export class Agent extends NAR {
                     this.runState.intervalId = setTimeout(runLoop, interval);
                 }
             } catch (error) {
-                console.error(`❌ Error during run: ${error.message} `);
+                Logger.error(`Error during run: ${error.message}`);
                 this._stopRun();
             }
         };

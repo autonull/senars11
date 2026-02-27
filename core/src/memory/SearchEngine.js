@@ -253,21 +253,15 @@ export class SearchEngine {
             timestamp: Date.now()
         };
 
-        switch (format.toLowerCase()) {
-            case 'json':
-                return JSON.stringify(data, null, 2);
-            case 'csv':
-                return this._exportToCSV(data);
-            default:
-                return data;
-        }
+        const exporter = EXPORT_STRATEGIES[format.toLowerCase()] || EXPORT_STRATEGIES.json;
+        return exporter.call(this, data);
     }
 
-    /**
-     * Export to CSV format (simplified)
-     */
+    _exportToJSON(data) {
+        return JSON.stringify(data, null, 2);
+    }
+
     _exportToCSV(data) {
-        // This is a simplified CSV export
         let csv = 'Term,Category,Complexity,Activation,CreatedAt\n';
 
         for (const concept of data.concepts) {
@@ -470,3 +464,15 @@ export class SearchEngine {
         return this._termCategorizationModule;
     }
 }
+
+const EXPORT_STRATEGIES = Object.freeze({
+    json: function(data) {
+        return this._exportToJSON(data);
+    },
+    csv: function(data) {
+        return this._exportToCSV(data);
+    },
+    raw: function(data) {
+        return data;
+    }
+});

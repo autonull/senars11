@@ -1,6 +1,8 @@
 /**
  * Circuit breaker pattern implementation for fault tolerance
  */
+import {Logger} from './Logger.js';
+
 export class CircuitBreaker {
     static STATES = {
         CLOSED: 'CLOSED',
@@ -100,7 +102,7 @@ export class CircuitBreaker {
                 try {
                     this.options.onStateChange(newState);
                 } catch (error) {
-                    console.error('CircuitBreaker state change handler error:', error);
+                    Logger.error('CircuitBreaker state change handler error:', error);
                 }
             }
         }
