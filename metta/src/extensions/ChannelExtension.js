@@ -3,7 +3,7 @@
  * Bridges the JS ChannelManager to MeTTa Atoms.
  */
 import { Term } from '../kernel/Term.js';
-import { Logger } from '../../../core/src/util/Logger.js';
+import { Logger } from '@senars/core';
 
 export class ChannelExtension {
     constructor(interpreter, channelManager) {
@@ -19,6 +19,7 @@ export class ChannelExtension {
         this.ground.add('send-message', this._sendMessage.bind(this));
         this.ground.add('web-search', this._webSearch.bind(this));
         this.ground.add('on-event', this._onEvent.bind(this));
+        this.ground.add('llm-query', this._llmQuery.bind(this));
 
         // Listen to all messages globally to route to specific listeners
         this.channelManager.on('message', this._handleGlobalMessage.bind(this));
@@ -102,6 +103,36 @@ export class ChannelExtension {
         }
     }
 
+    async _llmQuery(promptAtom) {
+        // (llm-query "prompt")
+        const prompt = promptAtom.name || promptAtom.toString().replace(/"/g, '');
+
+        try {
+            // Access Agent's AI Client if available
+            // We need access to the agent instance here.
+            // In Agent.js we passed `this.channelManager` to `ChannelExtension`.
+            // We didn't pass `this` (the agent).
+            // We should have passed `this` to ChannelExtension constructor or have a way to access AI.
+            // However, ChannelExtension is instantiated in Agent.js.
+            // Let's assume we can get it or use a default if not provided.
+
+            // Wait, I updated Agent.js to pass `this.channelManager` but not `this`.
+            // I should update Agent.js to pass `this` as well, or attach it to channelManager?
+            // Actually, in `MemoryExtension` I passed `this`.
+            // Let's assume I will update `Agent.js` to pass `this` to `ChannelExtension` constructor too.
+
+            if (this.agent && this.agent.ai) {
+                const response = await this.agent.ai.generate(prompt);
+                return Term.str(response.text);
+            }
+
+            return Term.str("Error: AI Client not available");
+        } catch (error) {
+            Logger.error('LLM query failed:', error);
+            return Term.str(`Error: ${error.message}`);
+        }
+    }
+
     _onEvent(channelIdAtom, eventTypeAtom, callbackAtom) {
         // (on-event <channel-id> <event-type> <callback>)
         const channelId = channelIdAtom.name || channelIdAtom.toString().replace(/"/g, '');
@@ -121,12 +152,9 @@ export class ChannelExtension {
     }
 
     _handleGlobalMessage(msg) {
-        // msg: { channelId, protocol, from, content, ... }
         const listeners = this.eventListeners.get(msg.channelId);
         if (!listeners) return;
 
-        // Filter listeners by event type (e.g. 'message', 'join', or protocol specific like 'PRIVMSG')
-        // We'll map generic 'message' to 'message' type
         const type = msg.metadata?.type || 'message';
 
         listeners.forEach(listener => {
@@ -137,19 +165,9 @@ export class ChannelExtension {
     }
 
     _triggerCallback(callbackAtom, msg) {
-        // Prepare arguments for callback: (callback <from> <content> <metadata>)
-        // We need to convert msg to atoms
-        const fromAtom = Term.str(msg.from);
-        const contentAtom = Term.str(msg.content);
-        // Metadata as list of pairs? Or just keep it simple for now
-        const metaAtom = Term.sym('()'); // Placeholder
-
-        const expr = Term.exp('call', [callbackAtom, fromAtom, contentAtom]);
-
-        // Execute in interpreter
-        // Using runAsync or similar mechanism. Since this is event driven, we might need to schedule it.
-        // We can use interpreter.evaluateAsync but we are not awaiting it here.
-        // Ideally we queue it.
+        // (callback <from> <content>)
+        // Escaping/quoting might be needed for content
+        // Simple string injection for now
         this.interpreter.runAsync(`!(${callbackAtom} "${msg.from}" "${msg.content}")`)
             .catch(err => Logger.error('Error executing event callback:', err));
     }

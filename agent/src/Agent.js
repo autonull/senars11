@@ -95,11 +95,20 @@ export class Agent extends NAR {
 
     _registerMeTTaExtensions() {
         if (this.metta && !this._channelExtensionRegistered) {
+             // Register ChannelExtension
              import('../../../metta/src/extensions/ChannelExtension.js').then(({ ChannelExtension }) => {
+                 // Pass `this` (agent) to ChannelExtension to enable LLM access
                  const ext = new ChannelExtension(this.metta, this.channelManager);
+                 ext.agent = this; // Attach agent explicitly
                  ext.register();
                  this._channelExtensionRegistered = true;
              }).catch(err => Logger.error("Failed to register ChannelExtension:", err));
+
+             // Register MemoryExtension
+             import('../../../metta/src/extensions/MemoryExtension.js').then(({ MemoryExtension }) => {
+                 const memExt = new MemoryExtension(this.metta, this);
+                 memExt.register();
+             }).catch(err => Logger.error("Failed to register MemoryExtension:", err));
         }
     }
 
@@ -114,10 +123,8 @@ export class Agent extends NAR {
     _setupChannelRouting() {
         this.channelManager.on('message', async (msg) => {
             Logger.info(`[Agent] Received from ${msg.protocol}:${msg.from}: ${msg.content}`);
-            // Pass the structured message object to input processor
             try {
-                // We'll let InputProcessor handle the structure now
-                const result = await this.inputProcessor.processChannelMessage(msg);
+                await this.inputProcessor.processChannelMessage(msg);
             } catch (err) {
                 Logger.error('Error processing channel message:', err);
             }
