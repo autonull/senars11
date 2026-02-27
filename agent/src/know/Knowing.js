@@ -10,7 +10,7 @@ export class Knowing {
     constructor(options = {}) {
         this.knowledgeItems = [];
         this.options = options;
-        this.stats = {...INITIAL_STATS};
+        this.stats = { ...INITIAL_STATS };
     }
 
     async addKnowledge(knowledge) {
@@ -18,17 +18,8 @@ export class Knowing {
             throw new Error('Invalid knowledge object: must implement Knowledge interface');
         }
 
-        try {
-            this.knowledgeItems.push(knowledge);
-            await this._updateStats();
-
-            if (this.options.verbose) {
-                console.log(`Added knowledge: ${knowledge.constructor.name}`);
-            }
-        } catch (error) {
-            console.error(`Error adding knowledge: ${error.message}`);
-            throw error;
-        }
+        this.knowledgeItems.push(knowledge);
+        await this._updateStats();
     }
 
     async addMultipleKnowledge(knowledgeArray) {
@@ -54,12 +45,8 @@ export class Knowing {
     async getAllTasks() {
         const allTasks = [];
         for (const knowledge of this.knowledgeItems) {
-            try {
-                const tasks = await knowledge.toTasks?.();
-                if (Array.isArray(tasks)) allTasks.push(...tasks);
-            } catch (error) {
-                console.error(`Error getting tasks from ${knowledge.constructor.name}: ${error.message}`);
-            }
+            const tasks = await knowledge.toTasks?.();
+            if (Array.isArray(tasks)) allTasks.push(...tasks);
         }
         return allTasks;
     }
@@ -67,12 +54,8 @@ export class Knowing {
     async getAllRelationships() {
         const allRelationships = [];
         for (const knowledge of this.knowledgeItems) {
-            try {
-                const relationships = await knowledge.createRelationships?.();
-                if (Array.isArray(relationships)) allRelationships.push(...relationships);
-            } catch (error) {
-                console.error(`Error getting relationships from ${knowledge.constructor.name}: ${error.message}`);
-            }
+            const relationships = await knowledge.createRelationships?.();
+            if (Array.isArray(relationships)) allRelationships.push(...relationships);
         }
         return allRelationships;
     }
@@ -82,7 +65,7 @@ export class Knowing {
     }
 
     getStats() {
-        return {...this.stats};
+        return { ...this.stats };
     }
 
     async _updateStats() {
@@ -96,31 +79,23 @@ export class Knowing {
             const typeName = knowledge.constructor.name;
 
             if (!this.stats.knowledgeByType[typeName]) {
-                this.stats.knowledgeByType[typeName] = {
-                    count: 0,
-                    tasks: 0,
-                    relationships: 0
-                };
+                this.stats.knowledgeByType[typeName] = { count: 0, tasks: 0, relationships: 0 };
             }
 
             this.stats.knowledgeByType[typeName].count++;
 
-            try {
-                const [tasks, relationships] = await Promise.allSettled([
-                    knowledge.toTasks?.() || Promise.resolve([]),
-                    knowledge.createRelationships?.() || Promise.resolve([])
-                ]);
+            const [tasks, relationships] = await Promise.allSettled([
+                knowledge.toTasks?.() || Promise.resolve([]),
+                knowledge.createRelationships?.() || Promise.resolve([])
+            ]);
 
-                const taskCount = tasks.status === 'fulfilled' && Array.isArray(tasks.value) ? tasks.value.length : 0;
-                this.stats.totalTasks += taskCount;
-                this.stats.knowledgeByType[typeName].tasks += taskCount;
+            const taskCount = tasks.status === 'fulfilled' && Array.isArray(tasks.value) ? tasks.value.length : 0;
+            this.stats.totalTasks += taskCount;
+            this.stats.knowledgeByType[typeName].tasks += taskCount;
 
-                const relationshipCount = relationships.status === 'fulfilled' && Array.isArray(relationships.value) ? relationships.value.length : 0;
-                this.stats.totalRelationships += relationshipCount;
-                this.stats.knowledgeByType[typeName].relationships += relationshipCount;
-            } catch (error) {
-                console.error(`Error calculating stats for ${typeName}: ${error.message}`);
-            }
+            const relationshipCount = relationships.status === 'fulfilled' && Array.isArray(relationships.value) ? relationships.value.length : 0;
+            this.stats.totalRelationships += relationshipCount;
+            this.stats.knowledgeByType[typeName].relationships += relationshipCount;
         });
 
         await Promise.all(statsPromises);
@@ -138,7 +113,7 @@ export class Knowing {
 
     clear() {
         this.knowledgeItems = [];
-        this.stats = {...INITIAL_STATS};
+        this.stats = { ...INITIAL_STATS };
     }
 
     async export() {
@@ -153,35 +128,30 @@ export class Knowing {
         };
 
         for (const knowledge of this.knowledgeItems) {
-            try {
-                const [summary, items, tasks, relationships] = await Promise.allSettled([
-                    knowledge.getSummary?.() || Promise.resolve({}),
-                    knowledge.getItems?.() || Promise.resolve([]),
-                    knowledge.toTasks?.() || Promise.resolve([]),
-                    knowledge.createRelationships?.() || Promise.resolve([])
-                ]);
+            const [summary, items, tasks, relationships] = await Promise.allSettled([
+                knowledge.getSummary?.() || Promise.resolve({}),
+                knowledge.getItems?.() || Promise.resolve([]),
+                knowledge.toTasks?.() || Promise.resolve([]),
+                knowledge.createRelationships?.() || Promise.resolve([])
+            ]);
 
-                const knowledgeData = {
-                    type: knowledge.constructor.name,
-                    summary: summary.status === 'fulfilled' ? summary.value : {},
-                    items: items.status === 'fulfilled' ? items.value : [],
-                    tasks: tasks.status === 'fulfilled' ? tasks.value : [],
-                    relationships: relationships.status === 'fulfilled' ? relationships.value : []
-                };
+            const knowledgeData = {
+                type: knowledge.constructor.name,
+                summary: summary.status === 'fulfilled' ? summary.value : {},
+                items: items.status === 'fulfilled' ? items.value : [],
+                tasks: tasks.status === 'fulfilled' ? tasks.value : [],
+                relationships: relationships.status === 'fulfilled' ? relationships.value : []
+            };
 
-                exported.knowledge.push(knowledgeData);
-                exported.metadata.totalTasks += Array.isArray(knowledgeData.tasks) ? knowledgeData.tasks.length : 0;
-                exported.metadata.totalRelationships += Array.isArray(knowledgeData.relationships) ? knowledgeData.relationships.length : 0;
-            } catch (error) {
-                console.error(`Error exporting knowledge ${knowledge.constructor.name}: ${error.message}`);
-            }
+            exported.knowledge.push(knowledgeData);
+            exported.metadata.totalTasks += Array.isArray(knowledgeData.tasks) ? knowledgeData.tasks.length : 0;
+            exported.metadata.totalRelationships += Array.isArray(knowledgeData.relationships) ? knowledgeData.relationships.length : 0;
         }
 
         return exported;
     }
 
-    import(data) {
-        console.warn('Import functionality requires custom knowledge reconstruction logic');
+    import() {
         return false;
     }
 }

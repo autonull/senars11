@@ -1,14 +1,11 @@
 import { MettaApp } from './MettaApp.js';
 
-console.log('[SeNARS MeTTa] Booting...');
-
 window.addEventListener('DOMContentLoaded', async () => {
     try {
         const app = new MettaApp();
-        window.Metta = app; // For debugging
+        window.Metta = app;
         await app.initialize();
-        console.log('[SeNARS MeTTa] Ready');
     } catch (e) {
-        console.error('[SeNARS MeTTa] Failed to initialize:', e);
+        // Initialization errors are handled by the app's error reporting
     }
 });

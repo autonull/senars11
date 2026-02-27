@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import { LMConfig } from '../../../core/src/lm/LMConfig.js';
+import {Logger} from '../../../core/src/util/Logger.js';
 
 export class LMConfigPersistence {
     static async save(config, path) {
@@ -9,7 +10,7 @@ export class LMConfigPersistence {
             await fs.writeFile(path, data, 'utf-8');
             return true;
         } catch (error) {
-            console.warn(`Failed to save LM config to ${path}:`, error.message);
+            Logger.warn(`Failed to save LM config to ${path}:`, error.message);
             return false;
         }
     }
@@ -20,7 +21,12 @@ export class LMConfigPersistence {
             const json = JSON.parse(data);
             return LMConfig.fromJSON(json);
         } catch (error) {
-            // It's okay if file doesn't exist, return new default config
+            if (error.code === 'ENOENT') {
+                // File doesn't exist - okay to return default
+                return new LMConfig({ persistPath: path });
+            }
+            // Log other errors (JSON parse, permissions, etc.)
+            Logger.warn(`Failed to load LM config from ${path}:`, error.message);
             return new LMConfig({ persistPath: path });
         }
     }

@@ -1,4 +1,4 @@
-import fs from 'fs';
+import { promises as fs } from 'fs';
 import {Logger} from '../../../core/src/util/Logger.js';
 
 class PreferenceCollector {
@@ -62,7 +62,13 @@ class PreferenceCollector {
     }
 
     async loadTrajectory(path) {
-        return JSON.parse(fs.readFileSync(path, 'utf-8'));
+        try {
+            const data = await fs.readFile(path, 'utf-8');
+            return JSON.parse(data);
+        } catch (error) {
+            Logger.error(`Failed to load trajectory from ${path}:`, error);
+            throw error;
+        }
     }
 
     _formatTrajectory(traj) {
@@ -85,8 +91,13 @@ class PreferenceCollector {
         }).join('\n');
     }
 
-    savePreferences(path) {
-        fs.writeFileSync(path, JSON.stringify(this.preferences, null, 2));
+    async savePreferences(path) {
+        try {
+            await fs.writeFile(path, JSON.stringify(this.preferences, null, 2));
+        } catch (error) {
+            Logger.error(`Failed to save preferences to ${path}:`, error);
+            throw error;
+        }
     }
 }
 

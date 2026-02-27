@@ -1,121 +1,60 @@
-/**
- * Base class for forgetting policies.
- * Defines the interface for item selection and ordering strategies.
- */
 class ForgetPolicy {
-    /**
-     * Select an item for removal based on the policy's criteria.
-     * @param {Map} items - Map of items
-     * @param {Map} itemData - Map of item priority data
-     * @param {Array} insertionOrder - Array of items in insertion order
-     * @param {Map} accessTimes - Map of item access times
-     * @returns {*} Item to remove, or null if none selected
-     */
     selectForRemoval(items, itemData, insertionOrder, accessTimes) {
         return null;
     }
 
-    /**
-     * Order items according to the policy's criteria.
-     * @param {Map} items - Map of items
-     * @param {Map} itemData - Map of item priority data
-     * @param {Array} insertionOrder - Array of items in insertion order
-     * @param {Map} accessTimes - Map of item access times
-     * @returns {Array} Ordered array of items
-     */
     orderItems(items, itemData, insertionOrder, accessTimes) {
         return Array.from(items.keys());
     }
 
-    /**
-     * Helper: Find item with minimum value from a data map.
-     * @param {Map} dataMap - Map of items to values
-     * @returns {*} Item with minimum value, or null if empty
-     * @protected
-     */
     _findMinValueItem(dataMap) {
         if (dataMap.size === 0) return null;
-        let minItem = null;
-        let minValue = Infinity;
-        for (const [item, value] of dataMap) {
-            if (value < minValue) {
-                minValue = value;
-                minItem = item;
-            }
-        }
+        let [minItem, minValue] = Array.from(dataMap.entries()).reduce(
+            ([minItem, minValue], [item, value]) => value < minValue ? [item, value] : [minItem, minValue],
+            [null, Infinity]
+        );
         return minItem;
     }
 
-    /**
-     * Helper: Sort items by value in descending order.
-     * @param {Map} dataMap - Map of items to values
-     * @param {Map} items - Map of items to filter by (optional)
-     * @returns {Array} Sorted array of items
-     * @protected
-     */
     _sortByValueDesc(dataMap, items = null) {
         let entries = Array.from(dataMap.entries());
-        if (items) {
-            entries = entries.filter(entry => items.has(entry[0]));
-        }
-        return entries
-            .sort((a, b) => b[1] - a[1])
-            .map(entry => entry[0]);
+        if (items) entries = entries.filter(([item]) => items.has(item));
+        return entries.sort((a, b) => b[1] - a[1]).map(([item]) => item);
     }
 }
 
-/**
- * Priority-based forgetting policy.
- * Removes items with the lowest priority value.
- */
 class PriorityForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData) {
         return this._findMinValueItem(itemData);
     }
-
     orderItems(items, itemData) {
         return this._sortByValueDesc(itemData);
     }
 }
 
-/**
- * Least Recently Used (LRU) forgetting policy.
- * Removes items that haven't been accessed recently.
- */
 class LRUForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData, insertionOrder, accessTimes) {
         return this._findMinValueItem(accessTimes);
     }
-
     orderItems(items, itemData, insertionOrder, accessTimes) {
         return this._sortByValueDesc(accessTimes, items);
     }
 }
 
-/**
- * First-In-First-Out (FIFO) forgetting policy.
- * Removes items in the order they were inserted.
- */
 class FIFOForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData, insertionOrder) {
         return insertionOrder.find(item => items.has(item)) || null;
     }
-
     orderItems(items, itemData, insertionOrder) {
         return insertionOrder.filter(item => items.has(item));
     }
 }
 
-/**
- * Random forgetting policy.
- * Removes a random item from the collection.
- */
 class RandomForgetPolicy extends ForgetPolicy {
     selectForRemoval(items) {
         const arr = Array.from(items.keys());
         return arr.length ? arr[Math.floor(Math.random() * arr.length)] : null;
     }
-
     orderItems(items) {
         const arr = Array.from(items.keys());
         for (let i = arr.length - 1; i > 0; i--) {
@@ -128,10 +67,10 @@ class RandomForgetPolicy extends ForgetPolicy {
 
 const DEFAULT_POLICY = 'priority';
 const POLICIES = Object.freeze({
-    'priority': new PriorityForgetPolicy(),
-    'lru': new LRUForgetPolicy(),
-    'fifo': new FIFOForgetPolicy(),
-    'random': new RandomForgetPolicy()
+    priority: new PriorityForgetPolicy(),
+    lru: new LRUForgetPolicy(),
+    fifo: new FIFOForgetPolicy(),
+    random: new RandomForgetPolicy()
 });
 
 export class Bag {

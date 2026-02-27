@@ -1,4 +1,5 @@
 import { promises as fs } from 'fs';
+import { deepClone } from '../../../core/src/util/CloneUtils.js';
 
 class PersistenceAdapter {
     async save(state, identifier) {
@@ -35,7 +36,7 @@ class MemoryAdapter extends PersistenceAdapter {
 
     async save(state, key = 'default') {
         try {
-            this.storage.set(key, JSON.parse(JSON.stringify(state)));
+            this.storage.set(key, deepClone(state));
         } catch (error) {
             throw new Error(`Failed to serialize state for key ${key}: ${error.message}`);
         }

@@ -6,6 +6,7 @@
 
 // Standard library imports
 import { TermFactory } from '../../core/src/term/TermFactory.js';
+import {Logger} from '../../core/src/util/Logger.js';
 
 // Module Loader
 import { ModuleLoader } from './kernel/ModuleLoader.js';
@@ -139,7 +140,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
             try {
                 loadStdlib(this, this.config);
             } catch (e) {
-                console.warn("Stdlib load failed:", e.message);
+                Logger.warn("Stdlib load failed:", e.message);
             }
         }
     }
@@ -185,7 +186,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
         } else if (bindings.type === 'compound') {
             return [bindings.operator, ...bindings.components];
         } else if (bindings.name !== '()') {
-            console.error('Invalid &let* bindings', bindings);
+            Logger.error('Invalid &let* bindings', bindings);
             return [];
         }
         return [];
