@@ -11,6 +11,7 @@ export class ChannelExtension {
         this.channelManager = channelManager;
         this.ground = interpreter.ground;
         this.eventListeners = new Map(); // channelId -> [{ type, callback }]
+        this.agent = null; // Will be injected
     }
 
     register() {
@@ -86,17 +87,35 @@ export class ChannelExtension {
     async _webSearch(queryAtom) {
         const query = queryAtom.name || queryAtom.toString().replace(/"/g, '');
         try {
-             const { WebSearchTool } = await import('../../../agent/src/io/index.js');
-             // TODO: Inject configured instance instead of new default
-             const tool = new WebSearchTool();
+             // Prefer using tool instance from agent if available to reuse config
+             let tool;
+             if (this.agent && this.agent.toolInstances && this.agent.toolInstances.websearch) {
+                 tool = this.agent.toolInstances.websearch;
+             } else {
+                 const { WebSearchTool } = await import('../../../agent/src/io/index.js');
+                 // Attempt to get config from agent config if possible, otherwise empty
+                 const config = this.agent && this.agent.config && this.agent.config.tools && this.agent.config.tools.websearch
+                                ? this.agent.config.tools.websearch
+                                : {};
+                 tool = new WebSearchTool(config);
+             }
+
              const results = await tool.search(query);
+
+             // Handle case where results is an error object or not an array
+             if (!Array.isArray(results)) {
+                 if (results && results.error) {
+                     Logger.warn(`Web search returned error: ${results.error}`);
+                 }
+                 return Term.sym('()');
+             }
 
              // Convert results to MeTTa List: ( (Title Link Snippet) ... )
              const listItems = results.map(r =>
-                Term.exp(':', [
-                    Term.str(r.title),
-                    Term.str(r.link),
-                    Term.str(r.snippet)
+                Term.exp(Term.sym(':'), [
+                    Term.grounded(r.title),
+                    Term.grounded(r.link),
+                    Term.grounded(r.snippet)
                 ])
              );
              return this.interpreter._listify(listItems);
@@ -114,25 +133,29 @@ export class ChannelExtension {
         try {
             if (this.agent && this.agent.ai) {
                 const response = await this.agent.ai.generate(prompt);
-                return Term.str(response.text);
+                return Term.grounded(response.text);
             }
-            return Term.str("Error: AI Client not available");
+            return Term.grounded("Error: AI Client not available");
         } catch (error) {
             Logger.error('LLM query failed:', error);
-            return Term.str(`Error: ${error.message}`);
+            return Term.grounded(`Error: ${error.message}`);
         }
     }
 
     async _readFile(pathAtom) {
         const filePath = pathAtom.name || pathAtom.toString().replace(/"/g, '');
         try {
-            // Lazy load FileTool
-            const { FileTool } = await import('../../../agent/src/io/tools/FileTool.js');
-            // Use singleton or new instance? Workspace config should come from agent config.
-            // For now, default workspace.
-            const fileTool = new FileTool({ workspace: './workspace' });
+            let fileTool;
+            if (this.agent && this.agent.toolInstances && this.agent.toolInstances.file) {
+                 fileTool = this.agent.toolInstances.file;
+            } else {
+                // Lazy load FileTool
+                const { FileTool } = await import('../../../agent/src/io/tools/FileTool.js');
+                fileTool = new FileTool({ workspace: './workspace' });
+            }
+
             const content = fileTool.readFile(filePath);
-            return content ? Term.str(content) : Term.sym('Error:FileNotFound');
+            return content ? Term.grounded(content) : Term.sym('Error:FileNotFound');
         } catch (e) {
             return Term.sym('Error:ReadFailed');
         }
@@ -142,8 +165,14 @@ export class ChannelExtension {
         const filePath = pathAtom.name || pathAtom.toString().replace(/"/g, '');
         const content = contentAtom.name || contentAtom.toString().replace(/"/g, '');
         try {
-            const { FileTool } = await import('../../../agent/src/io/tools/FileTool.js');
-            const fileTool = new FileTool({ workspace: './workspace' });
+             let fileTool;
+             if (this.agent && this.agent.toolInstances && this.agent.toolInstances.file) {
+                  fileTool = this.agent.toolInstances.file;
+             } else {
+                 const { FileTool } = await import('../../../agent/src/io/tools/FileTool.js');
+                 fileTool = new FileTool({ workspace: './workspace' });
+             }
+
             fileTool.writeFile(filePath, content);
             return Term.sym('True');
         } catch (e) {
@@ -183,20 +212,23 @@ export class ChannelExtension {
     }
 
     _triggerCallback(callbackAtom, msg) {
-        // Prepare arguments for callback: (callback <from> <content> <metadata>)
-        // We need to convert msg to atoms
-        const fromAtom = Term.str(msg.from);
-        const contentAtom = Term.str(msg.content);
-        // Metadata as list of pairs? Or just keep it simple for now
-        const metaAtom = Term.sym('()'); // Placeholder
+        // Prepare arguments for callback: (callback <from> <content>)
+        // Construct the expression programmatically to avoid injection risks
+        // (<callback> "from" "content")
 
-        const expr = Term.exp('call', [callbackAtom, fromAtom, contentAtom]);
+        const fromAtom = Term.grounded(msg.from);
+        const contentAtom = Term.grounded(msg.content);
+
+        // Construct the call expression: (<callback> <from> <content>)
+        // We assume callbackAtom is a reference to a function (Lambda or defined op)
+        // or a symbol that resolves to one.
+        const expr = Term.exp(callbackAtom, [fromAtom, contentAtom]);
 
         // Execute in interpreter
-        // Using runAsync or similar mechanism. Since this is event driven, we might need to schedule it.
-        // We can use interpreter.evaluateAsync but we are not awaiting it here.
-        // Ideally we queue it.
-        this.interpreter.runAsync(`!(${callbackAtom} "${msg.from}" "${msg.content}")`)
+        // Since we are in an event handler (outside main loop), we need to run this.
+        // We use evaluateAsync to run it.
+        // Note: This runs in the background. Errors are logged.
+        this.interpreter.evaluateAsync(expr)
             .catch(err => Logger.error('Error executing event callback:', err));
     }
 

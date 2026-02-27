@@ -6,6 +6,7 @@ import { Channel } from '../Channel.js';
 import { SimplePool, getPublicKey, finalizeEvent, nip19 } from 'nostr-tools';
 import { WebSocket } from 'ws'; // Node.js WebSocket polyfill if needed
 import { Logger } from '@senars/core';
+import { randomBytes } from 'crypto';
 
 // Polyfill WebSocket for Node environment if not present globally
 if (typeof global.WebSocket === 'undefined') {
@@ -44,12 +45,11 @@ export class NostrChannel extends Channel {
         const array = new Uint8Array(32);
         if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
              crypto.getRandomValues(array);
+             return Buffer.from(array).toString('hex');
         } else {
-            // Node.js fallback
-            const { randomBytes } = await import('crypto');
+            // Node.js fallback using imported crypto module
             return randomBytes(32).toString('hex');
         }
-        return Buffer.from(array).toString('hex');
     }
 
     async connect() {
