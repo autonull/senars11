@@ -18,12 +18,38 @@ export class AIClient {
     }
 
     static _extractPrompt(options) {
-        if (options.messages) return options.messages; // Vercel AI SDK expects messages if available
+        // Handle messages array (Vercel AI SDK format)
+        if (options.messages && Array.isArray(options.messages)) {
+            // Convert messages to a single text prompt
+            return options.messages.map(msg => {
+                if (typeof msg === 'string') return msg;
+                if (msg.content) {
+                    if (typeof msg.content === 'string') return msg.content;
+                    if (Array.isArray(msg.content)) {
+                        return msg.content.map(c => c.text || '').join('');
+                    }
+                }
+                if (msg.text) return msg.text;
+                return JSON.stringify(msg);
+            }).join('\n');
+        }
+        
+        // Handle prompt field
         if (typeof options.prompt === 'string') return options.prompt;
         if (Array.isArray(options.prompt)) {
             // Check if it's already a messages array [ {role, content} ]
             if (options.prompt.length > 0 && options.prompt[0].role) {
-                return options.prompt;
+                return options.prompt.map(msg => {
+                    if (typeof msg === 'string') return msg;
+                    if (msg.content) {
+                        if (typeof msg.content === 'string') return msg.content;
+                        if (Array.isArray(msg.content)) {
+                            return msg.content.map(c => c.text || '').join('');
+                        }
+                    }
+                    if (msg.text) return msg.text;
+                    return JSON.stringify(msg);
+                }).join('\n');
             }
             return options.prompt.map(msg => {
                 if (typeof msg === 'string') return msg;
@@ -54,13 +80,18 @@ export class AIClient {
             this.providers.set('anthropic', (modelName) => anthropic(modelName || 'claude-3-5-sonnet-20241022'));
         }
 
+        // Ollama provider with v2 spec wrapper
         const ollamaBaseURL = config.ollama?.baseURL || config.baseURL || 'http://localhost:11434';
-        const ollama = createOllama({baseURL: ollamaBaseURL});
-        this.providers.set('ollama', (modelName) => ollama(modelName || 'llama3.2'));
+        this.providers.set('ollama', (modelName) => this._createOllamaModel(ollamaBaseURL, modelName || 'llama3.2'));
 
         this.providers.set('transformers', (modelName) => this._createTransformersModel(modelName));
         this.providers.set('webllm', (modelName) => this._createWebLLMModel(modelName));
         this.providers.set('dummy', (modelName) => this._createDummyModel(modelName));
+    }
+
+    _createOllamaModel(baseURL, modelName) {
+        const ollama = createOllama({ baseURL });
+        return ollama(modelName);
     }
 
     _createAIProviderAdapter(provider, effectiveModel) {

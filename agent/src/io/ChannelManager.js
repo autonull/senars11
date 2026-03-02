@@ -5,17 +5,30 @@
 import { EventEmitter } from 'events';
 import { Logger } from '@senars/core';
 import { RateLimiter } from './RateLimiter.js';
+import { PerChannelRateLimiter } from './PerChannelRateLimiter.js';
 
 export class ChannelManager extends EventEmitter {
     constructor(config = {}) {
         super();
         this.channels = new Map();
         this.middleware = [];
-        // Global rate limiter: 10 messages per 2 seconds default
+        
+        // Global rate limiter (legacy, for backward compatibility)
         this.rateLimiter = new RateLimiter(
             config.rateLimit?.max || 10,
             config.rateLimit?.interval || 2000
         );
+        
+        // Per-channel rate limiter (new, more granular control)
+        this.perChannelRateLimiter = new PerChannelRateLimiter({
+            maxTokens: config.rateLimit?.perChannelMax ?? 5,
+            refillInterval: config.rateLimit?.perChannelInterval ?? 10000,
+            globalMax: config.rateLimit?.globalMax ?? 20,
+            globalInterval: config.rateLimit?.globalInterval ?? 10000
+        });
+        
+        // Use per-channel limiting by default
+        this.usePerChannelLimiting = config.rateLimit?.usePerChannel ?? true;
     }
 
     /**
@@ -113,10 +126,28 @@ export class ChannelManager extends EventEmitter {
             throw new Error(`Channel ${channelId} not found`);
         }
 
-        // Apply rate limiting
-        await this.rateLimiter.wait();
+        // Apply rate limiting (prefer per-channel limiting)
+        if (this.usePerChannelLimiting) {
+            const rateKey = `${channelId}:${target}`;
+            await this.perChannelRateLimiter.wait(rateKey);
+        } else {
+            await this.rateLimiter.wait();
+        }
 
         return await channel.sendMessage(target, content, metadata);
+    }
+
+    /**
+     * Get rate limiter stats
+     */
+    getRateLimitStats() {
+        if (this.usePerChannelLimiting) {
+            return this.perChannelRateLimiter.getStats();
+        }
+        return {
+            tokens: this.rateLimiter.tokens,
+            limit: this.rateLimiter.limit
+        };
     }
 
     /**

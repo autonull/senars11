@@ -38,19 +38,10 @@ export class AgentStreamer {
     async accumulateStreamResponse(input) {
         let fullResponse = '';
         try {
-            // Pass tools here as well for non-streaming accumulation if needed
-            // But streamExecution handles the call.
-            // Wait, we need to call streamExecution or generate?
-            // If we want tool use, we should use stream/generate with tools.
-            // Let's use generate for simpler non-streaming return, or consume the stream.
-
-            // Using generate to support tools properly in one go (AI SDK generateText handles multi-step tool calls automatically if configured, or returns tool calls)
-            // But for deep integration, we might want the agent to 'think'.
-            // For now, basic generate.
-
             const history = this.agent.getHistory();
+            const botName = this.agent.id || 'Assistant';
             const messages = [
-                { role: 'system', content: 'You are SeNARS Agent. Respond helpfully.' },
+                { role: 'system', content: `You are ${botName}. Respond helpfully.` },
                 ...history.slice(-10).map(h => ({ role: 'user', content: h })), // Limit history context
                 { role: 'user', content: input }
             ];
