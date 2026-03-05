@@ -88,6 +88,6 @@ export class ExpressionAtom {
     equals(other) {
         if (other?.type !== 'compound' || other.components.length !== this.components.length) return false;
         const opEq = this.operator.equals ? this.operator.equals(other.operator) : this.operator === other.operator;
-        return opEq && this.components.every((c, i) => c.equals(other.components[i]));
+        return opEq && this.components.every((c, i) => c && c.equals ? c.equals(other.components[i]) : c === other.components[i]);
     }
 }
