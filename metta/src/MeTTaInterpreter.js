@@ -36,6 +36,7 @@ import { Formatter } from './kernel/Formatter.js';
 // Extensions
 import { ReactiveSpace } from './extensions/ReactiveSpace.js';
 import { ChannelExtension } from './extensions/ChannelExtension.js'; // Q5: Add Channel Extension
+import { ImaginationExtension } from './extensions/ImaginationExtension.js';
 
 // Standard library
 import { loadStdlib } from './stdlib/StdlibLoader.js';
@@ -124,6 +125,10 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
             const channelExt = new ChannelExtension(this, options.channelManager);
             channelExt.register();
         }
+
+        // Always register ImaginationExtension for internal canvas capabilities
+        const imaginationExt = new ImaginationExtension(this, this.reasoner);
+        imaginationExt.register();
     }
 
     /**
