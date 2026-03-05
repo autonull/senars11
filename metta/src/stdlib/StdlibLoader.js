@@ -8,7 +8,7 @@ import { FileLoader } from '../platform/node/FileLoader.js';
 import { VirtualFS } from '../platform/browser/VirtualFS.js';
 import {Logger} from '../../../core/src/util/Logger.js';
 
-const DEFAULT_MODULES = ['core', 'list', 'match', 'types', 'hof'];
+const DEFAULT_MODULES = ['core', 'list', 'match', 'types', 'hof', 'imagination'];
 
 export class StdlibLoader {
     constructor(interpreter, options = {}) {

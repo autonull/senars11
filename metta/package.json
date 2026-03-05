@@ -5,8 +5,9 @@
   "main": "src/index.js",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.21.1",
-    "@senars/core": "^1.0.0"
-  },
-  "devDependencies": {
+    "@napi-rs/canvas": "^0.1.96",
+    "@senars/core": "^1.0.0",
+    "canvas": "^2.11.2",
+    "gifencoder": "^2.0.1"
   }
 }
