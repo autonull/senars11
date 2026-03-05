@@ -29,12 +29,15 @@ describe('ImaginationExtension (Mind Eye)', () => {
         const imagePath = path.join(testDir, 'test_image.png');
 
         interp.run(`
-            !(canvas-create 200 200)
-            !(set-color "red")
-            !(draw-rect 50 50 100 100)
-            !(set-color "blue")
-            !(draw-circle 100 100 25)
-            !(save-image "${imagePath}")
+            !(let $canvas (canvas-create 200 200)
+                (let $ctx (canvas-get-context $canvas)
+                    (do
+                        (set-color $ctx "red")
+                        (draw-rect $ctx 50 50 100 100)
+                        (set-color $ctx "blue")
+                        (draw-circle $ctx 100 100 25)
+                        (save-image $canvas "${imagePath}")
+                    )))
         `);
 
         expect(fs.existsSync(imagePath)).toBe(true);
@@ -46,31 +49,37 @@ describe('ImaginationExtension (Mind Eye)', () => {
         const videoPath = path.join(testDir, 'test_video.gif');
 
         interp.run(`
-            !(canvas-create 100 100)
-            !(video-start "${videoPath}" 100 0)
+            !(let* (
+                    ($canvas (canvas-create 100 100))
+                    ($ctx (canvas-get-context $canvas))
+                    ($encoder (video-encoder-create 100 100))
+                )
+                (do
+                    (video-start $encoder $canvas "${videoPath}" 100 0)
 
-            ;; Frame 1
-            !(set-color "white")
-            !(draw-rect 0 0 100 100)
-            !(set-color "red")
-            !(draw-circle 50 50 20)
-            !(video-add-frame)
+                    ;; Frame 1
+                    (set-color $ctx "white")
+                    (draw-rect $ctx 0 0 100 100)
+                    (set-color $ctx "red")
+                    (draw-circle $ctx 50 50 20)
+                    (video-add-frame $encoder $ctx)
 
-            ;; Frame 2
-            !(set-color "white")
-            !(draw-rect 0 0 100 100)
-            !(set-color "green")
-            !(draw-circle 50 50 30)
-            !(video-add-frame)
+                    ;; Frame 2
+                    (set-color $ctx "white")
+                    (draw-rect $ctx 0 0 100 100)
+                    (set-color $ctx "green")
+                    (draw-circle $ctx 50 50 30)
+                    (video-add-frame $encoder $ctx)
 
-            ;; Frame 3
-            !(set-color "white")
-            !(draw-rect 0 0 100 100)
-            !(set-color "blue")
-            !(draw-circle 50 50 40)
-            !(video-add-frame)
+                    ;; Frame 3
+                    (set-color $ctx "white")
+                    (draw-rect $ctx 0 0 100 100)
+                    (set-color $ctx "blue")
+                    (draw-circle $ctx 50 50 40)
+                    (video-add-frame $encoder $ctx)
 
-            !(video-finish)
+                    (video-finish $encoder)
+                ))
         `);
 
         // Wait a small amount for the stream to flush before we check file size
