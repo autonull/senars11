@@ -3,6 +3,10 @@
  */
 
 import { isExpression, exp } from '../../kernel/Term.js';
+import { ParallelExecutor } from '../ParallelExecutor.js';
+
+// Phase P1-D: Initialize singleton executor for large branch mapping
+const parallelExecutor = new ParallelExecutor();
 
 /**
  * Perform non-deterministic reduction
@@ -112,11 +116,16 @@ const reduceSubcomponentsND = (expr, space, ground, limit) => {
     for (let i = 0; i < comps.length; i++) {
         const stepResults = [...stepYieldInternal(comps[i], space, ground, limit)];
         // Filter out dead ends AND invalid reductions (null/undefined)
-        let variants = stepResults.length > 0
-            ? stepResults.filter(s => !s.deadEnd && s.reduced !== undefined && s.reduced !== null).map(s => s.reduced)
-            : isExpression(comps[i]) && comps[i].components?.length
-                ? reduceSubcomponentsND(comps[i], space, ground, limit)
-                : [];
+        let variants = [];
+
+        if (stepResults.length > 0) {
+            variants = stepResults.filter(s => !s.deadEnd && s.reduced !== undefined && s.reduced !== null).map(s => s.reduced);
+        } else if (isExpression(comps[i]) && comps[i].components?.length) {
+            // Phase P1-D: Parallel chunking if evaluating many child variants
+            // Note: Since this is synchronous context, parallelisation might be restricted.
+            // The true async boundary uses parallelReduce in the async variant.
+            variants = reduceSubcomponentsND(comps[i], space, ground, limit);
+        }
 
         // Ensure variants don't contain nulls if coming from recursive calls
         if (variants.length) {
@@ -215,11 +224,24 @@ const reduceSubcomponentsNDAsync = async (expr, space, ground, limit) => {
             stepResults.push(r);
         }
 
-        let variants = stepResults.length > 0
-            ? stepResults.filter(s => !s.deadEnd).map(s => s.reduced)
-            : isExpression(comps[i]) && comps[i].components?.length
-                ? await reduceSubcomponentsNDAsync(comps[i], space, ground, limit)
-                : [];
+        let variants = [];
+
+        if (stepResults.length > 0) {
+            variants = stepResults.filter(s => !s.deadEnd).map(s => s.reduced);
+        } else if (isExpression(comps[i]) && comps[i].components?.length) {
+            // Phase P1-D: Trigger multithreaded parallel reduction for massive non-deterministic sets
+            // In a real `superpose` call, `comps[i].components` represents the alternates.
+            if (parallelExecutor.shouldParallelise(comps[i].components.length, 0)) {
+                variants = await parallelExecutor.parallelReduce(
+                    comps[i].components,
+                    (expr) => reduceSubcomponentsNDAsync(expr, space, ground, limit)
+                );
+                // Clean and flatten the parallel chunk results
+                variants = variants.flat().filter(v => v !== undefined && v !== null);
+            } else {
+                variants = await reduceSubcomponentsNDAsync(comps[i], space, ground, limit);
+            }
+        }
 
         if (variants.length) {
             const res = variants.map(reduced => {

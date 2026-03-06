@@ -36,6 +36,14 @@ export class CoreRegistry {
     }
 
     /**
+     * Check if an operation is pure (Phase P1-E: Deterministic cache hook)
+     */
+    isPure(name) {
+        const n = typeof name === 'string' ? name : name?.name;
+        return n ? !!this.operations.get(this._normalize(n))?.options?.pure : false;
+    }
+
+    /**
      * Execute an operation
      */
     execute(name, ...args) {
