@@ -37,6 +37,7 @@ import { Formatter } from './kernel/Formatter.js';
 import { ReactiveSpace } from './extensions/ReactiveSpace.js';
 import { ChannelExtension } from './extensions/ChannelExtension.js'; // Q5: Add Channel Extension
 import { ImaginationExtension } from './extensions/ImaginationExtension.js';
+import { NeuralBridge } from './extensions/NeuralBridge.js'; // Phase P3-C: NeuralBridge Integration
 
 // Standard library
 import { loadStdlib } from './stdlib/StdlibLoader.js';
@@ -137,6 +138,11 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
     _initializeBridge() {
         const bridge = this.reasoner?.bridge || this.config.bridge;
         bridge?.registerPrimitives?.(this.ground);
+
+        // Phase P3-C: Tensor integration registry
+        if (this.config.tensor) {
+            NeuralBridge.register(this.ground);
+        }
     }
 
     /**

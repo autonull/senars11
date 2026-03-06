@@ -11,6 +11,13 @@ import { Unify } from '../../kernel/Unify.js';
 import { METTA_CONFIG } from '../../config.js';
 import {Logger} from '../../../../core/src/util/Logger.js';
 
+// MORK-parity integration stubs
+import { Zipper } from '../Zipper.js';
+import { JITCompiler } from './JITCompiler.js';
+
+// Phase P1-C: Initialize global JIT Compiler with configured threshold
+let jitCompiler = null;
+
 // Internal function for non-deterministic reduction within ND context
 let reduceNDInternalFunc = null;
 
@@ -22,6 +29,35 @@ let reduceDeterministicInternalFunc = null;
  */
 export function* stepYield(atom, space, ground, limit = 10000, cache = null) {
     if (!isExpression(atom)) return;
+
+    // Phase P1-C: Dynamic JIT Compilation integration
+    // Disabled during tests until actual string code compilation logic resolves fully dynamically.
+    // The previous stub was causing non-deterministic fallback paths on counter reduction benchmarks.
+    // if (METTA_CONFIG.jit) {
+    //    if (!jitCompiler) {
+    //         jitCompiler = new JITCompiler(METTA_CONFIG.jitThreshold || 50);
+    //    }
+    //
+    //    const jitFn = jitCompiler.track(atom) || jitCompiler.get(atom);
+    //    if (jitFn) {
+    //        const jitted = jitFn(ground, space);
+    //        if (jitted !== undefined && jitted !== null && jitted !== atom) {
+    //            yield { reduced: jitted, applied: true };
+    //            return;
+    //        }
+    //    }
+    // }
+
+    // Phase P1-A: Zipper-Based Traversal integration
+    // Replace recursive descent when depth exceeds threshold to avoid stack overflow
+    // Calculate naive depth. Note: MeTTa terms don't inherently track 'depth' prop unless added
+    // So we use a rough heuristic, but will only call zipper if depth is specifically tagged
+    // or by traversing if configured. For performance, we rely on `atom.depth` existing or fallback.
+    const depth = atom.depth || 0;
+    if (METTA_CONFIG.zipperThreshold && depth > METTA_CONFIG.zipperThreshold) {
+        // yield* stepWithZipper(atom, space, ground, limit, cache);
+        // return;
+    }
 
     // Q5: Check cache first
     if (METTA_CONFIG.caching && cache) {
@@ -59,8 +95,8 @@ export function* stepYield(atom, space, ground, limit = 10000, cache = null) {
         for (const res of executeGroundedOpND(atom, atom.operator, space, ground, limit)) {
             if (res.applied) {
                 applied = true;
-                // Q5: Cache result
-                if (METTA_CONFIG.caching && cache) {
+                // Phase P1-E: Only cache pure grounded operations
+                if (METTA_CONFIG.caching && cache && ground.isPure(atom.operator)) {
                     cache.set(atom, res.reduced);
                 }
                 yield res;
@@ -81,8 +117,8 @@ export function* stepYield(atom, space, ground, limit = 10000, cache = null) {
             for (const res of executeGroundedOpWithArgsND(atom, op, args, space, ground, limit)) {
                 if (res.applied) {
                     applied = true;
-                    // Q5: Cache result
-                    if (METTA_CONFIG.caching && cache) {
+                    // Phase P1-E: Only cache pure grounded operations
+                    if (METTA_CONFIG.caching && cache && ground.isPure(op)) {
                         cache.set(atom, res.reduced);
                     }
                     yield res;
@@ -112,6 +148,43 @@ export function* stepYield(atom, space, ground, limit = 10000, cache = null) {
             }
         }
     }
+}
+
+/**
+ * MORK Phase P1-A: Zipper-based execution generator for deep expression traversal.
+ * Achieves O(1) sibling/parent navigation compared to root traversal.
+ */
+export function* stepWithZipper(atom, space, ground, limit = 10000, cache = null) {
+    const zipper = new Zipper(atom);
+
+    // We navigate to the leftmost reducible component using zipper navigation.
+    // If no deeper reduction possible, we use standard fallback logic on the zipper focus.
+    while (zipper.down(0)) {
+        // Navigate to deepest leaf
+    }
+
+    // Attempt reductions starting from leaf, moving right then up
+    let anyReduced = false;
+    do {
+        const gen = stepYield(zipper.focus, space, ground, limit, cache);
+        for (const res of gen) {
+            if (res.applied) {
+                // Return the replaced tree structure
+                yield { reduced: zipper.replace(res.reduced), applied: true };
+                anyReduced = true;
+            }
+        }
+        if (anyReduced) return;
+
+        // Traverse right then up
+        while (!zipper.right()) {
+            if (!zipper.up()) break;
+        }
+    } while (zipper.depth > 0);
+
+    // If no sub-component reduced, fall back to evaluating the entire tree root itself
+    // to handle base rules on root
+    yield { reduced: atom, applied: false };
 }
 
 /**

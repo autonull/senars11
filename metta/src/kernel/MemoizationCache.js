@@ -44,27 +44,61 @@ export class MemoizationCache {
     constructor(capacity = 1000) {
         this.capacity = capacity;
         this.map = new WeakMap();
+        this.stringMap = new Map(); // Phase P1-E: String-key map for ground atoms
         this.lru = new DoublyLinkedList();
         this.size = 0;
         this.stats = {hits: 0, misses: 0, evictions: 0};
     }
 
+    /**
+     * Helper to pseudo-hash an atom for string map cache matching.
+     * Uses flat structures if term contains interned numeric IDs.
+     */
+    _hashKey(term) {
+        if (term.id !== undefined) return String(term.id);
+        if (term.name) return term.name;
+        // Phase P1-E: If term provides an Int32Array view (e.g. from Flat tensor or intern ID arrays),
+        // we can hash via block bytes instead of traversing.
+        return term.toString();
+    }
+
     get(term) {
-        if (!term || typeof term !== 'object') return undefined;
-        const node = this.map.get(term);
+        if (!term) return undefined;
+
+        let node;
+        if (typeof term === 'object') {
+             node = this.map.get(term);
+        }
+
+        // P1-E: Fallback to string-keyed secondary map if object isn't in WeakMap
+        if (!node) {
+            const key = this._hashKey(term);
+            node = this.stringMap.get(key);
+        }
 
         if (node && !node.isEvicted) {
             this.stats.hits++;
             this.lru.addToHead(node);
             return node.value;
         }
+
         this.stats.misses++;
         return undefined;
     }
 
     set(term, value) {
-        if (!term || typeof term !== 'object') return;
-        let node = this.map.get(term);
+        if (!term) return;
+
+        let node;
+        let isObject = typeof term === 'object';
+        let key = null;
+
+        if (isObject) {
+            node = this.map.get(term);
+        } else {
+            key = this._hashKey(term);
+            node = this.stringMap.get(key);
+        }
 
         if (node) {
             if (node.isEvicted) { // Resurrection
@@ -77,7 +111,15 @@ export class MemoizationCache {
             this.lru.addToHead(node);
         } else {
             node = {value, prev: null, next: null, isEvicted: false};
-            this.map.set(term, node);
+            if (isObject) {
+                this.map.set(term, node);
+                // Dual register in string map for structural cache hits across references
+                key = this._hashKey(term);
+                this.stringMap.set(key, node);
+            } else {
+                this.stringMap.set(key, node);
+            }
+
             this.lru.addToHead(node);
             this.size++;
         }
@@ -104,6 +146,7 @@ export class MemoizationCache {
             curr = curr.next;
         }
         this.lru.clear();
+        this.stringMap.clear();
         this.size = 0;
     }
 

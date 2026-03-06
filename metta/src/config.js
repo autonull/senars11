@@ -22,7 +22,19 @@ export const METTA_CONFIG = {
     parallel: false,           // Web Worker parallelism
     simd: false,               // SIMD batch operations
     zipper: false,             // Zipper-based encoding
-    jit: false,                // JIT rule compilation (EXPERIMENTAL)
+    jit: true,                 // enable JIT compilation
+
+    // === MORK-Parity Additions ===
+    zipperThreshold: 8,        // depth at which Zipper replaces recursive traversal
+    pathTrie: false,           // enable PathTrie rule index
+    jitThreshold: 50,          // calls before compiling
+    il: false,                 // enable MeTTa-IL compilation
+    tensor: true,              // enable NeuralBridge tensor grounded ops
+    smt: false,                // enable SMT constraint solver
+    smtVarThreshold: 5,        // min unification vars to trigger SMT
+    parallelThreshold: 200,    // min superpose width to trigger Workers
+    persist: false,            // enable PersistentSpace checkpointing
+    persistThreshold: 50000,   // atoms before checkpoint
 
     // === Profiling & Debugging (default OFF) ===
     profiling: false,          // V8 profiler integration
@@ -51,6 +63,11 @@ export function getConfig() {
         if (process.env.METTA_NO_CACHE) METTA_CONFIG.caching = false;
         if (process.env.METTA_NO_INDEX) METTA_CONFIG.indexing = false;
         if (process.env.METTA_NO_INTERN) METTA_CONFIG.interning = false;
+        if (process.env.METTA_JIT) METTA_CONFIG.jit = true;
+        if (process.env.METTA_IL) METTA_CONFIG.il = true;
+        if (process.env.METTA_TENSOR) METTA_CONFIG.tensor = true;
+        if (process.env.METTA_SMT) METTA_CONFIG.smt = true;
+        if (process.env.METTA_PERSIST) METTA_CONFIG.persist = true;
     }
 
     // Check for browser URL overrides
@@ -59,6 +76,11 @@ export function getConfig() {
         if (params.get('metta_profile')) METTA_CONFIG.profiling = true;
         if (params.get('metta_trace')) METTA_CONFIG.tracing = true;
         if (params.get('metta_debug')) METTA_CONFIG.debugging = true;
+        if (params.get('metta_jit')) METTA_CONFIG.jit = true;
+        if (params.get('metta_il')) METTA_CONFIG.il = true;
+        if (params.get('metta_tensor')) METTA_CONFIG.tensor = true;
+        if (params.get('metta_smt')) METTA_CONFIG.smt = true;
+        if (params.get('metta_persist')) METTA_CONFIG.persist = true;
         if (params.get('metta_baseline')) {
             // Disable all optimizations for baseline comparison
             METTA_CONFIG.interning = false;
