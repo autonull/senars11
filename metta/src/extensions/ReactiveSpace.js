@@ -20,9 +20,18 @@ export class ReactiveSpace extends Space {
      * Add an atom to the space and emit event
      */
     add(atom) {
+        // Phase P4-B: Stub for vector clock updates
+        // atom.vectorClock = this.nextVectorClock();
         super.add(atom);
         this._emit('add', atom);
         return this;
+    }
+
+    /**
+     * Merge parameters (Phase P4-B Stub)
+     */
+    _mergeParams(p1, p2) {
+        // stub for tensor param merge
     }
 
     /**

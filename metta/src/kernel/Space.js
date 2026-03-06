@@ -6,11 +6,14 @@
 
 import { isExpression, exp, sym } from './Term.js';
 import { RuleIndex } from './RuleIndex.js';
+import { PathTrie } from './PathTrie.js';
+import { METTA_CONFIG } from '../config.js';
 
 export class Space {
     constructor() {
         this.atoms = new Set();
         this.ruleIndex = new RuleIndex();
+        this.pathTrie = METTA_CONFIG.pathTrie ? new PathTrie() : null; // Phase P1-B integration
         this._stats = { adds: 0, removes: 0, queries: 0 };
     }
 
@@ -100,6 +103,9 @@ export class Space {
     }
 
     rulesFor(term) {
+        if (METTA_CONFIG.pathTrie && this.pathTrie) {
+            // Stub for Phase P1-B: return this.pathTrie.query(term)
+        }
         return this.ruleIndex.rulesFor(term);
     }
 

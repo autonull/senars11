@@ -44,6 +44,7 @@ export class MemoizationCache {
     constructor(capacity = 1000) {
         this.capacity = capacity;
         this.map = new WeakMap();
+        this.stringMap = new Map(); // Phase P1-E: String-key map for ground atoms
         this.lru = new DoublyLinkedList();
         this.size = 0;
         this.stats = {hits: 0, misses: 0, evictions: 0};

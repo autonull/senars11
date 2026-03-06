@@ -11,6 +11,10 @@ import { Unify } from '../../kernel/Unify.js';
 import { METTA_CONFIG } from '../../config.js';
 import {Logger} from '../../../../core/src/util/Logger.js';
 
+// MORK-parity integration stubs (imports commented out until implementation)
+// import { Zipper } from '../Zipper.js';
+// import { JITCompiler } from './JITCompiler.js';
+
 // Internal function for non-deterministic reduction within ND context
 let reduceNDInternalFunc = null;
 
@@ -22,6 +26,18 @@ let reduceDeterministicInternalFunc = null;
  */
 export function* stepYield(atom, space, ground, limit = 10000, cache = null) {
     if (!isExpression(atom)) return;
+
+    // Phase P1-C: Dynamic JIT Compilation stub
+    if (METTA_CONFIG.jit) {
+        // const jitFn = jitCompiler.track(atom) || jitCompiler.get(atom);
+        // if (jitFn) { yield { reduced: jitFn(ground, space), applied: true }; return; }
+    }
+
+    // Phase P1-A: Zipper-Based Traversal stub
+    if (METTA_CONFIG.zipperThreshold && atom.depth > METTA_CONFIG.zipperThreshold) {
+        // yield* stepWithZipper(atom, space, ground, limit, cache);
+        // return;
+    }
 
     // Q5: Check cache first
     if (METTA_CONFIG.caching && cache) {
