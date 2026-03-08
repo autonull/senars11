@@ -111,7 +111,7 @@ export function step(atom, space, ground, limit = 10000, cache = null) {
     const gen = pl.execute(atom, ctx);
     const { value, done } = gen.next();
 
-    if (!done) {
+    if (!done && value) {
       return value.deadEnd
         ? { reduced: { operator: atom.operator || atom, components: [] }, applied: true, deadEnd: true }
         : value;

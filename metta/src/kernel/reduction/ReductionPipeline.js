@@ -3,8 +3,8 @@
  * Each optimization is a stage that can be enabled/disabled independently
  */
 
-import { isExpression } from './Term.js';
-import { Zipper } from './Zipper.js';
+import { isExpression } from '../Term.js';
+import { Zipper } from '../Zipper.js';
 import { JITCompiler } from './JITCompiler.js';
 
 /**
@@ -16,7 +16,7 @@ export class ReductionStage {
     this.enabled = true;
   }
 
-  async execute(atom, context) {
+  execute(atom, context) {
     if (!this.enabled) return null;
     return this.process(atom, context);
   }
@@ -244,14 +244,14 @@ export class ReductionPipeline {
   /**
    * Execute the pipeline
    */
-  async *execute(atom, context) {
+  *execute(atom, context) {
     this.stats.executions++;
     const execStart = context?._metrics ? Date.now() : 0;
 
     for (const stage of this.stages) {
       try {
         const stageStart = Date.now();
-        const result = await stage.execute(atom, context);
+        const result = stage.execute(atom, context);
         const stageTime = Date.now() - stageStart;
 
         if (result) {

@@ -1,14 +1,24 @@
-import { step, stepYield, setReduceNDInternalReference, setReduceDeterministicInternalReference } from './StepFunctions.js';
-import { reduce, reduceAsync, setInternalReferences as setDetReferences } from './DeterministicReduction.js';
-import { reduceND, reduceNDAsync, setNDInternalReferences, setDeterministicInternalReference as setNDDetReference } from './NonDeterministicReduction.js';
+/**
+ * reduction/index.js - Reduction module exports
+ * Uses ReductionPipeline architecture (StepFunctions removed)
+ */
 
-// Wire up dependencies
-setDetReferences(step, stepYield);
-setNDInternalReferences(stepYield);
-setReduceNDInternalReference(reduceND);
-setReduceDeterministicInternalReference(reduce);
-setNDDetReference(reduce);
+// Re-export all from ReductionPipeline
+export {
+  ReductionPipeline,
+  ReductionStage,
+  CacheStage,
+  JITStage,
+  ZipperStage,
+  GroundedOpStage,
+  ExplicitCallStage,
+  RuleMatchStage,
+  SuperposeStage,
+  PipelineBuilder
+} from './ReductionPipeline.js';
 
-export * from './StepFunctions.js';
-export * from './DeterministicReduction.js';
-export * from './NonDeterministicReduction.js';
+// Re-export from JITCompiler
+export { JITCompiler } from './JITCompiler.js';
+
+// Note: Main reduction functions (reduce, reduceND, step, etc.) are exported from
+// metta/src/kernel/Reduce.js which uses the pipeline architecture

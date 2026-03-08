@@ -3,7 +3,7 @@
  * Uses ConfigManager for centralized, runtime-modifiable configuration
  */
 
-import { ConfigManager, Validators } from './config/ConfigManager.js';
+import { ConfigManager, Validators } from './ConfigManager.js';
 
 // Create and export the singleton config instance
 export const configManager = new ConfigManager();
@@ -14,6 +14,7 @@ configManager
   .define('maxReductionSteps', 1000, Validators.positive, 'Maximum reduction steps before timeout')
   .define('cacheCapacity', 1000, Validators.positive, 'Default cache capacity')
   .define('loadStdlib', true, Validators.boolean, 'Load standard library on init')
+  .define('maxInternedSymbols', 10000, Validators.positive, 'Maximum symbols to intern')
 
   // P1: Performance Core
   .define('zipperThreshold', 8, Validators.positive, 'Depth at which Zipper replaces recursive traversal')
