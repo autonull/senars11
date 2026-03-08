@@ -7,7 +7,7 @@
  */
 
 import { MeTTaInterpreter } from '../src/MeTTaInterpreter.js';
-import { METTA_CONFIG } from '../src/config.js';
+import { configManager } from '../src/config/config.js';
 
 export async function runJITBenchmark(iterations = 1000) {
   const results = {
@@ -127,16 +127,16 @@ export async function runJITPatternBenchmark(iterations = 5000) {
 
   const program = `
     (= (len ()) 0)
-    (= (len (: $h $t)) (+ 1 (len $t)))
+    (= (len ($h $t)) (+ 1 (len $t)))
   `;
 
   // Interpreter only
   {
     const interp = new MeTTaInterpreter({ jit: false });
     interp.run(program);
-    
-    const list = interp.parser.parse('(: a (: b (: c (: d (: e ()))))');
-    
+
+    const list = interp.parser.parse('(a (b (c (d (e)))))');
+
     const start = performance.now();
     for (let i = 0; i < iterations; i++) {
       interp.evaluate(list);
@@ -148,9 +148,9 @@ export async function runJITPatternBenchmark(iterations = 5000) {
   {
     const interp = new MeTTaInterpreter({ jit: true, jitThreshold: 10 });
     interp.run(program);
-    
-    const list = interp.parser.parse('(: a (: b (: c (: d (: e ()))))');
-    
+
+    const list = interp.parser.parse('(a (b (c (d (e)))))');
+
     // Warm up
     for (let i = 0; i < 15; i++) {
       interp.evaluate(list);
@@ -194,9 +194,14 @@ export async function runAllJITBenchmarks() {
     console.log(`  Pass:        ${r.pass ? '✓' : '✗'}`);
     console.log();
   }
-  
+
   const avgSpeedup = results.reduce((a, b) => a + b.speedup, 0) / results.length;
   console.log(`Average speedup: ${avgSpeedup.toFixed(2)}×`);
-  
+
   return { results, avgSpeedup };
+}
+
+// Run if executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runAllJITBenchmarks().catch(console.error);
 }

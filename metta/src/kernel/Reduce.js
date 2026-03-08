@@ -197,6 +197,30 @@ export function reduceND(atom, space, ground, limit = 10000, cache = null) {
 }
 
 /**
+ * Non-deterministic reduction generator (yields results one at a time)
+ * @param {Atom} atom - Atom to reduce
+ * @param {Space} space - Knowledge space
+ * @param {Ground} ground - Grounded operations
+ * @param {number} limit - Step limit
+ * @param {ReductionCache} cache - Result cache
+ * @yields {Atom} Each reduced result
+ */
+export function* reduceNDGenerator(atom, space, ground, limit = 10000, cache = null) {
+  const ctx = acquireContext(space, ground, limit, cache, globalReduceND);
+  try {
+    const pl = getGlobalPipeline();
+
+    for (const result of pl.execute(atom, ctx)) {
+      if (result.applied) {
+        yield result.reduced;
+      }
+    }
+  } finally {
+    releaseContext(ctx);
+  }
+}
+
+/**
  * Async reduction (for browser/worker environments)
  */
 export async function reduceAsync(atom, space, ground, limit, cache) {

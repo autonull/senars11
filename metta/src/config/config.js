@@ -13,7 +13,9 @@ configManager
   // Core interpreter settings
   .define('maxReductionSteps', 1000, Validators.positive, 'Maximum reduction steps before timeout')
   .define('cacheCapacity', 1000, Validators.positive, 'Default cache capacity')
+  .define('maxCacheSize', 10000, Validators.positive, 'Maximum cache size')
   .define('loadStdlib', true, Validators.boolean, 'Load standard library on init')
+  .define('bridge', null, () => true, 'Bridge instance for reasoner')
   .define('maxInternedSymbols', 10000, Validators.positive, 'Maximum symbols to intern')
 
   // P1: Performance Core

@@ -74,6 +74,11 @@ export class Zipper {
       const parentIndex = this.path[currentDepth - 1];
       const parent = this._nodeAt(currentDepth - 1);
 
+      // Skip if parent is not a valid expression
+      if (!parent || !parent.operator || parent.type !== 'compound') {
+        break;
+      }
+
       const newComps = [...parent.components];
       newComps[parentIndex] = currentFocus;
 

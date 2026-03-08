@@ -307,35 +307,35 @@ export class ReductionPipeline {
   /**
    * Execute with zipper for deep expressions
    */
-  async *_executeWithZipper(atom, context) {
+  *_executeWithZipper(atom, context) {
     const zipper = new Zipper(atom);
-    
+
     // Navigate to deepest leaf
     while (zipper.down(0)) {}
-    
+
     let anyReduced = false;
     do {
       const gen = this.execute(zipper.focus, context);
-      for await (const res of gen) {
+      for (const res of gen) {
         if (res.applied) {
           yield { reduced: zipper.replace(res.reduced), applied: true };
           anyReduced = true;
         }
       }
       if (anyReduced) return;
-      
+
       while (!zipper.right()) {
         if (!zipper.up()) break;
       }
     } while (zipper.depth > 0);
-    
+
     yield { reduced: atom, applied: false };
   }
 
   /**
    * Execute grounded operation
    */
-  async *_executeGrounded(atom, op, context) {
+  *_executeGrounded(atom, op, context) {
     const args = atom.components;
     
     if (context.ground?.isLazy(op)) {
@@ -368,7 +368,7 @@ export class ReductionPipeline {
   /**
    * Execute explicit grounded call
    */
-  async *_executeExplicit(atom, op, args, context) {
+  *_executeExplicit(atom, op, args, context) {
     if (context.ground?.isLazy(op)) {
       yield { reduced: context.ground.execute(op, ...args), applied: true };
       return;
@@ -393,7 +393,7 @@ export class ReductionPipeline {
   /**
    * Match rules
    */
-  async *_matchRules(atom, rules, context) {
+  *_matchRules(atom, rules, context) {
     for (const rule of rules) {
       if (!rule.pattern) continue;
       
@@ -413,7 +413,7 @@ export class ReductionPipeline {
   /**
    * Execute superpose alternatives
    */
-  async *_executeSuperpose(alternatives, context) {
+  *_executeSuperpose(alternatives, context) {
     for (const alt of alternatives) {
       yield { reduced: alt, applied: true };
     }

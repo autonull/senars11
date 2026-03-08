@@ -92,6 +92,7 @@ export async function runZipperBenchmark() {
  * Benchmark: Zipper replacement (tree reconstruction)
  */
 export async function runZipperReplacementBenchmark() {
+  const results = {};
   const depth = 30;
   const expr = createDeepExpression(depth, 'original');
   const iterations = 100;
@@ -101,7 +102,8 @@ export async function runZipperReplacementBenchmark() {
     const start = performance.now();
     for (let i = 0; i < iterations; i++) {
       const replaceDeep = (node, replacement) => {
-        if (!node.components || node.components.length === 0) {
+        // Check if it's an expression (has operator and type is compound)
+        if (!node.operator || node.type !== 'compound') {
           return replacement;
         }
         const newComps = [...node.components];
@@ -118,10 +120,10 @@ export async function runZipperReplacementBenchmark() {
     const start = performance.now();
     for (let i = 0; i < iterations; i++) {
       const zipper = new Zipper(expr);
-      
+
       // Navigate to deepest
       while (zipper.down(0)) {}
-      
+
       // Replace
       zipper.replace(sym('replaced'));
     }
@@ -144,11 +146,12 @@ export async function runZipperReplacementBenchmark() {
  * Benchmark: Sibling navigation
  */
 export async function runZipperSiblingBenchmark() {
+  const results = {};
   // Create a wide expression (many siblings)
   const width = 100;
   const components = [];
   for (let i = 0; i < width; i++) {
-    components.push(sym(`x${i}`));
+    components.push(exp(sym('item'), [sym(`x${i}`)]));
   }
   const expr = exp(sym('list'), components);
   const iterations = 50;
@@ -157,10 +160,8 @@ export async function runZipperSiblingBenchmark() {
   {
     const start = performance.now();
     for (let i = 0; i < iterations; i++) {
-      let current = expr;
-      for (let j = 0; j < width - 1; j++) {
-        current = current.components[j + 1];
-      }
+      // Navigate to last sibling via array access
+      const lastSibling = expr.components[width - 1];
     }
     results.arrayNav = performance.now() - start;
   }
@@ -171,7 +172,7 @@ export async function runZipperSiblingBenchmark() {
     for (let i = 0; i < iterations; i++) {
       const zipper = new Zipper(expr);
       zipper.down(0); // Into the list
-      
+
       for (let j = 0; j < width - 1; j++) {
         zipper.right();
       }
@@ -230,4 +231,9 @@ export async function runAllZipperBenchmarks() {
     replaceResults,
     siblingResults
   };
+}
+
+// Run if executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runAllZipperBenchmarks().catch(console.error);
 }

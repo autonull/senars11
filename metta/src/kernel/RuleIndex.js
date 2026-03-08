@@ -100,7 +100,7 @@ export class RuleIndex {
         this.stats.lookups++;
 
         // Fast negative check via bloom filter
-        if (!this.bloomFilter.mightContain(term)) {
+        if (!this.bloomFilter.has(term)) {
             this.stats.misses++;
             return [];
         }

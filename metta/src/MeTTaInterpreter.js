@@ -69,7 +69,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
         this.reasoner = reasoner;
 
         // Use shared configManager - allows runtime config changes across all interpreters
-        this.config = configManager;
+        // Note: this.config is inherited from BaseComponent, we use it directly
 
         this.space = new ReactiveSpace();
         this.spaces = new Map();
@@ -80,10 +80,10 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
         this.typeChecker = new TypeChecker(this.typeSystem);
 
         // Legacy cache
-        this.memoCache = new MemoizationCache(opts.cacheCapacity || this.config.get('cacheCapacity'));
+        this.memoCache = new MemoizationCache(opts.cacheCapacity || configManager.get('cacheCapacity'));
 
         // Q5: New ReductionCache
-        this.reductionCache = new ReductionCache(opts.cacheCapacity || this.config.get('cacheCapacity'));
+        this.reductionCache = new ReductionCache(opts.cacheCapacity || configManager.get('cacheCapacity'));
 
         // New architecture: ExtensionRegistry
         this.extensionRegistry = new ExtensionRegistry(this);
@@ -129,9 +129,9 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
 
         // Load extensions based on config
         const extensionsToLoad = [];
-        if (this.config.get('tensor')) extensionsToLoad.push('neural-bridge');
-        if (this.config.get('smt')) extensionsToLoad.push('smt-bridge');
-        if (this.config.get('debugging')) extensionsToLoad.push('visual-debugger');
+        if (configManager.get('tensor')) extensionsToLoad.push('neural-bridge');
+        if (configManager.get('smt')) extensionsToLoad.push('smt-bridge');
+        if (configManager.get('debugging')) extensionsToLoad.push('visual-debugger');
 
         if (extensionsToLoad.length > 0) {
             await this.extensionRegistry.loadAll(extensionsToLoad);
@@ -158,12 +158,12 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      * Register bridge primitives if available
      */
     _initializeBridge() {
-        const bridge = this.reasoner?.bridge || this.config.get('bridge');
+        const bridge = this.reasoner?.bridge || configManager.get('bridge');
         bridge?.registerPrimitives?.(this.ground);
 
         // Phase P3-C: Tensor integration registry (loaded via ExtensionRegistry if enabled)
         // If tensor is enabled but extension not loaded yet, load it
-        if (this.config.get('tensor') && !this.extensionRegistry.isLoaded('neural-bridge')) {
+        if (configManager.get('tensor') && !this.extensionRegistry.isLoaded('neural-bridge')) {
             NeuralBridge.register(this.ground);
         }
     }
@@ -172,7 +172,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      * Load standard library if enabled
      */
     _loadStandardLibrary() {
-        if (this.config.get('loadStdlib') !== false) {
+        if (configManager.get('loadStdlib') !== false) {
             try {
                 loadStdlib(this, this.config);
             } catch (e) {
@@ -318,7 +318,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      */
     evaluate(atom) {
         return this.trackOperation('evaluate', () => {
-            const res = reduceND(atom, this.space, this.ground, this.config.get('maxReductionSteps'));
+            const res = reduceND(atom, this.space, this.ground, configManager.get('maxReductionSteps'));
             const steps = this._mettaMetrics.get('reductionSteps') || 0;
             this._mettaMetrics.set('reductionSteps', steps + 1);
             return res;
@@ -329,14 +329,14 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      * Helper method to perform deterministic reduction with common parameters
      */
     _reduceDeterministic(atom) {
-        return reduce(atom, this.space, this.ground, this.config.get('maxReductionSteps'), this.reductionCache);
+        return reduce(atom, this.space, this.ground, configManager.get('maxReductionSteps'), this.reductionCache);
     }
 
     /**
      * Perform a single reduction step
      */
     step(atom) {
-        return step(atom, this.space, this.ground, this.config.get('maxReductionSteps'), this.reductionCache);
+        return step(atom, this.space, this.ground, configManager.get('maxReductionSteps'), this.reductionCache);
     }
 
     /**
@@ -357,7 +357,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
         return {
             space: this.space.getStats(),
             groundedAtoms: { count: this.ground.getOperations().length },
-            reductionEngine: { maxSteps: this.config.get('maxReductionSteps') || 10000 },
+            reductionEngine: { maxSteps: configManager.get('maxReductionSteps') || 10000 },
             typeSystem: {
                 count: this.typeSystem ? 1 : 0,
                 typeVariables: this.typeSystem?.nextTypeVarId || 0
@@ -401,7 +401,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      */
     async evaluateAsync(atom) {
         return this.trackOperation('evaluate', async () => {
-            const res = await reduceNDAsync(atom, this.space, this.ground, this.config.get('maxReductionSteps'));
+            const res = await reduceNDAsync(atom, this.space, this.ground, configManager.get('maxReductionSteps'));
             const steps = this._mettaMetrics.get('reductionSteps') || 0;
             this._mettaMetrics.set('reductionSteps', steps + 1);
             return res;

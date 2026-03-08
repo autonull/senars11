@@ -10,7 +10,7 @@ import { Space } from '../src/kernel/Space.js';
 import { PathTrie } from '../src/kernel/PathTrie.js';
 import { RuleIndex } from '../src/kernel/RuleIndex.js';
 import { exp, sym } from '../src/kernel/Term.js';
-import { METTA_CONFIG } from '../src/config.js';
+import { configManager } from '../src/config/config.js';
 
 /**
  * Generate a pattern with specific functor and arity
@@ -45,12 +45,12 @@ export async function runTrieBenchmark(ruleCounts = [1000, 10000]) {
     const arities = [1, 2, 3, 4];
     
     // Create space with PathTrie enabled
-    const oldConfig = METTA_CONFIG.pathTrie;
-    METTA_CONFIG.pathTrie = true;
+    const oldConfig = configManager.get('pathTrie;
+    configManager.get('pathTrie = true;
     const spaceWithTrie = new Space();
     
     // Create space with RuleIndex only
-    METTA_CONFIG.pathTrie = false;
+    configManager.get('pathTrie = false;
     const spaceWithoutTrie = new Space();
     
     // Add rules
@@ -103,7 +103,7 @@ export async function runTrieBenchmark(ruleCounts = [1000, 10000]) {
       });
     }
     
-    METTA_CONFIG.pathTrie = oldConfig;
+    configManager.get('pathTrie = oldConfig;
   }
 
   return results;

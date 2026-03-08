@@ -9,12 +9,19 @@
 import { isVariable, isExpression, isList, flattenList, constructList, exp } from './Term.js';
 import { getTypeTag, TYPE_SYMBOL, TYPE_VARIABLE, TYPE_EXPRESSION, isSymbol as fastIsSymbol } from './FastPaths.js';
 import { configManager } from '../config/config.js';
-import { SMTBridge } from '../extensions/SMTOps.js';
 
 // External imports
 import * as UnifyCore from '../../../core/src/term/UnifyCore.js';
 
-const smtBridge = new SMTBridge();
+// Lazy SMT bridge initialization
+let _smtBridge = null;
+function getSMTBridge() {
+  if (!_smtBridge && configManager.get('smt')) {
+    const { SMTBridge } = require('../extensions/SMTOps.js');
+    _smtBridge = new SMTBridge();
+  }
+  return _smtBridge;
+}
 
 /**
  * Safely substitute variables in a term with their bindings
@@ -257,9 +264,10 @@ const unifiedUnify = (t1, t2, binds = {}) => {
 
     // MORK Phase 3-B Integration point
     if (!result && configManager.get('smt')) {
-        if (smtBridge.canSolve(binds)) {
+        const bridge = getSMTBridge();
+        if (bridge && bridge.canSolve(binds)) {
             // Unification failed structurally, but maybe SMT can resolve constraints
-            const smtResult = smtBridge.solve([t1, t2]);
+            const smtResult = bridge.solve([t1, t2]);
             if (smtResult) return smtResult;
         }
     }
