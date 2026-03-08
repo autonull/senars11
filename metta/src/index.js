@@ -3,7 +3,18 @@
  * metta/src/index.js - Main export entry point
  */
 
-// Core interpreter
+// Ergonomic API (recommended for new code)
+export { 
+  createMeTTa, 
+  MeTTaBuilder, 
+  evaluate, 
+  runInContext, 
+  MeTTaSession, 
+  Presets, 
+  createWithPreset 
+} from './MeTTa.js';
+
+// Core interpreter (legacy API)
 export { MeTTaInterpreter } from './MeTTaInterpreter.js';
 export { Parser } from './Parser.js';
 export { TypeSystem } from './TypeSystem.js';
