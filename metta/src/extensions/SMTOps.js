@@ -2,7 +2,7 @@
  * SMTOps.js
  * MORK-parity Phase P3-B: SMT / Constraint Solver Integration
  */
-import { METTA_CONFIG } from '../config.js';
+import { configManager } from '../config/config.js';
 
 export class SMTBridge {
   constructor() {
@@ -12,7 +12,7 @@ export class SMTBridge {
   canSolve(bindings) {
     if (!bindings) return false;
     const size = bindings instanceof Map ? bindings.size : Object.keys(bindings).length;
-    return size > (METTA_CONFIG.smtVarThreshold || 5);
+    return size > (configManager.get('smtVarThreshold') || 5);
   }
 
   solve(constraints) {

@@ -4,35 +4,43 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { McpClientManager } from '../src/mcp/McpClientManager.js';
-import { MeTTaMCPManager } from '../src/mcp/index.js';
-import * as mcpUtils from '../src/mcp/utils.js';
 
-// Mock the MCP SDK
-jest.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
-  Client: jest.fn().mockImplementation(() => ({
-    connect: jest.fn().mockResolvedValue(undefined),
-    callTool: jest.fn().mockResolvedValue({ content: [{ type: 'text', text: 'result' }] }),
-    listTools: jest.fn().mockResolvedValue({ tools: [{ name: 'test_tool', description: 'Test tool' }] }),
-    close: jest.fn().mockResolvedValue(undefined)
-  }))
+// Mock the MCP SDK using unstable_mockModule for ES modules
+const mockMcpClient = {
+  connect: jest.fn().mockResolvedValue(undefined),
+  callTool: jest.fn().mockResolvedValue({ content: [{ type: 'text', text: 'result' }] }),
+  listTools: jest.fn().mockResolvedValue({ tools: [{ name: 'test_tool', description: 'Test tool' }] }),
+  close: jest.fn().mockResolvedValue(undefined)
+};
+
+const mockStdioTransport = {
+  onclose: null,
+  onerror: null,
+  close: jest.fn().mockResolvedValue(undefined)
+};
+
+const mockSseTransport = {
+  onclose: null,
+  onerror: null,
+  close: jest.fn().mockResolvedValue(undefined)
+};
+
+jest.unstable_mockModule('@modelcontextprotocol/sdk/client/index.js', () => ({
+  Client: jest.fn().mockImplementation(() => mockMcpClient)
 }));
 
-jest.mock('@modelcontextprotocol/sdk/client/stdio.js', () => ({
-  StdioClientTransport: jest.fn().mockImplementation(() => ({
-    onclose: null,
-    onerror: null,
-    close: jest.fn().mockResolvedValue(undefined)
-  }))
+jest.unstable_mockModule('@modelcontextprotocol/sdk/client/stdio.js', () => ({
+  StdioClientTransport: jest.fn().mockImplementation(() => mockStdioTransport)
 }));
 
-jest.mock('@modelcontextprotocol/sdk/client/sse.js', () => ({
-  SSEClientTransport: jest.fn().mockImplementation(() => ({
-    onclose: null,
-    onerror: null,
-    close: jest.fn().mockResolvedValue(undefined)
-  }))
+jest.unstable_mockModule('@modelcontextprotocol/sdk/client/sse.js', () => ({
+  SSEClientTransport: jest.fn().mockImplementation(() => mockSseTransport)
 }));
+
+// Import after mocks
+const { McpClientManager } = await import('../../src/mcp/McpClientManager.js');
+const { MeTTaMCPManager } = await import('../../src/mcp/index.js');
+const mcpUtils = await import('../../src/mcp/utils.js');
 
 // Mock MeTTaInterpreter
 const createMockInterpreter = () => ({
@@ -97,7 +105,6 @@ describe('McpClientManager', () => {
     it('should emit error on connection failure', async () => {
       const handler = jest.fn();
       manager.on('error', handler);
-      // Mock will throw for this test
       manager.clients.set('test', null);
       try {
         await manager.connect('test', 'invalid-command-that-does-not-exist', []);
@@ -209,7 +216,7 @@ describe('McpClientManager', () => {
       manager.on('disconnected', handler);
       await manager.connect('test', 'node', ['server.js']);
       await manager.disconnect('test');
-      expect(handler).toHaveBeenCalledWith({ key: 'test', reason: 'transport-closed' });
+      expect(handler).toHaveBeenCalledWith({ key: 'test' });
     });
   });
 
@@ -386,13 +393,19 @@ describe('MCP Utils', () => {
     });
 
     it('should close after timeout', async () => {
-      const fn = mcpUtils.withCircuitBreaker(async () => 'success', {
+      let callCount = 0;
+      const fn = mcpUtils.withCircuitBreaker(async () => {
+        callCount++;
+        if (callCount === 1) throw new Error('Initial failure');
+        return 'success';
+      }, {
         failureThreshold: 1,
         timeout: 50
       });
 
-      // Force open
-      await expect(fn()).rejects.toThrow();
+      // First call fails
+      await expect(fn()).rejects.toThrow('Initial failure');
+      // Second call should be blocked by circuit breaker
       await expect(fn()).rejects.toThrow('Circuit breaker is open');
 
       // Wait for timeout

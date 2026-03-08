@@ -5,7 +5,7 @@ import { describe, test, expect } from '@jest/globals';
 describe('ReflectionOps', () => {
     const ground = new Ground();
 
-    test('&js-new and &js-call', () => {
+    test('&js-new and &js-call', async () => {
         // Create a new Map
         const mapAtom = ground.execute('&js-new', grounded(Map));
         expect(mapAtom.type).toBe('grounded');
@@ -15,7 +15,7 @@ describe('ReflectionOps', () => {
         ground.execute('&js-call', mapAtom, grounded('set'), grounded('key1'), grounded('value1'));
 
         // Call get
-        const val = ground.execute('&js-call', mapAtom, grounded('get'), grounded('key1'));
+        const val = await ground.execute('&js-call', mapAtom, grounded('get'), grounded('key1'));
         expect(val.name !== undefined ? val.name : val.value).toBe('value1');
     });
 
@@ -38,7 +38,7 @@ describe('ReflectionOps', () => {
         expect(typeAtom.name).toBe('number');
     });
 
-    test('&js-call with property access path', () => {
+    test('&js-call with property access path', async () => {
         const obj = {
             nested: {
                 method: (x) => x * 2
@@ -47,7 +47,7 @@ describe('ReflectionOps', () => {
         const objAtom = grounded(obj);
 
         // Call nested.method(21)
-        const result = ground.execute('&js-call', objAtom, grounded('nested.method'), grounded(21));
+        const result = await ground.execute('&js-call', objAtom, grounded('nested.method'), grounded(21));
         expect(result.name !== undefined ? Number(result.name) : result.value).toBe(42);
     });
 

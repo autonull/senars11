@@ -25,7 +25,11 @@ import { registerSetOps } from './ops/SetOps.js';
 import { registerHOFOps } from './ops/HOFOps.js';
 import { registerMetaprogrammingOps } from './ops/MetaprogrammingOps.js';
 import { registerReflectionOps } from './ops/ReflectionOps.js';
-import { METTA_CONFIG } from '../config.js';
+import { configManager } from '../config/config.js';
+
+// Detect async functions
+const AsyncFunction = (async () => {}).constructor;
+const isAsyncFunction = fn => fn instanceof AsyncFunction;
 
 export class Ground extends CoreRegistry {
     constructor(context = {}) {
@@ -80,20 +84,27 @@ export class Ground extends CoreRegistry {
     // === Registration ===
 
     /**
-     * Override register to support optimized lookup
+     * Override register to support optimized lookup and async detection
      */
     register(name, op, options = {}) {
-        super.register(name, op, options);
+        // Auto-detect async functions
+        const normalizedOptions = {
+            ...options,
+            async: options.async ?? isAsyncFunction(op)
+        };
+
+        super.register(name, op, normalizedOptions);
 
         // Q4: Assign integer ID for fast lookup
-        if (METTA_CONFIG.fastPaths) {
+        if (configManager.get('fastPaths')) {
             const id = this.nextId++;
             this.nameToId.set(name, id);
-            this.opsById[id] = { op, options };
+            this.opsById[id] = { op, options: normalizedOptions };
 
             // If op is a grounded atom, attach the ID
             if (op && typeof op === 'object') {
                 op._opId = id;
+                op._async = normalizedOptions.async;
             }
         }
     }
@@ -102,7 +113,7 @@ export class Ground extends CoreRegistry {
      * Override lookup to use fast path if available
      */
     lookup(symbol) {
-        if (METTA_CONFIG.fastPaths) {
+        if (configManager.get('fastPaths')) {
             // Check if symbol has pre-assigned ID (from Q1 interning or registration)
             if (symbol._opId !== undefined) {
                 return this.opsById[symbol._opId]?.op;
@@ -118,6 +129,65 @@ export class Ground extends CoreRegistry {
         }
 
         return super.get(symbol.name);
+    }
+
+    /**
+     * Get options for an operation
+     */
+    getOptions(name) {
+        const n = typeof name === 'string' ? name : name?.name;
+        if (!n) return {};
+        
+        if (configManager.get('fastPaths')) {
+            const id = this.nameToId.get(n);
+            if (id !== undefined) {
+                return this.opsById[id]?.options || {};
+            }
+        }
+        
+        const entry = this.operations.get(this._normalize(n));
+        return entry?.options || {};
+    }
+
+    /**
+     * Execute an operation (sync or async based on options)
+     */
+    async executeAsync(name, ...args) {
+        const n = typeof name === 'string' ? name : name?.name;
+        if (!n) throw new Error(`Invalid operation name: ${name}`);
+
+        const options = this.getOptions(n);
+        const op = this.lookup({ name: n });
+        
+        if (!op) throw new Error(`Operation not found: ${n}`);
+
+        if (options.async) {
+            return await op(...args);
+        }
+        return op(...args);
+    }
+
+    /**
+     * Check if an operation is async
+     */
+    isAsync(name) {
+        return this.getOptions(name).async === true;
+    }
+
+    /**
+     * Get all registered operations with metadata
+     */
+    getOperationsWithMeta() {
+        const result = [];
+        for (const [name, entry] of this.operations.entries()) {
+            result.push({
+                name,
+                async: entry.options?.async || false,
+                lazy: entry.options?.lazy || false,
+                pure: entry.options?.pure || false
+            });
+        }
+        return result;
     }
 
     /**

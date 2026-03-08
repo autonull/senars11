@@ -22,22 +22,23 @@ import { objToBindingsAtom, bindingsAtomToObj } from './kernel/Bindings.js';
 import { Ground } from './kernel/Ground.js';
 import { MemoizationCache } from './kernel/MemoizationCache.js';
 import { ReductionCache } from './kernel/ReductionCache.js';
-import {
-    reduce, reduceND, step, match, reduceAsync, reduceNDAsync,
-    setInternalReferences, setNDInternalReferences, setDeterministicInternalReference,
-    setReduceNDInternalReference, setReduceDeterministicInternalReference,
-    stepYield, step as stepFunc
-} from './kernel/Reduce.js';
+import { reduceND, reduceNDAsync, setReduceNDInternalReference } from './kernel/Reduce.js';
 import { Space } from './kernel/Space.js';
 import { Term, isList, flattenList, isExpression } from './kernel/Term.js';
 import { Unify } from './kernel/Unify.js';
 import { Formatter } from './kernel/Formatter.js';
 
+// Configuration (new architecture)
+import { ConfigManager, createMeTTaConfig, ExtensionRegistry, registerMeTTaExtensions } from './config/index.js';
+import { registerConfigOps } from './kernel/ops/StateOps.js';
+
 // Extensions
 import { ReactiveSpace } from './extensions/ReactiveSpace.js';
-import { ChannelExtension } from './extensions/ChannelExtension.js'; // Q5: Add Channel Extension
-import { ImaginationExtension } from './extensions/ImaginationExtension.js';
-import { NeuralBridge } from './extensions/NeuralBridge.js'; // Phase P3-C: NeuralBridge Integration
+import { ChannelExtension } from './extensions/ChannelExtension.js';
+import { NeuralBridge } from './extensions/NeuralBridge.js';
+
+// ImaginationExtension is loaded lazily to avoid hard dependency on @napi-rs/canvas
+let ImaginationExtension = null;
 
 // Standard library
 import { loadStdlib } from './stdlib/StdlibLoader.js';
@@ -67,6 +68,10 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
         super(opts, 'MeTTaInterpreter', opts.eventBus, opts.termFactory);
 
         this.reasoner = reasoner;
+        
+        // New architecture: ConfigManager
+        this.config = createMeTTaConfig();
+        
         this.space = new ReactiveSpace();
         this.spaces = new Map();
         this.moduleLoader = new ModuleLoader(this);
@@ -81,12 +86,19 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
         // Q5: New ReductionCache
         this.reductionCache = new ReductionCache(opts.cacheCapacity || 1000);
 
+        // New architecture: ExtensionRegistry
+        this.extensionRegistry = new ExtensionRegistry(this);
+        registerMeTTaExtensions(this.extensionRegistry);
+
         // Circular Dependency Resolution: Inject dependencies into reduction modules
         this._injectReductionDependencies();
 
+        // Register config operations for runtime modification
+        registerConfigOps(this.ground, this.config);
+
         this._initializeOperations();
         this._initializeBridge();
-        this._initializeExtensions(options); // Q5: Initialize extensions
+        this._initializeExtensions(options);
         this._loadStandardLibrary();
     }
 
@@ -94,19 +106,8 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      * Inject function references to break circular dependencies in reduction logic
      */
     _injectReductionDependencies() {
-        // DeterministicReduction.js needs StepFunctions
-        setInternalReferences(stepFunc, stepYield);
-
-        // NonDeterministicReduction.js needs StepFunctions
-        setNDInternalReferences(stepYield);
-
-        // StepFunctions.js needs ND and Det reduction
+        // With ReductionPipeline, circular deps are handled via the reduceND reference
         setReduceNDInternalReference(reduceND);
-
-        setReduceDeterministicInternalReference((atom, space, ground, limit) => {
-            // Bind cache automatically for internal calls
-            return reduce(atom, space, ground, limit, this.reductionCache);
-        });
     }
 
     /**
@@ -121,15 +122,37 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
     /**
      * Register extensions like Channels
      */
-    _initializeExtensions(options) {
+    async _initializeExtensions(options) {
         if (options.channelManager) {
             const channelExt = new ChannelExtension(this, options.channelManager);
             channelExt.register();
         }
 
-        // Always register ImaginationExtension for internal canvas capabilities
-        const imaginationExt = new ImaginationExtension(this, this.reasoner);
-        imaginationExt.register();
+        // Load extensions based on config
+        const extensionsToLoad = [];
+        if (this.config.get('tensor')) extensionsToLoad.push('neural-bridge');
+        if (this.config.get('smt')) extensionsToLoad.push('smt-bridge');
+        if (this.config.get('debugging')) extensionsToLoad.push('visual-debugger');
+
+        if (extensionsToLoad.length > 0) {
+            await this.extensionRegistry.loadAll(extensionsToLoad);
+        }
+
+        // Lazily load ImaginationExtension if available (requires @napi-rs/canvas)
+        (async () => {
+            if (!ImaginationExtension) {
+                try {
+                    const mod = await import('./extensions/ImaginationExtension.js');
+                    ImaginationExtension = mod.ImaginationExtension;
+                } catch (e) {
+                    ImaginationExtension = null;
+                }
+            }
+            if (ImaginationExtension) {
+                const imaginationExt = new ImaginationExtension(this, this.reasoner);
+                imaginationExt.register();
+            }
+        })();
     }
 
     /**
@@ -139,8 +162,9 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
         const bridge = this.reasoner?.bridge || this.config.bridge;
         bridge?.registerPrimitives?.(this.ground);
 
-        // Phase P3-C: Tensor integration registry
-        if (this.config.tensor) {
+        // Phase P3-C: Tensor integration registry (loaded via ExtensionRegistry if enabled)
+        // If tensor is enabled but extension not loaded yet, load it
+        if (this.config.get('tensor') && !this.extensionRegistry.isLoaded('neural-bridge')) {
             NeuralBridge.register(this.ground);
         }
     }

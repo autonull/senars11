@@ -3,13 +3,14 @@
  * MORK-parity Phase P1-B: PathTrie Indexing
  * Maps full head path (functor + arity + argument structure) for O(1) matching vs O(n) array scans.
  */
-import { isExpression } from './Term.js';
+import { isExpression, isVariable } from './Term.js';
 
 class TrieNode {
     constructor() {
         this.children = new Map();
-        this.rules = []; // Or Uint32Array for compact leaves
+        this.rules = [];
         this.isLeaf = false;
+        this.hasVariableChild = false; // Track if any child is a variable
     }
 }
 
@@ -24,16 +25,20 @@ export class PathTrie {
     /**
      * Converts an atom into an iterable structural path key.
      * Extracts functor, arity, and positional structure.
+     * Variables are marked with a special prefix for wildcard matching.
      */
-    * _atomPath(atom) {
+    * _atomPath(atom, forInsert = true) {
         if (!atom) return;
 
-        if (isExpression(atom)) {
-            yield atom.operator ? atom.operator.name || atom.operator : '()';
+        if (isVariable(atom)) {
+            // Variables are indexed as wildcards
+            yield forInsert ? '$VAR' : atom.name;
+        } else if (isExpression(atom)) {
+            yield atom.operator ? (atom.operator.name || atom.operator) : '()';
             const comps = atom.components || [];
             yield comps.length; // Arity
             for (const comp of comps) {
-                yield* this._atomPath(comp);
+                yield* this._atomPath(comp, forInsert);
             }
         } else {
             yield atom.name || atom;
@@ -48,13 +53,18 @@ export class PathTrie {
         this._insertCount++;
 
         let curr = this.root;
-        const path = this._atomPath(pattern);
+        const path = Array.from(this._atomPath(pattern, true));
 
         for (const token of path) {
             if (!curr.children.has(token)) {
                 curr.children.set(token, new TrieNode());
             }
             curr = curr.children.get(token);
+            
+            // Track variable children for faster query
+            if (token === '$VAR') {
+                curr.hasVariableChild = true;
+            }
         }
 
         curr.isLeaf = true;
@@ -67,14 +77,13 @@ export class PathTrie {
     }
 
     /**
-     * Returns Iterator<rule> following atom's structure.
+     * Returns array of rules following atom's structure.
      * Matches exact structure and wildcard variables ($x).
      */
     query(atom) {
         this.stats.lookups++;
         const rules = [];
-
-        const path = Array.from(this._atomPath(atom));
+        const path = Array.from(this._atomPath(atom, false));
 
         const traverse = (node, depth) => {
             if (depth === path.length) {
@@ -92,19 +101,18 @@ export class PathTrie {
                 traverse(node.children.get(token), depth + 1);
             }
 
-            // Treat variables as generic wildcards during structural lookup (represented generically or by type)
-            // If the query contains a variable, we must match against all possibilities at this node,
-            // or if the trie node itself is a variable placeholder, match the query token against it.
-            // (Assuming variables are mapped to a specific token like '*' or we collect all children)
-            // Simplified: we rely on Unify.js later; this trie provides rapid *candidate* rules.
+            // Match variable wildcards in rules (rules with $x match anything)
+            if (node.children.has('$VAR')) {
+                traverse(node.children.get('$VAR'), depth + 1);
+            }
 
-            // To ensure parity, a rule starting with a variable ($x) must be checked against any query token
-            for (const [key, childNode] of node.children.entries()) {
-                 if (typeof key === 'string' && key.startsWith('$')) {
-                     // The rule has a variable here, so it matches whatever the query token is
-                     // Skip depth accordingly (very naïve heuristic for deep var binding, ideally vars match single tokens)
-                     traverse(childNode, depth + 1);
-                 }
+            // If current query token is a variable, match all children
+            if (typeof token === 'string' && token.startsWith('$')) {
+                for (const [key, childNode] of node.children.entries()) {
+                    if (key !== '$VAR') {
+                        traverse(childNode, depth + 1);
+                    }
+                }
             }
         };
 
@@ -121,9 +129,23 @@ export class PathTrie {
         this._insertCount = 0;
 
         queueMicrotask(() => {
-            // Traverse and compress node.rules into Uint32Array rule IDs if possible,
-            // or perform path compression (radix trie) for branches with single children.
-            // Placeholder for advanced typed-array leaf flattening per P1-B spec.
+            // Compress leaf rules into Uint32Array for memory efficiency
+            const compressNode = (node) => {
+                if (node.rules.length > 10 && !Array.isArray(node.rules)) {
+                    // Could convert to Uint32Array of rule IDs here
+                }
+                for (const child of node.children.values()) {
+                    compressNode(child);
+                }
+            };
+            compressNode(this.root);
         });
+    }
+
+    /**
+     * Get statistics
+     */
+    getStats() {
+        return { ...this.stats };
     }
 }

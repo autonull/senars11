@@ -84,33 +84,18 @@ export function registerReflectionOps(registry) {
         let target = unwrap(obj);
         const methodName = unwrap(method);
 
-        // If target is a Promise, await it first. Let* evaluation doesn't wait for grounded promises by default in sync step
-        if (target instanceof Promise) {
-            target = await target;
+        // If target was unwrapped as a MeTTa list structure from earlier wrapping, unwrap it deeply to JS Array
+        if (!target && typeof obj === 'object' && 'type' in obj && obj.type === 'compound') {
+            const unwrappedTarget = unwrap(obj);
+            if (Array.isArray(unwrappedTarget)) {
+                target = unwrappedTarget;
+            }
         }
 
         if (target === undefined || target === null) throw new Error(`&js-call: Target object is null/undefined for method '${methodName}'`);
 
         let fn = target[methodName];
         let ctx = target;
-
-        // If target was unwrapped as a MeTTa list structure from earlier wrapping, unwrap it deeply to JS Array
-        // Wait, if it is an object but doesn't have the method, check if we need to extract a value from a generic structure
-        if (!fn && typeof target === 'object' && 'type' in target && target.type === 'compound') {
-            const unwrappedTarget = unwrap(target);
-            if (Array.isArray(unwrappedTarget)) {
-                target = unwrappedTarget;
-                ctx = target;
-                fn = target[methodName];
-            }
-        }
-
-        // If the object itself is a grounded atom that somehow slipped through, unwrap value
-        if (!fn && typeof target === 'object' && 'value' in target) {
-            target = target.value;
-            ctx = target;
-            fn = target[methodName];
-        }
 
         // Handle nested paths like "foo.bar" if method is a string
         if (!fn && typeof methodName === 'string' && methodName.includes('.')) {
@@ -126,24 +111,24 @@ export function registerReflectionOps(registry) {
         }
 
         if (typeof fn !== 'function') {
-             throw new Error(`&js-call: Method '${methodName}' not found or not a function on target of type ${typeof target} (value: ${target}).`);
+             throw new Error(`&js-call: Method '${methodName}' not found or not a function on target of type ${typeof target}`);
         }
 
         const jsArgs = args.map(unwrap);
         let result = fn.apply(ctx, jsArgs);
 
-        // Auto-await Promises to keep MeTTa evaluation flat when using AsyncReduction
+        // Auto-await Promises
         if (result instanceof Promise) {
             result = await result;
         }
 
-        // If the result is an array of promises (e.g. from mapping an async callback)
+        // If the result is an array of promises
         if (Array.isArray(result) && result.some(r => r instanceof Promise)) {
             result = await Promise.all(result);
         }
 
         return wrap(result);
-    }, { async: true });
+    });
 
     registry.register('&js-get', (obj, prop) => {
         const target = unwrap(obj);

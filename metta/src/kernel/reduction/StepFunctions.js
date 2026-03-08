@@ -31,22 +31,20 @@ export function* stepYield(atom, space, ground, limit = 10000, cache = null) {
     if (!isExpression(atom)) return;
 
     // Phase P1-C: Dynamic JIT Compilation integration
-    // Disabled during tests until actual string code compilation logic resolves fully dynamically.
-    // The previous stub was causing non-deterministic fallback paths on counter reduction benchmarks.
-    // if (METTA_CONFIG.jit) {
-    //    if (!jitCompiler) {
-    //         jitCompiler = new JITCompiler(METTA_CONFIG.jitThreshold || 50);
-    //    }
-    //
-    //    const jitFn = jitCompiler.track(atom) || jitCompiler.get(atom);
-    //    if (jitFn) {
-    //        const jitted = jitFn(ground, space);
-    //        if (jitted !== undefined && jitted !== null && jitted !== atom) {
-    //            yield { reduced: jitted, applied: true };
-    //            return;
-    //        }
-    //    }
-    // }
+    if (METTA_CONFIG.jit) {
+        if (!jitCompiler) {
+            jitCompiler = new JITCompiler(METTA_CONFIG.jitThreshold || 50);
+        }
+
+        const jitFn = jitCompiler.track(atom) || jitCompiler.get(atom);
+        if (jitFn) {
+            const jitted = jitFn(ground, space);
+            if (jitted !== undefined && jitted !== null && jitted !== atom) {
+                yield { reduced: jitted, applied: true };
+                return;
+            }
+        }
+    }
 
     // Phase P1-A: Zipper-Based Traversal integration
     // Replace recursive descent when depth exceeds threshold to avoid stack overflow

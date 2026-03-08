@@ -4,7 +4,7 @@
 
 import { intern, symbolEq as internSymbolEq } from './Interning.js';
 import { TYPE_SYMBOL, TYPE_VARIABLE, TYPE_EXPRESSION, TYPE_GROUNDED, isVariableName } from './FastPaths.js';
-import { METTA_CONFIG } from '../config.js';
+import { configManager } from '../config/config.js';
 import { SymbolAtom, VariableAtom, GroundedAtom, ExpressionAtom } from './AtomTypes.js';
 
 export { SymbolAtom, VariableAtom, GroundedAtom, ExpressionAtom };
@@ -16,7 +16,7 @@ const expCache = new Map();
 const varCache = new Map();
 
 export const sym = (name) => {
-    if (METTA_CONFIG.interning) return intern(name);
+    if (configManager.get('interning')) return intern(name);
     return new SymbolAtom(name);
 };
 
@@ -62,7 +62,7 @@ export const exp = (operator, components) => {
 
     if (expCache.has(key)) return expCache.get(key);
 
-    if (expCache.size > METTA_CONFIG.maxCacheSize) expCache.clear();
+    if (expCache.size > configManager.get('maxCacheSize')) expCache.clear();
 
     const name = `(${op.toString()}${components.length ? ' ' + components.map(c => c.name || c).join(' ') : ''})`;
 

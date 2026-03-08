@@ -3,14 +3,14 @@
  * Space-efficient probabilistic set for MeTTa rule indexing
  */
 
-import { METTA_CONFIG } from '../config.js';
+import { configManager } from '../config/config.js';
 
 export class BloomFilter {
     constructor(size = 10000, hashCount = 3) {
         this.size = size;
         this.hashCount = hashCount;
         this.bits = new Uint32Array(Math.ceil(size / 32));
-        this.enabled = METTA_CONFIG.bloomFilter ?? true;
+        this.enabled = configManager.get('bloomFilter') ?? true;
     }
 
     add(value) {

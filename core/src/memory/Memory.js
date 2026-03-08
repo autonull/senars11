@@ -126,7 +126,8 @@ export class Memory extends BaseComponent {
     }
 
     _createConcept(term) {
-        if (this._stats.totalConcepts >= this._config.maxConcepts) {
+        // Ensure there's room for the new concept by forgetting until under capacity
+        while (this._stats.totalConcepts >= this._config.maxConcepts) {
             this._applyConceptForgetting();
         }
 

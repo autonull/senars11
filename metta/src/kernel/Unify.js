@@ -8,7 +8,7 @@
 // Local imports
 import { isVariable, isExpression, isList, flattenList, constructList, exp } from './Term.js';
 import { getTypeTag, TYPE_SYMBOL, TYPE_VARIABLE, TYPE_EXPRESSION, isSymbol as fastIsSymbol } from './FastPaths.js';
-import { METTA_CONFIG } from '../config.js';
+import { configManager } from '../config/config.js';
 import { SMTBridge } from '../extensions/SMTOps.js';
 
 // External imports
@@ -234,7 +234,7 @@ const mettaAdapter = {
  */
 const unifiedUnify = (t1, t2, binds = {}) => {
     // Fast path: symbol equality (80% of cases)
-    if (METTA_CONFIG.fastPaths) {
+    if (configManager.get('fastPaths')) {
         const tag1 = getTypeTag(t1);
         const tag2 = getTypeTag(t2);
 
@@ -256,7 +256,7 @@ const unifiedUnify = (t1, t2, binds = {}) => {
     const result = UnifyCore.unify(t1, t2, binds, mettaAdapter);
 
     // MORK Phase 3-B Integration point
-    if (!result && METTA_CONFIG.smt) {
+    if (!result && configManager.get('smt')) {
         if (smtBridge.canSolve(binds)) {
             // Unification failed structurally, but maybe SMT can resolve constraints
             const smtResult = smtBridge.solve([t1, t2]);

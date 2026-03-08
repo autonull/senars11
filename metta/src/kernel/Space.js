@@ -7,13 +7,13 @@
 import { isExpression, exp, sym } from './Term.js';
 import { RuleIndex } from './RuleIndex.js';
 import { PathTrie } from './PathTrie.js';
-import { METTA_CONFIG } from '../config.js';
+import { configManager } from '../config/config.js';
 
 export class Space {
     constructor() {
         this.atoms = new Set();
         this.ruleIndex = new RuleIndex();
-        this.pathTrie = METTA_CONFIG.pathTrie ? new PathTrie() : null; // Phase P1-B integration
+        this.pathTrie = configManager.get('pathTrie') ? new PathTrie() : null;
         this._stats = { adds: 0, removes: 0, queries: 0 };
     }
 
@@ -110,14 +110,14 @@ export class Space {
     }
 
     rulesFor(term) {
-        if (METTA_CONFIG.pathTrie && this.pathTrie) {
-            // For now, our trie implementation `query(atom)` doesn't correctly capture var bindings
-            // like $x during traversal if they aren't explicitly matched at insertion, causing tests to miss
-            // valid candidates that `ruleIndex.rulesFor` usually finds by head functor.
-            // We bypass returning the trie rules exclusively until Phase 1-B's recursive traversal is fixed for deep unifying variables,
-            // to ensure performance tests requiring complex reductions pass smoothly on parity fallback.
-            this.pathTrie.query(term); // Warmup/stats tracking
+        if (configManager.get('pathTrie') && this.pathTrie) {
+            // Use PathTrie for fast rule lookup with variable matching
+            const trieRules = this.pathTrie.query(term);
+            if (trieRules.length > 0) {
+                return trieRules;
+            }
         }
+        // Fallback to RuleIndex for compatibility
         return this.ruleIndex.rulesFor(term);
     }
 

@@ -4,6 +4,8 @@
 
 export { OperationHelpers } from './OperationHelpers.js';
 export { CoreRegistry } from './CoreRegistry.js';
+
+// Core operations
 export { registerArithmeticOps } from './ArithmeticOps.js';
 export { registerComparisonOps } from './ComparisonOps.js';
 export { registerLogicalOps } from './LogicalOps.js';
@@ -20,3 +22,6 @@ export { registerSpaceOps } from './SpaceOps.js';
 export { registerStateOps } from './StateOps.js';
 export { registerStringOps } from './StringOps.js';
 export { registerTypeOps } from './TypeOps.js';
+
+// MORK-parity Phase P2-A: Algebraic hypergraph operations
+export { AlgebraicOps } from './AlgebraicOps.js';
