@@ -209,7 +209,8 @@ export class ReductionPipeline {
     this.config = config;
     this.stats = {
       executions: 0,
-      stageHits: new Map()
+      stageHits: new Map(),
+      stageTimes: new Map()
     };
   }
 
@@ -245,45 +246,48 @@ export class ReductionPipeline {
    */
   async *execute(atom, context) {
     this.stats.executions++;
-    
+    const execStart = context?._metrics ? Date.now() : 0;
+
     for (const stage of this.stages) {
       try {
+        const stageStart = Date.now();
         const result = await stage.execute(atom, context);
-        
+        const stageTime = Date.now() - stageStart;
+
         if (result) {
-          this._recordStageHit(stage.name);
-          
+          this._recordStageHit(stage.name, stageTime);
+
           // Special handling for certain result types
           if (result.useZipper) {
             yield* this._executeWithZipper(result.atom, context);
             return;
           }
-          
+
           if (result.executeGrounded) {
             yield* this._executeGrounded(result.atom, result.op, context);
             return;
           }
-          
+
           if (result.executeExplicit) {
             yield* this._executeExplicit(result.atom, result.op, result.args, context);
             return;
           }
-          
+
           if (result.matchRules) {
             yield* this._matchRules(result.atom, result.rules, context);
             return;
           }
-          
+
           if (result.superpose) {
             yield* this._executeSuperpose(result.alternatives, context);
             return;
           }
-          
+
           if (result.superposeEmpty) {
             yield { reduced: null, applied: true, deadEnd: true };
             return;
           }
-          
+
           // Standard result
           if (result.applied) {
             yield result;
@@ -295,7 +299,7 @@ export class ReductionPipeline {
         // Continue to next stage on error
       }
     }
-    
+
     // No stage applied
     yield { reduced: atom, applied: false };
   }
@@ -437,21 +441,73 @@ export class ReductionPipeline {
   /**
    * Record stage hit for statistics
    */
-  _recordStageHit(stageName) {
+  _recordStageHit(stageName, duration = 0) {
     const count = this.stats.stageHits.get(stageName) || 0;
+    const totalTime = this.stats.stageTimes.get(stageName) || 0;
     this.stats.stageHits.set(stageName, count + 1);
+    this.stats.stageTimes.set(stageName, totalTime + duration);
   }
 
   /**
    * Get pipeline statistics
    */
   getStats() {
+    const stageStats = {};
+    for (const stage of this.stages) {
+      const hits = this.stats.stageHits.get(stage.name) || 0;
+      const time = this.stats.stageTimes.get(stage.name) || 0;
+      stageStats[stage.name] = {
+        hits,
+        totalTime: time,
+        avgTime: hits > 0 ? time / hits : 0,
+        enabled: stage.enabled
+      };
+    }
+
     return {
       executions: this.stats.executions,
-      stageHits: Object.fromEntries(this.stats.stageHits),
+      stages: stageStats,
       stageCount: this.stages.length,
       enabledStages: this.stages.filter(s => s.enabled).map(s => s.name)
     };
+  }
+
+  /**
+   * Get detailed performance profile
+   */
+  getProfile() {
+    const stages = this.stages.map(stage => {
+      const hits = this.stats.stageHits.get(stage.name) || 0;
+      const time = this.stats.stageTimes.get(stage.name) || 0;
+      return {
+        name: stage.name,
+        hits,
+        totalTime: time,
+        avgTime: hits > 0 ? time / hits : 0,
+        enabled: stage.enabled,
+        percentOfTotal: this.stats.executions > 0 
+          ? (hits / this.stats.executions * 100).toFixed(2) + '%' 
+          : '0%'
+      };
+    });
+
+    // Sort by total time (slowest first)
+    stages.sort((a, b) => b.totalTime - a.totalTime);
+
+    return {
+      totalExecutions: this.stats.executions,
+      stages,
+      bottleneck: stages[0]?.name || null
+    };
+  }
+
+  /**
+   * Reset statistics
+   */
+  resetStats() {
+    this.stats.executions = 0;
+    this.stats.stageHits.clear();
+    this.stats.stageTimes.clear();
   }
 
   /**
@@ -459,19 +515,92 @@ export class ReductionPipeline {
    */
   static createStandard(config, jitCompiler = null) {
     const pipeline = new ReductionPipeline(config);
-    
+
     pipeline.use(new CacheStage());
-    
+
     if (jitCompiler) {
       pipeline.use(new JITStage(jitCompiler));
     }
-    
+
     pipeline.use(new SuperposeStage());
     pipeline.use(new ZipperStage(config?.get('zipperThreshold') || 8));
     pipeline.use(new GroundedOpStage());
     pipeline.use(new ExplicitCallStage());
     pipeline.use(new RuleMatchStage());
-    
+
+    return pipeline;
+  }
+}
+
+/**
+ * Fluent Pipeline Builder
+ * @example
+ * const pipeline = new PipelineBuilder()
+ *   .withCache()
+ *   .withJIT({ threshold: 50 })
+ *   .withZipper({ threshold: 10 })
+ *   .withRuleMatching()
+ *   .build();
+ */
+export class PipelineBuilder {
+  constructor(config) {
+    this.config = config;
+    this.stages = [];
+    this.options = {};
+  }
+
+  withCache() {
+    this.stages.push(new CacheStage());
+    return this;
+  }
+
+  withJIT(options = {}) {
+    const threshold = options.threshold || this.config?.get('jitThreshold') || 50;
+    this.stages.push(new JITStage(new JITCompiler(threshold)));
+    return this;
+  }
+
+  withZipper(options = {}) {
+    const threshold = options.threshold || this.config?.get('zipperThreshold') || 8;
+    this.stages.push(new ZipperStage(threshold));
+    return this;
+  }
+
+  withGroundedOps() {
+    this.stages.push(new GroundedOpStage());
+    return this;
+  }
+
+  withExplicitCalls() {
+    this.stages.push(new ExplicitCallStage());
+    return this;
+  }
+
+  withRuleMatching() {
+    this.stages.push(new RuleMatchStage());
+    return this;
+  }
+
+  withSuperpose() {
+    this.stages.push(new SuperposeStage());
+    return this;
+  }
+
+  withStage(stage) {
+    this.stages.push(stage);
+    return this;
+  }
+
+  withOptions(opts) {
+    this.options = { ...this.options, ...opts };
+    return this;
+  }
+
+  build() {
+    const pipeline = new ReductionPipeline(this.config);
+    for (const stage of this.stages) {
+      pipeline.use(stage);
+    }
     return pipeline;
   }
 }

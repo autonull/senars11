@@ -29,8 +29,7 @@ import { Unify } from './kernel/Unify.js';
 import { Formatter } from './kernel/Formatter.js';
 
 // Configuration (new architecture)
-import { ConfigManager, createMeTTaConfig, ExtensionRegistry, registerMeTTaExtensions } from './config/index.js';
-import { registerConfigOps } from './kernel/ops/StateOps.js';
+import { configManager, registerConfigOps, ExtensionRegistry, registerMeTTaExtensions } from './config/index.js';
 
 // Extensions
 import { ReactiveSpace } from './extensions/ReactiveSpace.js';
@@ -68,10 +67,10 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
         super(opts, 'MeTTaInterpreter', opts.eventBus, opts.termFactory);
 
         this.reasoner = reasoner;
-        
-        // New architecture: ConfigManager
-        this.config = createMeTTaConfig();
-        
+
+        // Use shared configManager - allows runtime config changes across all interpreters
+        this.config = configManager;
+
         this.space = new ReactiveSpace();
         this.spaces = new Map();
         this.moduleLoader = new ModuleLoader(this);
@@ -81,10 +80,10 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
         this.typeChecker = new TypeChecker(this.typeSystem);
 
         // Legacy cache
-        this.memoCache = new MemoizationCache(opts.cacheCapacity || 1000);
+        this.memoCache = new MemoizationCache(opts.cacheCapacity || this.config.get('cacheCapacity'));
 
         // Q5: New ReductionCache
-        this.reductionCache = new ReductionCache(opts.cacheCapacity || 1000);
+        this.reductionCache = new ReductionCache(opts.cacheCapacity || this.config.get('cacheCapacity'));
 
         // New architecture: ExtensionRegistry
         this.extensionRegistry = new ExtensionRegistry(this);
@@ -159,7 +158,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      * Register bridge primitives if available
      */
     _initializeBridge() {
-        const bridge = this.reasoner?.bridge || this.config.bridge;
+        const bridge = this.reasoner?.bridge || this.config.get('bridge');
         bridge?.registerPrimitives?.(this.ground);
 
         // Phase P3-C: Tensor integration registry (loaded via ExtensionRegistry if enabled)
@@ -173,7 +172,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      * Load standard library if enabled
      */
     _loadStandardLibrary() {
-        if (this.config.loadStdlib !== false) {
+        if (this.config.get('loadStdlib') !== false) {
             try {
                 loadStdlib(this, this.config);
             } catch (e) {
@@ -319,7 +318,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      */
     evaluate(atom) {
         return this.trackOperation('evaluate', () => {
-            const res = reduceND(atom, this.space, this.ground, this.config.maxReductionSteps);
+            const res = reduceND(atom, this.space, this.ground, this.config.get('maxReductionSteps'));
             const steps = this._mettaMetrics.get('reductionSteps') || 0;
             this._mettaMetrics.set('reductionSteps', steps + 1);
             return res;
@@ -330,14 +329,14 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      * Helper method to perform deterministic reduction with common parameters
      */
     _reduceDeterministic(atom) {
-        return reduce(atom, this.space, this.ground, this.config.maxReductionSteps, this.reductionCache);
+        return reduce(atom, this.space, this.ground, this.config.get('maxReductionSteps'), this.reductionCache);
     }
 
     /**
      * Perform a single reduction step
      */
     step(atom) {
-        return step(atom, this.space, this.ground, this.config.maxReductionSteps, this.reductionCache);
+        return step(atom, this.space, this.ground, this.config.get('maxReductionSteps'), this.reductionCache);
     }
 
     /**
@@ -358,7 +357,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
         return {
             space: this.space.getStats(),
             groundedAtoms: { count: this.ground.getOperations().length },
-            reductionEngine: { maxSteps: this.config.maxReductionSteps || 10000 },
+            reductionEngine: { maxSteps: this.config.get('maxReductionSteps') || 10000 },
             typeSystem: {
                 count: this.typeSystem ? 1 : 0,
                 typeVariables: this.typeSystem?.nextTypeVarId || 0
@@ -402,7 +401,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      */
     async evaluateAsync(atom) {
         return this.trackOperation('evaluate', async () => {
-            const res = await reduceNDAsync(atom, this.space, this.ground, this.config.maxReductionSteps);
+            const res = await reduceNDAsync(atom, this.space, this.ground, this.config.get('maxReductionSteps'));
             const steps = this._mettaMetrics.get('reductionSteps') || 0;
             this._mettaMetrics.set('reductionSteps', steps + 1);
             return res;

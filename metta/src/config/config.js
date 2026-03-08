@@ -10,6 +10,11 @@ export const configManager = new ConfigManager();
 
 // Define all configuration keys
 configManager
+  // Core interpreter settings
+  .define('maxReductionSteps', 1000, Validators.positive, 'Maximum reduction steps before timeout')
+  .define('cacheCapacity', 1000, Validators.positive, 'Default cache capacity')
+  .define('loadStdlib', true, Validators.boolean, 'Load standard library on init')
+
   // P1: Performance Core
   .define('zipperThreshold', 8, Validators.positive, 'Depth at which Zipper replaces recursive traversal')
   .define('pathTrie', false, Validators.boolean, 'Enable PathTrie rule index')
@@ -31,6 +36,7 @@ configManager
   .define('debugging', false, Validators.boolean, 'Enable debug mode')
   .define('tracing', false, Validators.boolean, 'Enable execution tracing')
   .define('profiling', false, Validators.boolean, 'Enable performance profiling')
+  .define('slowOpThreshold', 100, Validators.positive, 'Threshold for slow operation logging (ms)')
 
   // Tier 1 optimizations
   .define('interning', true, Validators.boolean, 'Symbol interning')
@@ -43,7 +49,7 @@ configManager
 
   .freeze();
 
-// Export for backward compatibility (returns current config snapshot)
+// Export for config snapshot
 export function getConfig() {
   return configManager.getAll();
 }
