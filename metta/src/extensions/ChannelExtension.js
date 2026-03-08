@@ -3,7 +3,7 @@
  * Bridges the JS ChannelManager to MeTTa Atoms.
  */
 import { Term } from '../kernel/Term.js';
-import { Logger } from '@senars/core';
+import { Logger } from '../../../core/src/util/Logger.js';
 
 export class ChannelExtension {
     constructor(interpreter, channelManager) {

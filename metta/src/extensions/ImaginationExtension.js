@@ -3,7 +3,7 @@
  * Provides a high-level API to draw images and record key-framed video (GIF) sequences.
  */
 import { Term, sym, isGrounded, grounded } from '../kernel/Term.js';
-import { Logger } from '@senars/core';
+import { Logger } from '../../../core/src/util/Logger.js';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import GIFEncoder from 'gifencoder';
 import fs from 'fs';
