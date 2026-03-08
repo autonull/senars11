@@ -55,8 +55,8 @@ export function* stepYield(atom, space, ground, limit = 10000, cache = null) {
     // or by traversing if configured. For performance, we rely on `atom.depth` existing or fallback.
     const depth = atom.depth || 0;
     if (METTA_CONFIG.zipperThreshold && depth > METTA_CONFIG.zipperThreshold) {
-        // yield* stepWithZipper(atom, space, ground, limit, cache);
-        // return;
+        yield* stepWithZipper(atom, space, ground, limit, cache);
+        return;
     }
 
     // Q5: Check cache first

@@ -9,9 +9,12 @@
 import { isVariable, isExpression, isList, flattenList, constructList, exp } from './Term.js';
 import { getTypeTag, TYPE_SYMBOL, TYPE_VARIABLE, TYPE_EXPRESSION, isSymbol as fastIsSymbol } from './FastPaths.js';
 import { METTA_CONFIG } from '../config.js';
+import { SMTBridge } from '../extensions/SMTOps.js';
 
 // External imports
 import * as UnifyCore from '../../../core/src/term/UnifyCore.js';
+
+const smtBridge = new SMTBridge();
 
 /**
  * Safely substitute variables in a term with their bindings
@@ -250,7 +253,18 @@ const unifiedUnify = (t1, t2, binds = {}) => {
         return unifyLists(t1, t2, binds);
     }
 
-    return UnifyCore.unify(t1, t2, binds, mettaAdapter);
+    const result = UnifyCore.unify(t1, t2, binds, mettaAdapter);
+
+    // MORK Phase 3-B Integration point
+    if (!result && METTA_CONFIG.smt) {
+        if (smtBridge.canSolve(binds)) {
+            // Unification failed structurally, but maybe SMT can resolve constraints
+            const smtResult = smtBridge.solve([t1, t2]);
+            if (smtResult) return smtResult;
+        }
+    }
+
+    return result;
 };
 
 export const Unify = {

@@ -53,6 +53,8 @@ export function registerReflectionOps(registry) {
              // but if we want `&js-call` to automatically await, we handle it in the op registration.
              return grounded(val);
         }
+
+        // Returns objects/functions as GroundedAtoms. Primitives were already returned as pure Term atoms above.
         return grounded(val);
     };
 
