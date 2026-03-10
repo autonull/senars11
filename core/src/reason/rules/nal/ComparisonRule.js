@@ -15,61 +15,37 @@ export class ComparisonRule extends NALRule {
     }
 
     canApply(primaryPremise, secondaryPremise, context) {
-        if (!primaryPremise || !secondaryPremise) return false;
+        const t1 = primaryPremise?.term;
+        const t2 = secondaryPremise?.term;
 
-        const {term: t1} = primaryPremise;
-        const {term: t2} = secondaryPremise;
+        if (!t1?.isCompound || !t2?.isCompound || t1.operator !== '-->' || t2.operator !== '-->') return false;
 
-        if (!t1?.isCompound || !t2?.isCompound) return false;
-        // Must be inheritance
-        if (t1.operator !== '-->' || t2.operator !== '-->') return false;
-
-        // Check for shared subject
-        const matchS = this.unify(t1.subject, t2.subject, context);
-        // Check for shared predicate
-        const matchP = !matchS.success && this.unify(t1.predicate, t2.predicate, context);
-
-        return matchS.success || matchP.success;
+        return this.unify(t1.subject, t2.subject, context).success ||
+               this.unify(t1.predicate, t2.predicate, context).success;
     }
 
     apply(primaryPremise, secondaryPremise, context) {
-        const {term: t1, truth: truth1} = primaryPremise;
-        const {term: t2, truth: truth2} = secondaryPremise;
-        const termFactory = context?.termFactory;
+        const t1 = primaryPremise.term;
+        const t2 = secondaryPremise.term;
+        if (!context?.termFactory) return [];
 
-        if (!termFactory || !truth1 || !truth2) return [];
-
-        let termA, termB, substitution;
-
-        // Try match subject then predicate
         const matchS = this.unify(t1.subject, t2.subject, context);
-        if (matchS.success) {
-            substitution = matchS.substitution;
-            termA = t2.predicate;
-            termB = t1.predicate;
-        } else {
-            const matchP = this.unify(t1.predicate, t2.predicate, context);
-            if (matchP.success) {
-                substitution = matchP.substitution;
-                termA = t2.subject;
-                termB = t1.subject;
-            } else {
-                return [];
-            }
-        }
+        const matchP = this.unify(t1.predicate, t2.predicate, context);
 
-        // Avoid self-similarity
-        if (this.unify(termA, termB, context).success) return [];
+        const config = matchS.success
+            ? {sub: matchS.substitution, a: t2.predicate, b: t1.predicate}
+            : (matchP.success ? {sub: matchP.substitution, a: t2.subject, b: t1.subject} : null);
 
-        const derivedTruth = Truth.comparison(truth1, truth2);
-        if (!derivedTruth) return [];
+        if (!config || this.unify(config.a, config.b, context).success) return [];
 
-        const finalTermA = this.applySubstitution(termA, substitution, context);
-        const finalTermB = this.applySubstitution(termB, substitution, context);
+        const newTruth = Truth.comparison(primaryPremise.truth, secondaryPremise.truth);
+        if (!newTruth) return [];
 
-        const conclusionTerm = termFactory.similarity(finalTermA, finalTermB);
-        const task = this.createDerivedTask(conclusionTerm, derivedTruth, [primaryPremise, secondaryPremise], context, '.');
+        const termA = this.applySubstitution(config.a, config.sub, context);
+        const termB = this.applySubstitution(config.b, config.sub, context);
+        const term = context.termFactory.similarity(termA, termB);
 
+        const task = this.createDerivedTask(term, newTruth, [primaryPremise, secondaryPremise], context);
         return task ? [task] : [];
     }
 }

@@ -19,66 +19,57 @@ export class ConversionRule extends NALRule {
         super('nal-conversion', 'nal', 0.7, config);
     }
 
-    canApply(primaryPremise, secondaryPremise, context) {
+    canApply(primaryPremise, secondaryPremise) {
         if (!primaryPremise || secondaryPremise) return false; // Unary rule
-
         const {term} = primaryPremise;
         return term?.isCompound && term.operator === '-->' && term.subject && term.predicate;
     }
 
     apply(primaryPremise, secondaryPremise, context) {
-        if (!this.canApply(primaryPremise, secondaryPremise, context)) return [];
+        if (!this.canApply(primaryPremise, secondaryPremise)) return [];
 
-        const {term, truth} = primaryPremise;
+        const {term} = primaryPremise;
         const termFactory = context?.termFactory;
+        if (!termFactory) return [];
 
-        if (!termFactory || !truth) return [];
+        const newTruth = Truth.conversion(primaryPremise.truth);
+        if (!newTruth) return [];
 
-        const derivedTruth = Truth.conversion(truth);
-        if (!derivedTruth) return [];
-
-        const conclusionTerm = termFactory.create('-->', [term.predicate, term.subject]);
-        const task = this.createDerivedTask(conclusionTerm, derivedTruth, [primaryPremise], context, '.');
-
+        const task = this.createDerivedTask(
+            termFactory.create('-->', [term.predicate, term.subject]),
+            newTruth, [primaryPremise], context
+        );
         return task ? [task] : [];
     }
 }
 
-/**
- * Contraposition Rule: Negate and reverse
- * (S --> P) |- (--P --> --S)
- * Single premise rule with reduced confidence
- */
 export class ContrapositionRule extends NALRule {
     constructor(config = {}) {
         super('nal-contraposition', 'nal', 0.6, config);
     }
 
-    canApply(primaryPremise, secondaryPremise, context) {
+    canApply(primaryPremise, secondaryPremise) {
         if (!primaryPremise || secondaryPremise) return false; // Unary rule
-
         const {term} = primaryPremise;
         return term?.isCompound && term.operator === '==>' && term.subject && term.predicate;
     }
 
     apply(primaryPremise, secondaryPremise, context) {
-        if (!this.canApply(primaryPremise, secondaryPremise, context)) return [];
+        if (!this.canApply(primaryPremise, secondaryPremise)) return [];
 
-        const {term, truth} = primaryPremise;
+        const {term} = primaryPremise;
         const termFactory = context?.termFactory;
+        if (!termFactory) return [];
 
-        if (!termFactory || !truth) return [];
+        const newTruth = Truth.structuralReduction(primaryPremise.truth);
+        if (!newTruth) return [];
 
-        // Contraposition uses weak reduction
-        const derivedTruth = Truth.structuralReduction(truth);
-        if (!derivedTruth) return [];
-
-        const negSubject = termFactory.create('--', [term.predicate]);
-        const negPredicate = termFactory.create('--', [term.subject]);
-        const conclusionTerm = termFactory.create('==>', [negSubject, negPredicate]);
-
-        const task = this.createDerivedTask(conclusionTerm, derivedTruth, [primaryPremise], context, '.');
-
+        const negS = termFactory.create('--', [term.predicate]);
+        const negP = termFactory.create('--', [term.subject]);
+        const task = this.createDerivedTask(
+            termFactory.create('==>', [negS, negP]),
+            newTruth, [primaryPremise], context
+        );
         return task ? [task] : [];
     }
 }

@@ -60,17 +60,16 @@ export class Task {
     }
 
     _unwrapNegation(term, truth) {
-        const op = getOperator(term);
-        const comps = getComponents(term);
+        if (getOperator(term) !== '--') return {term, truth};
 
-        if (op !== '--' || comps.length !== 1) {
-            return { term, truth };
-        }
+        const comps = getComponents(term);
+        if (comps.length !== 1) return {term, truth};
 
         const t = this._createTruth(truth);
-        const newTruth = t ? Truth.create(1.0 - t.f, t.c) : truth;
-
-        return { term: comps[0], truth: newTruth };
+        return {
+            term: comps[0],
+            truth: t ? Truth.create(1.0 - t.f, t.c) : truth
+        };
     }
 
     _validateTruth(truth) {

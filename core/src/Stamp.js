@@ -16,30 +16,25 @@ export class Stamp {
     }
 
     static derive(parentStamps = [], overrides = {}) {
-        if (parentStamps.some(s => s instanceof BloomStamp)) {
-             return Stamp.deriveBloom(parentStamps, overrides);
+        const maxDepth = Stamp._getMaxDepth(parentStamps);
+
+        if (maxDepth > 20 || parentStamps.some(s => s instanceof BloomStamp)) {
+            return Stamp.deriveBloom(parentStamps, overrides, maxDepth);
         }
 
-        const maxParentDepth = parentStamps.reduce((max, s) => Math.max(max, s.depth || 0), 0);
-
-        // Phase 4.3: Bloom Filter Stamps - switch if depth exceeds threshold
-        if (maxParentDepth > 20) {
-            return Stamp.deriveBloom(parentStamps, overrides);
-        }
-
-        const allDerivations = new Set(parentStamps.flatMap(s => [s.id, ...(s.derivations || [])]));
+        const allDerivations = parentStamps.flatMap(s => [s.id, ...(s.derivations || [])]);
         return new ArrayStamp({
-            derivations: [...allDerivations],
-            depth: maxParentDepth + 1,
+            derivations: allDerivations,
+            depth: maxDepth + 1,
             source: overrides.source || 'DERIVED'
         });
     }
 
-    static deriveBloom(parentStamps = [], overrides = {}) {
-        const maxParentDepth = parentStamps.reduce((max, s) => Math.max(max, s.depth || 0), 0);
+    static deriveBloom(parentStamps = [], overrides = {}, maxDepth = null) {
+        const depth = (maxDepth ?? Stamp._getMaxDepth(parentStamps)) + 1;
         const newStamp = new BloomStamp({
             source: overrides.source || 'DERIVED',
-            depth: maxParentDepth + 1
+            depth
         });
 
         for (const parent of parentStamps) {
@@ -47,13 +42,15 @@ export class Stamp {
                 newStamp.filter.merge(parent.filter);
             } else if (parent instanceof ArrayStamp) {
                 newStamp.filter.add(parent.id);
-                for (const d of parent.derivations) {
-                    newStamp.filter.add(d);
-                }
+                parent.derivations.forEach(d => newStamp.filter.add(d));
             }
         }
 
         return newStamp;
+    }
+
+    static _getMaxDepth(stamps) {
+        return stamps.reduce((max, s) => Math.max(max, s.depth || 0), 0);
     }
 }
 
@@ -67,9 +64,8 @@ export class ArrayStamp extends Stamp {
         this._id = id;
         this._creationTime = creationTime;
         this._source = source;
-        this._derivations = Object.freeze([...new Set(derivations)]);
-        // Cache derivations as Set for O(1) lookups
-        this._derivationsSet = new Set(this._derivations);
+        this._derivationsSet = new Set(derivations);
+        this._derivations = Object.freeze(Array.from(this._derivationsSet));
         this._depth = depth;
         Object.freeze(this);
     }
@@ -90,16 +86,10 @@ export class ArrayStamp extends Stamp {
         if (other instanceof BloomStamp) return other.overlaps(this);
         if (!(other instanceof ArrayStamp)) return false;
 
-        if (this._id === other.id) return true;
-        if (this._derivationsSet.has(other.id)) return true;
-        if (other.derivations.includes(this._id)) return true; // Efficient check for direct derivation
+        if (this._id === other.id || this._derivationsSet.has(other.id) || other._derivationsSet.has(this._id)) return true;
 
-        // Iterate over the smaller set of derivations
-        if (this._derivations.length < other.derivations.length) {
-             return this._derivations.some(d => other._derivationsSet.has(d));
-        } else {
-             return other.derivations.some(d => this._derivationsSet.has(d));
-        }
+        const [smaller, larger] = this._derivations.length < other._derivations.length ? [this, other] : [other, this];
+        return smaller.derivations.some(d => larger._derivationsSet.has(d));
     }
 
     clone(overrides = {}) {

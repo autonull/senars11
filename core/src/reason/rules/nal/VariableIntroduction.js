@@ -14,7 +14,7 @@
 
 import {NALRule} from './NALRule.js';
 import {Truth} from '../../../Truth.js';
-
+import {termsEqual} from '../../../term/TermUtils.js';
 
 /**
  * Introduces independent variables ($) to generalize patterns.
@@ -50,91 +50,44 @@ export class VariableIntroductionRule extends NALRule {
         const p = primaryPremise.term;
         const s = secondaryPremise.term;
 
-        // Both must be compound statements
-        if (!p.isCompound || !s.isCompound) return false;
+        if (!p.isCompound || !s.isCompound || p.operator !== s.operator || !['-->', '<->'].includes(p.operator)) return false;
+        if (termsEqual(p, s)) return false;
 
-        // Both must have same operator (inheritance or similarity)
-        if (p.operator !== s.operator) return false;
-        if (!['-->', '<->'].includes(p.operator)) return false;
+        // Shared predicate or shared subject, but not both (identity)
+        const samePred = termsEqual(p.predicate, s.predicate);
+        const sameSubj = termsEqual(p.subject, s.subject);
 
-        // Must have subject and predicate
-        if (!p.subject || !p.predicate || !s.subject || !s.predicate) return false;
-
-        // Must not be identical
-        if (this._termsEqual(p, s)) return false;
-
-        // Check for generalizable patterns
-        return this._hasGeneralizablePattern(p, s);
+        return (samePred && !sameSubj) || (!samePred && sameSubj);
     }
 
     /**
      * Apply variable introduction to create generalized statement.
      */
     apply(primaryPremise, secondaryPremise, context = {}) {
-        if (!this.canApply(primaryPremise, secondaryPremise, context)) {
-            return [];
-        }
+        if (!this.canApply(primaryPremise, secondaryPremise, context)) return [];
 
-        const results = [];
         const p = primaryPremise.term;
         const s = secondaryPremise.term;
         const termFactory = context.termFactory;
-
         if (!termFactory) return [];
 
-        // Pattern 1: Shared predicate - (A --> P), (B --> P) => (?x --> P)
-        if (this._termsEqual(p.predicate, s.predicate) &&
-            !this._termsEqual(p.subject, s.subject)) {
-            const variableTerm = termFactory.variable(`?x${this._varCounter++}`);
-            const generalizedTerm = this._createStatement(
-                termFactory, p.operator, variableTerm, p.predicate
-            );
+        const results = [];
+        const truth = this._calculateGeneralizationTruth(primaryPremise.truth, secondaryPremise.truth);
 
-            if (generalizedTerm) {
-                const truth = this._calculateGeneralizationTruth(
-                    primaryPremise.truth, secondaryPremise.truth
-                );
-                results.push(this.createDerivedTask(generalizedTerm, truth, [primaryPremise, secondaryPremise], context));
+        const generate = (variable, subject, predicate) => {
+            const term = p.operator === '-->' ? termFactory.inheritance(subject, predicate) : termFactory.similarity(subject, predicate);
+            if (term) {
+                results.push(this.createDerivedTask(term, truth, [primaryPremise, secondaryPremise], context));
             }
-        }
+        };
 
-        // Pattern 2: Shared subject - (S --> A), (S --> B) => (S --> ?y)
-        if (this._termsEqual(p.subject, s.subject) &&
-            !this._termsEqual(p.predicate, s.predicate)) {
-            const variableTerm = termFactory.variable(`?y${this._varCounter++}`);
-            const generalizedTerm = this._createStatement(
-                termFactory, p.operator, p.subject, variableTerm
-            );
-
-            if (generalizedTerm) {
-                const truth = this._calculateGeneralizationTruth(
-                    primaryPremise.truth, secondaryPremise.truth
-                );
-                results.push(this.createDerivedTask(generalizedTerm, truth, [primaryPremise, secondaryPremise], context));
-            }
+        if (termsEqual(p.predicate, s.predicate)) {
+            generate(`?x${this._varCounter++}`, termFactory.variable(`?x${this._varCounter}`), p.predicate);
+        } else if (termsEqual(p.subject, s.subject)) {
+            generate(`?y${this._varCounter++}`, p.subject, termFactory.variable(`?y${this._varCounter}`));
         }
 
         return results.filter(Boolean);
-    }
-
-    /**
-     * Check if terms have a generalizable pattern.
-     * @private
-     */
-    _hasGeneralizablePattern(p, s) {
-        // Shared predicate: (A --> P), (B --> P)
-        if (this._termsEqual(p.predicate, s.predicate) &&
-            !this._termsEqual(p.subject, s.subject)) {
-            return true;
-        }
-
-        // Shared subject: (S --> A), (S --> B)
-        if (this._termsEqual(p.subject, s.subject) &&
-            !this._termsEqual(p.predicate, s.predicate)) {
-            return true;
-        }
-
-        return false;
     }
 
     /**
@@ -172,17 +125,6 @@ export class VariableIntroductionRule extends NALRule {
         return new Truth(avgFrequency, Math.max(this.minConfidence, weakenedConfidence));
     }
 
-    /**
-     * Check if two terms are equal.
-     * @private
-     */
-    _termsEqual(t1, t2) {
-        if (!t1 || !t2) return false;
-        if (typeof t1.equals === 'function') {
-            return t1.equals(t2);
-        }
-        return (t1.name || t1._name) === (t2.name || t2._name);
-    }
 }
 
 /**

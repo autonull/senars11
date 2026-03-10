@@ -206,11 +206,11 @@ export class Concept extends BaseComponent {
                 questions: this.questions
             };
 
-            await Promise.all(Object.entries(map).map(async ([key, bag]) => {
-                if (data[key] && bag.deserialize) {
-                    await bag.deserialize(data[key], Task.fromJSON);
-                }
-            }));
+            await Promise.all(
+                Object.entries(map).map(([key, bag]) =>
+                    data[key] && bag.deserialize ? bag.deserialize(data[key], Task.fromJSON) : Promise.resolve()
+                )
+            );
 
             return true;
         } catch (error) {
