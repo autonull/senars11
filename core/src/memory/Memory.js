@@ -86,7 +86,7 @@ export class Memory extends BaseComponent {
     }
 
     getConfigValue(key, defaultVal) {
-        return this._config[key] !== undefined ? this._config[key] : defaultVal;
+        return this._config[key] ?? defaultVal;
     }
 
     addTask(task, currentTime = Date.now()) {
@@ -184,10 +184,7 @@ export class Memory extends BaseComponent {
     *getTasksIterator() {
         for (const concept of this._concepts.values()) {
             if (concept.getAllTasks) {
-                const tasks = concept.getAllTasks();
-                for (const task of tasks) {
-                    yield task;
-                }
+                yield* concept.getAllTasks();
             }
         }
     }
@@ -381,7 +378,7 @@ export class Memory extends BaseComponent {
         this._stats.memoryCorruptionEvents++;
         this._stats.validationFailures += invalidResults.length;
 
-        this.logger.warn('Memory corruption detected', {
+        this.logWarn('Memory corruption detected', {
             invalidCount: invalidResults.length,
             totalChecked,
             details: invalidResults.map(r => ({
@@ -486,7 +483,7 @@ export class Memory extends BaseComponent {
 
             return true;
         } catch (error) {
-            this.logger.error('Error during memory deserialization:', error);
+            this.logError('Error during memory deserialization:', error);
             return false;
         }
     }

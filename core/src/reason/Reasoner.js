@@ -10,33 +10,25 @@ import {isAsyncRule, isSynchronousRule} from './RuleHelpers.js';
  * It delegates the execution loop to a Runner strategy (Simple or Pipeline).
  */
 export class Reasoner extends EventEmitter {
-    /**
-     * @param {PremiseSource} premiseSource - The source of premises
-     * @param {Strategy} strategy - The strategy for premise pairing
-     * @param {RuleProcessor} ruleProcessor - The processor for rules
-     * @param {object} config - Configuration options
-     */
     constructor(premiseSource, strategy, ruleProcessor, config = {}) {
         super();
         this.premiseSource = premiseSource;
         this.strategy = strategy;
         this.ruleProcessor = ruleProcessor;
         this.config = {
-            maxDerivationDepth: config.maxDerivationDepth ?? 10,
-            cpuThrottleInterval: config.cpuThrottleInterval ?? 0,
-            backpressureThreshold: config.backpressureThreshold ?? 100,
-            backpressureInterval: config.backpressureInterval ?? 10,
-            executionMode: config.executionMode ?? 'simple',
-            executionInterval: config.executionInterval ?? 100,
-            maxDerivationsPerStep: config.maxDerivationsPerStep ?? 1000,
+            maxDerivationDepth: 10,
+            cpuThrottleInterval: 0,
+            backpressureThreshold: 100,
+            backpressureInterval: 10,
+            executionMode: 'simple',
+            executionInterval: 100,
+            maxDerivationsPerStep: 1000,
             ...config
         };
 
-        if (this.config.executionMode === 'pipeline') {
-            this.runner = new PipelineRunner(this, this.config);
-        } else {
-            this.runner = new SimpleRunner(this, this.config);
-        }
+        this.runner = this.config.executionMode === 'pipeline'
+            ? new PipelineRunner(this, this.config)
+            : new SimpleRunner(this, this.config);
 
         this.consumerFeedbackHandlers = [];
     }
@@ -59,80 +51,90 @@ export class Reasoner extends EventEmitter {
 
     async step(timeoutMs = 5000, suppressEvents = false) {
         const results = [];
+        const startTime = Date.now();
+        const focusTasks = this.premiseSource.focusComponent?.getTasks(1000) ?? [];
+
+        if (focusTasks.length === 0) return results;
+
+        const sortedFocusTasks = [...focusTasks];
+        this._shuffleArray(focusTasks);
+        const processedPairs = new Set();
+
         try {
-            const startTime = Date.now();
-            const focusTasks = this.premiseSource.focusComponent?.getTasks(1000) ?? [];
-            if (focusTasks.length === 0) return results;
-
-            // Keep a reference to sorted tasks for Strategy
-            const sortedFocusTasks = [...focusTasks];
-
-            this._shuffleArray(focusTasks);
-            const processedPairs = new Set();
-
             for (const primaryPremise of focusTasks) {
-                if (Date.now() - startTime > timeoutMs) break;
-                if (results.length >= this.config.maxDerivationsPerStep) break;
+                if (this._shouldStopStep(startTime, timeoutMs, results.length)) break;
 
-                // Single premise processing (e.g. for LM rules)
-                try {
-                    const candidateRules = this.ruleProcessor.ruleExecutor.getCandidateRules(primaryPremise, null);
-                    const forwardResults = await this._processRuleBatch(
-                        candidateRules,
-                        primaryPremise,
-                        null,
-                        startTime,
-                        timeoutMs,
-                        suppressEvents
-                    );
-                    if (forwardResults.length > 0) {
-                        results.push(...forwardResults.filter(Boolean));
-                    }
-                } catch (error) {
-                    Logger.debug('Error processing single premise:', error.message);
-                }
+                // Single premise processing
+                await this._processSinglePremise(primaryPremise, results, startTime, timeoutMs, suppressEvents);
 
-                // Dual premise processing using Strategy
-                try {
-                    const secondaryPremises = await this.strategy.selectSecondaryPremises(primaryPremise, sortedFocusTasks);
-
-                    for (const secondaryPremise of secondaryPremises) {
-                        if (Date.now() - startTime > timeoutMs) break;
-                        if (results.length >= this.config.maxDerivationsPerStep) break;
-
-                        const primaryTermId = this._getTermId(primaryPremise);
-                        const secondaryTermId = this._getTermId(secondaryPremise);
-
-                        if (primaryTermId === secondaryTermId) continue;
-
-                        const pairId = primaryTermId < secondaryTermId
-                            ? `${primaryTermId}-${secondaryTermId}`
-                            : `${secondaryTermId}-${primaryTermId}`;
-
-                        if (processedPairs.has(pairId)) continue;
-                        processedPairs.add(pairId);
-
-                        const candidateRules = this.ruleProcessor.ruleExecutor.getCandidateRules(primaryPremise, secondaryPremise);
-                        const forwardResults = await this._processRuleBatch(
-                            candidateRules,
-                            primaryPremise,
-                            secondaryPremise,
-                            startTime,
-                            timeoutMs,
-                            suppressEvents
-                        );
-                        if (forwardResults.length > 0) {
-                            results.push(...forwardResults.filter(Boolean));
-                        }
-                    }
-                } catch (error) {
-                    Logger.debug('Error processing premise pair:', error.message);
-                }
+                // Dual premise processing
+                await this._processDualPremises(
+                    primaryPremise,
+                    sortedFocusTasks,
+                    processedPairs,
+                    results,
+                    startTime,
+                    timeoutMs,
+                    suppressEvents
+                );
             }
         } catch (error) {
             Logger.debug('Error in step method:', error.message);
         }
         return results;
+    }
+
+    _shouldStopStep(startTime, timeoutMs, resultCount) {
+        return (Date.now() - startTime > timeoutMs) || (resultCount >= this.config.maxDerivationsPerStep);
+    }
+
+    async _processSinglePremise(primaryPremise, results, startTime, timeoutMs, suppressEvents) {
+        try {
+            const candidateRules = this.ruleProcessor.ruleExecutor.getCandidateRules(primaryPremise, null);
+            const forwardResults = await this._processRuleBatch(
+                candidateRules, primaryPremise, null, startTime, timeoutMs, suppressEvents
+            );
+            if (forwardResults.length > 0) {
+                results.push(...forwardResults.filter(Boolean));
+            }
+        } catch (error) {
+            Logger.debug('Error processing single premise:', error.message);
+        }
+    }
+
+    async _processDualPremises(primaryPremise, sortedFocusTasks, processedPairs, results, startTime, timeoutMs, suppressEvents) {
+        try {
+            const secondaryPremises = await this.strategy.selectSecondaryPremises(primaryPremise, sortedFocusTasks);
+
+            for (const secondaryPremise of secondaryPremises) {
+                if (this._shouldStopStep(startTime, timeoutMs, results.length)) break;
+
+                if (this._isProcessedPair(primaryPremise, secondaryPremise, processedPairs)) continue;
+
+                const candidateRules = this.ruleProcessor.ruleExecutor.getCandidateRules(primaryPremise, secondaryPremise);
+                const forwardResults = await this._processRuleBatch(
+                    candidateRules, primaryPremise, secondaryPremise, startTime, timeoutMs, suppressEvents
+                );
+                if (forwardResults.length > 0) {
+                    results.push(...forwardResults.filter(Boolean));
+                }
+            }
+        } catch (error) {
+            Logger.debug('Error processing premise pair:', error.message);
+        }
+    }
+
+    _isProcessedPair(p1, p2, processedPairs) {
+        const id1 = this._getTermId(p1);
+        const id2 = this._getTermId(p2);
+
+        if (id1 === id2) return true;
+
+        const pairId = id1 < id2 ? `${id1}-${id2}` : `${id2}-${id1}`;
+        if (processedPairs.has(pairId)) return true;
+
+        processedPairs.add(pairId);
+        return false;
     }
 
     _getTermId(task) {
@@ -146,29 +148,16 @@ export class Reasoner extends EventEmitter {
         }
     }
 
-    /**
-     * Process a batch of rules for a premise pair
-     * @private
-     */
-    async _processRuleBatch(candidateRules, primaryPremise, secondaryPremise, startTime, maxTimeMs, suppressEvents = false) {
+    async _processRuleBatch(candidateRules, p1, p2, startTime, maxTimeMs, suppressEvents = false) {
         const results = [];
 
         for (const rule of candidateRules) {
             if (Date.now() - startTime > maxTimeMs) break;
 
             try {
-                let derivedTasks = [];
-                if (isSynchronousRule(rule)) {
-                    derivedTasks = this.ruleProcessor.processSyncRule(rule, primaryPremise, secondaryPremise);
-                } else if (isAsyncRule(rule)) {
-                    if (this.ruleProcessor && typeof this.ruleProcessor.executeAsyncRule === 'function') {
-                        derivedTasks = await this.ruleProcessor.executeAsyncRule(rule, primaryPremise, secondaryPremise);
-                    } else if (rule.apply) {
-                        derivedTasks = await rule.apply(primaryPremise, secondaryPremise);
-                    }
-                }
+                const derivedTasks = await this._executeRule(rule, p1, p2);
 
-                if (derivedTasks && derivedTasks.length > 0) {
+                if (derivedTasks?.length > 0) {
                     for (const task of derivedTasks) {
                         const processedResult = this._processDerivation(task, suppressEvents);
                         if (processedResult) results.push(processedResult);
@@ -179,6 +168,19 @@ export class Reasoner extends EventEmitter {
             }
         }
         return results;
+    }
+
+    async _executeRule(rule, p1, p2) {
+        if (isSynchronousRule(rule)) {
+            return this.ruleProcessor.processSyncRule(rule, p1, p2);
+        } else if (isAsyncRule(rule)) {
+            if (this.ruleProcessor && typeof this.ruleProcessor.executeAsyncRule === 'function') {
+                return await this.ruleProcessor.executeAsyncRule(rule, p1, p2);
+            } else if (rule.apply) {
+                return await rule.apply(p1, p2);
+            }
+        }
+        return [];
     }
 
     _processDerivation(derivation, suppressEvents = false) {
@@ -206,17 +208,13 @@ export class Reasoner extends EventEmitter {
                     handler(derivation, processingTime, {
                         ...consumerInfo,
                         timestamp: Date.now(),
-                        queueLength: 0 // Simplification for now
+                        queueLength: 0
                     });
                 } catch (error) {
                     Logger.error('Error in consumer feedback handler:', error);
                 }
             });
         }
-    }
-
-    resetMetrics() {
-        // Delegate reset if supported
     }
 
     getState() {
@@ -268,16 +266,6 @@ export class Reasoner extends EventEmitter {
             metrics: this.getMetrics(),
             componentStatus: this.getComponentStatus(),
             timestamp: Date.now()
-        };
-    }
-
-    // Legacy method for compatibility if needed
-    getPerformanceMetrics() {
-        return {
-            throughput: 0,
-            avgProcessingTime: 0,
-            memoryUsage: getHeapUsed(),
-            ...this.getMetrics()
         };
     }
 

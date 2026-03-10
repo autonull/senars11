@@ -86,8 +86,7 @@ export class Concept extends BaseComponent {
 
     enforceCapacity(maxTasksPerType) {
         for (const [type, factor] of Object.entries(CAPACITY_DISTRIBUTION)) {
-            const bag = this._getStorage(type);
-            bag.pruneTo(maxTasksPerType * factor);
+            this._getStorage(type).pruneTo(maxTasksPerType * factor);
         }
     }
 
@@ -153,6 +152,7 @@ export class Concept extends BaseComponent {
 
     updateTaskBudget(task, newBudget) {
         const storage = this._getStorage(task.type);
+        // Removing and re-adding ensures the bag updates priority ordering if needed
         return storage.remove(task) && storage.add(task.clone({budget: newBudget}));
     }
 

@@ -1,32 +1,19 @@
 import {TRUTH} from './config/constants.js';
 import {clamp} from './util/common.js';
 
-// Helper for safe operations
 const _binary = (t1, t2, op) => (t1 && t2 ? op(t1, t2) : null);
 const _unary = (t, op) => (t ? op(t) : null);
 
 export class Truth {
-    /**
-     * Immutable Truth value representation.
-     * All instances are frozen upon creation.
-     */
     constructor(frequency = TRUTH.DEFAULT_FREQUENCY, confidence = TRUTH.DEFAULT_CONFIDENCE) {
         this._frequency = clamp(isNaN(frequency) ? TRUTH.DEFAULT_FREQUENCY : frequency, 0, 1);
         this._confidence = clamp(isNaN(confidence) ? TRUTH.DEFAULT_CONFIDENCE : confidence, 0, 1);
         Object.freeze(this);
     }
 
-    static get TRUE() {
-        return Truth._TRUE || (Truth._TRUE = new Truth(1.0, TRUTH.DEFAULT_CONFIDENCE));
-    }
-
-    static get FALSE() {
-        return Truth._FALSE || (Truth._FALSE = new Truth(0.0, TRUTH.DEFAULT_CONFIDENCE));
-    }
-
-    static get NEUTRAL() {
-        return Truth._NEUTRAL || (Truth._NEUTRAL = new Truth(0.5, TRUTH.DEFAULT_CONFIDENCE));
-    }
+    static get TRUE() { return Truth._TRUE || (Truth._TRUE = new Truth(1.0, TRUTH.DEFAULT_CONFIDENCE)); }
+    static get FALSE() { return Truth._FALSE || (Truth._FALSE = new Truth(0.0, TRUTH.DEFAULT_CONFIDENCE)); }
+    static get NEUTRAL() { return Truth._NEUTRAL || (Truth._NEUTRAL = new Truth(0.5, TRUTH.DEFAULT_CONFIDENCE)); }
 
     get frequency() { return this._frequency; }
     get confidence() { return this._confidence; }
@@ -49,7 +36,6 @@ export class Truth {
         return den === 0 ? 0 : clamp(num / den, 0, 1);
     }
 
-    // Truth operation methods
     static deduction(t1, t2) {
         return _binary(t1, t2, (a, b) => Truth.create(a.f * b.f, a.c * b.c));
     }
