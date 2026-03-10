@@ -27,6 +27,7 @@ export class NotebookManager {
         this.saveTimeout = null;
         this.storageKey = STORAGE_KEYS.NOTEBOOK_CONTENT;
         this.defaultOnExecute = options.onExecute || null;
+        this.onError = options.onError || ((msg) => console.warn(msg));
         this.lastInsertionPoint = null;
 
         this.viewContainer = document.createElement('div');
@@ -510,6 +511,7 @@ export class NotebookManager {
             if (data.length > limit) data.splice(0, data.length - limit);
             localStorage.setItem(this.storageKey, JSON.stringify(data));
         } catch (e) {
+            this.onError(`Failed to save notebook: ${e.message}`);
             console.warn('Failed to save notebook', e);
         }
     }
@@ -525,6 +527,7 @@ export class NotebookManager {
                 }
             }
         } catch (e) {
+            this.onError(`Failed to load notebook: ${e.message}`);
             console.warn('Failed to load notebook', e);
         }
         return false;

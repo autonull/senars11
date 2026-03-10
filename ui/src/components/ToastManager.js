@@ -1,17 +1,32 @@
-export class ToastManager {
+/**
+ * @file ToastManager.js
+ * @description Singleton service for managing toast notifications
+ */
+
+class ToastManagerService {
     constructor() {
         this.container = null;
-        this._createContainer();
+        this.queue = [];
+        this.isProcessing = false;
     }
 
-    _createContainer() {
-        this.container = document.createElement('div');
-        this.container.id = 'toast-container';
-        this.container.className = 'toast-container';
-        document.body.appendChild(this.container);
+    _ensureContainer() {
+        if (!this.container) {
+            this.container = document.getElementById('toast-container');
+        }
+
+        if (!this.container) {
+            this.container = document.createElement('div');
+            this.container.id = 'toast-container';
+            this.container.className = 'toast-container';
+            document.body.appendChild(this.container);
+        }
+        return this.container;
     }
 
     show(message, type = 'info', duration = 3000) {
+        const container = this._ensureContainer();
+
         const toast = document.createElement('div');
         toast.className = `toast-notification toast-${type}`;
 
@@ -28,7 +43,7 @@ export class ToastManager {
             <div class="toast-progress"></div>
         `;
 
-        this.container.appendChild(toast);
+        container.appendChild(toast);
 
         // Animate In
         requestAnimationFrame(() => {
@@ -37,10 +52,12 @@ export class ToastManager {
 
         // Progress bar animation
         const progress = toast.querySelector('.toast-progress');
-        progress.style.transition = `width ${duration}ms linear`;
-        // Force reflow
-        progress.getBoundingClientRect();
-        progress.style.width = '0%';
+        if (progress) {
+            progress.style.transition = `width ${duration}ms linear`;
+            // Force reflow
+            progress.getBoundingClientRect();
+            progress.style.width = '0%';
+        }
 
         // Auto remove
         setTimeout(() => {
@@ -49,9 +66,13 @@ export class ToastManager {
 
         // Click to dismiss
         toast.onclick = () => this.dismiss(toast);
+
+        return toast;
     }
 
     dismiss(toast) {
+        if (!toast) return;
+
         toast.classList.remove('show');
         toast.classList.add('hide');
 
@@ -62,4 +83,14 @@ export class ToastManager {
             }
         }, 300);
     }
+
+    // For manual clearing/testing
+    clearAll() {
+        if (this.container) {
+            this.container.innerHTML = '';
+        }
+    }
 }
+
+// Export singleton instance
+export const ToastManager = new ToastManagerService();

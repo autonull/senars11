@@ -183,10 +183,24 @@ class SeNARSIDE {
         });
 
         this.shortcutManager.register({
-            key: 'f', ctrl: true, shift: true, desc: 'Search Memory',
+            key: 'g', ctrl: true, desc: 'Go to concept (search)',
             handler: () => {
                 const memComp = this.components.get('memory');
                 memComp?.focusFilter?.();
+            }
+        });
+
+        this.shortcutManager.register({
+            key: 'd', ctrl: true, desc: 'Trace derivation',
+            handler: () => {
+                if (this.graphManager?.cy) {
+                    const selected = this.graphManager.cy.$(':selected');
+                    if (selected.length > 0) {
+                        this.graphManager.toggleTraceMode(selected.first().id());
+                    } else {
+                        this.logger.log('Select a node in the graph to trace derivation', 'warning');
+                    }
+                }
             }
         });
 
