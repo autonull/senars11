@@ -37,6 +37,13 @@ export const DEFAULT_CONFIG = {
         maxErrorRate: SYSTEM.MAX_ERROR_RATE,
         enableRecovery: true,
         recoveryAttempts: SYSTEM.RECOVERY_ATTEMPTS,
+    },
+    lm: {
+        enabled: true,
+        defaultProvider: 'ollama',
+        fallbackProvider: 'dummy',
+        timeout: 5000,
+        modelName: 'llama3.2:1b'
     }
 };
 
@@ -76,7 +83,14 @@ const CONFIG_SCHEMA = z.object({
         maxErrorRate: z.number().min(0).max(1).default(SYSTEM.MAX_ERROR_RATE),
         enableRecovery: z.boolean().default(true),
         recoveryAttempts: z.number().min(0).default(SYSTEM.RECOVERY_ATTEMPTS),
-    }).default(DEFAULT_CONFIG.errorHandling)
+    }).default(DEFAULT_CONFIG.errorHandling),
+    lm: z.object({
+        enabled: z.boolean().default(true),
+        defaultProvider: z.string().default('ollama'),
+        fallbackProvider: z.string().default('dummy'),
+        timeout: z.number().min(100).default(5000),
+        modelName: z.string().default('llama3.2:1b')
+    }).default(DEFAULT_CONFIG.lm)
 });
 
 export class SystemConfig {

@@ -68,6 +68,28 @@ class AgentREPL {
         this.connection = null;
         this.isInitialized = false;
         this.configDialog = null;
+
+        // Command Processor Interface for NotebookPanel
+        this.commandProcessor = {
+            processCommand: async (command) => {
+                this.notebookPanel.notebookManager.createResultCell('Processing...', 'info');
+                try {
+                    // Stream response if supported
+                    let fullResponse = '';
+                    const stream = this.lmController.streamChat(command);
+
+                    // Create a result cell for streaming
+                    const resultCell = this.notebookPanel.notebookManager.createResultCell('', 'agent');
+
+                    for await (const chunk of stream) {
+                        fullResponse += chunk;
+                        resultCell.setContent(fullResponse);
+                    }
+                } catch (error) {
+                    this.notebookPanel.notebookManager.createResultCell(`Error: ${error.message}`, 'error');
+                }
+            }
+        };
     }
 
     log(message, type = 'info') {

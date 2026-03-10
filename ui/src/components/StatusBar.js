@@ -224,6 +224,9 @@ export class StatusBar extends Component {
 
         div().class('status-divider').mount(parent);
 
+        // Status
+        this.elStatus = div().class('status-metric').id('connection-status').text('Connecting...').mount(parent);
+
         // Metrics
         this.elCycles = div().class('status-metric').id('status-cycles').text('📊 Cycles: 0').mount(parent);
         this.elNodes = div().class('status-metric').id('status-nodes').text('🧠 Nodes: 0/50').mount(parent);
@@ -275,6 +278,12 @@ export class StatusBar extends Component {
 
     updateStatus(status) {
         this.state.status = status;
+        if (this.elStatus) this.elStatus.text(status);
+        if (status === 'Connected') {
+            this.setCapability('reasoner', 'online', 'NAL Reasoner: Online');
+        } else if (status === 'Disconnected') {
+            this.setCapability('reasoner', 'offline', 'NAL Reasoner: Offline');
+        }
     }
 
     updateStats(stats = {}) {

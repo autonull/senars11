@@ -29,6 +29,11 @@ export class ResultCell extends Cell {
         return this.element;
     }
 
+    setContent(content) {
+        this.content = content;
+        this.updateViewMode(this.viewMode);
+    }
+
     updateViewMode(mode) {
         this.viewMode = mode;
         if (!this.element) return;

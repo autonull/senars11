@@ -7,10 +7,10 @@
     <title>SeNARS Agent REPL</title>
 
     <!-- Main UI Styles -->
-    <link rel="stylesheet" href="/ui/style.css">
-    <link rel="stylesheet" href="/ui/src/styles/components.css">
-    <link rel="stylesheet" href="/ui/src/styles/effects.css">
-    <link rel="stylesheet" href="/ui/src/styles/lm-activity.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="src/styles/components.css">
+    <link rel="stylesheet" href="src/styles/effects.css">
+    <link rel="stylesheet" href="src/styles/lm-activity.css">
 
     <style>
         body,
@@ -121,11 +121,6 @@
 </head>
 
 <body>
-    <div class="agent-header">
-        <h1>🤖 SeNARS Agent REPL</h1>
-        <p class="subtitle">Agentic Interface with WebLLM • Offline LM • System Control</p>
-    </div>
-
     <div id="agent-container">
         <div id="loading-overlay" class="loading-overlay">
             <div class="loading-spinner"></div>
@@ -141,42 +136,50 @@
     {
         "imports": {
             "cytoscape": "/node_modules/cytoscape/dist/cytoscape.esm.min.mjs",
-            "cytoscape-fcose": "/ui/src/shims/mock-cytoscape-fcose.js",
+            "cytoscape-fcose": "/src/shims/mock-cytoscape-fcose.js",
             "golden-layout": "/node_modules/golden-layout/dist/esm/index.js",
             "marked": "/node_modules/marked/lib/marked.esm.js",
             "@senars/core": "/core/src/index.js",
             "@senars/core/": "/core/",
             "@senars/agent": "/agent/src/index.js",
             "@senars/agent/": "/agent/",
+            "@senars/metta": "/metta/src/",
+            "@senars/metta/": "/metta/src/",
+            "@senars/metta-bridge": "/metta/src/",
             "@mlc-ai/web-llm": "/node_modules/@mlc-ai/web-llm/lib/index.js",
-            "ai": "/node_modules/ai/dist/index.js",
-            "@ai-sdk/openai": "/node_modules/@ai-sdk/openai/dist/index.js",
-            "@ai-sdk/anthropic": "/node_modules/@ai-sdk/anthropic/dist/index.js",
-            "ollama-ai-provider": "/node_modules/ollama-ai-provider/dist/index.js",
+            "ai": "/node_modules/ai/dist/index.mjs",
+            "@ai-sdk/openai": "/node_modules/@ai-sdk/openai/dist/index.mjs",
+            "@ai-sdk/anthropic": "/node_modules/@ai-sdk/anthropic/dist/index.mjs",
+            "@ai-sdk/gateway": "/node_modules/@ai-sdk/gateway/dist/index.mjs",
+            "@ai-sdk/provider-utils": "/node_modules/@ai-sdk/provider-utils/dist/index.mjs",
+            "@ai-sdk/provider": "/node_modules/@ai-sdk/provider/dist/index.mjs",
+            "ollama-ai-provider": "/node_modules/ollama-ai-provider/dist/index.mjs",
             "zod": "/node_modules/zod/index.js",
+            "zod/v4": "/node_modules/zod/v4/index.js",
+            "@opentelemetry/api": "/src/shims/mock-opentelemetry.js",
             "mitt": "/node_modules/mitt/dist/mitt.mjs",
             "uuid": "/node_modules/uuid/dist/esm-browser/index.js",
             "eventemitter3": "/node_modules/eventemitter3/dist/eventemitter3.esm.js",
             "immer": "/node_modules/immer/dist/immer.mjs",
             "js-sha256": "/node_modules/js-sha256/src/sha256.js",
             "danfojs": "/node_modules/danfojs/lib/bundle.esm.js",
-            "module": "/ui/src/shims/mock-node.js",
-            "fs": "/ui/src/shims/mock-node.js",
-            "path": "/ui/src/shims/mock-node.js",
-            "url": "/ui/src/shims/mock-node.js",
-            "crypto": "/ui/src/shims/mock-node.js",
-            "events": "/ui/src/shims/events-shim.js",
-            "util": "/ui/src/shims/mock-node.js",
-            "os": "/ui/src/shims/mock-node.js",
-            "child_process": "/ui/src/shims/mock-node.js",
-            "@langchain/core/messages": "/ui/src/shims/mock-langchain.js",
-            "@langchain/core/tools": "/ui/src/shims/mock-langchain.js",
-            "@langchain/ollama": "/ui/src/shims/mock-langchain.js",
-            "@langchain/openai": "/ui/src/shims/mock-langchain.js",
-            "@langchain/langgraph": "/ui/src/shims/mock-langchain.js",
-            "@langchain/langgraph/prebuilt": "/ui/src/shims/mock-langchain.js",
-            "@langchain/langgraph-checkpoint": "/ui/src/shims/mock-langchain.js",
-            "langchain": "/ui/src/shims/mock-langchain.js",
+            "module": "/src/shims/mock-node.js",
+            "fs": "/src/shims/mock-node.js",
+            "path": "/src/shims/mock-node.js",
+            "url": "/src/shims/mock-node.js",
+            "crypto": "/src/shims/mock-node.js",
+            "events": "/src/shims/events-shim.js",
+            "util": "/src/shims/mock-node.js",
+            "os": "/src/shims/mock-node.js",
+            "child_process": "/src/shims/mock-node.js",
+            "@langchain/core/messages": "/src/shims/mock-langchain.js",
+            "@langchain/core/tools": "/src/shims/mock-langchain.js",
+            "@langchain/ollama": "/src/shims/mock-langchain.js",
+            "@langchain/openai": "/src/shims/mock-langchain.js",
+            "@langchain/langgraph": "/src/shims/mock-langchain.js",
+            "@langchain/langgraph/prebuilt": "/src/shims/mock-langchain.js",
+            "@langchain/langgraph-checkpoint": "/src/shims/mock-langchain.js",
+            "langchain": "/src/shims/mock-langchain.js",
             "chart.js/auto": "/node_modules/chart.js/auto/auto.js",
             "chart.js": "/node_modules/chart.js/dist/chart.js",
             "@kurkle/color": "/node_modules/@kurkle/color/dist/color.esm.js"
@@ -185,7 +188,7 @@
     </script>
 
     <!-- Agent REPL Entry Point -->
-    <script type="module" src="/src/main-agent.js"></script>
+    <script type="module" src="src/main-agent.js"></script>
 </body>
 
 </html>
