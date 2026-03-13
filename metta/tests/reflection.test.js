@@ -5,7 +5,7 @@ import { describe, test, expect } from '@jest/globals';
 describe('ReflectionOps', () => {
     const ground = new Ground();
 
-    test('&js-new and &js-call', () => {
+    test('&js-new and &js-call', async () => {
         // Create a new Map
         const mapAtom = ground.execute('&js-new', grounded(Map));
         expect(mapAtom.type).toBe('grounded');
@@ -15,8 +15,8 @@ describe('ReflectionOps', () => {
         ground.execute('&js-call', mapAtom, grounded('set'), grounded('key1'), grounded('value1'));
 
         // Call get
-        const val = ground.execute('&js-call', mapAtom, grounded('get'), grounded('key1'));
-        expect(val.value).toBe('value1');
+        const val = await ground.execute('&js-call', mapAtom, grounded('get'), grounded('key1'));
+        expect(val.name !== undefined ? val.name : val.value).toBe('value1');
     });
 
     test('&js-get and &js-set', () => {
@@ -24,11 +24,11 @@ describe('ReflectionOps', () => {
         const objAtom = grounded(obj);
 
         const val = ground.execute('&js-get', objAtom, grounded('foo'));
-        expect(val.value).toBe('bar');
+        expect(val.name !== undefined ? val.name : val.value).toBe('bar');
 
         ground.execute('&js-set', objAtom, grounded('foo'), grounded('baz'));
         const val2 = ground.execute('&js-get', objAtom, grounded('foo'));
-        expect(val2.value).toBe('baz');
+        expect(val2.name !== undefined ? val2.name : val2.value).toBe('baz');
         expect(obj.foo).toBe('baz');
     });
 
@@ -38,7 +38,7 @@ describe('ReflectionOps', () => {
         expect(typeAtom.name).toBe('number');
     });
 
-    test('&js-call with property access path', () => {
+    test('&js-call with property access path', async () => {
         const obj = {
             nested: {
                 method: (x) => x * 2
@@ -47,8 +47,8 @@ describe('ReflectionOps', () => {
         const objAtom = grounded(obj);
 
         // Call nested.method(21)
-        const result = ground.execute('&js-call', objAtom, grounded('nested.method'), grounded(21));
-        expect(result.value).toBe(42);
+        const result = await ground.execute('&js-call', objAtom, grounded('nested.method'), grounded(21));
+        expect(result.name !== undefined ? Number(result.name) : result.value).toBe(42);
     });
 
     test('&js-import', async () => {
@@ -58,7 +58,7 @@ describe('ReflectionOps', () => {
 
         // Check if we can access exports
         const sepAtom = ground.execute('&js-get', pathModAtom, grounded('sep'));
-        expect(typeof sepAtom.value).toBe('string');
+        expect(typeof (sepAtom.name !== undefined ? sepAtom.name : sepAtom.value)).toBe('string');
 
         const joinAtom = ground.execute('&js-get', pathModAtom, grounded('join'));
         expect(typeof joinAtom.value).toBe('function');

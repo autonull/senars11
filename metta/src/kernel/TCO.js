@@ -3,11 +3,11 @@
  * Enables infinite recursion without stack overflow
  */
 
-import { METTA_CONFIG } from '../config.js';
+import { configManager } from '../config/config.js';
 
 export class Trampoline {
     constructor() {
-        this.enabled = METTA_CONFIG.tco ?? true;
+        this.enabled = configManager.get('tco');
     }
 
     run(fn, ...args) {
@@ -26,6 +26,6 @@ export class Trampoline {
 
 // Helper to create a tail call bounce
 export function bounce(fn, ...args) {
-    if (METTA_CONFIG.tco === false) return fn(...args);
+    if (!configManager.get('tco')) return fn(...args);
     return { _isBounce: true, fn, args };
 }

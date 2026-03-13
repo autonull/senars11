@@ -6,7 +6,7 @@
  * V8 can inline these checks and cache the results
  */
 
-import { METTA_CONFIG } from '../config.js';
+import { configManager } from '../config/config.js';
 
 // Type tag constants for fast dispatch
 export const TYPE_SYMBOL = 1;
@@ -66,7 +66,7 @@ export function getTypeTag(term) {
  * Monomorphic fast path for V8 optimization
  */
 export function isSymbol(term) {
-    if (!METTA_CONFIG.fastPaths) {
+    if (!configManager.get('fastPaths')) {
         // Optimization disabled - use legacy check
         return term?.type === 'atom' && !term.operator && !isVariableName(term.name);
     }
@@ -80,7 +80,7 @@ export function isSymbol(term) {
  * Type guard: is variable?
  */
 export function isVariable(term) {
-    if (!METTA_CONFIG.fastPaths) {
+    if (!configManager.get('fastPaths')) {
         return term?.type === 'atom' && isVariableName(term.name);
     }
 
@@ -92,7 +92,7 @@ export function isVariable(term) {
  * Type guard: is expression?
  */
 export function isExpression(term) {
-    if (!METTA_CONFIG.fastPaths) {
+    if (!configManager.get('fastPaths')) {
         return term?.type === 'compound';
     }
 
@@ -104,7 +104,7 @@ export function isExpression(term) {
  * Type guard: is grounded?
  */
 export function isGrounded(term) {
-    if (!METTA_CONFIG.fastPaths) {
+    if (!configManager.get('fastPaths')) {
         return term?.type === 'grounded';
     }
 

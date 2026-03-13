@@ -5,6 +5,7 @@
  */
 
 import {BaseComponent} from '../../../core/src/util/BaseComponent.js';
+import { configManager } from '../config/config.js';
 
 /**
  * BaseMeTTaComponent - Base class for all MeTTa components
@@ -71,7 +72,7 @@ export class BaseMeTTaComponent extends BaseComponent {
 
             this._updateMetrics(metricKey, duration);
 
-            if (duration > (this.config.slowOpThreshold ?? 100)) {
+            if (duration > configManager.get('slowOpThreshold')) {
                 this.emitMeTTaEvent('slow-operation', {opName, duration});
             }
 

@@ -21,6 +21,8 @@ export const CONCEPT_CAPACITY = Object.freeze({
 export const CONCEPT_ACTIVATION = Object.freeze({
     /** Minimum activation for concept to be considered active */
     MIN_ACTIVE: 0.1,
+    /** Maximum activation value */
+    MAX_ACTIVATION: 1.0,
     /** High activation threshold */
     HIGH_ACTIVATION: 0.7,
     /** Low activation threshold */

@@ -4,12 +4,12 @@
  */
 
 import { TermCache } from '../../../core/src/term/TermCache.js';
-import { METTA_CONFIG } from '../config.js';
+import { configManager } from '../config/config.js';
 
 export class ReductionCache {
-    constructor(maxSize = METTA_CONFIG.maxCacheSize) {
+    constructor(maxSize = configManager.get('maxCacheSize')) {
         this.cache = new TermCache({ maxSize });
-        this.enabled = METTA_CONFIG.caching;
+        this.enabled = configManager.get('caching');
     }
 
     get(atom) {

@@ -31,7 +31,7 @@
   handle errors at appropriate abstraction level
 
 - Performance: Avoid object creation in hot paths, use Set for membership, cache expensive operations, minimize I/O,
-  prefer for...of over forEach for performance-critical code, be mindful of deep copying
+  be mindful of deep copying
 
 - Naming: Use descriptive names, consistent patterns for similar concepts, avoid abbreviations, follow project
   conventions
@@ -40,8 +40,3 @@
 
 - Code structure: Keep functions focused (single responsibility), limit function length, organize methods logically,
   prefer composition over inheritance, maintain consistent class structure
-
-- Project Specific Patterns
-    - Term Construction: Use fluent methods in `TermFactory` (e.g., `termFactory.inheritance(a, b)`,
-      `termFactory.variable('x')`)
-    - Tensor Operations: Prefer `@senars/tensor` for tensor operations. Use `SymbolicTensor` for neuro-symbolic integration.

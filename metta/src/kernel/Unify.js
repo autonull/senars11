@@ -8,10 +8,20 @@
 // Local imports
 import { isVariable, isExpression, isList, flattenList, constructList, exp } from './Term.js';
 import { getTypeTag, TYPE_SYMBOL, TYPE_VARIABLE, TYPE_EXPRESSION, isSymbol as fastIsSymbol } from './FastPaths.js';
-import { METTA_CONFIG } from '../config.js';
+import { configManager } from '../config/config.js';
 
 // External imports
 import * as UnifyCore from '../../../core/src/term/UnifyCore.js';
+
+// Lazy SMT bridge initialization
+let _smtBridge = null;
+function getSMTBridge() {
+  if (!_smtBridge && configManager.get('smt')) {
+    const { SMTBridge } = require('../extensions/SMTOps.js');
+    _smtBridge = new SMTBridge();
+  }
+  return _smtBridge;
+}
 
 /**
  * Safely substitute variables in a term with their bindings
@@ -231,7 +241,7 @@ const mettaAdapter = {
  */
 const unifiedUnify = (t1, t2, binds = {}) => {
     // Fast path: symbol equality (80% of cases)
-    if (METTA_CONFIG.fastPaths) {
+    if (configManager.get('fastPaths')) {
         const tag1 = getTypeTag(t1);
         const tag2 = getTypeTag(t2);
 
@@ -250,7 +260,19 @@ const unifiedUnify = (t1, t2, binds = {}) => {
         return unifyLists(t1, t2, binds);
     }
 
-    return UnifyCore.unify(t1, t2, binds, mettaAdapter);
+    const result = UnifyCore.unify(t1, t2, binds, mettaAdapter);
+
+    // MORK Phase 3-B Integration point
+    if (!result && configManager.get('smt')) {
+        const bridge = getSMTBridge();
+        if (bridge && bridge.canSolve(binds)) {
+            // Unification failed structurally, but maybe SMT can resolve constraints
+            const smtResult = bridge.solve([t1, t2]);
+            if (smtResult) return smtResult;
+        }
+    }
+
+    return result;
 };
 
 export const Unify = {
