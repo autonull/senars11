@@ -23,90 +23,36 @@ export class ModusPonensRule extends NALRule {
      */
     canApply(primaryPremise, secondaryPremise, context) {
         if (!primaryPremise || !secondaryPremise) return false;
-
-        // Check if one is an implication and the other matches the antecedent
-        const isImplication = (term) => term.operator === '==>';
-
-        const isAntecedentMatch = (implicationTerm, otherTerm) => {
-            if (!isImplication(implicationTerm) || !implicationTerm.components) return false;
-            return implicationTerm.components[0]?.equals &&
-                implicationTerm.components[0].equals(otherTerm);
-        };
-
-        const primaryTerm = primaryPremise.term;
-        const secondaryTerm = secondaryPremise.term;
-
-        // Case 1: primary is implication, secondary matches antecedent
-        if (isImplication(primaryTerm) && isAntecedentMatch(primaryTerm, secondaryTerm)) {
-            return true;
-        }
-
-        // Case 2: secondary is implication, primary matches antecedent
-        if (isImplication(secondaryTerm) && isAntecedentMatch(secondaryTerm, primaryTerm)) {
-            return true;
-        }
-
-        return false;
+        return this._getMatch(primaryPremise, secondaryPremise, context) !== null;
     }
 
-    /**
-     * Apply the rule to generate conclusions
-     * @param {Task} primaryPremise - The first premise
-     * @param {Task} secondaryPremise - The second premise
-     * @param {Object} context - Context object that may contain termFactory
-     * @returns {Array<Task>} Array of derived tasks
-     */
     apply(primaryPremise, secondaryPremise, context = {}) {
-        if (!this.canApply(primaryPremise, secondaryPremise, context)) {
-            return [];
-        }
-
         try {
-            // Determine which premise is the implication and which is the antecedent
-            let implicationPremise, antecedentPremise;
+            const match = this._getMatch(primaryPremise, secondaryPremise, context);
+            if (!match) return [];
 
-            if (primaryPremise.term.operator === '==>' &&
-                primaryPremise.term.components[0]?.equals &&
-                primaryPremise.term.components[0].equals(secondaryPremise.term)) {
-                implicationPremise = primaryPremise;
-                antecedentPremise = secondaryPremise;
-            } else if (secondaryPremise.term.operator === '==>' &&
-                secondaryPremise.term.components[0]?.equals &&
-                secondaryPremise.term.components[0].equals(primaryPremise.term)) {
-                implicationPremise = secondaryPremise;
-                antecedentPremise = primaryPremise;
-            } else {
-                return [];
-            }
+            const {implicationPremise, antecedentPremise, substitution} = match;
+            const Q = implicationPremise.term.components[1];
+            const t1 = implicationPremise.truth;
+            const t2 = antecedentPremise.truth;
 
-            // Extract components: implication is (P ==> Q), antecedent is P
-            // const P = implicationPremise.term.components[0];  // Antecedent
-            const Q = implicationPremise.term.components[1];  // Consequent
-            const implicationTruth = implicationPremise.truth;
-            const antecedentTruth = antecedentPremise.truth;
+            const newTruth = new Truth(t1.f * t2.f, t1.c * t2.c * t1.f);
+            const finalConsequent = this.applySubstitution(Q, substitution, context);
 
-            // Calculate truth value for conclusion Q using Modus Ponens formula
-            // Frequency: f_imp * f_ant
-            // Confidence: c_imp * c_ant * f_imp
-            const newTruth = new Truth(
-                implicationTruth.f * antecedentTruth.f,  // f_imp * f_ant
-                implicationTruth.c * antecedentTruth.c * implicationTruth.f  // c_imp * c_ant * f_imp
-            );
-
-            // Use base class to create the task with proper stamp and budget
-            const derivedTask = super.createDerivedTask(
-                Q,
-                newTruth,
-                [primaryPremise, secondaryPremise]
-            );
-
+            const derivedTask = super.createDerivedTask(finalConsequent, newTruth, [primaryPremise, secondaryPremise]);
             return derivedTask ? [derivedTask] : [];
         } catch (error) {
-            logError(error, {
-                ruleId: this.id,
-                context: 'modus_ponens_rule_application'
-            }, 'error');
+            logError(error, {ruleId: this.id, context: 'modus_ponens_rule_application'}, 'error');
             return [];
         }
+    }
+
+    _getMatch(p1, p2, context) {
+        const check = (imp, ant) => {
+            if (imp.term.operator !== '==>') return null;
+            const match = this.unify(imp.term.components[0], ant.term, context);
+            return match.success ? {implicationPremise: imp, antecedentPremise: ant, substitution: match.substitution} : null;
+        };
+        return check(p1, p2) || check(p2, p1);
     }
 }

@@ -14,8 +14,8 @@ describe('Memory', () => {
         let memory, termFactory;
 
         beforeEach(() => {
-            memory = new Memory({maxConcepts: 10, forgetPolicy: 'priority'});
             termFactory = new TermFactory();
+            memory = new Memory({maxConcepts: 10, forgetPolicy: 'priority'}, null, termFactory);
         });
 
         test('adds tasks and creates concepts', () => {
@@ -64,8 +64,8 @@ describe('Memory', () => {
         let memory, termFactory;
 
         beforeEach(() => {
-            memory = new Memory({maxConcepts, forgetPolicy});
             termFactory = new TermFactory();
+            memory = new Memory({maxConcepts, forgetPolicy}, null, termFactory);
         });
 
         test('respects capacity limits', () => {

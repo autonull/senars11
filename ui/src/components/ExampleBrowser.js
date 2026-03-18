@@ -1,10 +1,12 @@
 import { Component } from './Component.js';
+import { FluentUI } from '../utils/FluentUI.js';
 
 export class ExampleBrowser extends Component {
     constructor(containerId, options = {}) {
         super(containerId);
         this.options = {
             onSelect: null,
+            onActivate: null,
             indexUrl: 'examples.json',
             viewMode: 'graph', // 'tree' or 'graph'
             ...options
@@ -15,6 +17,7 @@ export class ExampleBrowser extends Component {
 
         // Bind methods
         this.handleSelect = this.handleSelect.bind(this);
+        this.handleActivate = this.handleActivate.bind(this);
     }
 
     async initialize() {
@@ -29,7 +32,7 @@ export class ExampleBrowser extends Component {
         } catch (error) {
             console.error('ExampleBrowser initialization failed:', error);
             if (this.container) {
-                this.container.innerHTML = `<div class="error-message">Failed to load examples: ${error.message}</div>`;
+                this.fluent().html(`<div class="eb-error">Failed to load examples: ${error.message}</div>`);
             }
         }
     }
@@ -37,31 +40,30 @@ export class ExampleBrowser extends Component {
     render() {
         if (!this.container || !this.treeData) return;
 
-        this.container.innerHTML = '';
-        this.container.classList.add('example-browser');
+        this.fluent().clear().addClass('example-browser');
 
         // Toolbar
-        const toolbar = document.createElement('div');
-        toolbar.style.cssText = 'padding: 8px; background: #252526; border-bottom: 1px solid #3c3c3c; display: flex; gap: 8px;';
-
-        const modeSelect = document.createElement('select');
-        modeSelect.style.cssText = 'background: #333; color: white; border: 1px solid #444; padding: 2px 4px; border-radius: 3px;';
-        modeSelect.innerHTML = `
-            <option value="graph" ${this.options.viewMode === 'graph' ? 'selected' : ''}>Graph View</option>
-            <option value="tree" ${this.options.viewMode === 'tree' ? 'selected' : ''}>Tree View</option>
-        `;
-        modeSelect.onchange = (e) => {
-            this.options.viewMode = e.target.value;
-            this.renderContent();
-        };
-
-        toolbar.appendChild(modeSelect);
-        this.container.appendChild(toolbar);
+        FluentUI.create('div')
+            .class('eb-toolbar')
+            .child(
+                FluentUI.create('select')
+                    .class('eb-mode-select')
+                    .children([
+                        { v: 'graph', l: 'Graph View' },
+                        { v: 'tree', l: 'Tree View' }
+                    ].map(opt => FluentUI.create('option').attr({ value: opt.v }).text(opt.l).prop({ selected: this.options.viewMode === opt.v })))
+                    .on('change', (e) => {
+                        this.options.viewMode = e.target.value;
+                        this.renderContent();
+                    })
+            )
+            .mount(this.container);
 
         // Content Area
-        this.contentArea = document.createElement('div');
-        this.contentArea.style.cssText = 'flex: 1; position: relative; overflow: hidden; height: calc(100% - 40px);';
-        this.container.appendChild(this.contentArea);
+        this.contentArea = FluentUI.create('div')
+            .class('eb-content')
+            .mount(this.container)
+            .dom;
 
         this.renderContent();
     }
@@ -77,10 +79,12 @@ export class ExampleBrowser extends Component {
 
     renderTree() {
         this.contentArea.style.overflowY = 'auto';
-        const rootList = document.createElement('ul');
-        rootList.className = 'tree-root';
+
+        const rootList = FluentUI.create('ul')
+            .class('eb-tree-root')
+            .mount(this.contentArea);
+
         this.renderNode(this.treeData, rootList);
-        this.contentArea.appendChild(rootList);
     }
 
     renderNode(node, parentElement) {
@@ -92,51 +96,37 @@ export class ExampleBrowser extends Component {
                  return;
             }
 
-            const li = document.createElement('li');
-            li.className = 'tree-directory';
-            li.style.cssText = 'list-style: none; margin-left: 10px;';
+            const li = FluentUI.create('li').class('eb-tree-dir').mount(parentElement);
+            const details = FluentUI.create('details').prop({ open: true }).mount(li);
 
-            const details = document.createElement('details');
-            details.open = true;
-            const summary = document.createElement('summary');
-            summary.style.cursor = 'pointer';
-            summary.innerHTML = `<span class="icon">📁</span> <span class="label">${name}</span>`;
+            FluentUI.create('summary')
+                .class('eb-tree-summary')
+                .html(`<span class="icon">📁</span> <span class="label">${name}</span>`)
+                .mount(details);
 
-            const ul = document.createElement('ul');
+            const ul = FluentUI.create('ul').mount(details);
             children.forEach(child => this.renderNode(child, ul));
 
-            details.append(summary, ul);
-            li.appendChild(details);
-            parentElement.appendChild(li);
-
         } else if (type === 'file') {
-            const li = document.createElement('li');
-            li.className = 'tree-file';
-            li.style.cssText = 'list-style: none; margin-left: 20px;';
+            const li = FluentUI.create('li').class('eb-tree-file').mount(parentElement);
 
-            const button = document.createElement('button');
-            button.className = 'tree-item-btn';
-            button.style.cssText = 'background: transparent; border: none; color: #ccc; cursor: pointer; text-align: left;';
-            button.innerHTML = `<span class="icon">📄</span> <span class="label">${name}</span>`;
-            Object.assign(button.dataset, { path, id });
-            button.title = path;
-
-            button.addEventListener('click', () => this.handleSelect(node));
-
-            li.appendChild(button);
-            parentElement.appendChild(li);
+            FluentUI.create('button')
+                .class('eb-file-btn')
+                .html(`<span class="icon">📄</span> <span class="label">${name}</span>`)
+                .attr({ title: path, 'data-path': path, 'data-id': id })
+                .on('click', () => this.handleSelect(node))
+                .on('dblclick', () => this.handleActivate(node))
+                .mount(li);
         }
     }
 
     renderGraph() {
         if (!window.cytoscape) {
-            this.contentArea.innerHTML = 'Cytoscape library not loaded.';
+            this.contentArea.innerHTML = '<div class="eb-error">Cytoscape library not loaded.</div>';
             return;
         }
 
-        const cyContainer = document.createElement('div');
-        cyContainer.style.cssText = 'width: 100%; height: 100%; background: #1e1e1e;';
-        this.contentArea.appendChild(cyContainer);
+        const cyContainer = FluentUI.create('div').class('eb-cy-container').mount(this.contentArea).dom;
 
         const elements = this.convertToGraphElements(this.treeData);
 
@@ -208,9 +198,6 @@ export class ExampleBrowser extends Component {
         let elements = [];
         const { type, id, name, children } = root;
 
-        // Skip root "examples" folder visualization if desired, or show it as central hub
-        // We'll show everything for now
-
         const nodeId = id || `node_${Math.random().toString(36).substr(2, 9)}`;
 
         elements.push({
@@ -244,5 +231,9 @@ export class ExampleBrowser extends Component {
 
     handleSelect(node) {
         this.options.onSelect?.(node);
+    }
+
+    handleActivate(node) {
+        this.options.onActivate?.(node);
     }
 }

@@ -8,9 +8,10 @@ import {Safety} from "./Safety.js";
  * MCP Server for exposing SeNARS services as MCP tools.
  */
 export class Server {
-    constructor({nar = null, ...options} = {}) {
+    constructor({nar = null, mettaInterpreter = null, ...options} = {}) {
         this.options = options;
         this.nar = nar;
+        this.mettaInterpreter = mettaInterpreter;
         this.safety = new Safety(options.safety);
 
         this.server = new McpServer({
@@ -117,6 +118,82 @@ export class Server {
                     return this._formatFocusReport(tasks, limit);
                 } catch (error) {
                     return this._error(`Focus query error: ${error.message}`);
+                }
+            }
+        );
+
+        this.server.tool(
+            "sync-beliefs",
+            {
+                since: z.number().default(0).describe("Timestamp to get modified beliefs since"),
+                incoming: z.array(z.object({
+                    term: z.string(),
+                    truth: z.object({
+                        frequency: z.number(),
+                        confidence: z.number()
+                    }),
+                    source: z.string().optional()
+                })).optional().describe("Incoming belief deltas to reconcile")
+            },
+            async ({since, incoming}) => {
+                if (!this.nar) return this._error("NAR instance not available.");
+                try {
+                    const stats = {reconciled: 0, outgoing: 0};
+
+                    // 1. Process Incoming
+                    if (incoming && incoming.length > 0) {
+                        for (const beliefData of incoming) {
+                            const success = await this.nar.reconcile(beliefData);
+                            if (success) stats.reconciled++;
+                        }
+                    }
+
+                    // 2. Prepare Outgoing
+                    const outgoing = this.nar.memory.getBeliefDeltas(since);
+                    stats.outgoing = outgoing.length;
+
+                    return {
+                        content: [{
+                            type: "text",
+                            text: JSON.stringify({
+                                status: "success",
+                                stats,
+                                deltas: outgoing
+                            }, null, 2)
+                        }]
+                    };
+                } catch (error) {
+                    return this._error(`Sync error: ${error.message}`);
+                }
+            }
+        );
+
+        this.server.tool(
+            "metta-eval",
+            {
+                code: z.string().describe('MeTTa expression(s) to evaluate'),
+                mode: z.enum(['run', 'load', 'query']).default('run'),
+                pattern: z.string().optional().describe('Query pattern (for query mode)'),
+                template: z.string().optional().describe('Result template (for query mode)')
+            },
+            async ({ code, mode, pattern, template }) => {
+                const interp = this.mettaInterpreter;
+                if (!interp) return this._error('MeTTa interpreter not attached. Pass {mettaInterpreter} to Server constructor.');
+                try {
+                    let result;
+                    if (mode === 'load') {
+                        interp.load(code);
+                        result = 'loaded';
+                    } else if (mode === 'query') {
+                        const p = pattern || code;
+                        const t = template || code;
+                        result = interp.query(p, t);
+                    } else {
+                        result = interp.run(code);
+                    }
+                    return { content: [{ type: 'text', text: String(result) }] };
+                } catch (e) {
+                    return this._error(`MeTTa error: ${e.message}`);
                 }
             }
         );

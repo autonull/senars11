@@ -15,7 +15,7 @@ export class Unifier {
             getOperator: term => getOperator(term) ?? '',
             getComponents: term => getComponents(term),
             equals: (t1, t2) => termsEqual(t1, t2),
-            substitute: (term, bindings) => this.applySubstitution(term, bindings),
+            substitute: (term, bindings) => UnifyCore.substitute(term, bindings, this.adapter),
             reconstruct: (term, newComponents) => {
                 const operator = getOperator(term);
                 return this.termFactory.create(operator, newComponents);
@@ -25,41 +25,15 @@ export class Unifier {
 
     unify(term1, term2, substitution = {}) {
         const result = UnifyCore.unify(term1, term2, substitution, this.adapter);
-        return result ? { success: true, substitution: result } : FAILURE;
+        return result ? { success: true, substitution: result } : { success: false, substitution: {} };
     }
 
     match(pattern, term, substitution = {}) {
         const result = UnifyCore.match(pattern, term, substitution, this.adapter);
-        return result ? { success: true, substitution: result } : FAILURE;
+        return result ? { success: true, substitution: result } : { success: false, substitution: {} };
     }
 
-    applySubstitution(term, substitution, visited = new Set()) {
-        if (!term) return term;
-
-        if (isVariable(term)) {
-            const varName = getVariableName(term);
-            if (substitution[varName]) {
-                if (visited.has(varName)) return term; // Cycle detected
-                visited.add(varName);
-                return this.applySubstitution(substitution[varName], substitution, visited);
-            }
-            return term;
-        }
-
-        if (isCompound(term)) {
-            const components = getComponents(term);
-            let changed = false;
-            const newComponents = components.map(comp => {
-                const newComp = this.applySubstitution(comp, substitution, new Set(visited));
-                if (newComp !== comp) changed = true;
-                return newComp;
-            });
-
-            if (changed) {
-                return this.termFactory.create(getOperator(term), newComponents);
-            }
-        }
-
-        return term;
+    applySubstitution(term, substitution) {
+        return UnifyCore.substitute(term, substitution, this.adapter);
     }
 }

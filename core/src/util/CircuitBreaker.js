@@ -1,6 +1,8 @@
 /**
  * Circuit breaker pattern implementation for fault tolerance
  */
+import {Logger} from './Logger.js';
+
 export class CircuitBreaker {
     static STATES = {
         CLOSED: 'CLOSED',
@@ -14,6 +16,7 @@ export class CircuitBreaker {
             timeout: options.timeout || 60000,
             resetTimeout: options.resetTimeout || 30000,
             halfOpenAttempts: options.halfOpenAttempts || 1,
+            onStateChange: options.onStateChange || null,
             ...options
         };
 
@@ -90,9 +93,18 @@ export class CircuitBreaker {
     }
 
     transitionTo(newState) {
-        this.state = newState;
-        if (newState === CircuitBreaker.STATES.OPEN) {
-            this.lastFailureTime = Date.now();
+        if (this.state !== newState) {
+            this.state = newState;
+            if (newState === CircuitBreaker.STATES.OPEN) {
+                this.lastFailureTime = Date.now();
+            }
+            if (this.options.onStateChange) {
+                try {
+                    this.options.onStateChange(newState);
+                } catch (error) {
+                    Logger.error('CircuitBreaker state change handler error:', error);
+                }
+            }
         }
     }
 

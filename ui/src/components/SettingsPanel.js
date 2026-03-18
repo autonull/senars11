@@ -1,5 +1,8 @@
 import { Component } from './Component.js';
-import { GraphConfig } from '../config/GraphConfig.js';
+import { Modal } from './ui/Modal.js';
+import { FluentUI } from '../utils/FluentUI.js';
+import { EVENTS } from '../config/constants.js';
+import { eventBus } from '../core/EventBus.js';
 
 export class SettingsPanel extends Component {
     constructor(container) {
@@ -8,107 +11,187 @@ export class SettingsPanel extends Component {
 
     initialize() {
         if (!this.container) return;
-
-        this.container.className = 'settings-container';
-        this.container.style.height = '100%'; // Ensure full height scrolling
-
         this.render();
     }
 
     render() {
-        // Get current defaults
-        const layout = GraphConfig.getGraphLayout('fcose');
+        this.fluent().clear().class('settings-container')
+            .child(this._renderWorkspaceSection())
+            .child(this._renderUISettingsSection())
+            .child(this._renderConnectionSection())
+            .child(
+                FluentUI.create('button')
+                    .id('apply-settings')
+                    .class('apply-btn')
+                    .text('APPLY SETTINGS')
+                    .on('click', () => this._applySettings())
+            );
+    }
+
+    _renderWorkspaceSection() {
+        return this._renderSection('WORKSPACE',
+            FluentUI.create('div').style({ display: 'flex', gap: '8px' })
+                .child(FluentUI.create('button').class('toolbar-btn primary').style({ flex: '1' }).text('💾 Save Workspace').on('click', () => this._saveWorkspace()))
+                .child(FluentUI.create('button').class('toolbar-btn').style({ flex: '1' }).text('📂 Load Workspace').on('click', () => this._loadWorkspace()))
+        );
+    }
+
+    _renderUISettingsSection() {
         const theme = this.app?.themeManager?.getTheme() || 'default';
+        return this._renderSection('UI SETTINGS', [
+            FluentUI.create('div').class('setting-item')
+                .child(FluentUI.create('label').class('setting-label').text('Theme'))
+                .child(
+                    FluentUI.create('select')
+                        .id('setting-theme')
+                        .class('setting-select')
+                        .on('change', (e) => this.app?.themeManager?.setTheme(e.target.value))
+                        .children([
+                            { v: 'default', l: 'Dark (Default)' },
+                            { v: 'light', l: 'Light' },
+                            { v: 'contrast', l: 'High Contrast' }
+                        ].map(opt => FluentUI.create('option').attr({ value: opt.v }).text(opt.l).prop({ selected: theme === opt.v })))
+                ),
+            FluentUI.create('div').class('setting-item')
+                .child(
+                    FluentUI.create('button')
+                        .id('reset-layout')
+                        .class('reset-btn')
+                        .text('RESET LAYOUT')
+                        .on('click', async () => {
+                            if (await Modal.confirm('Reset layout to default? This will reload the page.')) {
+                                localStorage.removeItem('senars-ide-layout');
+                                location.reload();
+                            }
+                        })
+                )
+        ]);
+    }
+
+    _renderConnectionSection() {
         const serverUrl = this.app?.serverUrl || '';
-
-        this.container.innerHTML = `
-            <div class="settings-section">
-                <h3 class="settings-header">UI SETTINGS</h3>
-                <div class="setting-item">
-                    <label class="setting-label">Theme</label>
-                    <select id="setting-theme" class="setting-select">
-                        <option value="default" ${theme === 'default' ? 'selected' : ''}>Dark (Default)</option>
-                        <option value="light" ${theme === 'light' ? 'selected' : ''}>Light</option>
-                        <option value="contrast" ${theme === 'contrast' ? 'selected' : ''}>High Contrast</option>
-                    </select>
-                </div>
-                <div class="setting-item">
-                    <button id="reset-layout" class="reset-btn">RESET LAYOUT</button>
-                </div>
-            </div>
-
-            <div class="settings-section">
-                <h3 class="settings-header">CONNECTION</h3>
-                <div class="setting-item">
-                    <label class="setting-label">Server URL</label>
-                    <input type="text" id="setting-server-url" value="${serverUrl}" placeholder="ws://localhost:3000" class="setting-input">
-                </div>
-            </div>
-
-            <div class="settings-section">
-                <h3 class="settings-header">GRAPH PHYSICS (fCoSE)</h3>
-                ${this._renderSlider('Gravity', 'gravity', 0, 1, 0.05, layout.gravity)}
-                ${this._renderSlider('Repulsion', 'nodeRepulsion', 100000, 1000000, 50000, layout.nodeRepulsion)}
-                ${this._renderSlider('Edge Length', 'idealEdgeLength', 50, 300, 10, layout.idealEdgeLength)}
-            </div>
-
-            <div class="settings-section">
-                <h3 class="settings-header">COLORS</h3>
-                ${this._renderColorPicker('Concept', 'CONCEPT')}
-                ${this._renderColorPicker('Task', 'TASK')}
-                ${this._renderColorPicker('Question', 'QUESTION')}
-                ${this._renderColorPicker('Highlight', 'HIGHLIGHT')}
-            </div>
-
-            <button id="apply-settings" class="apply-btn">APPLY SETTINGS</button>
-        `;
-
-        // Bind events
-        this.container.querySelectorAll('input[type=range]').forEach(input => {
-             const key = input.id.replace('setting-', '');
-             const valSpan = this.container.querySelector(`#val-${key}`);
-             if(valSpan) valSpan.textContent = input.value;
-
-             input.addEventListener('input', (e) => {
-                 if(valSpan) valSpan.textContent = e.target.value;
-             });
-        });
-
-        this.container.querySelector('#setting-theme').addEventListener('change', (e) => {
-             this.app?.themeManager?.setTheme(e.target.value);
-        });
-
-        this.container.querySelector('#reset-layout').addEventListener('click', () => {
-             if(confirm('Reset layout to default? This will reload the page.')) {
-                 localStorage.removeItem('senars-ide-layout');
-                 location.reload();
-             }
-        });
-
-        this.container.querySelector('#apply-settings').addEventListener('click', () => {
-             this._applySettings();
-        });
+        return this._renderSection('CONNECTION',
+            FluentUI.create('div').class('setting-item')
+                .child(FluentUI.create('label').class('setting-label').text('Server URL'))
+                .child(FluentUI.create('input').attr({ type: 'text', id: 'setting-server-url', value: serverUrl, placeholder: 'ws://localhost:3000' }).class('setting-input')),
+            true // Collapsed by default for connection
+        );
     }
 
-    _renderSlider(label, key, min, max, step, value) {
-        return `
-            <div class="setting-item">
-                <label class="setting-label-row">
-                    ${label} <span id="val-${key}">${value}</span>
-                </label>
-                <input type="range" id="setting-${key}" min="${min}" max="${max}" step="${step}" value="${value}" class="setting-input">
-            </div>
-        `;
+    _renderSection(title, content, defaultCollapsed = false) {
+        const wrapper = FluentUI.create('div').class('settings-section-wrapper').style({ marginBottom: '10px' });
+
+        // Header
+        const header = FluentUI.create('div').class('settings-section-header')
+            .style({ display: 'flex', alignItems: 'center', cursor: 'pointer', padding: '5px 0', borderBottom: '1px solid #444' })
+            .mount(wrapper);
+
+        const icon = FluentUI.create('span')
+            .text(defaultCollapsed ? '▶' : '▼')
+            .style({ marginRight: '8px', fontSize: '10px', width: '12px', color: '#888' })
+            .mount(header);
+
+        FluentUI.create('h3')
+            .class('settings-header')
+            .text(title)
+            .style({ margin: '0' })
+            .mount(header);
+
+        // Content
+        const contentContainer = FluentUI.create('div').class('settings-section-content')
+            .style({ display: defaultCollapsed ? 'none' : 'block', marginTop: '10px' })
+            .mount(wrapper);
+
+        // Append content children
+        if (Array.isArray(content)) {
+            content.forEach(c => contentContainer.child(c));
+        } else {
+            contentContainer.child(content);
+        }
+
+        // Toggle logic
+        header.on('click', () => {
+            const isHidden = contentContainer.dom.style.display === 'none';
+            contentContainer.style({ display: isHidden ? 'block' : 'none' });
+            icon.text(isHidden ? '▼' : '▶');
+        });
+
+        return wrapper;
     }
 
-    _renderColorPicker(label, key) {
-        const val = GraphConfig.COLORS[key] || '#ffffff';
-        return `
-            <div class="setting-color-row">
-                <label class="setting-label">${label}</label>
-                <input type="color" id="color-${key}" value="${val}" style="border:none; width:30px; height:20px; padding:0; background:none;">
-            </div>
-        `;
+    _saveWorkspace() {
+        if (!this.app) return;
+
+        const notebookData = this.app.getNotebook()?.exportNotebook() || [];
+        const layoutConfig = this.app.layoutManager?.layout?.toConfig();
+
+        const workspace = {
+            version: 1,
+            timestamp: new Date().toISOString(),
+            notebook: notebookData,
+            layout: layoutConfig,
+            settings: {
+                theme: this.app.themeManager?.getTheme(),
+                serverUrl: this.app.serverUrl
+            }
+        };
+
+        const blob = new Blob([JSON.stringify(workspace, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `senars-workspace-${new Date().toISOString()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    _loadWorkspace() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const workspace = JSON.parse(e.target.result);
+                    this._restoreWorkspace(workspace);
+                } catch (err) {
+                    console.error('Failed to load workspace', err);
+                    Modal.alert('Invalid workspace file.');
+                }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    }
+
+    async _restoreWorkspace(workspace) {
+        if (!this.app) return;
+
+        if (await Modal.confirm('Load workspace? Current state will be overwritten.')) {
+            // Restore Settings
+            if (workspace.settings) {
+                if (workspace.settings.theme) this.app.themeManager?.setTheme(workspace.settings.theme);
+                if (workspace.settings.serverUrl) this.app.serverUrl = workspace.settings.serverUrl;
+            }
+
+            // Restore Notebook
+            if (workspace.notebook && this.app.getNotebook()) {
+                this.app.getNotebook().importNotebook(workspace.notebook);
+            }
+
+            // Restore Layout
+            if (workspace.layout) {
+                localStorage.setItem(`senars-layout-${this.app.presetName || 'ide'}`, JSON.stringify(workspace.layout));
+                await Modal.alert('Workspace loaded. Page will reload to apply layout changes.');
+                location.reload();
+            } else {
+                Modal.alert('Workspace loaded (Notebook and Settings).');
+            }
+        }
     }
 
     _applySettings() {
@@ -119,28 +202,6 @@ export class SettingsPanel extends Component {
             this.app.saveSettings();
         }
 
-        // Update Colors
-        const colors = ['CONCEPT', 'TASK', 'QUESTION', 'HIGHLIGHT'];
-
-        colors.forEach(key => {
-            const input = this.container.querySelector(`#color-${key}`);
-            if (input && GraphConfig.COLORS[key] !== input.value) {
-                GraphConfig.COLORS[key] = input.value;
-            }
-        });
-
-        const physics = {};
-        ['gravity', 'nodeRepulsion', 'idealEdgeLength'].forEach(key => {
-             const input = this.container.querySelector(`#setting-${key}`);
-             if(input) physics[key] = parseFloat(input.value);
-        });
-
-        if (!GraphConfig.OVERRIDES) GraphConfig.OVERRIDES = {};
-        Object.assign(GraphConfig.OVERRIDES, physics);
-
-        // Save to persistence (handled in GraphConfig now)
-        if (GraphConfig.save) GraphConfig.save();
-
-        document.dispatchEvent(new CustomEvent('senars:settings:updated'));
+        eventBus.emit(EVENTS.SETTINGS_UPDATED);
     }
 }

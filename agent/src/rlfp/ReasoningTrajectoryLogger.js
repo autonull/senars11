@@ -1,4 +1,5 @@
-import fs from 'fs';
+import { promises as fs } from 'fs';
+import {Logger} from '../../../core/src/util/Logger.js';
 import {AGENT_EVENTS} from '../agent/constants.js';
 
 class ReasoningTrajectoryLogger {
@@ -31,14 +32,14 @@ class ReasoningTrajectoryLogger {
         this.trajectory.push({timestamp: Date.now(), type, ...data});
     }
 
-    endTrajectory(filePath) {
+    async endTrajectory(filePath) {
         this.isLogging = false;
         if (!filePath) return this.trajectory;
 
         try {
-            fs.writeFileSync(filePath, JSON.stringify(this.trajectory, null, 2));
+            await fs.writeFile(filePath, JSON.stringify(this.trajectory, null, 2));
         } catch (error) {
-            console.error(`Failed to write trajectory to ${filePath}:`, error);
+            Logger.error(`Failed to write trajectory to ${filePath}:`, error);
         }
         return this.trajectory;
     }

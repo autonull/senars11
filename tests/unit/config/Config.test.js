@@ -15,8 +15,13 @@ jest.unstable_mockModule('fs', () => ({
     mkdirSync: jest.fn(),
 }));
 
-const {ConfigManager, DEFAULT_CONFIG} = await import('../../../core/src/config/ConfigManager.js');
+let ConfigManager, DEFAULT_CONFIG;
 
+beforeAll(async () => {
+    const module = await import('../../../core/src/config/ConfigManager.js');
+    ConfigManager = module.ConfigManager;
+    DEFAULT_CONFIG = module.DEFAULT_CONFIG;
+});
 
 describe('Config', () => {
     describe('parse', () => {

@@ -5,14 +5,23 @@
  */
 
 /**
+ * Maximum recursion depth for unification to prevent stack overflow
+ * @constant {number}
+ */
+const MAX_UNIFICATION_DEPTH = 2000;
+
+/**
  * Core unification algorithm
  * @param {*} t1 - First term
  * @param {*} t2 - Second term
  * @param {Object} bindings - Current variable bindings
  * @param {Object} adapter - Adapter for term operations
+ * @param {number} depth - Recursion depth
  * @returns {Object|null} - Updated bindings or null if unification fails
  */
-export const unify = (t1, t2, bindings = {}, adapter) => {
+export const unify = (t1, t2, bindings = {}, adapter, depth = 0) => {
+    if (depth > MAX_UNIFICATION_DEPTH) return null; // Prevent stack overflow by failing unification on deep recursion
+
     const b1 = adapter.substitute(t1, bindings);
     const b2 = adapter.substitute(t2, bindings);
 
@@ -21,7 +30,7 @@ export const unify = (t1, t2, bindings = {}, adapter) => {
     if (adapter.isVariable(b2)) return bindVariable(b2, b1, bindings, adapter);
 
     if (adapter.isCompound(b1) && adapter.isCompound(b2)) {
-        return unifyCompounds(b1, b2, bindings, adapter);
+        return unifyCompounds(b1, b2, bindings, adapter, depth);
     }
 
     return null;
@@ -30,7 +39,7 @@ export const unify = (t1, t2, bindings = {}, adapter) => {
 /**
  * Unify two compound terms
  */
-const unifyCompounds = (t1, t2, bindings, adapter) => {
+const unifyCompounds = (t1, t2, bindings, adapter, depth) => {
     const comps1 = adapter.getComponents(t1);
     const comps2 = adapter.getComponents(t2);
 
@@ -41,17 +50,12 @@ const unifyCompounds = (t1, t2, bindings, adapter) => {
 
     // Unify operators instead of identity check to support variable operators
     // (e.g., in lambda patterns like ((λ $x $x) 5) where operator is an expression)
-    let current = bindings;
-    const opResult = unify(op1, op2, current, adapter);
+    const opResult = unify(op1, op2, bindings, adapter, depth + 1);
     if (!opResult) return null;
-    current = opResult;
 
-    for (let i = 0; i < comps1.length; i++) {
-        const result = unify(comps1[i], comps2[i], current, adapter);
-        if (!result) return null;
-        current = result;
-    }
-    return current;
+    return comps1.reduce((current, comp1, i) => {
+        return current ? unify(comp1, comps2[i], current, adapter, depth + 1) : null;
+    }, opResult);
 };
 
 /**
@@ -60,16 +64,9 @@ const unifyCompounds = (t1, t2, bindings, adapter) => {
 const bindVariable = (variable, term, bindings, adapter) => {
     const varName = adapter.getVariableName(variable);
 
-    if (bindings[varName]) {
-        return unify(bindings[varName], term, bindings, adapter);
-    }
-
-    if (adapter.isVariable(term)) {
-        const termVarName = adapter.getVariableName(term);
-        if (bindings[termVarName]) {
-            return unify(variable, bindings[termVarName], bindings, adapter);
-        }
-    }
+    // Note: The variable (b1/b2) passed here is already substituted by `unify`.
+    // So if it's still a variable, it means it's unbound in the current bindings.
+    // Redundant checks removed.
 
     if (occursCheck(varName, term, bindings, adapter)) {
         return null;
@@ -80,17 +77,24 @@ const bindVariable = (variable, term, bindings, adapter) => {
 
 /**
  * Occurs check: prevent infinite structures
+ * Iterative implementation to avoid stack overflow
  */
 const occursCheck = (varName, term, bindings, adapter) => {
-    const substituted = adapter.substitute(term, bindings);
+    const root = adapter.substitute(term, bindings);
+    const stack = [root];
 
-    if (adapter.isVariable(substituted)) {
-        return adapter.getVariableName(substituted) === varName;
-    }
+    while (stack.length > 0) {
+        const curr = stack.pop();
 
-    if (adapter.isCompound(substituted)) {
-        const comps = adapter.getComponents(substituted);
-        return comps.some(c => occursCheck(varName, c, bindings, adapter));
+        if (adapter.isVariable(curr)) {
+            if (adapter.getVariableName(curr) === varName) return true;
+        } else if (adapter.isCompound(curr)) {
+            const comps = adapter.getComponents(curr);
+            // Push in reverse order to process first component first (DFS)
+            for (let i = comps.length - 1; i >= 0; i--) {
+                stack.push(comps[i]);
+            }
+        }
     }
 
     return false;
@@ -101,15 +105,18 @@ const occursCheck = (varName, term, bindings, adapter) => {
  * @param {*} term - Term to substitute into
  * @param {Object} bindings - Variable bindings
  * @param {Object} adapter - Term operations adapter
+ * @param {Set} visited - Set of visited variables for cycle detection
  * @returns {*} - Substituted term
  */
-export const substitute = (term, bindings, adapter) => {
+export const substitute = (term, bindings, adapter, visited = new Set()) => {
     if (!term) return term;
 
     if (adapter.isVariable(term)) {
         const varName = adapter.getVariableName(term);
         if (bindings[varName]) {
-            return substitute(bindings[varName], bindings, adapter);
+            if (visited.has(varName)) return term; // Cycle detected
+            visited.add(varName);
+            return substitute(bindings[varName], bindings, adapter, visited);
         }
         return term;
     }
@@ -118,7 +125,7 @@ export const substitute = (term, bindings, adapter) => {
         const components = adapter.getComponents(term);
         let changed = false;
         const newComponents = components.map(comp => {
-            const newComp = substitute(comp, bindings, adapter);
+            const newComp = substitute(comp, bindings, adapter, new Set(visited));
             if (newComp !== comp) changed = true;
             return newComp;
         });
@@ -149,13 +156,9 @@ export const match = (pattern, term, bindings = {}, adapter) => {
         const tComps = adapter.getComponents(term);
         if (pComps.length !== tComps.length) return null;
 
-        let current = bindings;
-        for (let i = 0; i < pComps.length; i++) {
-            const result = match(pComps[i], tComps[i], current, adapter);
-            if (!result) return null;
-            current = result;
-        }
-        return current;
+        return pComps.reduce((current, pComp, i) => {
+            return current ? match(pComp, tComps[i], current, adapter) : null;
+        }, bindings);
     }
 
     return adapter.equals(p, term) ? bindings : null;

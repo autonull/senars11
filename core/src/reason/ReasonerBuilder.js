@@ -52,6 +52,9 @@ export class ReasonerBuilder {
         const {MetacognitionRules} = await import('./rules/nal/MetacognitionRules.js');
         const {InductionRule, AbductionRule} = await import('./rules/nal/InductionAbductionRule.js');
         const {ConversionRule, ContrapositionRule} = await import('./rules/nal/ConversionRule.js');
+        const {ComparisonRule} = await import('./rules/nal/ComparisonRule.js');
+        const {AnalogyRule} = await import('./rules/nal/AnalogyRule.js');
+        const {CompoundCompositionRule, CompoundDecompositionRule} = await import('./rules/nal/CompoundTermRules.js');
 
         ruleExecutor.register(new InheritanceSyllogisticRule());
         ruleExecutor.register(new ImplicationSyllogisticRule());
@@ -60,6 +63,10 @@ export class ReasonerBuilder {
         ruleExecutor.register(new AbductionRule());
         ruleExecutor.register(new ConversionRule());
         ruleExecutor.register(new ContrapositionRule());
+        ruleExecutor.register(new ComparisonRule());
+        ruleExecutor.register(new AnalogyRule());
+        ruleExecutor.register(new CompoundCompositionRule());
+        ruleExecutor.register(new CompoundDecompositionRule());
 
         // Register metacognition rules if enabled
         if (config.metacognition?.selfOptimization?.enabled) {
@@ -244,7 +251,7 @@ export class ReasonerBuilder {
     }
 
     useDefaultRuleProcessor(options = {}) {
-        const {termFactory} = this.context;
+        const {termFactory, budgetManager} = this.context;
         const config = {...this.config, ...options};
 
         if (!this.components.ruleExecutor) {
@@ -253,7 +260,8 @@ export class ReasonerBuilder {
 
         this.components.ruleProcessor = new RuleProcessor(this.components.ruleExecutor, {
             maxDerivationDepth: config.maxDerivationDepth || 10,
-            termFactory: termFactory
+            termFactory: termFactory,
+            budgetManager: budgetManager
         });
         return this;
     }

@@ -7,8 +7,8 @@
     <title>SeNARS Unified IDE</title>
 
     <!-- GoldenLayout Styles -->
-    <link type="text/css" rel="stylesheet" href="libs/goldenlayout-base.css" />
-    <link type="text/css" rel="stylesheet" href="libs/goldenlayout-dark-theme.css" />
+    <link type="text/css" rel="stylesheet" href="/node_modules/golden-layout/dist/css/goldenlayout-base.css" />
+    <link type="text/css" rel="stylesheet" href="/node_modules/golden-layout/dist/css/themes/goldenlayout-dark-theme.css" />
 
     <!-- Main UI Styles -->
     <link rel="stylesheet" href="style.css">
@@ -58,18 +58,59 @@
 </head>
 
 <body>
-    <div id="layout-root"></div>
     <div id="status-bar-root"></div>
+    <div id="layout-root"></div>
     <div id="notification-container"></div>
+
+    <script>
+        window.WEBSOCKET_CONFIG = {
+            port: parseInt('{{WEBSOCKET_PORT}}' || '8081', 10),
+            host: '{{WEBSOCKET_HOST}}' !== 'undefined' ? '{{WEBSOCKET_HOST}}' : 'localhost'
+        };
+    </script>
 
     <script type="importmap">
     {
         "imports": {
-            "cytoscape": "https://cdn.jsdelivr.net/npm/cytoscape@3.30.0/dist/cytoscape.esm.min.js",
-            "cytoscape-fcose": "https://cdn.jsdelivr.net/npm/cytoscape-fcose@2.2.0/cytoscape-fcose.js",
-            "golden-layout": "https://cdn.jsdelivr.net/npm/golden-layout@2.6.0/dist/golden-layout.js",
-            "marked": "https://cdn.jsdelivr.net/npm/marked@12.0.0/lib/marked.esm.js",
-            "@senars/core": "/core/src/index.js"
+            "cytoscape": "/node_modules/cytoscape/dist/cytoscape.esm.min.mjs",
+            "cytoscape-fcose": "/src/shims/mock-cytoscape-fcose.js",
+            "cytoscape-fcose/": "/node_modules/cytoscape-fcose/",
+            "cose-base": "/node_modules/cose-base/cose-base.js",
+            "golden-layout": "/node_modules/golden-layout/dist/esm/index.js",
+            "marked": "/node_modules/marked/lib/marked.esm.js",
+            "@senars/core": "/core/src/index.js",
+            "@senars/core/": "/core/",
+            "@senars/agent": "/agent/src/index.js",
+            "@senars/agent/": "/agent/",
+            "@senars/metta": "/metta/src/",
+            "@senars/metta/": "/metta/src/",
+            "zod": "/node_modules/zod/index.js",
+            "mitt": "/node_modules/mitt/dist/mitt.mjs",
+            "uuid": "/node_modules/uuid/dist/esm-browser/index.js",
+            "eventemitter3": "/node_modules/eventemitter3/dist/eventemitter3.esm.js",
+            "immer": "/node_modules/immer/dist/immer.mjs",
+            "js-sha256": "/node_modules/js-sha256/src/sha256.js",
+            "danfojs": "/node_modules/danfojs/lib/bundle.esm.js",
+            "module": "/src/shims/mock-node.js",
+            "fs": "/src/shims/mock-node.js",
+            "path": "/src/shims/mock-node.js",
+            "url": "/src/shims/mock-node.js",
+            "crypto": "/src/shims/mock-node.js",
+            "events": "/src/shims/events-shim.js",
+            "util": "/src/shims/mock-node.js",
+            "os": "/src/shims/mock-node.js",
+            "child_process": "/src/shims/mock-node.js",
+            "@langchain/core/messages": "/src/shims/mock-langchain.js",
+            "@langchain/core/tools": "/src/shims/mock-langchain.js",
+            "@langchain/ollama": "/src/shims/mock-langchain.js",
+            "@langchain/openai": "/src/shims/mock-langchain.js",
+            "@langchain/langgraph": "/src/shims/mock-langchain.js",
+            "@langchain/langgraph/prebuilt": "/src/shims/mock-langchain.js",
+            "@langchain/langgraph-checkpoint": "/src/shims/mock-langchain.js",
+            "langchain": "/src/shims/mock-langchain.js",
+            "chart.js/auto": "/node_modules/chart.js/auto/auto.js",
+            "chart.js": "/node_modules/chart.js/dist/chart.js",
+            "@kurkle/color": "/node_modules/@kurkle/color/dist/color.esm.js"
         }
     }
     </script>

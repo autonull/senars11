@@ -19,7 +19,7 @@ export class NarPage {
     }
 
     async goto() {
-        await this.page.goto('/');
+        await this.page.goto('/ide.html');
     }
 
     async waitForConnection() {

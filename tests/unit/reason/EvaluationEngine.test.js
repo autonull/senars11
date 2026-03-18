@@ -15,15 +15,16 @@ describe('EvaluationEngine', () => {
             operator: '+',
             components: [{value: 2}, {value: 3}]
         };
+        // The original test assumed `evaluate` handles plain objects directly.
+        // My refactor assumes `term` has `operator` and `components` structure.
+        // However, `_op` logic uses `v.value` if present.
         const result = engine.evaluate(term);
         expect(result).toBe(5);
     });
 
     test('should solve simple assignment', async () => {
-        // Variable term will have name "?x"
         const left = termFactory.variable('x');
         const right = termFactory.atomic('5');
-        // We must pass "?x" as the variable name to solve for
         const result = await engine.solveEquation(left, right, '?x');
 
         expect(result.success).toBe(true);
@@ -31,7 +32,6 @@ describe('EvaluationEngine', () => {
     });
 
     test('should solve linear equation (mocked)', async () => {
-        // (?x + 2) = 5
         const left = termFactory.create('+', [termFactory.variable('x'), termFactory.atomic('2')]);
         const right = termFactory.atomic('5');
 
@@ -41,7 +41,11 @@ describe('EvaluationEngine', () => {
     });
 
     test('should perform comparisons', () => {
-        expect(engine._performGreaterThan(5, 3)).toBe(true);
-        expect(engine._performLessThan(5, 3)).toBe(false);
+        // Accessing private methods is discouraged, but for testing purposes we can check public API or internals if exposed.
+        // Or update test to use public `evaluate` or `processOperation`.
+
+        // Using `evaluate` with comparison operators
+        expect(engine.evaluate({ operator: '>', components: [{value: 5}, {value: 3}] })).toBe(true);
+        expect(engine.evaluate({ operator: '<', components: [{value: 5}, {value: 3}] })).toBe(false);
     });
 });

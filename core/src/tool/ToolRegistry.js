@@ -3,7 +3,7 @@
  * @description Automatic tool discovery and registration system
  */
 
-import {Logger} from '../util/Logger.js';
+import {BaseComponent} from '../util/BaseComponent.js';
 import {ToolEngine} from './ToolEngine.js';
 import {ToolDiscovery} from './ToolDiscovery.js';
 
@@ -11,17 +11,18 @@ import {ToolDiscovery} from './ToolDiscovery.js';
  * Tool Registry that provides automatic tool discovery and registration
  * Follows patterns from v8/coreagent/tools architecture
  */
-export class ToolRegistry {
+export class ToolRegistry extends BaseComponent {
     /**
      * @param {ToolEngine} toolEngine - The tool engine instance to register tools with
      */
-    constructor(toolEngine) {
+    constructor(toolEngine, config = {}) {
+        super(config, 'ToolRegistry');
+
         if (!toolEngine || !(toolEngine instanceof ToolEngine)) {
             throw new Error('ToolRegistry requires a valid ToolEngine instance');
         }
 
         this.engine = toolEngine;
-        this.logger = Logger;
         this.discoveredTools = new Map();
         this.registrationHistory = [];
         this.discoveryPaths = ['src/tools/executors', 'plugins', 'node_modules'];

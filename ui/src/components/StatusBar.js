@@ -1,124 +1,353 @@
 import { Component } from './Component.js';
+import { FluentUI, $, div, button, span, input } from '../utils/FluentUI.js';
+import { ReactiveState } from '../core/ReactiveState.js';
+import { eventBus } from '../core/EventBus.js';
+import { MODES } from '../config/constants.js';
 
 export class StatusBar extends Component {
     constructor(container) {
         super(container);
-        this.mode = 'local';
-        this.status = 'Ready';
-        this.stats = {
-            cycles: 0,
-            messages: 0,
-            latency: 0
-        };
-        this.onModeSwitch = null;
 
-        this.els = {
-            mode: null,
-            status: null,
-            cycles: null,
-            messages: null,
-            latency: null
-        };
+        this.state = new ReactiveState({
+            mode: MODES.LOCAL,
+            status: 'Ready',
+            stats: {
+                cycles: 0,
+                nodes: 0,
+                activeNodes: 0,
+                maxNodes: 50,
+                tps: 0
+            },
+            expanded: false
+        });
+
+        this.onModeSwitch = null;
+        this.onThemeToggle = null;
+        this.onReasonerControl = null;
+        this.onReplSubmit = null;
+        this.onWidgetToggle = null;
+        this.onConfig = null;
+        this.onMenuAction = null;
+        this._disposables = [];
+
+        // Subscribe to global events
+        this._disposables.push(
+            eventBus.on('connection.status', (status) => {
+                this.state.status = status;
+            })
+        );
     }
 
-    initialize({ onModeSwitch }) {
+    initialize({ onModeSwitch, onThemeToggle, onReasonerControl, onReplSubmit, onWidgetToggle, onConfig, onMenuAction }) {
         this.onModeSwitch = onModeSwitch;
+        this.onThemeToggle = onThemeToggle;
+        this.onReasonerControl = onReasonerControl;
+        this.onReplSubmit = onReplSubmit;
+        this.onWidgetToggle = onWidgetToggle;
+        this.onConfig = onConfig;
+        this.onMenuAction = onMenuAction;
         this.render();
     }
 
     render() {
         if (!this.container) return;
 
-        // Build DOM once
-        if (this.els.mode) return;
+        // Clear container
+        $(this.container).clear();
 
-        this.container.innerHTML = '';
-        this.container.className = 'status-bar';
-        this.container.style.cssText = `
-            height: 24px;
-            background: #007acc;
-            color: white;
-            display: flex;
-            align-items: center;
-            padding: 0 10px;
-            font-size: 12px;
-            font-family: var(--font-mono);
-            user-select: none;
-            justify-content: space-between;
-        `;
+        const bar = div().class('status-bar').mount(this.container);
 
-        // Left: Connection Mode & Status
-        const leftSection = document.createElement('div');
-        leftSection.style.cssText = 'display: flex; align-items: center; gap: 15px;';
+        // Left Section: Menus & REPL
+        const leftSection = div().class('status-left-section').mount(bar);
+        this._renderMenus(leftSection);
+        this._renderRepl(leftSection);
 
-        this.els.mode = document.createElement('div');
-        this.els.mode.style.cssText = 'cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: bold;';
-        this.els.mode.title = 'Click to switch connection mode';
-        this.els.mode.onclick = () => this.onModeSwitch?.();
+        // Center Section: Reasoner Controls
+        const centerSection = div().class('status-controls-section').mount(bar);
+        this._renderControls(centerSection);
 
-        this.els.status = document.createElement('div');
-
-        leftSection.append(this.els.mode, this.els.status);
-
-        // Right: Stats
-        const rightSection = document.createElement('div');
-        rightSection.style.cssText = 'display: flex; gap: 15px;';
-
-        this.els.cycles = document.createElement('div');
-        this.els.messages = document.createElement('div');
-        this.els.latency = document.createElement('div');
-
-        rightSection.append(this.els.cycles, this.els.messages, this.els.latency);
-
-        this.container.append(leftSection, rightSection);
-
-        this._refreshAll();
+        // Right Section: Info & Widgets
+        const rightSection = div().class('status-info-section').mount(bar);
+        this._renderInfo(rightSection);
     }
 
-    _refreshAll() {
-        this._updateModeDisplay();
-        this._updateStatusDisplay();
-        this._updateStatsDisplay();
+    _renderMenus(parent) {
+        const menus = div().class('status-menus').mount(parent);
+
+        const createMenu = (label, items) => {
+            const wrapper = div().class('status-menu-item').mount(menus);
+            button(label).class('status-menu-btn').on('click', (e) => {
+                e.stopPropagation();
+                // Close others
+                this.container.querySelectorAll('.status-menu-item.active').forEach(item => {
+                    if (item !== wrapper.dom) item.classList.remove('active');
+                });
+                wrapper.dom.classList.toggle('active');
+            }).mount(wrapper);
+
+            const dropdown = div().class('status-menu-dropdown').mount(wrapper);
+            items.forEach(item => {
+                if (item === 'divider') {
+                    div().class('menu-divider').mount(dropdown);
+                } else {
+                    button(item.label)
+                        .data('action', item.action)
+                        .class(item.class || '')
+                        .on('click', () => {
+                            if (this.onMenuAction) this.onMenuAction(item.action);
+                            wrapper.removeClass('active');
+                        })
+                        .mount(dropdown);
+                }
+            });
+        };
+
+        createMenu('File', [
+            { label: 'Save Graph (JSON)...', action: 'save' },
+            { label: 'Load Graph (JSON)...', action: 'load' },
+            { label: 'Import Graph (CSV)...', action: 'import-csv' },
+            'divider',
+            { label: 'Export PNG', action: 'export-png' },
+            { label: 'Export SVG', action: 'export-svg' }
+        ]);
+
+        createMenu('Edit', [
+            { label: 'Add Node', action: 'add-concept' },
+            { label: 'Link Nodes', action: 'add-link' },
+            { label: 'Delete Selected', action: 'delete' },
+            'divider',
+            { label: 'Clear All', action: 'clear', class: 'danger' }
+        ]);
+
+        createMenu('View', [
+            { label: 'Fit View', action: 'fit' },
+            { label: 'Auto Layout', action: 'layout' },
+            'divider',
+            { label: 'Toggle Focus Mode', action: 'focus-mode' },
+            { label: 'Toggle Fullscreen', action: 'fullscreen' }
+        ]);
+
+        createMenu('Help', [
+            { label: 'Keyboard Shortcuts', action: 'shortcuts' }
+        ]);
+
+        // Close menus on outside click
+        document.addEventListener('click', () => {
+            this.container.querySelectorAll('.status-menu-item.active').forEach(item => {
+                item.classList.remove('active');
+            });
+        });
     }
 
-    _updateModeDisplay() {
-        if (!this.els.mode) return;
-        this.els.mode.innerHTML = this.mode === 'local' ? '💻 Local Mode' : '🌐 Remote Mode';
-        if (this.els.latency) {
-            this.els.latency.style.display = this.mode === 'remote' ? 'block' : 'none';
-        }
+    _renderRepl(parent) {
+        const wrapper = div().class('status-repl-wrapper').mount(parent);
+        span().class('repl-prompt').text('>').mount(wrapper);
+
+        const textarea = $('textarea')
+            .id('status-repl-input')
+            .class('status-repl-input')
+            .attr({ rows: 1, placeholder: 'Command or chat...', autocomplete: 'off' })
+            .mount(wrapper);
+
+        // Bind events
+        textarea.on('focus', () => {
+            this.state.expanded = true;
+            this.container.querySelector('.status-bar').classList.add('status-bar--expanded');
+            textarea.dom.rows = 3;
+        });
+
+        textarea.on('blur', () => {
+            setTimeout(() => {
+                if (document.activeElement !== textarea.dom) {
+                    this.state.expanded = false;
+                    this.container.querySelector('.status-bar').classList.remove('status-bar--expanded');
+                    textarea.dom.rows = 1;
+                }
+            }, 200);
+        });
+
+        textarea.on('keydown', (e) => {
+            if ((e.key === 'Enter' && !e.shiftKey) || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) {
+                e.preventDefault();
+                const command = textarea.val().trim();
+                if (command) {
+                    this.onReplSubmit?.(command);
+                    textarea.val('');
+                }
+            }
+        });
     }
 
-    _updateStatusDisplay() {
-        if (!this.els.status) return;
-        this.els.status.textContent = this.status;
+    _renderControls(parent) {
+        this.btnRun = button('▶').id('status-btn-run').class('status-btn').attr('title', 'Run Reasoner')
+            .on('click', () => {
+                this.btnRun.addClass('active-pulse');
+                this.onReasonerControl?.('run');
+            }).mount(parent);
+
+        this.btnPause = button('⏸').id('status-btn-pause').class('status-btn', 'hidden').attr('title', 'Pause Reasoner')
+            .on('click', () => {
+                this.btnRun.removeClass('active-pulse');
+                this.onReasonerControl?.('pause');
+            }).mount(parent);
+
+        button('⏭').id('status-btn-step').class('status-btn').attr('title', 'Step Reasoner (S)')
+            .on('click', () => this.onReasonerControl?.('step')).mount(parent);
+
+        button('+10').id('status-btn-step-10').class('status-btn').attr('title', 'Step 10 Cycles (Shift+S)')
+            .style({ fontSize: '0.8em', width: 'auto', padding: '0 5px' })
+            .on('click', () => this.onReasonerControl?.('step', 10)).mount(parent);
+
+        button('+50').id('status-btn-step-50').class('status-btn').attr('title', 'Step 50 Cycles (Alt+S)')
+            .style({ fontSize: '0.8em', width: 'auto', padding: '0 5px' })
+            .on('click', () => this.onReasonerControl?.('step', 50)).mount(parent);
+
+        const throttle = div().class('status-throttle').mount(parent);
+        const slider = input('range', { min: 0, max: 1000, value: 100, step: 50, id: 'status-throttle-slider' }).mount(throttle);
+        const valueDisplay = span().id('status-throttle-value').text('100ms').mount(throttle);
+
+        slider.on('input', (e) => {
+            const val = e.target.value;
+            valueDisplay.text(`${val}ms`);
+            this.onReasonerControl?.('throttle', parseInt(val));
+        });
     }
 
-    _updateStatsDisplay() {
-        if (!this.els.cycles) return;
-        this.els.cycles.textContent = `Cycles: ${this.stats.cycles}`;
-        this.els.messages.textContent = `Msgs: ${this.stats.messages}`;
-        if (this.mode === 'remote') {
-            this.els.latency.textContent = `Ping: ${this.stats.latency}ms`;
-        }
+    _renderInfo(parent) {
+        const toolbar = div().class('status-toolbar-items').mount(parent);
+
+        // Demo Select
+        const select = $('select').id('demo-select').class('control-select-small').mount(toolbar);
+        $('option').attr({ value: '', disabled: true, selected: true }).text('Load Demo...').mount(select);
+
+        // Clear Workspace
+        button('🗑️', { id: 'btn-clear', class: 'status-btn-small warning', title: 'Clear Workspace' }).mount(toolbar);
+
+        div().class('status-divider').mount(parent);
+
+        // Status
+        this.elStatus = div().class('status-metric').id('connection-status').text('Connecting...').mount(parent);
+
+        // Metrics
+        this.elCycles = div().class('status-metric').id('status-cycles').text('📊 0').attr('title', 'Cycles').mount(parent);
+        this.elNodes = div().class('status-metric').id('status-nodes').text('🧠 0').attr('title', 'Nodes').mount(parent);
+        this.elTps = div().class('status-metric').id('status-tps').text('⚡ 0').attr('title', 'TPS').mount(parent);
+
+        div().class('status-divider').mount(parent);
+
+        // Capabilities
+        const caps = div().class('capability-lights').mount(parent);
+        this.elCapReasoner = div().id('cap-reasoner').class('cap-light', 'status-offline').attr('title', 'NAL Reasoner: Offline').mount(caps);
+        this.elCapLlm = div().id('cap-llm').class('cap-light', 'status-offline').attr('title', 'LLM Reasoning: Offline').mount(caps);
+
+        div().class('status-divider').mount(parent);
+
+        // Widget Toggles (Grouped)
+        this._renderWidgetMenu(parent);
+
+        div().class('status-metric', 'status-interactive').id('status-config').attr('title', 'Config').text('⚙️')
+            .on('click', () => this.onConfig?.()).mount(parent);
+    }
+
+    _renderWidgetMenu(parent) {
+        const wrapper = div().class('status-menu-item').style({ marginLeft: '5px' }).mount(parent);
+
+        button('Widgets ▲').class('status-menu-btn').on('click', (e) => {
+            e.stopPropagation();
+            this.container.querySelectorAll('.status-menu-item.active').forEach(item => {
+                if (item !== wrapper.dom) item.classList.remove('active');
+            });
+            wrapper.dom.classList.toggle('active');
+        }).mount(wrapper);
+
+        const dropdown = div().class('status-menu-dropdown').style({ right: '0', left: 'auto', minWidth: '150px', bottom: '100%', top: 'auto', marginBottom: '5px' }).mount(wrapper);
+
+        const createToggle = (id, icon, label, defaultActive) => {
+            const row = div().class('widget-menu-row')
+                .style({ padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#ccc' })
+                .mount(dropdown);
+
+            const left = div().style({ display: 'flex', alignItems: 'center' }).mount(row);
+            span().text(icon).style({ marginRight: '8px', width: '16px', textAlign: 'center' }).mount(left);
+            span().text(label).mount(left);
+
+            const check = span().text(defaultActive ? '✓' : '').style({ color: '#00ff9d', fontWeight: 'bold' }).mount(row);
+
+            row.on('click', (e) => {
+                e.stopPropagation();
+                const mapping = {
+                    'toggle-layers': 'layers',
+                    'toggle-metrics': 'metrics',
+                    'toggle-logs': 'log',
+                    'toggle-inspector': 'inspector',
+                    'toggle-tasks': 'tasks',
+                    'toggle-visualization': 'visualization'
+                };
+                const widgetId = mapping[id];
+                if (widgetId && this.onWidgetToggle) {
+                    const isVisible = this.onWidgetToggle(widgetId);
+                    check.text(isVisible ? '✓' : '');
+                }
+            });
+        };
+
+        createToggle('toggle-layers', '📐', 'Explorer Info', true);
+        createToggle('toggle-visualization', '👁️', 'Visualization', false);
+        createToggle('toggle-metrics', '📊', 'Metrics', true);
+        createToggle('toggle-logs', '📝', 'Logs', true);
+        createToggle('toggle-inspector', '🔍', 'Inspector', false);
+        createToggle('toggle-tasks', '✅', 'Tasks', true);
     }
 
     updateMode(mode) {
-        if (this.mode !== mode) {
-            this.mode = mode;
-            this._updateModeDisplay();
-        }
+        this.state.mode = mode;
     }
 
     updateStatus(status) {
-        if (this.status !== status) {
-            this.status = status;
-            this._updateStatusDisplay();
+        this.state.status = status;
+        if (this.elStatus) this.elStatus.text(status);
+        if (status === 'Connected') {
+            this.setCapability('reasoner', 'online', 'NAL Reasoner: Online');
+        } else if (status === 'Disconnected') {
+            this.setCapability('reasoner', 'offline', 'NAL Reasoner: Offline');
         }
     }
 
     updateStats(stats = {}) {
-        this.stats = { ...this.stats, ...stats };
-        this._updateStatsDisplay();
+        this.state.stats = { ...this.state.stats, ...stats };
+
+        if (this.elCycles) this.elCycles.text(`📊 ${stats.cycles || 0}`);
+
+        const activeNodes = stats.activeNodes !== undefined ? stats.activeNodes : (stats.nodes || 0);
+        const maxNodes = stats.maxNodes || 50;
+        if (this.elNodes) this.elNodes.text(`🧠 ${activeNodes}/${maxNodes}`);
+
+        if (this.elTps) this.elTps.text(`⚡ ${stats.tps || 0}`);
+    }
+
+    setReasonerRunning(isRunning) {
+        if (this.btnRun) {
+            if (isRunning) this.btnRun.addClass('hidden');
+            else this.btnRun.removeClass('hidden');
+        }
+        if (this.btnPause) {
+            if (isRunning) this.btnPause.removeClass('hidden');
+            else this.btnPause.addClass('hidden');
+        }
+    }
+
+    setCapability(id, status, tooltip) {
+        const el = id === 'reasoner' ? this.elCapReasoner : (id === 'llm' ? this.elCapLlm : null);
+        if (el) {
+            el.removeClass('status-offline', 'status-online', 'status-warning', 'status-error', 'status-loading');
+            el.addClass(`status-${status}`);
+            if (tooltip) el.attr('title', tooltip);
+        }
+    }
+
+    destroy() {
+        super.destroy();
+        this._disposables.forEach(d => d());
+        this._disposables = [];
     }
 }

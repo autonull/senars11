@@ -10,85 +10,62 @@ import {NALRule} from './NALRule.js';
 import {Truth} from '../../../Truth.js';
 
 /**
- * Induction Rule: Shared subject pattern
- * (M --> P), (M --> S) |- (S --> P)
+ * Shared logic for induction and abduction
  */
-export class InductionRule extends NALRule {
-    constructor(config = {}) {
-        super('nal-induction', 'nal', 0.9, config);
-    }
+class SharedTermRule extends NALRule {
+    _tryApply(p1, p2, context, isInduction) {
+        const {term: t1, truth: tr1} = p1;
+        const {term: t2, truth: tr2} = p2;
+        if (!context?.termFactory || !t1?.isCompound || !t2?.isCompound || t1.operator !== '-->' || t2.operator !== '-->') return [];
 
-    canApply(primaryPremise, secondaryPremise, context) {
-        if (!primaryPremise || !secondaryPremise) return false;
+        const [shared1, shared2] = isInduction ? [t1.subject, t2.subject] : [t1.predicate, t2.predicate];
+        const [other1, other2] = isInduction ? [t1.predicate, t2.predicate] : [t1.subject, t2.subject];
 
-        const {term: t1} = primaryPremise;
-        const {term: t2} = secondaryPremise;
+        const match = this.unify(shared1, shared2, context);
+        if (!match.success || other1?.equals?.(other2)) return [];
 
-        if (!t1?.isCompound || !t2?.isCompound) return false;
-        if (t1.operator !== '-->' || t2.operator !== '-->') return false;
+        const newTruth = isInduction ? Truth.induction(tr1, tr2) : Truth.abduction(tr1, tr2);
+        if (!newTruth) return [];
 
-        // Shared subject: (M --> P), (M --> S)
-        return t1.subject?.equals?.(t2.subject) && !t1.predicate?.equals?.(t2.predicate);
-    }
+        const subject = this.applySubstitution(other2, match.substitution, context);
+        const predicate = this.applySubstitution(other1, match.substitution, context);
 
-    apply(primaryPremise, secondaryPremise, context) {
-        if (!this.canApply(primaryPremise, secondaryPremise, context)) return [];
-
-        const {term: t1, truth: truth1} = primaryPremise;
-        const {term: t2, truth: truth2} = secondaryPremise;
-        const termFactory = context?.termFactory;
-
-        if (!termFactory || !truth1 || !truth2) return [];
-
-        // (M --> P), (M --> S) |- (S --> P)
-        const derivedTruth = Truth.induction(truth1, truth2);
-        if (!derivedTruth) return [];
-
-        const conclusionTerm = termFactory.create('-->', [t2.predicate, t1.predicate]);
-        const task = this.createDerivedTask(conclusionTerm, derivedTruth, [primaryPremise, secondaryPremise], context, '.');
-
+        const task = this.createDerivedTask(
+            context.termFactory.create('-->', [subject, predicate]),
+            newTruth, [p1, p2], context
+        );
         return task ? [task] : [];
     }
 }
 
-/**
- * Abduction Rule: Shared predicate pattern
- * (P --> M), (S --> M) |- (S --> P)
- */
-export class AbductionRule extends NALRule {
+export class InductionRule extends SharedTermRule {
+    constructor(config = {}) {
+        super('nal-induction', 'nal', 0.9, config);
+    }
+
+    canApply(p1, p2, context) {
+        const t1 = p1?.term, t2 = p2?.term;
+        if (!t1?.isCompound || !t2?.isCompound || t1.operator !== '-->' || t2.operator !== '-->') return false;
+        return this.unify(t1.subject, t2.subject, context).success && !t1.predicate?.equals?.(t2.predicate);
+    }
+
+    apply(p1, p2, context) {
+        return this._tryApply(p1, p2, context, true);
+    }
+}
+
+export class AbductionRule extends SharedTermRule {
     constructor(config = {}) {
         super('nal-abduction', 'nal', 0.9, config);
     }
 
-    canApply(primaryPremise, secondaryPremise, context) {
-        if (!primaryPremise || !secondaryPremise) return false;
-
-        const {term: t1} = primaryPremise;
-        const {term: t2} = secondaryPremise;
-
-        if (!t1?.isCompound || !t2?.isCompound) return false;
-        if (t1.operator !== '-->' || t2.operator !== '-->') return false;
-
-        // Shared predicate: (P --> M), (S --> M)
-        return t1.predicate?.equals?.(t2.predicate) && !t1.subject?.equals?.(t2.subject);
+    canApply(p1, p2, context) {
+        const t1 = p1?.term, t2 = p2?.term;
+        if (!t1?.isCompound || !t2?.isCompound || t1.operator !== '-->' || t2.operator !== '-->') return false;
+        return this.unify(t1.predicate, t2.predicate, context).success && !t1.subject?.equals?.(t2.subject);
     }
 
-    apply(primaryPremise, secondaryPremise, context) {
-        if (!this.canApply(primaryPremise, secondaryPremise, context)) return [];
-
-        const {term: t1, truth: truth1} = primaryPremise;
-        const {term: t2, truth: truth2} = secondaryPremise;
-        const termFactory = context?.termFactory;
-
-        if (!termFactory || !truth1 || !truth2) return [];
-
-        // (P --> M), (S --> M) |- (S --> P)
-        const derivedTruth = Truth.abduction(truth1, truth2);
-        if (!derivedTruth) return [];
-
-        const conclusionTerm = termFactory.create('-->', [t2.subject, t1.subject]);
-        const task = this.createDerivedTask(conclusionTerm, derivedTruth, [primaryPremise, secondaryPremise], context, '.');
-
-        return task ? [task] : [];
+    apply(p1, p2, context) {
+        return this._tryApply(p1, p2, context, false);
     }
 }

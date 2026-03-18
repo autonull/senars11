@@ -1,3 +1,6 @@
+import { EVENTS } from '../config/constants.js';
+import { eventBus } from '../core/EventBus.js';
+
 export class ContextMenu {
     constructor(graphManager, commandProcessor) {
         this.graphManager = graphManager;
@@ -67,11 +70,14 @@ export class ContextMenu {
     }
 
     _getNodeMenuItems(element) {
+        const isPinned = element.locked();
         const baseItems = [
             {action: 'focus', icon: '🎯', label: 'Focus'},
-            {action: 'inspect', icon: '🔍', label: 'Inspect Details'},
+            {action: 'inspect', icon: '🔍', label: 'Inspect'},
             {action: 'expand', icon: '🔗', label: 'Expand Relations'},
+            {action: 'pin', icon: isPinned ? '🔓' : '📍', label: isPinned ? 'Unpin' : 'Pin Position'},
             {action: 'copy', icon: '📋', label: 'Copy Term'},
+            {action: 'hide', icon: '👁️‍🗨️', label: 'Hide Node'}
         ];
 
         return element.data().type === 'task'
@@ -81,8 +87,8 @@ export class ContextMenu {
 
     _getEdgeMenuItems() {
         return [
-            {action: 'inspect', icon: '🔍', label: 'Inspect Edge'},
-            {action: 'remove', icon: '🗑️', label: 'Remove Edge'},
+            {action: 'inspect', icon: '🔍', label: 'Inspect'},
+            {action: 'remove', icon: '🗑️', label: 'Remove'},
         ];
     }
 
@@ -91,8 +97,10 @@ export class ContextMenu {
             focus: () => this._focusNode(element),
             inspect: () => this._inspectElement(element, type),
             expand: () => this._expandRelations(element),
+            pin: () => this._togglePin(element),
             copy: () => this._copyTerm(element.data()),
             execute: () => this._executeTask(element.data()),
+            hide: () => this._hideElement(element),
             remove: () => this._removeEdge(element)
         };
 
@@ -114,11 +122,14 @@ export class ContextMenu {
 
     _inspectElement(element, type) {
         const data = element.data();
-        const details = type === 'node'
-            ? this.graphManager.createNodeDetailsContent(data)
-            : this.graphManager.createEdgeDetailsContent(data);
-
-        this.graphManager.updateGraphDetails(details);
+        // Since we don't have updateGraphDetails fully implemented in GraphManager yet in this context,
+        // we mainly rely on the select event to trigger MemoryInspector
+        if (data.fullData) {
+            eventBus.emit(EVENTS.CONCEPT_SELECT, {
+                concept: data.fullData,
+                id: data.id
+            });
+        }
         this.commandProcessor.logger.log(`Inspecting ${type}: ${data.label ?? data.id}`, 'info', '🔍');
     }
 
@@ -126,8 +137,21 @@ export class ContextMenu {
         element.connectedEdges().connectedNodes().forEach(node => {
             this.graphManager.animateFadeIn(node.id());
         });
-
         this.commandProcessor.logger.log(`Expanded relations for: ${element.data('label')}`, 'info', '🔗');
+    }
+
+    _togglePin(element) {
+        if (element.locked()) {
+            element.unlock();
+            this.commandProcessor.logger.log('Node unlocked', 'info', '🔓');
+        } else {
+            element.lock();
+            this.commandProcessor.logger.log('Node pinned', 'info', '📍');
+        }
+    }
+
+    _hideElement(element) {
+        element.style('display', 'none');
     }
 
     _copyTerm(data) {

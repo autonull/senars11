@@ -98,21 +98,21 @@ export class ArgParser {
 SeNARS Self-Analysis Script
 Uses the system to analyze its own development status and provide insights
 
-Usage: node self-analyze.js [options]
+Usage: node scripts/analysis/self-analyze.js [options]
 
 Options:
 ${flagsList.join('\n')}
 
 Examples:
-  node self-analyze.js                    # Run all analyses (default)
-  node self-analyze.js -t -v              # Verbose test analysis only
-  node self-analyze.js --coverage --slowest # Coverage + slowest tests
-  node self-analyze.js -S                 # Summary output only
-  node self-analyze.js -f                 # Feature specifications analysis only
-  node self-analyze.js -d                 # Technical debt analysis only
-  node self-analyze.js -ar                # Architecture analysis only
-  node self-analyze.js -pl                # Planning indicators analysis only
-  node self-analyze.js --testcoverage     # Test coverage analysis with causal relationships
+  node scripts/analysis/self-analyze.js                    # Run all analyses (default)
+  node scripts/analysis/self-analyze.js -t -v              # Verbose test analysis only
+  node scripts/analysis/self-analyze.js --coverage --slowest # Coverage + slowest tests
+  node scripts/analysis/self-analyze.js -S                 # Summary output only
+  node scripts/analysis/self-analyze.js -f                 # Feature specifications analysis only
+  node scripts/analysis/self-analyze.js -d                 # Technical debt analysis only
+  node scripts/analysis/self-analyze.js -ar                # Architecture analysis only
+  node scripts/analysis/self-analyze.js -pl                # Planning indicators analysis only
+  node scripts/analysis/self-analyze.js --testcoverage     # Test coverage analysis with causal relationships
 `;
     }
 }

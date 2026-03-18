@@ -72,21 +72,23 @@ describe('Reasoner', () => {
             expect(handler).toHaveBeenCalledWith({id: 'test'}, 10, expect.objectContaining({consumerId: 'c1'}));
 
             reasoner.receiveConsumerFeedback({processingSpeed: 5, backlogSize: 20});
-            // These properties exist on PipelineRunner.
-            // Reasoner delegates properties? No, I need to check runner properties.
-            expect(reasoner.runner.outputConsumerSpeed).toBe(5);
-            expect(reasoner.runner.performance.backpressureLevel).toBe(20);
+
+            // Access via controller
+            expect(reasoner.runner.controller.outputConsumerSpeed).toBe(5);
+            expect(reasoner.runner.controller.performance.backpressureLevel).toBe(20);
         });
 
         test('adaptive processing', () => {
-            reasoner.runner.performance.backpressureLevel = 25;
+            reasoner.runner.controller.performance.backpressureLevel = 25;
             const initial = reasoner.config.cpuThrottleInterval;
-            reasoner.runner._adaptProcessingRate();
-            expect(reasoner.config.cpuThrottleInterval).toBeGreaterThanOrEqual(initial);
 
-            reasoner.runner._updatePerformanceMetrics();
-            expect(reasoner.config.cpuThrottleInterval).toBeGreaterThanOrEqual(0);
-            expect(reasoner.config.backpressureInterval).toBeGreaterThanOrEqual(1);
+            // We need to await as it might be async
+            return reasoner.runner.controller._adaptProcessingRate().then(() => {
+                expect(reasoner.config.cpuThrottleInterval).toBeGreaterThanOrEqual(initial);
+                reasoner.runner.controller._updatePerformanceMetrics();
+                expect(reasoner.config.cpuThrottleInterval).toBeGreaterThanOrEqual(0);
+                expect(reasoner.config.backpressureInterval).toBeGreaterThanOrEqual(1);
+            });
         });
     });
 });

@@ -72,9 +72,9 @@ export class TaskMatch {
         return this;
     }
 
-    async matches(task) {
+    async matches(task, termFactory = null) {
         // Check term match
-        if (this.termFilter && !await this._checkTermMatch(task)) {
+        if (this.termFilter && !await this._checkTermMatch(task, termFactory)) {
             return false;
         }
 
@@ -101,10 +101,12 @@ export class TaskMatch {
         return true;
     }
 
-    async _checkTermMatch(task) {
+    async _checkTermMatch(task, providedFactory = null) {
         const {NarseseParser} = await import('../parser/NarseseParser.js');
         const {TermFactory} = await import('../term/TermFactory.js');
-        const termFactory = new TermFactory();
+
+        // Use provided factory if available to ensure term identity (reference equality)
+        const termFactory = providedFactory || new TermFactory();
         const parser = new NarseseParser(termFactory);
         const expectedTerm = parser.parse(this.termFilter + '.').term;
         return task.term?.equals(expectedTerm);

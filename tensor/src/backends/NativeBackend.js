@@ -84,6 +84,23 @@ export class NativeBackend extends TensorBackend {
             data = a.data.map((v, i) => op(v, b.data[i % sa[1]]));
         } else if (a.ndim === 1 && b.ndim === 2 && sa[0] === sb[1]) { // [n] + [m,n]
             data = b.data.map((v, i) => op(a.data[i % sb[1]], v));
+        } else if (a.ndim === 1 && b.ndim === 2 && sa[0] === sb[0]) { // [n] + [n, m] (specifically [n] + [n, 1])
+             // if m=1, stride is 1. i/1 = i.
+             const m = sb[1];
+             data = b.data.map((v, i) => op(a.data[Math.floor(i / m)], v));
+        } else if (a.ndim === 2 && b.ndim === 1 && sa[0] === sb[0]) { // [n, m] + [n]
+             const m = sa[1];
+             data = a.data.map((v, i) => op(v, b.data[Math.floor(i / m)]));
+        } else if (a.ndim === 2 && b.ndim === 2 && sb[1] === 1 && sa[0] === sb[0]) { // [m,n] + [m,1]
+            // stride for A is n (for row) + 1 (for col)
+            // stride for B is 1 (for row) + 0 (for col - effectively)
+            // i goes 0..m*n-1. row = floor(i/n). col = i%n.
+            // B index = row * 1 + 0 = floor(i/n)
+            const n = sa[1];
+            data = a.data.map((v, i) => op(v, b.data[Math.floor(i / n)]));
+        } else if (a.ndim === 2 && b.ndim === 2 && sa[1] === 1 && sa[0] === sb[0]) { // [m,1] + [m,n]
+            const n = sb[1];
+            data = b.data.map((v, i) => op(a.data[Math.floor(i / n)], v));
         } else {
             throw new Error(`Broadcasting not supported: ${sa} vs ${sb}`);
         }

@@ -11,7 +11,6 @@ export class WebSocketManager extends ConnectionInterface {
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = Config.getConstants().MAX_RECONNECT_ATTEMPTS;
         this.reconnectDelay = Config.getConstants().RECONNECT_DELAY;
-        this.messageHandlers = new Map();
         this.logger = new Logger();
         this.eventQueue = [];
         this.isProcessingQueue = false;
@@ -68,30 +67,14 @@ export class WebSocketManager extends ConnectionInterface {
 
     isConnected() { return this.ws?.readyState === WebSocket.OPEN; }
 
-    subscribe(type, handler) {
-        let handlers = this.messageHandlers.get(type);
-        if (!handlers) {
-            handlers = [];
-            this.messageHandlers.set(type, handlers);
-        }
-        handlers.push(handler);
-    }
-
-    unsubscribe(type, handler) {
-        const handlers = this.messageHandlers.get(type);
-        if (!handlers) return;
-        const index = handlers.indexOf(handler);
-        if (index > -1) handlers.splice(index, 1);
-    }
-
     getConnectionStatus() { return this.connectionStatus; }
 
     handleMessage(msg) {
         if (!msg) return;
-        if (msg.type === 'eventBatch') {
-            const events = (msg.data ?? []).map(e => ({ type: e.type, payload: e.data, timestamp: e.timestamp }));
-            this.eventQueue.push(...events);
-        } else this.eventQueue.push(msg);
+        const events = msg.type === 'eventBatch'
+            ? (msg.data ?? []).map(e => ({ type: e.type, payload: e.data, timestamp: e.timestamp }))
+            : [msg];
+        this.eventQueue.push(...events);
         this.scheduleQueueProcessing();
     }
 
@@ -115,20 +98,7 @@ export class WebSocketManager extends ConnectionInterface {
 
     dispatchMessage(msg) {
         if (msg.type === 'cycle.start' || msg.type === 'cycle.complete') return;
-
-        const typeHandlers = this.messageHandlers.get(msg.type);
-        if (typeHandlers) {
-            for (const h of [...typeHandlers]) {
-                try { h(msg); } catch (e) { console.error("WS Handler error", e); }
-            }
-        }
-
-        const globalHandlers = this.messageHandlers.get('*');
-        if (globalHandlers) {
-            for (const h of [...globalHandlers]) {
-                try { h(msg); } catch (e) { console.error("WS Handler error", e); }
-            }
-        }
+        super.dispatchMessage(msg);
     }
 
     notifyStatusChange(status) {

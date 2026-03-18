@@ -609,7 +609,7 @@ export function createTestReasoner(options = {}) {
         addTaskToFocus: () => {
         }
     };
-    const context = {focus, memory, termFactory: options.termFactory || {}};
+    const context = {focus, memory, termFactory: options.termFactory || new TermFactory()};
 
     const builder = new ReasonerBuilder(context).withConfig(options.config || {});
 

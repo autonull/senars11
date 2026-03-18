@@ -2,6 +2,7 @@ import { OperationHelpers } from './OperationHelpers.js';
 import { Space } from '../Space.js';
 import { match } from '../Reduce.js';
 import { sym, exp } from '../Term.js';
+import { AlgebraicOps } from './AlgebraicOps.js';
 
 const error = (...args) => exp(sym('Error'), args);
 const getSpace = (ctx, spaceId) => ctx?.spaces?.get(spaceId?.name);
@@ -46,5 +47,25 @@ export function registerSpaceOps(registry, interpreterContext) {
         if (!source || !target) return error(sym('SpaceNotFound'));
         source.all().forEach(atom => target.add(atom));
         return sym('ok');
+    });
+
+    registry.register('compose', (s1Id, s2Id) => {
+        const s1 = getSpace(interpreterContext, s1Id);
+        const s2 = getSpace(interpreterContext, s2Id);
+        if (!s1 || !s2) return error(sym('SpaceNotFound'));
+        return AlgebraicOps.compose(s1, s2);
+    });
+
+    registry.register('project', (sId, pred) => {
+        const s = getSpace(interpreterContext, sId);
+        if (!s) return error(sym('SpaceNotFound'));
+        return AlgebraicOps.project(s, pred);
+    });
+
+    registry.register('join', (s1Id, s2Id, key) => {
+        const s1 = getSpace(interpreterContext, s1Id);
+        const s2 = getSpace(interpreterContext, s2Id);
+        if (!s1 || !s2) return error(sym('SpaceNotFound'));
+        return AlgebraicOps.join(s1, s2, key);
     });
 }

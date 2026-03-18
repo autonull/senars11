@@ -1,223 +1,312 @@
 import { Component } from './Component.js';
 import { ConceptCard } from './ConceptCard.js';
 import { TaskCard } from './TaskCard.js';
+import { FluentUI } from '../utils/FluentUI.js';
+import { FluentToolbar } from './ui/FluentToolbar.js';
+import { EVENTS } from '../config/constants.js';
+import { ReactiveState } from '../core/ReactiveState.js';
+import { eventBus } from '../core/EventBus.js';
 
 export class MemoryInspector extends Component {
     constructor(container) {
         super(container);
-        this.data = [];
-        this.sortField = 'priority';
-        this.sortDirection = 'desc';
-        this.filterText = '';
-        this.filters = { hasGoals: false, hasQuestions: false };
-        this.listMode = 'compact'; // 'compact' or 'full'
-        this.viewMode = 'list';
-        this.selectedConcept = null;
 
-        document.addEventListener('senars:concept:select', (e) => {
-            e.detail?.concept && this.selectConcept(e.detail.concept);
+        this.state = new ReactiveState({
+            data: [],
+            sortField: 'priority',
+            sortDirection: 'desc',
+            filterText: '',
+            filters: { hasGoals: false, hasQuestions: false },
+            listMode: 'compact',
+            viewMode: 'list',
+            selectedConcept: null,
+            limit: 50
         });
+
+        // Computed filtered and sorted data
+        this.state.computed('filteredData', function() {
+            const { data, filterText, filters, sortField, sortDirection } = this;
+
+            const filtered = data.filter(c =>
+                (!filterText || c.term.toLowerCase().includes(filterText)) &&
+                (!filters.hasGoals || c.tasks?.some(t => t.punctuation === '!')) &&
+                (!filters.hasQuestions || c.tasks?.some(t => t.punctuation === '?'))
+            );
+
+            return filtered.sort((a, b) => {
+                const valA = MemoryInspector.getValue(a, sortField);
+                const valB = MemoryInspector.getValue(b, sortField);
+                return (valA < valB ? -1 : 1) * (sortDirection === 'asc' ? 1 : -1);
+            });
+        });
+
+        // Watchers
+        this.state.watch('filteredData', () => this.viewMode === 'list' && this._renderListView());
+        this.state.watch('viewMode', (mode) => this.render());
+        this.state.watch('selectedConcept', (concept) => {
+            if (concept) {
+                this.state.viewMode = 'details';
+            }
+        });
+        this.state.watch('listMode', () => this.viewMode === 'list' && this._renderListView());
+
+        // Events
+        eventBus.on(EVENTS.CONCEPT_SELECT, (payload) => {
+            if (payload?.concept) this.selectConcept(payload.concept);
+        });
+    }
+
+    // Getters for compatibility if needed, though mostly used internally
+    get viewMode() { return this.state.viewMode; }
+    set viewMode(v) { this.state.viewMode = v; }
+
+    static getValue(obj, field) {
+        if (field === 'priority') return obj.budget?.priority ?? 0;
+        if (field === 'taskCount') return obj.tasks?.length ?? obj.taskCount ?? 0;
+        if (field === 'term') return obj.term ?? '';
+        return obj[field];
     }
 
     initialize() {
         if (!this.container) return;
 
-        this.container.innerHTML = '';
-        this.container.style.cssText = 'height: 100%; display: flex; flex-direction: column; overflow: hidden;';
+        this.fluent().clear().class('mi-container');
 
-        const style = document.createElement('style');
-        style.textContent = `
-            .mi-toolbar { padding: 8px; background: var(--bg-header); border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
-            .mi-filter-row { display: flex; gap: 5px; align-items: center; }
-            .mi-list { padding: 8px; overflow-y: auto; flex: 1; }
-            .mi-details { height: 100%; display: flex; flex-direction: column; }
-            .mi-details-header { padding: 8px; background: var(--bg-header); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-            .mi-details-content { flex: 1; overflow-y: auto; padding: 8px; }
-            .mi-checkbox-label { font-size: 10px; color: var(--text-muted); display: flex; align-items: center; gap: 3px; cursor: pointer; user-select: none; }
-            .mi-checkbox-label input { margin: 0; }
-        `;
-        this.container.appendChild(style);
+        // Render Toolbar
+        const toolbarWrapper = FluentUI.create('div')
+            .class('mi-toolbar')
+            .mount(this.container);
 
-        const toolbar = document.createElement('div');
-        toolbar.className = 'mi-toolbar';
-        toolbar.innerHTML = `
-            <div class="mi-filter-row">
-                <input type="text" placeholder="Filter terms..." style="flex:1; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-main); padding:4px;" id="mi-filter-text">
-                <button id="mi-refresh" style="font-size:10px;">REFRESH</button>
-            </div>
-            <div class="mi-filter-row">
-                <label class="mi-checkbox-label"><input type="checkbox" id="mi-filter-goals"> Has Goals</label>
-                <label class="mi-checkbox-label"><input type="checkbox" id="mi-filter-questions"> Has Questions</label>
-                <label class="mi-checkbox-label" style="margin-left: 8px;"><input type="checkbox" id="mi-compact-view" checked> Compact</label>
-                <select id="mi-sort" style="margin-left:auto; font-size:10px; padding: 2px;">
-                    <option value="priority">Priority</option>
-                    <option value="term">Term</option>
-                    <option value="taskCount">Task Count</option>
-                </select>
-            </div>
-        `;
-        this.container.appendChild(toolbar);
-        this.toolbar = toolbar;
+        const ftContainer = FluentUI.create('div')
+            .mount(toolbarWrapper);
 
-        this.contentContainer = document.createElement('div');
-        this.contentContainer.id = 'mi-content';
-        this.contentContainer.style.cssText = 'flex: 1; overflow: hidden; position: relative;';
-        this.container.appendChild(this.contentContainer);
+        new FluentToolbar(ftContainer.dom, this.getToolbarConfig()).render();
+        this.toolbar = toolbarWrapper.dom;
 
-        this._setupListeners();
+        // Render Content Container
+        this.contentContainer = FluentUI.create('div')
+            .id('mi-content')
+            .class('mi-content-container')
+            .mount(this.container)
+            .dom;
+
+        // Initial render
         this.render();
     }
 
-    _setupListeners() {
-        this.container.querySelector('#mi-filter-text').addEventListener('input', (e) => {
-            this.filterText = e.target.value.toLowerCase();
-            this.render();
-        });
+    getToolbarConfig() {
+        return [
+            this._getFilterControls(),
+            this._getSortControls()
+        ];
+    }
 
-        this.container.querySelector('#mi-filter-goals').addEventListener('change', (e) => {
-            this.filters.hasGoals = e.target.checked;
-            this.render();
-        });
+    _getFilterControls() {
+        return {
+            type: 'group',
+            class: 'mi-filter-row',
+            items: [
+                {
+                    type: 'custom',
+                    renderer: () => FluentUI.create('input')
+                        .attr({ type: 'text', placeholder: 'Filter terms...', id: 'mi-filter-text' })
+                        .class('mi-filter-input')
+                        .on('input', (e) => {
+                            this.state.filterText = e.target.value.toLowerCase();
+                        }).dom
+                },
+                {
+                    type: 'button',
+                    label: 'REFRESH',
+                    class: 'mi-refresh-btn',
+                    onClick: () => eventBus.emit(EVENTS.MEMORY_REFRESH)
+                }
+            ]
+        };
+    }
 
-        this.container.querySelector('#mi-filter-questions').addEventListener('change', (e) => {
-            this.filters.hasQuestions = e.target.checked;
-            this.render();
-        });
-
-        this.container.querySelector('#mi-compact-view').addEventListener('change', (e) => {
-            this.listMode = e.target.checked ? 'compact' : 'full';
-            this.render();
-        });
-
-        this.container.querySelector('#mi-sort').addEventListener('change', (e) => {
-            this.sortField = e.target.value;
-            this.render();
-        });
-
-        this.container.querySelector('#mi-refresh').addEventListener('click', () => {
-             document.dispatchEvent(new CustomEvent('senars:memory:refresh'));
-        });
+    _getSortControls() {
+        return {
+            type: 'group',
+            class: 'mi-filter-row',
+            items: [
+                {
+                    type: 'toggle',
+                    label: 'Has Goals',
+                    class: 'mi-checkbox-label',
+                    onChange: (checked) => {
+                        this.state.filters = { ...this.state.filters, hasGoals: checked };
+                    }
+                },
+                {
+                    type: 'toggle',
+                    label: 'Has Questions',
+                    class: 'mi-checkbox-label',
+                    onChange: (checked) => {
+                        this.state.filters = { ...this.state.filters, hasQuestions: checked };
+                    }
+                },
+                {
+                    type: 'toggle',
+                    label: 'Compact',
+                    checked: true,
+                    class: 'mi-checkbox-label',
+                    style: { marginLeft: '8px' },
+                    onChange: (checked) => {
+                        this.state.listMode = checked ? 'compact' : 'full';
+                    }
+                },
+                {
+                    type: 'select',
+                    style: { marginLeft: 'auto', fontSize: '10px', padding: '2px' },
+                    options: [
+                        { value: 'priority', label: 'Priority' },
+                        { value: 'term', label: 'Term' },
+                        { value: 'taskCount', label: 'Task Count' }
+                    ],
+                    onChange: (val) => {
+                        this.state.sortField = val;
+                    }
+                }
+            ]
+        };
     }
 
     update(payload) {
         if (!payload?.concepts) return;
-        this.data = payload.concepts;
+        this.state.data = payload.concepts;
 
-        if (this.selectedConcept) {
-             const updated = this.data.find(c => c.id === this.selectedConcept.id || c.term === this.selectedConcept.term);
-             if (updated) this.selectedConcept = updated;
+        if (this.state.selectedConcept) {
+             const updated = this.state.data.find(c => c.id === this.state.selectedConcept.id || c.term === this.state.selectedConcept.term);
+             if (updated) this.state.selectedConcept = updated;
         }
-
-        this.render();
     }
 
     selectConcept(concept) {
-        this.selectedConcept = concept;
-        this.viewMode = 'details';
-        this.render();
+        this.state.selectedConcept = concept;
+    }
+
+    focusFilter() {
+        // Bring container to front if possible (GoldenLayout dependent)
+        if (this.glContainer && this.glContainer.parent && this.glContainer.parent.parent) {
+             try {
+                 // The parent is usually a Stack
+                 this.glContainer.parent.parent.setActiveContentItem(this.glContainer.parent);
+             } catch(e) { console.warn('Failed to focus tab', e); }
+        }
+
+        const input = this.toolbar?.querySelector('input');
+        if (input) {
+            input.focus();
+            input.select();
+        }
     }
 
     render() {
         if (!this.contentContainer) return;
         this.contentContainer.innerHTML = '';
-        this.toolbar.style.display = this.viewMode === 'list' ? 'flex' : 'none';
+        this.toolbar.style.display = this.state.viewMode === 'list' ? 'flex' : 'none';
 
-        this.viewMode === 'list' ? this.renderList() : this.renderDetails();
+        if (this.state.viewMode === 'list') {
+            this._renderListView();
+        } else {
+            this._renderDetailsView();
+        }
     }
 
-    renderList() {
-        const listDiv = document.createElement('div');
-        listDiv.className = 'mi-list';
+    _renderListView() {
+        if (!this.contentContainer) return;
 
-        const filtered = this._filterAndSortData();
+        // Use FluentUI on existing element
+        const container = FluentUI.create(this.contentContainer).clear();
+
+        const listDiv = FluentUI.create('div').class('mi-list').mount(container);
+        const filtered = this.state.filteredData;
 
         if (filtered.length === 0) {
-            listDiv.innerHTML = '<div style="padding:10px; color:var(--text-muted); text-align:center;">No concepts found</div>';
+            listDiv.html('<div style="padding:10px; color:var(--text-muted); text-align:center;">No concepts found</div>');
+            return;
+        }
+
+        this._renderListItems(listDiv, filtered);
+    }
+
+    _renderListItems(container, data) {
+        const limit = this.state.limit;
+        const isCompact = this.state.listMode === 'compact';
+
+        for (const concept of data.slice(0, limit)) {
+            new ConceptCard(container.dom, concept, { compact: isCompact }).render();
+        }
+
+        if (data.length > limit) {
+            container.child(this._createLoadMoreButton(data.length - limit));
+        }
+    }
+
+    _createLoadMoreButton(remaining) {
+        return FluentUI.create('button')
+            .text(`Load More (${remaining} remaining)`)
+            .class('mi-load-more-btn')
+            .style({
+                display: 'block', margin: '10px auto', padding: '5px 10px',
+                background: '#333', border: '1px solid #444', color: '#ccc', cursor: 'pointer'
+            })
+            .on('click', () => {
+                this.state.limit += 50;
+                this._renderListView();
+            });
+    }
+
+    _renderDetailsView() {
+        const container = FluentUI.create('div').class('mi-details').mount(this.contentContainer);
+
+        this._createDetailsHeader().mount(container);
+
+        const content = FluentUI.create('div').class('mi-details-content').mount(container);
+
+        if (this.state.selectedConcept) {
+             this._renderConceptDetails(content);
+        }
+    }
+
+    _createDetailsHeader() {
+        return FluentUI.create('div')
+            .class('mi-details-header')
+            .child(
+                FluentUI.create('button')
+                    .html('← Back')
+                    .class('mi-back-btn')
+                    .on('click', () => {
+                        this.state.viewMode = 'list';
+                        this.state.selectedConcept = null;
+                    })
+            )
+            .child(
+                FluentUI.create('div')
+                    .class('mi-details-title')
+                    .text(this.state.selectedConcept?.term ?? 'Concept Details')
+            );
+    }
+
+    _renderConceptDetails(container) {
+        const wrapper = FluentUI.create('div').style({ marginBottom: '20px' }).mount(container);
+        new ConceptCard(wrapper.dom, this.state.selectedConcept).render();
+
+        container.child(
+            FluentUI.create('div')
+                .text('TASKS')
+                .class('mi-section-header')
+        );
+
+        if (this.state.selectedConcept.tasks?.length > 0) {
+            this.state.selectedConcept.tasks.forEach(task => new TaskCard(container.dom, task).render());
         } else {
-            const limit = 50;
-            const isCompact = this.listMode === 'compact';
-
-            for (const concept of filtered.slice(0, limit)) {
-                new ConceptCard(listDiv, concept, { compact: isCompact }).render();
-            }
-
-            if (filtered.length > limit) {
-                const more = document.createElement('div');
-                more.textContent = `...and ${filtered.length - limit} more`;
-                more.style.cssText = 'padding:10px; text-align:center; color:var(--text-muted); font-size:10px;';
-                listDiv.appendChild(more);
-            }
+            container.child(
+                FluentUI.create('div')
+                    .text('No tasks in memory view.')
+                    .style({ color: 'var(--text-muted)' })
+            );
         }
-
-        this.contentContainer.appendChild(listDiv);
-    }
-
-    _filterAndSortData() {
-        return this.data.filter(c =>
-            (!this.filterText || c.term.toLowerCase().includes(this.filterText)) &&
-            (!this.filters.hasGoals || c.tasks?.some(t => t.punctuation === '!')) &&
-            (!this.filters.hasQuestions || c.tasks?.some(t => t.punctuation === '?'))
-        ).sort((a, b) => {
-            const valA = this._getValue(a, this.sortField);
-            const valB = this._getValue(b, this.sortField);
-            return (valA < valB ? -1 : 1) * (this.sortDirection === 'asc' ? 1 : -1);
-        });
-    }
-
-    renderDetails() {
-        const container = document.createElement('div');
-        container.className = 'mi-details';
-
-        const header = document.createElement('div');
-        header.className = 'mi-details-header';
-
-        const backBtn = document.createElement('button');
-        backBtn.innerHTML = '← Back';
-        backBtn.onclick = () => {
-            this.viewMode = 'list';
-            this.selectedConcept = null;
-            this.render();
-        };
-
-        const title = document.createElement('div');
-        title.style.cssText = 'font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;';
-        title.textContent = this.selectedConcept?.term ?? 'Concept Details';
-
-        header.append(backBtn, title);
-        container.appendChild(header);
-
-        const content = document.createElement('div');
-        content.className = 'mi-details-content';
-
-        if (this.selectedConcept) {
-             const wrapper = document.createElement('div');
-             wrapper.style.marginBottom = '20px';
-             new ConceptCard(wrapper, this.selectedConcept).render();
-             content.appendChild(wrapper);
-
-             const taskHeader = document.createElement('div');
-             taskHeader.textContent = 'TASKS';
-             taskHeader.style.cssText = 'font-size:10px; color:var(--text-muted); margin-bottom:5px; font-weight:bold; letter-spacing:1px;';
-             content.appendChild(taskHeader);
-
-             if (this.selectedConcept.tasks?.length > 0) {
-                 this.selectedConcept.tasks.forEach(task => new TaskCard(content, task).render());
-             } else {
-                 const empty = document.createElement('div');
-                 empty.textContent = 'No tasks in memory view.';
-                 empty.style.color = 'var(--text-muted)';
-                 content.appendChild(empty);
-             }
-        }
-
-        container.appendChild(content);
-        this.contentContainer.appendChild(container);
-    }
-
-    _getValue(obj, field) {
-        if (field === 'priority') return obj.budget?.priority ?? 0;
-        if (field === 'taskCount') return obj.tasks?.length ?? obj.taskCount ?? 0;
-        if (field === 'term') return obj.term ?? '';
-        return obj[field];
     }
 }

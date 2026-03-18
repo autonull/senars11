@@ -1,0 +1,663 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+/* HUD Base Layout - Fixed Positioning */
+#hud-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.hud-zone {
+    pointer-events: none;
+    display: flex;
+    gap: 10px;
+    position: fixed;
+}
+
+.hud-top {
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-direction: row;
+}
+
+.hud-left {
+    left: 20px;
+    top: 80px;
+    bottom: 80px; /* Space for status bar */
+    width: 300px;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow-y: auto;
+}
+
+.hud-right {
+    right: 20px;
+    top: 80px;
+    bottom: 80px; /* Space for status bar */
+    width: 300px;
+    flex-direction: column;
+    justify-content: center;
+    overflow-y: auto;
+}
+
+.hud-bottom {
+    bottom: 80px; /* Space for status bar */
+    left: 340px; /* Space for left panel */
+    right: 340px; /* Space for right panel */
+    justify-content: center;
+    align-items: flex-end;
+}
+
+.hud-center {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    justify-content: center;
+    align-items: center;
+}
+
+/* HUD Panels - Fighter Jet Style */
+.hud-panel {
+    pointer-events: auto;
+    /* Removed default background/border to avoid double-up with widgets */
+    background: transparent;
+    border: none;
+    border-radius: 0px;
+    padding: 4px;
+    box-shadow: none;
+    transition: all 0.3s ease;
+    max-width: 100%;
+    position: relative;
+    backdrop-filter: none;
+    color: #ccffee;
+    max-height: 100%; /* Allow scrolling within panel */
+    overflow-y: visible; /* Let container scroll */
+    display: flex;
+    flex-direction: column;
+}
+
+/* Standalone panels (not in widgets) might need the border back,
+   but for now Explorer uses widgets. */
+
+/* Scrollbar styling for panels */
+.hud-panel::-webkit-scrollbar {
+    width: 4px;
+}
+
+.hud-panel::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.hud-panel::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 157, 0.3);
+    border-radius: 0;
+}
+
+.hud-panel::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 255, 157, 0.5);
+}
+
+/* Status Bar - Fixed at top */
+#status-bar-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 40px; /* Explicit height */
+    z-index: 100;
+    background: rgba(5, 10, 5, 0.95);
+    border-bottom: 1px solid rgba(0, 255, 157, 0.3);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+}
+
+.status-bar {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 40px;
+    height: 40px;
+    padding: 0 15px;
+    width: 100%;
+    box-sizing: border-box;
+    transition: height 0.3s ease, padding 0.3s ease;
+}
+
+.status-left-section, .status-right-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 0.75rem;
+    font-family: 'Consolas', monospace;
+    color: #aaccbb;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.status-interactive {
+    cursor: pointer;
+}
+.status-interactive:hover {
+    color: #fff;
+    text-shadow: 0 0 5px rgba(0, 255, 157, 0.5);
+}
+
+
+/* HUD Details/Summary Styles */
+details {
+    margin-bottom: 10px;
+}
+
+summary {
+    cursor: pointer;
+    font-size: 1.0rem; /* Matching hud-header/h3 roughly */
+    font-weight: 700;
+    color: #00ff9d;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(0, 255, 157, 0.2);
+    margin-bottom: 10px;
+    list-style: none; /* Hide default triangle in some browsers */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+summary::-webkit-details-marker {
+    display: none;
+}
+
+summary::after {
+    content: '+';
+    color: #00aa66;
+    font-weight: bold;
+    font-size: 1.2em;
+    transition: transform 0.2s;
+}
+
+details[open] summary::after {
+    content: '-';
+    transform: rotate(0deg);
+}
+
+details[open] summary {
+    border-bottom: 1px solid rgba(0, 255, 157, 0.4);
+}
+
+/* Log Entry Types */
+.log-entry span:first-child {
+    color: var(--text-muted);
+}
+
+.log-entry.log-user span:last-child {
+    color: var(--accent-primary);
+}
+
+.log-entry.log-agent span:last-child {
+    color: var(--accent-secondary);
+}
+
+.log-entry.log-error span:last-child {
+    color: var(--status-error);
+}
+
+.log-entry.log-warning span:last-child {
+    color: var(--status-warning);
+}
+
+.log-entry.log-success span:last-child {
+    color: var(--status-success);
+}
+
+.log-entry.log-system span:last-child {
+    color: var(--status-system);
+}
+
+@media (max-width: 768px) {
+    .hud-left {
+        width: 250px;
+        left: 10px;
+    }
+    .hud-right {
+        width: 250px;
+        right: 10px;
+    }
+    .hud-bottom {
+        left: 10px;
+        right: 10px;
+    }
+}
+
+@media (max-width: 600px) {
+    .hud-left {
+        width: 100%;
+        left: 0;
+        top: 60px;
+        bottom: auto;
+        height: 40%;
+        background: rgba(0,0,0,0.8);
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        display: none; /* Collapsed by default on mobile, toggled via JS */
+    }
+    .hud-left.active-widget {
+        display: flex;
+        z-index: 200;
+    }
+
+    .hud-right {
+        width: 100%;
+        right: 0;
+        bottom: 50px; /* Above status bar */
+        top: auto;
+        height: 40%;
+        background: rgba(0,0,0,0.8);
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+        display: none;
+    }
+    .hud-right.active-widget {
+        display: flex;
+        z-index: 200;
+    }
+}
+
+/* Task Browser Enhancements */
+.concept-group {
+    margin-bottom: 5px;
+    border: 1px solid rgba(0, 255, 157, 0.1);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.concept-group.high { border-left: 3px solid #ff4444; }
+.concept-group.med { border-left: 3px solid #ffcc00; }
+.concept-group.low { border-left: 3px solid #00aa66; }
+
+.concept-summary {
+    padding: 8px 10px;
+    background: rgba(0, 40, 20, 0.3);
+    border-bottom: none;
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.concept-term {
+    font-family: 'Consolas', monospace;
+    color: #aaccbb;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 70%;
+}
+
+.concept-badge {
+    background: rgba(0, 255, 157, 0.2);
+    color: #00ff9d;
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 0.75rem;
+}
+
+.concept-tasks {
+    padding: 5px 0;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.sub-task-item {
+    padding: 4px 10px 4px 20px;
+    border-bottom: 1px solid rgba(0, 255, 157, 0.05);
+    font-family: 'Consolas', monospace;
+    font-size: 0.8rem;
+    transition: background 0.2s;
+}
+
+.sub-task-item:hover {
+    background: rgba(0, 255, 157, 0.1);
+    cursor: pointer;
+}
+
+.task-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.task-type {
+    width: 16px;
+    text-align: center;
+    color: #00d4ff;
+    font-weight: bold;
+}
+
+.task-detail {
+    flex: 1;
+    display: flex;
+    gap: 8px;
+    color: #88aa99;
+}
+
+.task-prio {
+    color: #ffcc00;
+}
+
+.task-truth {
+    color: #00aa66;
+    font-size: 0.75rem;
+}
+
+.task-derivation {
+    margin-left: 24px;
+    font-size: 0.75rem;
+    color: #557766;
+    font-style: italic;
+}
+
+.delete-task-btn {
+    background: none;
+    border: none;
+    color: #557766;
+    cursor: pointer;
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0 4px;
+    opacity: 0;
+    transition: opacity 0.2s, color 0.2s;
+}
+
+.sub-task-item:hover .delete-task-btn {
+    opacity: 1;
+}
+
+.delete-task-btn:hover {
+    color: #ff4444;
+}
+
+/* Inspector Enhancements */
+.inspector-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid rgba(0, 255, 157, 0.1);
+}
+
+.action-btn {
+    background: rgba(0, 255, 157, 0.1);
+    color: #00ff9d;
+    border: 1px solid rgba(0, 255, 157, 0.2);
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    background: rgba(0, 255, 157, 0.3);
+    box-shadow: 0 0 5px rgba(0, 255, 157, 0.5);
+    transform: translateY(-1px);
+}
+
+.clickable-tag {
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: rgba(0, 255, 157, 0.5);
+    transition: color 0.2s;
+}
+
+.clickable-tag:hover {
+    color: #fff;
+    background: rgba(0, 255, 157, 0.2);
+    text-decoration-style: solid;
+}
+
+/* Syntax Highlighting */
+.nars-copula, .metta-keyword {
+    color: #ffcc00;
+    font-weight: bold;
+}
+
+.nars-var, .metta-var {
+    color: #00d4ff;
+}
+
+.nars-truth {
+    color: #00aa66;
+}
+
+.nars-punct {
+    color: #88aa99;
+}
+
+.metta-string {
+    color: #ff99aa;
+}
+
+.metta-comment {
+    color: #666;
+    font-style: italic;
+}
+
+/* Task Browser Extensions */
+.trace-task-btn {
+    background: none;
+    border: none;
+    color: #557766;
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0 4px;
+    opacity: 0;
+    transition: opacity 0.2s, color 0.2s;
+}
+
+.sub-task-item:hover .trace-task-btn {
+    opacity: 1;
+}
+
+.trace-task-btn:hover {
+    color: #00d4ff;
+    transform: scale(1.1);
+}
+
+/* Task Browser Filters */
+.filter-toggles {
+    display: flex;
+    gap: 4px;
+    margin-right: 8px;
+}
+
+.btn-toggle {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 255, 157, 0.2);
+    color: #557766;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.btn-toggle:hover {
+    border-color: rgba(0, 255, 157, 0.5);
+    color: #aaccbb;
+}
+
+.btn-toggle.active {
+    background: rgba(0, 255, 157, 0.1);
+    border-color: #00ff9d;
+    color: #00ff9d;
+    box-shadow: 0 0 5px rgba(0, 255, 157, 0.2);
+}
+
+.btn-toggle[data-type="goal"].active {
+    color: #ffcc00;
+    border-color: #ffcc00;
+    background: rgba(255, 204, 0, 0.1);
+    box-shadow: 0 0 5px rgba(255, 204, 0, 0.2);
+}
+
+.btn-toggle[data-type="question"].active {
+    color: #00d4ff;
+    border-color: #00d4ff;
+    background: rgba(0, 212, 255, 0.1);
+    box-shadow: 0 0 5px rgba(0, 212, 255, 0.2);
+}
+
+/* Log Panel Enhancements */
+.log-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px;
+    background: rgba(0, 20, 10, 0.2);
+    border-bottom: 1px solid rgba(0, 255, 157, 0.1);
+}
+
+.log-toggles {
+    display: flex;
+    gap: 2px;
+}
+
+.log-toggle {
+    cursor: pointer;
+    padding: 2px 5px;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    color: #557766;
+    font-size: 0.75rem;
+    font-weight: bold;
+    font-family: 'Consolas', monospace;
+    transition: all 0.2s;
+}
+
+.log-toggle:hover {
+    color: #00ff9d;
+    background: rgba(0, 255, 157, 0.05);
+}
+
+.log-toggle.active {
+    background: rgba(0, 255, 157, 0.1);
+    color: #00ff9d;
+    border-color: rgba(0, 255, 157, 0.3);
+}
+
+/* Log Categories */
+.log-system { border-left: 2px solid var(--status-system, #00d4ff); background: rgba(0, 212, 255, 0.02); }
+.log-user { border-left: 2px solid var(--accent-primary, #00ff9d); background: rgba(0, 255, 157, 0.02); }
+.log-agent { border-left: 2px solid var(--accent-secondary, #ffcc00); background: rgba(255, 204, 0, 0.02); }
+.log-error { border-left: 2px solid var(--status-error, #ff4444); background: rgba(255, 68, 68, 0.05); }
+.log-warning { border-left: 2px solid var(--status-warning, #ffbb00); background: rgba(255, 187, 0, 0.05); }
+.log-success { border-left: 2px solid var(--status-success, #00aa66); }
+
+.log-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+}
+
+.btn-icon {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #557766;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+.btn-icon:hover {
+    color: #00ff9d;
+    background: rgba(0, 255, 157, 0.1);
+    border-color: rgba(0, 255, 157, 0.3);
+}
+
+/* Task Browser Controls */
+.secondary-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(0, 255, 157, 0.1);
+    margin-bottom: 4px;
+}
+
+.sort-select {
+    background: rgba(0, 0, 0, 0.3);
+    color: #aaccbb;
+    border: 1px solid rgba(0, 255, 157, 0.2);
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-size: 0.8rem;
+    font-family: 'Consolas', monospace;
+    cursor: pointer;
+}
+
+.sort-select:hover {
+    border-color: rgba(0, 255, 157, 0.5);
+    color: #00ff9d;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.page-info {
+    font-size: 0.8rem;
+    color: #aaccbb;
+    font-family: 'Consolas', monospace;
+    min-width: 40px;
+    text-align: center;
+}
+
+.pagination-controls button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Active state for toolbar toggle buttons */
+.active-toggle {
+    background: rgba(0, 255, 157, 0.2) !important;
+    border-color: #00ff9d !important;
+    color: #fff !important;
+    box-shadow: 0 0 8px rgba(0, 255, 157, 0.4);
+}

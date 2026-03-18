@@ -4,6 +4,7 @@
  * that could be relevant to the current primary premise.
  */
 import {Strategy} from '../Strategy.js';
+import {Logger} from '../../util/Logger.js';
 
 export class ExhaustiveStrategy extends Strategy {
     /**
@@ -33,7 +34,7 @@ export class ExhaustiveStrategy extends Strategy {
                     yield [primaryPremise, secondaryPremise];
                 }
             } catch (error) {
-                console.error('Error processing primary premise in ExhaustiveStrategy:', error);
+                Logger.error(`Error processing primary premise in ${this.constructor.name}:`, error);
 
             }
         }

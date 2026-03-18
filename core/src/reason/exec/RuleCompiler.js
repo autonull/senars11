@@ -12,7 +12,7 @@ import {Term} from '../../term/Term.js';
  */
 function isTermInstance(obj) {
     return obj instanceof Term ||
-        (obj && typeof obj._type === 'string' && typeof obj._name === 'string') ||
+        (obj && typeof obj.type === 'string' && typeof obj.name === 'string') ||
         (obj && obj.isTerm === true);
 }
 
@@ -65,16 +65,16 @@ export class RuleCompiler {
         }
 
         if (typeof patternObj === 'string') {
-            if (!this.termFactory?.variable || !this.termFactory?.atomic) {
-                return {isTerm: true, name: patternObj, toString: () => patternObj};
+            if (!this.termFactory) {
+                throw new Error('TermFactory required for pattern hydration');
             }
             if (patternObj.startsWith('$')) return this.termFactory.variable(patternObj);
             return this.termFactory.atomic(patternObj);
         }
 
         if (patternObj.operator) {
-            if (!this.termFactory?.create) {
-                return {isTerm: true, name: JSON.stringify(patternObj), toString: () => JSON.stringify(patternObj)};
+            if (!this.termFactory) {
+                throw new Error('TermFactory required for pattern hydration');
             }
 
             // Assuming binary operators for now if subject/predicate are present

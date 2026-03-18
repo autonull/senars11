@@ -1,3 +1,6 @@
+import { EVENTS, STORAGE_KEYS } from '../config/constants.js';
+import { eventBus } from '../core/EventBus.js';
+
 /**
  * ThemeManager handles application theming
  */
@@ -9,7 +12,7 @@ export class ThemeManager {
 
     _loadTheme() {
         try {
-            return localStorage.getItem('senars-theme') || 'default';
+            return localStorage.getItem(STORAGE_KEYS.THEME) || 'default';
         } catch (e) {
             return 'default';
         }
@@ -19,7 +22,7 @@ export class ThemeManager {
         this.currentTheme = themeName;
         this.applyTheme(themeName);
         try {
-            localStorage.setItem('senars-theme', themeName);
+            localStorage.setItem(STORAGE_KEYS.THEME, themeName);
         } catch (e) {
             console.error('Failed to save theme preference', e);
         }
@@ -35,7 +38,7 @@ export class ThemeManager {
         }
 
         // Dispatch event for components that need manual redraw (like Graphs)
-        document.dispatchEvent(new CustomEvent('senars:settings:updated', { detail: { theme: themeName } }));
+        eventBus.emit(EVENTS.SETTINGS_UPDATED, { theme: themeName });
     }
 
     getTheme() {

@@ -1,5 +1,6 @@
 import {afterEach, beforeEach, describe, expect, test} from '@jest/globals';
 import {LMConfig} from '../../../core/src/lm/LMConfig.js';
+import {LMConfigPersistence} from '../../../agent/src/io/LMConfigPersistence.js';
 import fs from 'fs';
 
 describe('LMConfig', () => {
@@ -89,39 +90,37 @@ describe('LMConfig', () => {
     });
 
     describe('Persistence', () => {
-        test('save writes config to file', () => {
+        test('save writes config to file', async () => {
             config.setProvider('custom', {type: 'dummy'});
-            config.save(testConfigPath);
+            await LMConfigPersistence.save(config, testConfigPath);
 
             expect(fs.existsSync(testConfigPath)).toBe(true);
         });
 
-        test('load reads config from file', () => {
+        test('load reads config from file', async () => {
             config.setProvider('custom', {type: 'dummy', data: 'test'});
             config.setActive('custom');
-            config.save(testConfigPath);
+            await LMConfigPersistence.save(config, testConfigPath);
 
-            const config2 = new LMConfig({persistPath: testConfigPath});
-            config2.load(testConfigPath);
+            const config2 = await LMConfigPersistence.load(testConfigPath);
 
             expect(config2.getActiveProviderName()).toBe('custom');
             expect(config2.getProvider('custom').data).toBe('test');
         });
 
-        test('load handles missing file gracefully', () => {
-            expect(() => config.load('non-existent-file.json')).not.toThrow();
+        test('load handles missing file gracefully', async () => {
+            await expect(LMConfigPersistence.load('non-existent-file.json')).resolves.toBeDefined();
         });
 
-        test('save/load roundtrip preserves configuration', () => {
+        test('save/load roundtrip preserves configuration', async () => {
             config.setProvider('roundtrip', {
                 type: 'dummy',
                 value: 42,
                 nested: {key: 'value'}
             });
-            config.save(testConfigPath);
+            await LMConfigPersistence.save(config, testConfigPath);
 
-            const config2 = new LMConfig({persistPath: testConfigPath});
-            config2.load(testConfigPath);
+            const config2 = await LMConfigPersistence.load(testConfigPath);
 
             const restored = config2.getProvider('roundtrip');
             expect(restored.value).toBe(42);

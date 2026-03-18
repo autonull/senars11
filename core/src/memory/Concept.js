@@ -3,9 +3,9 @@ import {clamp} from '../util/common.js';
 import {BaseComponent} from '../util/BaseComponent.js';
 import {Task} from '../task/Task.js';
 import {Logger} from '../util/Logger.js';
+import { CONCEPT_CAPACITY, CONCEPT_ACTIVATION, CONCEPT_DECAY } from '../config/ConceptConstants.js';
 
 const TASK_TYPES = Object.freeze({BELIEF: 'BELIEF', GOAL: 'GOAL', QUESTION: 'QUESTION'});
-const CAPACITY_DISTRIBUTION = Object.freeze({BELIEF: 0.6, GOAL: 0.3, QUESTION: 0.1});
 
 export class Concept extends BaseComponent {
     static DEFAULT_CONFIG = {
@@ -13,8 +13,8 @@ export class Concept extends BaseComponent {
         maxGoals: 50,
         maxQuestions: 20,
         defaultDecayRate: 0.01,
-        defaultActivationBoost: 0.1,
-        maxActivation: 1.0,
+        defaultActivationBoost: CONCEPT_DECAY.PROPAGATION_STRENGTH,
+        maxActivation: CONCEPT_ACTIVATION.MAX_ACTIVATION,
         minQuality: 0,
         maxQuality: 1
     };
@@ -25,109 +25,79 @@ export class Concept extends BaseComponent {
         this._term = term;
         this._createdAt = Date.now();
         this._lastAccessed = Date.now();
-        this._beliefs = new Bag(this.config.maxBeliefs);
-        this._goals = new Bag(this.config.maxGoals);
-        this._questions = new Bag(this.config.maxQuestions);
+        this._lastModified = Date.now();
+
+        this._storage = {
+            [TASK_TYPES.BELIEF]: new Bag(this.config.maxBeliefs),
+            [TASK_TYPES.GOAL]: new Bag(this.config.maxGoals),
+            [TASK_TYPES.QUESTION]: new Bag(this.config.maxQuestions)
+        };
+
         this._activation = 0;
         this._useCount = 0;
         this._quality = 0;
     }
 
-    get term() {
-        return this._term;
-    }
+    get term() { return this._term; }
+    get createdAt() { return this._createdAt; }
+    get lastAccessed() { return this._lastAccessed; }
+    get lastModified() { return this._lastModified; }
+    get activation() { return this._activation; }
+    get useCount() { return this._useCount; }
+    get quality() { return this._quality; }
+    get priority() { return this._activation; }
 
-    get createdAt() {
-        return this._createdAt;
-    }
-
-    get lastAccessed() {
-        return this._lastAccessed;
-    }
-
-    get activation() {
-        return this._activation;
-    }
-
-    get useCount() {
-        return this._useCount;
-    }
-
-    get quality() {
-        return this._quality;
-    }
-
-    get priority() {
-        return this._activation;
-    }
-
-    get beliefs() {
-        return this._beliefs;
-    }
-
-    get goals() {
-        return this._goals;
-    }
-
-    get questions() {
-        return this._questions;
-    }
+    get beliefs() { return this._storage[TASK_TYPES.BELIEF]; }
+    get goals() { return this._storage[TASK_TYPES.GOAL]; }
+    get questions() { return this._storage[TASK_TYPES.QUESTION]; }
 
     get totalTasks() {
-        return this._beliefs.size + this._goals.size + this._questions.size;
+        return this.beliefs.size + this.goals.size + this.questions.size;
+    }
+
+    get _bags() {
+        return Object.values(this._storage);
     }
 
     get averagePriority() {
-        return this.totalTasks ? this._calculateWeightedAveragePriority() : 0;
-    }
-
-    _calculateWeightedAveragePriority() {
-        const bags = [this._beliefs, this._goals, this._questions];
-        const totalWeightedPriority = bags.reduce((sum, bag) => sum + (bag.getAveragePriority() * bag.size), 0);
-        return totalWeightedPriority / this.totalTasks;
+        if (!this.totalTasks) return 0;
+        return this._bags.reduce((sum, bag) => sum + (bag.getAveragePriority() * bag.size), 0) / this.totalTasks;
     }
 
     _getStorage(taskType) {
-        const storageMap = {
-            [TASK_TYPES.BELIEF]: this._beliefs,
-            [TASK_TYPES.GOAL]: this._goals,
-            [TASK_TYPES.QUESTION]: this._questions
-        };
-
-        const storage = storageMap[taskType];
-        if (!storage) {
-            const validTypes = Object.values(TASK_TYPES).join(', ');
-            throw new Error(`Unknown task type: ${taskType}. Expected ${validTypes}.`);
-        }
+        const storage = this._storage[taskType];
+        if (!storage) throw new Error(`Unknown task type: ${taskType}`);
         return storage;
     }
 
-    _updateLastAccessed() {
+    _updateActivity() {
         this._lastAccessed = Date.now();
+        this._lastModified = Date.now();
     }
 
     addTask(task) {
-        const storage = this._getStorage(task.type);
-        const added = storage.add(task);
+        const added = this._getStorage(task.type).add(task);
         if (added) {
-            this._updateLastAccessed();
+            this._updateActivity();
             this._useCount++;
         }
         return added;
     }
 
     enforceCapacity(maxTasksPerType) {
-        Object.entries(CAPACITY_DISTRIBUTION).forEach(([type, factor]) => {
-            const bag = this[`_${type.toLowerCase()}s`]; // Convert BELIEF to _beliefs
-            if (bag) {
-                bag.pruneTo(maxTasksPerType * factor);
-            }
-        });
+        const CAPACITY_DISTRIBUTION = {
+            [TASK_TYPES.BELIEF]: CONCEPT_CAPACITY.BELIEF_CAPACITY,
+            [TASK_TYPES.GOAL]: CONCEPT_CAPACITY.GOAL_CAPACITY,
+            [TASK_TYPES.QUESTION]: CONCEPT_CAPACITY.QUESTION_CAPACITY
+        };
+
+        for (const [type, factor] of Object.entries(CAPACITY_DISTRIBUTION)) {
+            this._getStorage(type).pruneTo(maxTasksPerType * factor);
+        }
     }
 
     getTask(taskId) {
-        // Find early exit using loop is more efficient here than map/find combo
-        for (const bag of [this._beliefs, this._goals, this._questions]) {
+        for (const bag of this._bags) {
             const task = bag.find(t => t.stamp.id === taskId);
             if (task) return task;
         }
@@ -136,10 +106,7 @@ export class Concept extends BaseComponent {
 
     replaceTask(oldTask, newTask) {
         const storage = this._getStorage(oldTask.type);
-        if (storage.remove(oldTask)) {
-            return storage.add(newTask);
-        }
-        return false;
+        return storage.remove(oldTask) && storage.add(newTask);
     }
 
     getHighestPriorityTask(taskType) {
@@ -152,22 +119,22 @@ export class Concept extends BaseComponent {
 
     removeTask(task) {
         const removed = this._getStorage(task.type).remove(task);
-        if (removed) {
-            this._updateLastAccessed();
-        }
+        if (removed) this._updateActivity();
         return removed || false;
     }
 
     applyDecay(decayRate = this.config.defaultDecayRate) {
-        [this._beliefs, this._goals, this._questions].forEach(bag => bag.applyDecay(decayRate));
+        for (const bag of this._bags) {
+            bag.applyDecay(decayRate);
+        }
         this._activation *= (1 - decayRate);
-        this._updateLastAccessed();
+        this._updateActivity();
     }
 
-    boostActivation(activationBoost = this.config.defaultActivationBoost) {
-        this._activation = clamp(this._activation + activationBoost, 0, this.config.maxActivation);
-        this._updateLastAccessed();
-        this.incrementUseCount();
+    boostActivation(boost = this.config.defaultActivationBoost) {
+        this._activation = clamp(this._activation + boost, 0, this.config.maxActivation);
+        this._updateActivity();
+        this._useCount++;
     }
 
     incrementUseCount() {
@@ -176,37 +143,32 @@ export class Concept extends BaseComponent {
 
     updateQuality(qualityChange) {
         this._quality = clamp(this._quality + qualityChange, this.config.minQuality, this.config.maxQuality);
+        this._lastModified = Date.now();
     }
 
     containsTask(task) {
-        return this._beliefs.contains(task) || this._goals.contains(task) || this._questions.contains(task);
+        return this._bags.some(bag => bag.contains(task));
     }
 
     getAllTasks() {
-        const allTasks = [
-            ...this._beliefs.getItemsInPriorityOrder(),
-            ...this._goals.getItemsInPriorityOrder(),
-            ...this._questions.getItemsInPriorityOrder()
-        ];
-        return allTasks.sort((a, b) => b.budget.priority - a.budget.priority);
+        return this._bags
+            .flatMap(bag => bag.getItemsInPriorityOrder())
+            .sort((a, b) => b.budget.priority - a.budget.priority);
     }
 
     updateTaskBudget(task, newBudget) {
         const storage = this._getStorage(task.type);
-        return this._replaceTaskInStorage(storage, task, task.clone({budget: newBudget}));
-    }
-
-    _replaceTaskInStorage(storage, oldTask, newTask) {
-        return storage.remove(oldTask) && storage.add(newTask);
+        // Removing and re-adding ensures the bag updates priority ordering if needed
+        return storage.remove(task) && storage.add(task.clone({budget: newBudget}));
     }
 
     getStats() {
         return {
             term: this._term.toString(),
             totalTasks: this.totalTasks,
-            beliefsCount: this._beliefs.size,
-            goalsCount: this._goals.size,
-            questionsCount: this._questions.size,
+            beliefsCount: this.beliefs.size,
+            goalsCount: this.goals.size,
+            questionsCount: this.questions.size,
             activation: this._activation,
             useCount: this._useCount,
             quality: this._quality,
@@ -224,9 +186,9 @@ export class Concept extends BaseComponent {
             activation: this._activation,
             useCount: this._useCount,
             quality: this._quality,
-            beliefs: this._beliefs.serialize ? this._beliefs.serialize() : null,
-            goals: this._goals.serialize ? this._goals.serialize() : null,
-            questions: this._questions.serialize ? this._questions.serialize() : null,
+            beliefs: this.beliefs.serialize ? this.beliefs.serialize() : null,
+            goals: this.goals.serialize ? this.goals.serialize() : null,
+            questions: this.questions.serialize ? this.questions.serialize() : null,
             config: this.config,
             version: '1.0.0'
         };
@@ -234,9 +196,7 @@ export class Concept extends BaseComponent {
 
     async deserialize(data) {
         try {
-            if (!data) {
-                throw new Error('Invalid concept data for deserialization');
-            }
+            if (!data) throw new Error('Invalid concept data');
 
             this._createdAt = data.createdAt || Date.now();
             this._lastAccessed = data.lastAccessed || Date.now();
@@ -244,21 +204,19 @@ export class Concept extends BaseComponent {
             this._useCount = data.useCount || 0;
             this._quality = data.quality || 0;
 
-            if (data.config) {
-                this.configure(data.config);
-            }
+            if (data.config) this.configure(data.config);
 
-            const deserializationMap = [
-                {dataKey: 'beliefs', bagKey: '_beliefs'},
-                {dataKey: 'goals', bagKey: '_goals'},
-                {dataKey: 'questions', bagKey: '_questions'}
-            ];
+            const map = {
+                beliefs: this.beliefs,
+                goals: this.goals,
+                questions: this.questions
+            };
 
-            await Promise.all(deserializationMap.map(async ({dataKey, bagKey}) => {
-                if (data[dataKey] && this[bagKey].deserialize) {
-                    await this[bagKey].deserialize(data[dataKey], Task.fromJSON);
-                }
-            }));
+            await Promise.all(
+                Object.entries(map).map(([key, bag]) =>
+                    data[key] && bag.deserialize ? bag.deserialize(data[key], Task.fromJSON) : Promise.resolve()
+                )
+            );
 
             return true;
         } catch (error) {

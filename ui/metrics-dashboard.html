@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metrics Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body { padding: 20px; font-family: sans-serif; background: #1e1e1e; color: #e0e0e0; }
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; max-width: 1000px; margin: 0 auto; }
+        .card { background: #252526; padding: 20px; border-radius: 8px; border: 1px solid #333; text-align: center; }
+        .card h3 { margin-top: 0; color: #888; font-size: 14px; text-transform: uppercase; }
+        .value { font-size: 36px; font-weight: bold; color: #007acc; }
+        .graph { height: 100px; background: #333; margin-top: 10px; position: relative; overflow: hidden; }
+        .bar { background: #007acc; width: 10px; position: absolute; bottom: 0; transition: height 0.3s; }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script type="module">
+        import { SystemMetricsPanel } from './src/components/SystemMetricsPanel.js';
+
+        const app = new SystemMetricsPanel(document.getElementById('app'));
+        app.initialize();
+
+        // Simulate data updates
+        setInterval(() => {
+            const metrics = {
+                performance: {
+                    throughput: Math.random() * 100,
+                    avgLatency: Math.random() * 50
+                },
+                resourceUsage: {
+                    heapTotal: 100,
+                    heapUsed: Math.random() * 100
+                },
+                taskProcessing: {
+                    totalProcessed: 100,
+                    successful: 90 + Math.random() * 10
+                },
+                reasoningSteps: Math.floor(Math.random() * 1000),
+                uptime: performance.now()
+            };
+            app.update(metrics);
+        }, 1000);
+    </script>
+</body>
+</html>

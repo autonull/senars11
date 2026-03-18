@@ -13,17 +13,18 @@ export class PriorityForgettingStrategy extends ForgettingStrategy {
      * @returns {*|null} The term of the concept with lowest activation, or null if no concepts
      */
     forget(concepts, stats) {
-        let targetTerm = null;
-        let lowestActivation = Infinity;
+        return this._forgetByExtremum(concepts, stats);
+    }
 
-        for (const [term, concept] of concepts) {
-            const activation = concept.activation ?? 0.1;
-            if (activation < lowestActivation) {
-                lowestActivation = activation;
-                targetTerm = term;
-            }
-        }
-
-        return targetTerm;
+    /**
+     * Get the activation value for comparison.
+     *
+     * @param {Object} concept - Concept instance
+     * @param {Object} stats - Memory statistics (unused)
+     * @returns {number} Activation value (default 0.1 if undefined)
+     * @protected
+     */
+    _getValue(concept, stats) {
+        return concept.activation ?? 0.1;
     }
 }

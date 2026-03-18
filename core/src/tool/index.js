@@ -1,19 +1,9 @@
-/**
- * @file src/tools/index.js
- * @description Export all tools for easy import
- */
-
-export {ToolEngine} from './ToolEngine.js';
-export {ToolRegistry} from './ToolRegistry.js';
-export {ToolIntegration} from './ToolIntegration.js';
-export {ExplanationService} from './ExplanationService.js';
-export {BaseTool} from './BaseTool.js';
-export {FileOperationsTool} from './FileOperationsTool.js';
-export {CommandExecutorTool} from './CommandExecutorTool.js';
-export {WebAutomationTool} from './WebAutomationTool.js';
-export {MediaProcessingTool} from './MediaProcessingTool.js';
-export {EmbeddingTool} from './EmbeddingTool.js';
-export {SandboxedTool} from './SandboxedTool.js';
-
-// Analysis tools
-export * from './software/index.js';
+export * from './common/EmbeddingTool.js';
+export * from './common/WebAutomationTool.js';
+export * from './ToolEngine.js';
+export * from './ToolRegistry.js';
+export * from './ToolIntegration.js';
+export * from './BaseTool.js';
+export * from './SandboxedTool.js';
+export * from './ExplanationService.js';
+export * from './NARTool.js';

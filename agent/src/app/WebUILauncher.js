@@ -11,6 +11,7 @@ import {dirname, join} from 'path';
 import {WebSocketMonitor} from '../server/WebSocketMonitor.js';
 import {NAR} from '../../core/src/nar/NAR.js';
 import {DemoWrapper} from '../demo/DemoWrapper.js';
+import {Logger} from '../../core/src/util/Logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -54,7 +55,7 @@ const parseArgs = (args = process.argv.slice(2)) => {
 
 // Initialize WebSocket server
 const startWebSocketServer = async (config = DEFAULT_CONFIG) => {
-    console.log(`Starting WebSocket server on ${config.webSocket.host}:${config.webSocket.port}...`);
+    Logger.info(`Starting WebSocket server on ${config.webSocket.host}:${config.webSocket.port}...`);
 
     const nar = new NAR(config.nar);
     await nar.initialize();
@@ -82,13 +83,13 @@ const startWebSocketServer = async (config = DEFAULT_CONFIG) => {
     demoWrapper.runPeriodicMetricsUpdate();
     nar.start();
 
-    console.log('WebSocket server started successfully');
+    Logger.info('WebSocket server started successfully');
     return {nar, monitor, demoWrapper};
 };
 
 // Start Vite dev server
 const startViteDevServer = (config = DEFAULT_CONFIG) => {
-    console.log(`Starting Vite dev server on port ${config.ui.port}...`);
+    Logger.info(`Starting Vite dev server on port ${config.ui.port}...`);
 
     // Check if we're in the right directory structure for the ui folder
     // __dirname is src/ui, so ui directory is at the project root level
@@ -107,19 +108,19 @@ const startViteDevServer = (config = DEFAULT_CONFIG) => {
     });
 
     viteProcess.on('error', err => {
-        console.error('Error starting Vite server:', err.message);
+        Logger.error('Error starting Vite server:', err.message);
         if (err.code === 'ENOENT') {
-            console.error('npx command not found. Make sure Node.js and npm are installed and in your PATH.');
-            console.error('You may need to run `npm install` in the ui directory first.');
-            console.error('Current working directory:', process.cwd());
-            console.error('UI directory path checked:', uiDir);
+            Logger.error('npx command not found. Make sure Node.js and npm are installed and in your PATH.');
+            Logger.error('You may need to run `npm install` in the ui directory first.');
+            Logger.error('Current working directory:', process.cwd());
+            Logger.error('UI directory path checked:', uiDir);
         }
         process.exit(1);
     });
 
     viteProcess.on('close', code => {
-        console.log(`Vite server exited with code ${code}`);
-        console.log('Vite server closed. Press Ctrl+C to shut down the WebSocket server as well.');
+        Logger.info(`Vite server exited with code ${code}`);
+        Logger.info('Vite server closed. Press Ctrl+C to shut down the WebSocket server as well.');
     });
 
     return viteProcess;
@@ -130,7 +131,7 @@ const saveNarState = async (nar) => {
     const fs = await import('fs');
     const state = nar.serialize();
     await fs.promises.writeFile(DEFAULT_CONFIG.persistence.defaultPath, JSON.stringify(state, null, 2));
-    console.log('Current state saved to agent.json');
+    Logger.info('Current state saved to agent.json');
 };
 
 // Shutdown services
@@ -138,7 +139,7 @@ const shutdownServices = async (webSocketServer) => {
     try {
         await saveNarState(webSocketServer.nar);
     } catch (saveError) {
-        console.error('Error saving state on shutdown:', saveError.message);
+        Logger.error('Error saving state on shutdown:', saveError.message);
     }
 
     if (webSocketServer.monitor) await webSocketServer.monitor.stop();
@@ -148,20 +149,20 @@ const shutdownServices = async (webSocketServer) => {
 // Set up graceful shutdown
 const setupGracefulShutdown = async (webSocketServer) => {
     const shutdown = async () => {
-        console.log('\nShutting down gracefully...');
+        Logger.info('\nShutting down gracefully...');
         await shutdownServices(webSocketServer);
-        console.log('Servers stopped successfully');
+        Logger.info('Servers stopped successfully');
         process.exit(0);
     };
 
     process.on('SIGINT', shutdown);
     process.on('SIGTERM', shutdown);
     process.on('uncaughtException', error => {
-        console.error('Uncaught exception:', error.message);
+        Logger.error('Uncaught exception:', error.message);
         process.exit(1);
     });
     process.on('unhandledRejection', (reason, promise) => {
-        console.error('Unhandled rejection at:', promise, 'reason:', reason);
+        Logger.error('Unhandled rejection at:', {promise, reason});
         process.exit(1);
     });
 };
@@ -183,7 +184,7 @@ export const launchDataDrivenUI = async (dataProcessorFn, cliArgs = process.argv
         // Execute the consolidated launcher with the provided arguments
         execFileSync('node', [launcherPath, ...cliArgs], {stdio: 'inherit'});
     } catch (error) {
-        console.error('Failed to start UI launcher:', error.message);
+        Logger.error('Failed to start UI launcher:', error.message);
         process.exit(1);
     }
 };
@@ -205,7 +206,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         // Execute the consolidated launcher with all arguments except the script name
         execFileSync('node', [launcherPath, ...process.argv.slice(2)], {stdio: 'inherit'});
     } catch (error) {
-        console.error('Failed to start UI launcher:', error.message);
+        Logger.error('Failed to start UI launcher:', error.message);
         process.exit(1);
     }
 }

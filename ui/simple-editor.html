@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Editor - SeNARS</title>
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="src/styles/components.css">
+
+    <style>
+        body,
+        html {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #header {
+            height: 40px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        #main-container {
+            flex: 1;
+            display: flex;
+            width: 100%;
+            height: calc(100% - 40px);
+            overflow: hidden;
+        }
+
+        #editor-container {
+            flex: 1;
+            border-right: 1px solid #333;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #output-container {
+            flex: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="header">
+        <span>SeNARS Simple Editor</span>
+        <span style="font-weight: normal; color: #888; margin-left: 16px; font-size: 0.9em;">
+            A lightweight environment for running MeTTa & Narsese code.
+        </span>
+    </div>
+    <div id="main-container">
+        <div id="editor-container"></div>
+        <div id="output-container"></div>
+    </div>
+    <div id="notification-container"></div>
+
+    <!-- Import Map (Copied from ide.html) -->
+    <script type="importmap">
+    {
+        "imports": {
+            "cytoscape": "/node_modules/cytoscape/dist/cytoscape.esm.min.mjs",
+            "cytoscape-fcose": "/src/shims/mock-cytoscape-fcose.js",
+            "cytoscape-fcose/": "/node_modules/cytoscape-fcose/",
+            "cose-base": "/node_modules/cose-base/cose-base.js",
+            "golden-layout": "/node_modules/golden-layout/dist/esm/index.js",
+            "marked": "/node_modules/marked/lib/marked.esm.js",
+            "@senars/core": "/core/src/index.js",
+            "@senars/core/": "/core/",
+            "@senars/agent": "/agent/src/index.js",
+            "@senars/agent/": "/agent/",
+            "@senars/metta": "/metta/src/",
+            "@senars/metta/": "/metta/src/",
+            "zod": "/node_modules/zod/index.js",
+            "mitt": "/node_modules/mitt/dist/mitt.mjs",
+            "uuid": "/node_modules/uuid/dist/esm-browser/index.js",
+            "eventemitter3": "/node_modules/eventemitter3/dist/eventemitter3.esm.js",
+            "immer": "/node_modules/immer/dist/immer.mjs",
+            "js-sha256": "/node_modules/js-sha256/src/sha256.js",
+            "danfojs": "/node_modules/danfojs/lib/bundle.esm.js",
+            "module": "/src/shims/mock-node.js",
+            "fs": "/src/shims/mock-node.js",
+            "path": "/src/shims/mock-node.js",
+            "url": "/src/shims/mock-node.js",
+            "crypto": "/src/shims/mock-node.js",
+            "events": "/src/shims/events-shim.js",
+            "util": "/src/shims/mock-node.js",
+            "os": "/src/shims/mock-node.js",
+            "child_process": "/src/shims/mock-node.js",
+            "@langchain/core/messages": "/src/shims/mock-langchain.js",
+            "@langchain/core/tools": "/src/shims/mock-langchain.js",
+            "@langchain/ollama": "/src/shims/mock-langchain.js",
+            "@langchain/openai": "/src/shims/mock-langchain.js",
+            "@langchain/langgraph": "/src/shims/mock-langchain.js",
+            "@langchain/langgraph/prebuilt": "/src/shims/mock-langchain.js",
+            "@langchain/langgraph-checkpoint": "/src/shims/mock-langchain.js",
+            "langchain": "/src/shims/mock-langchain.js",
+            "chart.js/auto": "/node_modules/chart.js/auto/auto.js",
+            "chart.js": "/node_modules/chart.js/dist/chart.js",
+            "@kurkle/color": "/node_modules/@kurkle/color/dist/color.esm.js",
+            "ai": "/src/shims/mock-ai-sdk.js",
+            "@ai-sdk/openai": "/src/shims/mock-ai-sdk.js",
+            "@ai-sdk/anthropic": "/src/shims/mock-ai-sdk.js",
+            "@huggingface/transformers": "/src/shims/mock-ai-sdk.js",
+            "@modelcontextprotocol/sdk": "/src/shims/mock-ai-sdk.js",
+            "ink": "/src/shims/mock-ink.js",
+            "ink-big-text": "/src/shims/mock-ink.js",
+            "ink-gradient": "/src/shims/mock-ink.js",
+            "ink-spinner": "/src/shims/mock-ink.js",
+            "ink-text-input": "/src/shims/mock-ink.js",
+            "ink-select-input": "/src/shims/mock-ink.js",
+            "react": "/src/shims/mock-ink.js",
+            "react-dom": "/src/shims/mock-ink.js",
+            "inquirer": "/src/shims/mock-ink.js",
+            "ollama-ai-provider": "/src/shims/mock-ai-sdk.js",
+            "node-fetch": "/src/shims/mock-node.js",
+            "ws": "/src/shims/mock-ws.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import '/src/shims/process-shim.js';
+    </script>
+    <script type="module" src="/src/main-simple-editor.js"></script>
+</body>
+
+</html>

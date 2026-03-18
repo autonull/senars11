@@ -1,43 +1,113 @@
-import {Config} from '../config/Config.js';
-import {ContextMenu} from '../components/ContextMenu.js';
-import {AutoLearner} from '../utils/AutoLearner.js';
-import {KeyboardNavigation} from './KeyboardNavigation.js';
+import { Config } from '../config/Config.js';
+import { ContextMenu } from '../components/ContextMenu.js';
+import { AutoLearner } from '../utils/AutoLearner.js';
+import { KeyboardNavigation } from './KeyboardNavigation.js';
+import { EVENTS } from '../config/constants.js';
+import { eventBus } from '../core/EventBus.js';
 
 export class GraphManager {
     constructor(uiElements = null, callbacks = {}) {
         this.cy = null;
         this.uiElements = uiElements;
         this.callbacks = callbacks;
-        this.graphData = { nodes: new Map(), edges: new Map() };
         this.layoutTimeout = null;
         this.pendingLayout = false;
-        this.layoutDebounceTime = 300;
         this.updatesEnabled = false;
         this.traceMode = false;
         this.tracedNode = null;
-        this.filters = { minPriority: 0, showTasks: true, showConcepts: true };
+        this.filters = { minPriority: 0, showTasks: true };
         this.contextMenu = null;
         this.autoLearner = new AutoLearner();
         this.keyboardNav = new KeyboardNavigation(this);
 
-        document.addEventListener('senars:concept:select', (e) => {
-            const { id, concept } = e.detail;
+        this._setupGlobalListeners();
+    }
 
-            // Record interaction via AutoLearner
-            if (concept && concept.term) {
-                this.autoLearner.recordInteraction(concept.term, 1);
-            }
-
-            if (id) {
-                const node = this.cy?.getElementById(id);
-                if (node?.length) {
-                    this.highlightNode(node);
-                    this.animateGlow(id, 1.0);
-                }
-            }
+    _setupGlobalListeners() {
+        eventBus.on(EVENTS.CONCEPT_SELECT, (payload) => {
+            const { id, concept } = payload;
+            if (concept?.term) this.autoLearner.recordInteraction(concept.term, 1);
+            if (id) this.highlightNode(id);
         });
 
-        document.addEventListener('senars:graph:filter', (e) => this.applyFilters(e.detail));
+        eventBus.on(EVENTS.GRAPH_FILTER, (payload) => this.applyFilters(payload));
+        eventBus.on(EVENTS.SETTINGS_UPDATED, () => {
+            this.updateStyle();
+            this.scheduleLayout();
+        });
+    }
+
+    initialize() {
+        if (!this.uiElements?.graphContainer) {
+            console.error('Graph container element not found');
+            return false;
+        }
+
+        try {
+            this.cy = cytoscape({
+                container: this.uiElements.graphContainer,
+                style: Config.getGraphStyle(),
+                layout: Config.getGraphLayout(),
+                minZoom: 0.1,
+                maxZoom: 5,
+                wheelSensitivity: 0.2
+            });
+        } catch (error) {
+            console.error('Failed to initialize Cytoscape:', error);
+            return false;
+        }
+
+        this.keyboardNav.initialize(this.uiElements.graphContainer);
+        if (this.callbacks.commandProcessor) {
+            this.setCommandProcessor(this.callbacks.commandProcessor);
+        }
+
+        this._setupInteractionEvents();
+        return true;
+    }
+
+    _setupInteractionEvents() {
+        if (!this.cy) return;
+
+        this.cy.on('tap', 'node', (event) => this._handleNodeClick(event));
+        this.cy.on('tap', 'edge', (event) => this._handleEdgeClick(event));
+        this.cy.on('cxttap', 'node', (e) => this._handleContext(e, 'node'));
+        this.cy.on('cxttap', 'edge', (e) => this._handleContext(e, 'edge'));
+        this.cy.on('dbltap', 'node', (event) => this._handleNodeDoubleClick(event));
+    }
+
+    _handleNodeClick(event) {
+        const node = event.target;
+        const data = this._getNodeData(node);
+        this.callbacks.onNodeClick?.(data);
+
+        if (data.fullData) {
+            eventBus.emit(EVENTS.CONCEPT_SELECT, {
+                concept: data.fullData,
+                id: data.id
+            });
+        }
+
+        if (event.originalEvent.shiftKey) this.toggleTraceMode(data.id);
+    }
+
+    _handleNodeDoubleClick(event) {
+        const node = event.target;
+        this.cy.animate({ center: { eles: node }, zoom: 2, duration: 300 });
+        this.animateGlow(node.id(), 1.0);
+        this.toggleTraceMode(node.id());
+    }
+
+    _handleEdgeClick(event) {
+        // Placeholder for edge details
+    }
+
+    _handleContext(event, type) {
+        event.preventDefault();
+        if (this.contextMenu) {
+            const pos = event.renderedPosition || event.position;
+            this.contextMenu.show(pos.x, pos.y, event.target, type);
+        }
     }
 
     setUpdatesEnabled(enabled) {
@@ -51,7 +121,72 @@ export class GraphManager {
 
     setLayout(name) {
         if (!this.cy) return;
+        this.currentLayout = name;
         this.cy.layout(Config.getGraphLayout(name)).run();
+    }
+
+    applyScatterLayout(xAxis = 'priority', yAxis = 'confidence') {
+        if (!this.cy) return;
+        this.currentLayout = 'scatter';
+
+        const nodes = this.cy.nodes();
+        const width = this.cy.width() * 0.8;
+        const height = this.cy.height() * 0.8;
+
+        this._calculateScatterPositions(nodes, width, height, xAxis, yAxis);
+        this.cy.fit();
+    }
+
+    _calculateScatterPositions(nodes, width, height, xAxis, yAxis) {
+        const getVal = (node, axis) => {
+            const data = node.data('fullData') || {};
+            const truth = data.truth || {};
+            const budget = data.budget || {};
+
+            switch (axis) {
+                case 'priority': return budget.priority || 0;
+                case 'durability': return budget.durability || 0;
+                case 'quality': return budget.quality || 0;
+                case 'frequency': return truth.frequency || 0;
+                case 'confidence': return truth.confidence || 0;
+                case 'taskCount': return Math.min((data.tasks?.length || 0) / 20, 1);
+                default: return 0;
+            }
+        };
+
+        nodes.forEach(node => {
+            const x = getVal(node, xAxis);
+            const y = getVal(node, yAxis);
+
+            const posX = (x - 0.5) * width;
+            const posY = -(y - 0.5) * height;
+
+            node.position({ x: posX, y: posY });
+        });
+    }
+
+    applySortedGridLayout(sortField = 'priority') {
+        if (!this.cy) return;
+        this.currentLayout = 'sorted-grid';
+
+        const nodes = this.cy.nodes().sort((a, b) => {
+            const getVal = (n) => {
+                 const d = n.data('fullData') || {};
+                 if (sortField === 'priority') return d.budget?.priority || 0;
+                 if (sortField === 'term') return n.id();
+                 return 0;
+            };
+            // Descending order
+            return getVal(b) - getVal(a);
+        });
+
+        nodes.layout({
+            name: 'grid',
+            rows: undefined,
+            cols: undefined,
+            avoidOverlap: true,
+            padding: 30
+        }).run();
     }
 
     applyFilters(filters) {
@@ -59,53 +194,35 @@ export class GraphManager {
         this.filters = { ...this.filters, ...filters };
 
         this.cy.batch(() => {
-            const nodes = this.cy.nodes();
-            nodes.forEach(node => {
+            this.cy.nodes().forEach(node => {
                 const data = node.data('fullData');
-                let visible = true;
-
-                // Type Filter
                 const type = node.data('type');
+                const priority = data?.budget?.priority ?? 0;
+
+                let visible = true;
                 if (type === 'task' && !this.filters.showTasks) visible = false;
+                if (priority < this.filters.minPriority) visible = false;
+                if (this.filters.hideIsolated && node.degree() === 0) visible = false;
 
-                // Priority Filter
-                if (visible && data && data.budget) {
-                    if (data.budget.priority < this.filters.minPriority) visible = false;
-                }
-
-                if (visible) {
-                    node.style('display', 'element');
-                } else {
-                    node.style('display', 'none');
-                }
+                node.style('display', visible ? 'element' : 'none');
             });
         });
     }
 
-    focusNode(nodeId) {
-        const node = this.cy?.getElementById(nodeId);
-        if (node?.length) {
-            this.cy.animate({
-                center: { eles: node },
-                zoom: 2,
-                duration: 500
-            });
-            this.highlightNode(node);
-        }
-    }
-
     toggleTraceMode(nodeId) {
-        if (!this.cy) return;
+        if (!this.cy || this.cy.destroyed()) return;
 
         if (this.traceMode && this.tracedNode === nodeId) {
             this.traceMode = false;
             this.tracedNode = null;
             this.cy.elements().removeClass('trace-highlight trace-dim');
         } else {
+            const root = this.cy.getElementById(nodeId);
+            if (root.empty()) return;
+
             this.traceMode = true;
             this.tracedNode = nodeId;
 
-            const root = this.cy.getElementById(nodeId);
             const connected = root.union(root.successors()).union(root.predecessors()).union(root.neighborhood());
             const others = this.cy.elements().not(connected);
 
@@ -124,341 +241,215 @@ export class GraphManager {
             label: node.data('label'),
             id: node.id(),
             term: node.data('fullData')?.term || node.data('label'),
-            nodeType: node.data('type') || 'unknown',
-            weight: node.data('weight') || 0,
+            nodeType: node.data('type'),
             fullData: node.data('fullData')
         };
     }
 
-    highlightNode(node) {
-        if (!this.cy || !node) return;
+    highlightNode(nodeId) {
+        if (!this.cy || this.cy.destroyed()) return;
+        const node = typeof nodeId === 'string' ? this.cy.getElementById(nodeId) : nodeId;
+        if (!node || node.empty()) return;
+
         this.cy.elements().removeClass('keyboard-selected');
         node.addClass('keyboard-selected');
-        this.cy.animate({ center: {elt: node}, zoom: this.cy.zoom() }, { duration: 200 });
-    }
-
-    initialize() {
-        if (!this.uiElements?.graphContainer) {
-            console.error('Graph container element not found');
-            return false;
-        }
-
-        try {
-            this.cy = cytoscape({
-                container: this.uiElements.graphContainer,
-                style: Config.getGraphStyle(),
-                layout: Config.getGraphLayout()
-            });
-        } catch (error) {
-            console.error('Failed to initialize Cytoscape:', error);
-            this.cy = cytoscape({
-                container: this.uiElements.graphContainer,
-                style: Config.getGraphStyle(),
-                layout: {name: 'grid'}
-            });
-        }
-
-        this.keyboardNav.initialize(this.uiElements.graphContainer);
-
-        if (this.callbacks.commandProcessor) {
-            this.contextMenu = new ContextMenu(this, this.callbacks.commandProcessor);
-        }
-
-        this._setupOverlayControls();
-
-        document.addEventListener('senars:settings:updated', () => {
-            this.updateStyle();
-            this.runLayout();
-        });
-
-        this.cy.on('tap', 'node', (event) => {
-            const data = this._getNodeData(event.target);
-            this.updateGraphDetails(data);
-            this.callbacks.onNodeClick?.(data);
-
-            // Dispatch select event to sync with other UI components
-            if (data.fullData) {
-                document.dispatchEvent(new CustomEvent('senars:concept:select', {
-                    detail: { concept: data.fullData, id: data.id }
-                }));
-            }
-
-            if (event.originalEvent.shiftKey) this.toggleTraceMode(data.id);
-        });
-
-        this.cy.on('tap', 'edge', (event) => {
-            const edge = event.target;
-            this.updateGraphDetails({
-                type: 'edge',
-                label: edge.data('label') || 'Relationship',
-                source: edge.data('source'),
-                target: edge.data('target'),
-                edgeType: edge.data('type') || 'unknown'
-            });
-        });
-
-        this.cy.on('cxttap', 'node', (e) => this._handleContext(e, 'node'));
-        this.cy.on('cxttap', 'edge', (e) => this._handleContext(e, 'edge'));
-
-        this.cy.on('dbltap', 'node', (event) => {
-            const node = event.target;
-            this.cy.animate({ center: {eles: node}, zoom: 2, duration: 300 });
-            this.animateGlow(node.id(), 1.0);
-            this.toggleTraceMode(node.id());
-        });
-
-        return true;
-    }
-
-    _handleContext(event, type) {
-        event.preventDefault();
-        if (this.contextMenu) {
-            const pos = event.renderedPosition || event.position;
-            this.contextMenu.show(pos.x, pos.y, event.target, type);
-        }
-    }
-
-    _setupOverlayControls() {
-        const container = this.uiElements.graphContainer.parentElement;
-        if (!container) return;
-        container.querySelector('#btn-layout-fcose')?.addEventListener('click', () => this.setLayout('fcose'));
-        container.querySelector('#btn-layout-grid')?.addEventListener('click', () => this.setLayout('grid'));
-        container.querySelector('#btn-layout-circle')?.addEventListener('click', () => this.setLayout('circle'));
-    }
-
-    addNode(nodeData, runLayout = true) {
-        if (!this.cy) return false;
-
-        const { id, label, term, type, nodeType, truth, weight } = nodeData;
-        const nodeId = id ?? `concept_${Date.now()}`;
-
-        if (this.cy.getElementById(nodeId).length) return false;
-
-        let displayLabel = label ?? term ?? id;
-        if (truth) {
-            displayLabel += `\n{${(truth.frequency ?? 0).toFixed(2)}, ${(truth.confidence ?? 0).toFixed(2)}}`;
-        }
-
-        const typeValue = nodeType ?? type ?? 'concept';
-        const priority = nodeData.budget?.priority ?? 0;
-        const taskCount = nodeData.tasks?.length ?? nodeData.taskCount ?? 0;
-
-        // Adjust weight based on learned preference
-        let finalWeight = weight ?? (priority * 100);
-        if (nodeData.term) {
-            const modifier = this.autoLearner.getConceptModifier(nodeData.term);
-            finalWeight += modifier; // Boost weight based on past interactions
-        }
-
-        this.cy.add({
-            group: 'nodes',
-            data: {
-                id: nodeId,
-                label: displayLabel,
-                type: typeValue,
-                weight: Math.min(finalWeight, 100), // Cap at 100
-                taskCount: taskCount,
-                fullData: nodeData
-            }
-        });
-
-        if (runLayout) this.scheduleLayout();
-        return true;
-    }
-
-    addEdge(edgeData, runLayout = true) {
-        if (!this.cy) return false;
-
-        const { id, source, target, label, type, edgeType } = edgeData;
-        const edgeId = id ?? `edge_${Date.now()}_${source}_${target}`;
-
-        if (this.cy.getElementById(edgeId).length) return false;
-
-        this.cy.add({
-            group: 'edges',
-            data: {
-                id: edgeId,
-                source,
-                target,
-                label: label ?? 'Relationship',
-                type: edgeType ?? type ?? 'relationship'
-            }
-        });
-
-        if (runLayout) this.scheduleLayout();
-        return true;
-    }
-
-    updateFromSnapshot(payload) {
-        if (!this.cy || !payload?.concepts) return;
-        this.cy.elements().remove();
-
-        const concepts = payload.concepts || [];
-        if (concepts.length > 0) {
-            const nodes = concepts.map((concept, index) => ({
-                group: 'nodes',
-                data: {
-                    id: concept.id || `concept_${index}`,
-                    label: concept.term || `Concept ${index}`,
-                    type: concept.type || 'concept',
-                    weight: concept.truth?.confidence ? concept.truth.confidence * 100 : 50,
-                    fullData: concept
-                }
-            }));
-            this.cy.add(nodes);
-        }
-        this.scheduleLayout();
-    }
-
-    updateFromMessage(message) {
-        if (!this.cy || !this.updatesEnabled) return;
-
-        const messageUpdates = {
-            'concept.created': () => this.addNodeWithPayload(message.payload, false),
-            'concept.added': () => this.addNodeWithPayload(message.payload, false),
-            'concept.updated': () => this.updateNode(message.payload),
-            'task.added': () => this.addNodeWithPayload({...message.payload, nodeType: 'task'}, false),
-            'task.input': () => this.addNodeWithPayload({...message.payload, nodeType: 'task'}, false),
-            'question.answered': () => this.addQuestionNode(message.payload),
-            'memorySnapshot': () => this.updateFromSnapshot(message.payload)
-        };
-
-        const updateFn = messageUpdates[message.type];
-        if (updateFn) {
-            updateFn();
-            if (this.shouldRunLayoutAfterMessage(message.type)) this.scheduleLayout();
-        }
-    }
-
-    addNodeWithPayload(payload, runLayout = true) {
-        if (payload) this.addNode(payload, runLayout);
-    }
-
-    updateNode(payload) {
-        if (!this.cy || !payload) return;
-        const nodeId = payload.id;
-        const node = this.cy.getElementById(nodeId);
-
-        if (node.length > 0) {
-            const priority = payload.budget?.priority ?? 0;
-            const taskCount = payload.tasks?.length ?? payload.taskCount ?? 0;
-            let weight = priority * 100;
-
-            if (payload.term) {
-                const modifier = this.autoLearner.getConceptModifier(payload.term);
-                weight += modifier;
-            }
-
-            node.data({
-                weight: Math.min(weight, 100),
-                taskCount: taskCount,
-                fullData: payload
-            });
-
-            // If truth updated, update label
-            if (payload.truth) {
-                let displayLabel = payload.term ?? payload.label ?? nodeId;
-                displayLabel += `\n{${(payload.truth.frequency ?? 0).toFixed(2)}, ${(payload.truth.confidence ?? 0).toFixed(2)}}`;
-                node.data('label', displayLabel);
-            }
-
-            this.animateUpdate(nodeId);
-        } else {
-            // If it doesn't exist, add it
-            this.addNode(payload, false);
-        }
-    }
-
-    animateUpdate(nodeId) {
-        const node = this.cy?.getElementById(nodeId);
-        if (!node?.length) return;
-
-        // Visual pulse to indicate update
-        // We use a safe default color if config style isn't readily parseable or available
-        const highlightColor = '#00ff9d';
-
-        node.animate({
-            style: {
-                'border-width': 4,
-                'border-color': highlightColor
-            },
-            duration: 150
-        }).animate({
-             style: {
-                'border-width': 1
-            },
-            duration: 350
-        });
-    }
-
-    addQuestionNode(payload) {
-        if (payload) {
-            const {answer, question} = payload;
-            this.addNode({
-                label: answer || question || 'Answer',
-                nodeType: 'question',
-                weight: 40
-            }, false);
-        }
-    }
-
-    shouldRunLayoutAfterMessage(messageType) {
-        return ['concept.created', 'concept.added', 'task.added', 'task.input', 'question.answered'].includes(messageType);
-    }
-
-    scheduleLayout() {
-        this.pendingLayout = true;
-        if (this.layoutTimeout) clearTimeout(this.layoutTimeout);
-        this.layoutTimeout = setTimeout(() => {
-            if (this.pendingLayout && this.cy) {
-                this.cy.layout(Config.getGraphLayout()).run();
-                this.pendingLayout = false;
-            }
-        }, this.layoutDebounceTime);
-    }
-
-    updateStyle() {
-        this.cy?.style(Config.getGraphStyle());
-    }
-
-    updateGraphDetails(details) {
-        // Implementation delegated or empty
-    }
-
-    clear() {
-        this.cy?.elements().remove();
+        this.cy.animate({ center: { eles: node } }, { duration: 200 });
     }
 
     getNodeCount() {
         return this.cy ? this.cy.nodes().length : 0;
     }
 
-    getTaskNodes() {
-        return this.cy ? this.cy.nodes('[type="task"]').toArray() : [];
+    setCommandProcessor(commandProcessor) {
+        if (!commandProcessor) return;
+        this.callbacks.commandProcessor = commandProcessor;
+        if (!this.contextMenu) {
+            this.contextMenu = new ContextMenu(this, commandProcessor);
+        }
     }
 
-    getConceptNodes() {
-        return this.cy ? this.cy.nodes('[type="concept"]').toArray() : [];
+    _calculateNodeWeight(priority, term) {
+        let weight = priority * 100;
+        if (term) weight += this.autoLearner.getConceptModifier(term);
+        return Math.min(Math.max(weight, 10), 100);
     }
 
-    animateNode(nodeId) {
+    _calculateNodeLabel(payload) {
+        const { label, term, id, truth } = payload;
+        let displayLabel = label ?? term ?? id;
+
+        if (truth) {
+            const f = (truth.frequency ?? 0).toFixed(2);
+            const c = (truth.confidence ?? 0).toFixed(2);
+            displayLabel += `\n[F:${f} C:${c}]`;
+        }
+
+        return displayLabel;
+    }
+
+    addNode(nodeData, runLayout = true) {
+        if (!this.cy) return false;
+
+        const config = this._createNodeConfig(nodeData);
+        if (this.cy.getElementById(config.data.id).length) return false;
+
+        this.cy.add(config);
+
+        if (runLayout) this.scheduleLayout();
+        return true;
+    }
+
+    _createNodeConfig(nodeData) {
+        const { id, type } = nodeData;
+        const nodeId = id ?? `concept_${Date.now()}`;
+        const displayLabel = this._calculateNodeLabel(nodeData);
+        const priority = nodeData.budget?.priority ?? 0;
+        const taskCount = nodeData.tasks?.length ?? nodeData.taskCount ?? 0;
+        const weight = this._calculateNodeWeight(priority, nodeData.term);
+
+        return {
+            group: 'nodes',
+            data: {
+                id: nodeId,
+                label: displayLabel,
+                type: type ?? 'concept',
+                weight: weight,
+                taskCount: taskCount,
+                fullData: nodeData
+            }
+        };
+    }
+
+    addEdge(edgeData, runLayout = true) {
+        if (!this.cy) return false;
+
+        const config = this._createEdgeConfig(edgeData);
+        if (this.cy.getElementById(config.data.id).length) return false;
+
+        this.cy.add(config);
+
+        if (runLayout) this.scheduleLayout();
+        return true;
+    }
+
+    _createEdgeConfig(edgeData) {
+        const { id, source, target, label, type } = edgeData;
+        const edgeId = id ?? `edge_${Date.now()}_${source}_${target}`;
+
+        return {
+            group: 'edges',
+            data: {
+                id: edgeId,
+                source,
+                target,
+                label: label ?? 'Relationship',
+                type: type ?? 'relationship'
+            }
+        };
+    }
+
+    updateFromMessage(message) {
+        if (!this.cy || !this.updatesEnabled) return;
+
+        const handlers = {
+            'concept.created': () => this.addNode(message.payload, true),
+            'concept.added': () => this.addNode(message.payload, true),
+            'concept.updated': () => this.updateNode(message.payload),
+            'task.added': () => this.addNode({ ...message.payload, type: 'task' }, true),
+            'task.input': () => this.addNode({ ...message.payload, type: 'task' }, true),
+            'question.answered': () => this.addQuestionNode(message.payload),
+            'memorySnapshot': () => this.updateFromSnapshot(message.payload)
+        };
+
+        handlers[message.type]?.();
+    }
+
+    updateNode(payload) {
+        if (!this.cy || !payload?.id) return;
+        const node = this.cy.getElementById(payload.id);
+
+        if (node.length > 0) {
+            const priority = payload.budget?.priority ?? 0;
+            const taskCount = payload.tasks?.length ?? payload.taskCount ?? 0;
+            const weight = this._calculateNodeWeight(priority, payload.term);
+
+            const updates = {
+                weight: weight,
+                taskCount: taskCount,
+                fullData: payload
+            };
+
+            if (payload.truth) {
+                updates.label = this._calculateNodeLabel(payload);
+            }
+
+            node.data(updates);
+            this.animateUpdate(payload.id);
+        } else {
+            this.addNode(payload, false);
+        }
+    }
+
+    addQuestionNode(payload) {
+        if (payload) {
+            this.addNode({
+                label: payload.answer || payload.question || 'Answer',
+                type: 'question',
+                weight: 40
+            }, true);
+        }
+    }
+
+    updateFromSnapshot(payload) {
+        if (!this.cy || !payload?.concepts) return;
+        this.cy.elements().remove();
+        payload.concepts.forEach(c => this.addNode(c, false));
+        this.scheduleLayout();
+    }
+
+    animateUpdate(nodeId) {
         const node = this.cy?.getElementById(nodeId);
         if (!node?.length) return;
-        const originalWidth = node.style('border-width');
-        node.animate({ style: { 'border-width': 10 }, duration: 200 })
-            .animate({ style: { 'border-width': originalWidth }, duration: 200 });
+
+        // Flash effect
+        node.animation({
+            style: { 'border-width': 6, 'border-color': '#00ff9d' },
+            duration: 100
+        }).play().promise().then(() => {
+            node.animation({
+                style: { 'border-width': 2 },
+                duration: 300
+            }).play();
+        });
     }
 
     animateGlow(nodeId, intensity = 1.0) {
         this.cy?.getElementById(nodeId)?.animate({ style: { 'opacity': 0.5 + intensity * 0.5 }, duration: 300 });
     }
 
-    animateFadeIn(nodeId) {
-        const node = this.cy?.getElementById(nodeId);
-        if (node?.length) {
-            node.style('opacity', 0);
-            node.animate({ style: {'opacity': 1} }, { duration: 500 });
-        }
+    scheduleLayout() {
+        if (this.pendingLayout || !this.cy || this.cy.destroyed()) return;
+        this.pendingLayout = true;
+
+        // Adaptive debounce based on graph size
+        const nodeCount = this.cy.nodes().length;
+        const delay = nodeCount > 100 ? 1000 : 500;
+
+        if (this.layoutTimeout) clearTimeout(this.layoutTimeout);
+        this.layoutTimeout = setTimeout(() => {
+            if (this.cy && !this.cy.destroyed()) {
+                this.cy.layout(Config.getGraphLayout()).run();
+            }
+            this.pendingLayout = false;
+        }, delay);
+    }
+
+    updateStyle() {
+        this.cy?.style(Config.getGraphStyle());
+    }
+
+    clear() {
+        this.cy?.elements().remove();
     }
 
     zoomIn() { this.cy?.animate({ zoom: this.cy.zoom() * 1.2, duration: 200 }); }

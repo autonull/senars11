@@ -1,32 +1,29 @@
-import {createServer} from 'http';
-import {WebSocketServer} from 'ws';
+import { createServer } from 'http';
+import { WebSocketServer } from 'ws';
 
-const DEFAULT_OPTIONS = Object.freeze({port: 8080, host: 'localhost'});
+const DEFAULT_OPTIONS = Object.freeze({ port: 8080, host: 'localhost' });
 
 export class MonitoringAPI {
     constructor(nar, options = {}) {
         this.nar = nar;
-        this.config = {...DEFAULT_OPTIONS, ...options};
+        this.config = { ...DEFAULT_OPTIONS, ...options };
         this.server = null;
         this.wss = null;
         this.clients = new Set();
-
         this.metrics = {
             cycleCount: 0,
             taskCount: 0,
             startTime: Date.now()
         };
-
     }
 
     async start() {
         return new Promise((resolve, reject) => {
             this.server = createServer();
-            this.wss = new WebSocketServer({server: this.server});
+            this.wss = new WebSocketServer({ server: this.server });
 
             this.wss.on('connection', (ws) => this._handleConnection(ws));
             this.server.listen(this.config.port, this.config.host, () => {
-                console.log(`Monitoring API WebSocket server running on ws://${this.config.host}:${this.config.port}`);
                 resolve();
             });
             this.server.on('error', reject);
@@ -44,10 +41,7 @@ export class MonitoringAPI {
         this._sendInitialState(ws);
 
         ws.on('close', () => this.clients.delete(ws));
-        ws.on('error', (error) => {
-            console.error('WebSocket error:', error);
-            this.clients.delete(ws);
-        });
+        ws.on('error', () => this.clients.delete(ws));
     }
 
     _sendInitialState(ws) {
@@ -66,15 +60,14 @@ export class MonitoringAPI {
     }
 
     _sendToClient(client, message) {
-        if (client.readyState !== WebSocket.OPEN) {
+        if (client.readyState !== 1) {
             this.clients.delete(client);
             return;
         }
 
         try {
             client.send(JSON.stringify(message));
-        } catch (error) {
-            console.error('Error sending message to client:', error);
+        } catch {
             this.clients.delete(client);
         }
     }

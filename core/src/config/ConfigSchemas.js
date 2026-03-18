@@ -63,8 +63,8 @@ const configSchema = z.object({
     }).passthrough().default({}),
 
     lm: z.object({
-        enabled: z.boolean().default(false),
-        defaultProvider: z.string().default('dummy'),
+        enabled: z.boolean().default(true),
+        defaultProvider: z.string().default('ollama'),
         maxConcurrentRequests: z.number().int().min(1).max(100).default(5),
         timeout: z.number().int().min(100).max(60000).default(10000),
         retryAttempts: z.number().int().min(0).max(10).default(2),

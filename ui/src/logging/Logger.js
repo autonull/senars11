@@ -4,6 +4,7 @@ export class Logger {
     constructor(uiElements = null) {
         this.uiElements = uiElements;
         this.logViewer = null;
+        this.toastManager = null;
         this.messageCounter = 1;
         this.icons = {
             success: UI_CONSTANTS.LOG_ICONS.SUCCESS,
@@ -32,14 +33,15 @@ export class Logger {
         this.uiElements = uiElements;
     }
 
+    setToastManager(toastManager) {
+        this.toastManager = toastManager;
+    }
+
     addLogEntry(content, type = 'info', icon = null) {
         if (this.logViewer?.addLog) {
             return this.logViewer.addLog(content, type, icon);
         }
-
-        const effectiveIcon = icon ?? this.icons[type] ?? this.icons[UI_CONSTANTS.LOG_TYPES.INFO];
-        const timestamp = new Date().toLocaleTimeString();
-        console.log(`[${timestamp}] ${effectiveIcon} ${content}`);
+        this._logToConsole(content, type, icon);
         return null;
     }
 
@@ -64,18 +66,38 @@ export class Logger {
     }
 
     showNotification(message, type = 'info') {
-        const container = this.uiElements?.notificationContainer ?? document.getElementById('notification-container');
-        if (!container) {
-            console[type === 'error' ? 'error' : type === 'warning' ? 'warn' : 'log'](message);
-            return;
+        if (this.toastManager) {
+            this.toastManager.show(message, type);
+        } else {
+            const container = this.uiElements?.notificationContainer ?? document.getElementById('notification-container');
+            if (container) {
+                const notification = document.createElement('div');
+                notification.className = `notification notification-${type}`;
+                notification.textContent = message;
+                container.appendChild(notification);
+
+                setTimeout(() => notification.parentNode?.removeChild(notification), 5000);
+            } else {
+                this._logToConsole(message, type);
+            }
         }
+    }
 
-        const notification = document.createElement('div');
-        notification.className = `notification notification-${type}`;
-        notification.textContent = message;
-        container.appendChild(notification);
+    _logToConsole(content, type, icon = null) {
+        const effectiveIcon = icon ?? this.icons[type] ?? this.icons[UI_CONSTANTS.LOG_TYPES.INFO];
+        const timestamp = new Date().toLocaleTimeString();
+        const msg = `[${timestamp}] ${effectiveIcon || ''} ${content}`;
 
-        setTimeout(() => notification.parentNode?.removeChild(notification), 5000);
+        switch (type) {
+            case 'error':
+                console.error(msg);
+                break;
+            case 'warning':
+                console.warn(msg);
+                break;
+            default:
+                console.log(msg);
+        }
     }
 
 

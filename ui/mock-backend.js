@@ -23,14 +23,14 @@ wss.on('connection', (ws) => {
         // Handle specific commands to make tests pass
         if (parsed.type === 'narseseInput') {
             // Echo back the input as a log
+            const input = parsed.payload.input || parsed.payload.text;
             ws.send(JSON.stringify({
                 type: 'log',
-                payload: {message: `> ${parsed.payload.input}`}
+                payload: {message: `> ${input}`}
             }));
 
             // Simulate processing result
-            const input = parsed.payload.input;
-            if (input.includes('-->')) {
+            if (input && input.includes('-->')) {
                 const parts = input.split('-->');
                 const subject = parts[0].replace(/[< >]/g, '');
                 const predicate = parts[1].replace(/[< >.]/g, '');

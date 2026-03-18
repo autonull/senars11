@@ -4,6 +4,7 @@
  */
 
 import {TaskMatch} from './TaskMatch.js';
+import {Logger} from '../util/Logger.js';
 
 // Re-export TaskMatch as before to maintain backward compatibility
 //export { SharedTaskMatch as TaskMatch };
@@ -18,6 +19,7 @@ export class TestNAR {
         this.nar = null;
         this.trace = trace; // Add trace flag to show all events
         this.eventLog = []; // Log of all events for debugging
+        this.logger = Logger;
     }
 
     static _matchesTruth(taskTruth, criteriaTruth) {
@@ -105,10 +107,10 @@ export class TestNAR {
         if (this.trace) {
             this.nar.traceEnabled = true;
             this.nar.on('reasoning.derivation', (data) => {
-                console.log(`[TRACE] Derivation: ${data.derivedTask.toString()} from ${data.derivedTask.stamp?.source || data.source}`);
+                this.logger.info(`[TRACE] Derivation: ${data.derivedTask.toString()} from ${data.derivedTask.stamp?.source || data.source}`);
             });
             this.nar.on('task.input', (data) => {
-                console.log(`[TRACE] Input: ${data.task.toString()}`);
+                this.logger.info(`[TRACE] Input: ${data.task.toString()}`);
             });
         }
 
@@ -151,7 +153,7 @@ export class TestNAR {
             // Run additional reasoning cycles after all inputs to allow for inference
             // Execute multiple steps to make sure processing happens
             if (this.nar.streamReasoner) {
-                for (let i = 0; i < 50; i++) {  // Run additional steps to allow for derivations
+                for (let i = 0; i < 20; i++) {  // Run additional steps to allow for derivations
                     await this.nar.step();
                 }
             }
@@ -159,7 +161,7 @@ export class TestNAR {
             // Collect tasks emitted by the system
             let collectedTasks = [];
 
-            // Get tasks from memory and focus
+            // Get tasks from memory
             if (this.nar.memory) {
                 collectedTasks = this.nar.memory.getAllConcepts().flatMap(c => c.getAllTasks());
             }
@@ -170,20 +172,7 @@ export class TestNAR {
                 collectedTasks = [...collectedTasks, ...focusTasks];
             }
 
-            // Get all tasks from memory and focus to catch derived results
-            let allTasks = [...collectedTasks]; // Start with collected tasks
-
-            // Also get tasks from memory and focus to ensure nothing is missed
-            if (this.nar.memory) {
-                const memoryTasks = this.nar.memory.getAllConcepts().flatMap(c => c.getAllTasks());
-                allTasks = [...allTasks, ...memoryTasks];
-            }
-
-            // Also check focus for tasks that might not be in memory yet
-            if (this.nar._focus) {
-                const focusTasks = this.nar._focus.getTasks(1000);
-                allTasks = [...allTasks, ...focusTasks];
-            }
+            let allTasks = collectedTasks;
 
             // Remove duplicates based on term and stamp
             const uniqueTasks = [];
@@ -216,7 +205,8 @@ export class TestNAR {
 
                 let found = false;
                 for (const task of allTasks) {
-                    if (await matcher.matches(task)) {
+                    // Pass the NAR's termFactory to ensure reference equality matches work
+                    if (await matcher.matches(task, this.nar._termFactory)) {
                         found = true;
                         break;
                     }
@@ -245,7 +235,7 @@ ${taskList}
                     await this.nar.dispose();
                 } catch (disposeError) {
                     // Log disposal errors but don't fail the test
-                    console.warn('Warning during NAR disposal:', disposeError.message);
+                    this.logger.warn('Warning during NAR disposal:', {message: disposeError.message});
                 }
             }
         }

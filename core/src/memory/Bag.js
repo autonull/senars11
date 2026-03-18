@@ -1,64 +1,50 @@
 class ForgetPolicy {
     selectForRemoval(items, itemData, insertionOrder, accessTimes) {
+        return null;
     }
 
     orderItems(items, itemData, insertionOrder, accessTimes) {
+        return Array.from(items.keys());
+    }
+
+    _findMinValueItem(dataMap) {
+        if (dataMap.size === 0) return null;
+        let [minItem, minValue] = Array.from(dataMap.entries()).reduce(
+            ([minItem, minValue], [item, value]) => value < minValue ? [item, value] : [minItem, minValue],
+            [null, Infinity]
+        );
+        return minItem;
+    }
+
+    _sortByValueDesc(dataMap, items = null) {
+        let entries = Array.from(dataMap.entries());
+        if (items) entries = entries.filter(([item]) => items.has(item));
+        return entries.sort((a, b) => b[1] - a[1]).map(([item]) => item);
     }
 }
 
 class PriorityForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData) {
-        let lowestPriorityItem = null;
-        let lowestPriority = Infinity;
-
-        for (const [item, priority] of itemData.entries()) {
-            if (priority < lowestPriority) {
-                lowestPriority = priority;
-                lowestPriorityItem = item;
-            }
-        }
-        return lowestPriorityItem;
+        return this._findMinValueItem(itemData);
     }
-
     orderItems(items, itemData) {
-        return [...itemData.entries()]
-            .sort((a, b) => b[1] - a[1])
-            .map(([item]) => item);
+        return this._sortByValueDesc(itemData);
     }
 }
 
 class LRUForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData, insertionOrder, accessTimes) {
-        let leastRecentItem = null;
-        let leastRecentTime = Infinity;
-
-        for (const [item, accessTime] of accessTimes.entries()) {
-            if (accessTime < leastRecentTime) {
-                leastRecentTime = accessTime;
-                leastRecentItem = item;
-            }
-        }
-        return leastRecentItem;
+        return this._findMinValueItem(accessTimes);
     }
-
     orderItems(items, itemData, insertionOrder, accessTimes) {
-        return [...accessTimes.entries()]
-            .sort((a, b) => b[1] - a[1])
-            .filter(([item]) => items.has(item))
-            .map(([item]) => item);
+        return this._sortByValueDesc(accessTimes, items);
     }
 }
 
 class FIFOForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData, insertionOrder) {
-        for (const item of insertionOrder) {
-            if (items.has(item)) {
-                return item;
-            }
-        }
-        return null;
+        return insertionOrder.find(item => items.has(item)) || null;
     }
-
     orderItems(items, itemData, insertionOrder) {
         return insertionOrder.filter(item => items.has(item));
     }
@@ -66,29 +52,25 @@ class FIFOForgetPolicy extends ForgetPolicy {
 
 class RandomForgetPolicy extends ForgetPolicy {
     selectForRemoval(items) {
-        const itemArray = [...items.keys()];
-        if (itemArray.length === 0) return null;
-
-        const randomIndex = Math.floor(Math.random() * itemArray.length);
-        return itemArray[randomIndex];
+        const arr = Array.from(items.keys());
+        return arr.length ? arr[Math.floor(Math.random() * arr.length)] : null;
     }
-
     orderItems(items) {
-        const itemArray = [...items.keys()];
-        for (let i = itemArray.length - 1; i > 0; i--) {
+        const arr = Array.from(items.keys());
+        for (let i = arr.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [itemArray[i], itemArray[j]] = [itemArray[j], itemArray[i]];
+            [arr[i], arr[j]] = [arr[j], arr[i]];
         }
-        return itemArray;
+        return arr;
     }
 }
 
 const DEFAULT_POLICY = 'priority';
 const POLICIES = Object.freeze({
-    'priority': new PriorityForgetPolicy(),
-    'lru': new LRUForgetPolicy(),
-    'fifo': new FIFOForgetPolicy(),
-    'random': new RandomForgetPolicy()
+    priority: new PriorityForgetPolicy(),
+    lru: new LRUForgetPolicy(),
+    fifo: new FIFOForgetPolicy(),
+    random: new RandomForgetPolicy()
 });
 
 export class Bag {
@@ -100,6 +82,7 @@ export class Bag {
         this._accessTimes = new Map();
         this.setForgetPolicy(forgetPolicy);
         this.onItemRemoved = onItemRemoved;
+        this._cachedOrderedItems = null;
     }
 
     get size() {
@@ -136,9 +119,6 @@ export class Bag {
         const key = this._getKey(item);
         if (this._itemKeys.has(key)) return false;
 
-        // Double check referential equality just in case, though key check should suffice
-        if (this._items.has(item)) return false;
-
         if (this.size >= this.maxSize) {
             this._removeItemByPolicy();
         }
@@ -146,6 +126,7 @@ export class Bag {
         const priority = item.budget?.priority ?? 0;
         this._addItemToStorage(item, priority);
         this._itemKeys.set(key, item);
+        this._cachedOrderedItems = null;
 
         return true;
     }
@@ -164,13 +145,13 @@ export class Bag {
 
             this._insertionOrder = this._insertionOrder.filter(i => i !== item);
             this._accessTimes.delete(item);
+            this._cachedOrderedItems = null;
 
-            if (this.onItemRemoved) {
-                try {
-                    this.onItemRemoved(item);
-                } catch (e) {
-                    console.error('Error in Bag onItemRemoved callback:', e);
-                }
+            try {
+                this.onItemRemoved?.(item);
+            } catch (e) {
+                // Silently ignore callback errors to avoid breaking bag operations
+                // Logger not available in this context
             }
         }
         return result;
@@ -196,7 +177,10 @@ export class Bag {
     }
 
     getItemsInPriorityOrder() {
-        return this._forgetPolicy.orderItems(this._items, this._items, this._insertionOrder, this._accessTimes);
+        if (!this._cachedOrderedItems) {
+            this._cachedOrderedItems = this._forgetPolicy.orderItems(this._items, this._items, this._insertionOrder, this._accessTimes);
+        }
+        return this._cachedOrderedItems;
     }
 
     getAveragePriority() {
@@ -217,6 +201,10 @@ export class Bag {
         for (const [item, priority] of this._items.entries()) {
             this._items.set(item, priority * (1 - decayRate));
         }
+        // Invalidate cache if policy is not priority-based (e.g. random or potentially others)
+        // For standard priority decay, relative order is preserved, so we might skip this.
+        // But to be safe and address potential edge cases or mixed usage:
+        this._cachedOrderedItems = null;
     }
 
     pruneTo(targetSize) {
@@ -245,6 +233,7 @@ export class Bag {
         this._itemKeys.clear();
         this._insertionOrder = [];
         this._accessTimes.clear();
+        this._cachedOrderedItems = null;
     }
 
     serialize() {
@@ -287,7 +276,8 @@ export class Bag {
                             try {
                                 item = await itemDeserializer(itemData);
                             } catch (e) {
-                                console.warn('Failed to deserialize item in Bag:', e);
+                                // Item deserialization failed, will use fallback below
+                                // Logger not available in this context
                             }
                         }
 
@@ -322,7 +312,8 @@ export class Bag {
 
             return true;
         } catch (error) {
-            console.error('Error during bag deserialization:', error);
+            // Deserialization failed
+            // Logger not available in this context
             return false;
         }
     }

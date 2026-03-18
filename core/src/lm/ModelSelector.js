@@ -20,13 +20,15 @@ export class ModelSelector {
     }
 
     _selectBasedOnConstraints(availableProviders, constraints) {
+        if (!availableProviders.length) return null;
         if (Object.keys(constraints).length === 0) {
-            return this.providerRegistry.defaultProviderId || availableProviders[0] || null;
+            return this.providerRegistry.defaultProviderId || availableProviders[0];
         }
 
-        return constraints.performance === 'high' ? availableProviders[0] :
-            constraints.performance === 'low' ? availableProviders[availableProviders.length - 1] || null :
-                availableProviders[0] || null;
+        if (constraints.performance === 'high') return availableProviders[0];
+        if (constraints.performance === 'low') return availableProviders[availableProviders.length - 1];
+
+        return availableProviders[0];
     }
 
     getAvailableModels() {

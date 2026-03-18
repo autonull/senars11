@@ -109,6 +109,26 @@ node agent/src/server/WebSocketMonitor.js
 
 Then open a browser and connect to see live reasoning visualization.
 
+### Layouts
+
+You can switch between different UI layouts by appending the `layout` parameter to the URL:
+
+*   `?layout=ide`: (Default) Comprehensive view with Notebook, Graph, Memory, and Metrics.
+*   `?layout=code`: Dedicated Code Editor (Left) and Output Console (Right).
+*   `?layout=repl`: Minimalist full-screen Notebook/REPL.
+*   `?layout=canvas`: Large Graph Canvas with a small console at the bottom.
+*   `?layout=split`: Simple split view of Editor and Output.
+
+### Features
+
+*   **Notebook**: Interactive cells for Narsese/MeTTa input. Supports drag-and-drop, duplication, and undo.
+*   **Code Editor**: Standalone editor with syntax highlighting, file load/save, and auto-run capability.
+*   **Knowledge Graph**: Interactive visualization of concepts and links.
+*   **Shortcuts**:
+    *   `Shift+Enter`: Execute cell/code
+    *   `Ctrl+L`: Clear outputs
+    *   `Ctrl+S`: Save notebook (localStorage)
+
 ## Text User Interface (TUI)
 
 The REPL provides an interactive command-line interface built with Ink (React for CLI).

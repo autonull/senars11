@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeNARS Explorer</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="/src/styles/theme-variables.css?v=2">
+    <link rel="stylesheet" href="/src/styles/hud.css?v=3">
+    <link rel="stylesheet" href="/src/styles/theme-tactical.css?v=2">
+    <link rel="stylesheet" href="/src/styles/hud-docking.css?v=2">
+    <link rel="stylesheet" href="/src/styles/hud-widget.css?v=1">
+    <link rel="stylesheet" href="/src/styles/hud-typography.css?v=2">
+    <link rel="stylesheet" href="/src/styles/metrics.css?v=2">
+    <link rel="stylesheet" href="/src/styles/status-bar.css?v=2">
+
+    <!-- Styles from agent for components -->
+    <link rel="stylesheet" href="/src/styles/components.css?v=2">
+    <link rel="stylesheet" href="/src/styles/effects.css?v=2">
+    <link rel="stylesheet" href="/src/styles/zui.css?v=2">
+
+    <style>
+        /* Ensure basic layout if CSS fails to load or for structure */
+        body, html {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #1e1e1e; /* Fallback bg */
+        }
+        #graph-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 0;
+        }
+        #status-bar-container {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            z-index: 100;
+        }
+    </style>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "cytoscape": "/node_modules/cytoscape/dist/cytoscape.esm.min.mjs",
+            "cytoscape-fcose": "/src/shims/mock-cytoscape-fcose.js",
+            "golden-layout": "/node_modules/golden-layout/dist/esm/index.js",
+            "marked": "/node_modules/marked/lib/marked.esm.js",
+            "@senars/core": "/core/src/index.js",
+            "@senars/core/": "/core/",
+            "@senars/agent": "/agent/src/index.js",
+            "@senars/agent/": "/agent/",
+            "@mlc-ai/web-llm": "/node_modules/@mlc-ai/web-llm/lib/index.js",
+            "ai": "/node_modules/ai/dist/index.mjs",
+            "@ai-sdk/openai": "/node_modules/@ai-sdk/openai/dist/index.mjs",
+            "@ai-sdk/anthropic": "/node_modules/@ai-sdk/anthropic/dist/index.mjs",
+            "@ai-sdk/gateway": "/node_modules/@ai-sdk/gateway/dist/index.mjs",
+            "@ai-sdk/provider": "/node_modules/@ai-sdk/provider/dist/index.mjs",
+            "@ai-sdk/provider-utils": "/node_modules/@ai-sdk/provider-utils/dist/index.mjs",
+            "@opentelemetry/api": "/node_modules/@opentelemetry/api/build/esm/index.js",
+            "openai": "/node_modules/openai/index.mjs",
+            "ollama-ai-provider": "/node_modules/ollama-ai-provider/dist/index.js",
+            "zod": "/node_modules/zod/index.js",
+            "zod/v4": "/node_modules/zod/v4/index.js",
+            "mitt": "/node_modules/mitt/dist/mitt.mjs",
+            "uuid": "/node_modules/uuid/dist/esm-browser/index.js",
+            "eventemitter3": "/node_modules/eventemitter3/dist/eventemitter3.esm.js",
+            "immer": "/node_modules/immer/dist/immer.mjs",
+            "js-sha256": "/node_modules/js-sha256/src/sha256.js",
+            "danfojs": "/node_modules/danfojs/lib/bundle.esm.js",
+            "module": "/src/shims/mock-node.js",
+            "fs": "/src/shims/mock-node.js",
+            "path": "/src/shims/mock-node.js",
+            "url": "/src/shims/mock-node.js",
+            "crypto": "/src/shims/mock-node.js",
+            "events": "/src/shims/events-shim.js",
+            "util": "/src/shims/mock-node.js",
+            "os": "/src/shims/mock-node.js",
+            "child_process": "/src/shims/mock-node.js",
+            "@langchain/core/messages": "/src/shims/mock-langchain.js",
+            "@langchain/core/tools": "/src/shims/mock-langchain.js",
+            "@langchain/ollama": "/src/shims/mock-langchain.js",
+            "@langchain/openai": "/src/shims/mock-langchain.js",
+            "@langchain/langgraph": "/src/shims/mock-langchain.js",
+            "@langchain/langgraph/prebuilt": "/src/shims/mock-langchain.js",
+            "@langchain/langgraph-checkpoint": "/src/shims/mock-langchain.js",
+            "langchain": "/src/shims/mock-langchain.js",
+            "chart.js/auto": "/node_modules/chart.js/auto/auto.js",
+            "chart.js": "/node_modules/chart.js/dist/chart.js",
+            "@kurkle/color": "/node_modules/@kurkle/color/dist/color.esm.js",
+            "@senars/metta": "/metta/src/MeTTaInterpreter.js",
+            "@senars/metta-bridge": "/metta/src/SeNARSBridge.js"
+        }
+    }
+    </script>
+</head>
+
+<body>
+    <!-- Graph fills center 3/4 -->
+    <div id="graph-container"></div>
+
+    <!-- Status Bar (top, always visible) -->
+    <div id="status-bar-container"></div>
+
+    <!-- Widgets managed by HUDLayoutManager -->
+
+    <script type="module" src="/src/explorer/main.js?v=2"></script>
+</body>
+
+</html>

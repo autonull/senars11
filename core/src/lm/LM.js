@@ -6,7 +6,7 @@ import {NarseseTranslator} from './NarseseTranslator.js';
 import {CircuitBreaker} from '../util/CircuitBreaker.js';
 import {LMStats} from './LMStats.js';
 import {ProviderUtils} from './ProviderUtils.js';
-import {EmptyOutputError} from './EmptyOutputError.js';
+import {LMValidator} from './LMValidator.js';
 
 export class LM extends BaseComponent {
     constructor(config = {}, eventBus = null) {
@@ -19,22 +19,18 @@ export class LM extends BaseComponent {
         this.lmMetrics = new Metrics();
         this.activeWorkflows = new Map();
         this.lmStats = new LMStats();
+        this.validator = new LMValidator(config.validation, this.narseseTranslator, eventBus);
     }
 
-    get config() {
-        return {...this._config};
-    }
-
-    get metrics() {
-        return this.lmMetrics;
-    }
+    get config() { return {...this._config}; }
+    get metrics() { return this.lmMetrics; }
 
     _getCircuitBreakerConfig() {
-        const cbConfig = this.config?.circuitBreaker ?? {};
         return {
-            failureThreshold: cbConfig.failureThreshold ?? 5,
-            timeout: cbConfig.timeout ?? 60000,
-            resetTimeout: cbConfig.resetTimeout ?? 30000
+            failureThreshold: 5,
+            timeout: 60000,
+            resetTimeout: 30000,
+            ...this.config?.circuitBreaker
         };
     }
 
@@ -51,11 +47,8 @@ export class LM extends BaseComponent {
 
     registerProvider(id, provider) {
         this.providers.register(id, provider);
-        this.logInfo('Provider registered', {
-            providerId: id,
-            default: id === this.providers.defaultProviderId
-        });
-        // Forward custom events from provider
+        this.logInfo('Provider registered', { providerId: id, default: id === this.providers.defaultProviderId });
+
         if (typeof provider.on === 'function') {
             provider.on('lm:model-dl-progress', (data) => {
                 this.eventBus?.emit('lm:model-dl-progress', {...data, providerId: id});
@@ -64,7 +57,7 @@ export class LM extends BaseComponent {
         return this;
     }
 
-    _getProvider(providerId = null) {
+    _getProvider(providerId) {
         const id = providerId ?? this.providers.defaultProviderId;
         return id && this.providers.has(id) ? this.providers.get(id) : null;
     }
@@ -73,12 +66,12 @@ export class LM extends BaseComponent {
         try {
             return await this.circuitBreaker.execute(() => operation(...args));
         } catch (error) {
-            this._handleCircuitBreakerError(error, args[0] ?? args[1]);
+            this._handleCircuitBreakerError(error);
             throw error;
         }
     }
 
-    _handleCircuitBreakerError(error, fallbackInput) {
+    _handleCircuitBreakerError(error) {
         if (error.message?.includes('Circuit breaker is OPEN')) {
             this.logInfo('Circuit breaker is OPEN, using fallback...');
             return true;
@@ -94,50 +87,13 @@ export class LM extends BaseComponent {
         const startTime = Date.now();
         const result = await this._executeWithCircuitBreaker(ProviderUtils.standardGenerate, provider, prompt, options);
 
-        this._validateOutput(result, providerId);
+        this.validator.validate(result, providerId);
 
         this.lmStats.update(prompt, result, providerId, startTime);
         this.updateMetric('totalCalls', this.lmStats.totalCalls);
         this.updateMetric('totalTokens', this.lmStats.totalTokens);
         this.updateMetric('avgResponseTime', this.lmStats.avgResponseTime);
         return result;
-    }
-
-    _validateOutput(result, providerId) {
-        const validationConfig = this.config?.validation ?? {};
-        const emptyOutputMode = validationConfig.emptyOutput ?? 'warn';
-        const narseseValidation = validationConfig.narsese ?? false;
-
-        if (typeof result === 'string' && result.trim().length === 0) {
-            const error = new EmptyOutputError('LM returned empty output', providerId);
-            if (emptyOutputMode === 'error') throw error;
-            if (emptyOutputMode === 'warn') {
-                this.logWarn('Empty output detected', {providerId});
-                this.eventBus?.emit('lm:empty-output', {providerId, timestamp: Date.now()});
-            }
-        }
-
-        if (narseseValidation && typeof result === 'string' && this._looksLikeNarsese(result)) {
-            try {
-                this.narseseTranslator.toNarsese(result);
-            } catch (error) {
-                this.logWarn('Narsese-like output failed validation', {
-                    providerId,
-                    output: result.substring(0, 100),
-                    error: error.message
-                });
-                this.eventBus?.emit('lm:invalid-narsese', {
-                    providerId,
-                    output: result,
-                    error: error.message,
-                    timestamp: Date.now()
-                });
-            }
-        }
-    }
-
-    _looksLikeNarsese(text) {
-        return /[<>]|-->|<->|==>|<=>|%/.test(text);
     }
 
     async streamText(prompt, options = {}, providerId = null) {
@@ -173,7 +129,7 @@ export class LM extends BaseComponent {
         return this.modelSelector.getAvailableModels();
     }
 
-    _handleFallback(prompt, options = {}) {
+    _handleFallback(prompt) {
         this.logInfo('Using fallback strategy - LM unavailable, degrading to pure NAL reasoning');
         return `FALLBACK: Processed with pure NAL reasoning - ${prompt}`;
     }
@@ -207,8 +163,7 @@ export class LM extends BaseComponent {
 
     async _stop() {
         this.logInfo('Stopping LM component...');
-        const providers = this.providers.getAll();
-        for (const [id, provider] of providers) {
+        for (const [id, provider] of this.providers.getAll()) {
             try {
                 if (typeof provider.destroy === 'function') await provider.destroy();
                 else if (typeof provider.shutdown === 'function') await provider.shutdown();

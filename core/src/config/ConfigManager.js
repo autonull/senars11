@@ -4,7 +4,7 @@
  */
 
 import {validateConfigWithDefaults} from '../config/ConfigValidator.js';
-import {deepClone, deepFreeze} from '../util/common.js';
+import {deepClone, deepFreeze, deepMerge} from '../util/common.js';
 
 // Default configuration values
 const DEFAULT_CONFIG = deepFreeze({
@@ -40,8 +40,8 @@ const DEFAULT_CONFIG = deepFreeze({
         performanceTracking: true
     },
     lm: {
-        enabled: false,
-        defaultProvider: 'dummy',
+        enabled: true,
+        defaultProvider: 'ollama',
         maxConcurrentRequests: 5,
         timeout: 10000,
         retryAttempts: 2,
@@ -150,25 +150,9 @@ class ConfigManager {
 
     _validateAndMergeConfig(userConfig) {
         // Deep merge user config with defaults
-        const mergedConfig = this._deepMerge(DEFAULT_CONFIG, userConfig);
+        const mergedConfig = deepMerge(DEFAULT_CONFIG, userConfig);
         // Validate the merged config
         return validateConfigWithDefaults(mergedConfig);
-    }
-
-    _deepMerge(target, source) {
-        const result = {...target};
-
-        for (const key in source) {
-            if (source.hasOwnProperty(key)) {
-                if (typeof source[key] === 'object' && source[key] !== null && !Array.isArray(source[key])) {
-                    result[key] = this._deepMerge(result[key] ?? {}, source[key]);
-                } else {
-                    result[key] = source[key];
-                }
-            }
-        }
-
-        return result;
     }
 
     get(path) {
@@ -203,7 +187,7 @@ class ConfigManager {
     }
 
     update(updates) {
-        const newConfig = this._deepMerge(this._config, updates);
+        const newConfig = deepMerge(this._config, updates);
         this._config = this._validateAndMergeConfig(newConfig);
         return this;
     }

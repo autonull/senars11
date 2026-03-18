@@ -5,6 +5,7 @@
 
 import {LMRule} from '../LMRule.js';
 import {Punctuation, Task} from '../../task/Task.js';
+import {Logger} from '../../util/Logger.js';
 import {cleanText, hasPattern, isValidSubGoal, KeywordPatterns, parseSubGoals} from '../RuleHelpers.js';
 
 export class LMRuleUtils {
@@ -161,7 +162,7 @@ Focus on conveying the core meaning and implication of the statement.`;
                     const termFactory = context?.termFactory || options.termFactory;
 
                     if (!termFactory) {
-                        console.warn('LMRuleUtils: termFactory not provided in context');
+                        Logger.warn('LMRuleUtils: termFactory not provided in context');
                         return [];
                     }
 
@@ -196,7 +197,7 @@ Focus on conveying the core meaning and implication of the statement.`;
                     const termFactory = context?.termFactory || options.termFactory;
 
                     if (!termFactory) {
-                        console.warn('LMRuleUtils: termFactory not provided in context');
+                        Logger.warn('LMRuleUtils: termFactory not provided in context');
                         return [];
                     }
 

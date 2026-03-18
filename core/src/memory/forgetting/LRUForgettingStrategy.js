@@ -13,17 +13,18 @@ export class LRUForgettingStrategy extends ForgettingStrategy {
      * @returns {*|null} The term of the least recently used concept, or null if no concepts
      */
     forget(concepts, stats) {
-        let targetTerm = null;
-        let oldestAccess = Infinity;
+        return this._forgetByExtremum(concepts, stats);
+    }
 
-        for (const [term, concept] of concepts) {
-            const lastAccessed = concept.lastAccessed ?? 0;
-            if (lastAccessed < oldestAccess) {
-                oldestAccess = lastAccessed;
-                targetTerm = term;
-            }
-        }
-
-        return targetTerm;
+    /**
+     * Get the last accessed timestamp for comparison.
+     *
+     * @param {Object} concept - Concept instance
+     * @param {Object} stats - Memory statistics (unused)
+     * @returns {number} Last accessed timestamp (default 0 if undefined)
+     * @protected
+     */
+    _getValue(concept, stats) {
+        return concept.lastAccessed ?? 0;
     }
 }

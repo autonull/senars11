@@ -1,5 +1,8 @@
 import { Component } from './Component.js';
-import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
+import { SyntaxHighlighter } from '../utils/SyntaxHighlighter.js';
+import { FluentUI } from '../utils/FluentUI.js';
+import { EVENTS } from '../config/constants.js';
+import { eventBus } from '../core/EventBus.js';
 
 export class TaskCard extends Component {
     constructor(container, task, options = {}) {
@@ -11,82 +14,130 @@ export class TaskCard extends Component {
     render() {
         if (!this.container) return;
 
-        const div = document.createElement('div');
-        div.className = 'task-card';
+        // Data normalization
+        const term = this.task.term?.toString() ?? 'unknown';
+        const truth = this.task.truth;
+        const punctuation = this.task.punctuation || '.';
+        const type = this.task.type || 'BELIEF'; // Fallback for display
 
-        const baseStyles = `
-            border-left: 3px solid var(--task-color);
-            border-radius: 0 3px 3px 0;
-            font-family: var(--font-mono);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            cursor: pointer;
-            transition: background 0.2s;
-        `;
+        const freq = truth?.frequency ?? 0;
+        const conf = truth?.confidence ?? 0;
+        const fPercent = Math.round(freq * 100);
 
-        const compactStyles = `
-            padding: 2px 6px;
-            margin-bottom: 1px;
-            font-size: 10px;
-            line-height: 1.2;
-            background: rgba(0, 0, 0, 0.2);
-        `;
+        const card = FluentUI.create('div')
+            .class(`task-card ${this.compact ? 'compact' : 'full'}`)
+            .mount(this.container);
 
-        const fullStyles = `
-            padding: 4px 8px;
-            margin-bottom: 2px;
-            font-size: 11px;
-            line-height: 1.4;
-            background: rgba(255, 255, 255, 0.03);
-        `;
-
-        div.style.cssText = baseStyles + (this.compact ? compactStyles : fullStyles);
-
-        div.addEventListener('mouseenter', () => {
-            div.style.background = 'rgba(255, 255, 255, 0.06)';
-            this._dispatchHover(true);
-        });
-        div.addEventListener('mouseleave', () => {
-            div.style.background = this.compact ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.03)';
-            this._dispatchHover(false);
-        });
-
-        div.addEventListener('click', () => {
+        // Interaction
+        card.on('mouseenter', () => this._dispatchHover(true));
+        card.on('mouseleave', () => this._dispatchHover(false));
+        card.on('click', (e) => {
+            e.stopPropagation();
             if (this.task) {
-                document.dispatchEvent(new CustomEvent('senars:task:select', {
-                     detail: { task: this.task }
-                }));
+                eventBus.emit(EVENTS.TASK_SELECT, { task: this.task });
             }
         });
 
-        const term = this.task.term ?? this.task.sentence?.term ?? 'unknown';
-        const truth = this.task.truth ?? this.task.sentence?.truth;
-        const punctuation = this.task.punctuation ?? '.';
+        // Determine icon based on punctuation/type
+        let icon = '📝';
+        if (punctuation === '!') icon = '🎯'; // Goal
+        if (punctuation === '?') icon = '❓'; // Question
 
-        const truthStr = truth
-            ? `{${(truth.frequency ?? 0).toFixed(2)} ${(truth.confidence ?? 0).toFixed(2)}}`
-            : '';
+        if (this.compact) {
+            // Compact Layout
+            const row = FluentUI.create('div').class('task-card-row').mount(card);
 
-        div.innerHTML = `
-            <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 4px;">
-                 ${this.compact ? '<span style="opacity: 0.7;">📝</span>' : ''}
-                 ${NarseseHighlighter.highlight(term)}<span class="nars-punctuation">${punctuation}</span>
-            </div>
-            <div style="margin-left: ${this.compact ? '6px' : '10px'}; color: var(--text-muted); ${this.compact ? 'opacity: 0.8;' : ''} font-size: ${this.compact ? '9px' : '10px'};">
-                ${truthStr}
-            </div>
-        `;
+            row.child(FluentUI.create('span').class('task-icon').text(icon));
 
-        this.container.appendChild(div);
-        this.elements.card = div;
+            const content = FluentUI.create('span').class('task-term')
+                .html(`${SyntaxHighlighter.highlight(term)}<span class="nars-punctuation">${punctuation}</span>`);
+            row.child(content);
+
+            if (truth) {
+                // Mini Truth Bar
+                FluentUI.create('div')
+                    .class('truth-mini-bar')
+                    .attr({ title: `F:${freq.toFixed(2)} C:${conf.toFixed(2)}` })
+                    .child(
+                        FluentUI.create('div')
+                            .class('truth-fill')
+                            .style({
+                                width: `${fPercent}%`,
+                                opacity: 0.3 + conf * 0.7,
+                                backgroundColor: this._getTruthColor(freq)
+                            })
+                    )
+                    .mount(card);
+            }
+        } else {
+            // Full Layout
+            const main = FluentUI.create('div').class('task-card-main').mount(card);
+
+            // Term + Punctuation
+            main.child(
+                FluentUI.create('div')
+                    .class('task-content')
+                    .html(`${SyntaxHighlighter.highlight(term)}<span class="nars-punctuation">${punctuation}</span>`)
+            );
+
+            // Metadata Row
+            const meta = FluentUI.create('div').class('task-meta').mount(main);
+
+            // Priority Badge if available
+            if (this.task.budget) {
+                const prio = this.task.budget.priority || 0;
+                meta.child(
+                    FluentUI.create('span')
+                        .class('meta-badge')
+                        .text(`P:${prio.toFixed(2)}`)
+                        .style({ color: this._getPriorityColor(prio) })
+                );
+            }
+
+            // Truth Viz
+            if (truth) {
+                const viz = FluentUI.create('div')
+                    .class('truth-viz-container')
+                    .attr({ title: `Frequency: ${freq.toFixed(2)}, Confidence: ${conf.toFixed(2)}` })
+                    .mount(meta);
+
+                viz.child(FluentUI.create('div').class('truth-label').text(`{${freq.toFixed(2)} ${conf.toFixed(2)}}`));
+
+                const track = FluentUI.create('div').class('truth-bar-track').mount(viz);
+                FluentUI.create('div')
+                    .class('truth-bar-fill')
+                    .style({
+                        width: `${fPercent}%`,
+                        opacity: 0.3 + conf * 0.7,
+                        backgroundColor: this._getTruthColor(freq)
+                    })
+                    .mount(track);
+            }
+        }
+
+        this.elements.card = card.dom;
     }
 
     _dispatchHover(isHovering) {
         if (this.task) {
-            document.dispatchEvent(new CustomEvent('senars:task:hover', {
-                detail: { task: this.task, hovering: isHovering }
-            }));
+            eventBus.emit(EVENTS.TASK_HOVER, {
+                task: this.task,
+                hovering: isHovering
+            });
         }
+    }
+
+    _getTruthColor(frequency) {
+        // Simple heatmap: Red (0) -> Yellow (0.5) -> Green (1.0) could be used
+        // Or strictly strictly binary blue/orange?
+        // Using standard SeNARS colors if defined variables, else fallback.
+        // Assuming CSS vars are available.
+        return 'var(--accent-primary)';
+    }
+
+    _getPriorityColor(val) {
+        if (val > 0.8) return 'var(--accent-primary, #00ff9d)';
+        if (val > 0.5) return 'var(--accent-warn, #ffcc00)';
+        return 'var(--text-muted, #666)';
     }
 }

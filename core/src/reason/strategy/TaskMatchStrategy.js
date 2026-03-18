@@ -43,8 +43,11 @@ export class TaskMatchStrategy extends PremiseFormationStrategy {
     async* generateCandidates(primaryTask, context) {
         if (!this.enabled) return;
 
-        const {focus, memory} = context;
-        const tasks = this._getAvailableTasks(focus, memory);
+        const {focus, memory, availableTasks} = context;
+        // Use provided tasks (sliced to maxTasks) or fetch from focus/memory
+        const tasks = availableTasks
+            ? availableTasks.slice(0, this.maxTasks)
+            : this._getAvailableTasks(focus, memory);
 
         for (const task of tasks) {
             // Skip self-pairing
@@ -72,10 +75,17 @@ export class TaskMatchStrategy extends PremiseFormationStrategy {
      * @private
      */
     _getAvailableTasks(focus, memory) {
-        return focus?.getTasks?.(this.maxTasks)
-            ?? memory?.getAllConcepts?.()
-                .flatMap(c => c.getAllTasks?.() || [])
-                .slice(0, this.maxTasks)
+        if (focus?.getTasks) {
+            return focus.getTasks(this.maxTasks);
+        }
+
+        if (memory?.getTasks) {
+            return memory.getTasks(this.maxTasks);
+        }
+
+        return memory?.getAllConcepts?.()
+            .flatMap(c => c.getAllTasks?.() || [])
+            .slice(0, this.maxTasks)
             ?? [];
     }
 
@@ -116,8 +126,9 @@ export class TaskMatchStrategy extends PremiseFormationStrategy {
      * @private
      */
     _termsEqual(t1, t2) {
-        return t1?.equals?.(t2)
-            ?? (t1?.name || t1?._name) === (t2?.name || t2?._name);
+        if (t1 === t2) return true;
+        if (t1?.equals) return t1.equals(t2);
+        return (t1?.name || t1?._name) === (t2?.name || t2?._name);
     }
 
     toString() {

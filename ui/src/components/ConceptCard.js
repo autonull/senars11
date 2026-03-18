@@ -1,5 +1,8 @@
 import { Component } from './Component.js';
-import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
+import { SyntaxHighlighter } from '../utils/SyntaxHighlighter.js';
+import { FluentUI } from '../utils/FluentUI.js';
+import { EVENTS } from '../config/constants.js';
+import { eventBus } from '../core/EventBus.js';
 
 export class ConceptCard extends Component {
     constructor(container, concept, options = {}) {
@@ -11,66 +14,121 @@ export class ConceptCard extends Component {
     render() {
         if (!this.container) return;
 
-        const div = document.createElement('div');
-        div.className = 'concept-card';
-
-        const baseStyles = `
-            border-left: 3px solid var(--concept-color);
-            border-radius: 0 3px 3px 0;
-            cursor: pointer;
-            transition: all 0.2s;
-        `;
-
-        const compactStyles = `
-            background: rgba(255, 255, 255, 0.02);
-            padding: 2px 6px;
-            margin-bottom: 1px;
-            font-size: 10px;
-        `;
-
-        const fullStyles = `
-            background: rgba(255, 255, 255, 0.04);
-            padding: 4px 8px;
-            margin-bottom: 4px;
-            font-size: 11px;
-        `;
-
-        div.style.cssText = baseStyles + (this.compact ? compactStyles : fullStyles);
-
-        div.addEventListener('mouseenter', () => { div.style.background = 'rgba(255, 255, 255, 0.07)'; });
-        div.addEventListener('mouseleave', () => { div.style.background = this.compact ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.04)'; });
-
-        const id = this.concept.id ?? this.concept.term;
-        const detail = { concept: this.concept, id };
-
-        div.addEventListener('click', () => document.dispatchEvent(new CustomEvent('senars:concept:select', { detail })));
-        div.addEventListener('dblclick', () => document.dispatchEvent(new CustomEvent('senars:concept:center', { detail })));
-
-        const term = this.concept.term ?? 'unknown';
+        // Data extraction
+        // Handle various concept formats (raw object vs class instance)
+        const term = this.concept.term?.toString() ?? this.concept.id ?? 'unknown';
         const budget = this.concept.budget ?? {};
-        const priority = budget.priority ?? 0;
-        const taskCount = this.concept.tasks?.length ?? this.concept.taskCount ?? 0;
+        const priority = budget.priority ?? this.concept.activation ?? 0;
+        const taskCount = this.concept.tasks?.length ?? this.concept.totalTasks ?? 0;
 
-        const info = this.compact
-            ? `<span title="Tasks">📚${taskCount}</span> <span title="Priority" style="color:${this._getPriorityColor(priority)}">P:${priority.toFixed(2)}</span>`
-            : `<span title="Tasks">📚${taskCount}</span> <span title="Priority" style="color:${this._getPriorityColor(priority)}">P:${priority.toFixed(2)}</span> <span title="Durability">D:${(budget.durability ?? 0).toFixed(2)}</span> <span title="Quality">Q:${(budget.quality ?? 0).toFixed(2)}</span>`;
+        const pColor = this._getPriorityColor(priority);
+        const pPercent = Math.round(priority * 100);
 
-        div.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-                <div style="font-weight: 500; font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">
-                    ${this.compact ? '<span style="opacity: 0.7;">🧠</span> ' : ''}${NarseseHighlighter.highlight(term)}
-                </div>
-                <div style="display: flex; gap: ${this.compact ? '4px' : '6px'}; align-items: center; font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); opacity: 0.8;">
-                    ${info}
-                </div>
-            </div>
-        `;
+        const card = FluentUI.create('div')
+            .class(`concept-card ${this.compact ? 'compact' : 'full'}`)
+            .mount(this.container);
 
-        this.container.appendChild(div);
-        this.elements.card = div;
+        // Event handling
+        const payload = {
+            concept: this.concept,
+            id: this.concept.id ?? (typeof this.concept.term === 'string' ? this.concept.term : this.concept.term?.toString())
+        };
+
+        card.on('click', (e) => {
+            e.stopPropagation();
+            eventBus.emit(EVENTS.CONCEPT_SELECT, payload);
+        });
+
+        card.on('dblclick', (e) => {
+            e.stopPropagation();
+            eventBus.emit(EVENTS.CONCEPT_CENTER, payload);
+        });
+
+        if (this.compact) {
+            // Compact Header
+            const header = FluentUI.create('div').class('concept-card-header').mount(card);
+            header.child(FluentUI.create('span').class('concept-icon').text('🧠'));
+            header.child(FluentUI.create('span').class('concept-term').html(SyntaxHighlighter.highlight(term)));
+
+            // Stats Row
+            const stats = FluentUI.create('div').class('concept-card-stats').mount(card);
+
+            // Task Count Badge
+            stats.child(
+                FluentUI.create('span')
+                    .class('badge')
+                    .attr({ title: 'Task Count' })
+                    .text(`📚 ${taskCount}`)
+            );
+
+            // Priority Badge
+            stats.child(
+                FluentUI.create('span')
+                    .class('badge')
+                    .attr({ title: `Priority: ${priority.toFixed(2)}` })
+                    .style({ color: pColor })
+                    .text(`P ${pPercent}%`)
+            );
+        } else {
+            // Full Layout
+            const main = FluentUI.create('div').class('concept-card-main').mount(card);
+
+            // Large Term Display
+            main.child(
+                FluentUI.create('div')
+                    .class('concept-term-large')
+                    .html(SyntaxHighlighter.highlight(term))
+            );
+
+            // Meta Row
+            const meta = FluentUI.create('div').class('concept-meta-row').mount(main);
+
+            // Priority Bar
+            const meter = FluentUI.create('div')
+                .class('priority-meter-container')
+                .attr({ title: `Priority: ${priority.toFixed(2)}` })
+                .mount(meta);
+
+            FluentUI.create('div')
+                .class('priority-meter-bar')
+                .style({ width: `${pPercent}%`, background: pColor })
+                .mount(meter);
+
+            // Detailed Stats
+            const details = FluentUI.create('div').class('concept-stats').mount(meta);
+
+            details.child(
+                FluentUI.create('span')
+                    .class('stat-item')
+                    .attr({ title: 'Tasks' })
+                    .text(`📚 ${taskCount}`)
+            );
+
+            if (budget.durability !== undefined) {
+                details.child(
+                    FluentUI.create('span')
+                        .class('stat-item')
+                        .attr({ title: 'Durability' })
+                        .text(`D: ${budget.durability.toFixed(2)}`)
+                );
+            }
+
+            if (budget.quality !== undefined) {
+                details.child(
+                    FluentUI.create('span')
+                        .class('stat-item')
+                        .attr({ title: 'Quality' })
+                        .text(`Q: ${budget.quality.toFixed(2)}`)
+                );
+            }
+        }
+
+        this.elements.card = card.dom;
     }
 
     _getPriorityColor(val) {
-        return val > 0.8 ? 'var(--accent-primary)' : val > 0.5 ? 'var(--accent-warn)' : '#555';
+        if (val > 0.8) return 'var(--accent-primary, #00ff9d)';
+        if (val > 0.5) return 'var(--accent-warn, #ffcc00)';
+        return 'var(--text-muted, #666)';
     }
 }

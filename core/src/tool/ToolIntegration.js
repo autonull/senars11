@@ -8,11 +8,12 @@ import { BaseComponent } from '../util/BaseComponent.js';
 export class ToolIntegration extends BaseComponent {
     /**
      * @param {object} config - Configuration for tool integration
+     * @param {Array} additionalTools - Array of pre-instantiated tool instances
      */
-    constructor(config = {}) {
+    constructor(config = {}, additionalTools = []) {
         super({
             enableRegistry: true,
-            enableDiscovery: true,
+            enableDiscovery: true, // Legacy option, now ignored for tree-shaking
             ...config
         }, 'ToolIntegration');
 
@@ -20,6 +21,13 @@ export class ToolIntegration extends BaseComponent {
         this.registry = this.config.enableRegistry ? new ToolRegistry(this.engine) : null;
         this.reasoningCore = null;
         this.toolUsageHistory = [];
+        this.initialTools = additionalTools;
+    }
+
+    async _initialize() {
+        if (this.reasoningCore) {
+            await this.initializeTools();
+        }
     }
 
     /**
@@ -28,7 +36,7 @@ export class ToolIntegration extends BaseComponent {
      */
     connectToReasoningCore(reasoner) {
         this.reasoningCore = reasoner;
-        this.logger.info('Connected tools to reasoning core');
+        this.logInfo('Connected tools to reasoning core');
         return this;
     }
 
@@ -39,71 +47,73 @@ export class ToolIntegration extends BaseComponent {
         if (!this.registry) throw new Error('Tool registry not enabled');
 
         try {
-            const toolConfigs = this._getToolConfigs();
-
-            for (const { id, className, category, description } of toolConfigs) {
-                try {
-                    // Dynamic import to avoid bundling Node-specific tools in browser
-                    let toolClass;
+            // Register explicitly provided tools
+            if (this.initialTools && this.initialTools.length > 0) {
+                for (const tool of this.initialTools) {
                     try {
-                        const module = await import(`./${className}.js`);
-                        toolClass = module[className];
-                    } catch (e) {
-                        this.logger.debug(`Could not import tool class ${className}: ${e.message}`);
-                        continue;
+                        const metadata = this._getToolMetadata(tool);
+                        this.registry.registerTool(metadata.id, tool, {
+                            category: metadata.category,
+                            description: metadata.description
+                        });
+                    } catch (toolError) {
+                        this.logWarn(`Failed to register tool ${tool.constructor.name}: ${toolError.message}`);
                     }
-
-                    if (!toolClass) continue;
-
-                    const tool = new toolClass();
-                    this.registry.registerTool(id, tool, { category, description });
-                } catch (toolError) {
-                    this.logger.warn(`Failed to instantiate tool ${id}, skipping:`, toolError.message);
                 }
             }
 
-            this.logger.info('Tools initialization completed', {
+            this.logInfo('Tools initialization completed', {
                 toolCount: this.engine.getAvailableTools().length
             });
         } catch (error) {
-            this.logger.warn('Tool initialization partially failed:', error.message);
+            this.logWarn(`Tool initialization partially failed: ${error.message}`);
         }
         return this;
     }
 
-    _getToolConfigs() {
-        return [
-            {
+    _getToolMetadata(tool) {
+        // Map class names to metadata
+        // This acts as a central registry for tool metadata without requiring imports
+        const className = tool.constructor.name;
+
+        const metadataMap = {
+            'FileOperationsTool': {
                 id: 'file-operations',
-                className: 'FileOperationsTool',
                 category: 'file-operations',
                 description: 'File operations including read, write, append, delete, list, and stat'
             },
-            {
+            'CommandExecutorTool': {
                 id: 'command-executor',
-                className: 'CommandExecutorTool',
                 category: 'command-execution',
                 description: 'Safe command execution in sandboxed environment'
             },
-            {
+            'WebAutomationTool': {
                 id: 'web-automation',
-                className: 'WebAutomationTool',
                 category: 'web-automation',
                 description: 'Web automation including fetch, scrape, and check operations'
             },
-            {
+            'MediaProcessingTool': {
                 id: 'media-processing',
-                className: 'MediaProcessingTool',
                 category: 'media-processing',
                 description: 'Media processing including PDF, image, and text extraction'
             },
-            {
+            'EmbeddingTool': {
                 id: 'embedding',
-                className: 'EmbeddingTool',
                 category: 'embedding',
                 description: 'Text embedding, similarity, and comparison operations'
             }
-        ];
+        };
+
+        if (metadataMap[className]) {
+            return metadataMap[className];
+        }
+
+        // Default fallback if metadata not found
+        return {
+            id: className.toLowerCase().replace(/tool$/, ''),
+            category: 'general',
+            description: tool.description || 'General purpose tool'
+        };
     }
 
     /**
@@ -116,7 +126,7 @@ export class ToolIntegration extends BaseComponent {
             const executionTime = this._logToolUsage(toolId, params, result, startTime, context);
             return { ...result, executionTime };
         } catch (error) {
-            this.logger.error(`Tool execution failed: ${toolId}`, {
+            this.logError(`Tool execution failed: ${toolId}`, {
                 error: error.message,
                 params: JSON.stringify(params).substring(0, 200)
             });

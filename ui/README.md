@@ -10,6 +10,13 @@ A clean, minimal web interface for SeNARS (Sensorimotor NARS).
 - **Command Input**: Narsese command input with history and quick commands.
 - **WebSocket Communication**: Real-time updates from the SeNARS backend.
 
+## Demo Runner
+
+The Demo Runner (`demo.html`) provides a specialized interface for demonstrating SeNARS capabilities:
+- **Demo Library**: Integrated browser for loading and running pre-configured demos.
+- **Visualizations**: Split-screen view with Knowledge Graph and System Metrics for real-time feedback.
+- **Notebook**: Interactive REPL for manual experimentation alongside demos.
+
 ## Structure
 
 - `index.html`: Main entry point.

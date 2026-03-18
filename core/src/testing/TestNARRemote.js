@@ -121,20 +121,20 @@ export class TestNARRemote {
                 logs: logs
             };
             await writeFile(filepath, JSON.stringify(output, null, 2));
-            if (this.verbose) console.log(`Recording saved to ${filepath}`);
+            if (this.verbose) process.stdout.write(`Recording saved to ${filepath}\n`);
         } catch (e) {
-            console.error(`Failed to save recording to ${filepath}:`, e);
+            process.stderr.write(`Failed to save recording to ${filepath}: ${e}\n`);
         }
     }
 
     printLogs() {
         const logs = this.virtualConsole.getLogs();
         if (logs.length > 0) {
-            console.log('\n=== Virtual Console Logs ===');
+            process.stdout.write('\n=== Virtual Console Logs ===\n');
             logs.forEach(log => {
-                console.log(ConsoleFormatter.format(log));
+                process.stdout.write(`${ConsoleFormatter.format(log)}\n`);
             });
-            console.log('============================\n');
+            process.stdout.write('============================\n\n');
         }
     }
 

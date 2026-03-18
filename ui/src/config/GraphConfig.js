@@ -48,80 +48,185 @@ export const GraphConfig = {
         const isHighContrast = document.body.classList.contains('high-contrast');
 
         if (isHighContrast) {
-            // High contrast overrides (temporary, not persisted to base colors)
-            const contrastColors = { ...c,
+            Object.assign(c, {
                 CONCEPT: '#00ffff', TASK: '#ffff00', QUESTION: '#ff00ff',
                 EDGE: '#ffffff', TEXT: '#ffffff'
-            };
-             // Helper to use correct color map
-             const getC = (k) => contrastColors[k] || c[k];
-
-             // ... construct style using getC ...
-             // For simplicity, we just mutate c clone
-             Object.assign(c, contrastColors);
+            });
         }
 
         return [
+            // --- Core Node Style ---
             {
                 selector: 'node',
                 style: {
-                    'background-color': c.CONCEPT,
                     'label': (ele) => ele.data('label') || ele.data('term') || ele.id(),
                     'color': c.TEXT,
-                    'text-valign': 'bottom', 'text-halign': 'center', 'text-margin-y': 5,
+                    'text-valign': 'bottom',
+                    'text-halign': 'center',
+                    'text-margin-y': 6,
                     'font-family': 'JetBrains Mono, monospace',
-                    'font-size': '12px', 'text-transform': 'uppercase', 'font-weight': 'normal',
-                    'text-background-color': '#0a0a0c', 'text-background-opacity': 0.8, 'text-background-padding': 3,
+                    'font-size': '12px',
+                    'font-weight': 'normal',
+                    'text-background-color': '#0a0a0c',
+                    'text-background-opacity': 0.7,
+                    'text-background-padding': 2,
+                    'text-background-shape': 'roundrectangle',
                     'width': 'mapData(weight, 0, 100, 20, 80)',
                     'height': 'mapData(weight, 0, 100, 20, 80)',
-                    'border-width': 'mapData(weight, 50, 100, 1, 3)', 'border-color': c.CONCEPT,
-                    'ghost': 'yes', 'ghost-offset-x': 0, 'ghost-offset-y': 0, 'ghost-opacity': 0.5,
+                    'border-width': 0,
                     'transition-property': 'background-color, border-color, width, height, opacity',
-                    'transition-duration': '0.3s'
+                    'transition-duration': '0.2s'
                 }
             },
-            {
-                selector: 'edge',
-                style: {
-                    'width': 1, 'line-color': c.EDGE, 'target-arrow-color': c.EDGE,
-                    'target-arrow-shape': 'triangle', 'curve-style': 'bezier', 'arrow-scale': 0.8, 'opacity': 0.6
-                }
-            },
+
+            // --- Node Types ---
             {
                 selector: 'node[type = "concept"]',
                 style: {
-                    'background-color': `mapData(taskCount, 0, 20, ${c.CONCEPT}, #ff00ff)`,
-                    'border-color': c.CONCEPT
+                    'background-color': c.CONCEPT,
+                    'background-opacity': 0.8,
+                    'border-width': 1,
+                    'border-color': 'rgba(255,255,255,0.3)'
                 }
             },
-            // High priority concepts get a distinct look (simulating "prominence" in bag)
+            {
+                selector: 'node[type = "task"]',
+                style: {
+                    'shape': 'round-rectangle',
+                    'background-color': c.TASK,
+                    'border-width': 0,
+                    'text-valign': 'center'
+                }
+            },
+            {
+                selector: 'node[type = "question"]',
+                style: {
+                    'shape': 'diamond',
+                    'background-color': c.QUESTION,
+                    'border-width': 0
+                }
+            },
+
+            // --- Priority Visuals ---
             {
                 selector: 'node[weight >= 80]',
                 style: {
-                    'border-color': '#ffffff',
-                    'shadow-blur': 10,
-                    'shadow-color': c.CONCEPT,
+                    'border-width': 2,
+                    'border-color': '#fff',
+                    'shadow-blur': 15,
+                    'shadow-color': (ele) => ele.style('background-color'),
+                    'shadow-opacity': 0.5,
                     'z-index': 10
                 }
             },
-            {selector: 'node[type = "task"]', style: {'background-color': c.TASK, 'border-color': c.TASK, 'shape': 'rectangle'}},
-            {selector: 'node[type = "question"]', style: {'background-color': c.QUESTION, 'border-color': c.QUESTION, 'shape': 'diamond'}},
 
+            // --- Edges ---
+            {
+                selector: 'edge',
+                style: {
+                    'width': 2,
+                    'line-color': c.EDGE,
+                    'target-arrow-color': c.EDGE,
+                    'target-arrow-shape': 'triangle',
+                    'curve-style': 'bezier',
+                    'arrow-scale': 0.8,
+                    'opacity': 0.4
+                }
+            },
             { selector: 'edge[type = "inheritance"]', style: {'line-color': c.INHERITANCE, 'target-arrow-color': c.INHERITANCE} },
             { selector: 'edge[type = "similarity"]', style: {'line-color': c.SIMILARITY, 'target-arrow-color': c.SIMILARITY, 'line-style': 'dashed'} },
             { selector: 'edge[type = "implication"]', style: {'line-color': c.IMPLICATION, 'target-arrow-color': c.IMPLICATION} },
 
-            { selector: ':selected', style: {'border-width': 2, 'border-color': '#ffffff', 'overlay-opacity': 0} },
-            { selector: '.keyboard-selected', style: {'border-width': 2, 'border-color': c.HIGHLIGHT, 'shadow-blur': 10, 'shadow-color': c.HIGHLIGHT} },
+            // --- Semantic Zoom Levels ---
+            {
+                selector: '.overview-mode',
+                style: {
+                    'label': '',
+                    'width': 'mapData(weight, 0, 100, 5, 20)',
+                    'height': 'mapData(weight, 0, 100, 5, 20)',
+                    'opacity': 0.6,
+                    'border-width': 0
+                }
+            },
+            {
+                selector: '.component-mode',
+                style: {
+                    'font-size': '10px',
+                    'width': 'mapData(weight, 0, 100, 15, 60)',
+                    'height': 'mapData(weight, 0, 100, 15, 60)',
+                    'opacity': 0.9
+                }
+            },
+            {
+                selector: '.detail-mode',
+                style: {
+                    'font-size': '12px',
+                    'opacity': 1.0
+                }
+            },
 
+            // --- Interactions ---
+            {
+                selector: ':selected',
+                style: {
+                    'border-width': 3,
+                    'border-color': '#ffffff',
+                    'shadow-blur': 20,
+                    'shadow-color': '#ffffff',
+                    'overlay-opacity': 0
+                }
+            },
+            {
+                selector: '.keyboard-selected',
+                style: {
+                    'border-width': 3,
+                    'border-color': c.HIGHLIGHT,
+                    'shadow-blur': 20,
+                    'shadow-color': c.HIGHLIGHT
+                }
+            },
+            {
+                selector: '.hovered',
+                style: {
+                    'border-width': 2,
+                    'border-color': '#fff',
+                    'z-index': 100
+                }
+            },
+            {
+                selector: '.neighbor',
+                style: {
+                    'text-background-opacity': 1,
+                    'text-background-color': '#000',
+                    'color': '#fff',
+                    'z-index': 99
+                }
+            },
+            {
+                selector: '.neighbor-edge',
+                style: {
+                    'line-color': '#fff',
+                    'target-arrow-color': '#fff',
+                    'width': 3,
+                    'opacity': 0.8,
+                    'z-index': 99
+                }
+            },
             {
                 selector: '.trace-highlight',
                 style: {
-                    'border-width': 3, 'border-color': c.HIGHLIGHT, 'line-color': c.HIGHLIGHT,
-                    'target-arrow-color': c.HIGHLIGHT, 'z-index': 9999, 'opacity': 1, 'width': 3
+                    'border-width': 4,
+                    'border-color': c.HIGHLIGHT,
+                    'line-color': c.HIGHLIGHT,
+                    'target-arrow-color': c.HIGHLIGHT,
+                    'z-index': 9999,
+                    'opacity': 1,
+                    'width': 4,
+                    'shadow-blur': 10,
+                    'shadow-color': c.HIGHLIGHT
                 }
             },
-            { selector: '.trace-dim', style: {'opacity': 0.1, 'z-index': 0, 'label': ''} }
+            { selector: '.trace-dim', style: {'opacity': 0.05, 'z-index': 0, 'label': ''} }
         ];
     },
 
@@ -143,5 +248,4 @@ export const GraphConfig = {
     }
 };
 
-// Initialize by loading settings
 GraphConfig.load();

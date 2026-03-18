@@ -3,7 +3,7 @@
  * Following AGENTS.md: Elegant, Consolidated, Consistent, Organized, Deeply deduplicated
  */
 
-import {Rule} from '@senars/core/src/reason/Rule.js';
+import {Rule} from '../../../core/src/reason/Rule.js';
 import {Unify} from '../kernel/Unify.js';
 
 export class MeTTaRuleAdapter extends Rule {
@@ -40,15 +40,15 @@ export class MeTTaRuleAdapter extends Rule {
         if (!validBindings) return [];
 
         // Apply substitution to generate result
-        const {Unifier} = await import('@senars/core/src/term/Unifier.js');
+        const {Unifier} = await import('../../../core/src/term/Unifier.js');
         const unifier = new Unifier(this.interpreter.termFactory);
         const resultTerm = unifier.applySubstitution(resultTemplate, validBindings);
 
         if (!resultTerm) return [];
 
         // Return derived task
-        const {Task} = await import('@senars/core/src/task/Task.js');
-        const {Truth} = await import('@senars/core/src/Truth.js'); // Assuming Truth is needed, though usually inherited or calculated based on rule type
+        const {Task} = await import('../../../core/src/task/Task.js');
+        const {Truth} = await import('../../../core/src/Truth.js'); // Assuming Truth is needed, though usually inherited or calculated based on rule type
 
         return [new Task({
             term: resultTerm,

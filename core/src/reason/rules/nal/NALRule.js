@@ -12,6 +12,23 @@ export class NALRule extends Rule {
     }
 
     /**
+     * Unify two terms or check equality if unifier is not available.
+     * @protected
+     */
+    unify(t1, t2, context) {
+        return context?.unifier?.unify(t1, t2) ?? {
+            success: t1?.equals?.(t2) ?? false,
+            substitution: {}
+        };
+    }
+
+    applySubstitution(term, substitution, context) {
+        return (context?.unifier && substitution && Object.keys(substitution).length > 0)
+            ? context.unifier.applySubstitution(term, substitution)
+            : term;
+    }
+
+    /**
      * Create a derived task with proper NAL semantics
      * @protected
      */
@@ -47,27 +64,13 @@ export class NALRule extends Rule {
      * @protected
      */
     _calculateConclusionBudget(premises) {
-        // Default to 0.5 if missing
-        const p1Priority = premises[0]?.budget?.priority ?? 0.5;
-        const p2Priority = premises[1]?.budget?.priority ?? 0.5;
-
-        // Calculate priority: p1 * p2 * rulePriority
-        // Handle single premise case correctly (though usually NAL rules are binary)
-        const priority = premises.length === 1
-            ? p1Priority * this.priority
-            : p1Priority * p2Priority * this.priority;
-
-        // Calculate durability and quality (min of premises)
-        const durabilities = premises.map(p => p.budget?.durability ?? 0.5);
-        const qualities = premises.map(p => p.budget?.quality ?? 0.5);
-
-        const durability = Math.min(...durabilities);
-        const quality = Math.min(...qualities);
+        const priorities = premises.map(p => p.budget?.priority ?? 0.5);
+        const priority = priorities.reduce((acc, p) => acc * p, this.priority);
 
         return {
             priority,
-            durability,
-            quality
+            durability: Math.min(...premises.map(p => p.budget?.durability ?? 0.5)),
+            quality: Math.min(...premises.map(p => p.budget?.quality ?? 0.5))
         };
     }
 }

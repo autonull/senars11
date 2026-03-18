@@ -1,13 +1,13 @@
 import { ConnectionInterface } from './ConnectionInterface.js';
-import { NAR } from '../../../core/src/nar/NAR.js';
-import { MeTTaInterpreter } from '../../../metta/src/MeTTaInterpreter.js';
-import { Config } from '../../../core/src/config/Config.js';
+// Dynamic import handled in connect() to avoid circular dependency
+// import { Agent } from '@senars/agent';
+import { Config } from '@senars/core';
+import { MeTTaInterpreter } from '@senars/metta';
 import { Logger } from '../logging/Logger.js';
 
 export class LocalConnectionManager extends ConnectionInterface {
     constructor() {
         super();
-        this.messageHandlers = new Map();
         this.logger = new Logger();
         this.nar = null;
         this.metta = null;
@@ -17,33 +17,50 @@ export class LocalConnectionManager extends ConnectionInterface {
     async connect() {
         try {
             this.updateStatus('connecting');
-            const config = Config.parse([]);
-            config.system = { ...config.system, enableLogging: false };
+            // Try to load default config if available, else empty
+            const config = Config ? Config.parse([]) : {};
+            if (config.system) config.system.enableLogging = false;
 
             if (typeof window !== 'undefined') {
                 config.components = {};
             } else {
                 config.components ??= {};
                 if (config.components.Metacognition) config.components.Metacognition.enabled = false;
-                else config.components.Metacognition = { enabled: false };
                 config.components.LMIntegration && (config.components.LMIntegration.enabled = false);
             }
 
-            this.nar = new NAR(config);
-            await this.nar.initialize();
+            let AgentClass = null;
+            try {
+                // Dynamically import Agent to break circular dependency cycle:
+                // LocalConnectionManager -> Agent -> NAR -> BaseComponent -> Logger -> UI_CONSTANTS -> core
+                // If imported statically, this cycle causes a crash during module evaluation.
+                const module = await import('@senars/agent');
+                AgentClass = module.Agent;
+            } catch (e) {
+                console.warn('Agent module failed to load (Local Agent features unavailable):', e);
+            }
 
-            this.metta = new MeTTaInterpreter(this.nar, {
-                ...config,
-                fs: null, path: null, url: null
-            });
-            await this.metta.initialize();
+            if (AgentClass) {
+                this.nar = new AgentClass(config);
+                await this.nar.initialize();
 
-            this.nar.eventBus.on('*', (type, payload) => this.dispatchMessage({ type, payload, timestamp: Date.now() }));
+                if (this.nar.eventBus) {
+                    this.nar.eventBus.on('*', (data) => {
+                        const type = data.eventName || data.type;
+                        this.dispatchMessage({ type, payload: data, timestamp: Date.now() });
+                    });
+                }
+            }
+
+            if (MeTTaInterpreter && this.nar) {
+                this.metta = new MeTTaInterpreter(this.nar, {
+                    ...config,
+                    fs: null, path: null, url: null
+                });
+                await this.metta.initialize();
+            }
 
             this.updateStatus('connected');
-            this.logger.log('Connected to Local SeNARS', 'success', '💻');
-
-            setTimeout(() => this.dispatchMessage({ type: 'agent/result', payload: { result: "Welcome to SeNARS Local Mode" } }), 100);
             return true;
         } catch (error) {
             console.error("Local connection failed", error);
@@ -74,7 +91,14 @@ export class LocalConnectionManager extends ConnectionInterface {
                     await this.handleReset();
                     break;
                 case 'control/step':
-                    // TODO: Implement step logic if needed
+                    if (this.nar) await this.nar.cycle();
+                    break;
+                case 'control/start':
+                    if (this.nar) this.nar.run();
+                    break;
+                case 'control/stop':
+                case 'control/pause':
+                    if (this.nar) this.nar.stop();
                     break;
                 default:
                     console.log("LocalConnectionManager: Unhandled message type", type);
@@ -93,41 +117,59 @@ export class LocalConnectionManager extends ConnectionInterface {
         }
 
         if (this.metta && (type === 'agent/input' || /^(!|\(|=\s)/.test(text))) {
-            try {
-                const results = await this.metta.run(text);
-                if (results?.length) {
-                    const output = results.map(r => r.toString()).join('\n');
-                    const vizMatch = output.match(/__VIZ__:(\w+):(.+)/s);
-                    const uiMatch = output.match(/__UI__:(\S+)(?:\s+(.+))?/);
+            await this._handleMettaInput(text);
+        } else if (this.nar) {
+            await this._handleNarInput(text);
+        }
+    }
 
-                    if (vizMatch) {
-                        const [_, type, data] = vizMatch;
-                        try {
-                            const parsedData = (type === 'graph' || type === 'chart') ? JSON.parse(data) : data;
-                            this.dispatchMessage({
-                                type: 'visualization',
-                                payload: { type, data: parsedData, content: data }
-                            });
-                        } catch (e) {
-                            console.error('Failed to parse visualization data', e);
-                            this.dispatchMessage({ type: 'agent/result', payload: { result: output } });
-                        }
-                    } else if (uiMatch) {
-                         const [_, cmd, args] = uiMatch;
-                         this.dispatchMessage({
-                             type: 'ui-command',
-                             payload: { command: cmd, args: args ? args.trim() : '' }
-                         });
-                    } else {
-                        this.dispatchMessage({
-                            type: 'agent/result',
-                            payload: { result: output }
-                        });
-                    }
+    async _handleMettaInput(text) {
+        try {
+            const results = await this.metta.run(text);
+            if (!results?.length) return;
+
+            const cleanResults = results.filter(r => {
+                const str = r.toString();
+                if (str.startsWith('(= ') || str.startsWith('(: ')) {
+                    return !text.includes(str);
                 }
-            } catch (e) {
-                this.dispatchMessage({ type: 'error', payload: { message: e.message } });
+                return true;
+            });
+
+            if (cleanResults.length === 0) return;
+
+            const output = cleanResults.map(r => r.toString()).join('\n');
+            const vizMatch = output.match(/__VIZ__:(\w+):(.+)/s);
+            const uiMatch = output.match(/__UI__:(\S+)(?:\s+(.+))?/);
+
+            if (vizMatch) {
+                const [_, type, data] = vizMatch;
+                try {
+                    const parsedData = (type === 'graph' || type === 'chart') ? JSON.parse(data) : data;
+                    this.dispatchMessage({ type: 'visualization', payload: { type, data: parsedData, content: data } });
+                } catch (e) {
+                    console.error('Failed to parse visualization data', e);
+                    this.dispatchMessage({ type: 'agent/result', payload: { result: output } });
+                }
+            } else if (uiMatch) {
+                const [_, cmd, args] = uiMatch;
+                this.dispatchMessage({ type: 'ui-command', payload: { command: cmd, args: args ? args.trim() : '' } });
+            } else {
+                this.dispatchMessage({ type: 'agent/result', payload: { result: output } });
             }
+        } catch (e) {
+            this.dispatchMessage({ type: 'error', payload: { message: e.message } });
+        }
+    }
+
+    async _handleNarInput(text) {
+        if (this.nar.processInput) {
+            const result = await this.nar.processInput(text);
+            if (typeof result === 'string') {
+                this.dispatchMessage({ type: 'agent/result', payload: { result } });
+            }
+        } else {
+            await this.nar.input(text);
         }
     }
 
@@ -140,41 +182,9 @@ export class LocalConnectionManager extends ConnectionInterface {
         this.dispatchMessage({ type: 'system/reset', payload: {} });
     }
 
-    subscribe(type, handler) {
-        let handlers = this.messageHandlers.get(type);
-        if (!handlers) {
-            handlers = [];
-            this.messageHandlers.set(type, handlers);
-        }
-        handlers.push(handler);
-    }
-
-    unsubscribe(type, handler) {
-        const handlers = this.messageHandlers.get(type);
-        if (!handlers) return;
-        const index = handlers.indexOf(handler);
-        if (index > -1) handlers.splice(index, 1);
-    }
-
     disconnect() {
         this.connectionStatus = 'disconnected';
         this.notifyStatusChange('disconnected');
-    }
-
-    dispatchMessage(message) {
-        const typeHandlers = this.messageHandlers.get(message.type);
-        if (typeHandlers) {
-            for (const h of [...typeHandlers]) {
-                try { h(message); } catch (e) { console.error("Handler error", e); }
-            }
-        }
-
-        const globalHandlers = this.messageHandlers.get('*');
-        if (globalHandlers) {
-            for (const h of [...globalHandlers]) {
-                try { h(message); } catch (e) { console.error("Handler error", e); }
-            }
-        }
     }
 
     updateStatus(status) {

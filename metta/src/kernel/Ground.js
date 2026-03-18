@@ -1,13 +1,15 @@
 /**
- * Ground.js - Native function registry
- * Registry for grounded operations in MeTTa
- * Following AGENTS.md: Elegant, Consolidated, Consistent, Organized, Deeply deduplicated
+ * Ground.js - Native function registry for grounded operations
+ * Performance optimized with operation lookup caching (Q4)
  */
 
 import { sym, exp, isExpression, constructList, isList, flattenList } from './Term.js';
 import { Unify } from './Unify.js';
 import { OperationHelpers } from './ops/OperationHelpers.js';
 import { CoreRegistry } from './ops/CoreRegistry.js';
+import { configManager } from '../config/config.js';
+
+// Operation registration modules
 import { registerArithmeticOps } from './ops/ArithmeticOps.js';
 import { registerComparisonOps } from './ops/ComparisonOps.js';
 import { registerLogicalOps } from './ops/LogicalOps.js';
@@ -24,74 +26,116 @@ import { registerMathOps } from './ops/MathOps.js';
 import { registerSetOps } from './ops/SetOps.js';
 import { registerHOFOps } from './ops/HOFOps.js';
 import { registerMetaprogrammingOps } from './ops/MetaprogrammingOps.js';
+import { registerReflectionOps } from './ops/ReflectionOps.js';
+
+const AsyncFunction = (async () => {}).constructor;
+const isAsyncFunction = fn => fn instanceof AsyncFunction;
 
 export class Ground extends CoreRegistry {
     constructor(context = {}) {
         super();
         this.context = context;
+        this._fastPathsEnabled = configManager.get('fastPaths');
+        this._normalizedCache = new Map();
+        this.opsById = [];
+        this.nameToId = new Map();
+        this.nextId = 0;
+
         this._registerCoreOperations();
     }
 
-    // === Implementation Helpers ===
+    // === Helper Methods (delegated to OperationHelpers) ===
 
-    /**
-     * Convert an atom to a number
-     */
     _atomToNum(atom) { return OperationHelpers.atomToNum(atom); }
-
-    /**
-     * Require numeric arguments
-     */
     _requireNums(args, count = null) { return OperationHelpers.requireNums(args, count); }
-
-    /**
-     * Convert a boolean value to a symbolic representation
-     */
     _bool(val) { return OperationHelpers.bool(val); }
-
-    /**
-     * Determine the truthiness of a value
-     */
     _truthy(val) { return OperationHelpers.truthy(val); }
-
-    /**
-     * Flatten an expression to an array of its components
-     */
     _flattenExpr(expr) { return OperationHelpers.flattenExpr(expr); }
-
-    /**
-     * Convert an array to a list representation
-     */
     _listify(arr) { return OperationHelpers.listify(arr); }
-
-    /**
-     * Check if an atom represents a list
-     */
     _isList(atom) { return OperationHelpers.isList(atom); }
 
     // === Registration ===
 
-    /**
-     * Register all core operations
-     */
+    register(name, op, options = {}) {
+        const normalizedOptions = { ...options, async: options.async ?? isAsyncFunction(op) };
+        super.register(name, op, normalizedOptions);
+
+        if (this._fastPathsEnabled) {
+            const id = this.nextId++;
+            this.nameToId.set(name, id);
+            this.opsById[id] = { op, options: normalizedOptions };
+
+            if (op && typeof op === 'object') {
+                op._opId = id;
+                op._async = normalizedOptions.async;
+            }
+        }
+    }
+
+    lookup(symbol) {
+        const name = symbol.name ?? symbol;
+
+        if (this._fastPathsEnabled) {
+            if (symbol._opId !== undefined) return this.opsById[symbol._opId]?.op;
+            const id = this.nameToId.get(name);
+            if (id !== undefined) return this.opsById[id]?.op;
+        }
+
+        const normalized = this._getNormalized(name);
+        return this.operations.get(normalized)?.fn;
+    }
+
+    get(name) {
+        return this.lookup(typeof name === 'string' ? { name } : name);
+    }
+
+    getOptions(name) {
+        const n = typeof name === 'string' ? name : name?.name;
+        if (!n) return {};
+
+        if (this._fastPathsEnabled) {
+            const id = this.nameToId.get(n);
+            if (id !== undefined) return this.opsById[id]?.options ?? {};
+        }
+
+        const entry = this.operations.get(this._normalize(n));
+        return entry?.options ?? {};
+    }
+
+    async executeAsync(name, ...args) {
+        const n = typeof name === 'string' ? name : name?.name;
+        if (!n) throw new Error(`Invalid operation name: ${name}`);
+
+        const options = this.getOptions(n);
+        const op = this.lookup({ name: n });
+        if (!op) throw new Error(`Operation not found: ${n}`);
+
+        return options.async ? await op(...args) : op(...args);
+    }
+
+    isAsync(name) {
+        return this.getOptions(name).async === true;
+    }
+
+    getOperationsWithMeta() {
+        return Array.from(this.operations.entries()).map(([name, entry]) => ({
+            name,
+            async: entry.options?.async ?? false,
+            lazy: entry.options?.lazy ?? false,
+            pure: entry.options?.pure ?? false
+        }));
+    }
+
+    // === Registration Helpers ===
+
     _registerCoreOperations() {
-        // Register core operation categories
         this._registerBasicOps();
         this._registerAdvancedOps();
-
-        // Register utility operations
         this.register('&now', () => sym(String(Date.now())));
-
-        // Register placeholder operations
         this._registerPlaceholders();
-
-        // Register metaprogramming operations (require interpreter context)
         registerMetaprogrammingOps(this);
     }
 
-    /**
-     * Register basic operations
-     */
     _registerBasicOps() {
         registerArithmeticOps(this);
         registerComparisonOps(this);
@@ -101,9 +145,6 @@ export class Ground extends CoreRegistry {
         registerIOOps(this);
     }
 
-    /**
-     * Register advanced operations
-     */
     _registerAdvancedOps() {
         registerSpaceOps(this, this.context);
         registerStateOps(this);
@@ -114,16 +155,21 @@ export class Ground extends CoreRegistry {
         registerMathOps(this);
         registerSetOps(this);
         registerHOFOps(this);
+        registerReflectionOps(this);
     }
 
-    /**
-     * Register placeholder operations
-     */
     _registerPlaceholders() {
         ['&subst', '&match', '&type-of'].forEach(op =>
             this.register(op, () => {
                 throw new Error(`${op} should be provided by Interpreter`);
             })
         );
+    }
+
+    _getNormalized(name) {
+        if (this._normalizedCache.has(name)) return this._normalizedCache.get(name);
+        const normalized = name.startsWith('&') ? name : `&${name}`;
+        this._normalizedCache.set(name, normalized);
+        return normalized;
     }
 }

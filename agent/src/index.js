@@ -1,5 +1,5 @@
-export * from './agent/Agent.js';
-export * from './agent/AgentBuilder.js';
+export * from './Agent.js';
+export * from './AgentBuilder.js';
 export * from './app/App.js';
 export * from './app/Config.js';
 export * from './io/PersistenceManager.js';

@@ -33,6 +33,11 @@ describe('Examples to Unit Tests Promotion', () => {
         test('nested let', () => expect(run('!(let $x 10 (let $y 20 (+ $x $y)))')).toBe('30'));
         test('let*', () => expect(run('!(let* (( $x 10 ) ( $y 30 )) (+ $x $y))')).toBe('40'));
 
+        test('let variable capture', () => {
+             // Should not recursively substitute
+             expect(run('!(let $x (foo $x) $x)')).toBe('(foo $x)');
+        });
+
         test('recursion (factorial)', () => {
             const code = `
                 (= (fact $n) (if (== $n 0) 1 (* $n (fact (- $n 1)))))

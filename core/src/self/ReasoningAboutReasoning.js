@@ -537,7 +537,10 @@ export class ReasoningAboutReasoning {
             case 'optimization':
                 return await this._applyOptimizations(task.optimizations);
             default:
-                console.warn(`Unknown meta-cognitive task type: ${task.type}`);
+                logError(new Error(`Unknown meta-cognitive task type: ${task.type}`), {
+                    taskType: task.type,
+                    context: 'meta-cognitive-reasoning'
+                }, 'warn', 'ReasoningAboutReasoning');
         }
     }
 

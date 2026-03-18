@@ -28,7 +28,7 @@ export class NALStdlibLoader {
                 this.loadedModules.add(mod);
             } catch (err) {
                 stats.failed.push({ module: mod, error: err.message });
-                console.warn(`Failed to load NAL stdlib '${mod}': ${err.message}`);
+                Logger.warn(`Failed to load NAL stdlib module '${mod}':`, err);
             }
         }
         return stats;

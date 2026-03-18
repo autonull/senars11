@@ -89,10 +89,10 @@ export class BaseComponent {
     // Lifecycle operation executor
     async _executeLifecycleOperation(operation, checkCondition, action, metricName = null) {
         if (checkCondition) {
-            const validationError = this._validateLifecycleOperation(operation);
-            if (validationError) {
-                this.logWarn(validationError.message);
-                return validationError.returnValue;
+            const error = this._checkLifecycleCondition(operation);
+            if (error) {
+                this.logWarn(error);
+                return operation !== 'start';
             }
         }
 
@@ -118,10 +118,10 @@ export class BaseComponent {
     }
 
     /**
-     * Validate lifecycle operation conditions
+     * Check lifecycle operation conditions
      * @private
      */
-    _validateLifecycleOperation(operation) {
+    _checkLifecycleCondition(operation) {
         const validations = {
             start: () => !this._initialized && `Cannot start uninitialized component ${this._name}`,
             stop: () => !this._started && `Component ${this._name} not started`,
@@ -129,15 +129,7 @@ export class BaseComponent {
             dispose: () => this._disposed && `Component ${this._name} already disposed`
         };
 
-        const validation = validations[operation]?.();
-        if (validation) {
-            return {
-                message: validation,
-                returnValue: operation === 'start' ? false : true
-            };
-        }
-
-        return null;
+        return validations[operation]?.() || null;
     }
 
     /**
@@ -287,8 +279,13 @@ export class BaseComponent {
     }
 
     // Event emission
-    emitEvent(event, data, options = {}) {
+    emitEvent(event, dataOrFn, options = {}) {
+        if (this._eventBus.hasSubscribers && !this._eventBus.hasSubscribers(event)) {
+            return;
+        }
+
         const currentTime = Date.now();
+        const data = typeof dataOrFn === 'function' ? dataOrFn() : dataOrFn;
         this._eventBus.emit(event, {
             timestamp: currentTime,
             component: this._name,
@@ -297,8 +294,9 @@ export class BaseComponent {
         }, options);
     }
 
-    _emitIntrospectionEvent(eventName, payload) {
-        this._config.introspection?.enabled &&
+    _emitIntrospectionEvent(eventName, payloadOrFn) {
+        if (!this._config.introspection?.enabled) return;
+        const payload = typeof payloadOrFn === 'function' ? payloadOrFn() : payloadOrFn;
         this._eventBus.emit(eventName, createEventPayload(this._name, payload));
     }
 

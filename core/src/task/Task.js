@@ -1,87 +1,92 @@
 import { ArrayStamp } from '../Stamp.js';
 import { Truth } from '../Truth.js';
-
 import { Term } from '../term/Term.js';
+import { getOperator, getComponents } from '../term/TermUtils.js';
 
-export const Punctuation = Object.freeze({
-    BELIEF: '.',
-    GOAL: '!',
-    QUESTION: '?'
+const freeze = Object.freeze;
+
+export const Punctuation = freeze({ BELIEF: '.', GOAL: '!', QUESTION: '?' });
+const TaskType = freeze({ BELIEF: 'BELIEF', GOAL: 'GOAL', QUESTION: 'QUESTION' });
+
+const PUNCTUATION_TO_TYPE = freeze({
+    [Punctuation.BELIEF]: TaskType.BELIEF,
+    [Punctuation.GOAL]: TaskType.GOAL,
+    [Punctuation.QUESTION]: TaskType.QUESTION
 });
 
-const PUNCTUATION_TO_TYPE = Object.freeze({
-    [Punctuation.BELIEF]: 'BELIEF',
-    [Punctuation.GOAL]: 'GOAL',
-    [Punctuation.QUESTION]: 'QUESTION'
+const TYPE_TO_PUNCTUATION = freeze({
+    [TaskType.BELIEF]: Punctuation.BELIEF,
+    [TaskType.GOAL]: Punctuation.GOAL,
+    [TaskType.QUESTION]: Punctuation.QUESTION
 });
-const TYPE_TO_PUNCTUATION = Object.freeze({
-    'BELIEF': Punctuation.BELIEF,
-    'GOAL': Punctuation.GOAL,
-    'QUESTION': Punctuation.QUESTION
-});
-const DEFAULT_BUDGET = Object.freeze({ priority: 0.5, durability: 0.5, quality: 0.5, cycles: 100, depth: 10 });
+
+const DEFAULT_BUDGET = freeze({ priority: 0.5, durability: 0.5, quality: 0.5, cycles: 100, depth: 10 });
 
 export class Task {
-    constructor({ term, punctuation = '.', truth = null, budget = DEFAULT_BUDGET, stamp = null, metadata = null }) {
+    constructor({ term, punctuation = Punctuation.BELIEF, truth = null, budget = DEFAULT_BUDGET, stamp = null, metadata = null }) {
         if (!(term instanceof Term)) throw new Error('Task must be initialized with a valid Term object.');
 
-        let finalTerm = term;
-        let finalTruth = truth;
+        this.type = PUNCTUATION_TO_TYPE[punctuation] ?? TaskType.BELIEF;
 
-        if (finalTerm.operator === '--' && finalTerm.components?.length === 1) {
-            finalTerm = finalTerm.components[0];
-            if (finalTruth) {
-                const truth = this._createTruth(finalTruth);
-                finalTruth = truth ? new Truth(1.0 - truth.f, truth.c) : null;
-            }
-        }
+        // Handle negation unwrapping for terms like (-- (A))
+        const { term: unwrappedTerm, truth: finalTruth } = this._unwrapNegation(term, truth);
 
-        this.term = finalTerm;
-        this.type = PUNCTUATION_TO_TYPE[punctuation] ?? 'BELIEF';
+        this._validateTruth(finalTruth);
 
-        const hasValidTruthForType = this.type === 'QUESTION' ? (finalTruth === null) : (finalTruth !== null);
-        if (!hasValidTruthForType) {
-            const errorMsg = this.type === 'QUESTION'
-                ? 'Questions cannot have truth values'
-                : `${this.type} tasks must have valid truth values`;
-            throw new Error(errorMsg);
-        }
-
+        this.term = unwrappedTerm;
         this.truth = this._createTruth(finalTruth);
-        this.budget = Object.freeze({ ...budget });
+        this.budget = freeze({ ...budget });
         this.stamp = stamp ?? ArrayStamp.createInput();
-        this.metadata = metadata;
-        Object.freeze(this);
+        this.metadata = metadata ? freeze(metadata) : null;
+
+        freeze(this);
     }
 
-    get punctuation() {
-        return TYPE_TO_PUNCTUATION[this.type];
-    }
+    get punctuation() { return TYPE_TO_PUNCTUATION[this.type]; }
 
     static fromJSON(data) {
-        if (!data) {
-            throw new Error('Task.fromJSON requires valid data object');
-        }
+        if (!data) throw new Error('Task.fromJSON requires valid data object');
 
-        const reconstructedTerm = data.term ?
-            (typeof data.term === 'string' ?
-                { toString: () => data.term, equals: (other) => other.toString && other.toString() === data.term } :
-                data.term) :
-            null;
+        const term = typeof data.term === 'string'
+            ? { toString: () => data.term, equals: (o) => o?.toString?.() === data.term }
+            : data.term;
 
         return new Task({
-            term: reconstructedTerm,
+            term,
             punctuation: data.punctuation,
-            truth: data.truth ? new Truth(data.truth.frequency ?? data.truth.f, data.truth.confidence ?? data.truth.c) : null,
-            budget: data.budget ?? { priority: 0.5, durability: 0.5, quality: 0.5, cycles: 100, depth: 10 }
+            truth: data.truth ? Truth.create(data.truth.frequency ?? data.truth.f, data.truth.confidence ?? data.truth.c) : null,
+            budget: data.budget ?? DEFAULT_BUDGET
         });
+    }
+
+    _unwrapNegation(term, truth) {
+        if (getOperator(term) !== '--') return {term, truth};
+
+        const comps = getComponents(term);
+        if (comps.length !== 1) return {term, truth};
+
+        const t = this._createTruth(truth);
+        return {
+            term: comps[0],
+            truth: t ? Truth.create(1.0 - t.f, t.c) : truth
+        };
+    }
+
+    _validateTruth(truth) {
+        const hasTruth = truth !== null;
+        const needsTruth = this.type !== TaskType.QUESTION;
+
+        if (hasTruth !== needsTruth) {
+            throw new Error(this.type === TaskType.QUESTION
+                ? 'Questions cannot have truth values'
+                : `${this.type} tasks must have valid truth values`);
+        }
     }
 
     _createTruth(truth) {
         if (truth instanceof Truth) return truth;
-        if (!truth) return null;
-        return truth?.frequency != null && truth?.confidence != null
-            ? new Truth(truth.frequency, truth.confidence)
+        return (truth?.frequency != null && truth?.confidence != null)
+            ? Truth.create(truth.frequency, truth.confidence)
             : null;
     }
 
@@ -96,36 +101,20 @@ export class Task {
         });
     }
 
-    isBelief() {
-        return this.type === 'BELIEF';
-    }
-
-    isGoal() {
-        return this.type === 'GOAL';
-    }
-
-    isQuestion() {
-        return this.type === 'QUESTION';
-    }
+    isBelief() { return this.type === TaskType.BELIEF; }
+    isGoal() { return this.type === TaskType.GOAL; }
+    isQuestion() { return this.type === TaskType.QUESTION; }
 
     equals(other) {
+        if (this === other) return true;
         if (!(other instanceof Task) || this.type !== other.type) return false;
 
-        if (this.term !== other.term && !this.term.equals(other.term)) return false;
-
-        const thisHasTruth = this.truth !== null;
-        const otherHasTruth = other.truth !== null;
-
-        if (thisHasTruth !== otherHasTruth) return false;
-
-        if (thisHasTruth && otherHasTruth && !this.truth.equals(other.truth)) return false;
-
-        return true;
+        return (this.term === other.term || this.term.equals(other.term)) &&
+               (this.truth === other.truth || (this.truth?.equals(other.truth) ?? false));
     }
 
     toString() {
-        const truthStr = this.truth ? ` ${this.truth.toString()}` : '';
-        return `${this.term.toString()}${this.punctuation}${truthStr}`;
+        return `${this.term.toString()}${this.punctuation}${this.truth ? ` ${this.truth.toString()}` : ''}`;
     }
 
     serialize() {
@@ -133,10 +122,7 @@ export class Task {
             term: this.term.serialize ? this.term.serialize() : this.term.toString(),
             punctuation: this.punctuation,
             type: this.type,
-            truth: this.truth ? this.truth.serialize ? this.truth.serialize() : {
-                f: this.truth.f,
-                c: this.truth.c
-            } : null,
+            truth: this.truth?.serialize ? this.truth.serialize() : (this.truth ? { f: this.truth.f, c: this.truth.c } : null),
             budget: this.budget,
             stamp: this.stamp.serialize ? this.stamp.serialize() : null,
             version: '1.0.0'

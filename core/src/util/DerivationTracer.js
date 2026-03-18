@@ -1,5 +1,6 @@
 import {TraceId} from './TraceId.js';
 import {IntrospectionEvents} from './IntrospectionEvents.js';
+import {getPlatform} from '../platform/index.js';
 
 export class DerivationTracer {
     constructor(eventBus, options = {}) {
@@ -17,6 +18,10 @@ export class DerivationTracer {
         if (this.options.autoStart) {
             this.startTrace();
         }
+    }
+
+    get platform() {
+        return getPlatform();
     }
 
     startTrace(initialTask = null) {
@@ -250,13 +255,11 @@ export class DerivationTracer {
         const trace = this.traces.get(traceId);
         if (!trace) throw new Error(`Trace ${traceId} not found`);
 
-        const fs = await import('fs/promises');
-        await fs.writeFile(path, JSON.stringify(trace, null, 2), 'utf-8');
+        await this.platform.fs.promises.writeFile(path, JSON.stringify(trace, null, 2), 'utf-8');
     }
 
     async load(path) {
-        const fs = await import('fs/promises');
-        const data = await fs.readFile(path, 'utf-8');
+        const data = await this.platform.fs.promises.readFile(path, 'utf-8');
         const trace = JSON.parse(data);
 
         this.traces.set(trace.id, trace);

@@ -1,11 +1,11 @@
-import {Logger} from '../util/Logger.js';
+import {BaseComponent} from '../util/BaseComponent.js';
 import {Capability, CapabilityManager} from '../util/CapabilityManager.js';
 import {PerformanceTracker} from './PerformanceTracker.js';
 import {ExecutionHistory} from './ExecutionHistory.js';
 
-export class ToolEngine {
+export class ToolEngine extends BaseComponent {
     constructor(config = {}) {
-        this.config = {
+        super({
             defaultTimeout: 5000,
             safetyLimits: {
                 maxOutputSize: 10000,
@@ -14,9 +14,9 @@ export class ToolEngine {
             maxHistorySize: 1000,
             enableSandboxing: true,
             ...config
-        };
+        }, 'ToolEngine');
+
         this.tools = new Map();
-        this.logger = Logger;
         this.activeExecutions = new Map();
         this.executionHistory = new ExecutionHistory(this.config.maxHistorySize);
         this.capabilityManager = config.capabilityManager ?? new CapabilityManager();
@@ -36,7 +36,7 @@ export class ToolEngine {
         await this._registerToolCapabilities(toolCapabilities);
         await this._grantToolCapabilities(id, toolCapabilities);
 
-        this.logger.info(`Registered tool: ${id} (${toolData.category})`, {
+        this.logInfo(`Registered tool: ${id} (${toolData.category})`, {
             name: tool.constructor.name,
             description: toolData.description,
             capabilities: toolData.capabilities
@@ -99,7 +99,7 @@ export class ToolEngine {
 
         const tool = this.tools.get(id);
         this.tools.delete(id);
-        this.logger.info(`Unregistered tool: ${id} (${tool.category})`);
+        this.logInfo(`Unregistered tool: ${id} (${tool.category})`);
         return true;
     }
 
@@ -187,7 +187,7 @@ export class ToolEngine {
         this.performanceTracker.trackExecutionSuccess(toolId, startTime);
         this.executionHistory.add(executionContext);
 
-        this.logger.info(`Tool execution completed: ${toolId} (${executionId}) in ${executionContext.duration}ms`);
+        this.logInfo(`Tool execution completed: ${toolId} (${executionId}) in ${executionContext.duration}ms`);
 
         return {
             success: true,
@@ -217,7 +217,7 @@ export class ToolEngine {
         this.performanceTracker.trackExecutionFailure(toolId, startTime, error);
         this.executionHistory.add(errorContext);
 
-        this.logger.error(`Tool execution failed: ${toolId} (${executionId})`, error);
+        this.logError(`Tool execution failed: ${toolId} (${executionId})`, error);
 
         return {
             success: false,
@@ -346,18 +346,18 @@ export class ToolEngine {
     cancelAllExecutions() {
         const count = this.activeExecutions.size;
         this.activeExecutions.clear();
-        this.logger.warn(`Canceled ${count} active tool executions`);
+        this.logWarn(`Canceled ${count} active tool executions`);
         return count;
     }
 
-    async shutdown() {
-        this.logger.info('Shutting down ToolEngine...');
+    async _dispose() {
+        this.logInfo('Shutting down ToolEngine...');
 
         for (const [executionId, execution] of this.activeExecutions) {
-            this.logger.warn(`Canceling active execution: ${executionId} (tool: ${execution.toolId})`);
+            this.logWarn(`Canceling active execution: ${executionId} (tool: ${execution.toolId})`);
         }
         this.activeExecutions.clear();
 
-        this.logger.info('ToolEngine shutdown complete');
+        this.logInfo('ToolEngine shutdown complete');
     }
 }

@@ -1,29 +1,34 @@
-import fs from 'fs';
-import path from 'path';
 import { Logger } from './Logger.js';
+import { getPlatform } from '../platform/index.js';
 
 export class FileUtils {
-    static readonlyExclusions = new Set([
-        'src/parser/peggy-parser.js',
-        'peggy-parser.js',
-        './peggy-parser.js',
-        'peggy-parser.js',
-        'node_modules/**/*',
-        '.git/**/*',
-        'dist/**/*',
-        'build/**/*',
-        '.next/**/*',
-        'coverage/**/*',
-        'node_modules/*',
-        '.git/*',
-        'dist/*',
-        'build/*',
-        '.next/*',
-        'coverage/*'
-    ]);
+    static get platform() {
+        return getPlatform();
+    }
+
+    static get readonlyExclusions() {
+        return new Set([
+            'src/parser/peggy-parser.js',
+            'peggy-parser.js',
+            './peggy-parser.js',
+            'peggy-parser.js',
+            'node_modules/**/*',
+            '.git/**/*',
+            'dist/**/*',
+            'build/**/*',
+            '.next/**/*',
+            'coverage/**/*',
+            'node_modules/*',
+            '.git/*',
+            'dist/*',
+            'build/*',
+            '.next/*',
+            'coverage/*'
+        ]);
+    }
 
     static isExcludedPath(filePath) {
-        const normalizedPath = path.normalize(filePath).replace(/\\/g, '/');
+        const normalizedPath = this.platform.path.normalize(filePath).replace(/\\/g, '/');
         return Array.from(this.readonlyExclusions).some(exclusion => {
             if (exclusion.startsWith('**/')) {
                 return normalizedPath.includes(exclusion.substring(3));
@@ -38,7 +43,7 @@ export class FileUtils {
 
     static readJSONFile(filePath) {
         try {
-            const content = fs.readFileSync(filePath, 'utf8');
+            const content = this.platform.fs.readFile(filePath, 'utf8');
             if (!content.trim()) {
                 Logger.warn(`Empty content when parsing JSON from: ${filePath}`);
                 return null;
@@ -54,11 +59,11 @@ export class FileUtils {
         const TOP_N = 20;
         try {
             const coverageDetailPath = './coverage/coverage-final.json';
-            if (!fs.existsSync(coverageDetailPath)) return [];
+            if (!this.platform.fs.exists(coverageDetailPath)) return [];
 
             let coverageDetail;
             try {
-                const fileContent = fs.readFileSync(coverageDetailPath, 'utf8');
+                const fileContent = this.platform.fs.readFile(coverageDetailPath, 'utf8');
                 if (!fileContent.trim()) {
                     Logger.error('Coverage file is empty');
                     return [];
@@ -78,11 +83,11 @@ export class FileUtils {
 
                     let filePath = rawPath;
                     if (filePath.startsWith('./')) {
-                        filePath = path.resolve(filePath);
+                        filePath = this.platform.path.resolve(filePath);
                     }
 
                     // Skip excluded files
-                    const relativePath = path.relative(process.cwd(), filePath);
+                    const relativePath = this.platform.path.relative(process.cwd(), filePath);
                     if (this.isExcludedPath(relativePath)) {
                         continue;
                     }
@@ -109,15 +114,15 @@ export class FileUtils {
 
                     let fileSize = 0;
                     try {
-                        if (fs.existsSync(filePath)) {
-                            fileSize = fs.statSync(filePath).size;
+                        if (this.platform.fs.exists(filePath)) {
+                            fileSize = this.platform.fs.statSync(filePath).size;
                         }
                     } catch (e) {
                         // If we can't get file size, continue with 0
                     }
 
                     files.push({
-                        filePath: path.relative(process.cwd(), filePath),
+                        filePath: this.platform.path.relative(process.cwd(), filePath),
                         lineCoverage: parseFloat(lineCoverage.toFixed(2)),
                         statements: statementCount,
                         covered: coveredStatements,

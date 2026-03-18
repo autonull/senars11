@@ -16,21 +16,7 @@ export class MemoryValidator {
 
         let str;
         try {
-            if (obj && typeof obj.serialize === 'function') {
-                str = JSON.stringify(obj.serialize());
-            } else {
-                // Simple circular reference protection
-                const seen = new WeakSet();
-                str = JSON.stringify(obj, (key, value) => {
-                    if (typeof value === 'object' && value !== null) {
-                        if (seen.has(value)) {
-                            return '[Circular]';
-                        }
-                        seen.add(value);
-                    }
-                    return value;
-                });
-            }
+            str = this._serializeObject(obj);
         } catch (e) {
             return null;
         }
@@ -39,12 +25,28 @@ export class MemoryValidator {
 
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
+            hash = ((hash << 5) - hash) + str.charCodeAt(i);
+            hash |= 0; // Convert to 32bit integer
         }
 
         return hash.toString();
+    }
+
+    _serializeObject(obj) {
+        if (obj && typeof obj.serialize === 'function') {
+            return JSON.stringify(obj.serialize());
+        }
+
+        const seen = new WeakSet();
+        return JSON.stringify(obj, (key, value) => {
+            if (typeof value === 'object' && value !== null) {
+                if (seen.has(value)) {
+                    return '[Circular]';
+                }
+                seen.add(value);
+            }
+            return value;
+        });
     }
 
     storeChecksum(key, obj) {

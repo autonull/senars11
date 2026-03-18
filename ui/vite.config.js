@@ -56,7 +56,8 @@ export default defineConfig({
 
             // Package-level imports
             '@senars/core': resolve(__dirname, '../core/src'),
-            '@senars/metta': resolve(__dirname, '../metta/src'),
+            '@senars/metta': resolve(__dirname, '../metta/src/MeTTaInterpreter.js'),
+            '@senars/metta-bridge': resolve(__dirname, '../metta/src/SeNARSBridge.js'),
             '@senars/agent': resolve(__dirname, '../agent/src'),
 
             // Node.js shims for browser
@@ -94,9 +95,7 @@ export default defineConfig({
             input: {
                 main: resolve(__dirname, 'index.html'),
                 ide: resolve(__dirname, 'ide.html'),
-                online: resolve(__dirname, 'online.html'),
                 demo: resolve(__dirname, 'demo.html'),
-                repl: resolve(__dirname, 'repl.html'),
             },
         },
         outDir: 'dist',

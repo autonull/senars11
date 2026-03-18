@@ -4,7 +4,8 @@
  * Following AGENTS.md: Elegant, Consolidated, Consistent, Organized, Deeply deduplicated
  */
 
-import {BaseComponent} from '@senars/core/src/util/BaseComponent.js';
+import {BaseComponent} from '../../../core/src/util/BaseComponent.js';
+import { configManager } from '../config/config.js';
 
 /**
  * BaseMeTTaComponent - Base class for all MeTTa components
@@ -23,11 +24,11 @@ export class BaseMeTTaComponent extends BaseComponent {
      * Emit MeTTa-namespaced event
      */
     emitMeTTaEvent(eventName, data) {
-        this.emitEvent(`metta:${eventName}`, {
+        this.emitEvent(`metta:${eventName}`, () => ({
             component: this._name,
             timestamp: Date.now(),
             ...data
-        });
+        }));
     }
 
     /**
@@ -71,7 +72,7 @@ export class BaseMeTTaComponent extends BaseComponent {
 
             this._updateMetrics(metricKey, duration);
 
-            if (duration > (this.config.slowOpThreshold ?? 100)) {
+            if (duration > configManager.get('slowOpThreshold')) {
                 this.emitMeTTaEvent('slow-operation', {opName, duration});
             }
 

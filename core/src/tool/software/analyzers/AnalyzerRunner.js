@@ -2,6 +2,7 @@ import {fileURLToPath} from 'url';
 import {basename, dirname} from 'path';
 import {SoftwareAnalyzer} from './SoftwareAnalyzer.js';
 import {ArgParser} from '../../../util/ArgParser.js';
+import {Logger} from '../../../util/Logger.js';
 
 /**
  * Module to handle the main execution flow of the self-analyzer
@@ -12,7 +13,7 @@ export class AnalyzerRunner {
         const options = ArgParser.parse(args);
 
         if (options.help) {
-            console.log(ArgParser.getHelpMessage());
+            process.stdout.write(ArgParser.getHelpMessage() + '\n');
             return;
         }
 
@@ -28,7 +29,7 @@ export class AnalyzerRunner {
             try {
                 await this.run();
             } catch (err) {
-                console.error('Analysis failed:', err);
+                Logger.error('Analysis failed:', err);
                 process.exit(1);
             }
         }

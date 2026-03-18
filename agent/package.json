@@ -5,10 +5,12 @@
   "main": "src/index.js",
   "bin": {
     "senars-agent": "./src/bin/cli.js",
+    "senars-chat": "./examples/chatbot/run.js",
     "senars": "../../scripts/cli/senars.js"
   },
   "scripts": {
     "repl": "node src/bin/cli.js",
+    "chat-bot": "node examples/chatbot/run.js",
     "demo:mcp": "node ../examples/mcp-demo.js"
   },
   "dependencies": {
@@ -28,7 +30,9 @@
     "ink-spinner": "^5.0.0",
     "ink-text-input": "^6.0.0",
     "inquirer": "^13.1.0",
+    "irc-framework": "^4.13.1",
     "node-fetch": "^3.3.2",
+    "nostr-tools": "^2.10.4",
     "ollama-ai-provider": "^1.2.0",
     "prop-types": "^15.8.1",
     "react": "^19.2.3",

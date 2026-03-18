@@ -8,49 +8,8 @@
 import { BaseParser } from './BaseParser.js';
 import { MeTTaTokenizer, TokenType } from './MeTTaTokenizer.js';
 import { Task } from '../task/Task.js';
-import { TermFactory } from '../term/TermFactory.js';
 import { Truth } from '../Truth.js';
-
-/**
- * Default operator mappings for MeTTa→SeNARS translation.
- * Each mapping is a function: (termFactory, args) => Term
- */
-const DEFAULT_MAPPINGS = {
-    // Equality - core interop mechanism
-    '=': (tf, args) => tf.equality(args[0], args[1]),
-
-    // Logical operators
-    'and': (tf, args) => tf.conjunction(...args),
-    'or': (tf, args) => tf.disjunction(...args),
-    'not': (tf, args) => tf.negation(args[0]),
-
-    // Implication/inference
-    'implies': (tf, args) => tf.implication(args[0], args[1]),
-    '->': (tf, args) => tf.implication(args[0], args[1]),
-
-    // Type annotation → Inheritance
-    ':': (tf, args) => tf.inheritance(args[0], args[1]),
-
-    // Similarity
-    '~': (tf, args) => tf.similarity(args[0], args[1]),
-
-    // Set constructors
-    'set': (tf, args) => tf.setExt(...args),
-
-    // Control flow - preserved as functors
-    'let': (tf, args, head) => tf.predicate(head, tf.product(...args)),
-    'let*': (tf, args, head) => tf.predicate(head, tf.product(...args)),
-    'if': (tf, args, head) => tf.predicate(head, tf.product(...args)),
-    'case': (tf, args, head) => tf.predicate(head, tf.product(...args)),
-    'match': (tf, args, head) => tf.predicate(head, tf.product(...args)),
-
-    // Quote - preserve unevaluated
-    'quote': (tf, args) => args[0],
-
-    // Empty expression
-    'Empty': (tf) => tf.atomic('Empty'),
-    'Void': (tf) => tf.atomic('Void')
-};
+import { DEFAULT_MAPPINGS } from './MeTTaMappings.js';
 
 /**
  * MeTTa Parser - Recursive descent parser for S-expressions
@@ -157,25 +116,18 @@ export class MeTTaParser extends BaseParser {
     _parseExpr() {
         if (this._isAtEnd()) return null;
 
-        const token = this._peek();
+        const { type } = this._peek();
 
-        switch (token.type) {
-            case TokenType.LPAREN:
-                return this._parseList();
-            case TokenType.LBRACKET:
-                return this._parseBracketList();
-            case TokenType.LBRACE:
-                return this._parseBraceSet();
-            case TokenType.SYMBOL:
-            case TokenType.VARIABLE:
-            case TokenType.STRING:
-            case TokenType.NUMBER:
-            case TokenType.GROUNDED:
-                return this._parseAtom();
-            default:
-                this._advance(); // Skip unknown token
-                return null;
+        if (type === TokenType.LPAREN) return this._parseList();
+        if (type === TokenType.LBRACKET) return this._parseBracketList();
+        if (type === TokenType.LBRACE) return this._parseBraceSet();
+
+        if ([TokenType.SYMBOL, TokenType.VARIABLE, TokenType.STRING, TokenType.NUMBER, TokenType.GROUNDED].includes(type)) {
+            return this._parseAtom();
         }
+
+        this._advance(); // Skip unknown token
+        return null;
     }
 
     _parseList() {
@@ -237,18 +189,15 @@ export class MeTTaParser extends BaseParser {
     _toTerm(expr) {
         if (!expr) return null;
 
-        switch (expr.type) {
-            case 'atom':
-                return this._atomToTerm(expr);
-            case 'list':
-                return this._listToTerm(expr.elements);
-            case 'bracket-list':
-                return this._bracketListToTerm(expr.elements);
-            case 'set':
-                return this._setToTerm(expr.elements);
-            default:
-                return null;
-        }
+        const converters = {
+            'atom': this._atomToTerm,
+            'list': (e) => this._listToTerm(e.elements),
+            'bracket-list': (e) => this._bracketListToTerm(e.elements),
+            'set': (e) => this._setToTerm(e.elements)
+        };
+
+        const converter = converters[expr.type];
+        return converter ? converter.call(this, expr) : null;
     }
 
     _atomToTerm(atom) {

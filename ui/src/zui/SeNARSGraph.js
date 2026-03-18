@@ -1,0 +1,901 @@
+import cytoscape from 'cytoscape';
+import fcose from 'cytoscape-fcose';
+import { GraphSystem } from './GraphSystem.js';
+import { SemanticZoom } from './SemanticZoom.js';
+import { ContextualWidget } from './ContextualWidget.js';
+import { Config } from '../config/Config.js';
+import { AutoLearner } from '../utils/AutoLearner.js';
+import { ContextMenu } from '../components/ContextMenu.js';
+import { KeyboardNavigation } from '../visualization/KeyboardNavigation.js';
+import { eventBus } from '../core/EventBus.js';
+import { EVENTS } from '../config/constants.js';
+import { BagBuffer } from '../data/BagBuffer.js';
+
+cytoscape.use(fcose);
+
+export class SeNARSGraph extends GraphSystem {
+    constructor(container, widgetContainer) {
+        super(container);
+        this.widgetContainer = widgetContainer || container;
+        this.semanticZoom = null;
+        this.contextualWidget = null;
+        this.autoLearner = new AutoLearner();
+        this.options = {};
+        this.contextMenu = null;
+        this.commandProcessor = null;
+        this.callbacks = {}; // For KeyboardNavigation compatibility
+        this.keyboardNav = new KeyboardNavigation(this);
+
+        // State
+        this.filters = { minPriority: 0, showTasks: true, showConcepts: true, hideIsolated: false };
+        this.traceMode = false;
+        this.tracedNode = null;
+        this.updatesEnabled = true;
+        this._layoutTimeout = null;
+        this.currentLayout = 'fcose';
+        this.bag = null;
+        this.historyStack = [];
+
+        // Visualization Settings
+        this.visSettings = {
+            edgeSpeed: 1.0,
+            showDerivations: true,
+            colorCodeRules: false,
+            traceDecay: 2000,
+            attentionSpotlight: false,
+            inferenceTypeColors: {
+                'Deduction': '#00ff9d',
+                'Induction': '#00d4ff',
+                'Abduction': '#ffcc00',
+                'Revision': '#ff4444',
+                'Analogy': '#ff00ff',
+                'Inference': '#FFaa00'
+            }
+        };
+
+        this._setupGlobalListeners();
+    }
+
+    _setupGlobalListeners() {
+        eventBus.on('visualization.settings', (settings) => {
+            this.visSettings = { ...this.visSettings, ...settings };
+        });
+
+        eventBus.on(EVENTS.CONCEPT_SELECT, (payload) => {
+            const { id, concept } = payload;
+            if (concept?.term) this.autoLearner.recordInteraction(concept.term, 1);
+            if (id) this.highlightNode(id);
+        });
+
+        eventBus.on(EVENTS.GRAPH_FILTER, (payload) => this.applyFilters(payload));
+        eventBus.on(EVENTS.SETTINGS_UPDATED, () => {
+            this.updateStyle();
+            this.scheduleLayout();
+        });
+    }
+
+    initialize(options = {}) {
+        this.options = options;
+
+        // Initialize Bag if requested
+        if (options.useBag) {
+            this.bag = new BagBuffer(options.bagCapacity || 50);
+        }
+
+        const success = super.initialize({
+            style: options.style || Config.getGraphStyle(),
+            layout: Config.getGraphLayout(),
+            cytoscapeOptions: {
+                minZoom: 0.05,
+                maxZoom: 5,
+                wheelSensitivity: 0.15
+            },
+            ...options
+        });
+
+        if (success) {
+            this.semanticZoom = new SemanticZoom(this);
+            this.contextualWidget = new ContextualWidget(this, this.widgetContainer);
+
+            // Fix: ensure container is an element before calling keyboard nav init
+            if (this.container && typeof this.container !== 'string') {
+                this.keyboardNav.initialize(this.container);
+            } else if (typeof this.container === 'string') {
+                this.keyboardNav.initialize(document.getElementById(this.container));
+            }
+
+            // Ensure content is visible after layout
+            this.cy.on('layoutstop', () => {
+                this.cy.fit(undefined, 30);
+            });
+
+            // Interaction Polish: Hover effects
+            this._setupHoverEffects();
+        }
+        return success;
+    }
+
+    _setupHoverEffects() {
+        if (!this.cy) return;
+
+        this.cy.on('mouseover', 'node', (evt) => {
+            const node = evt.target;
+            node.addClass('hovered');
+
+            // Highlight direct neighbors
+            node.neighborhood().addClass('neighbor-edge');
+            node.neighborhood('node').addClass('neighbor');
+
+            this.contextualWidget?.showHoverFrame(node);
+        });
+
+        this.cy.on('mouseout', 'node', (evt) => {
+            const node = evt.target;
+            node.removeClass('hovered');
+            node.neighborhood().removeClass('neighbor-edge');
+            node.neighborhood('node').removeClass('neighbor');
+
+            this.contextualWidget?.hideHoverFrame();
+        });
+    }
+
+    flyTo(nodeId) {
+        if (!this.cy) return;
+        const node = this.cy.getElementById(nodeId);
+        if (node.empty()) return;
+
+        this.historyStack.push({
+            zoom: this.cy.zoom(),
+            pan: { ...this.cy.pan() },
+            time: Date.now()
+        });
+
+        if (this.historyStack.length > 20) this.historyStack.shift();
+
+        const targetZoom = 2.5;
+
+        this.cy.animate({
+            zoom: targetZoom,
+            center: { eles: node },
+            duration: 800,
+            easing: 'ease-in-out-cubic'
+        });
+
+        // Also trigger selection/focus logic
+        this.highlightNode(nodeId);
+
+        // Notify selection
+        const data = this._getNodeData(node);
+        eventBus.emit(EVENTS.CONCEPT_SELECT, {
+            concept: data.fullData,
+            id: nodeId,
+            showDetails: true
+        });
+    }
+
+    goBack() {
+        if (!this.cy || this.historyStack.length === 0) return;
+
+        const state = this.historyStack.pop();
+
+        this.cy.animate({
+            zoom: state.zoom,
+            pan: state.pan,
+            duration: 600,
+            easing: 'ease-in-out-cubic'
+        });
+    }
+
+    focusNode(nodeId) {
+        if (!this.cy) return;
+        const node = this.cy.getElementById(nodeId);
+
+        if (node.length > 0) {
+            this.cy.animate({
+                zoom: 1.5,
+                center: { eles: node },
+                duration: 500,
+                easing: 'ease-in-out-cubic'
+            });
+
+            // Select and highlight
+            this.cy.elements().removeClass('selected keyboard-selected');
+            node.addClass('selected');
+
+            // Trigger detailed view event
+            const data = this._getNodeData(node);
+            eventBus.emit(EVENTS.CONCEPT_SELECT, {
+                concept: data.fullData,
+                id: nodeId,
+                showDetails: true
+            });
+        }
+    }
+
+    enterNode(nodeId) {
+        if (!this.cy) return;
+        const node = this.cy.getElementById(nodeId);
+
+        if (node.length > 0) {
+            // "Enter" the node by zooming in significantly
+            this.cy.animate({
+                zoom: 4.0, // High zoom level to trigger LOD 3
+                center: { eles: node },
+                duration: 800,
+                easing: 'ease-out-expo'
+            });
+
+            node.addClass('selected');
+            this.highlightNode(nodeId);
+        }
+    }
+
+    // Standardized Data Accessor
+    _getNodeData(node) {
+        if (!node || node.empty()) return null;
+
+        const data = node.data();
+        const fullData = data.fullData || {};
+
+        // Merge live data with stored full data to ensure freshness
+        return {
+             ...data,
+             ...fullData,
+             id: node.id(),
+             term: data.term || data.label || node.id(),
+             type: data.type || 'concept',
+             // Ensure critical structures are preserved
+             derivation: fullData.derivation || data.derivation,
+             budget: fullData.budget || data.budget,
+             truth: fullData.truth || data.truth
+        };
+    }
+
+    // Compatibility method for KeyboardNavigation
+    updateGraphDetails(data) {
+        // Emit concept select event so other components can update
+        if (data.fullData) {
+            eventBus.emit(EVENTS.CONCEPT_SELECT, {
+                concept: data.fullData,
+                id: data.id
+            });
+        }
+    }
+
+    // --- Interaction & Events ---
+
+    setCommandProcessor(commandProcessor) {
+        if (!commandProcessor) return;
+        this.commandProcessor = commandProcessor;
+        if (!this.contextMenu) {
+            this.contextMenu = new ContextMenu(this, commandProcessor);
+        }
+
+        // Listen to contextMenu event from GraphSystem if not already set up
+        this.off('contextMenu', this._handleContextMenu.bind(this));
+        this.on('contextMenu', this._handleContextMenu.bind(this));
+    }
+
+    _handleContextMenu(evt) {
+        if (!this.contextMenu) return;
+        const { target, originalEvent } = evt;
+        if (target && target !== this.cy) {
+            const type = target.isNode() ? 'node' : 'edge';
+            const pos = originalEvent.renderedPosition || originalEvent.position;
+            this.contextMenu.show(pos.x, pos.y, target, type);
+        }
+    }
+
+    setUpdatesEnabled(enabled) {
+        this.updatesEnabled = enabled;
+        if (enabled && this.cy) {
+            this.resize();
+            this.fit();
+            this.scheduleLayout();
+        }
+    }
+
+    toggleTraceMode(nodeId) {
+        if (!this.cy) return;
+
+        if (this.traceMode && this.tracedNode === nodeId) {
+            this.traceMode = false;
+            this.tracedNode = null;
+            this.cy.elements().removeClass('trace-highlight trace-dim');
+        } else {
+            this.traceMode = true;
+            this.tracedNode = nodeId;
+
+            // Only clear previous trace classes first
+            this.cy.elements().removeClass('trace-highlight trace-dim');
+
+            const root = this.cy.getElementById(nodeId);
+            const connected = root.union(root.successors()).union(root.predecessors()).union(root.neighborhood());
+            const others = this.cy.elements().not(connected);
+
+            this.cy.batch(() => {
+                others.addClass('trace-dim');
+                connected.addClass('trace-highlight');
+            });
+
+            this.cy.animate({ fit: { eles: connected, padding: 50 }, duration: 500 });
+        }
+    }
+
+    traceDerivationPath(nodeId) {
+        if (!this.cy) return;
+        const node = this.cy.getElementById(nodeId);
+        if (node.empty()) return;
+
+        // Recursive predecessor search
+        const predecessors = node.predecessors();
+        const edges = predecessors.filter('edge');
+        const nodes = predecessors.filter('node').union(node);
+
+        this.cy.batch(() => {
+            this.cy.elements().removeClass('trace-highlight trace-dim');
+            this.cy.elements().not(nodes.union(edges)).addClass('trace-dim');
+            nodes.addClass('trace-highlight');
+            edges.addClass('trace-highlight');
+        });
+
+        this.cy.animate({ fit: { eles: nodes.union(edges), padding: 50 }, duration: 800 });
+    }
+
+    highlightNode(nodeId) {
+        if (!this.cy) return;
+        const node = typeof nodeId === 'string' ? this.cy.getElementById(nodeId) : nodeId;
+        if (!node?.length) return;
+
+        this.cy.elements().removeClass('keyboard-selected');
+        node.addClass('keyboard-selected');
+        this.cy.animate({ center: { eles: node } }, { duration: 200 });
+    }
+
+    // --- Data Management ---
+
+    updateFromMessage(message) {
+        if (!this.cy || !this.updatesEnabled) return;
+
+        const handlers = {
+            'concept.created': () => this.addNode(message.payload, true),
+            'concept.added': () => this.addNode(message.payload, true),
+            'concept.updated': () => this.updateNode(message.payload),
+            'task.added': () => this.addNode({ ...message.payload, type: 'task' }, true),
+            'task.input': () => this.addNode({ ...message.payload, type: 'task' }, true),
+            'question.answered': () => this.addQuestionNode(message.payload),
+            'memorySnapshot': () => this.updateFromSnapshot(message.payload),
+            'link.created': () => this.addEdge(message.payload, true)
+        };
+
+        handlers[message.type]?.();
+    }
+
+    removeNode(id) {
+        this.removeNodes([id]);
+    }
+
+    removeNodes(ids) {
+        if (!Array.isArray(ids)) ids = [ids];
+
+        if (this.bag) {
+            ids.forEach(id => this.bag.remove(id));
+            this._syncFromBag();
+        } else if (this.cy) {
+            this.cy.batch(() => {
+                ids.forEach(id => {
+                    const node = this.cy.getElementById(id);
+                    if (node.nonempty()) this.cy.remove(node);
+                });
+            });
+        }
+    }
+
+    addNode(data, runLayout = true) {
+        if (!this.cy) return false;
+
+        const config = this._createNodeConfig(data);
+        const id = config.data.id;
+
+        // Bag Logic
+        if (this.bag) {
+            this.bag.add(id, data.budget?.priority || 0, data);
+            this._syncFromBag();
+            return true;
+        }
+
+        if (this.cy.getElementById(id).length) return false;
+
+        this.cy.add(config);
+        this._updateWidget(id, data);
+
+        // Auto-learn interactions if term provided
+        if (data.term) {
+             // Just registering existence, interaction is on click
+        }
+
+        if (runLayout) this.scheduleLayout();
+        return true;
+    }
+
+    updateNode(data) {
+        if (this.bag) {
+            // Update in bag
+            if (this.bag.get(data.id)) {
+                this.bag.add(data.id, data.budget?.priority || 0, data);
+                this._syncFromBag();
+                return;
+            }
+        }
+
+        if (!this.cy || !data?.id) return;
+        const node = this.cy.getElementById(data.id);
+
+        if (node.length > 0) {
+            const existingFullData = node.data('fullData') || {};
+            // Deep merge essential structures
+            const newFullData = {
+                ...existingFullData,
+                ...data,
+                budget: { ...existingFullData.budget, ...data.budget },
+                truth: { ...existingFullData.truth, ...data.truth },
+                derivation: data.derivation || existingFullData.derivation
+            };
+
+            const priority = newFullData.budget?.priority ?? 0;
+            const taskCount = newFullData.tasks?.length ?? newFullData.taskCount ?? 0;
+            const weight = this._calculateNodeWeight(priority, newFullData.term);
+
+            const updates = {
+                weight,
+                taskCount,
+                fullData: newFullData,
+                // Update top-level props that might be used by selectors
+                priority,
+                derivation: newFullData.derivation
+            };
+
+            if (newFullData.truth) {
+                updates.label = this._calculateNodeLabel(newFullData);
+            }
+
+            node.data(updates);
+            this._updateWidget(data.id, newFullData);
+            this.animateUpdate(data.id);
+        } else {
+            this.addNode(data, false);
+        }
+    }
+
+    addQuestionNode(data) {
+        if (data) {
+            this.addNode({
+                label: data.answer || data.question || 'Answer',
+                type: 'question',
+                weight: 40
+            }, true);
+        }
+    }
+
+    updateFromSnapshot(data) {
+        if (!this.cy || !data?.concepts) return;
+        this.clear();
+        data.concepts.forEach(c => this.addNode(c, false));
+        if (data.links) data.links.forEach(l => this.addEdge(l, false));
+        this.scheduleLayout();
+    }
+
+    addEdge(data, runLayout = true) {
+        if (!this.cy) return false;
+
+        const config = this._createEdgeConfig(data);
+        if (this.cy.getElementById(config.data.id).length) return false;
+
+        if (this.cy.getElementById(config.data.source).empty() ||
+            this.cy.getElementById(config.data.target).empty()) {
+            return false;
+        }
+
+        this.cy.add(config);
+
+        if (runLayout) this.scheduleLayout();
+        return true;
+    }
+
+    _createNodeConfig(data) {
+        const { id, type, term, position } = data;
+        const nodeId = id ?? `concept_${Date.now()}_${Math.random()}`;
+        const displayLabel = this._calculateNodeLabel(data);
+        const priority = data.budget?.priority ?? 0.5;
+        const taskCount = data.tasks?.length ?? data.taskCount ?? 0;
+        const weight = this._calculateNodeWeight(priority, term);
+
+        // Initialize with random position if not provided to avoid "horizontal line" issue
+        // We use a small area around the center or current extent
+        let initialPos = position;
+        if (!initialPos) {
+            const range = 500;
+            initialPos = {
+                x: (Math.random() - 0.5) * range,
+                y: (Math.random() - 0.5) * range
+            };
+            // If graph exists and has nodes, try to spawn near them but not exactly
+            if (this.cy && this.cy.nodes().nonempty()) {
+                const extent = this.cy.extent();
+                if (extent && extent.w > 0) {
+                     const cx = (extent.x1 + extent.x2) / 2;
+                     const cy = (extent.y1 + extent.y2) / 2;
+                     initialPos = {
+                         x: cx + (Math.random() - 0.5) * (extent.w * 0.5),
+                         y: cy + (Math.random() - 0.5) * (extent.h * 0.5)
+                     };
+                }
+            }
+        }
+
+        return {
+            group: 'nodes',
+            data: {
+                id: nodeId,
+                label: displayLabel,
+                type: type ?? 'concept',
+                weight: weight,
+                taskCount: taskCount,
+                fullData: data,
+                term: term
+            },
+            position: initialPos
+        };
+    }
+
+    _createEdgeConfig(data) {
+        const { id, source, target, label, type } = data;
+        const edgeId = id ?? `edge_${source}_${target}_${type}_${Math.random()}`;
+
+        return {
+            group: 'edges',
+            data: {
+                id: edgeId,
+                source,
+                target,
+                label: label ?? type ?? 'related',
+                type: type ?? 'relationship'
+            }
+        };
+    }
+
+    _calculateNodeLabel(data) {
+        const { label, term, id, truth } = data;
+        let displayLabel = label;
+
+        if (!displayLabel && term) {
+            if (typeof term === 'string') {
+                displayLabel = term;
+            } else if (typeof term === 'object') {
+                // Try common term properties
+                displayLabel = term.name || term.term || (term.toString && term.toString()) || JSON.stringify(term);
+            }
+        }
+
+        displayLabel = displayLabel || id || 'Unknown';
+
+        if (truth) {
+            const f = (truth.frequency ?? 0).toFixed(2);
+            const c = (truth.confidence ?? 0).toFixed(2);
+            displayLabel += `\n[F:${f} C:${c}]`;
+        }
+
+        return displayLabel;
+    }
+
+    _calculateNodeWeight(priority, term) {
+        let weight = (priority * 50) + 20;
+        if (term) weight += this.autoLearner.getConceptModifier(term);
+        return Math.min(Math.max(weight, 10), 100);
+    }
+
+    _updateWidget(nodeId, data) {
+        if (!this.contextualWidget) return;
+
+        // Widgets are optional. Only attach if explicitly requested.
+        if (data.widgetContent) {
+            this.contextualWidget.attach(nodeId, data.widgetContent, data.widgetOptions);
+            return;
+        }
+
+        if (data.showWidget) {
+            const priority = data.budget?.priority;
+            const truth = data.truth;
+
+            let html = '';
+            if (priority !== undefined && typeof priority === 'number') html += `<div>Prio: ${priority.toFixed(2)}</div>`;
+            if (truth && truth.frequency !== undefined && truth.confidence !== undefined) {
+                 html += `<div>{${Number(truth.frequency).toFixed(2)}, ${Number(truth.confidence).toFixed(2)}}</div>`;
+            }
+
+            if (html) {
+                this.contextualWidget.attach(nodeId, html);
+            }
+        }
+    }
+
+    // --- Layouts & Filters ---
+
+    setLayout(name) {
+        if (!this.cy) return;
+        this.currentLayout = name;
+        super.layout(Config.getGraphLayout(name));
+    }
+
+    applyScatterLayout(xAxis = 'priority', yAxis = 'confidence') {
+        if (!this.cy) return;
+        this.currentLayout = 'scatter';
+
+        const nodes = this.cy.nodes();
+        const width = this.cy.width() * 0.8;
+        const height = this.cy.height() * 0.8;
+
+        const getVal = (node, axis) => {
+            const data = node.data('fullData') || {};
+            const truth = data.truth || {};
+            const budget = data.budget || {};
+
+            switch (axis) {
+                case 'priority': return budget.priority || 0;
+                case 'durability': return budget.durability || 0;
+                case 'quality': return budget.quality || 0;
+                case 'frequency': return truth.frequency || 0;
+                case 'confidence': return truth.confidence || 0;
+                case 'taskCount': return Math.min((data.tasks?.length || 0) / 20, 1);
+                default: return 0;
+            }
+        };
+
+        nodes.forEach(node => {
+            const x = getVal(node, xAxis);
+            const y = getVal(node, yAxis);
+            const posX = (x - 0.5) * width;
+            const posY = -(y - 0.5) * height;
+            node.position({ x: posX, y: posY });
+        });
+
+        this.fit();
+    }
+
+    applySortedGridLayout(sortField = 'priority') {
+        if (!this.cy) return;
+        this.currentLayout = 'sorted-grid';
+
+        const nodes = this.cy.nodes().sort((a, b) => {
+            const getVal = (n) => {
+                 const d = n.data('fullData') || {};
+                 if (sortField === 'priority') return d.budget?.priority || 0;
+                 if (sortField === 'term') return n.id();
+                 return 0;
+            };
+            return getVal(b) - getVal(a);
+        });
+
+        nodes.layout({
+            name: 'grid',
+            avoidOverlap: true,
+            padding: 30
+        }).run();
+    }
+
+    applyFilters(filters) {
+        if (!this.cy) return;
+        this.filters = { ...this.filters, ...filters };
+
+        this.cy.batch(() => {
+            this.cy.nodes().forEach(node => {
+                const data = node.data('fullData') || {};
+                const type = node.data('type');
+                const priority = data.budget?.priority ?? 0;
+
+                const isTask = type === 'task';
+                const isConcept = type === 'concept' || !type;
+                const isIsolated = node.degree() === 0;
+
+                const visible =
+                    (!isTask || this.filters.showTasks) &&
+                    (!isConcept || this.filters.showConcepts) &&
+                    (priority >= this.filters.minPriority) &&
+                    (!isIsolated || !this.filters.hideIsolated);
+
+                node.style('display', visible ? 'element' : 'none');
+            });
+        });
+    }
+
+    scheduleLayout() {
+        if (this._layoutTimeout) clearTimeout(this._layoutTimeout);
+        this._layoutTimeout = setTimeout(() => {
+            if (this.cy && this.updatesEnabled) {
+                if (this.currentLayout !== 'scatter' && this.currentLayout !== 'sorted-grid') {
+                    const baseOpts = Config.getGraphLayout(this.currentLayout || 'fcose');
+                    // Use gentler options for updates to preserve momentum/mental map
+                    const layoutOpts = {
+                        ...baseOpts,
+                        randomize: false,
+                        animate: true,
+                        fit: false, // Don't fit on every update to avoid camera jumping
+                        animationDuration: 800,
+                        animationEasing: 'ease-out-cubic'
+                    };
+                    super.layout(layoutOpts);
+                }
+            }
+        }, 500);
+    }
+
+    updateStyle() {
+        this.cy?.style(Config.getGraphStyle());
+    }
+
+    // --- Visual Effects ---
+
+    animateUpdate(nodeId) {
+        const node = this.cy?.getElementById(nodeId);
+        if (!node?.length) return;
+
+        node.animation({
+            style: { 'border-width': 6, 'border-color': '#00ff9d' },
+            duration: 100
+        }).play().promise().then(() => {
+            node.animation({
+                style: { 'border-width': 2 },
+                duration: 300
+            }).play();
+        });
+    }
+
+    animateReasoning(sourceId, targetId, derivedId, ruleType = 'Inference') {
+        if (!this.cy || !this.visSettings.showDerivations) return;
+
+        const duration = 1000 / (this.visSettings.edgeSpeed || 1);
+        const color = this.visSettings.colorCodeRules
+            ? (this.visSettings.inferenceTypeColors[ruleType] || this.visSettings.inferenceTypeColors['Inference'])
+            : '#FFaa00';
+
+        // 1. Highlight premises
+        const nodes = [sourceId, targetId].filter(id => id).map(id => this.cy.getElementById(id));
+        const foundNodes = nodes.filter(n => n.nonempty());
+
+        if (foundNodes.length === 0) {
+            // console.warn('SeNARSGraph: animateReasoning called but source/target nodes not found', { sourceId, targetId });
+        }
+
+        foundNodes.forEach(node => {
+            if (this.visSettings.colorCodeRules) {
+                node.animate({
+                    style: { 'border-color': color, 'border-width': 6 },
+                    duration: duration * 0.2
+                }).promise().then(() => {
+                    node.animate({
+                        style: { 'border-color': '#ffffff', 'border-width': 1 },
+                        duration: duration * 0.5
+                    });
+                });
+            } else {
+                node.flashClass('reasoning-active', duration);
+            }
+        });
+
+        // Spotlight
+        if (this.visSettings.attentionSpotlight && foundNodes.length > 0) {
+            const others = this.cy.elements().not(foundNodes[0]).not(foundNodes[1] || foundNodes[0]);
+            others.animate({ style: { 'opacity': 0.1 }, duration: 200 });
+            setTimeout(() => {
+                others.animate({ style: { 'opacity': 1 }, duration: 500 });
+            }, duration);
+        }
+
+        // 2. Animate Derived Node
+        if (derivedId) {
+            setTimeout(() => {
+                const node = this.cy.getElementById(derivedId);
+                if (node.nonempty()) {
+                    if (this.visSettings.colorCodeRules) {
+                         node.animate({
+                             style: { 'background-color': color, 'width': 60, 'height': 60 },
+                             duration: duration * 0.3
+                         }).promise().then(() => {
+                             setTimeout(() => {
+                                 node.removeStyle();
+                             }, this.visSettings.traceDecay || 2000);
+                         });
+                    } else {
+                        node.flashClass('reasoning-active', this.visSettings.traceDecay || 1500);
+                    }
+                }
+            }, duration * 0.5);
+        }
+    }
+
+    animateAttention(nodeId) {
+        if (!this.cy) return;
+        const node = this.cy.getElementById(nodeId);
+        if (node.nonempty()) {
+            node.flashClass('attention-active', 500);
+        }
+    }
+
+    animateFadeIn(nodeId) {
+        const node = this.cy?.getElementById(nodeId);
+        if (!node?.length) return;
+        node.style('opacity', 0);
+        node.animation({ style: { 'opacity': 1 }, duration: 500 });
+    }
+
+    clear() {
+        super.clear();
+        this.bag?.clear();
+        this.contextualWidget?.clear();
+    }
+
+    fitToScreen() {
+        this.fit(undefined, 30);
+    }
+
+    // --- Bag Management ---
+
+    processDecay(factor = 0.99, threshold = 0.05) {
+        if (!this.bag) return [];
+        const removed = this.bag.decay(factor, threshold);
+        if (removed.length > 0) {
+            this._syncFromBag();
+        } else {
+            // Visual update for priorities if needed, but _syncFromBag does it all
+            this._syncFromBag();
+        }
+        return removed;
+    }
+
+    _syncFromBag() {
+        if (!this.cy || !this.bag) return;
+
+        const visibleItems = this.bag.getAll();
+        const visibleIds = new Set(visibleItems.map(i => i.id));
+        const currentNodes = this.cy.nodes();
+
+        this.cy.batch(() => {
+            // Remove
+            currentNodes.forEach(node => {
+                if (!visibleIds.has(node.id())) {
+                    this.cy.remove(node);
+                }
+            });
+
+            // Add/Update
+            visibleItems.forEach(item => {
+                const node = this.cy.getElementById(item.id);
+                if (node.empty()) {
+                    // Create new
+                    const config = this._createNodeConfig(item.data);
+                    // Override weight/priority from bag item which might be decayed
+                    config.data.priority = item.priority;
+                    this.cy.add(config);
+                    // Removed fade-in to ensure immediate visibility stability
+                    // this.animateFadeIn(item.id);
+                } else {
+                    // Update existing
+                    // We might want to update weight based on decayed priority
+                     const priority = item.priority;
+                     const weight = this._calculateNodeWeight(priority, item.data.term);
+                     if (node.data('weight') !== weight) {
+                         node.data('weight', weight);
+                         node.data('priority', priority);
+                     }
+                     // Always update fullData as it might have changed via inspector
+                     node.data('fullData', item.data);
+                }
+
+                // Ensure widget is attached if required
+                this._updateWidget(item.id, item.data);
+            });
+        });
+
+        this.scheduleLayout();
+    }
+}

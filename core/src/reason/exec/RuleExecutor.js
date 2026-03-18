@@ -4,6 +4,8 @@
  * Executes the compiled rule tree against incoming tasks.
  */
 
+import {Logger} from '../../util/Logger.js';
+
 export class RuleExecutor {
     constructor(compiledTree, unifier, discriminators = []) {
         this.tree = compiledTree;
@@ -42,7 +44,7 @@ export class RuleExecutor {
                     results.push(derived);
                 }
             } catch (e) {
-                console.error(`Error executing rule ${rule.id}:`, e);
+                Logger.error(`Error executing rule ${rule.id}:`, e);
             }
         }
         return results;

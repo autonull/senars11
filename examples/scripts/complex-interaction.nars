@@ -1,0 +1,7 @@
+<cat --> animal>.
+<animal --> living>.
+<dog --> animal>.
+(-->, cat, meow).
+<cat --> ?x>?
+<tiger --> cat>.
+<tiger --> ?x>?

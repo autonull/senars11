@@ -1,4 +1,5 @@
 import {SeNARSSelfAnalyzer} from './SeNARSSelfAnalyzer.js';
+import {Logger} from '../util/Logger.js';
 
 /**
  * SelfAnalysisKnowledgeBaseConnector
@@ -384,7 +385,7 @@ class SelfAnalysisManager {
                     await this.nar.input(goalStatement);
                 }
             } catch (error) {
-                console.warn(`Failed to convert insight to goal:`, error);
+                Logger.warn(`Failed to convert insight to goal:`, error);
             }
         }
     }
@@ -459,7 +460,7 @@ class SelfAnalysisManager {
                     }
                 }
             } catch (error) {
-                console.warn(`Failed to convert analysis item to Narsese:`, error);
+                Logger.warn(`Failed to convert analysis item to Narsese:`, error);
             }
         }
     }

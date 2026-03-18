@@ -16,16 +16,57 @@ export class KeyboardNavigation {
     }
 
     _handleKeyboardEvent(e) {
+        // Do not interfere if user is typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+            return;
+        }
+
         if (!this.graphManager.cy) return;
         const nodes = this.graphManager.cy.nodes(':visible');
-        if (nodes.length === 0) return;
+        // Allow pan/zoom even if no nodes, but navigation requires nodes
 
         switch (e.key) {
-            case 'Tab': e.preventDefault(); this._cycleNodes(nodes, e.shiftKey); break;
-            case 'ArrowUp': case 'ArrowDown': case 'ArrowLeft': case 'ArrowRight':
-                e.preventDefault(); this._navigateNeighbors(nodes); break;
-            case 'Enter': e.preventDefault(); this._selectCurrentNode(); break;
+            case 'Tab':
+                if (nodes.length) { e.preventDefault(); this._cycleNodes(nodes, e.shiftKey); }
+                break;
+            case 'ArrowUp': case 'w':
+                e.preventDefault(); this._handleDirection('up', nodes); break;
+            case 'ArrowDown': case 's':
+                e.preventDefault(); this._handleDirection('down', nodes); break;
+            case 'ArrowLeft': case 'a':
+                e.preventDefault(); this._handleDirection('left', nodes); break;
+            case 'ArrowRight': case 'd':
+                e.preventDefault(); this._handleDirection('right', nodes); break;
+            case 'Enter':
+                e.preventDefault();
+                if (e.shiftKey && this.kbState.selectedNode) {
+                    this.graphManager.enterNode?.(this.kbState.selectedNode.id());
+                } else {
+                    this._selectCurrentNode();
+                }
+                break;
             case 'Escape': e.preventDefault(); this._clearSelection(); break;
+            case '+': case '=':
+                this.graphManager.zoomIn();
+                break;
+            case '-': case '_':
+                this.graphManager.zoomOut();
+                break;
+        }
+    }
+
+    _handleDirection(dir, nodes) {
+        if (this.kbState.selectedNode) {
+            this._navigateNeighbors(nodes); // Keep existing logic for now, could refine to use dir
+        } else {
+            // Pan camera if no node selected
+            const panAmount = 50;
+            const pan = { x: 0, y: 0 };
+            if (dir === 'up') pan.y = panAmount;
+            if (dir === 'down') pan.y = -panAmount;
+            if (dir === 'left') pan.x = panAmount;
+            if (dir === 'right') pan.x = -panAmount;
+            this.graphManager.cy.panBy(pan);
         }
     }
 

@@ -1,0 +1,79 @@
+:root {
+    /* Colors - Base Palette */
+    --color-black: #0a0a0a;
+    --color-dark-grey: #151515;
+    --color-grey: #444;
+    --color-light-grey: #e0e0e0;
+    --color-white: #ffffff;
+
+    /* Theme - Primary */
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #111111;
+    --bg-panel: rgba(15, 15, 20, 0.85);
+    --bg-panel-solid: #15151a;
+    --bg-overlay: rgba(0, 0, 0, 0.8);
+    --bg-graph: radial-gradient(circle at center, #111 0%, #050505 100%);
+    --bg-grid: rgba(0, 255, 157, 0.05);
+
+    /* Text */
+    --text-primary: #e0e0e0;
+    --text-secondary: #aaddcc;
+    --text-muted: #668877;
+    --text-placeholder: #446655;
+
+    /* Accents */
+    --accent-primary: #00ff9d; /* Tactical Green */
+    --accent-primary-dim: rgba(0, 255, 157, 0.2);
+    --accent-primary-glow: rgba(0, 255, 157, 0.5);
+    --accent-secondary: #00d4ff; /* Cyan */
+    --accent-secondary-dim: rgba(0, 212, 255, 0.2);
+
+    /* Status */
+    --status-error: #ff5555;
+    --status-warning: #ffbb00;
+    --status-success: #00ff9d;
+    --status-offline: #666;
+
+    /* Borders */
+    --border-primary: rgba(0, 255, 157, 0.3);
+    --border-primary-strong: #00ff9d;
+    --border-secondary: rgba(0, 255, 157, 0.1);
+
+    /* Fonts */
+    --font-ui: 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* Light Theme Overrides */
+body.light-theme {
+    --bg-primary: #f0f2f5;
+    --bg-secondary: rgba(255, 255, 255, 0.95);
+    --bg-panel: rgba(255, 255, 255, 0.9);
+    --bg-panel-solid: #ffffff;
+    --bg-overlay: rgba(255, 255, 255, 0.6);
+    --bg-graph: radial-gradient(circle at center, #eef 0%, #dde 100%);
+    --bg-grid: rgba(0, 100, 50, 0.05);
+
+    --text-primary: #1a1a1a;
+    --text-secondary: #334433;
+    --text-muted: #667766;
+    --text-placeholder: #889988;
+
+    --accent-primary: #008855; /* Darker green */
+    --accent-primary-dim: rgba(0, 136, 85, 0.2);
+    --accent-primary-glow: rgba(0, 136, 85, 0.4);
+    --accent-secondary: #0066cc; /* Darker blue */
+    --accent-secondary-dim: rgba(0, 102, 204, 0.2);
+
+    --status-error: #cc0000;
+    --status-warning: #cc8800;
+    --status-success: #008855;
+    --status-offline: #888;
+
+    --border-primary: rgba(0, 136, 85, 0.3);
+    --border-primary-strong: #008855;
+    --border-secondary: rgba(0, 136, 85, 0.1);
+}
+
+    /* Additional Status Colors */
+    --status-system: #cc88ff;

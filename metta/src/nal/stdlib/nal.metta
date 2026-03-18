@@ -67,3 +67,7 @@
 (= (causation $a $b $tv)
    (Cau $a $b $tv))
 
+; Temporal Induction: (Seq A B) + (Seq A B) -> (Cau A B)
+; Derives causation from repeated sequence observations
+(= (temporal-induce (Seq $a $b $tv1) (Seq $a $b $tv2))
+   (Cau $a $b (truth-ind $tv1 $tv2)))

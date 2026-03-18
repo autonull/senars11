@@ -1,6 +1,14 @@
 // Setup file to handle WebSocket properly for tests
 // This ensures proper WebSocket support in test environments
 
+import { TextEncoder, TextDecoder } from 'util';
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder;
+
+import { ReadableStream, WritableStream } from 'stream/web';
+global.ReadableStream = ReadableStream;
+global.WritableStream = WritableStream;
+
 // Only define WebSocket mock if not already available in browser context
 if (typeof WebSocket === 'undefined' || typeof window === 'undefined') {
     // Node.js environment - provide WebSocket mock

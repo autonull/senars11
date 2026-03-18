@@ -1,52 +1,193 @@
 /**
  * Unify.js - Pattern Matching & Unification
  * Adapter for Core Unification Logic
- * Following AGENTS.md: Elegant, Consolidated, Consistent, Organized, Deeply deduplicated
+ * With Tier 1 Performance Optimization: Fast-Path Type Guards
+ * And Cycle Detection in Substitution
  */
 
 // Local imports
 import { isVariable, isExpression, isList, flattenList, constructList, exp } from './Term.js';
+import { getTypeTag, TYPE_SYMBOL, TYPE_VARIABLE, TYPE_EXPRESSION, isSymbol as fastIsSymbol } from './FastPaths.js';
+import { configManager } from '../config/config.js';
 
 // External imports
 import * as UnifyCore from '../../../core/src/term/UnifyCore.js';
 
+// Lazy SMT bridge initialization
+let _smtBridge = null;
+function getSMTBridge() {
+  if (!_smtBridge && configManager.get('smt')) {
+    const { SMTBridge } = require('../extensions/SMTOps.js');
+    _smtBridge = new SMTBridge();
+  }
+  return _smtBridge;
+}
+
 /**
  * Safely substitute variables in a term with their bindings
+ * Iterative implementation to prevent stack overflow on deep structures
+ * @param {Atom} rootTerm The term to substitute into
+ * @param {Object} bindings Map of variable names to values
+ * @param {Set} rootVisited Set of visited variables to detect cycles
+ * @param {boolean} recursive Whether to recursively substitute values from bindings (default: true)
  */
-const safeSubstitute = (term, bindings) => {
-    if (!term) return term;
+const safeSubstitute = (rootTerm, bindings, rootVisited = new Set(), recursive = true) => {
+    // 1. Initial Check
+    if (!rootTerm) return rootTerm;
+    if (!bindings || Object.keys(bindings).length === 0) return rootTerm;
 
-    if (isVariable(term)) {
-        const val = bindings[term.name];
-        return (val !== undefined && val !== term) ? safeSubstitute(val, bindings) : term;
-    }
+    // 2. Setup Stack for Iterative Processing
+    // Commands: PROCESS (visit node), CONSTRUCT_EXPR (build expression), CONSTRUCT_LIST (build list)
+    const stack = [];
+    stack.push({ type: 'PROCESS', term: rootTerm, visited: rootVisited });
 
-    if (isExpression(term)) {
-        if (isList(term)) {
-            return substituteInList(term, bindings);
+    const resultStack = []; // Stores processed terms
+
+    while (stack.length > 0) {
+        const cmd = stack.pop();
+
+        if (cmd.type === 'PROCESS') {
+            const { term, visited } = cmd;
+
+            if (!term) {
+                resultStack.push(term);
+                continue;
+            }
+
+            if (isVariable(term)) {
+                const name = term.name;
+                const val = bindings[name];
+
+                // Check if variable is bound and not to itself
+                if (val !== undefined && val !== term) {
+                     // Stop recursion if disabled or cycle detected
+                     if (!recursive || visited.has(name)) {
+                         resultStack.push(val);
+                     } else {
+                         // Recurse on value (push new PROCESS frame)
+                         // Cycle detection: add current var to visited
+                         const newVisited = new Set(visited);
+                         newVisited.add(name);
+                         stack.push({ type: 'PROCESS', term: val, visited: newVisited });
+                     }
+                } else {
+                    // Not bound or self-bound
+                    resultStack.push(term);
+                }
+                continue;
+            }
+
+            if (isExpression(term)) {
+                if (isList(term)) {
+                    // Handle lists: flatten -> process elements -> construct
+                    const { elements, tail } = flattenList(term);
+
+                    // Push CONSTRUCT command first (executed last)
+                    stack.push({
+                        type: 'CONSTRUCT_LIST',
+                        elemCount: elements.length,
+                        hasTail: !!tail,
+                        // Optimizing identity check would require storing original components
+                        // For lists, we'll rely on constructList's efficiency or structural eq later if needed
+                        original: term
+                    });
+
+                    // Push tail processing (if exists)
+                    if (tail) {
+                        stack.push({ type: 'PROCESS', term: tail, visited: new Set(visited) });
+                    }
+
+                    // Push elements in reverse order so they are processed first-to-last
+                    // (Stack LIFO: push C, push B, push A -> pop A, pop B, pop C)
+                    for (let i = elements.length - 1; i >= 0; i--) {
+                         stack.push({ type: 'PROCESS', term: elements[i], visited: new Set(visited) });
+                    }
+                    continue;
+                }
+
+                // Generic Expression
+                const op = term.operator;
+                const comps = term.components;
+
+                stack.push({
+                    type: 'CONSTRUCT_EXPR',
+                    original: term,
+                    compCount: comps.length,
+                    opIsObj: typeof op === 'object'
+                });
+
+                // Process components (reverse order)
+                for (let i = comps.length - 1; i >= 0; i--) {
+                     stack.push({ type: 'PROCESS', term: comps[i], visited: new Set(visited) });
+                }
+
+                // Process operator if it's an object (first to be popped/processed)
+                if (typeof op === 'object') {
+                    stack.push({ type: 'PROCESS', term: op, visited });
+                }
+                continue;
+            }
+
+            // Atomic / Symbol
+            resultStack.push(term);
+            continue;
         }
 
-        const op = typeof term.operator === 'object'
-            ? safeSubstitute(term.operator, bindings)
-            : term.operator;
-        const comps = term.components.map(c => safeSubstitute(c, bindings));
+        if (cmd.type === 'CONSTRUCT_EXPR') {
+            const { original, compCount, opIsObj } = cmd;
 
-        if (op === term.operator && comps.every((c, i) => c === term.components[i])) return term;
-        return exp(op, comps);
+            // Pop components + op from resultStack
+            const totalToPop = compCount + (opIsObj ? 1 : 0);
+            // Splice removes from end, returns array [op, c1, c2...]
+            const items = resultStack.splice(resultStack.length - totalToPop, totalToPop);
+
+            let newOp = original.operator;
+
+            if (opIsObj) {
+                newOp = items[0];
+                items.shift();
+            }
+
+            // items now contains components [c1, c2, ...]
+
+            // Check for identity to avoid allocation
+            const changed = (newOp !== original.operator) ||
+                            items.some((c, i) => c !== original.components[i]);
+
+            if (changed) {
+                resultStack.push(exp(newOp, items));
+            } else {
+                resultStack.push(original);
+            }
+            continue;
+        }
+
+        if (cmd.type === 'CONSTRUCT_LIST') {
+             const { elemCount, hasTail, original } = cmd;
+
+             const totalToPop = elemCount + (hasTail ? 1 : 0);
+             const items = resultStack.splice(resultStack.length - totalToPop, totalToPop);
+
+             let newTail = hasTail ? items.pop() : undefined;
+             const newElements = items;
+
+             // Check for identity
+             // Flatten original again to check identity is expensive but safeSubstitute did it implicitly via recursion return checks
+             const { elements: origElements, tail: origTail } = flattenList(original);
+             const changed = (newTail !== origTail) ||
+                             newElements.length !== origElements.length ||
+                             newElements.some((e, i) => e !== origElements[i]);
+
+             if (changed) {
+                 resultStack.push(constructList(newElements, newTail));
+             } else {
+                 resultStack.push(original);
+             }
+             continue;
+        }
     }
 
-    return term;
-};
-
-/**
- * Helper function to substitute in list structures
- */
-const substituteInList = (term, bindings) => {
-    const { elements, tail } = flattenList(term);
-    const subEls = elements.map(e => safeSubstitute(e, bindings));
-    const subTail = safeSubstitute(tail, bindings);
-    if (subTail === tail && subEls.every((e, i) => e === elements[i])) return term;
-    return constructList(subEls, subTail);
+    return resultStack[0];
 };
 
 /**
@@ -85,7 +226,7 @@ const mettaAdapter = {
     getOperator: t => t.operator?.name ? t.operator : t.operator,
     getComponents: t => t.components || [], // Structural: (; A B) -> (: A (: B ()))
     equals: (t1, t2) => t1 === t2 || (t1?.equals?.(t2) ?? false),
-    substitute: (t, b) => safeSubstitute(t, b),
+    substitute: (t, b, opts) => safeSubstitute(t, b, undefined, opts?.recursive),
     reconstruct: (t, comps) => {
         if (isList(t)) {
             const { tail } = flattenList(t);
@@ -98,10 +239,41 @@ const mettaAdapter = {
 /**
  * Unified function for unification to avoid circular reference
  */
-const unifiedUnify = (t1, t2, binds = {}) =>
-    (isList(t1) && isList(t2))
-        ? unifyLists(t1, t2, binds)
-        : UnifyCore.unify(t1, t2, binds, mettaAdapter);
+const unifiedUnify = (t1, t2, binds = {}) => {
+    // Fast path: symbol equality (80% of cases)
+    if (configManager.get('fastPaths')) {
+        const tag1 = getTypeTag(t1);
+        const tag2 = getTypeTag(t2);
+
+        if (tag1 === TYPE_SYMBOL && tag2 === TYPE_SYMBOL) {
+            return (t1 === t2 || t1.name === t2.name) ? binds : null;
+        }
+    } else {
+        // Fallback to slower checks if optimization disabled
+        if (fastIsSymbol(t1) && fastIsSymbol(t2)) {
+            return (t1 === t2 || t1.name === t2.name) ? binds : null;
+        }
+    }
+
+    // Fast path: lists
+    if (isList(t1) && isList(t2)) {
+        return unifyLists(t1, t2, binds);
+    }
+
+    const result = UnifyCore.unify(t1, t2, binds, mettaAdapter);
+
+    // MORK Phase 3-B Integration point
+    if (!result && configManager.get('smt')) {
+        const bridge = getSMTBridge();
+        if (bridge && bridge.canSolve(binds)) {
+            // Unification failed structurally, but maybe SMT can resolve constraints
+            const smtResult = bridge.solve([t1, t2]);
+            if (smtResult) return smtResult;
+        }
+    }
+
+    return result;
+};
 
 export const Unify = {
     /**
@@ -112,7 +284,7 @@ export const Unify = {
     /**
      * Substitute variables in a term with their bindings
      */
-    subst: safeSubstitute,
+    subst: (term, bindings, options) => safeSubstitute(term, bindings, undefined, options?.recursive),
 
     /**
      * Match a pattern against a term

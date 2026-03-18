@@ -7,11 +7,12 @@
  */
 
 import { TermFactory } from '../../../core/src/term/TermFactory.js';
-import { METTA_CONFIG } from '../config.js';
+import { configManager } from '../config/config.js';
+import { SymbolAtom } from './AtomTypes.js';
 
 // Shared term factory for all MeTTa symbols
 const termFactory = new TermFactory({
-    maxCacheSize: METTA_CONFIG.maxInternedSymbols
+    maxCacheSize: configManager.get('maxInternedSymbols')
 });
 
 // Statistics for monitoring
@@ -28,10 +29,10 @@ const stats = {
  * @returns {object} Interned symbol (may be reference-equal to previous calls)
  */
 export function intern(name) {
-    if (!METTA_CONFIG.interning) {
+    if (!configManager.get('interning')) {
         // Optimization disabled - create new symbol each time
         stats.internMisses++;
-        return createSymbol(name);
+        return new SymbolAtom(name);
     }
 
     // Try to get from cache
@@ -68,18 +69,6 @@ export function symbolEq(a, b) {
     // This handles the case where two symbols with same name aren't reference-equal
     // due to cache size limits
     return a?.name === b?.name;
-}
-
-/**
- * Create a symbol without interning (for testing/debugging)
- */
-function createSymbol(name) {
-    return {
-        type: 'Symbol',
-        name,
-        _typeTag: 1, // Pre-computed for fast dispatch (Q2)
-        toString: () => name
-    };
 }
 
 /**

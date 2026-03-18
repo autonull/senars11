@@ -14,8 +14,18 @@ jest.unstable_mockModule('../../../src/components/ContextMenu.js', () => ({
     ContextMenu: class { destroy() {} }
 }));
 
+// Mock EventBus
+const mockEventBus = {
+    on: jest.fn(),
+    emit: jest.fn(),
+    off: jest.fn()
+};
+jest.unstable_mockModule('../../../src/core/EventBus.js', () => ({
+    eventBus: mockEventBus
+}));
+
 // Import module under test dynamically after mocking
-const { GraphManager } = await import('../../../src/visualization/GraphManager.js');
+let GraphManager;
 
 // Mock Cytoscape
 const mockCy = {
@@ -38,6 +48,11 @@ global.cytoscape = jest.fn(() => mockCy);
 describe('GraphManager', () => {
     let graphManager;
     let container;
+
+    beforeAll(async () => {
+        const module = await import('../../../src/visualization/GraphManager.js');
+        GraphManager = module.GraphManager;
+    });
 
     beforeEach(() => {
         container = document.createElement('div');
@@ -72,12 +87,17 @@ describe('GraphManager', () => {
         }));
     });
 
-    test('should update an existing node when concept.updated message is received', () => {
+    test('should update an existing node when concept.updated message is received', async () => {
         // Setup: Mock that node exists
         const mockNode = {
             length: 1,
             data: jest.fn(),
-            animate: jest.fn().mockReturnThis()
+            animate: jest.fn().mockReturnThis(),
+            animation: jest.fn().mockReturnValue({
+                play: jest.fn().mockReturnValue({
+                    promise: jest.fn().mockResolvedValue()
+                })
+            })
         };
         mockCy.getElementById.mockReturnValue(mockNode);
 
@@ -89,8 +109,12 @@ describe('GraphManager', () => {
             weight: 90,
             fullData: payload
         }));
+
+        // Wait for animation promise chain
+        await new Promise(resolve => setTimeout(resolve, 0));
+
         // Verify animation (pulse)
-        expect(mockNode.animate).toHaveBeenCalledTimes(2);
+        expect(mockNode.animation).toHaveBeenCalledTimes(2);
     });
 
     test('should add a node if concept.updated message is received for non-existent node', () => {
@@ -123,13 +147,11 @@ describe('GraphManager', () => {
             originalEvent: {}
         };
 
-        const dispatchSpy = jest.spyOn(document, 'dispatchEvent');
-
         eventCallback(mockEvent);
 
-        expect(dispatchSpy).toHaveBeenCalledWith(expect.any(CustomEvent));
-        const event = dispatchSpy.mock.calls[0][0];
-        expect(event.type).toBe('senars:concept:select');
-        expect(event.detail).toEqual({ concept: { id: 'c1', term: 'bird' }, id: 'c1' });
+        expect(mockEventBus.emit).toHaveBeenCalledWith('senars:concept:select', {
+            concept: { id: 'c1', term: 'bird' },
+            id: 'c1'
+        });
     });
 });

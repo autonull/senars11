@@ -1,6 +1,8 @@
 import {BaseMeTTaComponent} from './helpers/BaseMeTTaComponent.js';
 import {MeTTaRuleAdapter} from './helpers/MeTTaRuleAdapter.js';
 import {Term} from './kernel/Term.js';
+import {Task} from '../../core/src/task/Task.js';
+import {Truth} from '../../core/src/Truth.js';
 
 export class SeNARSBridge extends BaseMeTTaComponent {
     constructor(reasoner, mettaInterpreter, config = {}, eventBus = null) {
@@ -12,14 +14,23 @@ export class SeNARSBridge extends BaseMeTTaComponent {
     mettaToNars(term, punctuation = '.') {
         return this.trackOperation('mettaToNars', () => {
             this.emitMeTTaEvent('metta-to-nars', {term: term.toString()});
-            return {term, punctuation, truth: {frequency: 0.9, confidence: 0.9}};
+            // Construct a proper Task object to ensure compatibility with Reasoner
+            // QUESTIONS must not have truth values
+            const truth = (punctuation === '?' || punctuation === 'QUESTION') ? null : new Truth(0.9, 0.9);
+            return new Task({
+                term,
+                punctuation,
+                truth
+            });
         });
     }
 
     narsToMetta(task) {
         return this.trackOperation('narsToMetta', () => {
-            this.emitMeTTaEvent('nars-to-metta', {term: task.term.toString()});
-            return task.term;
+            // task might be a Task object or a plain object
+            const term = task.term || task;
+            this.emitMeTTaEvent('nars-to-metta', {term: term.toString()});
+            return term;
         });
     }
 

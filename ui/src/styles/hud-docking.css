@@ -1,0 +1,256 @@
+/* HUD Docking System - Center 3/4 for Graph */
+
+:root {
+    --widget-border-width: 15%;
+    --widget-max-width: 280px;
+    --widget-padding: 8px;
+    --widget-gap: 10px;
+    --statusbar-height: 40px;
+    --statusbar-expanded-height: 130px;
+}
+
+/* Graph Container - Center 3/4 */
+#graph-container {
+    position: fixed;
+    left: 0;
+    top: var(--statusbar-height);
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+}
+
+/* Widget Base Styles */
+.hud-widget {
+    position: fixed;
+    background: rgba(5, 20, 15, 0.6);
+    border: 1px solid rgba(0, 255, 157, 0.1);
+    padding: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(4px);
+    z-index: 90;
+    transition: all 0.3s ease;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.hud-widget:hover, .hud-widget.active-widget {
+    background: rgba(5, 20, 15, 0.9);
+    border-color: rgba(0, 255, 157, 0.4);
+}
+
+.hud-widget::-webkit-scrollbar {
+    width: 4px;
+}
+
+.hud-widget::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.hud-widget::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 157, 0.3);
+}
+
+.hud-widget.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.95);
+}
+
+/* Active Widget State */
+.hud-widget.active-widget {
+    border-color: #00ff9d;
+    box-shadow: 0 0 12px rgba(0, 255, 157, 0.25);
+    background: rgba(5, 25, 20, 0.9);
+    z-index: 95;
+}
+
+/* Docking Zones */
+.hud-widget.dock-left {
+    left: var(--widget-gap);
+    width: calc(var(--widget-border-width) - var(--widget-gap) * 2);
+    max-width: var(--widget-max-width);
+}
+
+.hud-widget.dock-right {
+    right: var(--widget-gap);
+    width: calc(var(--widget-border-width) - var(--widget-gap) * 2);
+    max-width: var(--widget-max-width);
+}
+
+.hud-widget.dock-bottom {
+    bottom: var(--widget-gap);
+    left: calc(var(--widget-border-width) + var(--widget-gap));
+    right: calc(var(--widget-border-width) + var(--widget-gap));
+}
+
+/* Specific Widget Positions */
+#layers-widget {
+    top: calc(var(--statusbar-height, 40px) + var(--widget-gap, 10px));
+    left: 0;
+    width: 25vw;
+    max-width: none;
+    border-left: none;
+    border-radius: 0 4px 4px 0;
+    max-height: 80vh;
+}
+
+#metrics-widget {
+    top: calc(var(--statusbar-height, 40px) + var(--widget-gap, 10px));
+    max-height: 300px;
+}
+
+#inspector-widget {
+    bottom: var(--widget-gap, 10px);
+    top: auto;
+    max-height: 40vh;
+}
+
+#log-widget {
+    top: calc(var(--statusbar-height, 40px) + var(--widget-gap, 10px) + 310px);
+    bottom: var(--widget-gap, 10px);
+    height: auto;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+}
+
+.log-panel-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.log-header {
+    flex-shrink: 0;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.log-area {
+    flex: 1;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 255, 157, 0.1);
+    padding: 4px;
+}
+
+#log-content {
+    font-size: 11px; /* Smaller font as requested */
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.4;
+}
+
+#log-content > div {
+    padding: 1px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#controls-widget {
+    bottom: var(--widget-gap);
+    right: var(--widget-gap);
+    width: auto;
+    padding: 6px;
+    left: auto;
+    /* display: none; */
+    /* Hidden - controls moved to StatusBar */
+}
+
+/* Compact Widget Styles */
+.hud-widget .hud-row {
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.hud-widget .btn {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+}
+
+.hud-widget h3,
+.hud-widget .hud-title {
+    font-size: 0.9rem;
+    margin: 0 0 6px 0;
+}
+
+/* Toggle Buttons (for showing/hiding widgets) */
+.widget-toggle {
+    position: fixed;
+    background: rgba(0, 255, 157, 0.1);
+    border: 1px solid rgba(0, 255, 157, 0.3);
+    color: #00ff9d;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    z-index: 50;
+    transition: all 0.2s ease;
+}
+
+.widget-toggle:hover {
+    background: rgba(0, 255, 157, 0.2);
+    border-color: #00ff9d;
+}
+
+.widget-toggle.active {
+    background: rgba(0, 255, 157, 0.3);
+}
+
+/* Widget Toggle Buttons in StatusBar */
+.widget-toggle-btn {
+    background: rgba(0, 255, 157, 0.1);
+    border: 1px solid rgba(0, 255, 157, 0.2);
+    color: #00ff9d;
+    padding: 4px 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 3px;
+}
+
+.widget-toggle-btn:hover {
+    background: rgba(0, 255, 157, 0.2);
+    border-color: rgba(0, 255, 157, 0.5);
+}
+
+.widget-toggle-btn.active {
+    background: rgba(0, 255, 157, 0.25);
+    border-color: #00ff9d;
+    box-shadow: 0 0 8px rgba(0, 255, 157, 0.3);
+}
+
+.status-divider {
+    width: 1px;
+    height: 20px;
+    background: rgba(0, 255, 157, 0.2);
+    margin: 0 8px;
+}
+
+/* Simple Mobile Responsiveness */
+@media (max-width: 768px) {
+    :root {
+        --widget-border-width: 0px;
+        --widget-max-width: 100%;
+        --widget-padding: 4px;
+    }
+    .hud-widget {
+        max-width: 96%;
+        left: 2% !important;
+        right: 2% !important;
+        width: 96% !important;
+    }
+    .hud-widget.dock-left, .hud-widget.dock-right {
+        position: fixed;
+        width: 96%;
+    }
+    #graph-container {
+        top: var(--statusbar-height);
+        bottom: 0;
+        left: 0;
+        right: 0;
+    }
+    /* Stack widgets vertically if visible */
+    #layers-widget { top: 50px; }
+    #metrics-widget { top: 250px; }
+    #log-widget { display: none; } /* Hide logs on mobile by default */
+}

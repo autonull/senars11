@@ -1,4 +1,5 @@
 import { Component } from '../Component.js';
+import { FluentUI } from '../../utils/FluentUI.js';
 
 export class TruthSlider extends Component {
     constructor(container, options = {}) {
@@ -11,14 +12,13 @@ export class TruthSlider extends Component {
     render() {
         if (!this.container) return;
 
-        this.container.innerHTML = '';
-        this.container.className = 'truth-slider-widget';
-        this.container.style.cssText = 'padding: 10px; background: rgba(0,0,0,0.2); border-radius: 4px; width: 100%; border: 1px solid var(--border-color);';
-
-        const title = document.createElement('div');
-        title.textContent = 'Truth Value Adjustment';
-        title.style.cssText = 'font-size: 11px; font-weight: bold; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase;';
-        this.container.appendChild(title);
+        this.fluent().clear().class('truth-slider-widget')
+            .style({ padding: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', width: '100%', border: '1px solid var(--border-color)' })
+            .child(
+                FluentUI.create('div')
+                    .text('Truth Value Adjustment')
+                    .style({ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase' })
+            );
 
         this.createSlider('Frequency', this.frequency, (val) => {
             this.frequency = val;
@@ -30,41 +30,42 @@ export class TruthSlider extends Component {
             this.notify();
         });
 
-        // Visualization of truth value
-        this.valueDisplay = document.createElement('div');
-        this.valueDisplay.style.cssText = 'margin-top: 10px; font-family: var(--font-mono); text-align: center; color: var(--accent-primary); font-size: 14px; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 3px; transition: all 0.2s; border: 1px solid transparent;';
+        this.valueDisplay = FluentUI.create('div')
+            .style({
+                marginTop: '10px', fontFamily: 'var(--font-mono)', textAlign: 'center', color: 'var(--accent-primary)',
+                fontSize: '14px', background: 'rgba(0,0,0,0.3)', padding: '5px', borderRadius: '3px',
+                transition: 'all 0.2s', border: '1px solid transparent'
+            })
+            .mount(this.container)
+            .dom;
+
         this.updateDisplay();
-        this.container.appendChild(this.valueDisplay);
     }
 
     createSlider(label, value, callback) {
-        const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'display: flex; align-items: center; gap: 10px; margin-bottom: 5px;';
+        const valueEl = FluentUI.create('span')
+            .text(value.toFixed(2))
+            .style({ width: '35px', fontSize: '11px', fontFamily: 'var(--font-mono)', textAlign: 'right', color: 'var(--text-main)' });
 
-        const labelEl = document.createElement('label');
-        labelEl.textContent = label;
-        labelEl.style.cssText = 'width: 70px; font-size: 11px; color: var(--text-main);';
+        const slider = FluentUI.create('input')
+            .attr({ type: 'range', min: 0, max: 1, step: 0.01, value })
+            .style({ flex: '1', cursor: 'pointer', accentColor: 'var(--accent-primary)' })
+            .on('input', (e) => {
+                const val = parseFloat(e.target.value);
+                valueEl.text(val.toFixed(2));
+                callback(val);
+            });
 
-        const slider = document.createElement('input');
-        slider.type = 'range';
-        slider.min = 0;
-        slider.max = 1;
-        slider.step = 0.01;
-        slider.value = value;
-        slider.style.cssText = 'flex: 1; cursor: pointer; accent-color: var(--accent-primary);';
-
-        const valueEl = document.createElement('span');
-        valueEl.textContent = value.toFixed(2);
-        valueEl.style.cssText = 'width: 35px; font-size: 11px; font-family: var(--font-mono); text-align: right; color: var(--text-main);';
-
-        slider.addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            valueEl.textContent = val.toFixed(2);
-            callback(val);
-        });
-
-        wrapper.append(labelEl, slider, valueEl);
-        this.container.appendChild(wrapper);
+        FluentUI.create('div')
+            .style({ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' })
+            .child(
+                FluentUI.create('label')
+                    .text(label)
+                    .style({ width: '70px', fontSize: '11px', color: 'var(--text-main)' })
+            )
+            .child(slider)
+            .child(valueEl)
+            .mount(this.container);
     }
 
     updateDisplay() {

@@ -23,23 +23,36 @@ export class CoreRegistry {
      * Check if an operation exists
      */
     has(name) {
-        return this.operations.has(this._normalize(name));
+        const n = typeof name === 'string' ? name : name?.name;
+        return n ? this.operations.has(this._normalize(n)) : false;
     }
 
     /**
      * Check if an operation is lazy
      */
     isLazy(name) {
-        return !!this.operations.get(this._normalize(name))?.options?.lazy;
+        const n = typeof name === 'string' ? name : name?.name;
+        return n ? !!this.operations.get(this._normalize(n))?.options?.lazy : false;
+    }
+
+    /**
+     * Check if an operation is pure (Phase P1-E: Deterministic cache hook)
+     */
+    isPure(name) {
+        const n = typeof name === 'string' ? name : name?.name;
+        return n ? !!this.operations.get(this._normalize(n))?.options?.pure : false;
     }
 
     /**
      * Execute an operation
      */
     execute(name, ...args) {
-        const norm = this._normalize(name);
+        const n = typeof name === 'string' ? name : name?.name;
+        if (!n) throw new OperationNotFoundError(String(name));
+
+        const norm = this._normalize(n);
         const op = this.operations.get(norm);
-        if (!op) throw new OperationNotFoundError(name);
+        if (!op) throw new OperationNotFoundError(n);
         return op.fn(...args);
     }
 

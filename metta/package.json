@@ -2,10 +2,12 @@
   "name": "@senars/metta",
   "version": "1.0.0",
   "type": "module",
-  "main": "src/MeTTaInterpreter.js",
+  "main": "src/index.js",
   "dependencies": {
-    "@senars/core": "^1.0.0"
-  },
-  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.21.1",
+    "@napi-rs/canvas": "^0.1.96",
+    "@senars/core": "^1.0.0",
+    "canvas": "^2.11.2",
+    "gifencoder": "^2.0.1"
   }
 }

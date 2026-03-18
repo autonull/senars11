@@ -3,12 +3,13 @@ import {TaskBagPremiseSource} from '../../../core/src/reason/TaskBagPremiseSourc
 import {Strategy} from '../../../core/src/reason/Strategy.js';
 import {RuleProcessor} from '../../../core/src/reason/RuleProcessor.js';
 import {Focus} from '../../../core/src/memory/Focus.js';
+import {TermFactory} from '../../../core/src/term/TermFactory.js';
 import {createTestMemory} from '../../support/baseTestUtils.js';
 
 describe('ReasonerBuilder', () => {
     let context;
     beforeEach(() => {
-        context = {focus: new Focus(), memory: createTestMemory(), termFactory: {}};
+        context = {focus: new Focus(), memory: createTestMemory(), termFactory: new TermFactory()};
     });
 
     test('default build', () => {

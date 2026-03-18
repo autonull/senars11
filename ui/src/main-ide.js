@@ -1,365 +1,150 @@
 import cytoscape from 'cytoscape';
 import fcose from 'cytoscape-fcose';
-import { GoldenLayout } from 'golden-layout';
 import { LocalConnectionManager } from './connection/LocalConnectionManager.js';
 import { WebSocketManager } from './connection/WebSocketManager.js';
 import { ConnectionManager } from './connection/ConnectionManager.js';
-import { GraphPanel } from './components/GraphPanel.js';
-import { MemoryInspector } from './components/MemoryInspector.js';
-import { DerivationTree } from './components/DerivationTree.js';
-import { SystemMetricsPanel } from './components/SystemMetricsPanel.js';
-import { REPLPanel } from './components/REPLPanel.js';
-import { ExampleBrowser } from './components/ExampleBrowser.js';
 import { CommandProcessor } from './command/CommandProcessor.js';
-import { categorizeMessage } from './repl/MessageFilter.js';
 import { ThemeManager } from './components/ThemeManager.js';
-import { LMActivityIndicator } from './components/LMActivityIndicator.js';
-import { LayoutPresets } from './config/LayoutPresets.js';
 import { Logger } from './logging/Logger.js';
 import { StatusBar } from './components/StatusBar.js';
+import { DemoLibraryModal } from './components/DemoLibraryModal.js';
+import { LayoutManager } from './layout/LayoutManager.js';
+import { MessageRouter } from './messaging/MessageRouter.js';
+import { SettingsManager } from './config/SettingsManager.js';
+import { EVENTS, COMPONENTS, MODES } from './config/constants.js';
+import { eventBus } from './core/EventBus.js';
+import { ShortcutManager } from './core/ShortcutManager.js';
 
 cytoscape.use(fcose);
 window.cytoscape = cytoscape;
 
 class SeNARSIDE {
     constructor() {
-        this.layout = null;
+        this.settingsManager = new SettingsManager();
+        this.layoutManager = new LayoutManager(this, 'layout-root');
+        this.messageRouter = new MessageRouter(this);
         this.connection = null;
-        this.connectionMode = 'local';
         this.components = new Map();
         this.graphManager = null;
         this.themeManager = new ThemeManager();
-        this.logger = new Logger(); // Core logger
+        this.logger = new Logger();
         this.commandProcessor = null;
         this.lmActivityIndicator = null;
         this.cycleCount = 0;
         this.messageCount = 0;
         this.isRunning = false;
         this.statusBar = null;
+        this.shortcutManager = new ShortcutManager();
 
-        this.loadSettings();
-
-        // Handle URL params for mode/layout
         const urlParams = new URLSearchParams(window.location.search);
-        this.presetName = urlParams.get('layout') || urlParams.get('mode');
+        this.presetName = urlParams.get('layout') || 'ide';
 
-        if (!this.presetName && window.location.pathname.endsWith('demo.html')) {
+        const modeParam = urlParams.get('mode');
+        if (modeParam && Object.values(MODES).includes(modeParam)) {
+            this.settingsManager.setMode(modeParam);
+        }
+
+        if (window.location.pathname.endsWith('demo.html')) {
             this.presetName = 'demo';
         }
 
         this.presetName ||= 'ide';
 
-        // Map common aliases
         const aliases = { console: 'repl', online: 'dashboard' };
-        if (aliases[this.presetName]) this.presetName = aliases[this.presetName];
+        this.presetName = aliases[this.presetName] ?? this.presetName;
     }
 
-    loadSettings() {
-        const saved = localStorage.getItem('senars-ide-settings');
-        if (saved) {
-            const settings = JSON.parse(saved);
-            this.connectionMode = settings.mode ?? 'local';
-            this.serverUrl = settings.serverUrl ?? 'localhost:3000';
+    registerComponent(name, instance) {
+        this.components.set(name, instance);
+        if (name === 'graph') {
+            this.graphManager = instance.graphManager;
+            this.commandProcessor?.setGraphManager(this.graphManager);
         }
-    }
-
-    saveSettings() {
-        localStorage.setItem('senars-ide-settings', JSON.stringify({
-            mode: this.connectionMode,
-            serverUrl: this.serverUrl
-        }));
     }
 
     async initialize() {
-        this.logger.log(`Initializing SeNARS IDE (Layout: ${this.presetName})...`, 'system');
+        try {
+            this.statusBar = new StatusBar(document.getElementById('status-bar-root'));
+            this.statusBar.initialize({
+                onModeSwitch: () => this.showConnectionModal(),
+                onThemeToggle: () => this.toggleTheme()
+            });
 
-        this.statusBar = new StatusBar(document.getElementById('status-bar-root'));
-        this.statusBar.initialize({ onModeSwitch: () => this.showConnectionModal() });
+            this.layoutManager.initialize(this.presetName);
 
-        this.setupLayout();
-        await this.switchMode(this.connectionMode);
-        this.setupKeyboardShortcuts();
+            await this.switchMode(this.settingsManager.getMode());
+            this.setupShortcuts();
 
-        // Listen for concept selection (Global Event Bus)
-        document.addEventListener('senars:concept:select', (e) => this.handleConceptSelect(e));
-
-        this.logger.log(`SeNARS IDE initialized in ${this.connectionMode} mode`, 'success');
-    }
-
-    handleConceptSelect(e) {
-        const { concept } = e.detail;
-        if (concept) {
-             // Open Memory Inspector if available
-             const memoryComponent = this.layout.root.getItemsByFilter(item => item.config.componentName === 'memoryComponent')[0];
-             if (memoryComponent && memoryComponent.parent && memoryComponent.parent.setActiveContentItem) {
-                 memoryComponent.parent.setActiveContentItem(memoryComponent);
-             }
+            eventBus.on(EVENTS.CONCEPT_SELECT, (payload) => this._onConceptSelect(payload));
+        } catch (error) {
+            this.logger.log(`Initialization error: ${error.message}`, 'error');
+            console.error('SeNARS IDE Initialization failed:', error);
         }
     }
 
-    setupLayout() {
-        const layoutRoot = document.getElementById('layout-root');
-        if (!layoutRoot) {
-            console.error('Layout root not found');
-            return;
-        }
-
-        this.layout = new GoldenLayout(layoutRoot);
-
-        // Register Component Factories
-        this.layout.registerComponentFactoryFunction('replComponent', (c) => this.createREPLComponent(c));
-        this.layout.registerComponentFactoryFunction('graphComponent', (c) => this.createGraphComponent(c));
-        this.layout.registerComponentFactoryFunction('memoryComponent', (c) => this.createMemoryComponent(c));
-        this.layout.registerComponentFactoryFunction('derivationComponent', (c) => this.createDerivationComponent(c));
-        this.layout.registerComponentFactoryFunction('metricsComponent', (c) => this.createMetricsComponent(c));
-        this.layout.registerComponentFactoryFunction('settingsComponent', (c) => this.createSettingsComponent(c));
-        this.layout.registerComponentFactoryFunction('examplesComponent', (c) => this.createExamplesComponent(c));
-
-        // Load Configuration
-        let config = LayoutPresets[this.presetName] || LayoutPresets.ide;
-
-        // Attempt to load user saved state if matches current preset
-        const savedState = localStorage.getItem(`senars-layout-${this.presetName}`);
-        if (savedState) {
-             try {
-                 // We could load the saved state, but GoldenLayout state saving can be finicky with component structure changes.
-                 // For now, we rely on presets. To enable persistence, uncomment:
-                 // config = JSON.parse(savedState);
-             } catch(e) { console.warn('Failed to load saved layout', e); }
-        }
-
-        this.layout.loadLayout(config);
-
-        // Save state on change
-        this.layout.on('stateChanged', () => {
-             if (this.layout.isInitialised) {
-                 localStorage.setItem(`senars-layout-${this.presetName}`, JSON.stringify(this.layout.toConfig()));
-             }
-        });
-
-        window.addEventListener('resize', () => this.layout.updateRootSize());
-    }
-
-    createREPLComponent(container) {
-        const replPanel = new REPLPanel(container.element);
-        // Defer initialization until app is ready or pass this
-        replPanel.initialize(this);
-        this.components.set('repl', replPanel);
-
-        // Hook up stats updates
-        this.updateStats();
-    }
-
-    createGraphComponent(container) {
-        const panel = new GraphPanel(container.element);
-        panel.initialize();
-        this.components.set('graph', panel);
-        this.graphManager = panel.graphManager;
-
-        if (this.commandProcessor) this.commandProcessor.graphManager = this.graphManager;
-
-        // Initialize LM Activity Indicator on Graph Container
-        if (panel.container) {
-            this.lmActivityIndicator = new LMActivityIndicator(panel.container);
-        }
-
-        container.on('resize', () => panel.resize());
-    }
-
-    createMemoryComponent(container) {
-        const panel = new MemoryInspector(container.element);
-        panel.initialize();
-        this.components.set('memory', panel);
-    }
-
-    createDerivationComponent(container) {
-        const panel = new DerivationTree(container.element);
-        panel.initialize();
-        this.components.set('derivation', panel);
-        container.on('resize', () => panel.resize?.());
-    }
-
-    createMetricsComponent(container) {
-        const panel = new SystemMetricsPanel(container.element);
-        panel.render();
-        this.components.set('metrics', panel);
-    }
-
-    createSettingsComponent(container) {
-        import('./components/SettingsPanel.js').then(({ SettingsPanel }) => {
-            const panel = new SettingsPanel(container.element);
-            panel.app = this;
-            panel.initialize();
-            this.components.set('settings', panel);
-        });
-    }
-
-    createExamplesComponent(container) {
-         // Create a unique container ID
-         const id = 'example-browser-' + Math.random().toString(36).substr(2, 9);
-         container.element.id = id;
-         const panel = new ExampleBrowser(id, {
-             onSelect: (node) => {
-                 if (node.type === 'file') {
-                     // Pass to REPL
-                     this.getNotebook()?.loadDemoFile(node.path);
-                 }
-             }
-         });
-         panel.initialize();
-         this.components.set('examples', panel);
+    _onConceptSelect(payload) {
+        const concept = payload?.concept;
+        if (!concept) return;
+        const memoryComponent = this.layoutManager.layout.root.getItemsByFilter(item => item.config.componentName === COMPONENTS.MEMORY)[0];
+        memoryComponent?.parent?.setActiveContentItem?.(memoryComponent);
     }
 
     getNotebook() {
-        return this.components.get('repl')?.notebookManager;
+        return this.components.get('notebook')?.notebookManager;
     }
 
     async switchMode(mode) {
-        this.logger.log(`Switching to ${mode} mode...`, 'system');
-        this.connection?.disconnect();
-        this.connectionMode = mode;
+        try {
+            this.connection?.disconnect();
+            this.settingsManager.setMode(mode);
 
-        const manager = mode === 'local' ? new LocalConnectionManager() : new WebSocketManager();
+            await this._setupConnection(mode);
+
+            if (this.commandProcessor) {
+                this.commandProcessor.connection = this.connection;
+            } else {
+                this.commandProcessor = new CommandProcessor(this.connection, this.logger, this.graphManager);
+            }
+
+            this.graphManager?.setCommandProcessor(this.commandProcessor);
+            this.updateModeIndicator();
+        } catch (error) {
+            this.logger.log(`Mode switch error: ${error.message}`, 'error');
+            console.error('Failed to switch mode:', error);
+        }
+    }
+
+    async _setupConnection(mode) {
+        const manager = mode === MODES.LOCAL ? new LocalConnectionManager() : new WebSocketManager();
         this.connection = new ConnectionManager(manager);
 
-        await this.connection.connect(mode === 'remote' ? this.serverUrl : undefined);
+        await this.connection.connect(mode === MODES.REMOTE ? this.settingsManager.getServerUrl() : undefined);
 
-        this.connection.subscribe('*', (message) => this.handleMessage(message));
+        this.connection.subscribe('*', (message) => this.messageRouter.handleMessage(message));
         this.connection.subscribe('connection.status', (status) => this.statusBar?.updateStatus(status));
-
-        // Update CommandProcessor with new connection
-        if (this.commandProcessor) {
-            this.commandProcessor.connection = this.connection;
-        } else {
-            // Check if we have a repl panel to hook logger
-            this.commandProcessor = new CommandProcessor(this.connection, this.logger, this.graphManager);
-            // Wait, CommandProcessor expects (connection, logger). REPLPanel hooks into this.logger.
-        }
-
-        this.updateModeIndicator();
-        this.saveSettings();
-
-        const notebook = this.getNotebook();
-        notebook?.createResultCell(`🚀 Connected in ${mode} mode`, 'system');
     }
 
     updateModeIndicator() {
-        this.statusBar?.updateMode(this.connectionMode);
+        this.statusBar?.updateMode(this.settingsManager.getMode());
         this.statusBar?.updateStatus(this.connection?.isConnected() ? 'Connected' : 'Disconnected');
     }
 
     showConnectionModal() {
-        if (this.connectionMode === 'local') {
-            const defaultUrl = this.serverUrl || 'ws://localhost:3000';
+        if (this.settingsManager.getMode() === MODES.LOCAL) {
+            const defaultUrl = this.settingsManager.getServerUrl() || 'ws://localhost:3000';
             const url = prompt('Enter Remote Server URL:', defaultUrl);
             if (url !== null) {
-                this.serverUrl = url;
-                this.switchMode('remote');
+                this.settingsManager.setServerUrl(url);
+                this.switchMode(MODES.REMOTE);
             }
-        } else {
-            if (confirm('Switch to Local Mode?')) {
-                this.switchMode('local');
-            }
-        }
-    }
-
-    handleMessage(message) {
-        // Core handling logic from SeNARSUI.js + main-ide.js
-        this.messageCount++;
-        this.updateStats();
-
-        // 1. LM Activities
-        if (message.type === 'lm:prompt:start') this.lmActivityIndicator?.show();
-        if (message.type === 'lm:prompt:complete') this.lmActivityIndicator?.hide();
-        if (message.type === 'lm:error') this.lmActivityIndicator?.showError(message.payload?.error);
-
-        // 2. Notebook / REPL Handling
-        const notebook = this.getNotebook();
-        if (notebook) {
-            if (message.type === 'visualization') {
-                const { type, data, content } = message.payload;
-                if (type === 'markdown') {
-                    notebook.createMarkdownCell(content || data);
-                } else if (type === 'graph' || type === 'chart') {
-                     const widgetType = type === 'graph' ? 'GraphWidget' : 'ChartWidget';
-                     notebook.createWidgetCell(widgetType, data);
-                }
-            } else if (message.type === 'ui-command') {
-                const { command, args } = message.payload;
-                const fullCommand = `/${command} ${args}`;
-                this.logger.log(`System requested UI Command: ${fullCommand}`, 'system');
-                this.commandProcessor?.processCommand(fullCommand, true);
-            } else if (message.type === 'agent/prompt') {
-                const { question, id } = message.payload;
-                notebook.createPromptCell(question, (response) => {
-                     this.connection?.sendMessage('agent/response', { id, response });
-                });
-            } else {
-                // Default logging is handled by Logger -> REPLPanel adapter via this.logger
-                // But we need to feed the logger if the message is NOT handled there?
-                // Actually, ConnectionManager subscriptions are one way.
-                // SeNARSUI.js handled generic messages by categorizeMessage and logging.
-
-                // If message is generic result/thought, Logger adapter in REPLPanel handles it
-                // IF we log it.
-
-                // Let's explicitly log specific types that should appear in REPL
-                const logTypes = ['agent/result', 'agent/thought', 'error', 'system', 'reasoning'];
-                // Or use categorizeMessage
-                const category = categorizeMessage(message);
-                if (category !== 'unknown' && category !== 'concept' && category !== 'task' && category !== 'metrics') {
-                     // Check if it's already handled by specific logic
-                     // For now, we rely on REPLPanel's adapter. We just need to call this.logger.addLogEntry
-                     // But wait, the message comes from connection.
-
-                     let content = message.payload?.result || message.content || JSON.stringify(message.payload);
-                     // Avoid double logging if CommandProcessor already logged it (usually it logs inputs)
-
-                     // We can use a direct approach:
-                     // notebook.createResultCell(content, category, ...);
-                }
-            }
-        }
-
-        // 3. Components Updates
-        try {
-            const graphComp = this.components.get('graph');
-            // Handle specific graph events from SeNARSUI
-            if (message.type === 'reasoning:concept') graphComp?.graphManager?.updateGraph(message);
-            if (message.type === 'memory:focus:promote') graphComp?.graphManager?.animateGlow(message.payload?.id || message.payload?.nodeId, 1.0);
-            if (message.type === 'concept.created') graphComp?.graphManager?.animateFadeIn(message.payload?.id);
-            // Generic update
-            graphComp?.update(message);
-
-            const memComp = this.components.get('memory');
-            if (message.type === 'memorySnapshot') memComp?.update(message.payload);
-
-            const derComp = this.components.get('derivation');
-            if (message.type === 'reasoning:derivation') {
-                derComp?.addDerivation(message.payload);
-                // Also update graph if needed (SeNARSUI did both)
-                graphComp?.graphManager?.handleDerivation?.(message);
-            }
-
-            const metricsComp = this.components.get('metrics');
-            if (message.type === 'metrics:update' || message.type === 'metrics.updated') {
-                metricsComp?.update(message.payload);
-            }
-
-            if (message.payload?.cycle) {
-                this.cycleCount = message.payload.cycle;
-                this.updateStats();
-            }
-
-        } catch (e) {
-            console.error('Error updating components:', e);
+        } else if (confirm('Switch to Local Mode?')) {
+            this.switchMode(MODES.LOCAL);
         }
     }
 
     updateStats() {
-        // Update REPL Input stats if available
-        const repl = this.components.get('repl');
-        repl?.replInput?.updateCycles(this.cycleCount);
+        const notebook = this.components.get('notebook');
+        notebook?.notebookInput?.updateCycles(this.cycleCount);
 
         this.statusBar?.updateStats({
             cycles: this.cycleCount,
@@ -367,89 +152,111 @@ class SeNARSIDE {
         });
     }
 
-    setupKeyboardShortcuts() {
-        document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'l') {
-                e.preventDefault();
-                this.getNotebook()?.clear();
-            }
-            if (e.ctrlKey && e.shiftKey && e.key === 'D') {
-                e.preventDefault();
-                this.showDemoLibrary();
+    setupShortcuts() {
+        // Register Global Shortcuts
+        this.shortcutManager.register({
+            key: 'l', ctrl: true, desc: 'Clear Notebook',
+            handler: () => this.getNotebook()?.clear()
+        });
+
+        this.shortcutManager.register({
+            key: 'D', ctrl: true, shift: true, desc: 'Demo Library',
+            handler: () => new DemoLibraryModal(this.getNotebook()).show()
+        });
+
+        this.shortcutManager.register({
+            key: 's', ctrl: true, desc: 'Save Notebook',
+            handler: () => {
+                this.getNotebook()?.saveToStorage();
+                this.getNotebook()?.createResultCell('💾 Notebook saved', 'system');
             }
         });
-    }
 
-    showDemoLibrary() {
-        // Use ExampleBrowser in modal
-        const backdrop = document.createElement('div');
-        backdrop.className = 'modal-backdrop';
-        backdrop.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); z-index: 1000; display: flex;
-            align-items: center; justify-content: center;
-        `;
+        this.shortcutManager.register({
+            key: 'o', ctrl: true, desc: 'Load Notebook File',
+            handler: () => this.triggerLoadFile()
+        });
 
-        const modalContainer = document.createElement('div');
-        modalContainer.id = 'demo-library-modal';
-        modalContainer.style.cssText = `
-            width: 900px; max-width: 90vw; height: 80vh; background: #1e1e1e;
-            border: 1px solid #3c3c3c; border-radius: 8px; overflow: hidden;
-            display: flex; flex-direction: column;
-        `;
+        this.shortcutManager.register({
+            key: 'b', ctrl: true, desc: 'Toggle Sidebar',
+            handler: () => this.layoutManager.toggleSidebar()
+        });
 
-        // Title Bar
-        const header = document.createElement('div');
-        header.style.cssText = 'padding: 10px 15px; background: #252526; border-bottom: 1px solid #3c3c3c; display: flex; justify-content: space-between; align-items: center;';
-        header.innerHTML = '<span style="font-weight: bold; color: #d4d4d4;">📚 Demo Library</span>';
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = '✕';
-        closeBtn.style.cssText = 'background: transparent; border: none; color: #aaa; cursor: pointer; font-size: 1.2em;';
-        closeBtn.onclick = () => document.body.removeChild(backdrop);
-        header.appendChild(closeBtn);
-        modalContainer.appendChild(header);
+        this.shortcutManager.register({
+            key: 'g', ctrl: true, desc: 'Go to concept (search)',
+            handler: () => {
+                const memComp = this.components.get('memory');
+                memComp?.focusFilter?.();
+            }
+        });
 
-        // Content
-        const content = document.createElement('div');
-        content.id = 'demo-browser-content';
-        content.style.cssText = 'flex: 1; overflow: hidden;';
-        modalContainer.appendChild(content);
-
-        const browser = new ExampleBrowser('demo-browser-content', {
-            viewMode: 'tree', // Default to tree in modal for compactness? Or graph?
-            onSelect: async (node) => {
-                if (node.type === 'file') {
-                    document.body.removeChild(backdrop);
-                    try {
-                        await this.getNotebook()?.loadDemoFile(node.path, { clearFirst: true, autoRun: true });
-                    } catch (error) {
-                        this.getNotebook()?.createResultCell(`❌ Error loading demo: ${error.message}`, 'system');
+        this.shortcutManager.register({
+            key: 'd', ctrl: true, desc: 'Trace derivation',
+            handler: () => {
+                if (this.graphManager?.cy) {
+                    const selected = this.graphManager.cy.$(':selected');
+                    if (selected.length > 0) {
+                        this.graphManager.toggleTraceMode(selected.first().id());
+                    } else {
+                        this.logger.log('Select a node in the graph to trace derivation', 'warning');
                     }
                 }
             }
         });
 
-        backdrop.appendChild(modalContainer);
-        document.body.appendChild(backdrop);
+        this.shortcutManager.register({
+            key: 'F1', desc: 'Help (Shortcuts)',
+            handler: () => this.shortcutManager.showHelpModal()
+        });
 
-        // Initialize after appending to DOM
-        browser.initialize();
+        // Document specific shortcuts that are handled within components but we list here for help
+        this.shortcutManager.shortcuts.push(
+            { key: 'Enter', ctrl: true, desc: 'Execute Cell (Notebook)' },
+            { key: 'Enter', shift: true, desc: 'Execute & Advance (Notebook)' },
+            { key: 'ArrowUp', alt: true, desc: 'Move Cell Up' },
+            { key: 'ArrowDown', alt: true, desc: 'Move Cell Down' }
+        );
+    }
 
-        backdrop.onclick = (e) => { if (e.target === backdrop) document.body.removeChild(backdrop); };
-        const escHandler = (e) => {
-            if (e.key === 'Escape') {
-                document.body.removeChild(backdrop);
-                document.removeEventListener('keydown', escHandler);
+    triggerLoadFile() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const notebook = this.components.get('notebook');
+                if (notebook) {
+                    notebook.importNotebookFile(file);
+                }
             }
         };
-        document.addEventListener('keydown', escHandler);
+        input.click();
+    }
+
+    toggleTheme() {
+        const themes = ['default', 'light', 'contrast'];
+        const current = this.themeManager.getTheme();
+        const next = themes[(themes.indexOf(current) + 1) % themes.length];
+        this.themeManager.setTheme(next);
+        this.logger.log(`Theme set to: ${next}`, 'system');
     }
 }
 
 async function start() {
-    const ide = new SeNARSIDE();
-    await ide.initialize();
-    window.SeNARSIDE = ide;
+    try {
+        console.log('[SeNARS IDE] Starting initialization...');
+        const ide = new SeNARSIDE();
+        window.SeNARSIDE = ide;
+        await ide.initialize();
+        console.log('[SeNARS IDE] Initialization complete.');
+    } catch (error) {
+        console.error('[SeNARS IDE] Initialization failed:', error);
+        // Ensure window.SeNARSIDE is available for debugging even if init failed
+        if (!window.SeNARSIDE) {
+             try { window.SeNARSIDE = new SeNARSIDE(); } catch(e) { console.error('Failed fallback instantiation', e); }
+        }
+    }
 }
 
 window.addEventListener('DOMContentLoaded', start);

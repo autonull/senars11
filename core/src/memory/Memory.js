@@ -1,4 +1,5 @@
 import {Concept} from './Concept.js';
+import {Term} from '../term/Term.js';
 import {MemoryIndex} from './MemoryIndex.js';
 import {MemoryConsolidation} from './MemoryConsolidation.js';
 import {Bag} from './Bag.js';
@@ -9,6 +10,7 @@ import {MemoryStatistics} from './MemoryStatistics.js';
 import {MemoryScorer} from './MemoryScorer.js';
 import {MemoryResourceManager} from './MemoryResourceManager.js';
 import {ForgettingStrategyFactory} from './forgetting/ForgettingStrategyFactory.js';
+import {Archive} from './Archive.js';
 
 export class Memory extends BaseComponent {
     static CONSOLIDATION_THRESHOLDS = Object.freeze({
@@ -18,45 +20,56 @@ export class Memory extends BaseComponent {
         minTasksForDecay: 2
     });
 
-    constructor(config = {}) {
-        const defaultConfig = Object.freeze({
-            priorityThreshold: 0.5,
-            priorityDecayRate: 0.01,
-            consolidationInterval: 10,
-            maxConcepts: 1000,
-            maxTasksPerConcept: 100,
-            forgetPolicy: 'priority',
-            resourceBudget: 10000,
-            activationDecayRate: 0.005,
-            memoryPressureThreshold: 0.8,
-            enableAdaptiveForgetting: true,
-            enableMemoryValidation: config.enableMemoryValidation !== false,
-            memoryValidationInterval: config.memoryValidationInterval || 30000,
-        });
+    static DEFAULT_CONFIG = Object.freeze({
+        priorityThreshold: 0.5,
+        priorityDecayRate: 0.01,
+        consolidationInterval: 10,
+        maxConcepts: 1000,
+        maxTasksPerConcept: 100,
+        forgetPolicy: 'priority',
+        resourceBudget: 10000,
+        activationDecayRate: 0.005,
+        memoryPressureThreshold: 0.8,
+        enableAdaptiveForgetting: true,
+        memoryValidationInterval: 30000,
+    });
 
-        // Merge configs using object spread for performance and clarity
-        const mergedConfig = {...defaultConfig, ...config};
+    constructor(config = {}, eventBus = null, termFactory = null) {
+        const mergedConfig = {...Memory.DEFAULT_CONFIG, ...config, enableMemoryValidation: config.enableMemoryValidation !== false};
+        super(mergedConfig, 'Memory', eventBus);
 
-        super(mergedConfig, 'Memory');
-        this._config = mergedConfig;
+        this._termFactory = termFactory;
+        this._initComponents();
+        this._initStats();
+    }
 
+    static get SCORING_WEIGHTS() { return MemoryScorer.SCORING_WEIGHTS; }
+    static get NORMALIZATION_LIMITS() { return MemoryScorer.NORMALIZATION_LIMITS; }
+
+    get config() { return {...this._config}; }
+    get concepts() { return new Map(this._concepts); }
+    get focusConcepts() { return new Set(this._focusConcepts); }
+    get index() { return this._index; }
+    get archive() { return this._archive; }
+    get stats() { return {...this._stats}; }
+
+    _initComponents() {
         this._concepts = new Map();
         this._conceptBag = new Bag(this._config.maxConcepts, this._config.forgetPolicy);
         this._focusConcepts = new Set();
         this._index = new MemoryIndex();
         this._consolidation = new MemoryConsolidation();
+        this._archive = new Archive();
 
-        // Initialize resource manager and forgetting strategy
         this._resourceManager = new MemoryResourceManager(this._config);
         this._forgettingStrategy = ForgettingStrategyFactory.create(this._config.forgetPolicy);
 
         this._memoryValidator = this._config.enableMemoryValidation
-            ? new MemoryValidator({
-                enableChecksums: true,
-                validationInterval: this._config.memoryValidationInterval
-            })
+            ? new MemoryValidator({ enableChecksums: true, validationInterval: this._config.memoryValidationInterval })
             : null;
+    }
 
+    _initStats() {
         this._stats = {
             totalConcepts: 0,
             totalTasks: 0,
@@ -72,32 +85,8 @@ export class Memory extends BaseComponent {
         this._lastConsolidationTime = Date.now();
     }
 
-    static get SCORING_WEIGHTS() {
-        return MemoryScorer.SCORING_WEIGHTS;
-    }
-
-    static get NORMALIZATION_LIMITS() {
-        return MemoryScorer.NORMALIZATION_LIMITS;
-    }
-
-    get config() {
-        return {...this._config};
-    }
-
-    get concepts() {
-        return new Map(this._concepts);
-    }
-
-    get focusConcepts() {
-        return new Set(this._focusConcepts);
-    }
-
-    get stats() {
-        return {...this._stats};
-    }
-
     getConfigValue(key, defaultVal) {
-        return this._config[key] !== undefined ? this._config[key] : defaultVal;
+        return this._config[key] ?? defaultVal;
     }
 
     addTask(task, currentTime = Date.now()) {
@@ -112,45 +101,56 @@ export class Memory extends BaseComponent {
 
         const added = concept.addTask(task);
         if (added) {
-            this._emitIntrospectionEvent(IntrospectionEvents.MEMORY_TASK_ADDED, {task: task.serialize()});
-            this._stats.totalTasks++;
-            this._resourceManager.updateResourceUsage(concept, 1);
-
-            if (task.budget.priority >= this._config.priorityThreshold) {
-                this._focusConcepts.add(concept);
-                this._updateFocusConceptsCount();
-            }
-
-            if (this._config.enableAdaptiveForgetting && this._resourceManager.isUnderMemoryPressure(this._stats)) {
-                this._resourceManager.applyAdaptiveForgetting(this);
-            }
+            this._handleTaskAdded(task, concept);
         }
         return added;
     }
 
+    _handleTaskAdded(task, concept) {
+        this._emitIntrospectionEvent(IntrospectionEvents.MEMORY_TASK_ADDED, () => ({task: task.serialize()}));
+        this._stats.totalTasks++;
+        this._resourceManager.updateResourceUsage(concept, 1);
+
+        if (task.budget?.priority) {
+            concept.boostActivation(task.budget.priority * 0.1);
+        }
+
+        if (task.budget.priority >= this._config.priorityThreshold) {
+            this._focusConcepts.add(concept);
+            this._updateFocusConceptsCount();
+        }
+
+        if (this._config.enableAdaptiveForgetting && this._resourceManager.isUnderMemoryPressure(this._stats)) {
+            this._resourceManager.applyAdaptiveForgetting(this);
+        }
+    }
+
     _createConcept(term) {
-        if (this._stats.totalConcepts >= this._config.maxConcepts) {
+        // Ensure there's room for the new concept by forgetting until under capacity
+        while (this._stats.totalConcepts >= this._config.maxConcepts) {
             this._applyConceptForgetting();
         }
 
         const concept = new Concept(term, this._config);
-        this._concepts.set(term, concept);
+        this._concepts.set(term.name, concept);
         this._index.addConcept(concept);
         this._stats.totalConcepts++;
-        this._emitIntrospectionEvent(IntrospectionEvents.MEMORY_CONCEPT_CREATED, {concept: concept.serialize()});
+        this._emitIntrospectionEvent(IntrospectionEvents.MEMORY_CONCEPT_CREATED, () => ({concept: concept.serialize()}));
         return concept;
     }
 
     getConcept(term) {
         if (!term) return null;
-
-        const concept = this._concepts.get(term) || this._findConceptByEquality(term);
-
+        const name = this._getTermName(term);
+        const concept = this._concepts.get(name);
         if (concept) {
-            this._emitIntrospectionEvent(IntrospectionEvents.MEMORY_CONCEPT_ACCESSED, {concept: concept.serialize()});
+            this._emitIntrospectionEvent(IntrospectionEvents.MEMORY_CONCEPT_ACCESSED, () => ({concept: concept.serialize()}));
         }
+        return concept || null;
+    }
 
-        return concept;
+    _getTermName(term) {
+        return typeof term === 'string' ? term : term.name;
     }
 
     _applyConceptForgetting() {
@@ -161,16 +161,16 @@ export class Memory extends BaseComponent {
         }
     }
 
-
     removeConcept(term) {
-        const concept = this._concepts.get(term);
+        const name = this._getTermName(term);
+        const concept = this._concepts.get(name);
         if (!concept) return false;
 
         if (this._focusConcepts.has(concept)) {
             this._focusConcepts.delete(concept);
             this._updateFocusConceptsCount();
         }
-        this._concepts.delete(term);
+        this._concepts.delete(name);
         this._index.removeConcept(concept);
         this._stats.totalConcepts--;
         this._stats.totalTasks -= concept.totalTasks;
@@ -178,15 +178,25 @@ export class Memory extends BaseComponent {
         return true;
     }
 
-    _findConceptByEquality(term) {
-        for (const [key, value] of this._concepts) {
-            if (key.equals(term)) return value;
-        }
-        return null;
-    }
-
     getAllConcepts() {
         return Array.from(this._concepts.values());
+    }
+
+    *getTasksIterator() {
+        for (const concept of this._concepts.values()) {
+            if (concept.getAllTasks) {
+                yield* concept.getAllTasks();
+            }
+        }
+    }
+
+    getTasks(limit = 0) {
+        const tasks = [];
+        for (const task of this.getTasksIterator()) {
+            tasks.push(task);
+            if (limit > 0 && tasks.length >= limit) break;
+        }
+        return tasks;
     }
 
     getConceptsByCriteria(criteria = {}) {
@@ -194,47 +204,28 @@ export class Memory extends BaseComponent {
     }
 
     _conceptMatchesCriteria(concept, criteria) {
-        return [
-            () => criteria.minActivation === undefined || concept.activation >= criteria.minActivation,
-            () => criteria.minTasks === undefined || concept.totalTasks >= criteria.minTasks,
-            () => !criteria.taskType || concept.getTasksByType(criteria.taskType).length > 0,
-            () => criteria.onlyFocus !== true || this._focusConcepts.has(concept)
-        ].every(check => check());
+        if (criteria.minActivation !== undefined && concept.activation < criteria.minActivation) return false;
+        if (criteria.minTasks !== undefined && concept.totalTasks < criteria.minTasks) return false;
+        if (criteria.taskType && concept.getTasksByType(criteria.taskType).length === 0) return false;
+        if (criteria.onlyFocus === true && !this._focusConcepts.has(concept)) return false;
+        return true;
     }
 
     getMostActiveConcepts(limit = 10, scoringType = 'standard') {
-        const options = scoringType === 'composite' ? {
-            activationWeight: 0.3,
-            useCountWeight: 0.2,
-            taskCountWeight: 0.2,
-            qualityWeight: 0.15,
-            complexityWeight: 0.15,
-            diversityWeight: 0.1
-        } : Memory.SCORING_WEIGHTS;
+        const scoringOptions = scoringType === 'composite' ? {
+            weights: {
+                activationWeight: 0.3, useCountWeight: 0.2, taskCountWeight: 0.2,
+                qualityWeight: 0.15, complexityWeight: 0.15, diversityWeight: 0.1
+            }
+        } : { weights: Memory.SCORING_WEIGHTS };
 
-        return this._getMostActiveConceptsByScoring(
-            limit,
-            options,
-            Memory.NORMALIZATION_LIMITS,
-            scoringType
-        );
-    }
-
-    _getMostActiveConceptsByScoring(limit, weights, limits, type, options = {}) {
-        const concepts = this.getAllConcepts();
-        const scoredConcepts = concepts.map(concept => {
-            const score = MemoryScorer.calculateDetailedConceptScore(concept, {...weights, ...options}).compositeScore;
-            return {concept, score};
-        });
-
-        scoredConcepts.sort((a, b) => b.score - a.score);
-        return scoredConcepts.slice(0, limit).map(sc => sc.concept);
+        return this.getConceptsByCompositeScoring({ limit, scoringOptions, sortBy: 'composite' });
     }
 
     getConceptsByCompositeScoring({limit = 10, minScore = 0, scoringOptions = {}, sortBy = 'composite'} = {}) {
         const concepts = this.getAllConcepts();
         const scoredConcepts = concepts
-            .map(concept => ({concept, score: MemoryScorer.calculateDetailedConceptScore(concept, scoringOptions)}))
+            .map(concept => ({concept, score: MemoryScorer.calculateDetailedConceptScore(concept, scoringOptions.weights || {})}))
             .filter(item => item.score.compositeScore >= minScore);
 
         return scoredConcepts
@@ -263,7 +254,8 @@ export class Memory extends BaseComponent {
     }
 
     boostConceptActivation(term, boostAmount = 0.1) {
-        const concept = this._concepts.get(term);
+        const name = this._getTermName(term);
+        const concept = this._concepts.get(name);
         if (concept) {
             concept.boostActivation(boostAmount);
             if (!this._focusConcepts.has(concept)) {
@@ -274,7 +266,8 @@ export class Memory extends BaseComponent {
     }
 
     updateConceptQuality(term, qualityChange) {
-        this._concepts.get(term)?.updateQuality(qualityChange);
+        const name = this._getTermName(term);
+        this._concepts.get(name)?.updateQuality(qualityChange);
     }
 
     getDetailedStats() {
@@ -282,7 +275,6 @@ export class Memory extends BaseComponent {
         stats.indexStats = this._index.getStats();
         return stats;
     }
-
 
     getHealthMetrics() {
         return this._consolidation.calculateHealthMetrics(this);
@@ -296,23 +288,15 @@ export class Memory extends BaseComponent {
         this._concepts.clear();
         this._focusConcepts.clear();
         this._index.clear();
-        this._stats = {
-            totalConcepts: 0,
-            totalTasks: 0,
-            focusConceptsCount: 0,
-            createdAt: Date.now(),
-            lastConsolidation: Date.now()
-        };
-        this._cyclesSinceConsolidation = 0;
+        this._initStats();
     }
 
     hasConcept(term) {
-        return this._concepts.has(term);
+        const name = this._getTermName(term);
+        return this._concepts.has(name);
     }
 
-    getTotalTaskCount() {
-        return this._stats.totalTasks;
-    }
+    getTotalTaskCount() { return this._stats.totalTasks; }
 
     getConceptsWithBeliefs(pattern) {
         return this.getAllConcepts().filter(concept =>
@@ -333,6 +317,38 @@ export class Memory extends BaseComponent {
 
     getConceptsByResourceUsage(ascending = false) {
         return this._resourceManager.getConceptsByResourceUsage(this._concepts, ascending);
+    }
+
+    getModifiedConcepts(sinceTimestamp) {
+        const modified = [];
+        for (const concept of this._concepts.values()) {
+            if (concept.lastModified > sinceTimestamp) {
+                modified.push(concept);
+            }
+        }
+        return modified;
+    }
+
+    getBeliefDeltas(sinceTimestamp) {
+        const modifiedConcepts = this.getModifiedConcepts(sinceTimestamp);
+        const deltas = [];
+
+        for (const concept of modifiedConcepts) {
+            const beliefs = concept.getTasksByType('BELIEF');
+            if (beliefs.length > 0) {
+                const bestBelief = beliefs[0];
+                deltas.push({
+                    term: concept.term.toString(),
+                    truth: {
+                        frequency: bestBelief.truth.frequency,
+                        confidence: bestBelief.truth.confidence
+                    },
+                    timestamp: concept.lastModified,
+                    source: 'gossip'
+                });
+            }
+        }
+        return deltas;
     }
 
     validateMemory() {
@@ -363,7 +379,7 @@ export class Memory extends BaseComponent {
         this._stats.memoryCorruptionEvents++;
         this._stats.validationFailures += invalidResults.length;
 
-        this.logger.warn('Memory corruption detected', {
+        this.logWarn('Memory corruption detected', {
             invalidCount: invalidResults.length,
             totalChecked,
             details: invalidResults.map(r => ({
@@ -412,8 +428,8 @@ export class Memory extends BaseComponent {
     }
 
     serialize() {
-        const conceptsData = Array.from(this._concepts).map(([term, concept]) => ({
-            term: term.serialize ? term.serialize() : term.toString(),
+        const conceptsData = Array.from(this._concepts.values()).map(concept => ({
+            term: concept.term.serialize ? concept.term.serialize() : concept.term.toString(),
             concept: concept.serialize ? concept.serialize() : null
         }));
 
@@ -433,31 +449,18 @@ export class Memory extends BaseComponent {
 
     async deserialize(data) {
         try {
-            if (!data || !data.concepts) {
-                throw new Error('Invalid memory data for deserialization');
-            }
+            if (!data || !data.concepts) throw new Error('Invalid memory data');
 
             this.clear();
-
-            if (data.config) {
-                this._config = {...this._config, ...data.config};
-            }
+            if (data.config) this._config = {...this._config, ...data.config};
 
             for (const conceptData of data.concepts) {
                 if (conceptData.concept) {
-                    const term = typeof conceptData.term === 'string' ?
-                        {
-                            toString: () => conceptData.term,
-                            equals: (other) => other.toString && other.toString() === conceptData.term
-                        } :
-                        conceptData.term;
-
+                    const term = this._resolveTermForDeserialization(conceptData.term);
                     const concept = new Concept(term, this._config);
-                    if (concept.deserialize) {
-                        await concept.deserialize(conceptData.concept);
-                    }
+                    if (concept.deserialize) await concept.deserialize(conceptData.concept);
 
-                    this._concepts.set(term, concept);
+                    this._concepts.set(term.name, concept);
                     this._stats.totalConcepts++;
                     this._stats.totalTasks += concept.totalTasks || 0;
                     this._index.addConcept(concept);
@@ -466,36 +469,37 @@ export class Memory extends BaseComponent {
 
             if (data.focusConcepts) {
                 for (const termStr of data.focusConcepts) {
-                    const concept = this._concepts.get({
-                        toString: () => termStr,
-                        equals: (other) => other.toString && other.toString() === termStr
-                    });
-                    if (concept) {
-                        this._focusConcepts.add(concept);
-                    }
+                    const concept = this._concepts.get(termStr);
+                    if (concept) this._focusConcepts.add(concept);
                 }
                 this._updateFocusConceptsCount();
             }
 
-            if (data.index && this._index.deserialize) {
-                await this._index.deserialize(data.index);
-            }
-
-            if (data.stats) {
-                this._stats = {...data.stats};
-            }
-
-            if (data.resourceTracker) {
-                this._resourceManager.setResourceTracker(new Map(Object.entries(data.resourceTracker)));
-            }
+            if (data.index && this._index.deserialize) await this._index.deserialize(data.index);
+            if (data.stats) this._stats = {...data.stats};
+            if (data.resourceTracker) this._resourceManager.setResourceTracker(new Map(Object.entries(data.resourceTracker)));
 
             this._cyclesSinceConsolidation = data.cyclesSinceConsolidation || 0;
             this._lastConsolidationTime = data.lastConsolidationTime || Date.now();
 
             return true;
         } catch (error) {
-            this.logger.error('Error during memory deserialization:', error);
+            this.logError('Error during memory deserialization:', error);
             return false;
         }
+    }
+
+    _resolveTermForDeserialization(termData) {
+        if (this._termFactory) return this._termFactory.fromJSON(termData);
+        if (typeof termData === 'string') {
+             return {
+                toString: () => termData,
+                equals: (other) => other.toString && other.toString() === termData,
+                name: termData,
+                type: 'atom',
+                isTerm: true
+            };
+        }
+        return termData instanceof Term ? termData : Term.fromJSON(termData);
     }
 }

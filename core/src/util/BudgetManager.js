@@ -2,12 +2,23 @@
  * Resource budget management utility with enhanced tracking and validation
  */
 export class BudgetManager {
-    constructor(initialBudget = 1000) {
+    constructor(configOrBudget = 1000) {
+        let initialBudget = 1000;
+        let config = {};
+
+        if (typeof configOrBudget === 'number') {
+            initialBudget = configOrBudget;
+        } else if (typeof configOrBudget === 'object') {
+            initialBudget = configOrBudget.total ?? 1000;
+            config = configOrBudget;
+        }
+
         if (initialBudget < 0) {
             throw new Error('Initial budget cannot be negative');
         }
 
         this.budget = initialBudget;
+        this.config = config;
         this.allocations = new Map();
         this.history = []; // Track allocation history
     }
@@ -102,6 +113,22 @@ export class BudgetManager {
             return [...this.history];
         }
         return this.history.slice(-limit);
+    }
+
+    checkCost(cost) {
+        return this.budget >= cost;
+    }
+
+    checkDerivationDepth(depth, maxDepth) {
+        return depth <= maxDepth;
+    }
+
+    calculateComplexityPenalty(complexity) {
+        if (this.config.enableComplexityPenalty === false) return 1.0;
+
+        // Logarithmic penalty: higher complexity costs more, but diminishing returns
+        // Base cost + log2(complexity)
+        return 1 + Math.log2(Math.max(1, complexity));
     }
 
     reset() {
