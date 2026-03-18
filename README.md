@@ -29,6 +29,7 @@ The following features are implemented and available for use:
 *   **[Vision & Philosophy](README.vision.md)**: The "Why" behind SeNARS, RLFP, and long-term goals.
 *   **[Architecture](README.architecture.md)**: High-level patterns, async/sync hybridization, and diagrams.
 *   **[Core Components](README.core.md)**: Memory, Focus, Rules, Data Structures, and Algorithms.
+*   **[MeTTa](metta/README.md)**: Meta Type Talk (OpenCog, Hyperon, MORK) language, runtime, integrations
 *   **[Tensor Logic](README.tensor.md)**: Neural-symbolic AI foundation with differentiable tensors.
 *   **[Resources](README.resources.md)**: Resource awareness, AIKR principle, and throttling.
 
