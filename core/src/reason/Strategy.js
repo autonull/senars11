@@ -5,6 +5,10 @@ import {DefaultFormationStrategy} from './strategy/DefaultFormationStrategy.js';
 
 /**
  * Strategy component handles premise pairing and budget management.
+ * 
+ * Uses a formation strategy framework with candidateBag for collecting and selecting
+ * secondary premises. Subclasses may override this behavior:
+ * - BagStrategy: Uses a simpler priority-sampled bag approach (bypasses formation strategies)
  */
 export class Strategy {
     constructor(config = {}) {

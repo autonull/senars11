@@ -6,6 +6,7 @@
 import { deepMerge } from './common.js';
 import { Logger } from './Logger.js';
 import { ConfigurationError, ValidationError } from './ErrorUtils.js';
+import { validateSchema } from './InputValidator.js';
 
 /**
  * Merge configurations with deep merge capability and validation
@@ -305,102 +306,5 @@ export function createTypedConfig(config, types = {}) {
  * @returns {Object} Validated and cleaned configuration
  */
 export function validateAgainstSchema(config, schema) {
-    const result = {};
-    const errors = [];
-    
-    for (const [key, rules] of Object.entries(schema)) {
-        const value = config[key];
-        
-        // Required field check
-        if (rules.required && (value === undefined || value === null)) {
-            errors.push(new ValidationError(
-                `Required field '${key}' is missing`,
-                key,
-                value
-            ));
-            continue;
-        }
-        
-        // Skip if not required and not provided
-        if (value === undefined || value === null) {
-            if (rules.default !== undefined) {
-                result[key] = rules.default;
-            }
-            continue;
-        }
-        
-        // Type validation
-        if (rules.type && typeof value !== rules.type) {
-            errors.push(new ValidationError(
-                `Field '${key}' must be of type ${rules.type}, got ${typeof value}`,
-                key,
-                { expected: rules.type, actual: typeof value, value }
-            ));
-            continue;
-        }
-        
-        // Custom validation
-        if (rules.validator && typeof rules.validator === 'function' && !rules.validator(value)) {
-            errors.push(new ValidationError(
-                `Field '${key}' failed custom validation`,
-                key,
-                value
-            ));
-            continue;
-        }
-        
-        // Range validation for numbers
-        if (typeof value === 'number') {
-            if (rules.min !== undefined && value < rules.min) {
-                errors.push(new ValidationError(
-                    `Field '${key}' must be at least ${rules.min}, got ${value}`,
-                    key,
-                    { min: rules.min, value }
-                ));
-                continue;
-            }
-            
-            if (rules.max !== undefined && value > rules.max) {
-                errors.push(new ValidationError(
-                    `Field '${key}' must be at most ${rules.max}, got ${value}`,
-                    key,
-                    { max: rules.max, value }
-                ));
-                continue;
-            }
-        }
-        
-        // Length validation for strings/arrays
-        if ((typeof value === 'string' || Array.isArray(value)) && value.length) {
-            if (rules.minLength !== undefined && value.length < rules.minLength) {
-                errors.push(new ValidationError(
-                    `Field '${key}' must be at least ${rules.minLength} characters/elements, got ${value.length}`,
-                    key,
-                    { minLength: rules.minLength, length: value.length, value }
-                ));
-                continue;
-            }
-            
-            if (rules.maxLength !== undefined && value.length > rules.maxLength) {
-                errors.push(new ValidationError(
-                    `Field '${key}' must be at most ${rules.maxLength} characters/elements, got ${value.length}`,
-                    key,
-                    { maxLength: rules.maxLength, length: value.length, value }
-                ));
-                continue;
-            }
-        }
-        
-        result[key] = value;
-    }
-    
-    if (errors.length > 0) {
-        throw new ConfigurationError(
-            `Configuration validation failed with ${errors.length} error(s)`,
-            'validation',
-            { errors, config }
-        );
-    }
-    
-    return result;
+    return validateSchema(config, schema, 'Configuration');
 }

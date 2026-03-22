@@ -1,6 +1,6 @@
 import {PremiseSource} from './PremiseSource.js';
 import {randomWeightedSelect} from './utils/randomWeightedSelect.js';
-import {mergeConfig, sleep} from './utils/common.js';
+import {deepMergeConfig as mergeConfig, sleep} from './utils/common.js';
 import {logError, ReasonerError} from './utils/error.js';
 
 /**

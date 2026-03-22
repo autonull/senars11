@@ -2,6 +2,7 @@
  * Formatting utilities for enhanced REPL output
  */
 import {ANSI_COLORS} from '@senars/core';
+import {DisplayUtils} from '@senars/core/src/util/DisplayUtils.js';
 
 // Alias for backward compatibility
 const COLORS = {
@@ -24,27 +25,18 @@ export class ReplFormattingUtils {
     static formatTable(data, headers) {
         if (!data?.length) return 'No data to display';
 
-        const columnWidths = (headers || []).map(h => h.length);
-        data.forEach(row => {
-            row.forEach((cell, i) => {
-                const len = String(cell || '').length;
-                columnWidths[i] = Math.max(columnWidths[i] || 6, len);
-            });
-        });
+        // Use DisplayUtils.createTable for the base table structure
+        const table = DisplayUtils.createTable(headers || [], data);
 
-        const pad = (str, width) => String(str || '').padEnd(width);
-        const rows = [];
-
+        // Apply REPL-specific colorization to the header if present
         if (headers) {
-            rows.push(this.colorize(headers.map((h, i) => pad(h, columnWidths[i])).join('  '), 'bright'));
-            rows.push(columnWidths.map(w => '-'.repeat(w)).join('  '));
+            const lines = table.split('\n');
+            // The header row is typically the second line (after the top border)
+            lines[1] = this.colorize(lines[1], 'bright');
+            return lines.join('\n');
         }
 
-        data.forEach(row => {
-            rows.push(row.map((c, i) => pad(c, columnWidths[i])).join('  '));
-        });
-
-        return rows.join('\n');
+        return table;
     }
 
     static formatBanner(text, {width, bgColor} = {}) {

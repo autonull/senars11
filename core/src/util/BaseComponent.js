@@ -1,10 +1,13 @@
 import {Logger} from '../util/Logger.js';
 import {EventBus} from '../util/EventBus.js';
 import {createEventPayload} from './IntrospectionEvents.js';
+import {validateWithSchema} from './ObjectUtils.js';
+import {emitComponentEvent} from './EventUtils.js';
 
 export class BaseComponent {
     constructor(config = {}, name = 'BaseComponent', eventBus = null, validationSchema = null) {
-        this._config = config;
+        this._defaultConfig = config;
+        this._config = {...config};
         this._name = name;
         this._logger = Logger;  // Logger is a singleton instance
         this._eventBus = eventBus || new EventBus();
@@ -28,7 +31,11 @@ export class BaseComponent {
     }
 
     get config() {
-        return this._config;
+        return {...this._config};
+    }
+
+    get defaultConfig() {
+        return {...this._defaultConfig};
     }
 
     get logger() {
@@ -63,27 +70,42 @@ export class BaseComponent {
         return this._startTime ? Date.now() - this._startTime : 0;
     }
 
-    // Configuration validation
+    // Configuration methods (from ConfigurableComponent)
+    configure(cfg) {
+        this._config = {...this._config, ...this._validate(cfg)};
+        return this;
+    }
+
+    getConfigValue(key, defaultVal) {
+        return this._config[key] ?? defaultVal;
+    }
+
+    setConfigValue(key, val) {
+        const newConfig = {...this._config, [key]: val};
+        this._config = this._validate(newConfig);
+        return this;
+    }
+
+    resetConfig() {
+        this._config = {...this._defaultConfig};
+        return this;
+    }
+
+    hasConfig(key) {
+        return key in this._config;
+    }
+
+    // Configuration validation using shared utility
     _validateConfig(config) {
-        const schema = typeof this._validationSchema === 'function'
-            ? this._validationSchema()
-            : this._validationSchema;
-
-        const validationResult = schema.validate(config, {
-            stripUnknown: true,
-            allowUnknown: false,
-            convert: true
-        });
-
-        if (validationResult.error) {
-            throw new Error(`Configuration validation failed for ${this._name}: ${validationResult.error.message}`);
-        }
-
-        return validationResult.value;
+        return validateWithSchema(config, this._validationSchema);
     }
 
     validateConfig(config = this._config) {
         return this._validationSchema ? this._validateConfig(config) : config;
+    }
+
+    _validate(config) {
+        return this._validateConfig(config);
     }
 
     // Lifecycle operation executor
@@ -284,14 +306,14 @@ export class BaseComponent {
             return;
         }
 
-        const currentTime = Date.now();
         const data = typeof dataOrFn === 'function' ? dataOrFn() : dataOrFn;
-        this._eventBus.emit(event, {
-            timestamp: currentTime,
-            component: this._name,
-            uptime: this._startTime ? currentTime - this._startTime : 0,
-            ...data
-        }, options);
+        emitComponentEvent(
+            this._eventBus,
+            event,
+            data,
+            this._name,
+            this._startTime ? Date.now() - this._startTime : 0
+        );
     }
 
     _emitIntrospectionEvent(eventName, payloadOrFn) {

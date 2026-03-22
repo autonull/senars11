@@ -4,7 +4,7 @@
  * For environments requiring mixed action types (e.g., discrete grip + continuous movement).
  */
 import { mergeConfig } from '../utils/ConfigHelper.js';
-import { deepClone } from '../../../core/src/util/CloneUtils.js';
+import { deepClone } from '../../../core/src/util/common.js';
 
 const HYBRID_SPACE_DEFAULTS = {
     discrete: {},

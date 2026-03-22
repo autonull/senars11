@@ -1,4 +1,6 @@
 import {EventEmitter} from 'events';
+import {withTimeout} from '../util/AsyncUtils.js';
+import {emitProviderEvent} from '../util/EventUtils.js';
 
 export class BaseProvider extends EventEmitter {
     constructor(config = {}) {
@@ -24,29 +26,7 @@ export class BaseProvider extends EventEmitter {
     }
 
     _emitEvent(eventName, data = {}) {
-        const payload = {
-            provider: this.id,
-            timestamp: Date.now(),
-            ...data
-        };
-
-        // Emit locally for listeners on this provider
-        this.emit(eventName, payload);
-
-        // Emit to central event bus if configured
-        if (this.eventBus) {
-            this.eventBus.emit(eventName, payload);
-        }
-    }
-
-    async _withTimeout(promise, timeoutMs, operation = 'operation') {
-        const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => {
-                reject(new Error(`${operation} timed out after ${timeoutMs}ms`));
-            }, timeoutMs);
-        });
-
-        return Promise.race([promise, timeoutPromise]);
+        emitProviderEvent(this, this.eventBus, eventName, data, this.id);
     }
 
     async process(prompt, options = {}) {

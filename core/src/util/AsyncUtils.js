@@ -1,14 +1,5 @@
 import {Logger} from './Logger.js';
 
-export const safeAsync = async (asyncFn, defaultValue = null) => {
-    try {
-        return await asyncFn();
-    } catch (error) {
-        Logger.error('Error in safeAsync', {message: error?.message || error});
-        return defaultValue;
-    }
-};
-
 export const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const timeout = (ms, message = 'Operation timed out') => {

@@ -2,17 +2,8 @@
  * Input validation utilities for SeNARS public APIs
  */
 
-import { Logger } from './Logger.js';
-
-export class ValidationError extends Error {
-    constructor(message, field = null, value = null) {
-        super(message);
-        this.name = 'ValidationError';
-        this.field = field;
-        this.value = value;
-        this.timestamp = Date.now();
-    }
-}
+import {Logger} from './Logger.js';
+import {ValidationError} from './CustomErrors.js';
 
 export const validateRequired = (value, fieldName) => {
     if (value == null) {
@@ -33,7 +24,7 @@ export const validateType = (value, expectedType, fieldName, optional = false) =
     }
 };
 
-export const validateRange = (value, { min, max }, fieldName, optional = false) => {
+export const validateRange = (value, {min, max}, fieldName, optional = false) => {
     if (optional && value === undefined) return;
 
     if (typeof value !== 'number' || isNaN(value)) {
@@ -93,13 +84,20 @@ export const validateSchema = (obj, schema, context = 'validation') => {
     const validated = {};
 
     for (const [field, rules] of Object.entries(schema)) {
-        const value = obj[field];
+        let value = obj[field];
 
         if (rules.required && !rules.optional && value == null) {
             throw new ValidationError(`${context}: ${field} is required`, field, value);
         }
 
         if (value === undefined && rules.optional) continue;
+
+        if (value === undefined || value === null) {
+            if (rules.default !== undefined) {
+                validated[field] = rules.default;
+                continue;
+            }
+        }
 
         if (value !== undefined && rules.type) {
             try {
@@ -111,9 +109,26 @@ export const validateSchema = (obj, schema, context = 'validation') => {
 
         if (value !== undefined && rules.type === 'number' && (rules.min !== undefined || rules.max !== undefined)) {
             try {
-                validateRange(value, { min: rules.min, max: rules.max }, field, rules.optional);
+                validateRange(value, {min: rules.min, max: rules.max}, field, rules.optional);
             } catch (error) {
                 throw new ValidationError(`${context}: ${error.message}`, field, value);
+            }
+        }
+
+        if (value !== undefined && (typeof value === 'string' || Array.isArray(value))) {
+            if (rules.minLength !== undefined && value.length < rules.minLength) {
+                throw new ValidationError(
+                    `${context}: ${field} must have at least ${rules.minLength} characters/elements`,
+                    field,
+                    {minLength: rules.minLength, length: value.length, value}
+                );
+            }
+            if (rules.maxLength !== undefined && value.length > rules.maxLength) {
+                throw new ValidationError(
+                    `${context}: ${field} must have at most ${rules.maxLength} characters/elements`,
+                    field,
+                    {maxLength: rules.maxLength, length: value.length, value}
+                );
             }
         }
 
@@ -149,3 +164,65 @@ export const logValidationError = (error, context = 'validation') => {
         timestamp: error.timestamp
     });
 };
+
+/**
+ * Validates parameters against JSON Schema format
+ */
+export function validateJsonSchema(params, schema, context = 'validation') {
+    if (!schema || typeof schema !== 'object') {
+        return {isValid: true, errors: []};
+    }
+
+    const errors = [];
+    const {properties = {}, required = []} = schema;
+
+    for (const fieldName of required) {
+        if (!(fieldName in params) || params[fieldName] == null) {
+            errors.push(`${context}: Missing required parameter '${fieldName}'`);
+        }
+    }
+
+    for (const [fieldName, propSchema] of Object.entries(properties)) {
+        const value = params[fieldName];
+
+        if (!(fieldName in params)) continue;
+
+        if (propSchema.type) {
+            const actualType = Array.isArray(value) ? 'array' : typeof value;
+            if (actualType !== propSchema.type) {
+                errors.push(`${context}: Parameter '${fieldName}' must be of type ${propSchema.type}, got ${actualType}`);
+            }
+        }
+
+        if (Array.isArray(propSchema.enum) && !propSchema.enum.includes(value)) {
+            errors.push(`${context}: Parameter '${fieldName}' must be one of: ${propSchema.enum.join(', ')}`);
+        }
+
+        if (typeof value === 'number') {
+            if (propSchema.minimum !== undefined && value < propSchema.minimum) {
+                errors.push(`${context}: Parameter '${fieldName}' must be >= ${propSchema.minimum}`);
+            }
+            if (propSchema.maximum !== undefined && value > propSchema.maximum) {
+                errors.push(`${context}: Parameter '${fieldName}' must be <= ${propSchema.maximum}`);
+            }
+        }
+
+        if (typeof value === 'string') {
+            if (propSchema.minLength !== undefined && value.length < propSchema.minLength) {
+                errors.push(`${context}: Parameter '${fieldName}' must have at least ${propSchema.minLength} characters`);
+            }
+            if (propSchema.maxLength !== undefined && value.length > propSchema.maxLength) {
+                errors.push(`${context}: Parameter '${fieldName}' must have at most ${propSchema.maxLength} characters`);
+            }
+        }
+
+        if (typeof value === 'string' && propSchema.pattern) {
+            const regex = new RegExp(propSchema.pattern);
+            if (!regex.test(value)) {
+                errors.push(`${context}: Parameter '${fieldName}' must match pattern ${propSchema.pattern}`);
+            }
+        }
+    }
+
+    return {isValid: errors.length === 0, errors};
+}

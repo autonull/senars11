@@ -6,6 +6,7 @@
 import { Logger } from './Logger.js';
 import * as CustomErrors from './CustomErrors.js';
 import { deepMerge } from './common.js';
+import { validateSchema } from './InputValidator.js';
 
 // Export all custom errors
 export * from './CustomErrors.js';
@@ -249,43 +250,7 @@ export function executeSyncWithHandling(operation, context = '', component = '',
  * @returns {Object} Validated parameters
  */
 export function validateParams(params, schema, operation = 'operation') {
-    if (!params || typeof params !== 'object') {
-        throw new CustomErrors.ValidationError(
-            `${operation} requires valid parameters object`,
-            'params',
-            params
-        );
-    }
-
-    for (const [key, rules] of Object.entries(schema)) {
-        const value = params[key];
-        
-        if (rules.required && (value === undefined || value === null)) {
-            throw new CustomErrors.ValidationError(
-                `${operation} requires '${key}' parameter`,
-                key,
-                value
-            );
-        }
-
-        if (value !== undefined && value !== null && rules.type && typeof value !== rules.type) {
-            throw new CustomErrors.ValidationError(
-                `${operation} parameter '${key}' must be of type ${rules.type}`,
-                key,
-                value
-            );
-        }
-
-        if (value !== undefined && value !== null && rules.validator && !rules.validator(value)) {
-            throw new CustomErrors.ValidationError(
-                `${operation} parameter '${key}' failed validation`,
-                key,
-                value
-            );
-        }
-    }
-
-    return params;
+    return validateSchema(params, schema, operation);
 }
 
 /**

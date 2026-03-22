@@ -1,4 +1,5 @@
 import {BaseProvider} from './BaseProvider.js';
+import {withTimeout} from '../util/AsyncUtils.js';
 
 let pipelinePromise = null;
 const importPipeline = () => {
@@ -44,7 +45,7 @@ export class TransformersJSProvider extends BaseProvider {
                 }
             });
 
-            this.pipeline = await this._withTimeout(
+            this.pipeline = await withTimeout(
                 loadModelPromise,
                 this.loadTimeout,
                 `Model loading (${this.modelName})`
@@ -87,7 +88,7 @@ export class TransformersJSProvider extends BaseProvider {
                 do_sample: temp > 0,
             });
 
-            const output = await this._withTimeout(
+            const output = await withTimeout(
                 generatePromise,
                 this.loadTimeout,
                 'Inference'

@@ -2,13 +2,15 @@ import {NarseseMessageHandler} from './NarseseMessageHandler.js';
 import {TaskConceptMessageHandler} from './TaskConceptMessageHandler.js';
 import {QuestionReasoningMessageHandler} from './QuestionReasoningMessageHandler.js';
 import {SystemMessageHandler} from './SystemMessageHandler.js';
+import {BaseMessageHandler} from './BaseMessageHandler.js';
 import {UI_CONSTANTS} from '@senars/core';
 
 /**
  * Main Message Handler class to process different message types
  */
-export class MessageHandler {
+export class MessageHandler extends BaseMessageHandler {
     constructor(graphManager) {
+        super();
         this.graphManager = graphManager;
         this.narseseHandler = new NarseseMessageHandler();
         this.taskConceptHandler = new TaskConceptMessageHandler();
@@ -55,17 +57,5 @@ export class MessageHandler {
 
         const handler = this.handlers[message.type] || ((msg) => this._createDefaultMessage(msg));
         return typeof handler === 'function' ? handler(normalizedMessage) : this._createDefaultMessage(normalizedMessage);
-    }
-
-    /**
-     * Create a default message for unknown types
-     */
-    _createDefaultMessage(message) {
-        const content = message.payload || message.data || message;
-        return {
-            content: `${message.type}: ${JSON.stringify(content)}`,
-            type: 'info',
-            icon: '📝'
-        };
     }
 }

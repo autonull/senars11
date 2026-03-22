@@ -1,7 +1,7 @@
 /**
  * Standardized error handling utilities for SeNARS
  */
-import {ConfigurationError, ConnectionError, ModelNotFoundError, ParseError, SeNARSError} from './Errors.js';
+import {ConfigurationError, ConnectionError, ModelNotFoundError, ParseError, SeNARSError} from './CustomErrors.js';
 import {Logger} from './Logger.js';
 
 // Re-export for compatibility

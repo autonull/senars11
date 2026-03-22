@@ -65,3 +65,22 @@ export class ResourceError extends SeNARSError {
         this.resourceId = resourceId;
     }
 }
+
+export class ConnectionError extends SeNARSError {
+    constructor(message) {
+        super(message, 'CONNECTION_ERROR');
+    }
+}
+
+export class ModelNotFoundError extends SeNARSError {
+    constructor(modelName) {
+        super(`Model '${modelName}' not found. Please make sure the model is available.`, 'MODEL_NOT_FOUND_ERROR');
+        this.modelName = modelName;
+    }
+}
+
+export class ParseError extends SeNARSError {
+    constructor(message) {
+        super(message, 'PARSE_ERROR');
+    }
+}

@@ -1,3 +1,5 @@
+import {validateWithSchema} from './ObjectUtils.js';
+
 export class ConfigurableComponent {
     constructor(defaultConfig = {}, validationSchema = null) {
         this._defaultConfig = defaultConfig;
@@ -38,23 +40,7 @@ export class ConfigurableComponent {
     }
 
     _validate(config) {
-        if (!this._validationSchema) return config;
-
-        const schema = typeof this._validationSchema === 'function'
-            ? this._validationSchema()
-            : this._validationSchema;
-
-        const result = schema.validate(config, {
-            stripUnknown: true,
-            allowUnknown: false,
-            convert: true
-        });
-
-        if (result.error) {
-            throw new Error(`Configuration validation failed: ${result.error.message}`);
-        }
-
-        return result.value;
+        return validateWithSchema(config, this._validationSchema);
     }
 
     hasConfig(key) {

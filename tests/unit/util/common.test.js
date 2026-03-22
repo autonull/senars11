@@ -43,7 +43,7 @@ describe('Common Utils', () => {
 
     describe('safeAsync', () => {
         test('resolves', async () => {
-            await expect(safeAsync(async () => 'success')).resolves.toBe('success');
+            await expect(safeAsync(async () => 'success', 'test', {}, null)).resolves.toBe('success');
         });
 
         test('catches error -> default', async () => {
@@ -51,7 +51,7 @@ describe('Common Utils', () => {
             });
             const res = await safeAsync(async () => {
                 throw new Error('fail');
-            }, 'def');
+            }, 'test', {}, 'def');
             expect(res).toBe('def');
             spy.mockRestore();
         });

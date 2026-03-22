@@ -1,5 +1,19 @@
 /**
  * BagStrategy (NARS-style): Priority-sampled bag approach for anytime reasoning.
+ * 
+ * DESIGN NOTE: This strategy intentionally bypasses the Formation Strategy framework
+ * defined in the parent Strategy class. Instead of using formationStrategies and
+ * candidateBag, it maintains its own priority-sampled bag (this.bag) for efficient
+ * NARS-style anytime reasoning under resource constraints.
+ * 
+ * Rationale:
+ * - Simpler implementation matching original NARS semantics
+ * - Direct priority-based sampling without formation strategy overhead
+ * - Fixed-size bag with automatic eviction of lowest-priority items
+ * 
+ * This is a deliberate architectural choice, not an oversight. The BagStrategy
+ * provides a lightweight alternative to the more complex formation strategy framework.
+ * 
  * Maintains a priority-sampled bag of tasks and beliefs. In each step, it randomly draws
  * a task and a belief from the bag and attempts to combine them.
  * This supports "anytime" reasoning under resource constraints.

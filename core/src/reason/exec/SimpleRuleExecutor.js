@@ -1,4 +1,4 @@
-import {mergeConfig} from '../utils/common.js';
+import {deepMergeConfig as mergeConfig} from '../utils/common.js';
 import {logError} from '../utils/error.js';
 
 /**

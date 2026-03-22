@@ -2,6 +2,8 @@ import {Rule} from './Rule.js';
 import {Logger} from '../util/Logger.js';
 import {logError, RuleExecutionError} from './utils/error.js';
 import {CircuitBreaker} from '../util/CircuitBreaker.js';
+import {emitEvent} from '../util/EventUtils.js';
+import {LMExecutionTracker} from '../util/ExecutionTracker.js';
 
 /**
  * Language Model Rule for the stream reasoner system.
@@ -39,20 +41,8 @@ export class LMRule extends Rule {
             this.promptTemplate = config.promptTemplate;
         }
 
-        this.lmStats = {
-            tokens: 0,
-            calls: 0,
-            avgTime: 0,
-            successRate: 0,
-            totalExecutions: 0
-        };
-
-        this.executionStats = {
-            totalExecutions: 0,
-            successfulExecutions: 0,
-            failedExecutions: 0,
-            avgExecutionTime: 0
-        };
+        // Use ExecutionTracker for unified stats tracking
+        this._executionTracker = new LMExecutionTracker();
 
         this.circuitBreaker = new CircuitBreaker({
             ...this.config.circuitBreaker,
@@ -96,7 +86,6 @@ export class LMRule extends Rule {
         }
 
         const startTime = Date.now();
-        this.executionStats.totalExecutions++;
 
         try {
             const prompt = await this.generatePrompt(primaryPremise, secondaryPremise, context);
@@ -119,14 +108,14 @@ export class LMRule extends Rule {
             });
 
             if (!lmResponse) {
-                this._updateExecutionStats(false, Date.now() - startTime);
+                this._executionTracker.record(false, Date.now() - startTime);
                 return [];
             }
 
             const processedOutput = this.processLMOutput(lmResponse, primaryPremise, secondaryPremise, context);
             const newTasks = this.generateTasks(processedOutput, primaryPremise, secondaryPremise, context);
 
-            this._updateExecutionStats(true, Date.now() - startTime);
+            this._executionTracker.record(true, Date.now() - startTime);
             return newTasks;
         } catch (error) {
             Logger.error(`Error in LMRule ${this.id}:`, error);
@@ -138,7 +127,7 @@ export class LMRule extends Rule {
                 timestamp: Date.now()
             });
 
-            this._updateExecutionStats(false, Date.now() - startTime);
+            this._executionTracker.record(false, Date.now() - startTime);
             return [];
         }
     }
@@ -150,14 +139,14 @@ export class LMRule extends Rule {
 
         const startTime = Date.now();
         const response = await this._callLMInterface(prompt);
-        this._updateLMStats(prompt.length + (response?.length ?? 0), Date.now() - startTime);
+        const tokens = prompt.length + (response?.length ?? 0);
+        const duration = Date.now() - startTime;
+        this._executionTracker.record(true, duration, tokens);
         return response;
     }
 
     _emitEvent(eventName, data) {
-        if (this.eventBus) {
-            this.eventBus.emit(eventName, data);
-        }
+        emitEvent(this.eventBus, eventName, data);
     }
 
     _callLMInterface(prompt) {
@@ -177,28 +166,6 @@ export class LMRule extends Rule {
         return this.lm[this._cachedLMInterface](prompt, this.config.lm_options);
     }
 
-    _updateLMStats(tokens, executionTime) {
-        const s = this.lmStats;
-        s.calls++;
-        s.tokens += tokens;
-        // Use a more efficient running average calculation
-        s.avgTime = s.avgTime + (executionTime - s.avgTime) / s.calls;
-    }
-
-    _updateExecutionStats(success, executionTime) {
-        if (success) {
-            this.executionStats.successfulExecutions++;
-        } else {
-            this.executionStats.failedExecutions++;
-        }
-
-        const total = this.executionStats.totalExecutions;
-        // Use a more efficient running average calculation
-        this.executionStats.avgExecutionTime = this.executionStats.avgExecutionTime +
-            (executionTime - this.executionStats.avgExecutionTime) / total;
-        this.executionStats.successRate = this.executionStats.successfulExecutions / total;
-    }
-
     generatePrompt(p, s, c) {
         return this.config.prompt(p, s, c);
     }
@@ -213,8 +180,7 @@ export class LMRule extends Rule {
 
     getStats() {
         return {
-            lm: {...this.lmStats},
-            execution: {...this.executionStats},
+            stats: this._executionTracker.stats,
             circuit: this.circuitBreaker.getState(),
             ruleInfo: {
                 id: this.id,
