@@ -37,7 +37,7 @@ export class MeTTaError extends Error {
 export class OperationNotFoundError extends MeTTaError {
     constructor(operationName, context = {}) {
         const { availableOps = [] } = context;
-        const similar = this._findSimilar(operationName, availableOps);
+        const similar = findSimilar(operationName, availableOps);
         const message = similar.length > 0
             ? `Operation '${operationName}' not found. Did you mean: ${similar.join(', ')}?`
             : `Operation '${operationName}' not found`;
@@ -45,12 +45,15 @@ export class OperationNotFoundError extends MeTTaError {
         super(message, { ...context, operationName });
         this.suggestion = 'Check the operation name or use (help) to list available operations';
     }
+}
 
-    _findSimilar(name, available) {
-        return available
-            .filter(op => op.includes(name) || name.includes(op) || levenshteinDistance(name, op) <= 2)
-            .slice(0, 5);
-    }
+/**
+ * Find similar operation names using Levenshtein distance
+ */
+function findSimilar(name, available) {
+    return available
+        .filter(op => op.includes(name) || name.includes(op) || levenshteinDistance(name, op) <= 2)
+        .slice(0, 5);
 }
 
 /**

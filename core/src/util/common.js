@@ -13,6 +13,7 @@ export * from './config.js';
 export * from './func.js';
 export * from './perf.js';
 export * from './guard.js';
+export * from './MiscUtils.js';
 
 // Re-export safeAsync from error.js for backward compatibility
 export { safeAsync } from './error.js';

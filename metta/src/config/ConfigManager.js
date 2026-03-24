@@ -4,6 +4,17 @@
  */
 
 import { Logger } from '../../../core/src/util/Logger.js';
+import { configManager } from './config.js';
+
+/**
+ * Create a MeTTa configuration with optional overrides
+ * @param {Object} overrides - Configuration overrides
+ * @returns {Object} Configuration object
+ */
+export function createMeTTaConfig(overrides = {}) {
+    const config = configManager.getAll();
+    return { ...config, ...overrides };
+}
 
 export class ConfigManager {
     constructor() {

@@ -300,6 +300,37 @@ export function match(space, pattern, template) {
   return res;
 }
 
+/**
+ * Check if an expression is a grounded call
+ * @param {*} atom - The atom to check
+ * @param {Ground} ground - Ground instance
+ * @returns {boolean} True if it's a grounded call
+ */
+export function isGroundedCall(atom, ground) {
+  if (!atom || typeof atom !== 'object' || !atom.type || atom.type !== 'compound') {
+    return false;
+  }
+  
+  // Check if it's a ^ expression (grounded call wrapper)
+  const operator = atom.operator;
+  if (!operator || operator.name !== '^') {
+    return false;
+  }
+  
+  // Check if the first argument is a grounded operation
+  const components = atom.components;
+  if (!components || components.length < 2) {
+    return false;
+  }
+  
+  const opSymbol = components[0];
+  if (!opSymbol || !opSymbol.name) {
+    return false;
+  }
+  
+  return ground.has(opSymbol.name);
+}
+
 // ===== Interpreter Integration =====
 
 /**

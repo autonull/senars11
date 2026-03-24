@@ -110,6 +110,11 @@ export class Space {
     }
 
     rulesFor(term) {
+        // Convert string to symbol for backward compatibility
+        if (typeof term === 'string') {
+            term = sym(term);
+        }
+        
         if (configManager.get('pathTrie') && this.pathTrie) {
             // Use PathTrie for fast rule lookup with variable matching
             const trieRules = this.pathTrie.query(term);

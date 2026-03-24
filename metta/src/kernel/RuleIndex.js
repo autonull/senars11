@@ -31,11 +31,19 @@ export class RuleIndex {
             inserts: 0,
             lookups: 0,
             hits: 0,
-            misses: 0
+            misses: 0,
+            bloomFilterSaves: 0
         };
 
         // All rules (for iteration)
         this.allRules = [];
+    }
+
+    /**
+     * Backward compatibility getter for bloom filter
+     */
+    get bloom() {
+        return this.bloomFilter;
     }
 
     /**
@@ -102,6 +110,7 @@ export class RuleIndex {
         // Fast negative check via bloom filter
         if (!this.bloomFilter.has(term)) {
             this.stats.misses++;
+            this.stats.bloomFilterSaves++;
             return [];
         }
 

@@ -44,7 +44,7 @@ export class GenerationalPool {
         this.enabled = options.enabled ?? configManager.get('pooling');
 
         // Young generation: short-lived objects (hot path)
-        this.youngGen = [];
+        this.youngGen = new Map(); // Map<object, age>
         this.youngGenSize = 0;
         this.youngGenLimit = options.youngLimit || 500;
 
@@ -53,8 +53,11 @@ export class GenerationalPool {
         this.oldGenSize = 0;
         this.oldGenLimit = options.oldLimit || 2000;
 
+        // Promotion threshold
+        this.promotionThreshold = options.promotionThreshold ?? 3;
+
         // Statistics
-        this.stats = { allocations: 0, collections: 0, youngToOld: 0 };
+        this.stats = { allocations: 0, collections: 0, youngToOld: 0, promotions: 0 };
     }
 
     acquire() {
@@ -64,8 +67,11 @@ export class GenerationalPool {
         }
 
         // Try young gen first
-        if (this.youngGen.length > 0) {
-            return this.youngGen.pop();
+        if (this.youngGen.size > 0) {
+            const obj = this.youngGen.keys().next().value;
+            this.youngGen.delete(obj);
+            this.youngGenSize--;
+            return obj;
         }
 
         // Then old gen
@@ -82,11 +88,20 @@ export class GenerationalPool {
 
         this.reset(obj);
 
-        if (isLongLived && this.oldGen.length < this.oldGenLimit) {
-            this.oldGen.push(obj);
-            this.oldGenSize++;
-        } else if (this.youngGen.length < this.youngLimit) {
-            this.youngGen.push(obj);
+        // Check if object should be promoted
+        const age = this.youngGen.get(obj) ?? 0;
+        const newAge = age + 1;
+
+        if (isLongLived || newAge >= this.promotionThreshold) {
+            // Promote to old gen
+            if (this.oldGen.length < this.oldGenLimit) {
+                this.oldGen.push(obj);
+                this.oldGenSize++;
+                this.stats.promotions++;
+            }
+        } else if (this.youngGen.size < this.youngGenLimit) {
+            // Keep in young gen with updated age
+            this.youngGen.set(obj, newAge);
             this.youngGenSize++;
         }
     }
@@ -97,15 +112,15 @@ export class GenerationalPool {
         this.stats.collections++;
 
         // Promote survivors to old gen
-        for (const obj of this.youngGen) {
-            if (this.oldGen.length < this.oldGenLimit) {
+        for (const [obj, age] of this.youngGen.entries()) {
+            if (age >= this.promotionThreshold && this.oldGen.length < this.oldGenLimit) {
                 this.oldGen.push(obj);
                 this.oldGenSize++;
                 this.stats.youngToOld++;
             }
         }
 
-        this.youngGen = [];
+        this.youngGen.clear();
         this.youngGenSize = 0;
     }
 
