@@ -215,25 +215,63 @@ export class SuperposeStage extends ReductionStage {
     _unpackList(term) {
         const result = [];
         let current = term;
-        
+
         while (current && isExpression(current)) {
             const op = current.operator?.name ?? current.operator;
             if (op !== ':') break; // Not a cons cell
-            
+
             const components = current.components;
             if (!components || components.length < 2) break;
-            
+
             result.push(components[0]); // head
             current = components[1]; // tail
         }
-        
+
         return result;
+    }
+
+    /**
+     * Find the first superpose expression in the atom (depth-first)
+     */
+    _findSuperpose(atom) {
+        if (!isExpression(atom)) return null;
+        
+        // Check if this atom itself is a superpose
+        const opName = atom.operator?.name ?? atom.operator;
+        if (opName === 'superpose') {
+            return { atom, path: [] };
+        }
+        
+        // Check components recursively
+        for (let i = 0; i < atom.components.length; i++) {
+            const comp = atom.components[i];
+            const found = this._findSuperpose(comp);
+            if (found) {
+                return { atom: found.atom, path: [i, ...found.path] };
+            }
+        }
+        
+        return null;
     }
 
     process(atom, context) {
         if (!isExpression(atom)) return null;
         const opName = atom.operator?.name ?? atom.operator;
-        if (opName !== 'superpose') return null;
+        if (opName !== 'superpose') {
+            // Check for nested superpose in components
+            const found = this._findSuperpose(atom);
+            if (found) {
+                // Don't expand nested superpose for operations that handle non-determinism
+                const parentOp = typeof opName === 'string' ? opName : (opName?.name ?? '');
+                const nonDetOps = ['collapse', 'collapse-n', 'superpose', 'superpose-weighted'];
+                if (nonDetOps.includes(parentOp)) {
+                    return null;  // Let the parent operation handle the superpose
+                }
+                return { reduceNestedSuperpose: true, atom, superposeAtom: found.atom, path: found.path };
+            }
+            return null;
+        }
+
         const alternatives = atom.components ?? [];
         if (alternatives.length === 0) return { superposeEmpty: true };
         
@@ -327,6 +365,10 @@ export class ReductionPipeline {
                 }
                 if (result.reduceArgument) {
                     yield* this._reduceArgument(result.atom, result.argIndex, result.arg, context);
+                    return;
+                }
+                if (result.reduceNestedSuperpose) {
+                    yield* this._reduceNestedSuperpose(result.atom, result.superposeAtom, result.path, context);
                     return;
                 }
                 if (result.superpose) {
@@ -442,6 +484,64 @@ export class ReductionPipeline {
             }
         }
         yield { reduced: atom, applied: false };
+    }
+
+    /**
+     * Reduce a nested superpose by expanding it and yielding results with the superpose replaced
+     */
+    *_reduceNestedSuperpose(atom, superposeAtom, path, context) {
+        // First, get all alternatives from the superpose
+        const alternatives = this._unpackSuperpose(superposeAtom, context);
+        
+        // For each alternative, create a new atom with the superpose replaced
+        for (const alt of alternatives) {
+            const newAtom = this._replaceAtPath(atom, path, alt);
+            yield { reduced: newAtom, applied: true, stage: 'nested-superpose' };
+        }
+    }
+
+    /**
+     * Unpack a superpose expression to get its alternatives
+     */
+    _unpackSuperpose(superposeAtom, context) {
+        const alternatives = superposeAtom.components ?? [];
+        if (alternatives.length === 0) return [];
+        
+        // Unpack list if needed
+        let alts = alternatives;
+        if (alternatives.length === 1) {
+            const first = alternatives[0];
+            const firstName = first.name ?? first;
+            if (firstName === '()') return [];
+            if (isExpression(first)) {
+                const firstOp = first.operator?.name ?? first.operator;
+                if (firstOp === ':') {
+                    alts = this._unpackList(first);
+                } else {
+                    alts = [first.operator, ...(first.components ?? [])];
+                }
+            }
+        }
+        return alts;
+    }
+
+    /**
+     * Replace a sub-expression at the given path
+     */
+    _replaceAtPath(atom, path, replacement) {
+        if (path.length === 0) return replacement;
+        
+        // Clone the atom and replace at path
+        const newComps = [...atom.components];
+        const [first, ...rest] = path;
+        
+        if (rest.length === 0) {
+            newComps[first] = replacement;
+        } else {
+            newComps[first] = this._replaceAtPath(atom.components[first], rest, replacement);
+        }
+        
+        return exp(atom.operator, newComps);
     }
 
     *_executeSuperpose(alternatives, context) {

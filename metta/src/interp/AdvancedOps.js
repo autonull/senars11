@@ -130,7 +130,7 @@ export function registerAdvancedOps(interpreter) {
                 console.log(...args.map(a => Formatter.toHyperonString(a)));
                 return sym('()');
             },
-            opts: {}
+            opts: { lazy: true }
         },
 
         // List operations

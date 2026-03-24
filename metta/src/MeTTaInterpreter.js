@@ -308,9 +308,6 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
         const evalRes = this.evaluate(expr);
         const items = Array.isArray(evalRes) ? evalRes : [evalRes];
         results.push(...items);
-        for (const r of items) {
-            this.space.add(r);
-        }
     }
 
     /**
