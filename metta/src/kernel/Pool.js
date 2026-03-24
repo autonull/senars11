@@ -44,7 +44,7 @@ export class GenerationalPool {
         this.enabled = options.enabled ?? configManager.get('pooling');
 
         // Young generation: short-lived objects (hot path)
-        this.youngGen = new Map(); // Map<object, age>
+        this.youngGen = [];
         this.youngGenSize = 0;
         this.youngGenLimit = options.youngLimit || 500;
 
@@ -52,6 +52,9 @@ export class GenerationalPool {
         this.oldGen = [];
         this.oldGenSize = 0;
         this.oldGenLimit = options.oldLimit || 2000;
+
+        // Track object ages separately
+        this.ageMap = new Map();
 
         // Promotion threshold
         this.promotionThreshold = options.promotionThreshold ?? 3;
@@ -67,11 +70,8 @@ export class GenerationalPool {
         }
 
         // Try young gen first
-        if (this.youngGen.size > 0) {
-            const obj = this.youngGen.keys().next().value;
-            this.youngGen.delete(obj);
-            this.youngGenSize--;
-            return obj;
+        if (this.youngGen.length > 0) {
+            return this.youngGen.pop();
         }
 
         // Then old gen
@@ -88,9 +88,16 @@ export class GenerationalPool {
 
         this.reset(obj);
 
-        // Check if object should be promoted
-        const age = this.youngGen.get(obj) ?? 0;
+        // Check if object is already in old gen
+        if (this.oldGen.includes(obj)) {
+            // Already promoted, keep in old gen
+            return;
+        }
+
+        // Get or initialize age
+        const age = this.ageMap.get(obj) ?? 0;
         const newAge = age + 1;
+        this.ageMap.set(obj, newAge);
 
         if (isLongLived || newAge >= this.promotionThreshold) {
             // Promote to old gen
@@ -98,10 +105,11 @@ export class GenerationalPool {
                 this.oldGen.push(obj);
                 this.oldGenSize++;
                 this.stats.promotions++;
+                this.ageMap.delete(obj);
             }
-        } else if (this.youngGen.size < this.youngGenLimit) {
-            // Keep in young gen with updated age
-            this.youngGen.set(obj, newAge);
+        } else if (this.youngGen.length < this.youngGenLimit) {
+            // Keep in young gen
+            this.youngGen.push(obj);
             this.youngGenSize++;
         }
     }

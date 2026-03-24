@@ -89,7 +89,7 @@ export class GroundedOpStage extends ReductionStage {
     process(atom, context) {
         if (!isExpression(atom) || !atom.operator) return null;
         const op = context.ground.lookup(atom.operator);
-        if (!op || typeof op.execute !== 'function') return null;
+        if (!op || typeof op !== 'function') return null;
         return { executeGrounded: true, atom, op };
     }
 }
@@ -137,13 +137,60 @@ export class SuperposeStage extends ReductionStage {
         super('superpose');
     }
 
+    /**
+     * Unpack a MeTTa list (cons cells) into an array
+     */
+    _unpackList(term) {
+        const result = [];
+        let current = term;
+        
+        while (current && isExpression(current)) {
+            const op = current.operator?.name ?? current.operator;
+            if (op !== ':') break; // Not a cons cell
+            
+            const components = current.components;
+            if (!components || components.length < 2) break;
+            
+            result.push(components[0]); // head
+            current = components[1]; // tail
+        }
+        
+        return result;
+    }
+
     process(atom, context) {
         if (!isExpression(atom)) return null;
         const opName = atom.operator?.name ?? atom.operator;
         if (opName !== 'superpose') return null;
         const alternatives = atom.components ?? [];
         if (alternatives.length === 0) return { superposeEmpty: true };
-        return { superpose: true, alternatives };
+        
+        // Unpack list argument to get individual alternatives
+        let alts = alternatives;
+        if (alternatives.length === 1) {
+            const first = alternatives[0];
+            // Check for empty list atom ()
+            const firstName = first.name ?? first;
+            if (firstName === '()') {
+                return { superposeEmpty: true };
+            }
+            // If it's an expression, use its components as alternatives
+            // This handles both (superpose (A B)) and (superpose (: A (: B ())))
+            if (isExpression(first)) {
+                const firstOp = first.operator?.name ?? first.operator;
+                if (firstOp === ':') {
+                    // Cons list: unpack it
+                    alts = this._unpackList(first);
+                } else {
+                    // Regular expression: use operator + components as alternatives
+                    // (A B C) -> [A, B, C]
+                    alts = [first.operator, ...(first.components ?? [])];
+                }
+            }
+        }
+        
+        if (alts.length === 0) return { superposeEmpty: true };
+        return { superpose: true, alternatives: alts };
     }
 }
 
@@ -207,7 +254,8 @@ export class ReductionPipeline {
                     return;
                 }
                 if (result.superposeEmpty) {
-                    yield { reduced: null, applied: true, deadEnd: true };
+                    // No alternatives - yield deadEnd signal
+                    yield { reduced: atom, applied: true, deadEnd: true };
                     return;
                 }
                 if (result.applied) {
@@ -245,7 +293,7 @@ export class ReductionPipeline {
 
     *_executeGrounded(atom, op, context) {
         const args = atom.components ?? [];
-        const result = op.execute(...args);
+        const result = op(...args);
         yield { reduced: result, applied: true, stage: 'grounded' };
     }
 
@@ -321,7 +369,7 @@ export class ReductionPipeline {
         pipeline.use(new CacheStage());
         if (jitCompiler) pipeline.use(new JITStage(jitCompiler));
         pipeline.use(new SuperposeStage());
-        pipeline.use(new ZipperStage(config?.get('zipperThreshold') ?? 8));
+        pipeline.use(new ZipperStage(config?.get('zipperThreshold') ?? 2));
         pipeline.use(new GroundedOpStage());
         pipeline.use(new ExplicitCallStage());
         pipeline.use(new RuleMatchStage());

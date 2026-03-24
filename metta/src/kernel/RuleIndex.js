@@ -78,8 +78,13 @@ export class RuleIndex {
             this._addToIndex(this.functorIndex, pattern.name, rule);
         }
 
-        // Add to bloom filter
-        this.bloomFilter.add(pattern);
+        // Add to bloom filter (by functor for fast negative lookups)
+        if (isExpression(pattern)) {
+            const functor = pattern.operator?.name || pattern.operator;
+            this.bloomFilter.add(functor);
+        } else if (isSymbol(pattern)) {
+            this.bloomFilter.add(pattern.name);
+        }
     }
 
     /**
@@ -107,8 +112,15 @@ export class RuleIndex {
 
         this.stats.lookups++;
 
-        // Fast negative check via bloom filter
-        if (!this.bloomFilter.has(term)) {
+        // Fast negative check via bloom filter (by functor)
+        let functor = null;
+        if (isExpression(term)) {
+            functor = term.operator?.name || term.operator;
+        } else if (isSymbol(term)) {
+            functor = term.name;
+        }
+        
+        if (functor && !this.bloomFilter.has(functor)) {
             this.stats.misses++;
             this.stats.bloomFilterSaves++;
             return [];
@@ -117,7 +129,7 @@ export class RuleIndex {
         let rules = [];
 
         if (isExpression(term)) {
-            const functor = term.operator?.name || term.operator;
+            functor = term.operator?.name || term.operator;
             rules = this.functorIndex.get(functor) || [];
 
             // Refine by arity if available

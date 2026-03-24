@@ -186,6 +186,10 @@ export function reduceND(atom, space, ground, limit = 10000, cache = null) {
 
     for (const result of pl.execute(atom, ctx)) {
       if (result.applied) {
+        if (result.deadEnd) {
+          // Special case: dead end (e.g., superpose empty) - return no results
+          return [];
+        }
         results.push(result.reduced);
       }
     }
