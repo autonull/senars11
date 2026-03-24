@@ -76,13 +76,20 @@ describe('BaseComponent', () => {
         });
     });
 
-    test('events', (done) => {
+    test('events', async () => {
         const c = new TestComponent();
+        let eventReceived = false;
+        let eventData = null;
+
         c.onEvent('test', (d) => {
-            expect(d).toMatchObject({val: 1, component: 'TestComponent'});
-            done();
+            eventReceived = true;
+            eventData = d;
         });
-        c.emitEvent('test', {val: 1});
+
+        await c.emitEvent('test', { val: 1 });
+
+        expect(eventReceived).toBe(true);
+        expect(eventData).toMatchObject({ val: 1, source: 'TestComponent' });
     });
 
     test('uptime', async () => {

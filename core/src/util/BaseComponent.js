@@ -301,13 +301,13 @@ export class BaseComponent {
     }
 
     // Event emission
-    emitEvent(event, dataOrFn, options = {}) {
-        if (this._eventBus.hasSubscribers && !this._eventBus.hasSubscribers(event)) {
+    async emitEvent(event, dataOrFn, options = {}) {
+        if (!this._eventBus.hasSubscribers(event)) {
             return;
         }
 
         const data = typeof dataOrFn === 'function' ? dataOrFn() : dataOrFn;
-        emitComponentEvent(
+        await emitComponentEvent(
             this._eventBus,
             event,
             data,
