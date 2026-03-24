@@ -3,7 +3,7 @@
  * Each optimization is a stage that can be enabled/disabled independently
  */
 
-import { isExpression } from '../Term.js';
+import { isExpression, exp } from '../Term.js';
 import { Zipper } from '../Zipper.js';
 import { JITCompiler } from './JITCompiler.js';
 
@@ -68,13 +68,33 @@ export class ZipperStage extends ReductionStage {
     }
 
     process(atom, context) {
+        if (!atom) return null;
+        
+        // Don't traverse into lambda expressions - they are values
+        if (isExpression(atom) && atom.operator) {
+            const opName = atom.operator.name ?? atom.operator;
+            if (opName === 'λ' || opName === 'lambda') return null;
+        }
+        
         const depth = atom.depth ?? this._calculateDepth(atom);
         return depth > this.threshold ? { useZipper: true, atom, threshold: this.threshold } : null;
     }
 
     _calculateDepth(atom, depth = 0) {
         if (!atom || !isExpression(atom) || !atom.components) return depth;
-        return 1 + Math.max(0, ...atom.components.map(c => this._calculateDepth(c, 0)));
+        
+        // Calculate max depth from components
+        let maxCompDepth = atom.components.length > 0 
+            ? Math.max(0, ...atom.components.map(c => this._calculateDepth(c, 0)))
+            : 0;
+        
+        // Also calculate depth from operator if it's an expression
+        let maxOpDepth = 0;
+        if (atom.operator && isExpression(atom.operator)) {
+            maxOpDepth = this._calculateDepth(atom.operator, 0);
+        }
+        
+        return 1 + Math.max(maxCompDepth, maxOpDepth);
     }
 }
 
@@ -88,9 +108,43 @@ export class GroundedOpStage extends ReductionStage {
 
     process(atom, context) {
         if (!isExpression(atom) || !atom.operator) return null;
-        const op = context.ground.lookup(atom.operator);
+
+        // Handle ^ wrapper for grounded calls: (^ &op arg1 arg2)
+        const opName = atom.operator.name ?? atom.operator;
+        let op, args, opOptions, isGroundedCall;
+
+        if (opName === '^') {
+            // Grounded call wrapper: first component is the operation name
+            if (!atom.components || atom.components.length < 1) return null;
+            const groundedOp = atom.components[0];
+            op = context.ground.lookup(groundedOp);
+            opOptions = context.ground.getOptions(groundedOp);
+            args = atom.components.slice(1);
+            isGroundedCall = true;
+        } else {
+            // Direct operator lookup
+            op = context.ground.lookup(atom.operator);
+            opOptions = context.ground.getOptions(atom.operator);
+            args = atom.components ?? [];
+            isGroundedCall = false;
+        }
+
         if (!op || typeof op !== 'function') return null;
-        return { executeGrounded: true, atom, op };
+
+        // For lazy operations, don't eagerly reduce arguments
+        // The operation itself will handle reduction as needed
+        if (!opOptions.lazy) {
+            // Check if any arguments need reduction first (eager evaluation)
+            for (let i = 0; i < args.length; i++) {
+                const arg = args[i];
+                if (isExpression(arg)) {
+                    // Argument is an expression - reduce it first
+                    return { reduceArgument: true, atom, argIndex: i, arg, isGroundedCall };
+                }
+            }
+        }
+
+        return { executeGrounded: true, atom, op, args };
     }
 }
 
@@ -126,6 +180,24 @@ export class RuleMatchStage extends ReductionStage {
         const rules = context.space.rulesFor(atom);
         if (!rules || rules.length === 0) return null;
         return { matchRules: true, atom, rules };
+    }
+}
+
+/**
+ * OperatorReduce stage - reduce the operator of an expression
+ * Handles cases like ((make-op) 5) where the operator needs reduction first
+ */
+export class OperatorReduceStage extends ReductionStage {
+    constructor() {
+        super('operator-reduce');
+    }
+
+    process(atom, context) {
+        if (!isExpression(atom) || !atom.operator) return null;
+        if (!isExpression(atom.operator)) return null;
+        
+        // Operator is an expression - try to reduce it
+        return { reduceOperator: true, atom };
     }
 }
 
@@ -238,7 +310,7 @@ export class ReductionPipeline {
                     return;
                 }
                 if (result.executeGrounded) {
-                    yield* this._executeGrounded(result.atom, result.op, context);
+                    yield* this._executeGrounded(result.atom, result.op, result.args, context);
                     return;
                 }
                 if (result.executeExplicit) {
@@ -247,6 +319,14 @@ export class ReductionPipeline {
                 }
                 if (result.matchRules) {
                     yield* this._matchRules(result.atom, result.rules, context);
+                    return;
+                }
+                if (result.reduceOperator) {
+                    yield* this._reduceOperator(result.atom, context);
+                    return;
+                }
+                if (result.reduceArgument) {
+                    yield* this._reduceArgument(result.atom, result.argIndex, result.arg, context);
                     return;
                 }
                 if (result.superpose) {
@@ -283,16 +363,29 @@ export class ReductionPipeline {
                 }
             }
             if (anyReduced) return;
+            
+            // Try to navigate right or up
             while (!zipper.right()) {
                 if (!zipper.up()) break;
             }
         } while (zipper.depth > 0);
 
+        // Also try reducing the operator if it's an expression
+        if (atom.operator && isExpression(atom.operator)) {
+            for (const res of this.execute(atom.operator, context)) {
+                if (res.applied) {
+                    const newOp = res.reduced;
+                    const newAtom = exp(newOp, atom.components);
+                    yield { reduced: newAtom, applied: true };
+                    return;
+                }
+            }
+        }
+
         yield { reduced: atom, applied: false };
     }
 
-    *_executeGrounded(atom, op, context) {
-        const args = atom.components ?? [];
+    *_executeGrounded(atom, op, args, context) {
         const result = op(...args);
         yield { reduced: result, applied: true, stage: 'grounded' };
     }
@@ -305,12 +398,50 @@ export class ReductionPipeline {
     *_matchRules(atom, rules, context) {
         for (const rule of rules) {
             const { pattern, result: template } = rule;
-            const binds = context.Unify?.unify(pattern, atom) ?? {};
-            if (binds || Object.keys(binds).length > 0) {
-                const reduced = context.Unify?.subst(template, binds) ?? template;
+            const binds = context.Unify?.unify(pattern, atom);
+            if (binds !== null && binds !== undefined) {
+                // Handle function results
+                let reduced;
+                if (typeof template === 'function') {
+                    reduced = template(binds);
+                } else {
+                    reduced = context.Unify?.subst(template, binds) ?? template;
+                }
                 yield { reduced, applied: true, stage: 'rule-match' };
             }
         }
+    }
+
+    *_reduceOperator(atom, context) {
+        // Reduce the operator expression
+        const op = atom.operator;
+        for (const res of this.execute(op, context)) {
+            if (res.applied) {
+                // Create new expression with reduced operator
+                const newAtom = exp(res.reduced, atom.components);
+                yield { reduced: newAtom, applied: true, stage: 'operator-reduce' };
+                return;
+            }
+        }
+        yield { reduced: atom, applied: false };
+    }
+
+    *_reduceArgument(atom, argIndex, arg, context) {
+        // Reduce the argument expression
+        for (const res of this.execute(arg, context)) {
+            if (res.applied) {
+                // Create new expression with reduced argument
+                // For ^ expressions, components[0] is the op, so args start at index 1
+                // For regular expressions, args start at index 0
+                const newArgs = [...atom.components];
+                const componentIndex = argIndex + (atom.operator?.name === '^' ? 1 : 0);
+                newArgs[componentIndex] = res.reduced;
+                const newAtom = exp(atom.operator, newArgs);
+                yield { reduced: newAtom, applied: true, stage: 'argument-reduce' };
+                return;
+            }
+        }
+        yield { reduced: atom, applied: false };
     }
 
     *_executeSuperpose(alternatives, context) {
@@ -369,10 +500,11 @@ export class ReductionPipeline {
         pipeline.use(new CacheStage());
         if (jitCompiler) pipeline.use(new JITStage(jitCompiler));
         pipeline.use(new SuperposeStage());
-        pipeline.use(new ZipperStage(config?.get('zipperThreshold') ?? 2));
+        pipeline.use(new ZipperStage(config?.get('zipperThreshold') ?? 1));
         pipeline.use(new GroundedOpStage());
         pipeline.use(new ExplicitCallStage());
         pipeline.use(new RuleMatchStage());
+        pipeline.use(new OperatorReduceStage());
         return pipeline;
     }
 }

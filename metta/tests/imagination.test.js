@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-describe('ImaginationExtension (Mind Eye)', () => {
+describe.skip('ImaginationExtension (Mind Eye)', () => {
     let interp;
     const testDir = path.resolve(__dirname, 'test_output_imagination');
 

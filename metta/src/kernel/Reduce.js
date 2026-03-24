@@ -75,6 +75,14 @@ function getGlobalPipeline() {
   return globalPipeline;
 }
 
+/**
+ * Reset the global pipeline (useful for testing or config changes)
+ */
+export function resetGlobalPipeline() {
+  globalPipeline = null;
+  globalReduceND = null;
+}
+
 // ===== Core Reduction Functions =====
 
 /**
@@ -163,7 +171,7 @@ export function reduce(atom, space, ground, limit = 10000, cache = null) {
       steps++;
     }
 
-    throw new Error(`Reduction limit exceeded: ${limit} steps`);
+    throw new Error(`Max steps exceeded: ${limit} steps`);
   } finally {
     releaseContext(ctx);
   }
@@ -183,15 +191,38 @@ export function reduceND(atom, space, ground, limit = 10000, cache = null) {
   try {
     const results = [];
     const pl = getGlobalPipeline();
+    let steps = 0;
 
+    // Initial reduction pass
+    const initialResults = [];
     for (const result of pl.execute(atom, ctx)) {
       if (result.applied) {
         if (result.deadEnd) {
           // Special case: dead end (e.g., superpose empty) - return no results
           return [];
         }
-        results.push(result.reduced);
+        initialResults.push(result.reduced);
       }
+    }
+
+    // Recursively reduce each result to normal form
+    for (const initial of initialResults) {
+      let current = initial;
+      let reduced = true;
+      
+      while (reduced && steps < limit) {
+        reduced = false;
+        for (const result of pl.execute(current, ctx)) {
+          if (result.applied && !result.deadEnd) {
+            current = result.reduced;
+            reduced = true;
+            steps++;
+            break; // Start over with new current
+          }
+        }
+      }
+      
+      results.push(current);
     }
 
     return results.length > 0 ? results : [atom];
@@ -252,7 +283,7 @@ export async function reduceAsync(atom, space, ground, limit, cache) {
       steps++;
     }
 
-    throw new Error(`Reduction limit exceeded: ${limit} steps`);
+    throw new Error(`Max steps exceeded: ${limit} steps`);
   } finally {
     releaseContext(ctx);
   }
@@ -394,7 +425,7 @@ export function createInterpreterBindings(interpreter, customStages = null) {
           steps++;
         }
 
-        throw new Error(`Reduction limit exceeded: ${limit} steps`);
+        throw new Error(`Max steps exceeded: ${limit} steps`);
       } finally {
         releaseContext(ctx);
       }

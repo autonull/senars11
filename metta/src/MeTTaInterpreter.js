@@ -22,7 +22,7 @@ import { objToBindingsAtom, bindingsAtomToObj } from './kernel/Bindings.js';
 import { Ground } from './kernel/Ground.js';
 import { MemoizationCache } from './kernel/MemoizationCache.js';
 import { ReductionCache } from './kernel/ReductionCache.js';
-import { reduceND, reduceNDAsync, setReduceNDInternalReference } from './kernel/Reduce.js';
+import { reduceND, reduceNDAsync, setReduceNDInternalReference, reduce, step, match } from './kernel/Reduce.js';
 import { Space } from './kernel/Space.js';
 import { Term, isList, flattenList, isExpression } from './kernel/Term.js';
 import { Unify } from './kernel/Unify.js';

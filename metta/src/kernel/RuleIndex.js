@@ -119,7 +119,19 @@ export class RuleIndex {
         } else if (isSymbol(term)) {
             functor = term.name;
         }
+
+        // If functor contains variables (like $x, $param), fall back to all rules
+        // This allows unification to match patterns with different variable names
+        if (typeof functor === 'string' && functor.includes('$')) {
+            return this.allRules;
+        }
         
+        // If term's operator is an expression (like ((λ $x $body) $val)),
+        // fall back to all rules to allow pattern matching
+        if (isExpression(term) && isExpression(term.operator)) {
+            return this.allRules;
+        }
+
         if (functor && !this.bloomFilter.has(functor)) {
             this.stats.misses++;
             this.stats.bloomFilterSaves++;
@@ -130,6 +142,12 @@ export class RuleIndex {
 
         if (isExpression(term)) {
             functor = term.operator?.name || term.operator;
+
+            // If functor contains variables, return all rules for unification
+            if (typeof functor === 'string' && functor.includes('$')) {
+                return this.allRules;
+            }
+
             rules = this.functorIndex.get(functor) || [];
 
             // Refine by arity if available

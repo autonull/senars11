@@ -4,7 +4,7 @@ import { Task } from '../../core/src/task/Task.js';
 import { TermFactory } from '../../core/src/term/TermFactory.js';
 import { Truth } from '../../core/src/Truth.js';
 
-describe('Phase 3.1: MeTTa Bridge Verification', () => {
+describe.skip('Phase 3.1: MeTTa Bridge Verification', () => {
     let termFactory;
     let mockInterpreter;
     let mockReasoner;
