@@ -6,9 +6,8 @@
 ; if: conditional evaluation
 ; (if True $then $else) → $then
 ; (if False $then $else) → $else
+; Mapping to grounded &if for robust evaluation
 (= (if $cond $then $else) (^ &if $cond $then $else))
-(= (if True $then $_) $then)
-(= (if False $_ $else) $else)
 
 ; ===== Variable Binding =====
 
@@ -32,6 +31,9 @@
 ; Multiple argument lambda (curried)
 ; (λ ($x $y) $body) → (λ $x (λ $y $body))
 ; Rules moved to ReductionEngine.js to avoid variable unification issues
+
+; Ensure &subst triggers reduction on its result
+(= (^ &subst $p $v $b) (let $p $v $b))
 
 ; ===== Sequencing =====
 
@@ -86,10 +88,15 @@
 (= (> $a $b) (^ &> $a $b))
 (= (== $a $b) (^ &== $a $b))
 (= (% $a $b) (^ &% $a $b))
+
+; Explicit grounded aliases (with & prefix)
+(= (&+ $a $b) (^ &+ $a $b))
+(= (&- $a $b) (^ &- $a $b))
+(= (&* $a $b) (^ &* $a $b))
+(= (&/ $a $b) (^ &/ $a $b))
 (= (and $a $b) (^ &and $a $b))
 (= (or $a $b) (^ &or $a $b))
 (= (not $a) (^ &not $a))
-(= (empty? $x) (^ &empty? $x))
 (= (get-atoms $s) (^ &get-atoms $s))
 (= (add-atom $x) (^ &add-atom $x))
 (= (rm-atom $x) (^ &rm-atom $x))

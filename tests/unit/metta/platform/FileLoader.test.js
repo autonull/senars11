@@ -5,10 +5,10 @@
 import { FileLoader } from '../../../../metta/src/platform/node/FileLoader.js';
 import { createRequire } from 'module';
 
-const require = createRequire(import.meta.url);
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+const __require = createRequire(import.meta.url);
+const fs = __require('fs');
+const path = __require('path');
+const os = __require('os');
 
 describe('FileLoader', () => {
     let tempDir;

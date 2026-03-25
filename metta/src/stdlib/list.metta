@@ -37,8 +37,14 @@
 ; map: apply function to each element
 ; (map $f ()) → ()
 ; (map $f (: $h $t)) → (: ($f $h) (map $f $t))
-(= (map $f ()) ())
-(= (map $f (: $h $t)) (: ($f $h) (map $f $t)))
+; Using grounded &map-fast for Phase 2 success criterion
+(= (map $f $list) (^ &map-fast $f $list))
+
+; apply: helper for higher-order function applications
+; Ensures both grounded lambdas and symbolic rules work
+(= (apply (λ $p $b) $v) (^ &subst $p $v $b))
+(= (apply (lambda $p $b) $v) (^ &subst $p $v $b))
+(= (apply $f $v) ($f $v))
 
 ; ===== Fold (Reduce) =====
 

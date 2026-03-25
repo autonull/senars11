@@ -7,7 +7,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const _fileURLToPath = fileURLToPath;
+const __dirname_fixed = path.dirname(_fileURLToPath(import.meta.url));
 const TEST_DIR = path.join(__dirname, 'test_checkpoints');
 
 // Mock agent for testing

@@ -266,7 +266,8 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
 
                 if (e.name === '!' && i + 1 < exprs.length) {
                     const evalRes = this.evaluate(exprs[++i]);
-                    Array.isArray(evalRes) ? res.push(...evalRes) : res.push(evalRes);
+                    if (Array.isArray(evalRes)) res.push(...evalRes);
+                    else if (evalRes !== undefined && evalRes !== null) res.push(evalRes);
                     continue;
                 }
 
@@ -315,7 +316,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      */
     evaluate(atom) {
         return this.trackOperation('evaluate', () => {
-            const res = reduceND(atom, this.space, this.ground, configManager.get('maxReductionSteps'));
+            const res = reduceND(atom, this.space, this.ground, configManager.get('maxReductionSteps'), this.reductionCache, this);
             const steps = this._mettaMetrics.get('reductionSteps') || 0;
             this._mettaMetrics.set('reductionSteps', steps + 1);
             return res;
@@ -326,14 +327,14 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      * Helper method to perform deterministic reduction with common parameters
      */
     _reduceDeterministic(atom) {
-        return reduce(atom, this.space, this.ground, configManager.get('maxReductionSteps'), this.reductionCache);
+        return reduce(atom, this.space, this.ground, configManager.get('maxReductionSteps'), this.reductionCache, this);
     }
 
     /**
      * Perform a single reduction step
      */
     step(atom) {
-        return step(atom, this.space, this.ground, configManager.get('maxReductionSteps'), this.reductionCache);
+        return step(atom, this.space, this.ground, configManager.get('maxReductionSteps'), this.reductionCache, this);
     }
 
     /**

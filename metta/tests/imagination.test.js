@@ -5,8 +5,9 @@ import path from 'path';
 
 import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const _fileURLToPath = fileURLToPath;
+const __filename_fixed = _fileURLToPath(import.meta.url);
+const __dirname_fixed = path.dirname(__filename_fixed);
 
 describe.skip('ImaginationExtension (Mind Eye)', () => {
     let interp;

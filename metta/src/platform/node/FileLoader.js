@@ -10,10 +10,10 @@ export class FileLoader {
     constructor(options = {}) {
         requireEnvironment('node');
 
-        const require = createRequire(import.meta.url);
-        this.fs = require('fs');
-        this.path = require('path');
-        this.url = require('url');
+        const __require = createRequire(import.meta.url);
+        this.fs = __require('fs');
+        this.path = __require('path');
+        this.url = __require('url');
 
         this.searchPaths = options.searchPaths || [];
         this.baseDir = options.baseDir || this._getDefaultBaseDir();
@@ -79,8 +79,8 @@ export class FileLoader {
      * Static helper to load a file directly
      */
     static load(filePath) {
-        const require = createRequire(import.meta.url);
-        const fs = require('fs');
+        const __require = createRequire(import.meta.url);
+        const fs = __require('fs');
         if (fs.existsSync(filePath)) {
              return fs.readFileSync(filePath, 'utf-8');
         }
