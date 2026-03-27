@@ -12,6 +12,7 @@ const mockSmartTextareaFactory = () => ({
             },
             getValue: jest.fn().mockReturnValue('some code'),
             setValue: jest.fn(),
+            setLanguage: jest.fn(),
             textarea: textarea
         };
     })

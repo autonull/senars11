@@ -1,5 +1,5 @@
 import { Component } from './Component.js';
-import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
+import { SyntaxHighlighter } from '../utils/SyntaxHighlighter.js';
 import { FluentUI } from '../utils/FluentUI.js';
 import { EVENTS } from '../config/constants.js';
 import { eventBus } from '../core/EventBus.js';
@@ -48,7 +48,7 @@ export class ConceptCard extends Component {
             // Compact Header
             const header = FluentUI.create('div').class('concept-card-header').mount(card);
             header.child(FluentUI.create('span').class('concept-icon').text('🧠'));
-            header.child(FluentUI.create('span').class('concept-term').html(NarseseHighlighter.highlight(term)));
+            header.child(FluentUI.create('span').class('concept-term').html(SyntaxHighlighter.highlight(term)));
 
             // Stats Row
             const stats = FluentUI.create('div').class('concept-card-stats').mount(card);
@@ -77,7 +77,7 @@ export class ConceptCard extends Component {
             main.child(
                 FluentUI.create('div')
                     .class('concept-term-large')
-                    .html(NarseseHighlighter.highlight(term))
+                    .html(SyntaxHighlighter.highlight(term))
             );
 
             // Meta Row

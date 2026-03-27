@@ -58,6 +58,9 @@ export class CodeEditorPanel extends Component {
              if (this.langSelect && this.langSelect.dom.value !== lang) {
                  this.langSelect.dom.value = lang;
              }
+             if (this.editor) {
+                 this.editor.setLanguage(lang);
+             }
         }));
         this.langSelect.dom.value = this.state.language;
 
@@ -81,6 +84,32 @@ export class CodeEditorPanel extends Component {
             .text('📂 Load')
             .style({ padding: '4px 8px', background: '#333', color: '#ccc', border: '1px solid #444', borderRadius: '3px', cursor: 'pointer' })
             .on('click', () => this.loadFile())
+            .mount(toolbar);
+
+        // Visualize Button
+        $('button')
+            .text('👁️ Visualize')
+            .style({ padding: '4px 8px', background: '#333', color: '#ccc', border: '1px solid #444', borderRadius: '3px', cursor: 'pointer' })
+            .on('click', () => {
+                if (this.app && this.app.visualizeAtomSpace) {
+                    this.app.visualizeAtomSpace();
+                } else {
+                    console.warn('Visualize AtomSpace not available');
+                }
+            })
+            .mount(toolbar);
+
+        // Clear Button
+        $('button')
+            .text('🗑️ Clear')
+            .style({ padding: '4px 8px', background: '#333', color: '#ccc', border: '1px solid #444', borderRadius: '3px', cursor: 'pointer' })
+            .on('click', () => {
+                if (this.app && this.app.clearGraph) {
+                    this.app.clearGraph();
+                } else {
+                    console.warn('Clear Graph not available');
+                }
+            })
             .mount(toolbar);
 
         // Auto Run Toggle
@@ -115,7 +144,8 @@ export class CodeEditorPanel extends Component {
             this.editor = new SmartTextarea(editorContainer.dom, {
                 rows: 20,
                 autoResize: false,
-                onExecute: (text) => this.execute(text)
+                onExecute: (text) => this.execute(text),
+                language: this.state.language
             });
 
             const editorEl = this.editor.render();

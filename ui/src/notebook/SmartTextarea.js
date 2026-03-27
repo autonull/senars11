@@ -1,4 +1,4 @@
-import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
+import { SyntaxHighlighter } from '../utils/SyntaxHighlighter.js';
 import { AutocompleteManager } from './AutocompleteManager.js';
 
 export class SmartTextarea {
@@ -9,6 +9,12 @@ export class SmartTextarea {
         this.rows = options.rows || 3;
         this.autoResize = options.autoResize || false;
         this.autocomplete = null;
+        this.language = options.language || 'auto';
+    }
+
+    setLanguage(lang) {
+        this.language = lang;
+        this.update();
     }
 
     render() {
@@ -201,11 +207,7 @@ export class SmartTextarea {
 
     update() {
         const text = this.textarea.value;
-        const trimmed = text.trim();
-        const isMetta = trimmed.startsWith('(') || trimmed.startsWith(';') || trimmed.startsWith('!');
-        const language = isMetta ? 'metta' : 'narsese';
-
-        const highlighted = NarseseHighlighter.highlight(text, language);
+        const highlighted = SyntaxHighlighter.highlight(text, this.language);
         this.backdrop.innerHTML = highlighted + (text.endsWith('\n') ? '<br>&nbsp;' : '');
         this.value = text;
 

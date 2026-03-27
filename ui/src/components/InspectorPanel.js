@@ -2,7 +2,7 @@ import { Component } from './Component.js';
 import { ConceptCard } from './ConceptCard.js';
 import { DerivationWidget } from './widgets/DerivationWidget.js';
 import { FluentUI, $, div, span, button, input, h3, h4, pre } from '../utils/FluentUI.js';
-import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
+import { SyntaxHighlighter } from '../utils/SyntaxHighlighter.js';
 
 export class InspectorPanel extends Component {
     constructor(container) {
@@ -164,7 +164,7 @@ export class InspectorPanel extends Component {
                     .mount(row);
             } else {
                 if (key === 'term' || key === 'label') {
-                     span().class('prop-value').html(NarseseHighlighter.highlight(String(value))).mount(row);
+                     span().class('prop-value').html(SyntaxHighlighter.highlight(String(value))).mount(row);
                 } else {
                      const displayVal = typeof value === 'number' ? value.toFixed(3) : value;
                      span().class('prop-value').text(String(displayVal)).mount(row);
