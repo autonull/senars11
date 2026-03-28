@@ -63,25 +63,30 @@ export class SyllogisticRule extends NALRule {
         const term2 = secondaryPremise.term;
         const termFactory = context?.termFactory;
 
+        const tryDerive = (match, subject, predicate) => {
+             if (match.success) {
+                 return this._createDerivedTask(
+                     primaryPremise, secondaryPremise,
+                     subject, predicate,
+                     this.operator, termFactory, context, match.substitution
+                 );
+             }
+             return null;
+        };
+
         // Pattern 1: (S --> M) + (M --> P) => (S --> P)
-        const match1 = this.unify(term1.predicate, term2.subject, context);
-        if (match1.success) {
-            return this._createDerivedTask(
-                primaryPremise, secondaryPremise,
-                term1.subject, term2.predicate,
-                this.operator, termFactory, context, match1.substitution
-            );
-        }
+        const res1 = tryDerive(
+            this.unify(term1.predicate, term2.subject, context),
+            term1.subject, term2.predicate
+        );
+        if (res1) return res1;
 
         // Pattern 2: (M --> P) + (S --> M) => (S --> P)
-        const match2 = this.unify(term2.predicate, term1.subject, context);
-        if (match2.success) {
-            return this._createDerivedTask(
-                primaryPremise, secondaryPremise,
-                term2.subject, term1.predicate,
-                this.operator, termFactory, context, match2.substitution
-            );
-        }
+        const res2 = tryDerive(
+            this.unify(term2.predicate, term1.subject, context),
+            term2.subject, term1.predicate
+        );
+        if (res2) return res2;
 
         return [];
     }

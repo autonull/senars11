@@ -13,6 +13,10 @@ export class TermCache extends BaseComponent {
         return this._strongCache.size;
     }
 
+    values() {
+        return this._strongCache.values();
+    }
+
     get stats() {
         const total = this._hits + this._misses;
         return {

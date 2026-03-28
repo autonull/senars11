@@ -184,22 +184,8 @@ export class RuleProcessor {
         const s = result.stamp;
 
         let newStamp;
-        if (s instanceof ArrayStamp) {
-            newStamp = new ArrayStamp({
-                id: s.id,
-                creationTime: s.creationTime,
-                source: `DERIVED:${ruleName}`,
-                derivations: s.derivations,
-                depth: s.depth
-            });
-        } else if (s instanceof BloomStamp) {
-            newStamp = new BloomStamp({
-                id: s.id,
-                creationTime: s.creationTime,
-                source: `DERIVED:${ruleName}`,
-                depth: s.depth,
-                filter: s.filter
-            });
+        if (typeof s.clone === 'function') {
+            newStamp = s.clone({ source: `DERIVED:${ruleName}` });
         } else {
             // Fallback: Try to convert plain objects to ArrayStamp (backward compatibility)
             newStamp = new ArrayStamp({

@@ -215,29 +215,20 @@ export class Memory extends BaseComponent {
     }
 
     getMostActiveConcepts(limit = 10, scoringType = 'standard') {
-        const options = scoringType === 'composite' ? {
-            activationWeight: 0.3, useCountWeight: 0.2, taskCountWeight: 0.2,
-            qualityWeight: 0.15, complexityWeight: 0.15, diversityWeight: 0.1
-        } : Memory.SCORING_WEIGHTS;
+        const scoringOptions = scoringType === 'composite' ? {
+            weights: {
+                activationWeight: 0.3, useCountWeight: 0.2, taskCountWeight: 0.2,
+                qualityWeight: 0.15, complexityWeight: 0.15, diversityWeight: 0.1
+            }
+        } : { weights: Memory.SCORING_WEIGHTS };
 
-        return this._getMostActiveConceptsByScoring(limit, options, Memory.NORMALIZATION_LIMITS, scoringType);
-    }
-
-    _getMostActiveConceptsByScoring(limit, weights, limits, type, options = {}) {
-        const concepts = this.getAllConcepts();
-        const scoredConcepts = concepts.map(concept => ({
-            concept,
-            score: MemoryScorer.calculateDetailedConceptScore(concept, {...weights, ...options}).compositeScore
-        }));
-
-        scoredConcepts.sort((a, b) => b.score - a.score);
-        return scoredConcepts.slice(0, limit).map(sc => sc.concept);
+        return this.getConceptsByCompositeScoring({ limit, scoringOptions, sortBy: 'composite' });
     }
 
     getConceptsByCompositeScoring({limit = 10, minScore = 0, scoringOptions = {}, sortBy = 'composite'} = {}) {
         const concepts = this.getAllConcepts();
         const scoredConcepts = concepts
-            .map(concept => ({concept, score: MemoryScorer.calculateDetailedConceptScore(concept, scoringOptions)}))
+            .map(concept => ({concept, score: MemoryScorer.calculateDetailedConceptScore(concept, scoringOptions.weights || {})}))
             .filter(item => item.score.compositeScore >= minScore);
 
         return scoredConcepts

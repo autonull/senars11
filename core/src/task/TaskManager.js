@@ -71,7 +71,7 @@ export class TaskManager extends BaseComponent {
     }
 
     _createTask(punctuation, term, truth = null, budget) {
-        if ((punctuation === '.' || punctuation === '!') && truth === null) {
+        if (!truth && (punctuation === '.' || punctuation === '!')) {
             truth = new Truth(1.0, 0.9);
         }
 
