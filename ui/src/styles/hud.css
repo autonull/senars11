@@ -653,3 +653,11 @@ details[open] summary {
     opacity: 0.3;
     cursor: not-allowed;
 }
+
+/* Active state for toolbar toggle buttons */
+.active-toggle {
+    background: rgba(0, 255, 157, 0.2) !important;
+    border-color: #00ff9d !important;
+    color: #fff !important;
+    box-shadow: 0 0 8px rgba(0, 255, 157, 0.4);
+}

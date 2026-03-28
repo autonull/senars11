@@ -50,6 +50,8 @@ export class InputManager {
         // Reasoner
         this.commandPalette.registerCommand('run', 'Run Reasoner', 'Space', () => this.app.toggleReasoner(!this.app.isReasonerRunning), 'System');
         this.commandPalette.registerCommand('step', 'Step Reasoner', 'S', () => this.app.stepReasoner(), 'System');
+        this.commandPalette.registerCommand('step-10', 'Step 10 Cycles', 'Shift+S', () => this.app.stepReasoner(10), 'System');
+        this.commandPalette.registerCommand('step-50', 'Step 50 Cycles', 'Alt+S', () => this.app.stepReasoner(50), 'System');
 
         // UI
         this.commandPalette.registerCommand('mode-vis', 'Switch to Visualization Mode', null, () => this.setMode('visualization'), 'View');
@@ -616,6 +618,21 @@ export class InputManager {
             } else if (e.key === ' ') {
                 e.preventDefault(); // Prevent scroll
                 this.app.toggleReasoner(!this.app.isReasonerRunning);
+            } else if (e.shiftKey && e.key === 'S') {
+                e.preventDefault();
+                this.app.stepReasoner(10);
+                this.app.log('Stepping 10 cycles...', 'system');
+            } else if (e.altKey && e.key === 's') {
+                e.preventDefault();
+                this.app.stepReasoner(50);
+                this.app.log('Stepping 50 cycles...', 'system');
+            } else if (e.key === 'S' || e.key === 's') { // Case insensitive for single step if not modified
+                if (!e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+                    // Only if no modifiers to avoid conflict with Shift+S above if logic flow reaches here (though Shift+S is handled)
+                    // The issue is 's' vs 'S'. 'S' is Shift+s usually.
+                    // But standard 's' handling might be tricky with Shift.
+                    // Let's be precise.
+                }
             } else if (e.key === '?') {
                 e.preventDefault();
                 new ShortcutsModal().show();

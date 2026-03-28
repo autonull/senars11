@@ -191,8 +191,16 @@ export class StatusBar extends Component {
                 this.onReasonerControl?.('pause');
             }).mount(parent);
 
-        button('⏭').id('status-btn-step').class('status-btn').attr('title', 'Step Reasoner')
+        button('⏭').id('status-btn-step').class('status-btn').attr('title', 'Step Reasoner (S)')
             .on('click', () => this.onReasonerControl?.('step')).mount(parent);
+
+        button('+10').id('status-btn-step-10').class('status-btn').attr('title', 'Step 10 Cycles (Shift+S)')
+            .style({ fontSize: '0.8em', width: 'auto', padding: '0 5px' })
+            .on('click', () => this.onReasonerControl?.('step', 10)).mount(parent);
+
+        button('+50').id('status-btn-step-50').class('status-btn').attr('title', 'Step 50 Cycles (Alt+S)')
+            .style({ fontSize: '0.8em', width: 'auto', padding: '0 5px' })
+            .on('click', () => this.onReasonerControl?.('step', 50)).mount(parent);
 
         const throttle = div().class('status-throttle').mount(parent);
         const slider = input('range', { min: 0, max: 1000, value: 100, step: 50, id: 'status-throttle-slider' }).mount(throttle);
