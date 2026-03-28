@@ -69,9 +69,7 @@ export class SeNARS {
      * @returns {Promise<boolean>} - Whether the learning was successful
      */
     async learn(narsese) {
-        if (!this._initialized) {
-            await this._initialize();
-        }
+        await this._ensureInitialized();
 
         try {
             await this.nar.input(narsese);
@@ -89,9 +87,7 @@ export class SeNARS {
      * @returns {Promise<Object>} - Result with answer, confidence, and proof chain
      */
     async ask(narsese, options = {}) {
-        if (!this._initialized) {
-            await this._initialize();
-        }
+        await this._ensureInitialized();
 
         const cycles = options.cycles ?? 20;
 
@@ -107,12 +103,8 @@ export class SeNARS {
             // Get all beliefs
             const allBeliefs = this.nar.getBeliefs();
 
-            // Extract key terms from the question - e.g. "(penguin --> flyer)?" => ["penguin", "flyer"]
-            const keyTerms = narsese
-                .replace(/[()?.!]/g, '')
-                .split(/--?>|<->|==>/)
-                .map(s => s.trim())
-                .filter(s => s.length > 0);
+            // Extract key terms from the question
+            const keyTerms = this._extractKeyTerms(narsese);
 
             // Find beliefs where the term string contains ALL key terms
             // This follows the pattern from integration tests
@@ -155,6 +147,28 @@ export class SeNARS {
                 error: error.message,
                 timestamp: Date.now()
             };
+        }
+    }
+
+    /**
+     * Extract key terms from a Narsese string
+     * @private
+     */
+    _extractKeyTerms(narsese) {
+        return narsese
+            .replace(/[()?.!]/g, '')
+            .split(/--?>|<->|==>/)
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+    }
+
+    /**
+     * Ensure system is initialized
+     * @private
+     */
+    async _ensureInitialized() {
+        if (!this._initialized) {
+            await this._initialize();
         }
     }
 
@@ -202,9 +216,7 @@ export class SeNARS {
      * Start the reasoning process
      */
     async start() {
-        if (!this._initialized) {
-            await this._initialize();
-        }
+        await this._ensureInitialized();
         return this.nar.start();
     }
 
@@ -219,9 +231,7 @@ export class SeNARS {
      * Perform a single reasoning step
      */
     async step() {
-        if (!this._initialized) {
-            await this._initialize();
-        }
+        await this._ensureInitialized();
         return this.nar.step();
     }
 
@@ -230,9 +240,7 @@ export class SeNARS {
      * @param {number} count - Number of cycles to run
      */
     async runCycles(count) {
-        if (!this._initialized) {
-            await this._initialize();
-        }
+        await this._ensureInitialized();
         return this.nar.runCycles(count);
     }
 

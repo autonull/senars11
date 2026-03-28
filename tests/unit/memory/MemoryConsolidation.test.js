@@ -18,7 +18,7 @@ describe('MemoryConsolidation', () => {
     const createConcept = (term, activation = 0.5) => {
         const c = new Concept(term, Concept.DEFAULT_CONFIG);
         c._activation = activation;
-        memory._concepts.set(term, c);
+        memory._concepts.set(term.name, c);
         memory._stats.totalConcepts++;
         return c;
     };
@@ -73,8 +73,8 @@ describe('MemoryConsolidation', () => {
 
         const removed = consolidation._removeDecayedConcepts(memory);
         expect(removed).toBe(1);
-        expect(memory._concepts.has(c1.term)).toBe(false);
-        expect(memory._concepts.has(c2.term)).toBe(true);
+        expect(memory._concepts.has(c1.term.name)).toBe(false);
+        expect(memory._concepts.has(c2.term.name)).toBe(true);
     });
 
     test('health metrics', () => {
