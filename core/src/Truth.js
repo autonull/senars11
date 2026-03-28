@@ -1,10 +1,15 @@
 import {TRUTH} from './config/constants.js';
 import {clamp} from './util/common.js';
 
-const _binary = (t1, t2, op) => (t1 && t2 ? op(t1, t2) : null);
-const _unary = (t, op) => (t ? op(t) : null);
-
+/**
+ * Represents a truth value in NARS (Frequency, Confidence).
+ * Immutable value object.
+ */
 export class Truth {
+    /**
+     * @param {number} frequency - Frequency [0, 1]
+     * @param {number} confidence - Confidence [0, 1)
+     */
     constructor(frequency = TRUTH.DEFAULT_FREQUENCY, confidence = TRUTH.DEFAULT_CONFIDENCE) {
         this._frequency = clamp(isNaN(frequency) ? TRUTH.DEFAULT_FREQUENCY : frequency, 0, 1);
         this._confidence = clamp(isNaN(confidence) ? TRUTH.DEFAULT_CONFIDENCE : confidence, 0, 1);
@@ -20,9 +25,12 @@ export class Truth {
     get f() { return this._frequency; }
     get c() { return this._confidence; }
 
-    static binaryOperation(t1, t2, op) { return _binary(t1, t2, op); }
-    static unaryOperation(t, op) { return _unary(t, op); }
-
+    /**
+     * Creates a Truth instance, returning cached values for common cases.
+     * @param {number} f - Frequency
+     * @param {number} c - Confidence
+     * @returns {Truth}
+     */
     static create(f, c) {
         if (Math.abs(c - TRUTH.DEFAULT_CONFIDENCE) < TRUTH.EPSILON) {
             if (Math.abs(f - 1.0) < TRUTH.EPSILON) return Truth.TRUE;
@@ -32,30 +40,38 @@ export class Truth {
         return new Truth(f, c);
     }
 
+    static _binary(t1, t2, op) { return (t1 && t2) ? op(t1, t2) : null; }
+    static _unary(t, op) { return t ? op(t) : null; }
+
+    static binaryOperation(t1, t2, op) { return Truth._binary(t1, t2, op); }
+    static unaryOperation(t, op) { return Truth._unary(t, op); }
+
     static safeDiv(num, den) {
         return den === 0 ? 0 : clamp(num / den, 0, 1);
     }
 
+    // --- NAL Inference Rules ---
+
     static deduction(t1, t2) {
-        return _binary(t1, t2, (a, b) => Truth.create(a.f * b.f, a.c * b.c));
+        return Truth._binary(t1, t2, (a, b) => Truth.create(a.f * b.f, a.c * b.c));
     }
 
     static induction(t1, t2) {
-        return _binary(t1, t2, (a, b) => {
+        return Truth._binary(t1, t2, (a, b) => {
             const w = b.f * a.c * b.c;
             return Truth.create(b.f, Truth.w2c(w));
         });
     }
 
     static abduction(t1, t2) {
-        return _binary(t1, t2, (a, b) => {
+        return Truth._binary(t1, t2, (a, b) => {
             const w = a.f * a.c * b.c;
             return Truth.create(a.f, Truth.w2c(w));
         });
     }
 
     static detachment(t1, t2) {
-        return _binary(t1, t2, (a, b) => Truth.create(b.f, a.f * a.c * b.c));
+        return Truth._binary(t1, t2, (a, b) => Truth.create(b.f, a.f * a.c * b.c));
     }
 
     static revision(t1, t2) {
@@ -89,11 +105,11 @@ export class Truth {
     }
 
     static negation(t) {
-        return _unary(t, (truth) => Truth.create(1 - truth.f, truth.c));
+        return Truth._unary(t, (truth) => Truth.create(1 - truth.f, truth.c));
     }
 
     static conversion(t) {
-        return _unary(t, (truth) => Truth.create(truth.f, truth.f * truth.c));
+        return Truth._unary(t, (truth) => Truth.create(truth.f, truth.f * truth.c));
     }
 
     static expectation(t) {
@@ -103,7 +119,7 @@ export class Truth {
     }
 
     static comparison(t1, t2) {
-        return _binary(t1, t2, (a, b) => {
+        return Truth._binary(t1, t2, (a, b) => {
             const fProd = a.f * b.f;
             const denom = fProd + (1 - a.f) * (1 - b.f);
             return Truth.create(Truth.safeDiv(fProd, denom), a.c * b.c);
@@ -111,15 +127,15 @@ export class Truth {
     }
 
     static analogy(t1, t2) {
-        return _binary(t1, t2, (a, b) => Truth.create(a.f * b.f, a.c * b.c * b.f));
+        return Truth._binary(t1, t2, (a, b) => Truth.create(a.f * b.f, a.c * b.c * b.f));
     }
 
     static resemblance(t1, t2) {
-        return _binary(t1, t2, (a, b) => Truth.create((a.f + b.f) / 2, a.c * b.c));
+        return Truth._binary(t1, t2, (a, b) => Truth.create((a.f + b.f) / 2, a.c * b.c));
     }
 
     static contraposition(t1, t2) {
-        return _binary(t1, t2, (a, b) => {
+        return Truth._binary(t1, t2, (a, b) => {
             const contraFreq = b.f * (1 - a.f);
             const denom = contraFreq + (1 - b.f) * a.f;
             return Truth.create(Truth.safeDiv(contraFreq, denom), a.c * b.c);
@@ -127,30 +143,30 @@ export class Truth {
     }
 
     static intersection(t1, t2) {
-        return _binary(t1, t2, (a, b) => Truth.create(a.f * b.f, a.c * b.c));
+        return Truth._binary(t1, t2, (a, b) => Truth.create(a.f * b.f, a.c * b.c));
     }
 
     static union(t1, t2) {
-        return _binary(t1, t2, (a, b) => Truth.create(1 - (1 - a.f) * (1 - b.f), a.c * b.c));
+        return Truth._binary(t1, t2, (a, b) => Truth.create(1 - (1 - a.f) * (1 - b.f), a.c * b.c));
     }
 
     static subtract(t1, t2) {
-        return _binary(t1, t2, (a, b) => Truth.create(Math.max(0, a.f - b.f), a.c * b.c));
+        return Truth._binary(t1, t2, (a, b) => Truth.create(Math.max(0, a.f - b.f), a.c * b.c));
     }
 
     static diff(t1, t2) {
-        return _binary(t1, t2, (a, b) => Truth.create(Math.abs(a.f - b.f), a.c * b.c));
+        return Truth._binary(t1, t2, (a, b) => Truth.create(Math.abs(a.f - b.f), a.c * b.c));
     }
 
     static exemplification(t1, t2) {
-        return _binary(t1, t2, (a, b) => {
+        return Truth._binary(t1, t2, (a, b) => {
             const w = a.c / (a.c + 1);
             return Truth.create(a.f * b.f, w * a.c * b.c * a.f * b.f);
         });
     }
 
     static sameness(t1, t2) {
-        return _binary(t1, t2, (a, b) => {
+        return Truth._binary(t1, t2, (a, b) => {
             const diff = Math.abs(a.f - b.f);
             return Truth.create(1 - diff, a.c * b.c);
         });
@@ -162,14 +178,14 @@ export class Truth {
     }
 
     static structuralDeduction(t) {
-        return _unary(t, (truth) => {
+        return Truth._unary(t, (truth) => {
             const c = truth.c / (truth.c + 1);
             return Truth.create(truth.f * truth.f, c * truth.c);
         });
     }
 
     static structuralReduction(t) {
-        return _unary(t, (truth) => Truth.create(truth.f, Truth.weak(truth.c)));
+        return Truth._unary(t, (truth) => Truth.create(truth.f, Truth.weak(truth.c)));
     }
 
     static isStronger(t1, t2) {
@@ -198,5 +214,12 @@ export class Truth {
 
     toString() {
         return `%${this._frequency.toFixed(TRUTH.PRECISION)};${this._confidence.toFixed(TRUTH.PRECISION)}%`;
+    }
+
+    serialize() {
+        return {
+            f: this._frequency,
+            c: this._confidence
+        };
     }
 }

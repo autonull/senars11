@@ -6,32 +6,36 @@ import {Logger} from '../util/Logger.js';
 
 const TASK_TYPES = Object.freeze({BELIEF: 'BELIEF', GOAL: 'GOAL', QUESTION: 'QUESTION'});
 const CAPACITY_DISTRIBUTION = Object.freeze({[TASK_TYPES.BELIEF]: 0.6, [TASK_TYPES.GOAL]: 0.3, [TASK_TYPES.QUESTION]: 0.1});
+const DEFAULT_CONFIG = Object.freeze({
+    maxBeliefs: 100,
+    maxGoals: 50,
+    maxQuestions: 20,
+    defaultDecayRate: 0.01,
+    defaultActivationBoost: 0.1,
+    maxActivation: 1.0,
+    minQuality: 0,
+    maxQuality: 1
+});
 
 export class Concept extends BaseComponent {
-    static DEFAULT_CONFIG = {
-        maxBeliefs: 100,
-        maxGoals: 50,
-        maxQuestions: 20,
-        defaultDecayRate: 0.01,
-        defaultActivationBoost: 0.1,
-        maxActivation: 1.0,
-        minQuality: 0,
-        maxQuality: 1
-    };
+    static get DEFAULT_CONFIG() { return DEFAULT_CONFIG; }
 
     constructor(term, config = {}) {
-        super({...Concept.DEFAULT_CONFIG, ...config}, `Concept<${term.toString()}>`);
+        super({...DEFAULT_CONFIG, ...config}, `Concept<${term.toString()}>`);
 
         this._term = term;
         this._createdAt = Date.now();
         this._lastAccessed = Date.now();
         this._lastModified = Date.now();
 
-        this._storage = {
+        this._storage = Object.freeze({
             [TASK_TYPES.BELIEF]: new Bag(this.config.maxBeliefs),
             [TASK_TYPES.GOAL]: new Bag(this.config.maxGoals),
             [TASK_TYPES.QUESTION]: new Bag(this.config.maxQuestions)
-        };
+        });
+
+        // Cache storage values for faster iteration
+        this._bags = Object.freeze(Object.values(this._storage));
 
         this._activation = 0;
         this._useCount = 0;
@@ -55,13 +59,13 @@ export class Concept extends BaseComponent {
         return this.beliefs.size + this.goals.size + this.questions.size;
     }
 
-    get _bags() {
-        return Object.values(this._storage);
-    }
-
     get averagePriority() {
         if (!this.totalTasks) return 0;
-        return this._bags.reduce((sum, bag) => sum + (bag.getAveragePriority() * bag.size), 0) / this.totalTasks;
+        let weightedSum = 0;
+        for (const bag of this._bags) {
+            weightedSum += bag.getAveragePriority() * bag.size;
+        }
+        return weightedSum / this.totalTasks;
     }
 
     _getStorage(taskType) {
@@ -86,12 +90,15 @@ export class Concept extends BaseComponent {
 
     enforceCapacity(maxTasksPerType) {
         for (const [type, factor] of Object.entries(CAPACITY_DISTRIBUTION)) {
-            this._getStorage(type).pruneTo(maxTasksPerType * factor);
+            this._getStorage(type).pruneTo(Math.floor(maxTasksPerType * factor));
         }
     }
 
     getTask(taskId) {
+        // Linear scan across bags (small number of bags)
         for (const bag of this._bags) {
+            // Bag.find is O(N) where N is bag size.
+            // If bags are large and lookup is frequent, we might need an index.
             const task = bag.find(t => t.stamp.id === taskId);
             if (task) return task;
         }
@@ -100,7 +107,10 @@ export class Concept extends BaseComponent {
 
     replaceTask(oldTask, newTask) {
         const storage = this._getStorage(oldTask.type);
-        return storage.remove(oldTask) && storage.add(newTask);
+        if (storage.remove(oldTask)) {
+             return storage.add(newTask);
+        }
+        return false;
     }
 
     getHighestPriorityTask(taskType) {
@@ -145,15 +155,21 @@ export class Concept extends BaseComponent {
     }
 
     getAllTasks() {
-        return this._bags
-            .flatMap(bag => bag.getItemsInPriorityOrder())
-            .sort((a, b) => b.budget.priority - a.budget.priority);
+        const all = [];
+        for (const bag of this._bags) {
+            const items = bag.getItemsInPriorityOrder();
+            for (const item of items) all.push(item);
+        }
+        return all.sort((a, b) => b.budget.priority - a.budget.priority);
     }
 
     updateTaskBudget(task, newBudget) {
         const storage = this._getStorage(task.type);
         // Removing and re-adding ensures the bag updates priority ordering if needed
-        return storage.remove(task) && storage.add(task.clone({budget: newBudget}));
+        if (storage.remove(task)) {
+             return storage.add(task.clone({budget: newBudget}));
+        }
+        return false;
     }
 
     getStats() {
@@ -206,11 +222,12 @@ export class Concept extends BaseComponent {
                 questions: this.questions
             };
 
-            await Promise.all(Object.entries(map).map(async ([key, bag]) => {
-                if (data[key] && bag.deserialize) {
+            // Use for...of for simpler async flow
+            for (const [key, bag] of Object.entries(map)) {
+                 if (data[key] && bag.deserialize) {
                     await bag.deserialize(data[key], Task.fromJSON);
                 }
-            }));
+            }
 
             return true;
         } catch (error) {

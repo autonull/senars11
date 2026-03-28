@@ -13,26 +13,30 @@ import {ForgettingStrategyFactory} from './forgetting/ForgettingStrategyFactory.
 import {Archive} from './Archive.js';
 
 export class Memory extends BaseComponent {
-    static CONSOLIDATION_THRESHOLDS = Object.freeze({
-        activationThreshold: 0.1,
-        minTasksThreshold: 5,
-        decayThreshold: 0.01,
-        minTasksForDecay: 2
-    });
+    static get CONSOLIDATION_THRESHOLDS() {
+        return Object.freeze({
+            activationThreshold: 0.1,
+            minTasksThreshold: 5,
+            decayThreshold: 0.01,
+            minTasksForDecay: 2
+        });
+    }
 
-    static DEFAULT_CONFIG = Object.freeze({
-        priorityThreshold: 0.5,
-        priorityDecayRate: 0.01,
-        consolidationInterval: 10,
-        maxConcepts: 1000,
-        maxTasksPerConcept: 100,
-        forgetPolicy: 'priority',
-        resourceBudget: 10000,
-        activationDecayRate: 0.005,
-        memoryPressureThreshold: 0.8,
-        enableAdaptiveForgetting: true,
-        memoryValidationInterval: 30000,
-    });
+    static get DEFAULT_CONFIG() {
+        return Object.freeze({
+            priorityThreshold: 0.5,
+            priorityDecayRate: 0.01,
+            consolidationInterval: 10,
+            maxConcepts: 1000,
+            maxTasksPerConcept: 100,
+            forgetPolicy: 'priority',
+            resourceBudget: 10000,
+            activationDecayRate: 0.005,
+            memoryPressureThreshold: 0.8,
+            enableAdaptiveForgetting: true,
+            memoryValidationInterval: 30000,
+        });
+    }
 
     constructor(config = {}, eventBus = null, termFactory = null) {
         const mergedConfig = {...Memory.DEFAULT_CONFIG, ...config, enableMemoryValidation: config.enableMemoryValidation !== false};
@@ -89,6 +93,12 @@ export class Memory extends BaseComponent {
         return this._config[key] ?? defaultVal;
     }
 
+    /**
+     * Adds a task to memory, creating or updating the associated concept.
+     * @param {Task} task
+     * @param {number} currentTime
+     * @returns {boolean} True if task was added
+     */
     addTask(task, currentTime = Date.now()) {
         if (!task?.term) return false;
 
@@ -184,16 +194,23 @@ export class Memory extends BaseComponent {
     *getTasksIterator() {
         for (const concept of this._concepts.values()) {
             if (concept.getAllTasks) {
-                yield* concept.getAllTasks();
+                // Yield tasks one by one to avoid large array allocation
+                const tasks = concept.getAllTasks();
+                for (const task of tasks) {
+                    yield task;
+                }
             }
         }
     }
 
     getTasks(limit = 0) {
         const tasks = [];
-        for (const task of this.getTasksIterator()) {
-            tasks.push(task);
+        const iter = this.getTasksIterator();
+        let result = iter.next();
+        while (!result.done) {
+            tasks.push(result.value);
             if (limit > 0 && tasks.length >= limit) break;
+            result = iter.next();
         }
         return tasks;
     }
@@ -453,7 +470,10 @@ export class Memory extends BaseComponent {
             this.clear();
             if (data.config) this._config = {...this._config, ...data.config};
 
-            for (const conceptData of data.concepts) {
+            // Sequential for safety, optimized with standard loop
+            const concepts = data.concepts;
+            for (let i = 0; i < concepts.length; i++) {
+                const conceptData = concepts[i];
                 if (conceptData.concept) {
                     const term = this._resolveTermForDeserialization(conceptData.term);
                     const concept = new Concept(term, this._config);

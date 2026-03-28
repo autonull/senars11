@@ -6,7 +6,7 @@ import { getOperator, getComponents } from '../term/TermUtils.js';
 const freeze = Object.freeze;
 
 export const Punctuation = freeze({ BELIEF: '.', GOAL: '!', QUESTION: '?' });
-const TaskType = freeze({ BELIEF: 'BELIEF', GOAL: 'GOAL', QUESTION: 'QUESTION' });
+export const TaskType = freeze({ BELIEF: 'BELIEF', GOAL: 'GOAL', QUESTION: 'QUESTION' });
 
 const PUNCTUATION_TO_TYPE = freeze({
     [Punctuation.BELIEF]: TaskType.BELIEF,
@@ -22,6 +22,10 @@ const TYPE_TO_PUNCTUATION = freeze({
 
 const DEFAULT_BUDGET = freeze({ priority: 0.5, durability: 0.5, quality: 0.5, cycles: 100, depth: 10 });
 
+/**
+ * Task represents a unit of work or information in NARS.
+ * It combines a Term with metadata (punctuation, truth, budget, stamp).
+ */
 export class Task {
     constructor({ term, punctuation = Punctuation.BELIEF, truth = null, budget = DEFAULT_BUDGET, stamp = null, metadata = null }) {
         if (!(term instanceof Term)) throw new Error('Task must be initialized with a valid Term object.');
@@ -29,13 +33,13 @@ export class Task {
         this.type = PUNCTUATION_TO_TYPE[punctuation] ?? TaskType.BELIEF;
 
         // Handle negation unwrapping for terms like (-- (A))
-        const { term: unwrappedTerm, truth: finalTruth } = this._unwrapNegation(term, truth);
+        const { term: unwrappedTerm, truth: finalTruth } = Task._unwrapNegation(term, truth);
 
-        this._validateTruth(finalTruth);
+        Task._validateTruth(this.type, finalTruth);
 
         this.term = unwrappedTerm;
-        this.truth = this._createTruth(finalTruth);
-        this.budget = freeze({ ...budget });
+        this.truth = Task._createTruth(finalTruth);
+        this.budget = freeze({ ...DEFAULT_BUDGET, ...budget });
         this.stamp = stamp ?? ArrayStamp.createInput();
         this.metadata = metadata ? freeze(metadata) : null;
 
@@ -59,7 +63,7 @@ export class Task {
         });
     }
 
-    _unwrapNegation(term, truth) {
+    static _unwrapNegation(term, truth) {
         const op = getOperator(term);
         const comps = getComponents(term);
 
@@ -67,24 +71,26 @@ export class Task {
             return { term, truth };
         }
 
-        const t = this._createTruth(truth);
+        const t = Task._createTruth(truth);
+        // Negation rule: truth of (-- A) is (1-f, c) for A
         const newTruth = t ? Truth.create(1.0 - t.f, t.c) : truth;
 
         return { term: comps[0], truth: newTruth };
     }
 
-    _validateTruth(truth) {
+    static _validateTruth(type, truth) {
         const hasTruth = truth !== null;
-        const needsTruth = this.type !== TaskType.QUESTION;
+        const needsTruth = type !== TaskType.QUESTION;
 
-        if (hasTruth !== needsTruth) {
-            throw new Error(this.type === TaskType.QUESTION
-                ? 'Questions cannot have truth values'
-                : `${this.type} tasks must have valid truth values`);
+        if (hasTruth && !needsTruth) {
+             throw new Error('Questions cannot have truth values');
+        }
+        if (!hasTruth && needsTruth) {
+             throw new Error(`${type} tasks must have valid truth values`);
         }
     }
 
-    _createTruth(truth) {
+    static _createTruth(truth) {
         if (truth instanceof Truth) return truth;
         return (truth?.frequency != null && truth?.confidence != null)
             ? Truth.create(truth.frequency, truth.confidence)
