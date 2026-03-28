@@ -23,12 +23,12 @@ export function registerAdvancedOps(interpreter) {
         // Substitution operations
         '&subst': {
             fn: (a, b, c) => c
-                ? Unify.subst(c, a.name ? { [a.name]: b } : {})
-                : Unify.subst(a, bindingsAtomToObj(b)),
+                ? Unify.subst(c, a.name ? { [a.name]: b } : {}, { recursive: false })
+                : Unify.subst(a, bindingsAtomToObj(b), { recursive: false }),
             opts: { lazy: true }
         },
         '&let': {
-            fn: (vari, val, body) => Unify.subst(body, vari?.name ? { [vari.name]: val } : {}),
+            fn: (vari, val, body) => Unify.subst(body, vari?.name ? { [vari.name]: val } : {}, { recursive: false }),
             opts: { lazy: true }
         },
 
