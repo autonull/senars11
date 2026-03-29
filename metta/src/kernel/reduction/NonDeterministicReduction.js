@@ -111,13 +111,16 @@ const reduceSubcomponentsND = (expr, space, ground, limit) => {
     // Try reducing each component
     for (let i = 0; i < comps.length; i++) {
         const stepResults = [...stepYieldInternal(comps[i], space, ground, limit)];
+        // Filter out dead ends AND invalid reductions (null/undefined)
         let variants = stepResults.length > 0
-            ? stepResults.filter(s => !s.deadEnd).map(s => s.reduced)
+            ? stepResults.filter(s => !s.deadEnd && s.reduced !== undefined && s.reduced !== null).map(s => s.reduced)
             : isExpression(comps[i]) && comps[i].components?.length
                 ? reduceSubcomponentsND(comps[i], space, ground, limit)
                 : [];
 
+        // Ensure variants don't contain nulls if coming from recursive calls
         if (variants.length) {
+            variants = variants.filter(v => v !== undefined && v !== null);
             const res = variants.map(reduced => {
                 const newComps = [...comps];
                 newComps[i] = reduced;

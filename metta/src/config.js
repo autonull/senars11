@@ -14,7 +14,7 @@ export const METTA_CONFIG = {
     caching: true,             // Reduction result caching
     pooling: true,             // Object pooling for GC reduction
     compiledRules: true,       // Rete-like rule network
-    bloomFilter: true,         // Fast negative lookups
+    bloomFilter: false,        // Fast negative lookups
     tco: true,                 // Tail call optimization
 
     // === Tier 3: Advanced (default OFF) ===

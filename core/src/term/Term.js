@@ -24,6 +24,7 @@ export class Term {
         this._id = name;
         this._hash = Term.hash(this._id);
         this._semanticType = this._determineSemanticType();
+        this._typeTag = this._calculateTypeTag();
 
         return freeze(this);
     }
@@ -79,6 +80,13 @@ export class Term {
         if (['True', 'False', 'Null'].includes(this._name)) return SemanticType.BOOLEAN;
         if (this._name?.startsWith('?')) return SemanticType.VARIABLE;
         return isNaN(Number(this._name)) ? SemanticType.NAL_CONCEPT : SemanticType.NUMERIC;
+    }
+
+    _calculateTypeTag() {
+        // Fast path constants matching metta/src/kernel/FastPaths.js
+        if (this._type === TermType.COMPOUND) return 3; // TYPE_EXPRESSION
+        if (this._name?.startsWith('?') || this._name?.startsWith('$')) return 2; // TYPE_VARIABLE
+        return 1; // TYPE_SYMBOL
     }
 
     _calculateComplexity() {

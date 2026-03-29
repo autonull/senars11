@@ -51,6 +51,13 @@ export const variable = (name) => {
 export const exp = (operator, components) => {
     if (!operator || !Array.isArray(components)) throw new Error('Invalid expression args');
 
+    // Validation: ensure no components are undefined/null
+    for (let i = 0; i < components.length; i++) {
+        if (!components[i]) {
+            throw new Error(`Invalid component at index ${i} in expression: ${operator.toString?.() || operator}`);
+        }
+    }
+
     const op = typeof operator === 'string' ? sym(operator) : operator;
     const key = `${op.toString()},${components.map(c => c.toString()).join(',')}`;
 
