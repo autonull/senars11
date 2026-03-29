@@ -578,7 +578,7 @@ export class SeNARSGraph extends GraphSystem {
 
         // Widgets are optional. Only attach if explicitly requested.
         if (data.widgetContent) {
-            this.contextualWidget.attach(nodeId, data.widgetContent);
+            this.contextualWidget.attach(nodeId, data.widgetContent, data.widgetOptions);
             return;
         }
 

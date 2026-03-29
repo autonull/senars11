@@ -95,7 +95,7 @@ export class ContextualWidget {
         this.transformContainer.style.opacity = opacity;
     }
 
-    attach(nodeId, contentHtml) {
+    attach(nodeId, contentHtml, options = {}) {
         if (this.activeWidgets.has(nodeId)) return;
 
         const div = document.createElement('div');
@@ -103,9 +103,10 @@ export class ContextualWidget {
         Object.assign(div.style, {
             position: 'absolute',
             pointerEvents: 'auto', // Allow interaction
-            transform: 'translate(-50%, calc(-100% - 20px))' // Center horizontally, place above node with gap
+            // Initial transform is placeholder, updateNodeWidget sets it
         });
         div.innerHTML = contentHtml;
+        div.dataset.position = options.position || 'top';
 
         // Bind double-click to "Enter" node
         const header = div.querySelector('.zui-header');
@@ -166,6 +167,48 @@ export class ContextualWidget {
         const pos = node.position();
         div.style.left = `${pos.x}px`;
         div.style.top = `${pos.y}px`;
+
+        const nodeHeight = node.outerHeight() || 30;
+        const nodeWidth = node.outerWidth() || 30;
+        const widgetHeight = div.offsetHeight || 0;
+        const widgetWidth = div.offsetWidth || 0;
+        const padding = 10;
+        const position = div.dataset.position || 'top';
+
+        let transform = '';
+
+        switch (position) {
+            case 'center':
+                transform = `translate(-50%, -50%)`;
+                break;
+            case 'bottom':
+                transform = `translate(-50%, ${(nodeHeight / 2) + padding}px)`;
+                break;
+            case 'left':
+                // For left:
+                // Start centered (0,0 is node center).
+                // Shift left by half node width + padding + widget width.
+                // Shift up by half widget height to center vertically (since top is 0).
+                // But wait, `top` property aligns the top-left corner to node center.
+                // So default is top-left corner at center.
+                // We want right-center of widget to be at (nodeLeft - padding, nodeCenterY).
+
+                // Let's rely on standard centering first: translate(-50%, -50%) centers widget on node center.
+                // Then shift X by -(nodeWidth/2 + widgetWidth/2 + padding)
+                transform = `translate(calc(-50% - ${(nodeWidth / 2) + padding + (widgetWidth / 2)}px), -50%)`;
+                break;
+            case 'right':
+                // Start centered. Shift X right by nodeWidth/2 + widgetWidth/2 + padding
+                transform = `translate(calc(-50% + ${(nodeWidth / 2) + padding + (widgetWidth / 2)}px), -50%)`;
+                break;
+            case 'top':
+            default:
+                // Start centered. Shift Y up by nodeHeight/2 + widgetHeight/2 + padding
+                transform = `translate(-50%, calc(-50% - ${(nodeHeight / 2) + padding + (widgetHeight / 2)}px))`;
+                break;
+        }
+
+        div.style.transform = transform;
     }
 
     remove(nodeId) {
