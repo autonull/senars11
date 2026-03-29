@@ -35,6 +35,7 @@ import { Formatter } from './kernel/Formatter.js';
 
 // Extensions
 import { ReactiveSpace } from './extensions/ReactiveSpace.js';
+import { ChannelExtension } from './extensions/ChannelExtension.js'; // Q5: Add Channel Extension
 
 // Standard library
 import { loadStdlib } from './stdlib/StdlibLoader.js';
@@ -83,6 +84,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
 
         this._initializeOperations();
         this._initializeBridge();
+        this._initializeExtensions(options); // Q5: Initialize extensions
         this._loadStandardLibrary();
     }
 
@@ -99,16 +101,6 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
         // StepFunctions.js needs ND and Det reduction
         setReduceNDInternalReference(reduceND);
 
-        // Note: setDeterministicInternalReference is actually from StepFunctions.js (naming confusion in Reduce.js exports)
-        // In Reduce.js: setDeterministicInternalReference comes from reduction/index.js
-        // reduction/index.js exports * from DeterministicReduction.js and StepFunctions.js
-        // DeterministicReduction.js exports setInternalReferences
-        // StepFunctions.js exports setReduceDeterministicInternalReference
-        // So setDeterministicInternalReference in Reduce.js likely refers to the one in DeterministicReduction if collision?
-        // No, DeterministicReduction exports setInternalReferences.
-        // StepFunctions exports setReduceDeterministicInternalReference.
-        // So I should use setReduceDeterministicInternalReference.
-
         setReduceDeterministicInternalReference((atom, space, ground, limit) => {
             // Bind cache automatically for internal calls
             return reduce(atom, space, ground, limit, this.reductionCache);
@@ -121,6 +113,16 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
     _initializeOperations() {
         for (const registerFn of [registerAdvancedOps, registerReactiveOps, registerParallelOps, registerMinimalOps, registerHofOps]) {
             registerFn(this);
+        }
+    }
+
+    /**
+     * Register extensions like Channels
+     */
+    _initializeExtensions(options) {
+        if (options.channelManager) {
+            const channelExt = new ChannelExtension(this, options.channelManager);
+            channelExt.register();
         }
     }
 

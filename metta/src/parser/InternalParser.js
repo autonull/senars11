@@ -3,7 +3,7 @@
  */
 
 import { sym, variable, exp } from '../kernel/Term.js';
-import {Logger} from '../../core/src/util/Logger.js';
+import {Logger} from '../../../core/src/util/Logger.js';
 
 export class InternalParser {
     constructor(tokens) {

@@ -139,7 +139,7 @@ export const filterAsyncGenerator = async function* (asyncGen, asyncFilter) {
     }
 };
 
-export const takeAsyncGenerator = async function* (asyncGen, limit) => {
+export const takeAsyncGenerator = async function* (asyncGen, limit) {
     for (let count = 0; count < limit; count++) {
         const { value, done } = await asyncGen.next();
         if (done) break;

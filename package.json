@@ -77,7 +77,10 @@
   "license": "AGPL-3.0-or-later",
   "dependencies": {
     "@playwright/test": "^1.58.1",
-    "ws": "^8.18.0"
+    "irc-framework": "^4.14.0",
+    "node-fetch": "^3.3.2",
+    "nostr-tools": "^2.23.2",
+    "ws": "^8.19.0"
   },
   "devDependencies": {
     "@babel/core": "^7.28.4",

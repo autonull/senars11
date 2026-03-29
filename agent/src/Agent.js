@@ -1,10 +1,13 @@
 import {FormattingUtils, Input, NAR, Logger} from '@senars/core';
 import {PersistenceManager} from './io/PersistenceManager.js';
+import {ChannelManager} from './io/ChannelManager.js';
+import {ChannelConfig} from './io/ChannelConfig.js';
 import * as Commands from './commands/Commands.js';
 import {AGENT_EVENTS} from './constants.js';
 import {InputProcessor} from './InputProcessor.js';
 import {AgentStreamer} from './AgentStreamer.js';
 import {AIClient} from './ai/AIClient.js';
+import {ToolAdapter} from './ai/ToolAdapter.js';
 
 export class Agent extends NAR {
     constructor(config = {}) {
@@ -34,6 +37,17 @@ export class Agent extends NAR {
             defaultPath: config.persistence?.defaultPath ?? './agent.json'
         });
 
+        // Initialize Channels with Config
+        const channelConfig = ChannelConfig.load(config.channelConfigPath);
+        this.channelManager = new ChannelManager(channelConfig);
+
+        // Setup Tools
+        this.toolInstances = {};
+
+        // Auto-join if configured and register tools
+        this._autoJoinChannels(channelConfig);
+        this._setupChannelRouting();
+
         this.commandRegistry = this._initializeCommandRegistry();
 
         this.uiState = {
@@ -49,6 +63,114 @@ export class Agent extends NAR {
 
         // Initialize Vercel AI SDK Client
         this.ai = new AIClient(config.lm || {});
+
+        // Bind tools to AI if config enables it (assumed for chatbot)
+        this._bindToolsToAI(channelConfig); // Q: Should I pass config?
+
+        if (this.metta) {
+             this._registerMeTTaExtensions();
+        }
+    }
+
+    async _autoJoinChannels(config) {
+        if (config.channels) {
+            // Lazy load specific channels to avoid circular deps
+            const { IRCChannel, NostrChannel, WebSearchTool, FileTool } = await import('./io/index.js');
+
+            if (config.channels.irc) {
+                try {
+                    const irc = new IRCChannel(config.channels.irc);
+                    this.channelManager.register(irc);
+                    irc.connect().catch(e => Logger.error('Auto-connect IRC failed:', e));
+                } catch (e) {
+                    Logger.error('Failed to init IRC channel:', e);
+                }
+            }
+
+            if (config.channels.nostr) {
+                try {
+                    const nostr = new NostrChannel(config.channels.nostr);
+                    this.channelManager.register(nostr);
+                    nostr.connect().catch(e => Logger.error('Auto-connect Nostr failed:', e));
+                } catch (e) {
+                    Logger.error('Failed to init Nostr channel:', e);
+                }
+            }
+
+            // Init Tools
+            if (config.tools?.websearch) {
+                this.toolInstances.websearch = new WebSearchTool(config.tools.websearch);
+            } else {
+                this.toolInstances.websearch = new WebSearchTool(); // Mock
+            }
+
+            this.toolInstances.file = new FileTool({ workspace: config.workspace || './workspace' });
+        }
+    }
+
+    async _bindToolsToAI(config) {
+        // Wait for lazy load in _autoJoinChannels? No, constructor is sync.
+        // We need to wait or do it later.
+        // _autoJoinChannels is async but called in constructor without await.
+        // We should move initialization to `initialize()`
+        // But `this.ai` needs tools when `generate` is called.
+        // We'll defer binding until `initialize`.
+    }
+
+    _registerMeTTaExtensions() {
+        if (this.metta && !this._channelExtensionRegistered) {
+             import('../../../metta/src/extensions/ChannelExtension.js').then(({ ChannelExtension }) => {
+                 const ext = new ChannelExtension(this.metta, this.channelManager);
+                 ext.agent = this;
+                 ext.register();
+                 this._channelExtensionRegistered = true;
+             }).catch(err => Logger.error("Failed to register ChannelExtension:", err));
+
+             import('../../../metta/src/extensions/MemoryExtension.js').then(({ MemoryExtension }) => {
+                 const memExt = new MemoryExtension(this.metta, this);
+                 memExt.register();
+             }).catch(err => Logger.error("Failed to register MemoryExtension:", err));
+        }
+    }
+
+    async initialize() {
+        await super.initialize();
+
+        // Ensure tools are loaded before extensions/AI binding
+        // We call _autoJoinChannels in constructor but it's async.
+        // Let's re-run or wait?
+        // Better: We explicitly init tools here if missing.
+
+        // Load tools if not loaded
+        if (!this.toolInstances.websearch) {
+             const { WebSearchTool, FileTool } = await import('./io/index.js');
+             this.toolInstances.websearch = new WebSearchTool();
+             this.toolInstances.file = new FileTool();
+        }
+
+        // Bind tools to AI Client config (if supported by AIClient)
+        // AIClient currently supports passing tools in generate call.
+        // We'll attach tools to the agent so AgentStreamer can use them.
+        this.aiTools = {
+            ...ToolAdapter.toAISDK(this.toolInstances.websearch, 'websearch'),
+            ...ToolAdapter.toAISDK(this.toolInstances.file, 'file')
+        };
+
+        this._registerMeTTaExtensions();
+        this._registerEventHandlers();
+        this.emit(AGENT_EVENTS.ENGINE_READY, {success: true, message: 'Agent initialized successfully'});
+        return true;
+    }
+
+    _setupChannelRouting() {
+        this.channelManager.on('message', async (msg) => {
+            Logger.info(`[Agent] Received from ${msg.protocol}:${msg.from}: ${msg.content}`);
+            try {
+                await this.inputProcessor.processChannelMessage(msg);
+            } catch (err) {
+                Logger.error('Error processing channel message:', err);
+            }
+        });
     }
 
     get agentLM() {
@@ -59,16 +181,8 @@ export class Agent extends NAR {
         this._eventBus?.emit(event, ...args);
     }
 
-    async initialize() {
-        await super.initialize();
-        this._registerEventHandlers();
-        this.emit(AGENT_EVENTS.ENGINE_READY, {success: true, message: 'Agent initialized successfully'});
-        return true;
-    }
-
     _initializeCommandRegistry() {
         const registry = new Commands.AgentCommandRegistry();
-        // Register all command classes exported from Commands.js
         Object.values(Commands).forEach(CmdClass => {
             if (typeof CmdClass === 'function' &&
                 CmdClass.prototype instanceof Commands.AgentCommand &&
@@ -84,7 +198,6 @@ export class Agent extends NAR {
     }
 
     _registerEventHandlers() {
-        // No longer automatically emit log events for task.focus - UI handles task.focus directly
     }
 
     async processInput(input) {
@@ -120,7 +233,6 @@ export class Agent extends NAR {
         return `❌ Unknown command: ${command} `;
     }
 
-    // Delegate methods for backward compatibility and API
     async processNarsese(input) {
         return this.inputProcessor.processNarsese(input);
     }
@@ -223,5 +335,10 @@ export class Agent extends NAR {
 
     formatTaskForDisplay(task) {
         return FormattingUtils.formatTask(task);
+    }
+
+    async shutdown() {
+        await this.channelManager.shutdown();
+        if (super.shutdown) await super.shutdown();
     }
 }

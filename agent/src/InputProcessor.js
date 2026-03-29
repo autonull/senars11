@@ -31,9 +31,45 @@ export class InputProcessor {
         return this._processAgentInput(trimmed);
     }
 
-    async _processAgentInput(input) {
+    /**
+     * Process structured message from a Channel
+     * @param {object} msg - { protocol, from, content, metadata, timestamp }
+     */
+    async processChannelMessage(msg) {
+        // Enrich context based on metadata
+        const context = {
+            source: msg.protocol,
+            author: msg.from,
+            timestamp: msg.timestamp || Date.now(),
+            channelId: msg.channelId,
+            ...msg.metadata
+        };
+
+        // Format input for the agent log
+        const input = `[${msg.protocol}:${msg.from}] ${msg.content}`;
+        this.agent.sessionState.history.push(input);
+
+        // Process with context
+        return this._processAgentInput(input, context);
+    }
+
+    async _processAgentInput(input, context = {}) {
         try {
-            return await this.agent.agentStreamer.accumulateStreamResponse(input);
+            // Prepend context to the prompt if available and not already formatted in input
+            // For now, AgentStreamer accumulates history, but individual message context is ephemeral
+            // We'll pass it as a system prompt update or prefix.
+
+            let augmentedInput = input;
+            if (context.author && !input.startsWith('[')) {
+                 augmentedInput = `Message from ${context.author} via ${context.source}: ${input}`;
+            }
+
+            // We can also pass tools here if we want dynamic tool selection based on context
+            // AgentStreamer calls AIClient.stream/generate
+            // We should ensure AgentStreamer accepts context/tools.
+            // Currently it just takes input. We rely on Agent having `aiTools` bound.
+
+            return await this.agent.agentStreamer.accumulateStreamResponse(augmentedInput);
         } catch (error) {
             logError(error, 'LM processing');
             return this._handleProcessingError(input, error);
@@ -94,30 +130,15 @@ export class InputProcessor {
     }
 
     _isPotentialNarsese(input) {
-        // More robust detection including ( ) syntax and various copulas
         const patterns = [
-            // Statement with standard copulas and brackets/parens
-            // Looks for ( ... --> ... ) or < ... --> ... >
             /[<(\[]\s*[\w\s\-'"()[\]]+\s*(?:-->|<->|==>|<=>|=\/>|=\|)\s*[\w\s\-'"()[\]]+\s*[>)\].!]/,
-
-            // Explicit Operation
             /\^[\w\s\-]+/,
-
-            // Explicit goal/question/belief punctuation at end
             /[>)]\s*[!?.]$/,
-
-            // Truth values
             /%[\d.]*(?:;[\d.]*)?%/,
-
-            // Legacy patterns for safety
             /<[\w\s\-'"()[\]]*\s*\^[\w\s\-'"()[\]]*>/,
-
-            // Simple atomic term with punctuation: e.g. "a." or "word?" or "term!"
             /^[\w\-]+\s*[.!?]$/
         ];
 
-        // Also check if it looks like a simple term followed by punctuation
-        // e.g. (bird --> flyer).
         if (input.includes('-->') || input.includes('<->') || input.includes('==>')) {
             return true;
         }
