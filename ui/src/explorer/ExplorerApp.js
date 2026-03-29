@@ -138,6 +138,11 @@ export class ExplorerApp {
                     this.contextMenu.show(evt.x, evt.y, target, type);
                 }
             });
+
+            // Bind Background Double Click for Creation
+            this.graph.on('backgroundDoubleClick', ({ position }) => {
+                this.handleAddConcept(position);
+            });
         }
 
         // Register Commands
@@ -879,6 +884,12 @@ export class ExplorerApp {
         this.graph.clear();
         this.log(`Loading demo: ${name}`, 'system');
 
+        // Override Bag Capacity if specified
+        if (demo.bagCapacity && this.graph.bag) {
+            this.graph.bag.capacity = demo.bagCapacity;
+            this.log(`Set Bag Capacity to ${demo.bagCapacity}`, 'system');
+        }
+
         if (demo.script) {
             this.toastManager.show(`Running Script: ${name}`, 'info');
             for (const line of demo.script) {
@@ -887,6 +898,16 @@ export class ExplorerApp {
                 await new Promise(r => setTimeout(r, 800));
             }
             this.toastManager.show(`Script completed: ${name}`, 'success');
+        } else if (demo.generator) {
+            this.toastManager.show(`Generating: ${name}`, 'info');
+            // Execute procedural generator
+            try {
+                demo.generator(this.graph);
+                this.graph.scheduleLayout();
+                this.toastManager.show(`Generated: ${name}`, 'success');
+            } catch (e) {
+                this.log(`Generator Error: ${e.message}`, 'error');
+            }
         } else {
             this.toastManager.show(`Demo loaded: ${name}`, 'success');
             demo.concepts.forEach(c => this.graph.addNode({ ...c, id: c.term }, false));
@@ -1208,7 +1229,7 @@ export class ExplorerApp {
         console.log(`Mode switched to: ${mode}`);
     }
 
-    handleAddConcept() {
+    handleAddConcept(position = null) {
         const input = prompt("Enter concept name (or type:name):");
         if (input) {
             let term = input.trim();
@@ -1227,8 +1248,14 @@ export class ExplorerApp {
             }
 
             // SeNARSGraph addNode: { id: term, term: term, budget: { priority: 0.5 }, type: 'concept' }
-            this.graph.addNode({ id: term, term: term, budget: { priority: 0.5 }, type: type }, true);
-            this.log(`Created ${type}: ${term}`, 'user');
+            this.graph.addNode({
+                id: term,
+                term: term,
+                budget: { priority: 0.5 },
+                type: type,
+                position: position // Pass clicked position if available
+            }, true);
+            this.log(`Created ${type}: ${term}`, 'success');
         }
     }
 
