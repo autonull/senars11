@@ -17,9 +17,12 @@ import { ToastManager } from '../components/ToastManager.js';
 import { DemoLibraryModal } from '../components/DemoLibraryModal.js';
 import { ShortcutsModal } from '../components/ShortcutsModal.js';
 import { getTacticalStyle } from '../visualization/ExplorerGraphTheme.js';
-import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
 import { IntrospectionEvents } from '@senars/core';
 
+/**
+ * Main application controller for the Explorer UI.
+ * Coordinates between Graph, HUD, Agent/Reasoner, and User Input.
+ */
 export class ExplorerApp {
     constructor() {
         this.mappings = {
@@ -34,7 +37,7 @@ export class ExplorerApp {
             useBag: true,
             bagCapacity: 50,
             style: themeStyle,
-            showToolbar: false
+            showToolbar: true
         });
 
         // Context menu and other components expect a graph object with certain interface
@@ -72,9 +75,6 @@ export class ExplorerApp {
 
         // NOTE: We now use EventBus for selections, but keep these for direct callbacks if needed
         this.inspectorPanel.onSelect = (term) => eventBus.emit(EVENTS.CONCEPT_SELECT, { id: term });
-
-        // Task Browser now uses EventBus internally
-        // this.taskBrowser.onTrace = (id) => this.graph.traceDerivationPath(id);
     }
 
     // Convenience accessor for the underlying graph manager
@@ -82,34 +82,9 @@ export class ExplorerApp {
         return this.graphPanel.graphManager;
     }
 
-    _handleNodeClick(node) {
-        const data = node.data();
-        this.graph.flyTo?.(node.id());
-
-        const links = node.connectedEdges().map(edge => {
-             const target = edge.target();
-             const source = edge.source();
-             return target.id() === node.id() ? source.id() : target.id();
-        }).slice(0, 5);
-
-        // Ensure fullData is present and merged correctly
-        // Priority: fullData > data > basic props
-        const fullData = data.fullData || {};
-
-        const conceptData = {
-            id: node.id(),
-            links,
-            ...data,
-            ...fullData,
-            // Explicitly preserve critical objects if they exist in either source
-            derivation: fullData.derivation || data.derivation,
-            budget: fullData.budget || data.budget,
-            truth: fullData.truth || data.truth
-        };
-
-        this.showInspector(conceptData);
-    }
-
+    /**
+     * Initializes the application, including graph, HUD, and agent connections.
+     */
     async initialize() {
         console.log('ExplorerApp: Initializing...');
 
@@ -128,7 +103,6 @@ export class ExplorerApp {
             this.graph.on('nodeDblClick', ({ node }) => this.log(`Focused: ${node.id()}`, 'system'));
 
             // Setup Context Menu proxy
-            // SeNARSGraph emits 'contextMenu' event
             this.graph.on('contextMenu', ({ target, originalEvent }) => {
                 const type = target && target !== this.graph.cy ? (target.isNode() ? 'node' : 'edge') : 'background';
                 const evt = originalEvent;
@@ -222,6 +196,38 @@ export class ExplorerApp {
         }, 1000);
     }
 
+    /**
+     * Handles clicking a node in the graph.
+     * Selects the node, zooms (flyTo), and opens the Inspector panel.
+     */
+    _handleNodeClick(node) {
+        const data = node.data();
+        this.graph.flyTo?.(node.id());
+
+        const links = node.connectedEdges().map(edge => {
+             const target = edge.target();
+             const source = edge.source();
+             return target.id() === node.id() ? source.id() : target.id();
+        }).slice(0, 5);
+
+        // Ensure fullData is present and merged correctly
+        // Priority: fullData > data > basic props
+        const fullData = data.fullData || {};
+
+        const conceptData = {
+            id: node.id(),
+            links,
+            ...data,
+            ...fullData,
+            // Explicitly preserve critical objects if they exist in either source
+            derivation: fullData.derivation || data.derivation,
+            budget: fullData.budget || data.budget,
+            truth: fullData.truth || data.truth
+        };
+
+        this.showInspector(conceptData);
+    }
+
     _subscribeToEvents() {
         // Handle Task Selection
         eventBus.on(EVENTS.TASK_SELECT, ({ task }) => {
@@ -282,6 +288,8 @@ export class ExplorerApp {
             }
         });
     }
+
+    // --- Reasoning System Integration ---
 
     async _initLocalBridge() {
         try {
@@ -467,11 +475,11 @@ export class ExplorerApp {
 
         // Request layout update to ensure new nodes are positioned correctly
         if (this.graph.scheduleLayout) {
-            // Debounce or throttle could be added here if high frequency,
-            // but for now direct call ensures responsiveness for demonstration.
             this.graph.scheduleLayout();
         }
     }
+
+    // --- UI Logic & Helpers ---
 
     _getColorFromHash(str) {
         let hash = 0;
@@ -518,7 +526,6 @@ export class ExplorerApp {
         this._bindLayerToggles();
         this._bindMappingControls();
         this._bindLayoutControls();
-        // Note: REPL and reasoner controls now in StatusBar
     }
 
     _bindLayoutControls() {
@@ -527,7 +534,6 @@ export class ExplorerApp {
             layoutSelect.onchange = (e) => {
                 const layout = e.target.value;
                 if (layout === 'scatter') {
-                    // Default scatter args or prompt? Using defaults for now.
                     if (this.graph.applyScatterLayout) {
                         this.graph.applyScatterLayout('priority', 'confidence');
                     }
@@ -585,12 +591,9 @@ export class ExplorerApp {
 
             // SeNARSGraph doesn't have highlightMatches by default, but GraphViewport does.
             // SeNARSGraph extends GraphSystem which has access to cy.
-            // We can implement highlightMatches here or assume it's available if we mixed it in.
-            // Or use direct cy manipulation.
             if (this.graph.highlightMatches) {
                 this.graph.highlightMatches(term);
             } else {
-                // Fallback or implementation
                 this._highlightMatches(term);
             }
         };
@@ -626,7 +629,6 @@ export class ExplorerApp {
         };
     }
 
-    // Helpers for search if SeNARSGraph misses them
     _highlightMatches(term) {
         if (!this.graph || !this.graph.cy) return;
         this.graph.cy.batch(() => {
@@ -717,7 +719,6 @@ export class ExplorerApp {
         }
     }
 
-    // Reasoner control handler for StatusBar
     handleReasonerControl(action, value) {
         switch (action) {
             case 'run':
@@ -793,10 +794,6 @@ export class ExplorerApp {
      */
     toggleWidget(widgetId) {
         const result = this.layoutManager.toggle(widgetId);
-        // toggle returns false if widget not found, or boolean new state
-        // But if it returns false when hidden (false), it's ambiguous.
-        // We rely on getWidget to confirm.
-
         const widget = this.layoutManager.getWidget(widgetId);
         if (widget) {
             const isVisible = !widget.classList.contains('hidden');
@@ -821,14 +818,10 @@ export class ExplorerApp {
                 if (layer === 'tasks') {
                     this.graph.applyFilters({ showTasks: visible });
                 } else if (layer === 'concepts') {
-                     // We interpret "hide concepts" as hiding non-tasks or hiding everything?
-                     // Let's assume hiding concept nodes.
                      this.graph.applyFilters({ showConcepts: visible });
                 } else if (layer === 'trace') {
-                     // Toggle trace visibility or mode
                      if (visible) {
                         this.graph.cy.elements().addClass('trace-dim');
-                        // Highlight recent traces?
                      } else {
                         this.graph.cy.elements().removeClass('trace-dim trace-highlight');
                      }
@@ -950,6 +943,8 @@ export class ExplorerApp {
         createWidget('tasks', this.taskBrowser, 'right', true);
     }
 
+    // --- Data Management & File I/O ---
+
     saveNodeChanges(id, updates) {
         // Fetch existing data to merge
         let existing = {};
@@ -1069,10 +1064,6 @@ export class ExplorerApp {
                 }
             }
         });
-
-        // Also toggle status bar expansion or visibility if desired?
-        // For now, we keep status bar but maybe minimize it?
-        // The prompt asked for "Enhance UI/UX ergonomics". Focus mode is a good enhancement.
 
         this.log(`Focus Mode: ${this.isFocusMode ? 'ON' : 'OFF'}`, 'system');
     }
