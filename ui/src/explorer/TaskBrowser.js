@@ -14,6 +14,12 @@ export class TaskBrowser extends Component {
         this.expandedStates = new Set(); // Track expanded concepts
         this.renderPending = false;
 
+        // Sorting & Pagination State
+        this.sortMethod = 'priority'; // priority, recency, term
+        this.sortOrder = 'desc'; // asc, desc
+        this.currentPage = 1;
+        this.itemsPerPage = 20;
+
         // We no longer rely on onSelect callback, we use EventBus
         // But for backward compatibility we keep the property
         this.onSelect = null;
@@ -54,6 +60,8 @@ export class TaskBrowser extends Component {
             tasks.push(entry);
         }
 
+        // Sort tasks within concept by priority always? Or reuse sort logic?
+        // Usually sub-tasks are sorted by priority.
         tasks.sort((a, b) => b.priority - a.priority);
         this.requestRender();
     }
@@ -70,6 +78,7 @@ export class TaskBrowser extends Component {
     clear() {
         this.concepts.clear();
         this.expandedStates.clear();
+        this.currentPage = 1;
         this.requestRender();
     }
 
@@ -96,11 +105,11 @@ export class TaskBrowser extends Component {
         const header = $('div').class('hud-header').mount(panel);
         $('h3').text('Tasks & Concepts').mount(header);
 
-        const controls = $('div').class('task-controls').mount(header);
+        // Toolbar: Search & Filters
+        const toolbar1 = $('div').class('task-controls').mount(header);
 
         // Filter Toggles
-        const toggles = $('div').class('filter-toggles').mount(controls);
-
+        const toggles = $('div').class('filter-toggles').mount(toolbar1);
         const createToggle = (type, symbol, title) => {
             return $('button')
                 .class('btn-toggle')
@@ -111,10 +120,10 @@ export class TaskBrowser extends Component {
                     this.typeFilters[type] = !this.typeFilters[type];
                     if (this.typeFilters[type]) $(e.target).addClass('active');
                     else $(e.target).removeClass('active');
+                    this.currentPage = 1; // Reset page on filter change
                     this.renderList();
                 });
         };
-
         createToggle('belief', '●', 'Toggle Beliefs').mount(toggles);
         createToggle('goal', '♦', 'Toggle Goals').mount(toggles);
         createToggle('question', '¿', 'Toggle Questions').mount(toggles);
@@ -128,9 +137,10 @@ export class TaskBrowser extends Component {
             .style({ width: '80px' })
             .on('input', (e) => {
                 this.filter = e.target.value.toLowerCase();
+                this.currentPage = 1;
                 this.renderList();
             })
-            .mount(controls);
+            .mount(toolbar1);
 
         // Clear Button
         $('button')
@@ -139,7 +149,33 @@ export class TaskBrowser extends Component {
             .attr('title', 'Clear List')
             .text('🗑️')
             .on('click', () => this.clear())
-            .mount(controls);
+            .mount(toolbar1);
+
+        // Toolbar 2: Sort & Pagination
+        const toolbar2 = $('div').class('task-toolbar', 'secondary-toolbar').mount(header);
+
+        // Sort Dropdown
+        const sortSelect = $('select')
+            .class('sort-select', 'control-select-small')
+            .on('change', (e) => this.handleSortChange(e.target.value))
+            .mount(toolbar2);
+
+        const sortOptions = [
+            { value: 'priority-desc', label: 'Priority ↓' },
+            { value: 'priority-asc', label: 'Priority ↑' },
+            { value: 'recency-desc', label: 'Newest' },
+            { value: 'recency-asc', label: 'Oldest' },
+            { value: 'term-asc', label: 'A-Z' },
+            { value: 'term-desc', label: 'Z-A' }
+        ];
+
+        sortOptions.forEach(opt => {
+            $('option').attr('value', opt.value).text(opt.label).mount(sortSelect);
+        });
+
+        // Pagination Controls
+        this.paginationControls = $('div').class('pagination-controls').mount(toolbar2);
+        this.renderPaginationControls();
 
         // Task List Container
         this.taskListContainer = $('div')
@@ -149,6 +185,44 @@ export class TaskBrowser extends Component {
             .mount(panel);
 
         this.renderList();
+    }
+
+    handleSortChange(value) {
+        const parts = value.split('-');
+        this.sortMethod = parts[0];
+        this.sortOrder = parts[1] || 'desc';
+        this.renderList();
+    }
+
+    handlePageChange(delta) {
+        this.currentPage += delta;
+        if (this.currentPage < 1) this.currentPage = 1;
+        this.renderList();
+    }
+
+    renderPaginationControls(totalPages = 1) {
+        if (!this.paginationControls) return;
+
+        this.paginationControls.clear();
+
+        $('button')
+            .class('btn-icon', 'small-btn')
+            .text('◄')
+            .prop('disabled', this.currentPage <= 1)
+            .on('click', () => this.handlePageChange(-1))
+            .mount(this.paginationControls);
+
+        $('span')
+            .class('page-info')
+            .text(`${this.currentPage} / ${Math.max(1, totalPages)}`)
+            .mount(this.paginationControls);
+
+        $('button')
+            .class('btn-icon', 'small-btn')
+            .text('►')
+            .prop('disabled', this.currentPage >= totalPages)
+            .on('click', () => this.handlePageChange(1))
+            .mount(this.paginationControls);
     }
 
     _isTypeVisible(t) {
@@ -162,25 +236,52 @@ export class TaskBrowser extends Component {
         if (!this.taskListContainer) return;
         this.taskListContainer.clear();
 
-        const filtered = Array.from(this.concepts.values())
+        // 1. Filter
+        let filtered = Array.from(this.concepts.values())
             .map(c => ({
                 ...c,
                 visibleItems: c.tasks.map((t, i) => ({ task: t, index: i })).filter(({ task }) => this._isTypeVisible(task))
             }))
             .filter(c => c.visibleItems.length > 0 && c.term.toLowerCase().includes(this.filter));
 
-        if (filtered.length === 0) {
+        // 2. Sort
+        filtered.sort((a, b) => {
+            let valA, valB;
+
+            if (this.sortMethod === 'priority') {
+                valA = Math.max(...a.visibleItems.map(item => item.task.priority));
+                valB = Math.max(...b.visibleItems.map(item => item.task.priority));
+            } else if (this.sortMethod === 'recency') {
+                // Assuming newer tasks are pushed last
+                valA = Math.max(...a.visibleItems.map(item => item.task.timestamp || 0));
+                valB = Math.max(...b.visibleItems.map(item => item.task.timestamp || 0));
+            } else if (this.sortMethod === 'term') {
+                valA = a.term;
+                valB = b.term;
+            }
+
+            if (valA < valB) return this.sortOrder === 'asc' ? -1 : 1;
+            if (valA > valB) return this.sortOrder === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        // 3. Pagination
+        const totalPages = Math.ceil(filtered.length / this.itemsPerPage);
+        if (this.currentPage > totalPages && totalPages > 0) this.currentPage = totalPages;
+
+        const start = (this.currentPage - 1) * this.itemsPerPage;
+        const end = start + this.itemsPerPage;
+        const sliced = filtered.slice(start, end);
+
+        // Update UI
+        this.renderPaginationControls(totalPages);
+
+        if (sliced.length === 0) {
             $('div').class('empty-state').text(this.concepts.size === 0 ? 'No tasks yet' : 'No matches').mount(this.taskListContainer);
             return;
         }
 
-        filtered.sort((a, b) => {
-            const maxA = Math.max(...a.visibleItems.map(item => item.task.priority));
-            const maxB = Math.max(...b.visibleItems.map(item => item.task.priority));
-            return maxB - maxA;
-        });
-
-        filtered.forEach(concept => this._renderConceptGroup(concept));
+        sliced.forEach(concept => this._renderConceptGroup(concept));
     }
 
     _renderConceptGroup(concept) {
@@ -200,7 +301,12 @@ export class TaskBrowser extends Component {
         $('span').class('concept-term').html(NarseseHighlighter.highlight(term)).mount(summary);
         $('span').class('concept-badge').text(visibleItems.length).mount(summary);
 
-        summary.on('click', () => eventBus.emit(EVENTS.CONCEPT_SELECT, { id: term, term }));
+        summary.on('click', (e) => {
+            // Only trigger selection if not toggling details (prevent conflict?)
+            // Usually summary click toggles details. We might want a separate button for selection or handle carefully.
+            // But ExplorerApp handles CONCEPT_SELECT.
+            eventBus.emit(EVENTS.CONCEPT_SELECT, { id: term, term });
+        });
 
         const tasksContainer = $('div').class('concept-tasks').mount(details);
         visibleItems.forEach(item => this._renderTaskItem(item, tasksContainer, term));
