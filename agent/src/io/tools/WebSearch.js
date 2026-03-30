@@ -3,7 +3,6 @@
  * Provides a simple interface for web search, falling back to a mock if no API key.
  */
 import { Logger } from '@senars/core';
-import fetch from 'node-fetch';
 
 export class WebSearchTool {
     constructor(config = {}) {
@@ -28,17 +27,31 @@ export class WebSearchTool {
             }
         } catch (error) {
             Logger.error('[WebSearch] Error:', error);
+            // Fallback to mock on error if it was a configuration issue or transient failure
+            // This ensures the agent doesn't crash or get stuck
+            if (this.provider !== 'mock') {
+                 Logger.warn('[WebSearch] Falling back to mock results due to error.');
+                 return this._searchMock(query);
+            }
             return { error: error.message };
         }
     }
 
     async _searchGoogle(query) {
         if (!this.apiKey || !this.cx) {
-            throw new Error('Google Search requires apiKey and cx (Context ID)');
+            Logger.warn('[WebSearch] Google Search keys missing. Falling back to mock.');
+            return this._searchMock(query);
         }
 
         const url = `https://www.googleapis.com/customsearch/v1?key=${this.apiKey}&cx=${this.cx}&q=${encodeURIComponent(query)}`;
+
+        // Use native fetch (Node.js 18+)
         const response = await fetch(url);
+
+        if (!response.ok) {
+             throw new Error(`Google Search API failed with status ${response.status}`);
+        }
+
         const data = await response.json();
 
         if (data.error) {
