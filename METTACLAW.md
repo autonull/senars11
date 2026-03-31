@@ -377,6 +377,8 @@ Each cycle, the loop decrements TTLs in `&wm` and drops expired entries before b
 
 Owns both registration and dispatch — no separate registry file. When `sExprSkillDispatch` is false, falls back to the existing `ToolAdapter.js` JSON tool-call path.
 
+**Integration with existing primitives:** `agent/src/metta/ChannelExtension.js` already registers grounded ops (`send-message`, `join-channel`, `web-search`, `read-file`, `write-file`) as direct JS bindings on the interpreter. `SkillDispatcher` does not replace these — it adds the S-expression parsing layer and capability gates on top. The `send`, `search`, `read-file`, and `write-file` skill handlers delegate to the same underlying JS functions that `ChannelExtension` wires.
+
 Responsibilities:
 - Parse the LLM's S-expression response via `metta/Parser.js` (with MeTTaClaw-style parenthesis balancing; on failure, populates `&error` and returns empty commands)
 - Look up each parsed `(skill arg...)` call against registered handlers
@@ -391,6 +393,8 @@ Responsibilities:
 **Governed by:** `semanticMemory`
 
 Built on `metta/src/extensions/PersistentSpace.js` (Merkle hash integrity, CRDT vector clocks, Node.js FS + IndexedDB backends — already implemented).
+
+**Relationship to existing `Memory.js`:** `core/src/memory/Memory.js` provides concept-based NARS-style memory (pattern-matched atoms, no embeddings). `SemanticMemory.js` is an additional layer — it does not replace `Memory.js`. The existing `agent/src/metta/MemoryExtension.js` registers `remember`/`recall` bindings against `Memory.js`; those are used by the NARS cognitive architecture. In Phase 2, `SkillDispatcher` registers new `remember`/`query`/`pin`/`forget` handlers against `SemanticMemory.js`, which supersede the `MemoryExtension.js` bindings for LLM-facing skill calls. The two systems run in parallel: `Memory.js` for NARS concept reasoning; `SemanticMemory.js` for embedding-based recall. Embeddings are an index overlay on the atom store — not a replacement for the underlying concept memory.
 
 ```
 SemanticMemory
@@ -531,8 +535,8 @@ Each phase is a self-contained working increment. Later phases do not block on e
 
 **Deliverable:** MeTTa loop drives the agent; existing channels and LLM providers work unchanged.
 
-1. Create directory structure (see §12).
-2. Implement `capabilities.js` — `isEnabled()`, `validateDeps()`, profile resolution.
+1. Create directory structure (see §12), including `agent/src/config/` and `agent/workspace/`.
+2. Create `agent/workspace/agent.json` with default `"profile": "parity"` config (schema: §13.1). Implement `capabilities.js` — `isEnabled()`, `validateDeps()`, profile resolution. These two are required before any capability-gated code can run.
 3. Extend `AgentBuilder.js` with `buildMeTTaLoop()` — wires `MeTTaInterpreter`, registers all grounded ops (`check-embodiment-bus`, `llm-invoke`, `parse-response`, `execute-commands`, `cap?`, etc.), loads `AgentLoop.metta`. This is startup wiring code, not a new class.
 4. Implement `AgentLoop.metta` and `skills.metta` (parity-tier skills only).
 5. Implement `SkillDispatcher.js` with S-expression parse, handler registration, JSON fallback.
@@ -546,12 +550,13 @@ Each phase is a self-contained working increment. Later phases do not block on e
 
 **Deliverable:** Cross-session embedding memory; RECALL and PINNED slots populated in context.
 
-1. Implement `Embedder.js` — lazy ONNX load; OpenAI API fallback.
-2. Implement `SemanticMemory.js` with private `VectorIndex`, `PersistentSpace` backing, `restore()` on startup.
-3. Register `remember`, `query`, `pin`, `forget` handlers in `SkillDispatcher`.
-4. Wire RECALL and PINNED slots into the JS `build-context` function.
-5. Supersede `PersistenceManager.js` — existing persisted state migrated to atom format.
-6. **Test:** 200 items stored; query returns correct top-5 by cosine; survives restart; RECALL slot populated.
+1. Add `hnswlib-node` to `agent/package.json`; add `vectra` as a pure-JS fallback for environments that cannot compile native bindings. Neither is currently present.
+2. Implement `Embedder.js` — lazy ONNX load; OpenAI API fallback.
+3. Implement `SemanticMemory.js` with private `VectorIndex`, `PersistentSpace` backing, `restore()` on startup.
+4. Register `remember`, `query`, `pin`, `forget` handlers in `SkillDispatcher`; these supersede the `MemoryExtension.js` bindings for LLM-facing skill calls (see §5.4).
+5. Wire RECALL and PINNED slots into the JS `build-context` function.
+6. Supersede `PersistenceManager.js` — existing persisted state migrated to atom format.
+7. **Test:** 200 items stored; query returns correct top-5 by cosine; survives restart; RECALL slot populated.
 
 ### Phase 3 — Multi-Model Intelligence
 
@@ -948,6 +953,9 @@ agent/src/
 └── config/
     └── capabilities.js          ← isEnabled() + validateDeps() (Phase 1)
 
+agent/workspace/
+└── agent.json                   ← capability flags, profile, model config (Phase 1)
+
 memory/                          ← runtime memory, git-tracked
 ├── harness/
 │   └── prompt.metta             ← current system prompt (agent-writable)
@@ -963,6 +971,7 @@ memory/                          ← runtime memory, git-tracked
 | `cognitive/MeTTaReasoner.js` | AgentLoop.metta + metta/ interpreter | 1 |
 | `io/ChannelManager.js` | EmbodimentBus.js | 5 |
 | `io/PersistenceManager.js` | SemanticMemory.js | 2 |
+| `metta/MemoryExtension.js` (LLM-facing bindings only) | SkillDispatcher SemanticMemory handlers | 2 |
 
 ---
 
@@ -1157,6 +1166,8 @@ Phase 4 ships direct rules only. Chaining (`A→B, B→C ⟹ A→C`) adds signif
 | `metta/src/extensions/PersistentSpace.js` | Backing store for `SemanticMemory` and `AuditSpace` |
 | `metta/src/kernel/StateOps.js` | MeTTa mutable state ops for loop state variables |
 | `metta/src/kernel/ops/MetaprogrammingOps.js` | `&add-rule` / `&remove-rule` for `selfModifyingSkills` |
+| `agent/src/metta/ChannelExtension.js` | Existing grounded ops (`send-message`, `web-search`, `read-file`, etc.); `SkillDispatcher` wraps these with capability gates |
+| `agent/src/metta/MemoryExtension.js` | Existing `remember`/`recall` bindings against `Memory.js`; superseded for LLM skill calls by Phase 2 `SemanticMemory` handlers |
 | `metta/src/nal/stdlib/truth.metta` | NAL truth functions for `ModelRouter` NAL scoring |
 | `metta/src/MeTTaInterpreter.js` | Execution engine for `AgentLoop.metta` |
 | `mettaclaw/src/loop.metta` | Reference: loop counter, state vars, context structure |
