@@ -1,4 +1,4 @@
-import { FluentUI } from '../utils/FluentUI.js';
+import { FluentUI, div, span, input } from '../utils/FluentUI.js';
 
 export class CommandPalette {
     constructor() {
@@ -16,45 +16,44 @@ export class CommandPalette {
 
     _createUI() {
         // Overlay
-        const overlay = FluentUI.create('div')
+        const overlay = div()
             .id('command-palette-overlay')
             .class('palette-overlay', 'hidden')
             .mount(document.body);
 
         // Palette Container
-        const container = FluentUI.create('div')
+        const container = div()
             .class('palette-container')
             .mount(overlay);
 
         // Input Wrapper
-        const inputWrapper = FluentUI.create('div')
+        const inputWrapper = div()
             .class('palette-input-wrapper')
             .mount(container);
 
         // Icon
-        FluentUI.create('span')
+        span()
             .class('palette-icon')
             .html('>')
             .mount(inputWrapper);
 
         // Input
-        this.input = FluentUI.create('input')
-            .attr({ type: 'text', placeholder: 'Type a command...', autocomplete: 'off' })
+        this.input = input('text', { placeholder: 'Type a command...', autocomplete: 'off' })
             .class('palette-input')
             .mount(inputWrapper);
 
         // Results List
-        this.resultsContainer = FluentUI.create('div')
+        this.resultsContainerEl = div()
             .class('palette-results')
-            .mount(container);
+            .mount(container)
+            .dom;
 
         this.element = overlay.dom;
         this.input = this.input.dom; // Keep reference to raw element for events
-        this.resultsContainer = this.resultsContainer.dom;
     }
 
     _bindEvents() {
-        // Global shortcut (handled by App usually, but we can add listener here too)
+        // Global shortcut
         document.addEventListener('keydown', (e) => {
             if (((e.ctrlKey || e.metaKey) && e.key === 'k') || e.key === 'F1') {
                 e.preventDefault();
@@ -65,7 +64,7 @@ export class CommandPalette {
             }
         });
 
-        // Click outside to close
+        // Click outside
         this.element.addEventListener('click', (e) => {
             if (e.target === this.element) {
                 this.hide();
@@ -97,12 +96,13 @@ export class CommandPalette {
         });
     }
 
-    registerCommand(id, description, shortcut, callback) {
+    registerCommand(id, description, shortcut, callback, category = 'General') {
         this.commands.push({
             id,
             description,
             shortcut,
-            callback
+            callback,
+            category
         });
     }
 
@@ -131,50 +131,80 @@ export class CommandPalette {
     _filterCommands() {
         const query = this.input.value.toLowerCase();
         if (!query) {
-            this.filteredCommands = this.commands;
+            this.filteredCommands = [...this.commands];
         } else {
             this.filteredCommands = this.commands.filter(cmd =>
                 cmd.id.toLowerCase().includes(query) ||
-                cmd.description.toLowerCase().includes(query)
+                cmd.description.toLowerCase().includes(query) ||
+                cmd.category.toLowerCase().includes(query)
             );
         }
+
+        // Sort by Category then Description
+        this.filteredCommands.sort((a, b) => {
+             if (a.category !== b.category) {
+                 return a.category.localeCompare(b.category);
+             }
+             return a.description.localeCompare(b.description);
+        });
     }
 
     _renderResults() {
-        this.resultsContainer.innerHTML = '';
+        this.resultsContainerEl.innerHTML = '';
 
         if (this.filteredCommands.length === 0) {
-            FluentUI.create('div')
+            div()
                 .class('palette-empty')
                 .text('No commands found')
-                .mount(this.resultsContainer);
+                .mount(this.resultsContainerEl);
             return;
         }
 
+        let lastCategory = null;
+
         this.filteredCommands.forEach((cmd, index) => {
-            const item = FluentUI.create('div')
-                .class('palette-item', index === this.selectedIndex ? 'selected' : '')
+            if (cmd.category !== lastCategory) {
+                div()
+                    .class('palette-category-header')
+                    .style({
+                        padding: '4px 8px',
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        color: '#888',
+                        textTransform: 'uppercase',
+                        background: 'rgba(255,255,255,0.05)',
+                        marginTop: '4px',
+                        borderBottom: '1px solid #333'
+                    })
+                    .text(cmd.category)
+                    .mount(this.resultsContainerEl);
+                lastCategory = cmd.category;
+            }
+
+            const item = div()
+                .class('palette-item')
+                .class(index === this.selectedIndex ? 'selected' : '')
                 .on('click', () => {
                     this.selectedIndex = index;
                     this._executeSelected();
                 })
-                .mount(this.resultsContainer);
+                .mount(this.resultsContainerEl);
 
-            const left = FluentUI.create('div')
+            const left = div()
                 .class('palette-item-left')
                 .mount(item);
 
-            FluentUI.create('span')
+            span()
                 .class('palette-item-label')
                 .text(cmd.description)
                 .mount(left);
 
-            FluentUI.create('span')
+            span()
                 .class('palette-item-sub')
                 .text(cmd.id)
                 .mount(left);
 
-            const right = FluentUI.create('div')
+            const right = div()
                 .class('palette-item-shortcut')
                 .mount(item);
 
@@ -185,7 +215,7 @@ export class CommandPalette {
     }
 
     _scrollToSelected() {
-        const selected = this.resultsContainer.children[this.selectedIndex];
+        const selected = this.resultsContainerEl.querySelector('.palette-item.selected');
         if (selected) {
             selected.scrollIntoView({ block: 'nearest' });
         }

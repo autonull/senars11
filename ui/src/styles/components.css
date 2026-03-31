@@ -547,3 +547,122 @@ button:active {
     background: #000;
     border-color: #666;
 }
+
+/* CommandPalette Styles */
+.palette-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 100px;
+}
+
+.palette-container {
+    background: var(--bg-panel);
+    width: 500px;
+    max-width: 90%;
+    border-radius: 4px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--accent-primary);
+}
+
+.palette-input-wrapper {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-header);
+}
+
+.palette-icon {
+    margin-right: 10px;
+    color: var(--text-muted);
+}
+
+.palette-input {
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    flex: 1;
+    outline: none;
+    font-size: 14px;
+    font-family: var(--font-ui);
+}
+
+.palette-results {
+    max-height: 300px;
+    overflow-y: auto;
+    background: var(--bg-panel);
+}
+
+.palette-item {
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.palette-item:last-child {
+    border-bottom: none;
+}
+
+.palette-item.selected {
+    background: var(--accent-primary-dim);
+    border-left: 3px solid var(--accent-primary);
+}
+
+.palette-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.palette-item-left {
+    display: flex;
+    flex-direction: column;
+}
+
+.palette-item-label {
+    font-weight: bold;
+    font-size: 13px;
+    color: var(--text-main);
+}
+
+.palette-item-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.palette-item-shortcut {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    background: rgba(255,255,255,0.1);
+    padding: 2px 4px;
+    border-radius: 2px;
+    color: var(--accent-primary);
+    align-self: center;
+}
+
+.palette-category-header {
+    padding: 4px 8px;
+    font-size: 10px;
+    font-weight: bold;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.palette-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-muted);
+}

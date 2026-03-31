@@ -22,38 +22,58 @@ export class InputManager {
 
     _registerCommands() {
         // Navigation
-        this.commandPalette.registerCommand('fit', 'Fit View to Graph', 'F', () => this.app.graph.fit());
-        this.commandPalette.registerCommand('zoom-in', 'Zoom In', '+', () => this.app.graph.zoomIn());
-        this.commandPalette.registerCommand('zoom-out', 'Zoom Out', '-', () => this.app.graph.zoomOut());
-        this.commandPalette.registerCommand('layout', 'Re-calculate Layout', 'L', () => this.app.graph.scheduleLayout());
-        this.commandPalette.registerCommand('go-back', 'Go Back (History)', 'Esc', () => this.app.graph.goBack?.());
+        this.commandPalette.registerCommand('fit', 'Fit View to Graph', 'F', () => this.app.graph.fit(), 'Navigation');
+        this.commandPalette.registerCommand('zoom-in', 'Zoom In', '+', () => this.app.graph.zoomIn(), 'Navigation');
+        this.commandPalette.registerCommand('zoom-out', 'Zoom Out', '-', () => this.app.graph.zoomOut(), 'Navigation');
+        this.commandPalette.registerCommand('layout', 'Re-calculate Layout', 'L', () => this.app.graph.scheduleLayout(), 'Navigation');
+        this.commandPalette.registerCommand('go-back', 'Go Back (History)', 'Esc', () => this.app.graph.goBack?.(), 'Navigation');
 
         // Data
         this.commandPalette.registerCommand('clear', 'Clear Workspace', null, () => {
             this.app.graph.clear();
             this.app.log('Workspace cleared', 'system');
-        });
+        }, 'Data');
 
-        this.commandPalette.registerCommand('add-concept', 'Add New Concept', 'A', () => this.handleAddConcept());
-        this.commandPalette.registerCommand('link', 'Link Selected Nodes', null, () => this.handleAddLink());
-        this.commandPalette.registerCommand('delete', 'Delete Selected', 'Del', () => this.handleDelete());
+        this.commandPalette.registerCommand('add-concept', 'Add New Concept', 'A', () => this.handleAddConcept(), 'Data');
+        this.commandPalette.registerCommand('link', 'Link Selected Nodes', null, () => this.handleAddLink(), 'Data');
+        this.commandPalette.registerCommand('delete', 'Delete Selected', 'Del', () => this.handleDelete(), 'Data');
+
+        // File
+        this.commandPalette.registerCommand('save', 'Save Graph (JSON)', 'Ctrl+S', () => this.app.fileManager.handleSaveJSON(), 'File');
+        this.commandPalette.registerCommand('load', 'Load Graph (JSON)', 'Ctrl+O', () => this.app.fileManager.handleLoadJSON(), 'File');
+        this.commandPalette.registerCommand('import-csv', 'Import Graph (CSV)', null, () => this.app.fileManager.handleImportCSV(), 'File');
+        this.commandPalette.registerCommand('export-png', 'Export PNG', null, () => this.app.fileManager.handleExportImage('png'), 'File');
+        this.commandPalette.registerCommand('export-svg', 'Export SVG', null, () => this.app.fileManager.handleExportImage('svg'), 'File');
 
         // Attention / Decay
-        this.commandPalette.registerCommand('toggle-decay', 'Toggle Attention Decay', null, () => this.toggleDecay());
+        this.commandPalette.registerCommand('toggle-decay', 'Toggle Attention Decay', null, () => this.toggleDecay(), 'System');
 
         // Reasoner
-        this.commandPalette.registerCommand('run', 'Run Reasoner', 'Space', () => this.app.toggleReasoner(!this.app.isReasonerRunning));
-        this.commandPalette.registerCommand('step', 'Step Reasoner', 'S', () => this.app.stepReasoner());
+        this.commandPalette.registerCommand('run', 'Run Reasoner', 'Space', () => this.app.toggleReasoner(!this.app.isReasonerRunning), 'System');
+        this.commandPalette.registerCommand('step', 'Step Reasoner', 'S', () => this.app.stepReasoner(), 'System');
 
         // UI
-        this.commandPalette.registerCommand('mode-vis', 'Switch to Visualization Mode', null, () => this.setMode('visualization'));
-        this.commandPalette.registerCommand('mode-ctl', 'Switch to Control Mode', null, () => this.setMode('control'));
+        this.commandPalette.registerCommand('mode-vis', 'Switch to Visualization Mode', null, () => this.setMode('visualization'), 'View');
+        this.commandPalette.registerCommand('mode-ctl', 'Switch to Control Mode', null, () => this.setMode('control'), 'View');
+        this.commandPalette.registerCommand('toggle-focus', 'Toggle Focus Mode', null, () => this.app.toggleFocusMode(), 'View');
+        this.commandPalette.registerCommand('toggle-fullscreen', 'Toggle Fullscreen', null, () => this.app.handleToggleFullscreen(), 'View');
+
+        // Panels
+        const togglePanel = (id) => {
+            this.app.toggleWidget(id);
+        };
+
+        this.commandPalette.registerCommand('toggle-layers', 'Toggle Layers Panel', null, () => togglePanel('layers'), 'View');
+        this.commandPalette.registerCommand('toggle-metrics', 'Toggle Metrics Panel', null, () => togglePanel('metrics'), 'View');
+        this.commandPalette.registerCommand('toggle-log', 'Toggle Log Panel', null, () => togglePanel('log'), 'View');
+        this.commandPalette.registerCommand('toggle-inspector', 'Toggle Inspector Panel', null, () => togglePanel('inspector'), 'View');
+        this.commandPalette.registerCommand('toggle-tasks', 'Toggle Task Browser', null, () => togglePanel('tasks'), 'View');
 
         // Demos
-        this.commandPalette.registerCommand('demos', 'Browse Demo Library', 'D', () => this.showDemoLibrary());
+        this.commandPalette.registerCommand('demos', 'Browse Demo Library', 'D', () => this.showDemoLibrary(), 'Demos');
 
         Object.keys(DEMOS).forEach(name => {
-            this.commandPalette.registerCommand(`demo-${name.toLowerCase().replace(/\s/g, '-')}`, `Load Demo: ${name}`, null, () => this.loadDemo(name));
+            this.commandPalette.registerCommand(`demo-${name.toLowerCase().replace(/\s/g, '-')}`, `Load Demo: ${name}`, null, () => this.loadDemo(name), 'Demos');
         });
     }
 

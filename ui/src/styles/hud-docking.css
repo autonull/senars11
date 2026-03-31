@@ -61,7 +61,7 @@
     border-color: #00ff9d;
     box-shadow: 0 0 12px rgba(0, 255, 157, 0.25);
     background: rgba(5, 25, 20, 0.9);
-    z-index: 15;
+    z-index: 95;
 }
 
 /* Docking Zones */

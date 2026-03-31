@@ -1,4 +1,5 @@
 import { Component } from './Component.js';
+import { FluentUI, div, input, button, span } from '../utils/FluentUI.js';
 import { NarseseHighlighter } from '../utils/NarseseHighlighter.js';
 
 export class LogPanel extends Component {
@@ -21,69 +22,66 @@ export class LogPanel extends Component {
     render() {
         if (!this.container) return;
 
-        this.container.innerHTML = `
-            <div class="hud-panel log-panel-container">
-                <div class="log-header">
-                    <div class="log-controls">
-                        <input type="text" id="log-search" placeholder="Filter..." class="control-input-small">
-                        <div class="log-toggles">
-                            <span class="log-toggle active" data-cat="system" title="System">SYS</span>
-                            <span class="log-toggle active" data-cat="user" title="User">USR</span>
-                            <span class="log-toggle active" data-cat="agent" title="Agent">AGI</span>
-                            <span class="log-toggle active" data-cat="error" title="Errors">ERR</span>
-                        </div>
-                        <div class="log-actions">
-                            <button id="btn-copy-logs" class="btn-icon small-btn" title="Copy to Clipboard">📋</button>
-                            <button id="btn-clear-logs" class="btn-icon small-btn" title="Clear Logs">🗑️</button>
-                        </div>
-                    </div>
-                </div>
-                <div id="log-panel" class="log-area">
-                    <div id="log-content"></div>
-                </div>
-            </div>
-        `;
+        // Clear container
+        this.container.innerHTML = '';
 
-        this._bindEvents();
-    }
+        const panel = div({ class: 'hud-panel log-panel-container' }).mount(this.container);
 
-    _bindEvents() {
+        // Header
+        const header = div({ class: 'log-header' }).mount(panel);
+        const controls = div({ class: 'log-controls' }).mount(header);
+
         // Search
-        const searchInput = this.container.querySelector('#log-search');
-        if (searchInput) {
-            searchInput.oninput = (e) => {
+        input('text', { id: 'log-search', placeholder: 'Filter...', class: 'control-input-small' })
+            .on('input', (e) => {
                 this.filter.search = e.target.value.toLowerCase();
                 this._renderLogs();
-            };
-        }
+            })
+            .mount(controls);
 
         // Toggles
-        this.container.querySelectorAll('.log-toggle').forEach(toggle => {
-            toggle.onclick = (e) => {
-                const cat = e.target.dataset.cat;
-                this.filter.categories[cat] = !this.filter.categories[cat];
-                e.target.classList.toggle('active', this.filter.categories[cat]);
-                this._renderLogs();
-            };
-        });
+        const toggles = div({ class: 'log-toggles' }).mount(controls);
+        const createToggle = (cat, title, label) => {
+            span({ class: 'log-toggle active', title, 'data-cat': cat })
+                .text(label)
+                .on('click', (e) => {
+                    this.filter.categories[cat] = !this.filter.categories[cat];
+                    e.target.classList.toggle('active', this.filter.categories[cat]);
+                    this._renderLogs();
+                })
+                .mount(toggles);
+        };
+
+        createToggle('system', 'System', 'SYS');
+        createToggle('user', 'User', 'USR');
+        createToggle('agent', 'Agent', 'AGI');
+        createToggle('error', 'Errors', 'ERR');
 
         // Actions
-        const copyBtn = this.container.querySelector('#btn-copy-logs');
-        if (copyBtn) {
-            copyBtn.onclick = () => {
-                const text = this.logs.map(l => `[${l.timestamp}] [${l.type.toUpperCase()}] ${l.raw}`).join('\n');
-                navigator.clipboard.writeText(text).then(() => {
-                    const originalText = copyBtn.textContent;
-                    copyBtn.textContent = '✓';
-                    setTimeout(() => copyBtn.textContent = originalText, 1000);
-                });
-            };
-        }
+        const actions = div({ class: 'log-actions' }).mount(controls);
 
-        const clearBtn = this.container.querySelector('#btn-clear-logs');
-        if (clearBtn) {
-            clearBtn.onclick = () => this.clear();
-        }
+        button('📋', { id: 'btn-copy-logs', class: 'btn-icon small-btn', title: 'Copy to Clipboard' })
+            .on('click', (e) => {
+                const text = this.logs.map(l => `[${l.timestamp}] [${l.type.toUpperCase()}] ${l.raw}`).join('\n');
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        const originalText = e.target.textContent;
+                        e.target.textContent = '✓';
+                        setTimeout(() => e.target.textContent = originalText, 1000);
+                    });
+                } else {
+                    console.warn('Clipboard API not available');
+                }
+            })
+            .mount(actions);
+
+        button('🗑️', { id: 'btn-clear-logs', class: 'btn-icon small-btn', title: 'Clear Logs' })
+            .on('click', () => this.clear())
+            .mount(actions);
+
+        // Log Area
+        const logArea = div({ id: 'log-panel', class: 'log-area' }).mount(panel);
+        this.logContent = div({ id: 'log-content' }).mount(logArea).dom;
     }
 
     addLog(message, type = 'info') {
@@ -103,22 +101,20 @@ export class LogPanel extends Component {
     }
 
     _appendLog(entry) {
-        const content = this.container.querySelector('#log-content');
-        if (!content) return;
+        if (!this.logContent) return;
 
         // Check filters
         if (!this._shouldShow(entry)) return;
 
         const el = this._createLogElement(entry);
-        content.appendChild(el);
-        this._scrollToBottom(content.parentNode);
+        this.logContent.appendChild(el);
+        this._scrollToBottom(this.logContent.parentNode);
     }
 
     _renderLogs() {
-        const content = this.container.querySelector('#log-content');
-        if (!content) return;
+        if (!this.logContent) return;
 
-        content.innerHTML = '';
+        this.logContent.innerHTML = '';
         const fragment = document.createDocumentFragment();
 
         this.logs.forEach(entry => {
@@ -127,8 +123,8 @@ export class LogPanel extends Component {
             }
         });
 
-        content.appendChild(fragment);
-        this._scrollToBottom(content.parentNode);
+        this.logContent.appendChild(fragment);
+        this._scrollToBottom(this.logContent.parentNode);
     }
 
     _scrollToBottom(container) {
@@ -153,36 +149,30 @@ export class LogPanel extends Component {
     }
 
     _createLogElement(entry) {
-        const div = document.createElement('div');
-        div.className = `log-entry log-${entry.type}`;
+        // Use FluentUI to create element
+        const entryDiv = div({ class: `log-entry log-${entry.type}` });
 
-        // Highlighting or Escaping
+        // Timestamp
+        span().text(`[${entry.timestamp}] `).mount(entryDiv);
+
+        // Message
         let msg = entry.message;
+        const msgSpan = span();
+
         if (entry.type !== 'error' && (msg.includes('<') || msg.includes('-->') || msg.includes('$') || msg.includes('{'))) {
-             // Highlighter performs its own escaping
-             msg = NarseseHighlighter.highlight(msg);
+             // Highlighter performs its own escaping and returns HTML string
+             msgSpan.html(NarseseHighlighter.highlight(msg));
         } else {
-             // Standard escaping for other messages
-             msg = this._escapeHtml(msg);
+             // Standard text content handles escaping automatically
+             msgSpan.text(msg);
         }
+        msgSpan.mount(entryDiv);
 
-        div.innerHTML = `<span>[${entry.timestamp}]</span> <span>${msg}</span>`;
-        return div;
-    }
-
-    _escapeHtml(text) {
-        if (!text) return '';
-        return text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+        return entryDiv.dom;
     }
 
     clear() {
         this.logs = [];
-        const content = this.container.querySelector('#log-content');
-        if (content) content.innerHTML = '';
+        if (this.logContent) this.logContent.innerHTML = '';
     }
 }
