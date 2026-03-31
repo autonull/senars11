@@ -3,7 +3,7 @@
  * Enables automatic discovery, learning, and composition of skills.
  */
 import { Component } from '../composable/Component.js';
-import { SymbolicTensor, TensorLogicBridge } from '../neurosymbolic/TensorLogicBridge.js';
+import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
 
 const SKILL_DEFAULTS = {
     precondition: null,

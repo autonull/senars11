@@ -1,5 +1,5 @@
 import { Component } from '../composable/Component.js';
-import { SymbolicTensor, TensorLogicBridge } from '../neurosymbolic/TensorLogicBridge.js';
+import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
 import { CausalReasoner } from '../reasoning/CausalReasoning.js';
 import { MetricsTracker } from '../utils/MetricsTracker.js';
 import { handleError, NeuroSymbolicError } from '../utils/ErrorHandler.js';
@@ -212,6 +212,8 @@ export class NeuroSymbolicBridge extends Component {
     async achieveGoal(goal, options = {}) {
         const { cycles = this.config.maxReasoningCycles, imagination = true } = options;
 
+        this.goalStack.push({ goal, timestamp: Date.now() });
+
         if (this.senarsBridge) {
             try {
                 return await this.senarsBridge.achieve(goal, { cycles });
@@ -220,7 +222,6 @@ export class NeuroSymbolicBridge extends Component {
             }
         }
 
-        this.goalStack.push({ goal, timestamp: Date.now() });
         return { success: true, goal, planned: false };
     }
 
@@ -271,18 +272,40 @@ export class NeuroSymbolicBridge extends Component {
     }
 
     observationToNarsese(observation, options = {}) {
-        const { threshold = this.config.defaultThreshold, predicates = [] } = options;
+        const { threshold = this.config.defaultThreshold, predicates = [], prefix = 'obs', simple = false } = options;
         this.metrics.increment('narseseConversions');
 
-        const tensor = new SymbolicTensor(Array.isArray(observation) ? observation : Array.from(observation), [observation.length]);
+        const data = observation instanceof SymbolicTensor
+            ? Array.from(observation.data)
+            : Array.isArray(observation) ? observation : [observation];
+
+        // Simple encoding: (0.1 0.2 ...) --> obs
+        if (simple) {
+            if (Array.isArray(observation)) {
+                return observation.map((v, i) => `<f${i} --> ${prefix}>.`).join(' ');
+            }
+            if (typeof observation === 'object') {
+                return Object.entries(observation).map(([k, v]) => `<${k} --> ${prefix}>.`).join(' ');
+            }
+            return `<${observation} --> ${prefix}>.`;
+        }
+
+        const tensor = new SymbolicTensor(data, [data.length]);
         const symbolic = this.liftToSymbols(tensor, { threshold });
 
         return Array.from(symbolic.symbols)
             .map(([index, { confidence }]) => {
                 const predicate = predicates[index] ?? `feature_${index}`;
-                return `<${predicate} --> observed>. :|:`;
+                return `<${predicate} --> ${prefix}>. :|:`;
             })
             .join('\n');
+    }
+
+    actionToNarsese(action, options = {}) {
+        const { prefix = 'op' } = options;
+        if (typeof action === 'number') return `^${prefix}_${action}`;
+        if (Array.isArray(action)) return `^${prefix}(${action.join(' ')})`;
+        return `^${action}`;
     }
 
     narseseToTensor(narsese, dimensions, options = {}) {

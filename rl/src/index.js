@@ -60,7 +60,7 @@ export * from './composable/CompositionEngine.js';
 export { MetaController, ModificationOperator } from './meta/MetaController.js';
 
 // Neuro-Symbolic Primitives
-export * from './neurosymbolic/TensorLogicBridge.js';
+export { SymbolicTensor, TensorLogicBridge, symbolicTensor, termToTensor } from '@senars/tensor';
 export * from './neurosymbolic/WorldModel.js';
 
 // Attention

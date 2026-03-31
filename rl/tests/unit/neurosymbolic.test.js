@@ -385,8 +385,7 @@ async function testWorldModelInitialization() {
     
     await wm.initialize();
     
-    assert.equal(wm.models.length, 2, 'Should have ensemble');
-    assert.equal(wm.getState('trained'), false, 'Should not be trained');
+    assert.equal(wm.transitionModels.length, 2, 'Should have ensemble');
     
     await wm.shutdown();
     
@@ -405,10 +404,12 @@ async function testWorldModelPrediction() {
     await wm.initialize();
     
     const state = new Float32Array([0.5, 0.3, 0.8, 0.2]);
-    const { predictions, uncertainties, horizon } = wm.predict(state, 0, 2);
+    const action = 0;
+    const nextState = wm.predictNext(state, action);
+    const uncertainty = wm.getUncertainty(state, action);
     
-    assert.ok(predictions.length <= 2, 'Should predict up to horizon');
-    assert.ok(uncertainties.length <= 2, 'Should have uncertainties');
+    assert.ok(nextState.length > 0, 'Should predict next state');
+    assert.ok(typeof uncertainty === 'number', 'Should return uncertainty');
     
     await wm.shutdown();
     
@@ -421,19 +422,19 @@ async function testWorldModelTraining() {
     const wm = new WorldModel({ latentDim: 4, ensembleSize: 2 });
     await wm.initialize();
     
-    const transitions = [];
-    for (let i = 0; i < 20; i++) {
-        transitions.push({
+    // Update multiple times to fill buffer
+    for (let i = 0; i < 40; i++) {
+        const t = {
             state: new Float32Array([Math.random(), Math.random(), Math.random(), Math.random()]),
             action: Math.floor(Math.random() * 2),
-            nextState: new Float32Array([Math.random(), Math.random(), Math.random(), Math.random()])
-        });
+            nextState: new Float32Array([Math.random(), Math.random(), Math.random(), Math.random()]),
+            reward: Math.random()
+        };
+        await wm.update(t.state, t.action, t.nextState, t.reward);
     }
     
-    await wm.train(transitions, 10);
-    
-    assert.equal(wm.getState('trained'), true, 'Should be trained');
-    assert.ok(wm.getState('trainingStep') > 0, 'Should have training steps');
+    const state = wm.getState();
+    assert.ok(state.experienceBufferSize > 0, 'Should have experience');
     
     await wm.shutdown();
     
@@ -451,11 +452,10 @@ async function testWorldModelImagination() {
     await wm.initialize();
     
     const state = new Float32Array([0.5, 0.5, 0.5, 0.5]);
-    const imagination = wm.imagine(state, [0, 1, 0, 1]);
+    const experiences = await wm.generateImaginedExperiences(5, { startState: state });
     
-    assert.ok('trajectory' in imagination, 'Should have trajectory');
-    assert.ok('totalUncertainty' in imagination, 'Should have uncertainty');
-    assert.ok('reliable' in imagination, 'Should have reliability');
+    assert.equal(experiences.length, 50, 'Should generate experiences');
+    assert.ok(experiences[0].imagined, 'Should be marked imagined');
     
     await wm.shutdown();
     

@@ -27,9 +27,9 @@ const TensorWrapper = {
 
     createOp(name, functor) {
         return (...args) => {
-            const unwrappedArgs = args.map(a => this.unwrap(a));
+            const unwrappedArgs = args.map(a => TensorWrapper.unwrap(a));
             const term = { operator: name, components: unwrappedArgs };
-            return this.wrap(functor.evaluate(term, new Map()));
+            return TensorWrapper.wrap(functor.evaluate(term, new Map()));
         };
     },
 
@@ -79,11 +79,11 @@ export function registerTensorPrimitives(metta) {
         return wrap(param);
     });
 
-    reg('&shape', t => createSymbol(`(${unwrap(t).shape.join(' ')})`));
-    reg('&get-data', t => createSymbol(`(${unwrap(t).data.join(' ')})`));
+    reg('&shape', t => createSymbol(`(${TensorWrapper.unwrap(t).shape.join(' ')})`));
+    reg('&get-data', t => createSymbol(`(${TensorWrapper.unwrap(t).data.join(' ')})`));
 
     reg('&argmax', t => {
-        const arr = unwrap(t).data;
+        const arr = TensorWrapper.unwrap(t).data;
         const maxIdx = arr.reduce((maxIdx, val, i) => val > arr[maxIdx] ? i : maxIdx, 0);
         return createSymbol(String(maxIdx));
     });

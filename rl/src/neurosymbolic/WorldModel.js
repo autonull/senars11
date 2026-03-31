@@ -1,5 +1,4 @@
-import { Tensor, TensorFunctor } from '@senars/tensor';
-import { SymbolicTensor, TensorLogicBridge } from './TensorLogicBridge.js';
+import { Tensor, TensorFunctor, SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
 import { Component } from '../composable/Component.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 
@@ -71,6 +70,43 @@ export class SymbolicDifferentiation {
 
     getSymbolicGradient(param) { return this.symbolicGradients.get(param); }
     getGradientGraph() { return new Map(this.gradientGraph); }
+
+    explainGradient(param) {
+        const symbolicGrad = this.symbolicGradients.get(param);
+        if (!symbolicGrad) return { explanation: 'No gradient computed', symbols: [] };
+
+        const symbols = [];
+        symbolicGrad.symbols.forEach((info, key) => {
+            symbols.push({ symbol: info.symbol, confidence: info.confidence });
+        });
+
+        return {
+            explanation: `Gradient influenced by ${symbols.length} symbolic features`,
+            symbols
+        };
+    }
+
+    analyzeGradientFlow() {
+        const nodes = Array.from(this.gradientGraph.values());
+        if (nodes.length === 0) return { totalNodes: 0, avgMagnitude: 0 };
+
+        let totalMag = 0;
+        let count = 0;
+
+        nodes.forEach(node => {
+            const grad = node.grad;
+            if (grad) {
+                for (let i = 0; i < grad.length; i++) totalMag += Math.abs(grad[i]);
+                count += grad.length;
+            }
+        });
+
+        return {
+            totalNodes: this.gradientGraph.size,
+            avgMagnitude: count > 0 ? totalMag / count : 0
+        };
+    }
+
     clear() { this.gradientGraph.clear(); this.symbolicGradients.clear(); }
 }
 
@@ -159,7 +195,7 @@ export class WorldModel extends Component {
     }
 
     encode(state) {
-        const data = Array.isArray(state) ? state : [state];
+        const data = (Array.isArray(state) || ArrayBuffer.isView(state)) ? state : [state];
         const padded = new Float32Array(64);
         data.forEach((v, i) => { if (i < 64) padded[i] = v; });
 

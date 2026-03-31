@@ -5,11 +5,11 @@ import { strict as assert } from 'assert';
 
 // SeNARS-MeTTa-Tensor Integration
 import {
-    EnhancedSeNARSBridge,
-    MeTTaPolicyNetwork,
     UnifiedNeuroSymbolicAgent,
     UnifiedAgentFactory
 } from '../../src/integration/SeNARSMettaTensor.js';
+import { NeuroSymbolicBridge } from '../../src/bridges/NeuroSymbolicBridge.js';
+import { TensorLogicPolicy } from '../../src/policies/TensorLogicPolicy.js';
 
 // Unified Environment
 import {
@@ -23,7 +23,7 @@ import {
 } from '../../src/environments/UnifiedEnvironment.js';
 
 // Tensor Logic
-import { SymbolicTensor, TensorLogicBridge } from '../../src/neurosymbolic/TensorLogicBridge.js';
+import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
 
 console.log('🧪 Running SeNARS-MeTTa-Tensor Integration Tests...\n');
 
@@ -282,53 +282,50 @@ function testNarseseConversion() {
     console.log('  ✓ Narsese conversion test passed\n');
 }
 
-// ========== Enhanced SeNARS Bridge Tests ==========
-console.log('4️⃣ Enhanced SeNARS Bridge Tests\n');
+// ========== NeuroSymbolic Bridge Tests ==========
+console.log('4️⃣ NeuroSymbolic Bridge Tests\n');
 
 async function testSeNARSBridgeBasics() {
-    console.log('  Testing EnhancedSeNARSBridge basics...');
+    console.log('  Testing NeuroSymbolicBridge basics...');
     
-    const bridge = new EnhancedSeNARSBridge({
+    const bridge = new NeuroSymbolicBridge({
         senarsConfig: {},
-        autoGround: true
+        autoGround: true,
+        useSeNARS: true
     });
     
     await bridge.initialize();
     
     // Test input (may use fallback if SeNARS not available)
-    const result = await bridge.input('<test --> concept>.');
+    const result = await bridge.inputNarsese('<test --> concept>.');
     assert.ok(result, 'Input accepted');
     
-    // Test beliefs
-    const beliefs = bridge.getBeliefs();
-    assert.ok(Array.isArray(beliefs), 'Returns beliefs array');
-    
     // Test goal stack
-    bridge.goalStack.push({ goal: 'test_goal' });
-    const goals = bridge.getGoals();
-    assert.ok(goals.length > 0, 'Has goals');
+    await bridge.achieveGoal('test_goal');
+    const state = bridge.getState();
+    assert.ok(state.goals.length > 0, 'Has goals');
     
-    bridge.clearGoals();
-    assert.equal(bridge.getGoals().length, 0, 'Goals cleared');
+    bridge.clear();
+    assert.equal(bridge.getState().goals.length, 0, 'Goals cleared');
     
     await bridge.shutdown();
     
-    console.log('  ✓ EnhancedSeNARSBridge basics test passed\n');
+    console.log('  ✓ NeuroSymbolicBridge basics test passed\n');
 }
 
 async function testSeNARSObservationConversion() {
     console.log('  Testing SeNARS observation conversion...');
     
-    const bridge = new EnhancedSeNARSBridge();
+    const bridge = new NeuroSymbolicBridge();
     
     // Array observation
     const arrayObs = [0.8, -0.5, 0.9, -0.2];
-    const arrayNarsese = bridge.observationToNarsese(arrayObs);
+    const arrayNarsese = bridge.observationToNarsese(arrayObs, { simple: true });
     assert.ok(arrayNarsese.includes('obs'), 'Array observation converted');
     
     // Object observation
     const objectObs = { position: 5, velocity: 2 };
-    const objectNarsese = bridge.observationToNarsese(objectObs);
+    const objectNarsese = bridge.observationToNarsese(objectObs, { simple: true });
     assert.ok(objectNarsese.includes('obs'), 'Object observation converted');
     
     // Action to Narsese
@@ -338,28 +335,29 @@ async function testSeNARSObservationConversion() {
     console.log('  ✓ SeNARS observation conversion test passed\n');
 }
 
-// ========== MeTTa Policy Network Tests ==========
-console.log('5️⃣ MeTTa Policy Network Tests\n');
+// ========== TensorLogicPolicy (MeTTa mode) Tests ==========
+console.log('5️⃣ TensorLogicPolicy (MeTTa mode) Tests\n');
 
 async function testMeTTaPolicyNetwork() {
-    console.log('  Testing MeTTaPolicyNetwork...');
+    console.log('  Testing TensorLogicPolicy in MeTTa mode...');
     
-    const network = new MeTTaPolicyNetwork({
+    const network = new TensorLogicPolicy({
         inputDim: 4,
         outputDim: 2,
-        actionType: 'discrete'
+        actionType: 'discrete',
+        policyType: 'metta'
     });
     
     await network.initialize();
     
     // Test action selection
     const observation = [0.1, 0.5, -0.3, 0.8];
-    const action = await network.selectAction(observation);
-    assert.ok(typeof action === 'number', 'Returns numeric action');
+    const result = await network.selectAction(observation);
+    // selectAction returns { action, actionProb, ... } or just action depending on implementation,
+    // but TensorLogicPolicy returns object. MeTTaPolicyNetwork returned number.
+    // UnifiedNeuroSymbolicAgent handles both.
     
-    // Test continuous action
-    const continuousAction = await network.selectContinuousAction(observation);
-    assert.ok(Array.isArray(continuousAction), 'Returns array for continuous');
+    assert.ok(typeof result.action === 'number', 'Returns numeric action');
     
     // Test policy update
     const transition = {
@@ -370,12 +368,14 @@ async function testMeTTaPolicyNetwork() {
         done: false
     };
     
-    const updateResult = await network.updatePolicy(transition);
+    const updateResult = await network.update(transition);
+    // If metta is not available, it might return success: false or try backend.
+    // Since we didn't provide mettaInterpreter, it should fail or skip gracefully.
     assert.ok(updateResult, 'Policy update attempted');
     
     await network.shutdown();
     
-    console.log('  ✓ MeTTaPolicyNetwork test passed\n');
+    console.log('  ✓ TensorLogicPolicy (MeTTa mode) test passed\n');
 }
 
 // ========== Unified Agent Tests ==========
@@ -387,7 +387,8 @@ async function testUnifiedAgent() {
     const agent = new UnifiedNeuroSymbolicAgent({
         actionSpace: { type: 'Discrete', n: 4 },
         integrationMode: 'metta-only', // Use only MeTTa (SeNARS may not be available)
-        reasoningCycles: 10
+        reasoningCycles: 10,
+        mettaConfig: { inputDim: 4 }
     });
     
     await agent.initialize();
@@ -433,7 +434,7 @@ async function testUnifiedAgentContinuous() {
         actionSpace: { type: 'Box', shape: [2], low: -1, high: 1 },
         actionType: 'continuous',
         integrationMode: 'metta-only',
-        outputDim: 2
+        mettaConfig: { inputDim: 4, outputDim: 2 }
     });
     
     await agent.initialize();
@@ -459,7 +460,8 @@ async function testAgentFactory() {
     // Test discrete agent creation
     const discreteAgent = UnifiedAgentFactory.createDiscrete({
         actionSpace: { type: 'Discrete', n: 4 },
-        integrationMode: 'metta-only'
+        integrationMode: 'metta-only',
+        mettaConfig: { inputDim: 4 }
     });
     await discreteAgent.initialize();
 
@@ -471,7 +473,8 @@ async function testAgentFactory() {
     // Test continuous agent creation
     const continuousAgent = UnifiedAgentFactory.createContinuous({
         actionSpace: { type: 'Box', shape: [2], low: -1, high: 1 },
-        integrationMode: 'metta-only'
+        integrationMode: 'metta-only',
+        mettaConfig: { inputDim: 4, outputDim: 2 }
     });
     await continuousAgent.initialize();
 

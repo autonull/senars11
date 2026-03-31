@@ -1,6 +1,6 @@
 import { Component } from '../composable/Component.js';
 import { StructuredAction, HybridActionSelector } from '../environments/HybridActionSpace.js';
-import { SymbolicTensor, TensorLogicBridge } from '../neurosymbolic/TensorLogicBridge.js';
+import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
 import { Experience } from '../experience/ExperienceSystem.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 
