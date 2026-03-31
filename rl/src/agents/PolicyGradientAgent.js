@@ -1,6 +1,7 @@
 import { RLAgent } from '../core/RLAgent.js';
 import { Tensor } from '@senars/tensor';
 import { mergeConfig } from '../utils/ConfigHelper.js';
+import { PolicyUtils } from '../utils/PolicyUtils.js';
 
 const DEFAULTS = {
     lr: 0.01,
@@ -8,7 +9,7 @@ const DEFAULTS = {
     hiddenSize: 32
 };
 
-const PolicyUtils = {
+const AgentUtils = {
     buildNetwork(obsDim, hiddenSize, outputDim) {
         const w1 = Tensor.zeros([hiddenSize, obsDim]);
         const b1 = Tensor.zeros([hiddenSize]);
@@ -25,17 +26,6 @@ const PolicyUtils = {
         const xCol = x.reshape([x.shape[0], 1]);
         const h = model.w1.matmul(xCol).add(model.b1.reshape([model.b1.shape[0], 1])).relu();
         return model.w2.matmul(h).add(model.b2.reshape([outputDim, 1])).reshape([outputDim]);
-    },
-
-    sampleDiscrete(probsTensor) {
-        const probs = probsTensor.data;
-        const rand = Math.random();
-        let sum = 0;
-        for (let i = 0; i < probs.length; i++) {
-            sum += probs[i];
-            if (rand < sum) return i;
-        }
-        return probs.length - 1;
     },
 
     sampleContinuous(mean, std = 1.0) {
@@ -90,7 +80,7 @@ export class PolicyGradientAgent extends RLAgent {
         const obsDim = this.env.observationSpace.shape[0];
         const actionSpace = this.env.actionSpace;
 
-        this.network = PolicyUtils.buildNetwork(obsDim, this.config.hiddenSize, 
+        this.network = AgentUtils.buildNetwork(obsDim, this.config.hiddenSize,
             actionSpace.type === 'Discrete' ? actionSpace.n : actionSpace.shape[0]
         );
         this.outputDim = this.network.w2.shape[0];
@@ -98,16 +88,16 @@ export class PolicyGradientAgent extends RLAgent {
     }
 
     act(observation) {
-        const logits = PolicyUtils.forward(this.network, observation, this.outputDim);
+        const logits = AgentUtils.forward(this.network, observation, this.outputDim);
 
         if (this.env.actionSpace.type === 'Discrete') {
             const probs = logits.softmax();
-            const action = PolicyUtils.sampleDiscrete(probs);
+            const action = PolicyUtils.sampleCategorical(probs.data);
             this.logProbs.push({ logits, action, type: 'discrete' });
             return action;
         }
 
-        const actionTensor = PolicyUtils.sampleContinuous(logits);
+        const actionTensor = AgentUtils.sampleContinuous(logits);
         this.logProbs.push({ distParams: { mean: logits, std: 1.0 }, action: actionTensor, type: 'continuous' });
         return actionTensor.data;
     }
@@ -122,7 +112,7 @@ export class PolicyGradientAgent extends RLAgent {
     }
 
     _updatePolicy() {
-        const returns = PolicyUtils.computeReturns(this.rewards, this.config.gamma);
+        const returns = AgentUtils.computeReturns(this.rewards, this.config.gamma);
 
         let loss = new Tensor([0], { requiresGrad: true });
 
@@ -131,14 +121,14 @@ export class PolicyGradientAgent extends RLAgent {
             let logProb;
 
             if (item.type === 'discrete') {
-                logProb = PolicyUtils.computeLogProbDiscrete(item.logits, item.action);
+                logProb = AgentUtils.computeLogProbDiscrete(item.logits, item.action);
             } else {
-                logProb = PolicyUtils.computeLogProbContinuous(item.action, item.distParams.mean, item.distParams.std);
+                logProb = AgentUtils.computeLogProbContinuous(item.action, item.distParams.mean, item.distParams.std);
             }
             loss = loss.add(logProb.mul(-R_t));
         });
 
         loss.backward();
-        PolicyUtils.updateParams(this.params, this.config.lr);
+        AgentUtils.updateParams(this.params, this.config.lr);
     }
 }

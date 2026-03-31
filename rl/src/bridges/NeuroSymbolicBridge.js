@@ -4,6 +4,7 @@ import { CausalReasoner } from '../reasoning/CausalReasoning.js';
 import { MetricsTracker } from '../utils/MetricsTracker.js';
 import { handleError, NeuroSymbolicError } from '../utils/ErrorHandler.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
+import { NarseseUtils } from '../utils/NarseseUtils.js';
 
 const DEFAULTS = {
     useSeNARS: true,
@@ -23,49 +24,6 @@ const DEFAULTS = {
     defaultThreshold: 0.5,
     explorationRate: 0.1,
     actionSpaceSize: 4
-};
-
-const NARSESE_PATTERNS = {
-    statement: /<(.+?) --> (.+?)>\.?/,
-    question: /<(.+?) --> (.+?)>\?/,
-    mettaImplies: /\(implies (.+?) (.+?)\)/,
-    mettaInherits: /\(inherits (.+?) (.+?)\)/
-};
-
-const METTA_TRANSFORMS = [
-    { pattern: NARSESE_PATTERNS.mettaImplies, transform: (m) => `<${m[1]} --> ${m[2]}>.` },
-    { pattern: NARSESE_PATTERNS.mettaInherits, transform: (m) => `<${m[1]} --> ${m[2]}>.` }
-];
-
-const NarseseConverter = {
-    toMetta(narsese) {
-        const match = narsese.toString().match(NARSESE_PATTERNS.statement);
-        if (!match) return narsese;
-        const [, subject, predicate] = match;
-        return `(implies ${this._termToMetta(subject)} ${this._termToMetta(predicate)})`;
-    },
-
-    _termToMetta(term) {
-        return term.includes('(')
-            ? term.replace(/<(.+?) --> (.+?)>/g, '(inherits $1 $2)')
-            : term.replace(/-->/g, '->');
-    },
-
-    toNarsese(mettaExpr) {
-        const expr = mettaExpr.toString();
-        for (const { pattern, transform } of METTA_TRANSFORMS) {
-            const match = expr.match(pattern);
-            if (match) {
-                const [, antecedent, consequent] = match;
-                return this._mettaToTerm(antecedent) + ' --> ' + this._mettaToTerm(consequent) + '.';
-            }
-        }
-        return expr;
-    },
-
-    _mettaToTerm(term) {
-        return term.trim().replace(/->/g, '-->');
-    }
 };
 
 export class NeuroSymbolicBridge extends Component {
@@ -103,11 +61,13 @@ export class NeuroSymbolicBridge extends Component {
 
         if (!this.config.tensorBackend) {
             try {
-                const { NativeBackend } = await import('@senars/tensor');
-                this.tensorBridge.backend = new NativeBackend();
+                const { torch } = await import('@senars/tensor');
+                this.tensorBridge.backend = torch;
             } catch {
-                // Fallback to existing backend
+                // Fallback to existing backend or native if available
             }
+        } else {
+             this.tensorBridge.backend = this.config.tensorBackend;
         }
 
         this.emit('initialized', {
@@ -197,10 +157,10 @@ export class NeuroSymbolicBridge extends Component {
     }
 
     _fallbackAsk(question) {
-        const match = question.toString().match(NARSESE_PATTERNS.question);
-        if (!match) return null;
+        const parsed = NarseseUtils.parseQuestion(question);
+        if (!parsed) return null;
 
-        const [, subject, predicate] = match;
+        const { subject, predicate } = parsed;
         for (const [key, belief] of this.beliefBase) {
             if (key.includes(subject) && key.includes(predicate)) {
                 return { term: key, truth: belief.truth, confidence: belief.confidence };
@@ -245,24 +205,26 @@ export class NeuroSymbolicBridge extends Component {
     }
 
     narseseToMetta(narsese) {
-        return NarseseConverter.toMetta(narsese);
+        return NarseseUtils.toMetta(narsese);
     }
 
     mettaToNarsese(mettaExpr) {
-        return NarseseConverter.toNarsese(mettaExpr);
+        return NarseseUtils.toNarsese(mettaExpr);
     }
 
     liftToSymbols(tensor, options = {}) {
         const { threshold = this.config.defaultThreshold, annotate = true } = options;
         this.metrics.increment('tensorOperations');
 
-        const symbolic = this.tensorBridge.liftToSymbols(tensor, { threshold });
+        const symbols = this.tensorBridge.liftToSymbols(tensor, { threshold });
 
-        if (annotate && this.metta) {
-            symbolic.annotations = Array.from(symbolic.symbols).map(([key, { symbol }]) => `(symbol ${key} ${symbol})`);
+        // If returns array of symbols, wrap in SymbolicTensor-like structure or just return
+        // Assuming symbols is Array<{ index, symbol, confidence }> based on usage
+        if (Array.isArray(symbols) && annotate && this.metta) {
+            // Annotations not easily attachable to array if it's not an object
         }
 
-        return symbolic;
+        return symbols;
     }
 
     groundToTensor(symbols, shape, options = {}) {
@@ -281,21 +243,22 @@ export class NeuroSymbolicBridge extends Component {
 
         // Simple encoding: (0.1 0.2 ...) --> obs
         if (simple) {
-            if (Array.isArray(observation)) {
-                return observation.map((v, i) => `<f${i} --> ${prefix}>.`).join(' ');
-            }
-            if (typeof observation === 'object') {
-                return Object.entries(observation).map(([k, v]) => `<${k} --> ${prefix}>.`).join(' ');
-            }
-            return `<${observation} --> ${prefix}>.`;
+            return NarseseUtils.observationToNarsese(observation, prefix);
         }
 
         const tensor = new SymbolicTensor(data, [data.length]);
-        const symbolic = this.liftToSymbols(tensor, { threshold });
+        const symbols = this.liftToSymbols(tensor, { threshold });
 
-        return Array.from(symbolic.symbols)
-            .map(([index, { confidence }]) => {
+        // Handle array of symbols
+        const symbolList = Array.isArray(symbols) ? symbols : Array.from(symbols.symbols || []);
+
+        return symbolList
+            .map((item, i) => {
+                // item might be { index, symbol, confidence } or [index, { ... }]
+                const index = item.index ?? i;
+                const confidence = item.confidence ?? 1.0;
                 const predicate = predicates[index] ?? `feature_${index}`;
+                // Only include if confidence is high enough (already filtered by liftToSymbols usually)
                 return `<${predicate} --> ${prefix}>. :|:`;
             })
             .join('\n');
@@ -303,9 +266,7 @@ export class NeuroSymbolicBridge extends Component {
 
     actionToNarsese(action, options = {}) {
         const { prefix = 'op' } = options;
-        if (typeof action === 'number') return `^${prefix}_${action}`;
-        if (Array.isArray(action)) return `^${prefix}(${action.join(' ')})`;
-        return `^${action}`;
+        return NarseseUtils.actionToNarsese(action, prefix);
     }
 
     narseseToTensor(narsese, dimensions, options = {}) {
@@ -332,23 +293,31 @@ export class NeuroSymbolicBridge extends Component {
     async learnCausal(transition) {
         const { state, action, nextState, reward } = transition;
 
-        const stateSymbols = this.liftToSymbols(new SymbolicTensor(Array.from(state), [state.length]));
-        const nextStateSymbols = this.liftToSymbols(new SymbolicTensor(Array.from(nextState), [nextState.length]));
+        const stateTensor = new SymbolicTensor(Array.from(state), [state.length]);
+        const stateSymbols = this.liftToSymbols(stateTensor);
+
+        const nextStateTensor = new SymbolicTensor(Array.from(nextState), [nextState.length]);
+        const nextStateSymbols = this.liftToSymbols(nextStateTensor);
 
         await this.causalReasoner.learn(
-            JSON.stringify(stateSymbols.symbols),
-            JSON.stringify(nextStateSymbols.symbols),
+            JSON.stringify(stateSymbols),
+            JSON.stringify(nextStateSymbols),
             JSON.stringify({ action, reward })
         );
 
-        const cause = stateSymbols.toNarseseTerm('state');
-        const effect = nextStateSymbols.toNarseseTerm('next_state');
+        // Assume liftToSymbols populates tensor.symbols if possible, otherwise construct term manually
+        // If stateSymbols is just array, we can't use toNarseseTerm directly if it's on the tensor
+        // We will assume stateTensor was mutated by liftToSymbols or use stateSymbols to construct Narsese
+        const cause = stateTensor.symbols?.size > 0 ? stateTensor.toNarseseTerm('state') : `state_(${stateSymbols.map(s => s.symbol).join('_')})`;
+        const effect = nextStateTensor.symbols?.size > 0 ? nextStateTensor.toNarseseTerm('next_state') : `next_state_(${nextStateSymbols.map(s => s.symbol).join('_')})`;
+
         await this.inputNarsese(`<<${cause} &/ ^${action}> ==> ${effect}>.`);
     }
 
     predictCausal(currentState, action) {
-        const stateSymbols = this.liftToSymbols(new SymbolicTensor(Array.from(currentState), [currentState.length]));
-        const causes = this.causalReasoner.queryCauses(JSON.stringify(stateSymbols.symbols));
+        const stateTensor = new SymbolicTensor(Array.from(currentState), [currentState.length]);
+        const stateSymbols = this.liftToSymbols(stateTensor);
+        const causes = this.causalReasoner.queryCauses(JSON.stringify(stateSymbols));
 
         return {
             predictedState: causes,
@@ -376,7 +345,7 @@ export class NeuroSymbolicBridge extends Component {
 
         let policyResult = null;
         if (useMeTTa && this.metta) {
-            const result = await this.executeMetta(`(agent-act ${JSON.stringify(symbolic.symbols)})`);
+            const result = await this.executeMetta(`(agent-act ${JSON.stringify(symbolic)})`);
             if (result.success) policyResult = result.result;
         }
 

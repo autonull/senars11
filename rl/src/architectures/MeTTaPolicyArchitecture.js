@@ -1,6 +1,8 @@
 import { Architecture } from '../core/Architecture.js';
 import { MeTTaInterpreter } from '@senars/metta';
 import { registerTensorPrimitives } from '../core/TensorPrimitives.js';
+import { NarseseUtils } from '../utils/NarseseUtils.js';
+import { PolicyUtils } from '../utils/PolicyUtils.js';
 import fs from 'fs';
 
 const METTA_POLICY_DEFAULTS = {
@@ -34,7 +36,7 @@ export class MeTTaPolicyArchitecture extends Architecture {
     async act(observation, goal) {
         if (!this.initialized) await this.initialize();
 
-        const obsStr = `(${observation.join(' ')})`;
+        const obsStr = NarseseUtils.valueToMetta(observation);
         const result = this.metta.run(`! (get-action ${obsStr})`);
 
         if (result?.length > 0) {
@@ -48,12 +50,12 @@ export class MeTTaPolicyArchitecture extends Architecture {
     async learn(observation, action, reward, nextObservation, done) {
         if (!this.initialized) await this.initialize();
 
-        const obsStr = `(${observation.join(' ')})`;
+        const obsStr = NarseseUtils.valueToMetta(observation);
         const target = [0, 0];
         if (typeof action === 'number' && action < target.length) {
             target[action] = reward;
         }
-        const targetStr = `(${target.join(' ')})`;
+        const targetStr = NarseseUtils.valueToMetta(target);
         this.metta.run(`! (update-policy ${obsStr} ${targetStr})`);
     }
 }

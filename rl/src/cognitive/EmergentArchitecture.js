@@ -1,7 +1,5 @@
 import { Component } from '../composable/Component.js';
-import { StructuredAction, HybridActionSelector } from '../environments/HybridActionSpace.js';
 import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
-import { Experience } from '../experience/ExperienceSystem.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const DEFAULTS = {
@@ -101,15 +99,27 @@ export class ReasoningPrimitive extends CognitivePrimitive {
 
     _updateBeliefs(symbols) {
         const now = Date.now();
-        symbols.forEach((value, key) => {
-            const existing = this.beliefs.get(key);
-            if (existing) {
-                existing.confidence = (existing.confidence + value.confidence) / 2;
-                existing.timestamp = now;
-            } else {
-                this.beliefs.set(key, { ...value, timestamp: now });
-            }
-        });
+        if (Array.isArray(symbols)) {
+            symbols.forEach(s => {
+                const key = s.symbol;
+                const value = { confidence: s.confidence, value: 1.0 };
+                this._updateSingleBelief(key, value, now);
+            });
+        } else if (symbols instanceof Map) {
+            symbols.forEach((value, key) => {
+                this._updateSingleBelief(key, value, now);
+            });
+        }
+    }
+
+    _updateSingleBelief(key, value, now) {
+        const existing = this.beliefs.get(key);
+        if (existing) {
+            existing.confidence = (existing.confidence + value.confidence) / 2;
+            existing.timestamp = now;
+        } else {
+            this.beliefs.set(key, { ...value, timestamp: now });
+        }
     }
 
     async _performInference() {
@@ -188,6 +198,9 @@ export class ActionPrimitive extends CognitivePrimitive {
         return Math.floor(Math.random() * n);
     }
 }
+
+// Alias for compatibility
+export const ActionSelectionPrimitive = ActionPrimitive;
 
 export class EmergentArchitecture extends Component {
     constructor(config = {}) {

@@ -5,6 +5,7 @@ import { Experience } from '../experience/ExperienceSystem.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 import { NeuroSymbolicBridge } from '../bridges/NeuroSymbolicBridge.js';
 import { TensorLogicPolicy } from '../policies/TensorLogicPolicy.js';
+import { NarseseUtils } from '../utils/NarseseUtils.js';
 
 const AGENT_DEFAULTS = {
     senarsConfig: {},
@@ -19,46 +20,6 @@ const AGENT_DEFAULTS = {
     actionHistoryLimit: 1000,
     maxCausalNodes: 100,
     minCausalStrength: 0.1
-};
-
-const NarseseUtils = {
-    observationToNarsese(observation, prefix = 'obs') {
-        if (Array.isArray(observation)) {
-            return observation.map((v, i) => `<f${i} --> ${prefix}>.`).join(' ');
-        }
-        if (typeof observation === 'object') {
-            return Object.entries(observation).map(([k, v]) => `<${k} --> ${prefix}>.`).join(' ');
-        }
-        return `<${observation} --> ${prefix}>.`;
-    },
-
-    actionToNarsese(action, prefix = 'op') {
-        if (typeof action === 'number') return `^${prefix}_${action}`;
-        if (Array.isArray(action)) return `^${prefix}(${action.join(' ')})`;
-        return `^${action}`;
-    },
-
-    goalToNarsese(goal) {
-        if (typeof goal === 'string') return `${goal}!`;
-        if (typeof goal === 'object') {
-            const terms = Object.entries(goal).map(([k, v]) => `${k}_${v}`).join(' ');
-            return `<(*, ${terms}) --> goal>!`;
-        }
-        return `${goal}!`;
-    },
-
-    parseOperation(operation) {
-        const opStr = operation.toString();
-        const match = opStr.match(/\^op_?(\d+|\(.*?\))/);
-        if (match) {
-            const actionStr = match[1];
-            if (actionStr.startsWith('(')) {
-                return actionStr.slice(1, -1).split(/\s+/).map(Number);
-            }
-            return parseInt(actionStr);
-        }
-        return null;
-    }
 };
 
 const formatObservation = (observation) => {
@@ -159,9 +120,6 @@ export class UnifiedNeuroSymbolicAgent extends Component {
         const obsNarsese = this.senarsBridge.observationToNarsese(observation, { simple: true });
         await this.senarsBridge.inputNarsese(obsNarsese);
 
-        // NeuroSymbolicBridge doesn't expose runCycles directly if using SeNARS, but we can assume input triggers cycles
-        // or check if we need to call something specific. SeNARS usually runs on input.
-        // If explicit cycle running is needed:
         if (this.senarsBridge.senarsBridge) {
              await this.senarsBridge.senarsBridge.runCycles(this.config.reasoningCycles);
         }

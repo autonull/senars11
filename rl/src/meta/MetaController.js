@@ -142,7 +142,7 @@ export class MetaController extends Component {
         if (!mettaInterpreter && this.config.useMettaRepresentation) {
             try {
                 // Dynamically import MeTTa interpreter if available
-                const { MeTTaInterpreter } = await import('@senars/metta/src/MeTTaInterpreter.js');
+                const { MeTTaInterpreter } = await import('@senars/metta');
                 mettaInterpreter = new MeTTaInterpreter();
             } catch (e) {
                 console.warn('MeTTa Interpreter not available, running without MeTTa support.', e);
@@ -221,7 +221,7 @@ export class MetaController extends Component {
             }
 
             // Execute optimization
-            const { grounded, exp, sym } = await import('@senars/metta/src/kernel/Term.js');
+            const { grounded, exp, sym } = await import('@senars/metta');
             const controllerAtom = grounded(this);
             const expr = exp(sym('optimize-hyperparameters'), [controllerAtom]);
 
@@ -313,7 +313,7 @@ export class MetaController extends Component {
             }
 
             // Execute the strategy using reflection
-            const { grounded, exp, sym } = await import('@senars/metta/src/kernel/Term.js');
+            const { grounded, exp, sym } = await import('@senars/metta');
 
             // Pass the controller as a grounded atom
             const controllerAtom = grounded(this);

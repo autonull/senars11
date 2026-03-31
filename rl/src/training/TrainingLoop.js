@@ -8,6 +8,7 @@ import { CausalReasoner, CausalGraph } from '../reasoning/CausalReasoning.js';
 import { ExperienceBuffer } from '../experience/ExperienceBuffer.js';
 import { MetaController } from '../meta/MetaController.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
+import { NarseseUtils } from '../utils/NarseseUtils.js';
 
 const DEFAULTS = {
     episodes: 1000,
@@ -151,7 +152,11 @@ export class TrainingLoop extends Component {
             }
 
             if (this.causalReasoner) {
-                await this.causalReasoner.learn(JSON.stringify(state), JSON.stringify(nextState), { action, reward });
+                await this.causalReasoner.learn(
+                    NarseseUtils.valueToMetta(state),
+                    NarseseUtils.valueToMetta(nextState),
+                    { action, reward }
+                );
             }
 
             totalReward += reward;

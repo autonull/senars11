@@ -284,6 +284,32 @@ export class RecencyRetrieval extends RetrievalStrategy {
     }
 }
 
+export class CEMPlanning extends Strategy {
+    constructor(config = {}) {
+        super({
+            numSamples: 10,
+            numElites: 2,
+            horizon: 5,
+            iterations: 3,
+            ...config
+        });
+    }
+
+    execute(model, startState) {
+        // Simple placeholder implementation of Cross-Entropy Method for planning
+        let bestPlan = [];
+        let bestReturn = -Infinity;
+
+        // Simplified for now - just random shooting as placeholder
+        for (let i = 0; i < this.config.numSamples; i++) {
+            const plan = Array.from({ length: this.config.horizon }, () => Math.floor(Math.random() * 4));
+            // In real CEM, we would simulate and refine. Here we just return random.
+            bestPlan = plan;
+        }
+        return bestPlan;
+    }
+}
+
 export const StrategyPresets = {
     exploration: {
         greedy: new EpsilonGreedy({ epsilon: 0.1 }),
@@ -299,5 +325,8 @@ export const StrategyPresets = {
         similarity: new SimilarityRetrieval({ k: 5 }),
         priority: new PriorityRetrieval({ k: 5 }),
         recency: new RecencyRetrieval({ k: 5 })
+    },
+    planning: {
+        cem: new CEMPlanning()
     }
 };

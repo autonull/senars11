@@ -1,6 +1,6 @@
 
 import { SeNARS } from '@senars/core';
-import { SeNARSBridge as MettaBridge } from '@senars/metta';
+import { SeNARSBridge as MettaToSeNARSBridge } from '@senars/metta';
 
 const BRIDGE_DEFAULTS = {
     cyclesPerStep: 1,
@@ -25,8 +25,8 @@ export class SeNARSBridge {
 
         await this.senars.start();
 
-        if (this.agent?.metta && MettaBridge) {
-            this.mettaBridge = new MettaBridge(this.senars.nar, this.agent.metta);
+        if (this.agent?.metta && MettaToSeNARSBridge) {
+            this.mettaBridge = new MettaToSeNARSBridge(this.senars.nar, this.agent.metta);
             if (this.agent.metta.ground) {
                 this.mettaBridge.registerPrimitives(this.agent.metta.ground);
             }

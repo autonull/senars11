@@ -2,15 +2,31 @@
 ;; Adjusts hyperparameters based on performance metrics
 
 (= (optimize-hyperparameters $controller)
-    (let (
-        ($metrics (&js-get $controller "metrics"))
-        ($success (&js-unwrap (&js-get $metrics "modificationsSuccessful")))
-        ($total (&js-unwrap (&js-get $metrics "modificationsApplied")))
-        ($config (&js-get $controller "config"))
-        ($dummy (&js-call (&js-global "console") "log" "METRICS IN METTA:" $success $total))
+    (process-metrics
+        (&js-get $controller "metrics")
+        (&js-get $controller "config")
     )
+)
+
+(= (process-metrics $metrics $config)
+    (process-values
+        (&js-unwrap (&js-get $metrics "modificationsSuccessful"))
+        (&js-unwrap (&js-get $metrics "modificationsApplied"))
+        $config
+    )
+)
+
+(= (process-values $success $total $config)
+    (log-and-check
+        (&js-call (&js-global "console") "log" "METRICS IN METTA:" $success $total)
+        $success
+        $total
+        $config
+    )
+)
+
+(= (log-and-check $dummy $success $total $config)
     (check-total $total $success $config)
-    )
 )
 
 (= (check-total $total $success $config)
@@ -21,11 +37,7 @@
 )
 
 (= (check-success-rate $success $total $config)
-    (let (
-        ($rate (/ $success $total))
-    )
-    (check-rate-low $rate $config)
-    )
+    (check-rate-low (/ $success $total) $config)
 )
 
 (= (check-rate-low $rate $config)
@@ -43,23 +55,53 @@
 )
 
 (= (increase-exploration $config)
-    (let (
-        ($current (&js-unwrap (&js-get $config "explorationRate")))
-        ($new (+ $current 0.05))
-        ($dummy (&js-set $config "explorationRate" $new))
-    )
-    (format-log "Increased exploration to " $new)
+    (do-increase
+        (&js-unwrap (&js-get $config "explorationRate"))
+        $config
     )
 )
 
+(= (do-increase $current $config)
+    (apply-increase
+        (+ $current 0.05)
+        $config
+    )
+)
+
+(= (apply-increase $new $config)
+    (log-increase
+        (&js-set $config "explorationRate" $new)
+        $new
+    )
+)
+
+(= (log-increase $dummy $new)
+    (format-log "Increased exploration to " $new)
+)
+
 (= (decrease-exploration $config)
-    (let (
-        ($current (&js-unwrap (&js-get $config "explorationRate")))
-        ($new (- $current 0.05))
-        ($dummy (&js-set $config "explorationRate" $new))
+    (do-decrease
+        (&js-unwrap (&js-get $config "explorationRate"))
+        $config
     )
+)
+
+(= (do-decrease $current $config)
+    (apply-decrease
+        (- $current 0.05)
+        $config
+    )
+)
+
+(= (apply-decrease $new $config)
+    (log-decrease
+        (&js-set $config "explorationRate" $new)
+        $new
+    )
+)
+
+(= (log-decrease $dummy $new)
     (format-log "Decreased exploration to " $new)
-    )
 )
 
 (= (format-log $msg $val)

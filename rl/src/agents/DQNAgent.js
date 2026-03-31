@@ -1,6 +1,7 @@
 import { RLAgent } from '../core/RLAgent.js';
 import { ExperienceBuffer, CausalExperience } from '../experience/ExperienceBuffer.js';
 import { Tensor, AdamOptimizer, LossFunctor } from '@senars/tensor';
+import { PolicyUtils } from '../utils/PolicyUtils.js';
 
 const DQN_DEFAULTS = {
     gamma: 0.99,
@@ -76,8 +77,7 @@ export class DQNAgent extends RLAgent {
         }
 
         const qValues = this._forward(this.qNet, new Tensor(observation));
-        const data = qValues.data;
-        return data.reduce((maxIdx, val, i) => val > data[maxIdx] ? i : maxIdx, 0);
+        return PolicyUtils.argmax(qValues.data);
     }
 
     async learn(obs, action, reward, nextObs, done) {
