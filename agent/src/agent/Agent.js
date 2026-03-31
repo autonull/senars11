@@ -107,16 +107,13 @@ export class Agent extends NAR {
             }
         };
 
-        // Prefer registry commands over builtins if strict match?
-        // But here builtins check comes first.
-        // 'go' is still builtin for continuous run without args.
-        // 'run' is now free to be handled by registry.
-
-        if (builtins[command]) return builtins[command]();
+        if (builtins[command]) {
+            return builtins[command]();
+        }
 
         if (this.commandRegistry.get(command)) {
             const result = await this.commandRegistry.execute(command, this, ...args);
-            this.emit(`command.${command} `, {command, args, result});
+            this.emit(`command.${command} `, { command, args, result });
             return result;
         }
 
@@ -152,16 +149,14 @@ export class Agent extends NAR {
     }
 
     async startAutoStep(interval = 10) {
-        if (this.runState.isRunning) {
-            this._stopRun();
-        }
+        if (this.runState.isRunning) this._stopRun();
 
         this.runState.isRunning = true;
-        this.emit(AGENT_EVENTS.NAR_CYCLE_START, {reason: 'auto-step'});
+        this.emit(AGENT_EVENTS.NAR_CYCLE_START, { reason: 'auto-step' });
 
         if (!this.displaySettings.quiet && !this.traceEnabled) {
             this.traceEnabled = true;
-            this.emit(AGENT_EVENTS.NAR_TRACE_ENABLE, {reason: 'auto-step session'});
+            this.emit(AGENT_EVENTS.NAR_TRACE_ENABLE, { reason: 'auto-step session' });
         }
 
         const runLoop = async () => {
@@ -169,21 +164,18 @@ export class Agent extends NAR {
 
             try {
                 await this.step();
+                if (this.runState.isRunning) {
+                    this.runState.intervalId = setTimeout(runLoop, interval);
+                }
             } catch (error) {
                 console.error(`❌ Error during run: ${error.message} `);
                 this._stopRun();
-                return;
-            }
-
-            if (this.runState.isRunning) {
-                this.runState.intervalId = setTimeout(runLoop, interval);
             }
         };
 
-        // Start the loop
         runLoop();
 
-        this.emit(AGENT_EVENTS.NAR_CYCLE_RUNNING, {interval});
+        this.emit(AGENT_EVENTS.NAR_CYCLE_RUNNING, { interval });
         return `🏃 Auto - stepping every ${interval}ms... Use "/stop" or input to stop.`;
     }
 

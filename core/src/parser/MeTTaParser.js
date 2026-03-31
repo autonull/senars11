@@ -116,25 +116,18 @@ export class MeTTaParser extends BaseParser {
     _parseExpr() {
         if (this._isAtEnd()) return null;
 
-        const token = this._peek();
+        const { type } = this._peek();
 
-        switch (token.type) {
-            case TokenType.LPAREN:
-                return this._parseList();
-            case TokenType.LBRACKET:
-                return this._parseBracketList();
-            case TokenType.LBRACE:
-                return this._parseBraceSet();
-            case TokenType.SYMBOL:
-            case TokenType.VARIABLE:
-            case TokenType.STRING:
-            case TokenType.NUMBER:
-            case TokenType.GROUNDED:
-                return this._parseAtom();
-            default:
-                this._advance(); // Skip unknown token
-                return null;
+        if (type === TokenType.LPAREN) return this._parseList();
+        if (type === TokenType.LBRACKET) return this._parseBracketList();
+        if (type === TokenType.LBRACE) return this._parseBraceSet();
+
+        if ([TokenType.SYMBOL, TokenType.VARIABLE, TokenType.STRING, TokenType.NUMBER, TokenType.GROUNDED].includes(type)) {
+            return this._parseAtom();
         }
+
+        this._advance(); // Skip unknown token
+        return null;
     }
 
     _parseList() {
@@ -196,18 +189,15 @@ export class MeTTaParser extends BaseParser {
     _toTerm(expr) {
         if (!expr) return null;
 
-        switch (expr.type) {
-            case 'atom':
-                return this._atomToTerm(expr);
-            case 'list':
-                return this._listToTerm(expr.elements);
-            case 'bracket-list':
-                return this._bracketListToTerm(expr.elements);
-            case 'set':
-                return this._setToTerm(expr.elements);
-            default:
-                return null;
-        }
+        const converters = {
+            'atom': this._atomToTerm,
+            'list': (e) => this._listToTerm(e.elements),
+            'bracket-list': (e) => this._bracketListToTerm(e.elements),
+            'set': (e) => this._setToTerm(e.elements)
+        };
+
+        const converter = converters[expr.type];
+        return converter ? converter.call(this, expr) : null;
     }
 
     _atomToTerm(atom) {

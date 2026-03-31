@@ -14,17 +14,9 @@ export class NALRule extends Rule {
     /**
      * Unify two terms or check equality if unifier is not available.
      * @protected
-     * @param {Term} t1
-     * @param {Term} t2
-     * @param {Object} context
-     * @returns {{success: boolean, substitution: Object}}
      */
     unify(t1, t2, context) {
-        const unifier = context?.unifier;
-        if (unifier) {
-            return unifier.unify(t1, t2);
-        }
-        return {
+        return context?.unifier?.unify(t1, t2) ?? {
             success: t1?.equals?.(t2) ?? false,
             substitution: {}
         };
@@ -33,17 +25,12 @@ export class NALRule extends Rule {
     /**
      * Apply substitution to a term if unifier is available.
      * @protected
-     * @param {Term} term
-     * @param {Object} substitution
-     * @param {Object} context
-     * @returns {Term}
      */
     applySubstitution(term, substitution, context) {
-        const unifier = context?.unifier;
-        if (unifier && substitution && Object.keys(substitution).length > 0) {
-            return unifier.applySubstitution(term, substitution);
+        if (!context?.unifier || !substitution || Object.keys(substitution).length === 0) {
+            return term;
         }
-        return term;
+        return context.unifier.applySubstitution(term, substitution);
     }
 
     /**

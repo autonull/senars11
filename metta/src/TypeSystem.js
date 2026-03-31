@@ -51,17 +51,14 @@ export class TypeSystem {
     inferType(term, context = {}) {
         if (!term) return this.freshTypeVar();
 
-        // Handle atomic terms
-        if (term.type === 'atom') {
-            return this._inferAtomType(term, context);
+        switch (term.type) {
+            case 'atom':
+                return this._inferAtomType(term, context);
+            case 'compound':
+                return term.operator ? this._inferCompoundType(term, context) : this.freshTypeVar();
+            default:
+                return this.freshTypeVar();
         }
-
-        // Handle compound terms (expressions)
-        if (term.type === 'compound' && term.operator) {
-            return this._inferCompoundType(term, context);
-        }
-
-        return this.freshTypeVar();
     }
 
     /**
@@ -197,20 +194,19 @@ export class TypeSystem {
      * Generate type constraints for a term
      */
     generateConstraints(term, context = {}) {
-        const constraints = [];
-        if (term.type === 'compound' && term.operator) {
-            const funcType = this.inferType(term.operator, context);
-            const resultType = this.freshTypeVar();
-
-            term.components.forEach(arg => {
-                constraints.push({
-                    type1: funcType,
-                    type2: TypeConstructors.Arrow(this.inferType(arg, context), resultType)
-                });
-            });
-
-            constraints.push({ type1: this.inferType(term, context), type2: resultType });
+        if (term.type !== 'compound' || !term.operator) {
+            return [];
         }
+
+        const funcType = this.inferType(term.operator, context);
+        const resultType = this.freshTypeVar();
+
+        const constraints = term.components.map(arg => ({
+            type1: funcType,
+            type2: TypeConstructors.Arrow(this.inferType(arg, context), resultType)
+        }));
+
+        constraints.push({ type1: this.inferType(term, context), type2: resultType });
         return constraints;
     }
 

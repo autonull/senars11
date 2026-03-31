@@ -8,42 +8,32 @@ class ForgetPolicy {
 
 class PriorityForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData) {
-        let lowestPriorityItem = null;
-        let lowestPriority = Infinity;
-
-        for (const [item, priority] of itemData.entries()) {
-            if (priority < lowestPriority) {
-                lowestPriority = priority;
-                lowestPriorityItem = item;
-            }
+        let min = Infinity, minItem = null;
+        for (const [item, p] of itemData) {
+            if (p < min) { min = p; minItem = item; }
         }
-        return lowestPriorityItem;
+        return minItem;
     }
 
     orderItems(items, itemData) {
         return [...itemData.entries()]
-            .sort((a, b) => b[1] - a[1])
+            .sort(([, a], [, b]) => b - a)
             .map(([item]) => item);
     }
 }
 
 class LRUForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData, insertionOrder, accessTimes) {
-        let leastRecentItem = null;
-        let leastRecentTime = Infinity;
-
-        for (const [item, accessTime] of accessTimes.entries()) {
-            if (accessTime < leastRecentTime) {
-                leastRecentTime = accessTime;
-                leastRecentItem = item;
-            }
+        let min = Infinity, minItem = null;
+        for (const [item, t] of accessTimes) {
+            if (t < min) { min = t; minItem = item; }
         }
-        return leastRecentItem;
+        return minItem;
     }
 
     orderItems(items, itemData, insertionOrder, accessTimes) {
         return [...accessTimes.entries()]
-            .sort((a, b) => b[1] - a[1])
+            .sort(([, a], [, b]) => b - a)
             .filter(([item]) => items.has(item))
             .map(([item]) => item);
     }
@@ -51,12 +41,7 @@ class LRUForgetPolicy extends ForgetPolicy {
 
 class FIFOForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData, insertionOrder) {
-        for (const item of insertionOrder) {
-            if (items.has(item)) {
-                return item;
-            }
-        }
-        return null;
+        return insertionOrder.find(item => items.has(item)) || null;
     }
 
     orderItems(items, itemData, insertionOrder) {
@@ -66,20 +51,17 @@ class FIFOForgetPolicy extends ForgetPolicy {
 
 class RandomForgetPolicy extends ForgetPolicy {
     selectForRemoval(items) {
-        const itemArray = [...items.keys()];
-        if (itemArray.length === 0) return null;
-
-        const randomIndex = Math.floor(Math.random() * itemArray.length);
-        return itemArray[randomIndex];
+        const arr = [...items.keys()];
+        return arr.length ? arr[Math.floor(Math.random() * arr.length)] : null;
     }
 
     orderItems(items) {
-        const itemArray = [...items.keys()];
-        for (let i = itemArray.length - 1; i > 0; i--) {
+        const arr = [...items.keys()];
+        for (let i = arr.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [itemArray[i], itemArray[j]] = [itemArray[j], itemArray[i]];
+            [arr[i], arr[j]] = [arr[j], arr[i]];
         }
-        return itemArray;
+        return arr;
     }
 }
 

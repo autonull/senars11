@@ -7,27 +7,30 @@ import { Unify } from '../kernel/Unify.js';
 import { step, reduce, reduceND, reduceNDGenerator } from '../kernel/Reduce.js';
 
 export function registerMinimalOps(interpreter) {
-    const { sym, exp, isExpression } = Term;
     const reg = (n, fn, opts) => interpreter.ground.register(n, fn, opts);
 
-    // Register minimal core operations
-    reg('eval', createEvalOp(interpreter), { lazy: true });
-    reg('chain', createChainOp(interpreter), { lazy: true });
-    reg('unify', createUnifyOp(interpreter), { lazy: true });
-    reg('function', createFunctionOp(interpreter), { lazy: true });
-    reg('return', createReturnOp(interpreter), { lazy: true });
+    const ops = {
+        'eval': createEvalOp,
+        'chain': createChainOp,
+        'unify': createUnifyOp,
+        'function': createFunctionOp,
+        'return': createReturnOp,
+        'collapse': createCollapseOp,
+        'superpose': createSuperposeOp,
+        'superpose-weighted': createSuperposeWeightedOp,
+        'collapse-n': createCollapseNOp,
+        'context-space': createContextSpaceOp,
+        'noeval': createNoEvalOp,
+        'bind!': createBindOp
+    };
+
+    for (const [name, factory] of Object.entries(ops)) {
+        reg(name, factory(interpreter), { lazy: true });
+    }
+
+    // Async ops
     reg('import!', createImportOp(interpreter), { lazy: true, async: true });
     reg('include!', createIncludeOp(interpreter), { lazy: true, async: true });
-    reg('bind!', createBindOp(interpreter), { lazy: true });
-
-    // Updated/New ops
-    reg('collapse', createCollapseOp(interpreter), { lazy: true });
-    reg('superpose', createSuperposeOp(interpreter), { lazy: true });
-    reg('superpose-weighted', createSuperposeWeightedOp(interpreter), { lazy: true });
-    reg('collapse-n', createCollapseNOp(interpreter), { lazy: true });
-
-    reg('context-space', createContextSpaceOp(interpreter), { lazy: true });
-    reg('noeval', createNoEvalOp(interpreter), { lazy: true });
 }
 
 /**
@@ -73,17 +76,14 @@ function createFunctionOp(interpreter) {
         const limit = interpreter.config.maxReductionSteps || 1000;
 
         for (let i = 0; i < limit; i++) {
-            const res = step(curr, interpreter.space, interpreter.ground, limit, interpreter.memoCache);
-            const red = res.reduced;
+            const { reduced, applied } = step(curr, interpreter.space, interpreter.ground, limit, interpreter.memoCache);
 
-            if (isExpression(red) && red.operator?.name === 'return') {
-                return red.components[0] || sym('()');
+            if (isExpression(reduced) && reduced.operator?.name === 'return') {
+                return reduced.components[0] || sym('()');
             }
 
-            if (red === curr || red.equals?.(curr)) break;
-            if (!res.applied) break;
-
-            curr = red;
+            if (!applied || reduced === curr || reduced.equals?.(curr)) break;
+            curr = reduced;
         }
 
         return exp(sym('Error'), [body, sym('NoReturn')]);

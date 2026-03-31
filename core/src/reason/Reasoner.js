@@ -156,39 +156,33 @@ export class Reasoner extends EventEmitter {
         for (const rule of candidateRules) {
             if (Date.now() - startTime > maxTimeMs) break;
 
-            if (isSynchronousRule(rule)) {
-                const derivedTasks = this.ruleProcessor.processSyncRule(rule, primaryPremise, secondaryPremise);
-                for (const task of derivedTasks) {
-                    const processedResult = this._processDerivation(task, suppressEvents);
-                    if (processedResult) results.push(processedResult);
-                }
-            } else if (isAsyncRule(rule)) {
-                try {
-                    let derivedTasks = [];
+            try {
+                let derivedTasks = [];
+                if (isSynchronousRule(rule)) {
+                    derivedTasks = this.ruleProcessor.processSyncRule(rule, primaryPremise, secondaryPremise);
+                } else if (isAsyncRule(rule)) {
                     if (this.ruleProcessor && typeof this.ruleProcessor.executeAsyncRule === 'function') {
                         derivedTasks = await this.ruleProcessor.executeAsyncRule(rule, primaryPremise, secondaryPremise);
                     } else if (rule.apply) {
                         derivedTasks = await rule.apply(primaryPremise, secondaryPremise);
                     }
+                }
 
+                if (derivedTasks && derivedTasks.length > 0) {
                     for (const task of derivedTasks) {
                         const processedResult = this._processDerivation(task, suppressEvents);
                         if (processedResult) results.push(processedResult);
                     }
-                } catch (error) {
-                    Logger.error(`Error executing async rule ${rule.id}:`, error);
                 }
+            } catch (error) {
+                Logger.error(`Error executing rule ${rule.id}:`, error);
             }
         }
         return results;
     }
 
     _processDerivation(derivation, suppressEvents = false) {
-        // Return the derivation for centralized processing by the NAR
-        // Emit event for subscribers (like NAR) to handle the derivation
-        if (!suppressEvents) {
-            this.emit('derivation', derivation);
-        }
+        if (!suppressEvents) this.emit('derivation', derivation);
         return derivation;
     }
 

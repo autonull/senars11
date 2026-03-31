@@ -6,6 +6,55 @@ export class Stamp {
     constructor() {
         if (this.constructor === Stamp) throw new Error("Abstract classes can't be instantiated.");
     }
+
+    static createInput() {
+        return new ArrayStamp({source: 'INPUT', depth: 0});
+    }
+
+    static createBloomInput() {
+        return new BloomStamp({source: 'INPUT', depth: 0});
+    }
+
+    static derive(parentStamps = [], overrides = {}) {
+        if (parentStamps.some(s => s instanceof BloomStamp)) {
+             return Stamp.deriveBloom(parentStamps, overrides);
+        }
+
+        const maxParentDepth = parentStamps.reduce((max, s) => Math.max(max, s.depth || 0), 0);
+
+        // Phase 4.3: Bloom Filter Stamps - switch if depth exceeds threshold
+        if (maxParentDepth > 20) {
+            return Stamp.deriveBloom(parentStamps, overrides);
+        }
+
+        const allDerivations = new Set(parentStamps.flatMap(s => [s.id, ...(s.derivations || [])]));
+        return new ArrayStamp({
+            derivations: [...allDerivations],
+            depth: maxParentDepth + 1,
+            source: overrides.source || 'DERIVED'
+        });
+    }
+
+    static deriveBloom(parentStamps = [], overrides = {}) {
+        const maxParentDepth = parentStamps.reduce((max, s) => Math.max(max, s.depth || 0), 0);
+        const newStamp = new BloomStamp({
+            source: overrides.source || 'DERIVED',
+            depth: maxParentDepth + 1
+        });
+
+        for (const parent of parentStamps) {
+            if (parent instanceof BloomStamp) {
+                newStamp.filter.merge(parent.filter);
+            } else if (parent instanceof ArrayStamp) {
+                newStamp.filter.add(parent.id);
+                for (const d of parent.derivations) {
+                    newStamp.filter.add(d);
+                }
+            }
+        }
+
+        return newStamp;
+    }
 }
 
 /**
@@ -42,14 +91,15 @@ export class ArrayStamp extends Stamp {
         if (!(other instanceof ArrayStamp)) return false;
 
         if (this._id === other.id) return true;
-
-        // Use cached Set for O(1) checks
         if (this._derivationsSet.has(other.id)) return true;
+        if (other.derivations.includes(this._id)) return true; // Efficient check for direct derivation
 
-        // Check if other's derivations overlap with ours
-        // We iterate over the smaller set if possible, but here we just iterate other
-        // because we have this._derivationsSet ready.
-        return other.derivations.some(d => d === this._id || this._derivationsSet.has(d));
+        // Iterate over the smaller set of derivations
+        if (this._derivations.length < other.derivations.length) {
+             return this._derivations.some(d => other._derivationsSet.has(d));
+        } else {
+             return other.derivations.some(d => this._derivationsSet.has(d));
+        }
     }
 
     clone(overrides = {}) {
@@ -115,46 +165,3 @@ export class BloomStamp extends Stamp {
         return `BloomStamp(${this._id},${this._creationTime},${this._source})`;
     }
 }
-
-// Static factory methods assigned after class definitions
-Stamp.createInput = () => new ArrayStamp({source: 'INPUT', depth: 0});
-Stamp.createBloomInput = () => new BloomStamp({source: 'INPUT', depth: 0});
-
-Stamp.derive = (parentStamps = [], overrides = {}) => {
-    if (parentStamps.some(s => s instanceof BloomStamp)) {
-         return Stamp.deriveBloom(parentStamps, overrides);
-    }
-
-    const maxParentDepth = parentStamps.reduce((max, s) => Math.max(max, s.depth || 0), 0);
-
-    // Phase 4.3: Bloom Filter Stamps - switch if depth exceeds threshold
-    if (maxParentDepth > 20) {
-        return Stamp.deriveBloom(parentStamps, overrides);
-    }
-
-    const allDerivations = new Set(parentStamps.flatMap(s => [s.id, ...(s.derivations || [])]));
-    return new ArrayStamp({
-        derivations: [...allDerivations],
-        depth: maxParentDepth + 1,
-        source: overrides.source || 'DERIVED'
-    });
-};
-
-Stamp.deriveBloom = (parentStamps = [], overrides = {}) => {
-    const maxParentDepth = parentStamps.reduce((max, s) => Math.max(max, s.depth || 0), 0);
-    const newStamp = new BloomStamp({
-        source: overrides.source || 'DERIVED',
-        depth: maxParentDepth + 1
-    });
-
-    for (const parent of parentStamps) {
-        if (parent instanceof BloomStamp) {
-            newStamp.filter.merge(parent.filter);
-        } else if (parent instanceof ArrayStamp) {
-            newStamp.filter.add(parent.id);
-            parent.derivations.forEach(d => newStamp.filter.add(d));
-        }
-    }
-
-    return newStamp;
-};

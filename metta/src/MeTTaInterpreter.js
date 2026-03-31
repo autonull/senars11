@@ -116,9 +116,11 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      * Convert array to list representation
      */
     _listify(arr) {
-        return arr.length
-            ? Term.exp(':', [arr[0], this._listify(arr.slice(1))])
-            : Term.sym('()');
+        let list = Term.sym('()');
+        for (let i = arr.length - 1; i >= 0; i--) {
+            list = Term.exp(':', [arr[i], list]);
+        }
+        return list;
     }
 
     /**
@@ -226,19 +228,19 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
         if (isRule) {
             this.space.addRule(expr.components[0], expr.components[1]);
             if (results) results.push(expr);
-        } else if (results) {
-            const evalRes = this.evaluate(expr);
-            if (Array.isArray(evalRes)) {
-                results.push(...evalRes);
-                for (const r of evalRes) {
-                    this.space.add(r);
-                }
-            } else {
-                results.push(evalRes);
-                this.space.add(evalRes);
-            }
-        } else {
+            return;
+        }
+
+        if (!results) {
             this.space.add(expr);
+            return;
+        }
+
+        const evalRes = this.evaluate(expr);
+        const items = Array.isArray(evalRes) ? evalRes : [evalRes];
+        results.push(...items);
+        for (const r of items) {
+            this.space.add(r);
         }
     }
 

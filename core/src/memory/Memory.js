@@ -193,11 +193,10 @@ export class Memory extends BaseComponent {
     }
 
     getTasks(limit = 0) {
-        if (limit <= 0) return Array.from(this.getTasksIterator());
         const tasks = [];
         for (const task of this.getTasksIterator()) {
             tasks.push(task);
-            if (tasks.length >= limit) break;
+            if (limit > 0 && tasks.length >= limit) break;
         }
         return tasks;
     }
