@@ -92,6 +92,9 @@ Skills whose governing capability flag is disabled are **invisible to the LLM** 
 | `safetyLayer` | `false` | Reflective consequence analysis before side-effecting skills execute | ~50ms overhead per skill. Can block legitimate actions if rules too conservative |
 | `auditLog` | `false` | Append-only record of all skill invocations, LLM calls, memory writes | Storage growth; minor I/O overhead |
 | `rlhfCollection` | `false` | Execution traces written to `rlfp_training_data.jsonl` | Disk storage; conversation content captured to file |
+| `dynamicSkillDiscovery` | `false` | Scans `memory/skills/*.metta` and `SKILL.md` files at startup/reload; auto-registers valid skill definitions with `SkillDispatcher` | Agent may load malformed skill definitions; requires `safetyLayer` gate for `add-skill` path |
+| `executionHooks` | `false` | Enables declarative `pre-skill-hook` / `post-skill-hook` atoms in `hooks.metta`; hooks execute before/after skill handlers with mutation/deny/audit capabilities | Hook logic errors can block legitimate skill execution; requires careful rule authoring |
+| `runtimeIntrospection` | `false` | Exposes `manifest`, `skill-inventory`, `subsystems`, `agent-state` as always-available grounded ops; generates `agent-manifest.metta` with active capabilities, registered skills, model scores | Minor overhead for manifest generation; introspection output may reveal internal structure |
 
 ### 2.3 Experimental Tier
 
@@ -118,6 +121,9 @@ subAgentSpawning      → virtualEmbodiment
 memoryConsolidation   → semanticMemory
 modelExploration      → multiModelRouting, modelScoreUpdates
 harnessDiffusion      → harnessOptimization
+dynamicSkillDiscovery → selfModifyingSkills, semanticMemory
+executionHooks        → safetyLayer, auditLog
+runtimeIntrospection  → mettaControlPlane
 ```
 
 Unsatisfied dependencies produce a clear startup error. No silent degradation.
@@ -249,6 +255,8 @@ The `"profile"` key in `agent.json` selects a preset. Any `"capabilities"` keys 
 ╠═══════════════════╦════════════════════════════════════╣
 ║  build-context    ║       SkillDispatcher              ║  ← contextBudgets
 ║  (MeTTa function) ║  parse S-exprs → JS handlers       ║  ← sExprSkillDispatch
+║                   ║  Supports dynamic registration     ║  ← dynamicSkillDiscovery
+║                   ║  via discover-skills grounded op   ║
 ╠═══════════════════╩════════════════════════════════════╣
 ║               ModelRouter                               ║  ← multiModelRouting
 ║   NAL-scored task-type routing over AIClient.js         ║
@@ -264,7 +272,14 @@ The `"profile"` key in `agent.json` selects a preset. Any `"capabilities"` keys 
 ║               SemanticMemory                            ║  ← semanticMemory
 ║   PersistentSpace + HNSW + Embedder                     ║
 ╠════════════════════════════════════════════════════════╣
+║               HookOrchestrator  [optional]              ║  ← executionHooks
+║   pre-skill / post-skill hooks configured in hooks.metta ║
+╠════════════════════════════════════════════════════════╣
 ║               SafetyLayer  [optional]                   ║  ← safetyLayer / auditLog
+╠════════════════════════════════════════════════════════╣
+║               IntrospectionOps  [always available]      ║  ← runtimeIntrospection
+║   (manifest) (skill-inventory) (subsystems) (agent-state) ║
+║   Generate runtime agent-manifest.metta for self-query   ║
 ╠════════════════════════════════════════════════════════╣
 ║               EmbodimentBus                             ║  ← multiEmbodiment
 ║   IRC │ Nostr │ CLI │ WebUI │ API │ VirtualInternal      ║  ← virtualEmbodiment
@@ -370,6 +385,29 @@ Each cycle, the loop decrements TTLs in `&wm` and drops expired entries before b
 (skill spawn-agent   (String Int)     subAgentSpawning  :meta        "Spawn sub-agent with task + cycle budget")
 ```
 
+#### 5.2.1 Dynamic Skill Discovery
+
+When `dynamicSkillDiscovery` is enabled, `SkillDispatcher` performs two discovery passes at startup and on `selfModifyingSkills` changes:
+
+1. **Filesystem scan**: Recursively scan `memory/skills/**/*.metta` for `(skill ...)` declarations. Validate syntax via `metta/Parser.js`; skip malformed entries with audit warning.
+
+2. **SKILL.md parsing**: Parse markdown files matching `**/SKILL.md` using this schema:
+   ```markdown
+   ## Skill: skill-name
+   **Args**: `(arg1 Type1) (arg2 Type2)`
+   **Capability**: `capability-flag`
+   **Tier**: `:memory` | `:network` | `:meta`
+   **Description**: One-line summary
+   **Implementation**: `path/to/handler.js` or `inline-metta`
+   ```
+   Convert valid entries to `(skill ...)` atoms and register.
+
+3. **Auto-reload**: When `selfModifyingSkills` writes to `memory/skills/`, trigger re-scan without full restart.
+
+**Grounded op**: Register `(discover-skills)` as a grounded op that manually triggers re-scan. Agent can invoke `(metta (discover-skills))` after adding skills.
+
+**Integration with existing**: Extends `SkillDispatcher.register()`; does not replace static `skills.metta` declarations. Static declarations take precedence; dynamic discoveries are additive.
+
 ### 5.3 SkillDispatcher.js
 
 **Location:** `agent/src/skills/SkillDispatcher.js`
@@ -386,6 +424,73 @@ Responsibilities:
 - If `safetyLayer` enabled: pass through `SafetyLayer.check()` before calling handler
 - If `auditLog` enabled: emit `(audit-event :type :skill-invoked ...)` after each call
 - Return results array to `AgentLoop` for `&lastresults`
+
+#### 5.3.1 HookOrchestrator Integration
+
+When `executionHooks` is enabled, `SkillDispatcher.execute()` routes each skill call through `HookOrchestrator` before and after handler execution:
+
+```javascript
+// Pseudocode for SkillDispatcher.execute()
+async execute(parsedCmds) {
+  for (const cmd of parsedCmds) {
+    // PRE-HOOK PHASE
+    if (config.capabilities.executionHooks) {
+      const hookResult = await HookOrchestrator.runPreHooks(cmd);
+      if (hookResult.action === 'deny') {
+        emitAudit({ type: 'skill-blocked', reason: hookResult.reason });
+        continue;
+      }
+      if (hookResult.action === 'rewrite') {
+        cmd.args = hookResult.newArgs; // mutated args
+      }
+    }
+
+    // SAFETY LAYER (existing)
+    if (config.capabilities.safetyLayer) {
+      const safety = await SafetyLayer.check(cmd.name, cmd.args);
+      if (!safety.cleared) { /* ...existing handling... */ }
+    }
+
+    // HANDLER EXECUTION (existing)
+    const result = await handler(cmd.args);
+
+    // POST-HOOK PHASE
+    if (config.capabilities.executionHooks) {
+      await HookOrchestrator.runPostHooks(cmd, result);
+    }
+
+    // AUDIT (existing)
+    if (config.capabilities.auditLog) { /* ... */ }
+  }
+}
+```
+
+**Hook definition format** (`hooks.metta`):
+```metta
+;; Pre-hook: deny shell commands containing forbidden patterns
+(hook pre (shell $cmd)
+      (if (contains-forbidden? $cmd)
+        (deny "Command contains forbidden pattern")
+        (allow)))
+
+;; Post-hook: audit all write-file operations
+(hook post (write-file $p $c)
+      (audit (emit :file-written :path $p :size (string-length $c))))
+
+;; Pre-hook: mutate search queries to add safe-search flag
+(hook pre (search $q) (rewrite (search (string-append $q " safe_search=active"))))
+```
+
+**HookOrchestrator API** (new file `agent/src/skills/HookOrchestrator.js`):
+```javascript
+class HookOrchestrator {
+  static async runPreHooks(skillCall)   // returns { action: 'allow'|'deny'|'rewrite', newArgs?, reason? }
+  static async runPostHooks(skillCall, result)  // returns void; may emit audit events
+  static loadHooksFromFile(path)       // parse hooks.metta, register in memory
+}
+```
+
+**Phase 1 refinement note**: Since Phase 1 already implements `SkillDispatcher`, extend the existing `execute()` method with the hook orchestration logic above. No new class needed for Phase 1—inline the hook checks conditionally on `config.capabilities.executionHooks`.
 
 ### 5.4 SemanticMemory.js
 
@@ -501,6 +606,24 @@ Runs as a self-task on `VirtualEmbodiment` every `harnessEvalInterval` cycles (d
 
 **Version history is git.** `memory/` is a git-tracked directory. Every harness write commits with message `harness-update: cycle {N}`. Rollback: `git revert` or `git checkout`. No custom versioning scheme.
 
+#### 5.8.1 Verification Loop Integration
+
+When `runtimeIntrospection` and `auditLog` are enabled, `HarnessOptimizer` runs a verification sub-cycle after proposing harness changes:
+
+```
+1. Apply candidate diff to prompt.candidate.metta
+2. Run (manifest) and (skill-inventory) to capture pre-change state
+3. Replay sampled tasks with candidate harness
+4. Run (manifest) and (skill-inventory) post-replay
+5. Compare skill invocation patterns, error rates, audit event counts
+6. Only install candidate if:
+   - No new skill-blocked audit events
+   - Error rate unchanged or improved
+   - Manifest shows expected capability changes
+```
+
+This turns harness optimization into a *verified* self-modification process, reducing risk of regressions.
+
 ### 5.9 capabilities.js (module, not class)
 
 **Location:** `agent/src/config/capabilities.js`
@@ -525,6 +648,51 @@ interp.registerOp('cap?', (flag) => isEnabled(agentConfig, flag))
 
 No class, no instance, no state. Capability state lives in `agent.json`.
 
+### 5.10 IntrospectionOps.js — Runtime Self-Description
+
+**Location:** `agent/src/introspection/IntrospectionOps.js`
+**Governed by:** `runtimeIntrospection` (but grounded ops always register; capability gates output content)
+
+**Purpose:** Provide always-available grounded ops that generate structured self-descriptions for agent self-query and external tooling.
+
+**Registered grounded ops** (via `AgentBuilder.buildMeTTaLoop()`):
+```javascript
+interp.registerOp('manifest',        () => IntrospectionOps.generateManifest(config))
+interp.registerOp('skill-inventory', () => IntrospectionOps.listSkills(dispatcher, config))
+interp.registerOp('subsystems',      () => IntrospectionOps.describeSubsystems())
+interp.registerOp('agent-state',     (key) => IntrospectionOps.getState(key))
+```
+
+**Output format** (MeTTa atoms, agent-readable):
+```metta
+;; (manifest) output
+(agent-manifest
+  :version "0.1.0"
+  :profile "evolved"
+  :capabilities ((mettaControlPlane true) (semanticMemory true) ...)
+  :active-skills ((remember (String) :memory) (query (String) :memory) ...)
+  :embodiments ((irc:##metta :active true) (cli :active true))
+  :model-scores ((gpt-4o :reasoning (stv 0.85 0.72)) ...)
+  :cycle-count 142
+  :wm-entries-count 3)
+
+;; (skill-inventory) output
+(skill-inventory
+  (skill-entry :name remember :args (String) :tier :memory :enabled true)
+  (skill-entry :name query :args (String) :tier :memory :enabled true)
+  ...)
+
+;; (agent-state "&budget") → 47
+;; (agent-state "&wm") → ((wm-entry :content "..." :priority 0.8 :ttl 7) ...)
+```
+
+**Implementation notes:**
+- `generateManifest()` aggregates data from `config`, `SkillDispatcher.getActiveSkillDefs()`, `EmbodimentBus.getActiveChannels()`, `ModelRouter.getScores()`, and loop state variables.
+- Output is cached for 5 cycles to avoid regeneration overhead; invalidated on capability changes.
+- When `runtimeIntrospection` is false, ops return minimal stub: `(manifest :restricted true)`.
+
+**Phase 1 refinement note**: Since Phase 1 already registers grounded ops in `AgentBuilder.buildMeTTaLoop()`, add the four introspection ops to that registration block. Implement `IntrospectionOps` as a simple module with static methods—no class instantiation needed for Phase 1.
+
 ---
 
 ## 6. Phase Plan
@@ -545,6 +713,13 @@ Each phase is a self-contained working increment. Later phases do not block on e
 8. Register `attend` and `dismiss` skill handlers; wire `autoAttendThreshold` check into `check-embodiment-bus` (high-salience inputs auto-attend).
 9. Add `"controlPlane"` check to `Agent.js` startup: `"mettaControlPlane": true` routes to `buildMeTTaLoop()`; false uses existing LIDA path.
 10. **Test:** `profile: parity` (minus `semanticMemory`) runs 3 cycles with mock LLM; `(attend ...)` item persists across cycles; expires at TTL 0; correct skill dispatch; graceful malformed-output recovery.
+
+**Phase 1 Refinements** (when extending with new Evolution-tier capabilities):
+11. **Extend `SkillDispatcher.js`**: Add conditional hook orchestration logic (§5.3.1) gated on `config.capabilities.executionHooks`. When disabled, bypass with zero overhead.
+12. **Add dynamic discovery stub**: Implement `discover-skills` grounded op that scans `memory/skills/*.metta` (filesystem only, no SKILL.md parsing yet). Register discovered skills with existing `register()` method.
+13. **Register introspection ops**: Add `manifest`, `skill-inventory`, `subsystems`, `agent-state` grounded ops to `AgentBuilder.buildMeTTaLoop()`. Implement minimal stub output that respects `runtimeIntrospection` capability flag.
+14. **Update `agent.json` schema** (§13.1): Add `dynamicSkillDiscovery`, `executionHooks`, `runtimeIntrospection` flags with defaults `false`.
+15. **Test:** With new flags disabled, existing Phase 1 behavior unchanged. With flags enabled: dynamic skill file loaded on startup; `(manifest)` returns structured output; pre-hook can block a skill call.
 
 ### Phase 2 — Semantic Memory
 
@@ -579,6 +754,30 @@ Each phase is a self-contained working increment. Later phases do not block on e
 5. Wire `SafetyLayer` into `SkillDispatcher`.
 6. **Test:** Blocked skills produce audit atoms with zero overhead when `safetyLayer: false`.
 
+**Phase 4 Extension** (when adding hook system):
+7. **Promote `SafetyLayer` to hook substrate**: Refactor `SafetyLayer.check()` to become the *first* pre-skill hook in the `HookOrchestrator` pipeline. Existing safety rules migrate to `hooks.metta` format:
+   ```metta
+   ;; Old safety.metta
+   (consequence-of (shell $cmd) (system-state-change :unknown) :high)
+
+   ;; New hooks.metta equivalent
+   (hook pre (shell $cmd)
+         (if (high-risk? $cmd)
+           (deny "High-risk shell command")
+           (allow)))
+   ```
+8. **Backward compatibility**: When `executionHooks` is false but `safetyLayer` is true, run legacy `SafetyLayer.check()` path. When both enabled, safety rules run as first pre-hook.
+
+### Phase 4.5 — Execution Hooks & Runtime Introspection
+
+**Deliverable:** Declarative hook system; structured self-description primitives.
+
+1. Implement `HookOrchestrator.js` with pre/post hook execution, mutation/deny/audit actions.
+2. Create `hooks.metta` with example rules for common patterns (audit logging, input sanitization, permission checks).
+3. Complete `IntrospectionOps.js` with full manifest generation, skill inventory, subsystem description.
+4. Wire `(manifest)` output into `build-context`'s new `AGENT_MANIFEST` slot (between `PINNED` and `RECALL`).
+5. **Test:** Pre-hook blocks forbidden skill; post-hook emits audit event; `(manifest)` returns structured atom; agent can `(metta (query "what skills do I have?"))` using introspection output.
+
 ### Phase 5 — Embodiment Abstraction
 
 **Deliverable:** Channel-agnostic I/O; multi-embodiment; internal self-directed channel.
@@ -602,6 +801,10 @@ Each phase is a self-contained working increment. Later phases do not block on e
 5. Wire `RLFPLearner.js` output into `ModelRouter` — `rlfp_training_data.jsonl` preference entries update `model-score` atoms.
 6. Implement `selfEvaluation` self-task — agent scores recent outputs against stored preference atoms.
 7. **Test:** Harness modification cycle runs end-to-end; version committed to git; `git log memory/harness/` shows history.
+
+**Phase 6 Extensions** (when integrating verification and dynamic reload):
+8. **Integrate verification loop**: Extend `HarnessOptimizer` to use introspection primitives for pre/post-change validation (§5.8.1).
+9. **Dynamic skill reload**: When `selfModifyingSkills` writes to `memory/skills/`, trigger `discover-skills` re-scan; validate new skill via `SafetyLayer` before registration.
 
 ---
 
@@ -642,6 +845,8 @@ Phase 4 ships with one fact per skill. No consequence chaining — that complexi
 
 Consequence chaining (A→B→C inference) is a Phase 6+ extension when the direct rules have been observed in practice.
 
+**Migration note**: When `executionHooks` is enabled, `safety.metta` rules are automatically wrapped as pre-skill hooks by `HookOrchestrator`. Authors may migrate rules to `hooks.metta` for finer control (mutation, conditional denial, post-execution audit). Both formats coexist; `hooks.metta` takes precedence for skills with defined hooks.
+
 ### 7.3 Shell Guard
 
 `shellSkill` is `false` by default. When enabled:
@@ -671,6 +876,50 @@ Execution always uses `child_process.spawn` with `shell: false` and pre-split ar
 ```
 
 The agent reads its own audit log via `(metta (get-atoms &audit-space))`. This is the diagnostic substrate for `HarnessOptimizer`.
+
+### 7.5 Declarative Hook Rules (`hooks.metta`)
+
+**Location:** `agent/src/metta/hooks.metta`
+**Governed by:** `executionHooks`
+
+**Rule format**:
+```metta
+(hook <phase> <skill-pattern> <hook-body>)
+```
+
+Where:
+- `<phase>`: `pre` or `post`
+- `<skill-pattern>`: S-expression pattern matching skill name and args, e.g., `(shell $cmd)`, `(write-file $p $_)`
+- `<hook-body>`: MeTTa expression that returns one of:
+  - `(allow)` — proceed with original/modified args
+  - `(deny reason-string)` — block execution, emit audit event
+  - `(rewrite new-args)` — mutate arguments before handler execution (pre-hook only)
+  - `(audit event-atom)` — append to audit log (post-hook only)
+
+**Built-in predicates** (available in hook bodies):
+- `(contains-forbidden? $str)` — checks against `agent.json` `shell.forbiddenPatterns`
+- `(path-within? $path $base)` — validates file paths are within allowed directory
+- `(capability-enabled? $flag)` — checks if capability flag is active
+- `(audit-emit $atom)` — appends atom to `&audit-space`
+
+**Example rules**:
+```metta
+;; Block shell commands with forbidden patterns
+(hook pre (shell $cmd)
+      (if (contains-forbidden? $cmd)
+        (deny "Forbidden pattern in shell command")
+        (allow)))
+
+;; Auto-audit all file writes
+(hook post (write-file $p $c)
+      (audit-emit (audit-event :type :file-write :path $p :size (string-length $c))))
+
+;; Sanitize search queries
+(hook pre (search $q)
+      (rewrite (search (string-append $q " safe_search=active"))))
+```
+
+**Execution order**: Hooks execute in declaration order. First `(deny)` stops the chain; `(rewrite)` mutations accumulate.
 
 ---
 
@@ -852,10 +1101,11 @@ The register is a small in-RAM ordered list of `(content, priority, ttl-remainin
 
 **WM_REGISTER context slot** (between PINNED and RECALL in context assembly):
 ```
-WM_REGISTER  — 1,500 chars  — current &wm entries, sorted by priority
+WM_REGISTER     — 1,500 chars  — current &wm entries, sorted by priority
+AGENT_MANIFEST  — 2,000 chars  — condensed output of (manifest) when runtimeIntrospection enabled
 ```
 
-This ensures the LLM sees "things currently held in mind" separately from recalled long-term memories and scrolling history — a meaningful epistemic distinction.
+This ensures the LLM sees "things currently held in mind" separately from recalled long-term memories and scrolling history — a meaningful epistemic distinction. The AGENT_MANIFEST slot provides structured self-knowledge in-context without needing to invoke `(metta (manifest))` explicitly.
 
 **Why not use the context window alone?** Two scenarios where `&wm` adds value the context window cannot provide:
 1. **Instruction across many cycles:** "Check on that deployment in 20 minutes" — with a 50-cycle budget at 2s sleep, that's 600s. The instruction needs to persist in a dedicated register, not compete with history budget.
@@ -912,6 +1162,8 @@ Runs every `consolidationInterval` cycles (default 100) as a VirtualEmbodiment s
 - Prune atoms with confidence below `pruneThreshold` (default 0.2)
 - Generalize clusters of `:episodic` patterns into `:procedural` atoms
 
+When `executionHooks` is enabled, consolidation self-task emits `(audit-event :type :memory-consolidation :pruned N :merged M)` via post-hook, making memory management observable.
+
 ---
 
 ## 12. File Structure
@@ -924,10 +1176,15 @@ agent/src/
 │   ├── AgentLoop.metta          ← control plane loop (Phase 1)
 │   ├── skills.metta             ← skill declarations, living document (Phase 1)
 │   ├── safety.metta             ← consequence rules (Phase 4)
+│   ├── hooks.metta              ← declarative hook rules (Phase 4.5)
 │   └── ContextBuilder.metta     ← context assembly as MeTTa program (Phase 6)
 │
 ├── skills/
-│   └── SkillDispatcher.js       ← S-expr parse + dispatch + registry (Phase 1)
+│   ├── SkillDispatcher.js       ← S-expr parse + dispatch + registry (Phase 1)
+│   └── HookOrchestrator.js      ← pre/post hook execution engine (Phase 4.5)
+│
+├── introspection/
+│   └── IntrospectionOps.js      ← manifest/skill-inventory/subsystems grounded ops (Phase 4.5)
 │
 ├── memory/
 │   ├── SemanticMemory.js        ← PersistentSpace + HNSW + Embedder (Phase 2)
@@ -957,6 +1214,8 @@ agent/workspace/
 └── agent.json                   ← capability flags, profile, model config (Phase 1)
 
 memory/                          ← runtime memory, git-tracked
+├── skills/                      ← dynamic skill definitions directory (Phase 1 refinement)
+│   └── *.metta                  ← agent-writable skill files (when dynamicSkillDiscovery)
 ├── harness/
 │   └── prompt.metta             ← current system prompt (agent-writable)
 ├── traces/YYYY-MM-DD/           ← execution traces
@@ -972,6 +1231,8 @@ memory/                          ← runtime memory, git-tracked
 | `io/ChannelManager.js` | EmbodimentBus.js | 5 |
 | `io/PersistenceManager.js` | SemanticMemory.js | 2 |
 | `metta/MemoryExtension.js` (LLM-facing bindings only) | SkillDispatcher SemanticMemory handlers | 2 |
+| *(none)* | `HookOrchestrator.js` | 4.5 |
+| *(none)* | `IntrospectionOps.js` | 4.5 |
 
 ---
 
@@ -1148,6 +1409,36 @@ Phase 4 ships direct rules only. Chaining (`A→B, B→C ⟹ A→C`) adds signif
 
 `metta/src/extensions/PersistentSpace.js` already provides Merkle hash integrity, CRDT vector clocks, and both FS and IndexedDB backends. Using it for `SemanticMemory` and `AuditSpace` means the memory architecture benefits from CRDT merge semantics — which `harnessDiffusion` (Phase 7+) will need.
 
+### 14.7 Declarative Hooks Over Imperative Middleware
+
+The `executionHooks` capability implements a *declarative* hook system (`hooks.metta`) rather than imperative middleware for three reasons:
+
+1. **Agent-readable**: Hooks are MeTTa atoms the agent can query, reason about, and (when gated) modify. Imperative JS middleware would be opaque.
+2. **Composable**: Multiple hooks can match the same skill; execution order is explicit in the file. Middleware chains often have implicit ordering.
+3. **Testable**: Hook rules can be unit-tested in isolation via `(metta (hook pre ...))` evaluation. Middleware requires full request/response mocking.
+
+The tradeoff: hook evaluation adds ~5-10ms overhead per skill call. This is acceptable because hooks only execute when `executionHooks` is enabled (Evolution tier), and the safety/audit benefits outweigh the latency for high-risk skills.
+
+### 14.8 Dynamic Skill Discovery: Safety vs. Flexibility
+
+`dynamicSkillDiscovery` enables agent-extensible skill registration but introduces risk of loading malformed or malicious definitions. Mitigations:
+
+1. **Parsing gate**: All discovered files pass through `metta/Parser.js`; syntax errors produce audit warnings, not crashes.
+2. **Capability gate**: Dynamically discovered skills inherit the capability flag specified in their `(skill ...)` declaration. A skill requiring `shellSkill` cannot execute if that flag is disabled.
+3. **SafetyLayer integration**: When both `dynamicSkillDiscovery` and `safetyLayer` are enabled, newly discovered skills are validated against `safety.metta`/`hooks.metta` before registration.
+4. **Audit trail**: Every dynamic registration emits `(audit-event :type :skill-registered :source $file :skill $name)`.
+
+The design prioritizes *inspectability*: the agent can `(metta (query "skills registered from dynamic discovery"))` to audit its own extensions.
+
+### 14.9 Runtime Introspection Enables Self-Verification
+
+Exposing `manifest`, `skill-inventory`, etc. as always-available grounded ops (gated by `runtimeIntrospection` for content richness) serves two purposes:
+
+1. **Agent self-knowledge**: The LLM can query `(metta (manifest))` to get structured capability state, reducing prompt engineering overhead for "what can I do?" questions.
+2. **External tooling**: CLI wrappers, monitoring dashboards, and verification scripts can invoke `(metta (manifest))` to audit agent state without parsing logs.
+
+The minimal-overhead implementation (5-cycle cache, conditional output) ensures introspection is available even on resource-constrained deployments.
+
 ---
 
 ## 15. References
@@ -1172,6 +1463,10 @@ Phase 4 ships direct rules only. Chaining (`A→B, B→C ⟹ A→C`) adds signif
 | `metta/src/MeTTaInterpreter.js` | Execution engine for `AgentLoop.metta` |
 | `mettaclaw/src/loop.metta` | Reference: loop counter, state vars, context structure |
 | `mettaclaw/src/skills.metta` | Reference: parity skill set |
+| `agent/src/skills/HookOrchestrator.js` | Pre/post-skill hook execution engine; integrates with SafetyLayer |
+| `agent/src/introspection/IntrospectionOps.js` | Runtime manifest/skill-inventory generation for agent self-query |
+| `agent/src/metta/hooks.metta` | Declarative hook rules; agent-readable safety/audit logic |
+| `memory/skills/` | Directory for dynamically discovered skill definitions |
 
 ### External
 
