@@ -1,6 +1,7 @@
 import {Agent} from './Agent.js';
 import {LMConfig, Logger, PluginManager} from '@senars/core';
 import {FunctorProvider} from './FunctorProvider.js';
+import {isEnabled} from './config/capabilities.js';
 
 export class AgentBuilder {
     constructor(initialConfig = {}) {
@@ -111,6 +112,13 @@ export class AgentBuilder {
         FunctorProvider.registerFunctors(agent.evaluator?.getFunctorRegistry?.(), this.config.subsystems.functors);
         await this._initializeSubsystems(agent);
         this._setupLM(agent);
+
+        // If MeTTa control plane is enabled, log guidance for the caller.
+        // agent.initialize() already built the loop; caller uses agent.startMeTTaLoop().
+        if (agent.agentCfg && isEnabled(agent.agentCfg, 'mettaControlPlane')) {
+            Logger.info('[AgentBuilder] MeTTa control plane active. Use agent.startMeTTaLoop() to start.');
+        }
+
         return agent;
     }
 
