@@ -1371,6 +1371,8 @@ buildMeTTaLoop(config) {
 }
 ```
 
+**Phase 1 execution model note:** The MeTTa interpreter's `runAsync` doesn't yet propagate through async grounded ops mid-reduction. The JS loop in `_buildMeTTaLoop` mirrors `AgentLoop.metta` semantics exactly as a transitional shim. When the interpreter gains proper async grounded-op support, `_buildMeTTaLoop` returns `() => interp.runAsync('!(agent-start)')` and the JS loop is dropped — no other changes needed. The MeTTa files are loaded, rules are in the space for introspection and future execution.
+
 ---
 
 ## 14. Design Decisions & Rationale
@@ -1438,6 +1440,15 @@ Exposing `manifest`, `skill-inventory`, etc. as always-available grounded ops (g
 2. **External tooling**: CLI wrappers, monitoring dashboards, and verification scripts can invoke `(metta (manifest))` to audit agent state without parsing logs.
 
 The minimal-overhead implementation (5-cycle cache, conditional output) ensures introspection is available even on resource-constrained deployments.
+
+### 14.10 Transitional JS Loop Shim
+
+Phase 1 implements the agent loop twice: once in `AgentLoop.metta` (canonical semantics) and once in JS (`_buildMeTTaLoop`). This duplication is intentional and temporary:
+
+1. **JS shim now**: The MeTTa interpreter's `runAsync` doesn't yet propagate through async grounded ops mid-reduction. The JS loop provides the async orchestration needed for LLM calls, skill execution, and sleep cycles.
+2. **Pure MeTTa later**: When the interpreter gains proper async grounded-op support, the JS loop is dropped. `_buildMeTTaLoop` returns `() => interp.runAsync('!(agent-start)')` — no other changes needed.
+
+The JS shim mirrors `AgentLoop.metta` semantics exactly. This ensures the migration path is a simple switch, not a refactor. The MeTTa files are always loaded; rules are in the space for introspection and future execution even while the JS loop drives the cycle.
 
 ---
 
