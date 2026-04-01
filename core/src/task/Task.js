@@ -6,49 +6,41 @@ import { getOperator, getComponents } from '../term/TermUtils.js';
 const freeze = Object.freeze;
 
 export const Punctuation = Object.freeze({ BELIEF: '.', GOAL: '!', QUESTION: '?' });
+const TaskType = Object.freeze({ BELIEF: 'BELIEF', GOAL: 'GOAL', QUESTION: 'QUESTION' });
 
 const PUNCTUATION_TO_TYPE = Object.freeze({
-    [Punctuation.BELIEF]: 'BELIEF',
-    [Punctuation.GOAL]: 'GOAL',
-    [Punctuation.QUESTION]: 'QUESTION'
+    [Punctuation.BELIEF]: TaskType.BELIEF,
+    [Punctuation.GOAL]: TaskType.GOAL,
+    [Punctuation.QUESTION]: TaskType.QUESTION
 });
+
 const TYPE_TO_PUNCTUATION = Object.freeze({
-    'BELIEF': Punctuation.BELIEF,
-    'GOAL': Punctuation.GOAL,
-    'QUESTION': Punctuation.QUESTION
+    [TaskType.BELIEF]: Punctuation.BELIEF,
+    [TaskType.GOAL]: Punctuation.GOAL,
+    [TaskType.QUESTION]: Punctuation.QUESTION
 });
+
 const DEFAULT_BUDGET = Object.freeze({ priority: 0.5, durability: 0.5, quality: 0.5, cycles: 100, depth: 10 });
 
 export class Task {
-    constructor({ term, punctuation = '.', truth = null, budget = DEFAULT_BUDGET, stamp = null, metadata = null }) {
+    constructor({ term, punctuation = Punctuation.BELIEF, truth = null, budget = DEFAULT_BUDGET, stamp = null, metadata = null }) {
         if (!(term instanceof Term)) throw new Error('Task must be initialized with a valid Term object.');
 
         this.term = term;
-        this.type = PUNCTUATION_TO_TYPE[punctuation] ?? 'BELIEF';
-
-        let finalTruth = truth;
+        this.type = PUNCTUATION_TO_TYPE[punctuation] ?? TaskType.BELIEF;
 
         // Handle negation unwrapping for terms like (-- (A))
-        const op = getOperator(this.term);
-        const comps = getComponents(this.term);
+        const { term: unwrappedTerm, truth: adjustedTruth } = this._unwrapNegation(this.term, truth);
+        this.term = unwrappedTerm;
+        const finalTruth = adjustedTruth;
 
-        if (op === '--' && comps.length === 1) {
-            this.term = comps[0];
-            if (finalTruth) {
-                const t = this._createTruth(finalTruth);
-                finalTruth = t ? Truth.create(1.0 - t.f, t.c) : null;
-            }
-        }
-
-        const expectsTruth = this.type !== 'QUESTION';
-        if (expectsTruth !== (finalTruth !== null)) {
-            throw new Error(this.type === 'QUESTION' ? 'Questions cannot have truth values' : `${this.type} tasks must have valid truth values`);
-        }
+        this._validateTruth(finalTruth);
 
         this.truth = this._createTruth(finalTruth);
         this.budget = freeze({ ...budget });
         this.stamp = stamp ?? ArrayStamp.createInput();
         this.metadata = metadata ? freeze(metadata) : null;
+
         freeze(this);
     }
 
@@ -58,15 +50,40 @@ export class Task {
         if (!data) throw new Error('Task.fromJSON requires valid data object');
 
         const term = typeof data.term === 'string'
-            ? { toString: () => data.term, equals: (o) => o?.toString?.() === data.term }
+            ? { toString: () => data.term, equals: (o) => o?.toString?.() === data.term } // Minimal mock for string terms
             : data.term;
 
         return new Task({
             term,
             punctuation: data.punctuation,
             truth: data.truth ? Truth.create(data.truth.frequency ?? data.truth.f, data.truth.confidence ?? data.truth.c) : null,
-            budget: data.budget ?? { priority: 0.5, durability: 0.5, quality: 0.5, cycles: 100, depth: 10 }
+            budget: data.budget ?? DEFAULT_BUDGET
         });
+    }
+
+    _unwrapNegation(term, truth) {
+        const op = getOperator(term);
+        const comps = getComponents(term);
+
+        if (op === '--' && comps.length === 1) {
+            const unwrapped = comps[0];
+            let newTruth = truth;
+            if (newTruth) {
+                const t = this._createTruth(newTruth);
+                newTruth = t ? Truth.create(1.0 - t.f, t.c) : null;
+            }
+            return { term: unwrapped, truth: newTruth };
+        }
+        return { term, truth };
+    }
+
+    _validateTruth(truth) {
+        const expectsTruth = this.type !== TaskType.QUESTION;
+        if (expectsTruth !== (truth !== null)) {
+            throw new Error(this.type === TaskType.QUESTION
+                ? 'Questions cannot have truth values'
+                : `${this.type} tasks must have valid truth values`);
+        }
     }
 
     _createTruth(truth) {
@@ -87,14 +104,13 @@ export class Task {
         });
     }
 
-    isBelief() { return this.type === 'BELIEF'; }
-    isGoal() { return this.type === 'GOAL'; }
-    isQuestion() { return this.type === 'QUESTION'; }
+    isBelief() { return this.type === TaskType.BELIEF; }
+    isGoal() { return this.type === TaskType.GOAL; }
+    isQuestion() { return this.type === TaskType.QUESTION; }
 
     equals(other) {
         if (!(other instanceof Task) || this.type !== other.type) return false;
         if (this.term !== other.term && !this.term.equals(other.term)) return false;
-
         return this.truth === other.truth || (!!this.truth && !!other.truth && this.truth.equals(other.truth));
     }
 

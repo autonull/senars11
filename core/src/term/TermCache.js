@@ -25,10 +25,9 @@ export class TermCache extends BaseComponent {
     }
 
     get(key) {
-        // Check strong cache (LRU)
         if (this._strongCache.has(key)) {
+            // Refresh LRU position by re-inserting
             const item = this._strongCache.get(key);
-            // Refresh LRU
             this._strongCache.delete(key);
             this._strongCache.set(key, item);
             this._hits++;
@@ -39,8 +38,35 @@ export class TermCache extends BaseComponent {
         return undefined;
     }
 
+    /**
+     * Adds an item to the cache, evicting the oldest if necessary.
+     * @param {string} key
+     * @param {any} value
+     * @returns {string|null} The key of the evicted item, or null if nothing was evicted.
+     */
+    put(key, value) {
+        let evictedKey = null;
+
+        // If updating existing, remove it first to update position
+        if (this._strongCache.has(key)) {
+            this._strongCache.delete(key);
+        } else if (this._strongCache.size >= this._maxSize) {
+            // Evict oldest (first in Map iterator)
+            evictedKey = this._strongCache.keys().next().value;
+            this._strongCache.delete(evictedKey);
+        }
+
+        this._strongCache.set(key, value);
+        return evictedKey;
+    }
+
     set(key, value) {
-        this._addToStrongCache(key, value);
+        this.put(key, value);
+    }
+
+    // For backward compatibility if needed, though TermFactory uses put now.
+    setWithEviction(key, value) {
+        return this.put(key, value);
     }
 
     has(key) {
@@ -63,33 +89,5 @@ export class TermCache extends BaseComponent {
             const oldestKey = this._strongCache.keys().next().value;
             this._strongCache.delete(oldestKey);
         }
-    }
-
-    getOldestKey() {
-        return this._strongCache.keys().next().value;
-    }
-
-    setWithEviction(key, value) {
-        let evictedKey = null;
-
-        if (this._strongCache.has(key)) {
-            this._strongCache.delete(key);
-        } else if (this._strongCache.size >= this._maxSize) {
-            evictedKey = this._strongCache.keys().next().value;
-            this._strongCache.delete(evictedKey);
-        }
-        this._strongCache.set(key, value);
-
-        return evictedKey;
-    }
-
-    _addToStrongCache(key, value) {
-        if (this._strongCache.has(key)) {
-            this._strongCache.delete(key);
-        } else if (this._strongCache.size >= this._maxSize) {
-             const oldestKey = this._strongCache.keys().next().value;
-             this._strongCache.delete(oldestKey);
-        }
-        this._strongCache.set(key, value);
     }
 }

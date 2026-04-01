@@ -15,10 +15,12 @@ export class ConceptCard extends Component {
         if (!this.container) return;
 
         // Data extraction
-        const term = this.concept.term ?? 'unknown';
+        // Handle various concept formats (raw object vs class instance)
+        const term = this.concept.term?.toString() ?? this.concept.id ?? 'unknown';
         const budget = this.concept.budget ?? {};
-        const priority = budget.priority ?? 0;
-        const taskCount = this.concept.tasks?.length ?? this.concept.taskCount ?? 0;
+        const priority = budget.priority ?? this.concept.activation ?? 0;
+        const taskCount = this.concept.tasks?.length ?? this.concept.totalTasks ?? 0;
+
         const pColor = this._getPriorityColor(priority);
         const pPercent = Math.round(priority * 100);
 
@@ -27,45 +29,98 @@ export class ConceptCard extends Component {
             .mount(this.container);
 
         // Event handling
-        const payload = { concept: this.concept, id: this.concept.id ?? this.concept.term };
-        card.on('click', () => eventBus.emit(EVENTS.CONCEPT_SELECT, payload));
-        card.on('dblclick', () => eventBus.emit(EVENTS.CONCEPT_CENTER, payload));
+        const payload = {
+            concept: this.concept,
+            id: this.concept.id ?? (typeof this.concept.term === 'string' ? this.concept.term : this.concept.term?.toString())
+        };
+
+        card.on('click', (e) => {
+            e.stopPropagation();
+            eventBus.emit(EVENTS.CONCEPT_SELECT, payload);
+        });
+
+        card.on('dblclick', (e) => {
+            e.stopPropagation();
+            eventBus.emit(EVENTS.CONCEPT_CENTER, payload);
+        });
 
         if (this.compact) {
-            card.child(
-                FluentUI.create('div')
-                    .class('concept-card-header')
-                    .child(FluentUI.create('span').class('concept-icon').text('🧠'))
-                    .child(FluentUI.create('span').class('concept-term').html(NarseseHighlighter.highlight(term)))
-            ).child(
-                FluentUI.create('div')
-                    .class('concept-card-stats')
-                    .child(FluentUI.create('span').class('badge').attr({ title: 'Task Count' }).text(`📚 ${taskCount}`))
-                    .child(FluentUI.create('span').class('badge').attr({ title: `Priority: ${priority.toFixed(2)}` }).style({ color: pColor }).text(`P ${pPercent}%`))
+            // Compact Header
+            const header = FluentUI.create('div').class('concept-card-header').mount(card);
+            header.child(FluentUI.create('span').class('concept-icon').text('🧠'));
+            header.child(FluentUI.create('span').class('concept-term').html(NarseseHighlighter.highlight(term)));
+
+            // Stats Row
+            const stats = FluentUI.create('div').class('concept-card-stats').mount(card);
+
+            // Task Count Badge
+            stats.child(
+                FluentUI.create('span')
+                    .class('badge')
+                    .attr({ title: 'Task Count' })
+                    .text(`📚 ${taskCount}`)
+            );
+
+            // Priority Badge
+            stats.child(
+                FluentUI.create('span')
+                    .class('badge')
+                    .attr({ title: `Priority: ${priority.toFixed(2)}` })
+                    .style({ color: pColor })
+                    .text(`P ${pPercent}%`)
             );
         } else {
-            card.child(
+            // Full Layout
+            const main = FluentUI.create('div').class('concept-card-main').mount(card);
+
+            // Large Term Display
+            main.child(
                 FluentUI.create('div')
-                    .class('concept-card-main')
-                    .child(FluentUI.create('div').class('concept-term-large').html(NarseseHighlighter.highlight(term)))
-                    .child(
-                        FluentUI.create('div')
-                            .class('concept-meta-row')
-                            .child(
-                                FluentUI.create('div')
-                                    .class('priority-meter-container')
-                                    .attr({ title: `Priority: ${priority.toFixed(2)}` })
-                                    .child(FluentUI.create('div').class('priority-meter-bar').style({ width: `${pPercent}%`, background: pColor }))
-                            )
-                            .child(
-                                FluentUI.create('div')
-                                    .class('concept-stats')
-                                    .child(FluentUI.create('span').class('stat-item').attr({ title: 'Tasks' }).text(`📚 ${taskCount}`))
-                                    .child(FluentUI.create('span').class('stat-item').attr({ title: 'Durability' }).text(`D: ${(budget.durability ?? 0).toFixed(2)}`))
-                                    .child(FluentUI.create('span').class('stat-item').attr({ title: 'Quality' }).text(`Q: ${(budget.quality ?? 0).toFixed(2)}`))
-                            )
-                    )
+                    .class('concept-term-large')
+                    .html(NarseseHighlighter.highlight(term))
             );
+
+            // Meta Row
+            const meta = FluentUI.create('div').class('concept-meta-row').mount(main);
+
+            // Priority Bar
+            const meter = FluentUI.create('div')
+                .class('priority-meter-container')
+                .attr({ title: `Priority: ${priority.toFixed(2)}` })
+                .mount(meta);
+
+            FluentUI.create('div')
+                .class('priority-meter-bar')
+                .style({ width: `${pPercent}%`, background: pColor })
+                .mount(meter);
+
+            // Detailed Stats
+            const details = FluentUI.create('div').class('concept-stats').mount(meta);
+
+            details.child(
+                FluentUI.create('span')
+                    .class('stat-item')
+                    .attr({ title: 'Tasks' })
+                    .text(`📚 ${taskCount}`)
+            );
+
+            if (budget.durability !== undefined) {
+                details.child(
+                    FluentUI.create('span')
+                        .class('stat-item')
+                        .attr({ title: 'Durability' })
+                        .text(`D: ${budget.durability.toFixed(2)}`)
+                );
+            }
+
+            if (budget.quality !== undefined) {
+                details.child(
+                    FluentUI.create('span')
+                        .class('stat-item')
+                        .attr({ title: 'Quality' })
+                        .text(`Q: ${budget.quality.toFixed(2)}`)
+                );
+            }
         }
 
         this.elements.card = card.dom;
