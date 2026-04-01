@@ -78,7 +78,7 @@ export {
     WorldModel,
     SymbolicDifferentiation,
     NeuroSymbolicSystem
-} from './neurosymbolic/NeuroSymbolicSystem.js';
+} from './systems/NeuroSymbolicSystem.js';
 
 // ==================== Training ====================
 export {
@@ -150,8 +150,8 @@ export {
 } from './modules/PlanningSystem.js';
 
 // ==================== Cognitive Systems ====================
-export { AttentionSystem, CognitiveSystem } from './cognitive/CognitiveSystem.js';
-export { ReasoningSystem, CausalGraph, CausalNode, CausalEdge, CausalReasoner } from './cognitive/CognitiveSystem.js';
+export { AttentionSystem, CognitiveSystem } from './systems/CognitiveSystem.js';
+export { ReasoningSystem, CausalGraph, CausalNode, CausalEdge, CausalReasoner } from './systems/CognitiveSystem.js';
 
 // ==================== Meta-Control ====================
 export {
@@ -211,8 +211,8 @@ export * from './config/ConfigManager.js';
 export * from './functional/FunctionalUtils.js';
 
 // ==================== Cognitive Architectures ====================
-export * from './cognitive/CognitiveArchitecture.js';
-export * from './cognitive/EmergentArchitecture.js';
+export * from './systems/CognitiveArchitecture.js';
+export * from './systems/EmergentArchitecture.js';
 
 // ==================== Utilities ====================
 export * from './utils/index.js';

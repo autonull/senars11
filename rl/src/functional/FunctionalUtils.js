@@ -64,6 +64,8 @@ export class Either {
 
     static right(value) { return new Either(value, true); }
     static left(value) { return new Either(value, false); }
+    static of(value) { return Either.right(value); }
+    static try(fn) { try { return Either.right(fn()); } catch (e) { return Either.left(e); } }
 
     map(fn) { return this._isRight ? Either.right(fn(this._value)) : this; }
     mapLeft(fn) { return this._isRight ? this : Either.left(fn(this._value)); }
@@ -108,6 +110,9 @@ export class Stream {
     static from(iterable) { return new Stream(iterable[Symbol.iterator]()); }
     static empty() { return new Stream((function*() {})()); }
     static of(...values) { return new Stream((function*() { yield* values; })()); }
+    static range(start, end) {
+        return new Stream((function*() { for(let i=start; i<end; i++) yield i; })());
+    }
 
     filter(predicate) {
         const self = this;
@@ -164,8 +169,8 @@ export class Stream {
     collect() { return Array.from(this._iterator); }
 
     find(predicate) {
-        for (const v of this._iterator) if (predicate(v)) return v;
-        return undefined;
+        for (const v of this._iterator) if (predicate(v)) return Maybe.of(v);
+        return Maybe.nothing();
     }
 
     every(predicate) {
@@ -180,6 +185,76 @@ export class Stream {
 
     [Symbol.iterator]() { return this._iterator; }
 }
+
+export class State {
+    constructor(run) { this.run = run; }
+    static of(value) { return new State(s => [value, s]); }
+    static get() { return new State(s => [s, s]); }
+    static put(newState) { return new State(_ => [undefined, newState]); }
+    static modify(fn) { return new State(s => [undefined, fn(s)]); }
+
+    flatMap(fn) {
+        return new State(s => {
+            const [val, newState] = this.run(s);
+            return fn(val).run(newState);
+        });
+    }
+    map(fn) {
+        return new State(s => {
+            const [val, newState] = this.run(s);
+            return [fn(val), newState];
+        });
+    }
+}
+
+export class Reader {
+    constructor(run) { this.run = run; }
+    static of(value) { return new Reader(_ => value); }
+    static ask() { return new Reader(env => env); }
+
+    flatMap(fn) {
+        return new Reader(env => fn(this.run(env)).run(env));
+    }
+    map(fn) {
+        return new Reader(env => fn(this.run(env)));
+    }
+}
+
+export const Lens = {
+    prop: (key) => ({
+        get: obj => obj?.[key],
+        set: (val, obj) => ({ ...obj, [key]: val }),
+        modify: (fn, obj) => ({ ...obj, [key]: fn(obj?.[key]) })
+    }),
+    path: (path) => ({
+        get: obj => path.reduce((o, k) => o?.[k], obj),
+        set: (val, obj) => {
+            const result = { ...obj };
+            let current = result;
+            for (let i = 0; i < path.length - 1; i++) {
+                const k = path[i];
+                current[k] = { ...current[k] };
+                current = current[k];
+            }
+            current[path[path.length - 1]] = val;
+            return result;
+        },
+        modify: (fn, obj) => {
+            const get = path.reduce((o, k) => o?.[k], obj);
+            const val = fn(get);
+            // Re-use set logic
+            const result = { ...obj };
+            let current = result;
+            for (let i = 0; i < path.length - 1; i++) {
+                const k = path[i];
+                current[k] = { ...current[k] };
+                current = current[k];
+            }
+            current[path[path.length - 1]] = val;
+            return result;
+        }
+    })
+};
 
 export const identity = x => x;
 export const constant = x => () => x;
@@ -211,29 +286,3 @@ export const unique = arr => [...new Set(arr)];
 export const flatten = arr => arr.reduce((acc, v) => acc.concat(Array.isArray(v) ? flatten(v) : v), []);
 export const zip = (a, b) => a.map((v, i) => [v, b[i]]);
 export const range = (start, end) => Array.from({ length: end - start }, (_, i) => start + i);
-
-export const Lens = (get, set) => ({
-    get,
-    set: (value, obj) => set(value, obj),
-    over: (fn, obj) => set(fn(get(obj)), obj),
-    map: (fn, lens) => Lens(o => fn(get(o)), (v, o) => set(v, o))
-});
-
-export const lensProp = prop => Lens(
-    obj => obj?.[prop],
-    (value, obj) => ({ ...obj, [prop]: value })
-);
-
-export const lensPath = path => Lens(
-    obj => path.reduce((o, k) => o?.[k], obj),
-    (value, obj) => {
-        const result = { ...obj };
-        let current = result;
-        path.slice(0, -1).forEach((k, i) => {
-            current[k] = { ...current[k] };
-            current = current[k];
-        });
-        current[path[path.length - 1]] = value;
-        return result;
-    }
-);

@@ -85,10 +85,18 @@ export class EpsilonGreedy extends Strategy {
 
     update(action, reward) {
         super.update(action, reward);
+        this.step();
+    }
+
+    step() {
         this.config.epsilon = Math.max(
             this.config.minEpsilon,
             this.config.epsilon * this.config.decay
         );
+    }
+
+    get currentEpsilon() {
+        return this.config.epsilon;
     }
 
     getInfo() {

@@ -27,10 +27,21 @@ const EXPERIENCE_INFO_DEFAULTS = {
     tags: []
 };
 
+const SkillExtractorDefaults = {
+    minSupport: 2,
+    minConfidence: 0.5,
+    maxSkillLength: 10
+};
+
+const ExperienceLearnerDefaults = {
+    batchSize: 32,
+    updateFrequency: 1
+};
+
 export class Experience {
     constructor({ state, action, reward, nextState, done, info = {} }) {
         const mergedInfo = { ...EXPERIENCE_INFO_DEFAULTS, ...info };
-        this.id = info.id ?? generateId();
+        this.id = info.id ?? generateId('exp');
         this.state = state;
         this.action = action;
         this.reward = reward;
@@ -107,6 +118,7 @@ export class ExperienceStream {
         return acc;
     }
 
+    collect() { return Array.from(this._iterator); }
     forEach(fn) { for (const exp of this._iterator) fn(exp); return this; }
     [Symbol.iterator]() { return this._iterator; }
 }
@@ -266,6 +278,10 @@ export class ExperienceStore {
         return exp;
     }
 
+    record(state, action, reward, nextState, done, info = {}) {
+        return this.add(new Experience({ state, action, reward, nextState, done, info }));
+    }
+
     startEpisode(metadata = {}) {
         if (this.currentEpisode) this.endEpisode();
         this.currentEpisode = new Episode();
@@ -292,17 +308,21 @@ export class ExperienceStore {
     }
 
     query(options) {
-        return this.index.query(options).map(id => this.buffer.find(e => e.id === id));
+        const results = this.index.query(options).map(id => this.buffer.find(e => e.id === id));
+        return ExperienceStream.from(results);
     }
 
     getEpisode(id) { return this.episodes.get(id); }
     getEpisodes() { return Array.from(this.episodes.values()); }
+    getSuccessfulEpisodes() { return this.getEpisodes().filter(e => e.success); }
 
     getStats() {
         return {
             buffer: this.buffer.length,
             capacity: this.config.capacity,
             episodes: this.episodes.size,
+            totalEpisodes: this.episodes.size,
+            totalExperiences: this.buffer.length,
             index: this.index.getStats()
         };
     }
@@ -320,6 +340,11 @@ export class SkillExtractor {
         this.config = mergeConfig(SkillExtractorDefaults, config);
         this.patterns = new Map();
         this.support = new Map();
+    }
+
+    extractSkills(episodes) {
+        episodes.forEach(ep => this.processEpisode(ep));
+        return this.getSkills();
     }
 
     processEpisode(episode) {

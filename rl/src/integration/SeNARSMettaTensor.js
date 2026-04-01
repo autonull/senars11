@@ -1,6 +1,6 @@
 import { Component } from '../composable/Component.js';
 import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
-import { CausalGraph, CausalReasoner } from '../reasoning/CausalReasoning.js';
+import { CausalGraph, CausalReasoner } from '../systems/CognitiveSystem.js';
 import { Experience } from '../experience/ExperienceSystem.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 import { NeuroSymbolicBridge } from '../bridges/NeuroSymbolicBridge.js';

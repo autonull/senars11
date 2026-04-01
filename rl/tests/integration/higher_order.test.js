@@ -3,6 +3,7 @@
  * Testing functional utilities, strategies, experience system, and cognitive architecture.
  */
 import { strict as assert } from 'assert';
+import { describe, test } from '@jest/globals';
 
 // Functional Utilities
 import {
@@ -34,7 +35,7 @@ import {
     PerceptionModule, ReasoningModule, PlanningModule,
     ActionModule, MemoryModule, SkillModule, MetaCognitiveModule,
     CognitiveArchitecture, ArchitecturePresets
-} from '../../src/cognitive/CognitiveArchitecture.js';
+} from '../../src/systems/CognitiveArchitecture.js';
 
 console.log('🧪 Running Higher-Order Abstractions Tests...\n');
 
@@ -409,6 +410,7 @@ function testExperienceStore() {
             );
         }
     }
+    store.endEpisode();
     
     const stats = store.getStats();
     assert.equal(stats.totalEpisodes, 5, 'Total episodes');
@@ -670,8 +672,14 @@ async function runAllTests() {
         return true;
     } catch (error) {
         console.error('❌ Test Failed:', error);
-        process.exit(1);
+        throw error;
     }
 }
 
-runAllTests();
+if (typeof test === 'function') {
+    test('Higher-Order Abstractions Integration', async () => {
+        await runAllTests();
+    });
+} else {
+    runAllTests();
+}

@@ -5,7 +5,7 @@
 import { Component } from '../composable/Component.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 import { MetricsTracker } from '../utils/MetricsTracker.js';
-import { CausalGraph } from '../cognitive/CognitiveSystem.js';
+import { CausalGraph } from '../systems/CognitiveSystem.js';
 import { Memory as CoreMemory } from '@senars/core';
 
 const MEMORY_DEFAULTS = {
