@@ -1,6 +1,7 @@
 import {FormattingUtils, Input, NAR, Logger} from '@senars/core';
 import {PersistenceManager} from './io/PersistenceManager.js';
-import {ChannelManager} from './io/ChannelManager.js';
+import {EmbodimentBus} from './io/EmbodimentBus.js';
+import {VirtualEmbodiment} from './io/VirtualEmbodiment.js';
 import {ChannelConfig} from './io/ChannelConfig.js';
 import * as Commands from './commands/Commands.js';
 import {AGENT_EVENTS} from './constants.js';
@@ -13,6 +14,16 @@ import {SkillDispatcher} from './skills/SkillDispatcher.js';
 import {readFile} from 'fs/promises';
 import {resolve, dirname} from 'path';
 import {fileURLToPath} from 'url';
+
+// Lazy-loaded for Phase 2 Semantic Memory
+let _SemanticMemory = null;
+const loadSemanticMemory = async () => {
+    if (!_SemanticMemory) {
+        const mod = await import('./memory/SemanticMemory.js');
+        _SemanticMemory = mod.SemanticMemory;
+    }
+    return _SemanticMemory;
+};
 
 const __agentDir = dirname(fileURLToPath(import.meta.url));
 
@@ -44,16 +55,26 @@ export class Agent extends NAR {
             defaultPath: config.persistence?.defaultPath ?? './agent.json'
         });
 
-        // Initialize Channels with Config
-        const channelConfig = ChannelConfig.load(config.channelConfigPath);
-        this.channelManager = new ChannelManager(channelConfig);
+        // Initialize Embodiment Bus (Phase 5)
+        const embodimentConfig = config.embodiment || {};
+        this.embodimentBus = new EmbodimentBus({
+            attentionSalience: config.capabilities?.attentionSalience ?? false,
+            ...embodimentConfig
+        });
+
+        // Virtual embodiment for self-directed tasks (Phase 5)
+        this._virtualEmbodiment = new VirtualEmbodiment({
+            autonomousMode: config.capabilities?.autonomousLoop ?? false,
+            idleTimeout: config.capabilities?.virtualEmbodimentIdleTimeout ?? 5000
+        });
+        this.embodimentBus.register(this._virtualEmbodiment);
 
         // Setup Tools
         this.toolInstances = {};
 
         // Auto-join if configured and register tools
-        this._autoJoinChannels(channelConfig);
-        this._setupChannelRouting();
+        this._autoJoinChannels(embodimentConfig);
+        this._setupEmbodimentRouting();
 
         this.commandRegistry = this._initializeCommandRegistry();
 
@@ -87,20 +108,20 @@ export class Agent extends NAR {
             if (config.channels.irc) {
                 try {
                     const irc = new IRCChannel(config.channels.irc);
-                    this.channelManager.register(irc);
+                    this.embodimentBus.register(irc);
                     irc.connect().catch(e => Logger.error('Auto-connect IRC failed:', e));
                 } catch (e) {
-                    Logger.error('Failed to init IRC channel:', e);
+                    Logger.error('Failed to init IRC embodiment:', e);
                 }
             }
 
             if (config.channels.nostr) {
                 try {
                     const nostr = new NostrChannel(config.channels.nostr);
-                    this.channelManager.register(nostr);
+                    this.embodimentBus.register(nostr);
                     nostr.connect().catch(e => Logger.error('Auto-connect Nostr failed:', e));
                 } catch (e) {
-                    Logger.error('Failed to init Nostr channel:', e);
+                    Logger.error('Failed to init Nostr embodiment:', e);
                 }
             }
 
@@ -127,7 +148,7 @@ export class Agent extends NAR {
     _registerMeTTaExtensions() {
         if (this.metta && !this._channelExtensionRegistered) {
              import('../../../metta/src/extensions/ChannelExtension.js').then(({ ChannelExtension }) => {
-                 const ext = new ChannelExtension(this.metta, this.channelManager);
+                 const ext = new ChannelExtension(this.metta, this.embodimentBus);
                  ext.agent = this;
                  ext.register();
                  this._channelExtensionRegistered = true;
@@ -224,12 +245,12 @@ export class Agent extends NAR {
             historyBuffer: []
         };
 
-        // Message queue wired from ChannelManager events
+        // Message queue wired from EmbodimentBus events
         const msgQueue    = [];
         const msgWaiters  = [];
 
-        this.channelManager.on('message', (msg) => {
-            const text = `[${msg.from ?? 'unknown'}@${msg.channel ?? 'cli'}] ${msg.content ?? ''}`;
+        this.embodimentBus.on('message', (msg) => {
+            const text = `[${msg.from ?? 'unknown'}@${msg.embodimentId ?? 'embodiment'}] ${msg.content ?? ''}`;
             if (msgWaiters.length > 0) {
                 msgWaiters.shift()(text);
             } else {
@@ -297,11 +318,13 @@ export class Agent extends NAR {
 
         // ── Shared helpers (used by both grounded ops and JS loop) ──
 
-        const buildContextFn = (msgStr) => {
+        const buildContextFn = async (msgStr) => {
             const skills   = dispatcher.getActiveSkillDefs();
             const maxHist  = agentCfg.memory?.maxHistoryChars   ?? 12000;
             const maxFb    = agentCfg.memory?.maxFeedbackChars  ?? 6000;
             const maxWm    = agentCfg.memory?.wmRegisterChars   ?? 1500;
+            const maxPinned = agentCfg.memory?.pinnedMaxChars   ?? 3000;
+            const maxRecall = agentCfg.memory?.maxRecallChars   ?? 8000;
 
             const wmStr = loopState.wm.length > 0
                 ? loopState.wm
@@ -318,8 +341,30 @@ export class Agent extends NAR {
 
             const lastResultsStr = JSON.stringify(loopState.lastresults ?? []).slice(0, maxFb);
 
+            // Semantic memory: pinned and recall
+            let pinnedStr = '';
+            let recallStr = '';
+            if (this._semanticMemory && isEnabled(agentCfg, 'semanticMemory')) {
+                const pinned = await this._semanticMemory.getPinned(maxPinned);
+                if (pinned.length > 0) {
+                    pinnedStr = pinned.map(p => `* ${p.content}`).join('\n').slice(0, maxPinned);
+                }
+
+                // Query recent memories based on context
+                const contextQuery = msgStr ? msgStr.slice(0, 200) : 'recent';
+                const recall = await this._semanticMemory.query(contextQuery, 10, { minScore: 0.3 });
+                if (recall.length > 0) {
+                    recallStr = recall
+                        .map(r => `[${r.score.toFixed(2)}] ${r.content}`)
+                        .join('\n')
+                        .slice(0, maxRecall);
+                }
+            }
+
             let ctx = `SKILLS:\n${skills}\n\n`;
             if (wmStr)           ctx += `WM_REGISTER:\n${wmStr}\n\n`;
+            if (pinnedStr)       ctx += `PINNED:\n${pinnedStr}\n\n`;
+            if (recallStr)       ctx += `RECALL:\n${recallStr}\n\n`;
             if (histStr)         ctx += `HISTORY:\n${histStr}\n`;
             if (lastResultsStr && lastResultsStr !== '[]')
                                  ctx += `LAST_RESULTS: ${lastResultsStr}\n\n`;
@@ -333,10 +378,29 @@ export class Agent extends NAR {
 
         const invokeLLMFn = async (ctx) => {
             try {
-                const result = await this.ai.generate(ctx);
-                const text   = result.text ?? '';
-                loopState.lastsend = text;
-                return text;
+                // Phase 3: Use ModelRouter if multiModelRouting is enabled
+                if (isEnabled(agentCfg, 'multiModelRouting') && this._modelRouter) {
+                    // Check for model override from set-model skill
+                    let override = 'auto';
+                    if (loopState.modelOverride && loopState.modelOverrideCycles > 0) {
+                        override = loopState.modelOverride;
+                        loopState.modelOverrideCycles--;
+                        if (loopState.modelOverrideCycles <= 0) {
+                            loopState.modelOverride = null;
+                        }
+                    }
+
+                    const result = await this._modelRouter.invoke(ctx, {}, override);
+                    const text = result.text ?? '';
+                    loopState.lastsend = text;
+                    return text;
+                } else {
+                    // Fallback to existing this.ai
+                    const result = await this.ai.generate(ctx);
+                    const text = result.text ?? '';
+                    loopState.lastsend = text;
+                    return text;
+                }
             } catch (err) {
                 Logger.error('[MeTTa llm-invoke]', err.message);
                 return '';
@@ -345,10 +409,10 @@ export class Agent extends NAR {
 
         // ── Grounded ops (for MeTTa introspection and future MeTTa execution) ──
 
-        g.register('build-context', (msg) => {
+        g.register('build-context', async (msg) => {
             const msgStr = msg?.value ?? (typeof msg === 'string' ? msg : null) ?? '';
-            return Term.grounded(buildContextFn(msgStr));
-        });
+            return Term.grounded(await buildContextFn(msgStr));
+        }, { async: true });
 
         g.register('llm-invoke', async (ctx) => {
             const ctxStr = ctx?.value ?? (typeof ctx === 'string' ? ctx : String(ctx ?? ''));
@@ -395,8 +459,87 @@ export class Agent extends NAR {
             return new Promise(res => setTimeout(res, ms)).then(() => ok());
         }, { async: true });
 
+        // ── Introspection ops (§5.10) — gated by runtimeIntrospection ──
+        g.register('manifest', () => {
+            if (!cap('runtimeIntrospection')) {
+                return Term.grounded('(manifest :restricted true)');
+            }
+            const manifest = {
+                version: '0.1.0',
+                profile: agentCfg.profile ?? 'parity',
+                capabilities: Object.fromEntries(
+                    Object.keys(agentCfg.capabilities ?? {}).map(k => [k, cap(k)])
+                ),
+                activeSkills: dispatcher.getActiveSkillDefs().split('\n'),
+                cycleCount: loopState.cycleCount,
+                wmEntries: loopState.wm.length,
+                budget: _budget
+            };
+            return Term.grounded(`(agent-manifest :version "${manifest.version}" :profile "${manifest.profile}" :cycle-count ${manifest.cycleCount} :wm-entries-count ${manifest.wmEntries} :budget ${manifest.budget})`);
+        });
+
+        g.register('skill-inventory', () => {
+            if (!cap('runtimeIntrospection')) {
+                return Term.grounded('(skill-inventory :restricted true)');
+            }
+            const skills = dispatcher.getActiveSkillDefs();
+            return Term.grounded(`(skill-inventory ${skills.split('\n').map(s => `(skill-entry ${s})`).join(' ')})`);
+        });
+
+        g.register('subsystems', () => {
+            const subsystems = {
+                channelManager: !!this.channelManager,
+                ai: !!this.ai,
+                toolInstances: Object.keys(this.toolInstances ?? {}),
+                mettaControlPlane: cap('mettaControlPlane')
+            };
+            return Term.grounded(`(subsystems :channel-manager ${subsystems.channelManager} :ai ${subsystems.ai} :tools "${JSON.stringify(subsystems.toolInstances)}" :metta-control-plane ${subsystems.mettaControlPlane})`);
+        });
+
+        g.register('agent-state', (keyAtom) => {
+            const key = keyAtom?.name ?? String(keyAtom ?? '');
+            if (key === '&wm') {
+                const wmStr = loopState.wm.map(e => `(wm-entry :content "${e.content}" :priority ${e.priority} :ttl ${e.ttl})`).join(' ');
+                return Term.grounded(`(agent-state "&wm" (${wmStr}))`);
+            }
+            if (key === '&budget') {
+                return Term.grounded(`(agent-state "&budget" ${_budget})`);
+            }
+            if (key === '&cycle-count') {
+                return Term.grounded(`(agent-state "&cycle-count" ${loopState.cycleCount})`);
+            }
+            if (key === '&error') {
+                return Term.grounded(`(agent-state "&error" ${loopState.error ? `"${loopState.error}"` : '()'})`);
+            }
+            return Term.grounded(`(agent-state :unknown-key "${key}")`);
+        });
+
+        // ── Dynamic skill discovery (§5.2.1) — gated by dynamicSkillDiscovery ──
+        g.register('discover-skills', async () => {
+            if (!cap('dynamicSkillDiscovery')) {
+                return Term.grounded('(discover-skills :restricted true)');
+            }
+            // Phase 1: filesystem scan only (no SKILL.md parsing yet)
+            const { readdir } = await import('fs/promises');
+            const { join } = await import('path');
+            const skillsDir = resolve(__agentDir, '../../memory/skills');
+            try {
+                const files = await readdir(skillsDir);
+                const mettaFiles = files.filter(f => f.endsWith('.metta'));
+                let loaded = 0;
+                for (const file of mettaFiles) {
+                    const code = await readFile(join(skillsDir, file), 'utf8');
+                    interp.run(code);
+                    loaded++;
+                }
+                return Term.grounded(`(discover-skills :loaded ${loaded} :files "${JSON.stringify(mettaFiles)}")`);
+            } catch (err) {
+                return Term.grounded(`(discover-skills :error "${err.message}")`);
+            }
+        }, { async: true });
+
         // Register skill handlers into dispatcher
-        this._registerMeTTaSkills(dispatcher, agentCfg, loopState);
+        await this._registerMeTTaSkills(dispatcher, agentCfg, loopState);
 
         // Load MeTTa files (rules available for introspection and future MeTTa execution)
         const skillsCode = await readFile(
@@ -443,8 +586,8 @@ export class Agent extends NAR {
                     .map(e => ({ ...e, ttl: e.ttl - 1 }))
                     .filter(e => e.ttl > 0);
 
-                // build-context
-                const ctx = buildContextFn(msg);
+                // build-context (async)
+                const ctx = await buildContextFn(msg);
 
                 // llm-invoke (async)
                 const resp = await invokeLLMFn(ctx);
@@ -492,7 +635,7 @@ export class Agent extends NAR {
      * Register all parity-tier skill handlers into the dispatcher.
      * Called once during _buildMeTTaLoop setup.
      */
-    _registerMeTTaSkills(dispatcher, agentCfg, loopState) {
+    async _registerMeTTaSkills(dispatcher, agentCfg, loopState) {
         // Always-on reflect skills
         dispatcher.register('think', async (content) => {
             Logger.debug(`[think] ${content}`);
@@ -536,22 +679,41 @@ export class Agent extends NAR {
             const msg = String(content);
             if (msg === loopState.lastsend) return '(duplicate suppressed)';
             loopState.lastsend = msg;
-            const channels = [...(this.channelManager?.channels?.values() ?? [])];
-            const primary  = channels[0];
-            if (primary?.send) {
-                await primary.send(msg);
+            // Broadcast to all connected embodiments
+            const embodiments = this.embodimentBus?.getAll() ?? [];
+            const connected = embodiments.filter(e => e.status === 'connected');
+            if (connected.length > 0) {
+                await Promise.all(connected.map(e => e.sendMessage('default', msg).catch(err => Logger.warn(`Send to ${e.id} failed:`, err))));
             } else {
                 Logger.info(`[AGENT→] ${msg}`);
             }
             return `sent: ${msg.slice(0, 120)}${msg.length > 120 ? '...' : ''}`;
         }, 'mettaControlPlane', ':network');
 
-        dispatcher.register('send-to', async (channel, content) => {
-            const ch = this.channelManager?.channels?.get(String(channel));
-            if (ch?.send) await ch.send(String(content));
-            else Logger.info(`[AGENT→${channel}] ${content}`);
-            return `sent-to ${channel}`;
+        dispatcher.register('send-to', async (embodimentId, content) => {
+            const embodiment = this.embodimentBus?.get(String(embodimentId));
+            if (embodiment?.status === 'connected') {
+                // Send to embodiment's primary target or broadcast
+                await embodiment.sendMessage('default', String(content));
+            } else {
+                Logger.info(`[AGENT→${embodimentId}] ${content}`);
+            }
+            return `sent-to ${embodimentId}`;
         }, 'multiEmbodiment', ':network');
+
+        // spawn-agent skill: spawn sub-agent in VirtualEmbodiment
+        dispatcher.register('spawn-agent', async (task, cycleBudget) => {
+            if (!this._virtualEmbodiment) {
+                return '(spawn-error :reason "virtual-embodiment-not-available")';
+            }
+            const budget = parseInt(cycleBudget) || 10;
+            const subAgentId = `subagent_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+            const success = this._virtualEmbodiment.spawnSubAgent(subAgentId, String(task), {}, budget);
+            if (success) {
+                return `(spawned :id "${subAgentId}" :budget ${budget})`;
+            }
+            return `(spawn-error :reason "failed-to-spawn")`;
+        }, 'subAgentSpawning', ':meta');
 
         if (isEnabled(agentCfg, 'webSearchSkill')) {
             dispatcher.register('search', async (query) => {
@@ -591,24 +753,131 @@ export class Agent extends NAR {
             }, 'fileWriteSkill', ':local-write');
         }
 
-        // Semantic memory stubs — Phase 2 will wire SemanticMemory.js
+        // Shell skill — gated by shellSkill capability
+        if (isEnabled(agentCfg, 'shellSkill')) {
+            dispatcher.register('shell', async (cmd) => {
+                const { spawn } = await import('child_process');
+                const shellCfg = agentCfg.shell ?? {};
+                const allowlist = shellCfg.allowlist ?? [];
+                const allowedPrefixes = shellCfg.allowedPrefixes ?? [];
+                const forbiddenPatterns = shellCfg.forbiddenPatterns ?? [];
+
+                const cmdStr = String(cmd);
+
+                // Check forbidden patterns
+                for (const pattern of forbiddenPatterns) {
+                    if (cmdStr.includes(pattern)) {
+                        return `(shell-blocked :reason "forbidden-pattern" :pattern "${pattern}")`;
+                    }
+                }
+
+                // Check allowlist (exact match or prefix match)
+                const allowed = allowlist.includes(cmdStr) ||
+                    allowedPrefixes.some(prefix => cmdStr.startsWith(prefix));
+                if (!allowed) {
+                    return `(shell-blocked :reason "not-allowlisted" :command "${cmdStr.slice(0, 100)}")`;
+                }
+
+                // Execute with shell: false for safety
+                return new Promise((resolve) => {
+                    const [exec, ...args] = cmdStr.split(' ');
+                    const proc = spawn(exec, args, { shell: false, timeout: 30000 });
+                    let stdout = '';
+                    let stderr = '';
+                    proc.stdout.on('data', (d) => stdout += d);
+                    proc.stderr.on('data', (d) => stderr += d);
+                    proc.on('close', (code) => {
+                        resolve(`(shell-result :exit ${code} :stdout "${stdout.slice(0, 2000)}" :stderr "${stderr.slice(0, 500)}")`);
+                    });
+                    proc.on('error', (err) => {
+                        resolve(`(shell-error "${err.message}")`);
+                    });
+                });
+            }, 'shellSkill', ':system');
+        }
+
+        // Semantic memory — Phase 2: wire SemanticMemory.js
         if (isEnabled(agentCfg, 'semanticMemory')) {
-            dispatcher.register('remember', async (content) => {
-                Logger.debug(`[remember] ${content} (SemanticMemory Phase 2)`);
-                return '(remember queued — SemanticMemory not yet loaded)';
+            const SemanticMemory = await loadSemanticMemory();
+            this._semanticMemory = new SemanticMemory({
+                dataDir: resolve(__agentDir, '../../memory'),
+                embedder: agentCfg.memory?.embedder ?? 'Xenova/all-MiniLM-L6-v2',
+                vectorDimensions: agentCfg.memory?.vectorDimensions ?? 384
+            });
+            await this._semanticMemory.initialize();
+
+            dispatcher.register('remember', async (content, type, tags) => {
+                const id = await this._semanticMemory.remember({
+                    content: String(content),
+                    type: type ?? 'episodic',
+                    tags: tags ?? [],
+                    source: 'agent-loop'
+                });
+                return `(remembered :id "${id}")`;
             }, 'semanticMemory', ':memory');
 
-            dispatcher.register('query', async (text) => {
-                return '(query — SemanticMemory not yet loaded)';
+            dispatcher.register('query', async (text, k) => {
+                const kValue = parseInt(k) || (agentCfg.memory?.maxRecallItems ?? 10);
+                const results = await this._semanticMemory.query(String(text), kValue);
+                if (results.length === 0) return '(query-result :count 0)';
+                const items = results.map(r =>
+                    `(memory :id "${r.id}" :content "${r.content.replace(/"/g, '\\"')}" :score ${r.score.toFixed(3)} :type :${r.type})`
+                ).join(' ');
+                return `(query-result :count ${results.length} ${items})`;
             }, 'semanticMemory', ':memory');
 
-            dispatcher.register('pin', async (content) => {
-                return '(pin — SemanticMemory not yet loaded)';
+            dispatcher.register('pin', async (memoryId) => {
+                const success = await this._semanticMemory.pin(String(memoryId));
+                return success ? `(pinned :id "${memoryId}")` : `(pin-error :reason "not-found" :id "${memoryId}")`;
             }, 'semanticMemory', ':memory');
 
-            dispatcher.register('forget', async (query) => {
-                return '(forget — SemanticMemory not yet loaded)';
+            dispatcher.register('forget', async (queryText) => {
+                const count = await this._semanticMemory.forget(String(queryText));
+                return `(forgot :count ${count})`;
             }, 'semanticMemory', ':memory');
+        }
+
+        // Phase 3: Multi-Model Intelligence
+        if (isEnabled(agentCfg, 'multiModelRouting')) {
+            const { ModelRouter } = await import('./models/ModelRouter.js');
+            const { AIClient } = await import('./ai/AIClient.js');
+
+            this._aiClient = new AIClient(agentCfg.lm ?? {});
+            this._modelRouter = new ModelRouter(agentCfg, this._aiClient, this._semanticMemory);
+            await this._modelRouter.initialize();
+
+            // set-model skill: override active model for next N cycles
+            dispatcher.register('set-model', async (modelName, cycles) => {
+                const cyclesValue = parseInt(cycles) || 1;
+                loopState.modelOverride = String(modelName);
+                loopState.modelOverrideCycles = cyclesValue;
+                Logger.info(`[set-model] ${modelName} for ${cyclesValue} cycles`);
+                return `(model-set :model "${modelName}" :cycles ${cyclesValue})`;
+            }, 'multiModelRouting', ':meta');
+
+            // eval-model skill: benchmark a model on a task type
+            if (isEnabled(agentCfg, 'modelExploration')) {
+                const { ModelBenchmark } = await import('./models/ModelBenchmark.js');
+                this._modelBenchmark = new ModelBenchmark(this._aiClient, agentCfg);
+
+                dispatcher.register('eval-model', async (modelName, taskType) => {
+                    const model = String(modelName);
+                    const type = taskType ? String(taskType) : null;
+                    const taskTypes = type ? [type] : null;
+
+                    Logger.info(`[eval-model] Benchmarking ${model}${type ? ` on ${type}` : ''}`);
+                    const results = await this._modelBenchmark.run(model, taskTypes);
+
+                    // Update router scores
+                    for (const [tType, scoreData] of Object.entries(results.scores)) {
+                        const avg = scoreData.average;
+                        const conf = Math.min(0.95, scoreData.taskCount * 0.15);
+                        await this._modelRouter.setScore(model, tType, avg, conf);
+                    }
+
+                    return `(eval-result :model "${model}" :scores ${JSON.stringify(results.scores).replace(/"/g, "'")})`;
+                }, 'modelExploration', ':meta');
+            }
         }
     }
 
@@ -788,7 +1057,7 @@ export class Agent extends NAR {
     }
 
     async shutdown() {
-        await this.channelManager.shutdown();
+        await this.embodimentBus?.shutdown();
         if (super.shutdown) await super.shutdown();
     }
 }

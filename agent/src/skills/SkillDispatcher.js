@@ -10,17 +10,37 @@
  *
  * The outer list is parsed as an expression whose operator is the first
  * command and whose components are the remaining commands.
+ *
+ * Phase 4: Integrated SafetyLayer and AuditSpace for safety checks and audit logging.
  */
 
 import { Parser } from '../../../metta/src/Parser.js';
 import { isExpression } from '../../../metta/src/kernel/Term.js';
 import { isEnabled } from '../config/capabilities.js';
+import { getSafetyLayer } from '../safety/SafetyLayer.js';
+import { AuditSpace } from '../memory/AuditSpace.js';
 
 export class SkillDispatcher {
   constructor(config) {
     this._config = config;
     this._handlers = new Map(); // name → { handler, capFlag, tier }
     this._parser = new Parser();
+    this._safetyLayer = null;
+    this._auditSpace = null;
+  }
+
+  /**
+   * Initialize safety layer and audit space (lazy, on first use).
+   */
+  async _ensureSafetyAndAudit() {
+    if (this._config?.capabilities?.safetyLayer && !this._safetyLayer) {
+      this._safetyLayer = getSafetyLayer(this._config);
+      await this._safetyLayer.initialize();
+    }
+    if (this._config?.capabilities?.auditLog && !this._auditSpace) {
+      this._auditSpace = new AuditSpace(this._config);
+      await this._auditSpace.initialize();
+    }
   }
 
   /**
@@ -66,9 +86,15 @@ export class SkillDispatcher {
   /**
    * Execute an array of { name, args } commands.
    * Returns array of { skill, result, error }.
+   *
+   * Phase 4: Routes through SafetyLayer if enabled, emits audit events.
    */
   async execute(cmds) {
     if (!Array.isArray(cmds) || cmds.length === 0) return [];
+
+    // Initialize safety and audit subsystems lazily
+    await this._ensureSafetyAndAudit();
+
     const results = [];
     for (const cmd of cmds) {
       results.push(await this._dispatch(cmd));
@@ -97,6 +123,9 @@ export class SkillDispatcher {
 
   // ── Private ──────────────────────────────────────────────────────
 
+  /**
+   * Dispatch a single command with safety check and audit logging.
+   */
   async _dispatch({ name, args }) {
     const entry = this._handlers.get(name);
 
@@ -108,12 +137,33 @@ export class SkillDispatcher {
       return { skill: name, result: null, error: `capability-disabled: ${entry.capFlag}` };
     }
 
-    try {
-      const result = await entry.handler(...args);
-      return { skill: name, result, error: null };
-    } catch (err) {
-      return { skill: name, result: null, error: err.message };
+    // Phase 4: Safety check before execution
+    if (this._safetyLayer && this._config?.capabilities?.safetyLayer) {
+      const safety = await this._safetyLayer.check(name, args, entry.tier);
+      if (!safety.cleared) {
+        // Emit audit event for blocked skill
+        if (this._auditSpace && this._config?.capabilities?.auditLog) {
+          await this._auditSpace.emitSkillBlocked(name, args, safety.reason);
+        }
+        return { skill: name, result: null, error: `safety-blocked: ${safety.reason}` };
+      }
     }
+
+    // Execute the skill handler
+    let result;
+    let error = null;
+    try {
+      result = await entry.handler(...args);
+    } catch (err) {
+      error = err.message;
+    }
+
+    // Phase 4: Audit logging for skill invocation
+    if (this._auditSpace && this._config?.capabilities?.auditLog) {
+      await this._auditSpace.emitSkillInvoked(name, args, result ?? error);
+    }
+
+    return { skill: name, result, error };
   }
 
   /**

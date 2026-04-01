@@ -29,6 +29,9 @@ const DEFAULTS = {
   safetyLayer:        false,
   auditLog:           false,
   rlhfCollection:     false,
+  dynamicSkillDiscovery: false,
+  executionHooks:    false,
+  runtimeIntrospection: false,
   // Experimental tier
   selfModifyingSkills: false,
   harnessOptimization: false,
@@ -51,6 +54,9 @@ const PROFILES = {
     fileWriteSkill:     false,
     shellSkill:         false,
     webSearchSkill:     true,
+    dynamicSkillDiscovery: false,
+    executionHooks:    false,
+    runtimeIntrospection: false,
   },
 
   parity: {
@@ -65,6 +71,9 @@ const PROFILES = {
     shellSkill:         false,
     webSearchSkill:     true,
     auditLog:           true,
+    dynamicSkillDiscovery: false,
+    executionHooks:    false,
+    runtimeIntrospection: false,
   },
 
   evolved: {
@@ -88,6 +97,9 @@ const PROFILES = {
     safetyLayer:        true,
     auditLog:           true,
     rlhfCollection:     true,
+    dynamicSkillDiscovery: false,
+    executionHooks:    false,
+    runtimeIntrospection: false,
   },
 
   full: {
@@ -118,6 +130,9 @@ const PROFILES = {
     subAgentSpawning:     true,
     selfEvaluation:       true,
     harnessDiffusion:     false,
+    dynamicSkillDiscovery: true,
+    executionHooks:       true,
+    runtimeIntrospection: true,
   },
 };
 
@@ -130,6 +145,8 @@ const DEPENDENCY_TABLE = {
   memoryConsolidation: ['semanticMemory'],
   modelExploration:    ['multiModelRouting', 'modelScoreUpdates'],
   harnessDiffusion:    ['harnessOptimization'],
+  dynamicSkillDiscovery: ['selfModifyingSkills'],
+  executionHooks:      ['safetyLayer', 'auditLog'],
 };
 
 /**

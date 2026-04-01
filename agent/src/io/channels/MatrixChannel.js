@@ -2,13 +2,25 @@
  * MatrixChannel.js - Matrix Protocol Implementation
  * Prototype for Matrix/Element integration.
  * Uses matrix-js-sdk for connectivity.
+ * 
+ * Phase 5: Updated to extend Embodiment for unified I/O abstraction
  */
-import { Channel } from '../Channel.js';
+import { Embodiment } from '../Embodiment.js';
 import { Logger } from '@senars/core';
 
-export class MatrixChannel extends Channel {
+export class MatrixChannel extends Embodiment {
     constructor(config = {}) {
-        super(config);
+        super({
+            ...config,
+            name: config.name || 'Matrix',
+            description: config.description || 'Matrix protocol channel',
+            capabilities: config.capabilities || ['private-messages', 'rooms', 'typing-indicators', 'read-receipts'],
+            constraints: { maxMessageLength: 65536 },
+            isPublic: config.isPublic ?? false,
+            isInternal: false,
+            defaultSalience: config.defaultSalience ?? 0.5
+        });
+        
         this.type = 'matrix';
         this.client = null;
         this.matrixSdk = null;
@@ -84,12 +96,16 @@ export class MatrixChannel extends Channel {
                 textContent = content.formatted_body;
             }
             
-            this.emitMessage(from, textContent, {
-                room: roomName,
-                roomId,
-                type: messageType,
-                eventId: event.getId(),
-                isPrivate: false
+            this.emitMessage({
+                from,
+                content: textContent,
+                metadata: {
+                    room: roomName,
+                    roomId,
+                    type: messageType,
+                    eventId: event.getId(),
+                    isPrivate: false
+                }
             });
         });
 
