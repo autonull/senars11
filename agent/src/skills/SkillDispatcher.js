@@ -12,6 +12,7 @@
  * command and whose components are the remaining commands.
  *
  * Phase 4: Integrated SafetyLayer and AuditSpace for safety checks and audit logging.
+ * Phase 4.5: Integrated HookOrchestrator for declarative pre/post hooks.
  */
 
 import { Parser } from '../../../metta/src/Parser.js';
@@ -19,6 +20,7 @@ import { isExpression } from '../../../metta/src/kernel/Term.js';
 import { isEnabled } from '../config/capabilities.js';
 import { getSafetyLayer } from '../safety/SafetyLayer.js';
 import { AuditSpace } from '../memory/AuditSpace.js';
+import { getHookOrchestrator } from './HookOrchestrator.js';
 
 export class SkillDispatcher {
   constructor(config) {
@@ -30,7 +32,8 @@ export class SkillDispatcher {
   }
 
   /**
-   * Initialize safety layer and audit space (lazy, on first use).
+   * Initialize safety layer, audit space, and hook orchestrator (lazy, on first use).
+   * Phase 4.5: Also loads hooks.metta when executionHooks enabled.
    */
   async _ensureSafetyAndAudit() {
     if (this._config?.capabilities?.safetyLayer && !this._safetyLayer) {
@@ -40,6 +43,15 @@ export class SkillDispatcher {
     if (this._config?.capabilities?.auditLog && !this._auditSpace) {
       this._auditSpace = new AuditSpace(this._config);
       await this._auditSpace.initialize();
+    }
+    // Phase 4.5: Load hooks
+    if (this._config?.capabilities?.executionHooks) {
+      const hookOrchestrator = getHookOrchestrator(this._config, this._auditSpace);
+      if (!hookOrchestrator.loaded) {
+        const { join } = await import('path');
+        const hooksPath = join(process.cwd(), 'agent', 'src', 'metta', 'hooks.metta');
+        await hookOrchestrator.loadHooksFromFile(hooksPath);
+      }
     }
   }
 
@@ -124,7 +136,8 @@ export class SkillDispatcher {
   // ── Private ──────────────────────────────────────────────────────
 
   /**
-   * Dispatch a single command with safety check and audit logging.
+   * Dispatch a single command with hook orchestration, safety check, and audit logging.
+   * Phase 4.5: Routes through HookOrchestrator before SafetyLayer.
    */
   async _dispatch({ name, args }) {
     const entry = this._handlers.get(name);
@@ -137,13 +150,27 @@ export class SkillDispatcher {
       return { skill: name, result: null, error: `capability-disabled: ${entry.capFlag}` };
     }
 
+    // Phase 4.5: Hook orchestration (before safety layer)
+    let currentArgs = args;
+    if (this._config.capabilities?.executionHooks) {
+      const hookOrchestrator = getHookOrchestrator(this._config, this._auditSpace);
+      const preHookResult = await hookOrchestrator.runPreHooks({ name, args: currentArgs });
+      
+      if (preHookResult.action === 'deny') {
+        return { skill: name, result: null, error: `hook-deny: ${preHookResult.reason}` };
+      }
+      if (preHookResult.action === 'rewrite') {
+        currentArgs = preHookResult.newArgs || currentArgs;
+      }
+    }
+
     // Phase 4: Safety check before execution
     if (this._safetyLayer && this._config?.capabilities?.safetyLayer) {
-      const safety = await this._safetyLayer.check(name, args, entry.tier);
+      const safety = await this._safetyLayer.check(name, currentArgs, entry.tier);
       if (!safety.cleared) {
         // Emit audit event for blocked skill
         if (this._auditSpace && this._config?.capabilities?.auditLog) {
-          await this._auditSpace.emitSkillBlocked(name, args, safety.reason);
+          await this._auditSpace.emitSkillBlocked(name, currentArgs, safety.reason);
         }
         return { skill: name, result: null, error: `safety-blocked: ${safety.reason}` };
       }
@@ -153,14 +180,20 @@ export class SkillDispatcher {
     let result;
     let error = null;
     try {
-      result = await entry.handler(...args);
+      result = await entry.handler(...currentArgs);
     } catch (err) {
       error = err.message;
     }
 
+    // Phase 4.5: Post-hook execution
+    if (this._config.capabilities?.executionHooks) {
+      const hookOrchestrator = getHookOrchestrator(this._config, this._auditSpace);
+      await hookOrchestrator.runPostHooks({ name, args: currentArgs }, result ?? error);
+    }
+
     // Phase 4: Audit logging for skill invocation
     if (this._auditSpace && this._config?.capabilities?.auditLog) {
-      await this._auditSpace.emitSkillInvoked(name, args, result ?? error);
+      await this._auditSpace.emitSkillInvoked(name, currentArgs, result ?? error);
     }
 
     return { skill: name, result, error };

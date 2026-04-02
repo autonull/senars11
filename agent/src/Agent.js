@@ -25,6 +25,26 @@ const loadSemanticMemory = async () => {
     return _SemanticMemory;
 };
 
+// Lazy-loaded for Phase 6 Harness Optimizer
+let _HarnessOptimizer = null;
+const loadHarnessOptimizer = async () => {
+    if (!_HarnessOptimizer) {
+        const mod = await import('./harness/HarnessOptimizer.js');
+        _HarnessOptimizer = mod.HarnessOptimizer;
+    }
+    return _HarnessOptimizer;
+};
+
+// Lazy-loaded for Phase 6 ContextBuilder
+let _ContextBuilder = null;
+const loadContextBuilder = async () => {
+    if (!_ContextBuilder) {
+        const mod = await import('./memory/ContextBuilder.js');
+        _ContextBuilder = mod.ContextBuilder;
+    }
+    return _ContextBuilder;
+};
+
 const __agentDir = dirname(fileURLToPath(import.meta.url));
 
 export class Agent extends NAR {
@@ -460,58 +480,31 @@ export class Agent extends NAR {
         }, { async: true });
 
         // ── Introspection ops (§5.10) — gated by runtimeIntrospection ──
+        // Phase 4.5: Use IntrospectionOps class for full implementation
+        const { IntrospectionOps } = await import('./introspection/IntrospectionOps.js');
+        const introspectionOps = new IntrospectionOps(
+            agentCfg,
+            dispatcher,
+            this.embodimentBus,
+            this._modelRouter,
+            loopState
+        );
+
         g.register('manifest', () => {
-            if (!cap('runtimeIntrospection')) {
-                return Term.grounded('(manifest :restricted true)');
-            }
-            const manifest = {
-                version: '0.1.0',
-                profile: agentCfg.profile ?? 'parity',
-                capabilities: Object.fromEntries(
-                    Object.keys(agentCfg.capabilities ?? {}).map(k => [k, cap(k)])
-                ),
-                activeSkills: dispatcher.getActiveSkillDefs().split('\n'),
-                cycleCount: loopState.cycleCount,
-                wmEntries: loopState.wm.length,
-                budget: _budget
-            };
-            return Term.grounded(`(agent-manifest :version "${manifest.version}" :profile "${manifest.profile}" :cycle-count ${manifest.cycleCount} :wm-entries-count ${manifest.wmEntries} :budget ${manifest.budget})`);
+            return Term.grounded(introspectionOps.generateManifest());
         });
 
         g.register('skill-inventory', () => {
-            if (!cap('runtimeIntrospection')) {
-                return Term.grounded('(skill-inventory :restricted true)');
-            }
-            const skills = dispatcher.getActiveSkillDefs();
-            return Term.grounded(`(skill-inventory ${skills.split('\n').map(s => `(skill-entry ${s})`).join(' ')})`);
+            return Term.grounded(introspectionOps.listSkills());
         });
 
         g.register('subsystems', () => {
-            const subsystems = {
-                channelManager: !!this.channelManager,
-                ai: !!this.ai,
-                toolInstances: Object.keys(this.toolInstances ?? {}),
-                mettaControlPlane: cap('mettaControlPlane')
-            };
-            return Term.grounded(`(subsystems :channel-manager ${subsystems.channelManager} :ai ${subsystems.ai} :tools "${JSON.stringify(subsystems.toolInstances)}" :metta-control-plane ${subsystems.mettaControlPlane})`);
+            return Term.grounded(introspectionOps.describeSubsystems());
         });
 
         g.register('agent-state', (keyAtom) => {
             const key = keyAtom?.name ?? String(keyAtom ?? '');
-            if (key === '&wm') {
-                const wmStr = loopState.wm.map(e => `(wm-entry :content "${e.content}" :priority ${e.priority} :ttl ${e.ttl})`).join(' ');
-                return Term.grounded(`(agent-state "&wm" (${wmStr}))`);
-            }
-            if (key === '&budget') {
-                return Term.grounded(`(agent-state "&budget" ${_budget})`);
-            }
-            if (key === '&cycle-count') {
-                return Term.grounded(`(agent-state "&cycle-count" ${loopState.cycleCount})`);
-            }
-            if (key === '&error') {
-                return Term.grounded(`(agent-state "&error" ${loopState.error ? `"${loopState.error}"` : '()'})`);
-            }
-            return Term.grounded(`(agent-state :unknown-key "${key}")`);
+            return Term.grounded(introspectionOps.getState(key));
         });
 
         // ── Dynamic skill discovery (§5.2.1) — gated by dynamicSkillDiscovery ──
@@ -550,6 +543,74 @@ export class Agent extends NAR {
         interp.run(skillsCode);
         interp.run(loopCode);
 
+        // ── Phase 6: ContextBuilder integration ───────────────────────────
+        // Initialize ContextBuilder for MeTTa-driven context assembly
+        let contextBuilder = null;
+        if (isEnabled(agentCfg, 'contextBudgets')) {
+            const ContextBuilder = await loadContextBuilder();
+            
+            // Create introspection ops wrapper (simple inline implementation)
+            const introspectionOps = {
+                generateManifest: () => {
+                    if (!cap('runtimeIntrospection')) return '(manifest :restricted true)';
+                    return JSON.stringify({
+                        version: '0.1.0',
+                        profile: agentCfg.profile ?? 'parity',
+                        capabilities: Object.fromEntries(
+                            Object.keys(agentCfg.capabilities ?? {}).map(k => [k, cap(k)])
+                        ),
+                        cycleCount: loopState.cycleCount,
+                        wmEntries: loopState.wm.length,
+                        budget: _budget
+                    }, null, 2);
+                }
+            };
+            
+            contextBuilder = new ContextBuilder(
+                agentCfg,
+                this._semanticMemory,
+                { getRecent: async (n) => loopState.historyBuffer.slice(-n) },
+                dispatcher,
+                introspectionOps
+            );
+            contextBuilder.registerGroundedOps(interp);
+            Logger.info('[Agent] ContextBuilder initialized');
+        }
+
+        // ── Phase 6: HarnessOptimizer integration ─────────────────────────
+        // Initialize HarnessOptimizer for self-improving prompts
+        let harnessOptimizer = null;
+        if (isEnabled(agentCfg, 'harnessOptimization')) {
+            const HarnessOptimizer = await loadHarnessOptimizer();
+            
+            // Create minimal audit space wrapper for harness events
+            const auditSpaceWrapper = {
+                queryByType: async (type, limit) => {
+                    // Return loop state as audit-like atoms
+                    return loopState.historyBuffer.slice(-limit).map((h, i) => ({
+                        cycleId: i,
+                        content: h,
+                        timestamp: Date.now()
+                    }));
+                },
+                emitHarnessModified: async (cycle, score) => {
+                    Logger.info(`[audit] harness-modified cycle=${cycle} score=${score}`);
+                }
+            };
+            
+            harnessOptimizer = new HarnessOptimizer(
+                agentCfg,
+                {
+                    invoke: async (ctx, opts) => {
+                        const result = await invokeLLMFn(ctx);
+                        return { response: result, model: 'fallback', latency: 0 };
+                    }
+                },
+                auditSpaceWrapper
+            );
+            Logger.info('[Agent] HarnessOptimizer initialized');
+        }
+
         // ── Phase 1 JS async loop (mirrors AgentLoop.metta semantics) ──
         //
         // The MeTTa interpreter's reduceNDAsync does not yet support async
@@ -586,8 +647,10 @@ export class Agent extends NAR {
                     .map(e => ({ ...e, ttl: e.ttl - 1 }))
                     .filter(e => e.ttl > 0);
 
-                // build-context (async)
-                const ctx = await buildContextFn(msg);
+                // build-context (async) — use ContextBuilder if available (Phase 6)
+                const ctx = contextBuilder
+                    ? await contextBuilder.build(msg)
+                    : await buildContextFn(msg);
 
                 // llm-invoke (async)
                 const resp = await invokeLLMFn(ctx);
@@ -620,6 +683,13 @@ export class Agent extends NAR {
                 // emit-cycle-audit
                 if (cap('auditLog')) {
                     Logger.debug(`[audit] cycle=${loopState.cycleCount} msg="${(msg ?? '').slice(0, 80)}"`);
+                }
+
+                // Phase 6: Run HarnessOptimizer periodically
+                if (harnessOptimizer && harnessOptimizer.shouldOptimize(loopState.cycleCount)) {
+                    Logger.info('[MeTTa loop] Running HarnessOptimizer...');
+                    const result = await harnessOptimizer.runOptimizationCycle();
+                    Logger.info(`[HarnessOptimizer] Result: ${result.reason}`);
                 }
 
                 loopState.cycleCount++;
