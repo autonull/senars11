@@ -5,9 +5,9 @@ import path from 'path';
 
 import { fileURLToPath } from 'url';
 
-const _fileURLToPath = fileURLToPath;
-const __filename_fixed = _fileURLToPath(import.meta.url);
-const __dirname_fixed = path.dirname(__filename_fixed);
+// Workaround for Jest VM environment
+const __filename = typeof __filename !== 'undefined' ? __filename : fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 describe.skip('ImaginationExtension (Mind Eye)', () => {
     let interp;

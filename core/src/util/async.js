@@ -87,3 +87,10 @@ export async function retry(operation, options = {}) {
     }
     throw lastError;
 }
+
+/**
+ * Check if a function is async
+ * @param {Function} fn - Function to check
+ * @returns {boolean} True if async function
+ */
+export const isAsync = (fn) => fn instanceof AsyncFunction;

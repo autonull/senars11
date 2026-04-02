@@ -10,13 +10,13 @@ git clone <repository-url>
 cd senars11
 
 # Install dependencies
-npm install
+pnpm install
 
 # Run tests to verify setup
-npm test
+pnpm test
 
 # Start development
-npm run watch  # Auto-rebuild on changes
+pnpm run watch  # Auto-rebuild on changes
 ```
 
 ### Contributing Guidelines
@@ -31,7 +31,7 @@ npm run watch  # Auto-rebuild on changes
 
 1. Create a feature branch: `git checkout -b feature/my-feature`
 2. Make changes and add tests
-3. Run tests: `npm test`
+3. Run tests: `pnpm test`
 4. Commit changes: `git commit -m "Add feature X"`
 5. Push and create pull request
 
@@ -157,13 +157,13 @@ Helper functions for common operations:
 - **System Invariants:** Verify that core properties remain consistent across transformations
 - **Term Properties:** Test immutability and equality invariants
 - **Truth Calculations:** Verify truth value operations
-- **Command:** `npm run test:property`
+- **Command:** `pnpm run test:property`
 
 ### End-to-End (E2E) Tests
 
 - **UI Testing:** Validates the Web UI using Playwright
 - **Screenshots:** Automated visual regression testing
-- **Command:** `npm run test:e2e`
+- **Command:** `pnpm run test:e2e`
 
 ### Testing API
 

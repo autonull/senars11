@@ -1,0 +1,115 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      3d-core-raub:
+        specifier: ^5.3.0
+        version: 5.3.0
+      three:
+        specifier: ^0.181.2
+        version: 0.181.2
+
+packages:
+
+  3d-core-raub@5.3.0:
+    resolution: {integrity: sha512-Qhpx0lReq429Qdf+8JFpyHYcxi8kvKpti1WCqW5ye4CKt4a9i/oYtRi+SlFN53dffMwJiF6PCIUZjeepKHG/cA==}
+    engines: {node: '>=22.14.0', npm: '>=10.9.2'}
+
+  addon-tools-raub@9.3.0:
+    resolution: {integrity: sha512-YZnTOK7KbMnIZOyOtAo/TOQ80XfYgL8oYhNAi2qlrVV+YduOA+VWBixD3+vybjQvWLJOhWvDIue/QEjkROVPKA==}
+    engines: {node: '>=22.14.0', npm: '>=10.9.2'}
+    peerDependencies:
+      node-addon-api: ^8.3.0
+    peerDependenciesMeta:
+      node-addon-api:
+        optional: true
+
+  deps-freeimage-raub@6.2.0:
+    resolution: {integrity: sha512-fhHovPGehCpsnVXZG074E99lOsF9vOWYXWiztLxEHEoZNbFVT2qvQsMEVxSsWEJWiMrvDX/Dwd1T+9G3RZkAwA==}
+    engines: {node: '>=22.14.0', npm: '>=10.9.2'}
+
+  deps-opengl-raub@7.2.0:
+    resolution: {integrity: sha512-TcMRA3s956xdnZG0jzJ59wz7uSdNRwP8XfwMZUpQI2bz1o3NLia1lo32DDhl9hbe509vIdWAZ7pgNAQhe53QjQ==}
+    engines: {node: '>=22.14.0', npm: '>=10.9.2'}
+
+  glfw-raub@6.4.0:
+    resolution: {integrity: sha512-n7aW2E83xwrFbTh4jSzfihY3r3UiRbqfkEGRC1gGC//vEUGmCfnOSSDXHmSQfyW67FtAD8CX8CtaNJ2jAVTSbA==}
+    engines: {node: '>=22.14.0', npm: '>=10.9.2'}
+
+  image-raub@5.2.0:
+    resolution: {integrity: sha512-kKtkbYQoUpLbsZ1OFFC0gsS0SfBj4dq3Bpwusz7dp42UR700mUU8R+ixXuULGbI/4WODD2P/UDjz2iNbt425PQ==}
+    engines: {node: '>=22.14.0', npm: '>=10.9.2'}
+
+  segfault-raub@3.2.0:
+    resolution: {integrity: sha512-Q1f3K6fAS3lvZwzkxn9bdljCCjZBSAV18lHon8XMAFuwOIicqbKf67v+Bzo9Nof68wlVzKePCi7pXoLegT/YYw==}
+    engines: {node: '>=22.14.0', npm: '>=10.9.2'}
+
+  three@0.181.2:
+    resolution: {integrity: sha512-k/CjiZ80bYss6Qs7/ex1TBlPD11whT9oKfT8oTGiHa34W4JRd1NiH/Tr1DbHWQ2/vMUypxksLnF2CfmlmM5XFQ==}
+
+  webgl-raub@5.3.0:
+    resolution: {integrity: sha512-x5Yj3kIxtqtINtCT3ybdk+t0iKQlUEJoT5k6jlCJJuzj8fNnHofLDT8V5X99zBCmVRrtV7SjVXoWxbVfak1+zA==}
+    engines: {node: '>=22.14.0', npm: '>=10.9.2'}
+
+snapshots:
+
+  3d-core-raub@5.3.0:
+    dependencies:
+      addon-tools-raub: 9.3.0
+      glfw-raub: 6.4.0
+      image-raub: 5.2.0
+      webgl-raub: 5.3.0
+    transitivePeerDependencies:
+      - node-addon-api
+
+  addon-tools-raub@9.3.0: {}
+
+  deps-freeimage-raub@6.2.0:
+    dependencies:
+      addon-tools-raub: 9.3.0
+    transitivePeerDependencies:
+      - node-addon-api
+
+  deps-opengl-raub@7.2.0:
+    dependencies:
+      addon-tools-raub: 9.3.0
+    transitivePeerDependencies:
+      - node-addon-api
+
+  glfw-raub@6.4.0:
+    dependencies:
+      addon-tools-raub: 9.3.0
+      deps-opengl-raub: 7.2.0
+      segfault-raub: 3.2.0
+    transitivePeerDependencies:
+      - node-addon-api
+
+  image-raub@5.2.0:
+    dependencies:
+      addon-tools-raub: 9.3.0
+      deps-freeimage-raub: 6.2.0
+      segfault-raub: 3.2.0
+    transitivePeerDependencies:
+      - node-addon-api
+
+  segfault-raub@3.2.0:
+    dependencies:
+      addon-tools-raub: 9.3.0
+    transitivePeerDependencies:
+      - node-addon-api
+
+  three@0.181.2: {}
+
+  webgl-raub@5.3.0:
+    dependencies:
+      addon-tools-raub: 9.3.0
+      deps-opengl-raub: 7.2.0
+      segfault-raub: 3.2.0
+    transitivePeerDependencies:
+      - node-addon-api

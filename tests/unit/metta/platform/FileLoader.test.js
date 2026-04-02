@@ -3,12 +3,9 @@
  */
 
 import { FileLoader } from '../../../../metta/src/platform/node/FileLoader.js';
-import { createRequire } from 'module';
-
-const __require = createRequire(import.meta.url);
-const fs = __require('fs');
-const path = __require('path');
-const os = __require('os');
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 
 describe('FileLoader', () => {
     let tempDir;

@@ -5,7 +5,7 @@
 ### Prerequisites
 
 - Node.js >= 16.x
-- npm >= 7.x
+- pnpm >= 7.x
 
 ### Installation
 
@@ -51,7 +51,7 @@ For detailed configuration options, see [README.config.md](README.config.md).
 Interactive command-line interface for direct system interaction:
 
 ```bash
-npm run repl
+pnpm run repl
 ```
 
 Once in the REPL, you can:
@@ -87,16 +87,16 @@ This starts a Model Context Protocol server that allows AI assistants to interac
 
 ```bash
 # All tests
-npm test
+pnpm test
 
 # Unit tests only
-npm run test:unit
+pnpm run test:unit
 
 # Integration tests
-npm run test:integration
+pnpm run test:integration
 
 # Specific test file
-npm test -- tests/term/Term.test.js
+pnpm test -- tests/term/Term.test.js
 ```
 
 ### Starting WebSocket Monitor
@@ -211,11 +211,11 @@ reasoner.on('metrics', ({ derivationsPerSecond, memoryUsage }) => {
 
 ### "Module not found" errors
 
-**Solution**: Ensure you've run `npm install` and `npm run build`
+**Solution**: Ensure you've run `pnpm install` and `pnpm run build`
 
 ```bash
-npm install
-npm run build
+pnpm install
+pnpm run build
 ```
 
 ### Tests failing
@@ -224,7 +224,7 @@ npm run build
 
 ```bash
 node --version  # Should be >= 16.x
-npm test
+pnpm test
 ```
 
 ### REPL not responding

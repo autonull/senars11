@@ -3,7 +3,9 @@ import { Term } from '@senars/metta/src/kernel/Term.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Workaround for Jest VM environment
+const __filename = typeof __filename !== 'undefined' ? __filename : fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const stdlibDir = path.resolve(__dirname, '../../../metta/src/stdlib');
 const nalStdlibDir = path.resolve(__dirname, '../../../metta/src/nal/stdlib');
 

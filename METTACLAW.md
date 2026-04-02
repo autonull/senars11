@@ -853,7 +853,7 @@ Consequence chaining (A→B→C inference) is a Phase 6+ extension when the dire
 
 ```json
 "shell": {
-  "allowlist": ["git status", "git log --oneline", "npm test", "node --version"],
+  "allowlist": ["git status", "git log --oneline", "pnpm test", "node --version"],
   "allowedPrefixes": ["git "],
   "forbiddenPatterns": ["rm", "sudo", "curl", "wget", ">", "|", ";", "&&", "`", "$(", "eval"]
 }
@@ -1284,7 +1284,7 @@ memory/                          ← runtime memory, git-tracked
   },
 
   "shell": {
-    "allowlist":         ["git status", "git log --oneline", "npm test"],
+    "allowlist":         ["git status", "git log --oneline", "pnpm test"],
     "allowedPrefixes":   ["git "],
     "forbiddenPatterns": ["rm", "sudo", "curl", "wget", ">", "|", ";", "&&", "`", "$(", "eval"]
   },
