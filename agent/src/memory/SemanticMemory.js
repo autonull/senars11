@@ -8,7 +8,17 @@ import { writeFile, readFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-const __dir = dirname(fileURLToPath(import.meta.url));
+// Workaround for Jest VM environment where import.meta.url might not be available
+let __memoryDir;
+try {
+    __memoryDir = dirname(fileURLToPath(import.meta.url));
+} catch (e) {
+    __memoryDir = typeof global !== 'undefined' && global.__dirname
+        ? join(global.__dirname, 'agent/src/memory')
+        : join(process.cwd(), 'agent/src/memory');
+}
+
+const __dir = __memoryDir;
 
 class VectorIndex {
   constructor(dimensions, dataDir) {

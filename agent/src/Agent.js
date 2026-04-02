@@ -12,7 +12,7 @@ import {ToolAdapter} from './ai/ToolAdapter.js';
 import {isEnabled, validateDeps} from './config/capabilities.js';
 import {SkillDispatcher} from './skills/SkillDispatcher.js';
 import {readFile} from 'fs/promises';
-import {resolve, dirname} from 'path';
+import {resolve, dirname, join} from 'path';
 import {fileURLToPath} from 'url';
 
 // Lazy-loaded for Phase 2 Semantic Memory
@@ -50,9 +50,10 @@ let __agentDir;
 try {
     __agentDir = dirname(fileURLToPath(import.meta.url));
 } catch (e) {
-    __agentDir = typeof global !== 'undefined' && global.__dirname 
-        ? global.__dirname 
-        : process.cwd();
+    // Fallback for Jest VM environment
+    __agentDir = typeof global !== 'undefined' && global.__dirname && global.__dirname.includes('agent')
+        ? global.__dirname
+        : join(process.cwd(), 'agent/src');
 }
 
 export class Agent extends NAR {
@@ -102,7 +103,7 @@ export class Agent extends NAR {
 
         // Auto-join if configured and register tools
         this._autoJoinChannels(embodimentConfig);
-        this._setupEmbodimentRouting();
+        // this._setupEmbodimentRouting(); // REMOVED - method not defined, functionality moved to EmbodimentBus
 
         this.commandRegistry = this._initializeCommandRegistry();
 
@@ -121,7 +122,7 @@ export class Agent extends NAR {
         this.ai = new AIClient(config.lm || {});
 
         // Bind tools to AI if config enables it (assumed for chatbot)
-        this._bindToolsToAI(channelConfig); // Q: Should I pass config?
+        // this._bindToolsToAI(channelConfig); // REMOVED - channelConfig not defined, deferred to initialize()
 
         if (this.metta) {
              this._registerMeTTaExtensions();
