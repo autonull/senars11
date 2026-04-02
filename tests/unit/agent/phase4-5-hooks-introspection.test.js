@@ -8,20 +8,22 @@
  * Governed by: executionHooks, runtimeIntrospection capability flags
  */
 
-import { describe, it, expect, beforeEach, vi } from '@jest/globals';
+import { describe, it, expect, beforeEach } from '@jest/globals';
 import { HookOrchestrator, resetHookOrchestrator, getHookOrchestrator } from '../../../agent/src/skills/HookOrchestrator.js';
 import { IntrospectionOps } from '../../../agent/src/introspection/IntrospectionOps.js';
 import { existsSync, writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
 
 // Mock Logger
-vi.mock('@senars/core', () => ({
-  Logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn()
-  }
+const mockLogger = {
+    info: () => {},
+    warn: () => {},
+    error: () => {},
+    debug: () => {}
+};
+
+jest.mock('@senars/core', () => ({
+    Logger: mockLogger
 }));
 
 describe('Phase 4.5: HookOrchestrator', () => {

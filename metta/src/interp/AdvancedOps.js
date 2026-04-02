@@ -58,8 +58,20 @@ export function registerAdvancedOps(interpreter) {
         // Type operations
         '&type-of': {
             fn: (atom) => {
+                // Query for (: atom $type) patterns in the space
                 const res = match(interpreter.space, exp(':', [atom, v('type')]), v('type'));
-                return res.length ? res[0] : sym('Atom');
+                if (res.length > 0) {
+                    return res[0];
+                }
+                
+                // Fallback: try structural type inference
+                try {
+                    const inferredType = interpreter.typeChecker?.infer(atom, {});
+                    if (inferredType) {
+                        return sym(interpreter.typeChecker.typeToString(inferredType));
+                    }
+                } catch {}
+                return sym('Atom');
             },
             opts: {}
         },

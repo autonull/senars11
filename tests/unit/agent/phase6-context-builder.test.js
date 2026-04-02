@@ -12,19 +12,21 @@
  * - Integration with SemanticMemory and SkillDispatcher
  */
 
-import { describe, it, expect, beforeEach, vi } from '@jest/globals';
+import { describe, it, expect, beforeEach } from '@jest/globals';
 import { ContextBuilder } from '../../../agent/src/memory/ContextBuilder.js';
 import { existsSync, writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
 
 // Mock Logger
-vi.mock('@senars/core', () => ({
-  Logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn()
-  }
+const mockLogger = {
+    info: () => {},
+    warn: () => {},
+    error: () => {},
+    debug: () => {}
+};
+
+jest.mock('@senars/core', () => ({
+    Logger: mockLogger
 }));
 
 describe('Phase 6: ContextBuilder', () => {

@@ -10,7 +10,16 @@ import {FormattingUtils} from '../../../core/src/util/FormattingUtils.js';
 import {Logger} from '../../../core/src/util/Logger.js';
 import {z} from 'zod';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+// Workaround for Jest VM environment where import.meta.url might not be available
+let __dirname;
+try {
+    __dirname = dirname(fileURLToPath(import.meta.url));
+} catch (e) {
+    // Jest VM environment - use global.__dirname or fallback
+    __dirname = typeof global !== 'undefined' && global.__dirname 
+        ? global.__dirname 
+        : process.cwd();
+}
 const EXAMPLES_DIR = resolve(__dirname, '../../../examples');
 
 // Helper to generate banner

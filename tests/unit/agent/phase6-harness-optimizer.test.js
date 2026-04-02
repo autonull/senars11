@@ -13,21 +13,22 @@
  * - Git integration for version history
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { HarnessOptimizer, resetHarnessOptimizer, getHarnessOptimizer } from '../../../agent/src/harness/HarnessOptimizer.js';
-import { Logger } from '@senars/core';
 import { existsSync, writeFileSync, readFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
 
 // Mock Logger
-vi.mock('@senars/core', () => ({
-  Logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn()
-  }
+const mockLogger = {
+    info: () => {},
+    warn: () => {},
+    error: () => {},
+    debug: () => {}
+};
+
+jest.mock('@senars/core', () => ({
+    Logger: mockLogger
 }));
 
 describe('Phase 6: HarnessOptimizer', () => {

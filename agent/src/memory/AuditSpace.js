@@ -7,7 +7,15 @@ import { writeFile, readFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-const __dir = dirname(fileURLToPath(import.meta.url));
+// Workaround for Jest VM environment where import.meta.url might not be available
+let __dir;
+try {
+    __dir = dirname(fileURLToPath(import.meta.url));
+} catch (e) {
+    __dir = typeof global !== 'undefined' && global.__dirname 
+        ? global.__dirname 
+        : process.cwd();
+}
 
 export class AuditSpace {
   constructor(config = {}) {

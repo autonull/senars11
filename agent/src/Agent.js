@@ -45,7 +45,15 @@ const loadContextBuilder = async () => {
     return _ContextBuilder;
 };
 
-const __agentDir = dirname(fileURLToPath(import.meta.url));
+// Workaround for Jest VM environment where import.meta.url might not be available
+let __agentDir;
+try {
+    __agentDir = dirname(fileURLToPath(import.meta.url));
+} catch (e) {
+    __agentDir = typeof global !== 'undefined' && global.__dirname 
+        ? global.__dirname 
+        : process.cwd();
+}
 
 export class Agent extends NAR {
     constructor(config = {}) {

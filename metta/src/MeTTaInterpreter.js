@@ -298,6 +298,10 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
 
         if (isRule || isTypeAnnotation) {
             this.space.addRule(expr.components[0], expr.components[1]);
+            // Also add type annotations as atoms so they can be queried
+            if (isTypeAnnotation) {
+                this.space.add(expr);
+            }
             if (results) results.push(expr);
             return;
         }

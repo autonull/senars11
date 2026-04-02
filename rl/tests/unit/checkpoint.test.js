@@ -7,9 +7,17 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const _fileURLToPath = fileURLToPath;
-const __dirname_fixed = path.dirname(_fileURLToPath(import.meta.url));
-const TEST_DIR = path.join(__dirname, 'test_checkpoints');
+// Workaround for Jest VM environment where import.meta.url might not be available
+let __dirname_fixed;
+try {
+    __dirname_fixed = path.dirname(fileURLToPath(import.meta.url));
+} catch (e) {
+    // Jest VM environment - use global.__dirname or fallback
+    __dirname_fixed = typeof global !== 'undefined' && global.__dirname 
+        ? global.__dirname 
+        : process.cwd();
+}
+const TEST_DIR = path.join(__dirname_fixed, 'test_checkpoints');
 
 // Mock agent for testing
 class MockAgent extends Component {

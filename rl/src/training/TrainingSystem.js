@@ -24,8 +24,16 @@ try {
     fork = null;
 }
 
-const _fileURLToPath = fileURLToPath;
-const __dirname_fixed = path.dirname(_fileURLToPath(import.meta.url));
+// Workaround for Jest VM environment where import.meta.url might not be available
+let __dirname_fixed;
+try {
+    __dirname_fixed = path.dirname(fileURLToPath(import.meta.url));
+} catch (e) {
+    // Jest VM environment - use global.__dirname or fallback
+    __dirname_fixed = typeof global !== 'undefined' && global.__dirname 
+        ? global.__dirname 
+        : process.cwd();
+}
 
 const DISTRIBUTED_DEFAULTS = {
     numWorkers: 4,

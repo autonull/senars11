@@ -8,7 +8,15 @@ import { readFile } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-const __dir = dirname(fileURLToPath(import.meta.url));
+// Workaround for Jest VM environment where import.meta.url might not be available
+let __dir;
+try {
+    __dir = dirname(fileURLToPath(import.meta.url));
+} catch (e) {
+    __dir = typeof global !== 'undefined' && global.__dirname 
+        ? global.__dirname 
+        : process.cwd();
+}
 const SAFETY_TIMEOUT_MS = 50;
 
 const RISK_ORDER = { ':low': 1, ':medium': 2, ':high': 3, ':critical': 4 };
