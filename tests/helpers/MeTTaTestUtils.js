@@ -1,5 +1,20 @@
 import {TermFactory} from '../../core/src/term/TermFactory.js';
 import {MeTTaInterpreter} from '@senars/metta/src/MeTTaInterpreter.js';
+import path from 'path';
+import {fileURLToPath} from 'url';
+
+/**
+ * Get stdlib directory - handles Jest VM environment
+ */
+function getStdlibDir() {
+    try {
+        const __dirname = path.dirname(fileURLToPath(import.meta.url));
+        return path.join(__dirname, '../../metta/src/stdlib');
+    } catch {
+        // Fallback for Jest VM environment
+        return './metta/src/stdlib';
+    }
+}
 
 /**
  * Test utility functions for MeTTa tests
@@ -21,6 +36,7 @@ export class MeTTaTestUtils {
         const interpreterOptions = {
             termFactory,
             typeChecking: false,
+            stdlibDir: getStdlibDir(),
             ...options
         };
 

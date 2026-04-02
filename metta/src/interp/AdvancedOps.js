@@ -79,9 +79,23 @@ export function registerAdvancedOps(interpreter) {
         },
 
         // Context-dependent type operations
-        'get-type': {
+        '&get-type': {
+            // Get type of an atom from the space
             fn: (atom, space) => {
                 const s = space || interpreter.space;
+                // First try to find a type annotation rule (pattern: atom, result: type)
+                const rules = s.rulesFor(atom);
+                for (const rule of rules) {
+                    // Check if this is a type annotation rule (pattern matches atom exactly)
+                    if (rule.pattern && rule.result) {
+                        const patternMatches = rule.pattern.name === atom.name ||
+                            (rule.pattern.toString && rule.pattern.toString() === atom.toString());
+                        if (patternMatches) {
+                            return rule.result;
+                        }
+                    }
+                }
+                // Fallback: look for (: atom $type) expression in space (as atom or rule)
                 const typePattern = exp(sym(':'), [atom, v('type')]);
                 const results = match(s, typePattern, v('type'));
                 return results.length ? results[0] : sym('%Undefined%');

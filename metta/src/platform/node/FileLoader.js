@@ -30,7 +30,8 @@ export class FileLoader {
         try {
             currentFile = typeof __filename !== 'undefined' ? __filename : fileURLToPath(import.meta.url);
         } catch {
-            currentFile = import.meta.url;
+            // Fallback: use import.meta.url directly
+            currentFile = fileURLToPath(import.meta.url);
         }
         const currentDir = path.dirname(currentFile);
         // Navigate from platform/node/ to stdlib/

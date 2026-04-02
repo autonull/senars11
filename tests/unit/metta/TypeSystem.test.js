@@ -1,10 +1,10 @@
-import {MeTTaInterpreter} from '@senars/metta/src/MeTTaInterpreter.js';
+import {MeTTaTestUtils} from '../../helpers/MeTTaTestUtils.js';
 
 describe('MeTTa Type System Tests', () => {
     let metta;
 
     beforeEach(() => {
-        metta = new MeTTaInterpreter();
+        metta = MeTTaTestUtils.createInterpreter();
         // Core stdlib is loaded by default
         const onePlusOne = metta.run('(+ 1 1)');
         if (onePlusOne[0].toString() !== '2') {

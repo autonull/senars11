@@ -294,8 +294,9 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      */
     _processExpression(expr, results) {
         const isRule = (expr.operator === '=' || expr.operator?.name === '=') && expr.components?.length === 2;
+        const isTypeAnnotation = (expr.operator === ':' || expr.operator?.name === ':') && expr.components?.length === 2;
 
-        if (isRule) {
+        if (isRule || isTypeAnnotation) {
             this.space.addRule(expr.components[0], expr.components[1]);
             if (results) results.push(expr);
             return;

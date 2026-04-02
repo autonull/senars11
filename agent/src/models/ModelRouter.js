@@ -6,13 +6,13 @@ import { Logger } from '@senars/core';
 import { isEnabled } from '../config/capabilities.js';
 
 const TASK_PATTERNS = {
+  ':social': /\b(hello|hi|greet|chat|conversation|talk|discuss|opinion|feel|emotion|empathy|rapport|friendly|polite|how are you)\b/,
   ':code': /\b(code|function|class|method|variable|loop|condition|api|endpoint|debug|refactor|implement|write.*code|snippet|syntax|error|bug|fix)\b/,
   ':reasoning': /\b(solve|calculate|compute|reason|logic|math|equation|formula|prove|derive|analyze|compare|evaluate|optimize|algorithm|complexity)\b/,
   ':creative': /\b(write|story|poem|song|creative|imagine|describe|narrate|compose|draft|rewrite|edit|style|tone|voice|metaphor)\b/,
   ':retrieval': /\b(what|who|when|where|why|how|find|search|lookup|retrieve|explain|define|describe|list|summarize)\b/,
   ':tool-use': /\b(call|invoke|execute|run|skill|tool|function|api|command|dispatch|trigger|use.*tool)\b/,
   ':introspection': /\b(think|reflect|introspect|meta|self|aware|conscious|analyze.*own|improve.*self|learning.*process)\b/,
-  ':social': /\b(hello|hi|greet|chat|conversation|talk|discuss|opinion|feel|emotion|empathy|rapport|friendly|polite)\b/,
 };
 
 export function classifyTaskType(prompt) {
