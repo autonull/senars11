@@ -4,7 +4,7 @@
  * Following AGENTS.md: Elegant, Consolidated, Consistent, Organized
  */
 
-import { isExpression, exp, isSymbol, isVariable, equals } from '../Term.js';
+import { isExpression, exp, isSymbol, isVariable, equals, isList } from '../Term.js';
 import { Zipper } from '../Zipper.js';
 import { JITCompiler } from './JITCompiler.js';
 
@@ -37,6 +37,8 @@ export class CacheStage extends ReductionStage {
 
     process(atom, context) {
         if (!context.config?.get('caching') || !context.cache) return null;
+        // Skip caching for primitive values (strings, numbers)
+        if (typeof atom === 'string' || typeof atom === 'number') return null;
         const cached = context.cache.get(atom);
         return cached !== undefined ? { reduced: cached, applied: true, stage: 'cache', cached: true } : null;
     }
@@ -128,7 +130,8 @@ export class GroundedOpStage extends ReductionStage {
         if (!opOptions.lazy) {
             for (let i = 0; i < args.length; i++) {
                 const arg = args[i];
-                if (isExpression(arg)) {
+                // Skip reduction for values (symbols, grounded, lists, simple expressions)
+                if (isExpression(arg) && !isValueExpression(arg)) {
                     return { reduceArgument: true, atom, argIndex: i, arg, isGroundedCall };
                 }
             }
@@ -136,6 +139,22 @@ export class GroundedOpStage extends ReductionStage {
 
         return { executeGrounded: true, atom, op, args };
     }
+}
+
+/**
+ * Check if an expression is a value (in normal form)
+ */
+function isValueExpression(arg) {
+    // Primitive values are values
+    if (typeof arg === 'string' || typeof arg === 'number') return true;
+    // Lists are values
+    if (isList(arg)) return true;
+    // Simple expressions (operator is a symbol/number with no components) are values
+    const op = arg.operator;
+    if (op && (isSymbol(op) || op._typeTag === 1) && (!arg.components || arg.components.length === 0)) {
+        return true;
+    }
+    return false;
 }
 
 /**
