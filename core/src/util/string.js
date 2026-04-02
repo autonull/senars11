@@ -98,3 +98,17 @@ export const pad = (str, length, char = ' ') => str ? str.padStart(length, char)
  * @returns {string} Repeated string
  */
 export const repeat = (str, n) => str?.repeat(n) ?? '';
+
+/**
+ * Generate a random alphanumeric string
+ * @param {number} length - Length of the string
+ * @returns {string} Random string
+ */
+export const randomString = (length = 8) => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+};

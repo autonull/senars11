@@ -36,9 +36,27 @@ export {
     isValidLength,
     isNonEmpty,
     pad,
-    repeat
+    repeat,
+    randomString
 } from './string.js';
-export * from './error.js';
+// Export error utils (excluding 'safeExecute' to avoid conflict with MiscUtils.js)
+export {
+    logError,
+    logDetailedError,
+    createErrorHandler,
+    safeAsync,
+    safeSync,
+    safeExecuteSync,
+    wrapError,
+    executeWithHandling,
+    executeSyncWithHandling,
+    withRetry,
+    createSafeWrapper,
+    formatError,
+    handleError,
+    validateParams
+} from './error.js';
+export * from './CustomErrors.js';
 export * from './validate.js';
 export * from './func.js';
 // Export perf utils (excluding 'debounce', 'throttle', 'memoize' to avoid conflict with func.js)

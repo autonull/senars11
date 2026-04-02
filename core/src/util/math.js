@@ -68,3 +68,19 @@ export const round = (value, decimals = 2) => Number(Math.round(value + 'e' + de
  */
 export const formatNumber = (num, decimals = 2) =>
     typeof num === 'number' ? num.toFixed(decimals) : String(num ?? '0');
+
+/**
+ * Generate a random float between min and max
+ * @param {number} min - Minimum value
+ * @param {number} max - Maximum value
+ * @returns {number} Random float
+ */
+export const random = (min = 0, max = 1) => Math.random() * (max - min) + min;
+
+/**
+ * Generate a random integer between min and max (inclusive)
+ * @param {number} min - Minimum value
+ * @param {number} max - Maximum value
+ * @returns {number} Random integer
+ */
+export const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
