@@ -1,4 +1,4 @@
-import { handleError } from '../../../core/src/util/ErrorHandler.js';
+import { handleError } from '../../../core/src/errors/index.js';
 
 export class AgentCommand {
     constructor(name, description, usage) {

@@ -30,18 +30,17 @@ export * from './config.js';
 // Functional utilities
 export * from './func.js';
 
-// Performance utilities
-export * from './perf.js';
+// Functional utilities (includes performance utils)
+export * from './func.js';
 
 // Guard utilities
 export * from './guard.js';
 
-// Re-export commonly used items from other modules for backward compatibility
+// Re-export commonly used items for backward compatibility
 export { Logger } from './Logger.js';
 export { EventBus } from './EventBus.js';
-export * from './CustomErrors.js';
 
-// New consolidated utilities
+// Additional utilities
 export * from './PathUtils.js';
 export * from './Singleton.js';
 export * from './WebSocketUtils.js';

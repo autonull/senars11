@@ -1,5 +1,5 @@
 import {EventEmitter} from 'events';
-import {withTimeout} from '../util/AsyncUtils.js';
+import {withTimeout} from '../util/async.js';
 import {emitProviderEvent} from '../util/EventUtils.js';
 
 export class BaseProvider extends EventEmitter {

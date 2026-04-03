@@ -3,7 +3,7 @@
  */
 
 import {ExecutionTracker} from '../util/ExecutionTracker.js';
-import {executeGuarded} from '../util/GuardUtils.js';
+import {executeGuarded} from '../util/guard.js';
 import {validateJsonSchema} from '../util/InputValidator.js';
 
 export class BaseTool {

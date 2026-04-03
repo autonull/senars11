@@ -3,7 +3,7 @@
  */
 
 import { Logger } from './Logger.js';
-import { ValidationError } from './CustomErrors.js';
+import { ValidationError } from '../errors/index.js';
 
 /**
  * Validate required value

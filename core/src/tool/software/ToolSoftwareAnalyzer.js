@@ -4,7 +4,7 @@
  */
 
 // Local imports - alphabetically sorted
-import {AnalyzerError, ConfigurationError} from '../../util/AnalyzerErrors.js';
+import {AnalyzerError, ConfigurationError} from '../../errors/index.js';
 import {ArchitectureAnalysisTool} from './ArchitectureAnalysisTool.js';
 import {CoverageAnalysisTool} from './CoverageAnalysisTool.js';
 import {Logger} from '../../util/Logger.js';

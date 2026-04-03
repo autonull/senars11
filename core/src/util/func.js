@@ -1,219 +1,189 @@
 /**
  * Functional utilities for SeNARS
+ * Flat exports (Ramda-style) as primary API, plus namespace objects for advanced use.
  */
 
-/**
- * Compose functions (right to left)
- * @param  {...Function} fns - Functions to compose
- * @returns {Function} Composed function
- */
+// ─── Composition ────────────────────────────────────────────────────────────
+
 export const compose = (...fns) => (x) => fns.reduceRight((acc, fn) => fn(acc), x);
-
-/**
- * Pipe functions (left to right)
- * @param  {...Function} fns - Functions to pipe
- * @returns {Function} Piped function
- */
 export const pipe = (...fns) => (x) => fns.reduce((acc, fn) => fn(acc), x);
 
-/**
- * Curry a function
- * @param {Function} fn - Function to curry
- * @returns {Function} Curried function
- */
 export function curry(fn) {
     return function curried(...args) {
         if (args.length >= fn.length) return fn.apply(this, args);
-        return function(...args2) {
-            return curried.apply(this, args.concat(args2));
-        };
+        return (...args2) => curried.apply(this, args.concat(args2));
     };
 }
 
-/**
- * Partial application
- * @param {Function} fn - Function to partially apply
- * @param {...*} args - Arguments to pre-apply
- * @returns {Function} Partially applied function
- */
 export const partial = (fn, ...args) => (...rest) => fn(...args, ...rest);
-
-/**
- * Partial application from right
- * @param {Function} fn - Function to partially apply
- * @param {...*} args - Arguments to pre-apply from right
- * @returns {Function} Partially applied function
- */
 export const partialRight = (fn, ...args) => (...rest) => fn(...rest, ...args);
-
-/**
- * Identity function
- * @param {*} x - Input value
- * @returns {*} Same value
- */
 export const identity = (x) => x;
-
-/**
- * Constant function
- * @param {*} value - Value to return
- * @returns {Function} Function that always returns the value
- */
 export const constant = (value) => () => value;
+export const tap = (fn) => (x) => { fn(x); return x; };
 
-/**
- * Tap function for debugging pipelines
- * @param {Function} fn - Function to call
- * @returns {Function} Function that calls fn and returns original value
- */
-export const tap = (fn) => (x) => {
-    fn(x);
-    return x;
-};
+// ─── Predicates ─────────────────────────────────────────────────────────────
 
-/**
- * Negate a predicate
- * @param {Function} predicate - Predicate function
- * @returns {Function} Negated predicate
- */
 export const not = (predicate) => (...args) => !predicate(...args);
-
-/**
- * Logical AND of predicates
- * @param  {...Function} predicates - Predicate functions
- * @returns {Function} Combined predicate
- */
 export const and = (...predicates) => (x) => predicates.every(p => p(x));
-
-/**
- * Logical OR of predicates
- * @param  {...Function} predicates - Predicate functions
- * @returns {Function} Combined predicate
- */
 export const or = (...predicates) => (x) => predicates.some(p => p(x));
-
-/**
- * Get property from object
- * @param {string} key - Property key
- * @returns {Function} Function that gets the property
- */
 export const prop = (key) => (obj) => obj?.[key];
-
-/**
- * Check if property equals value
- * @param {string} key - Property key
- * @param {*} value - Value to match
- * @returns {Function} Function that checks equality
- */
 export const propEq = (key, value) => (obj) => obj?.[key] === value;
-
-/**
- * Check if property satisfies predicate
- * @param {string} key - Property key
- * @param {Function} predicate - Predicate function
- * @returns {Function} Function that checks predicate
- */
 export const propSatisfies = (key, predicate) => (obj) => predicate(obj?.[key]);
 
-/**
- * Pick specific properties from object
- * @param {string[]} keys - Keys to pick
- * @param {Object} obj - Source object
- * @returns {Object} Object with picked properties
- */
+// ─── Object ─────────────────────────────────────────────────────────────────
+
 export const pick = (keys, obj) => {
     if (!obj || !keys) return {};
-    return keys.reduce((acc, key) => {
-        if (key in obj) acc[key] = obj[key];
-        return acc;
-    }, {});
+    return keys.reduce((acc, key) => { if (key in obj) acc[key] = obj[key]; return acc; }, {});
 };
 
-/**
- * Omit specific properties from object
- * @param {string[]} keys - Keys to omit
- * @param {Object} obj - Source object
- * @returns {Object} Object without omitted properties
- */
 export const omit = (keys, obj) => {
     if (!obj || !keys) return { ...obj };
     return Object.fromEntries(Object.entries(obj).filter(([key]) => !keys.includes(key)));
 };
 
-/**
- * Partition array based on predicate
- * @param {Function} predicate - Predicate function
- * @param {Array} arr - Array to partition
- * @returns {[Array, Array]} [matching, non-matching]
- */
 export const partition = (predicate, arr) => {
     if (!Array.isArray(arr)) return [[], []];
-    return arr.reduce((acc, item) => {
-        acc[predicate(item) ? 0 : 1].push(item);
-        return acc;
-    }, [[], []]);
+    return arr.reduce((acc, item) => { acc[predicate(item) ? 0 : 1].push(item); return acc; }, [[], []]);
 };
 
-/**
- * Memoize a function
- * @param {Function} fn - Function to memoize
- * @param {Function} resolver - Custom cache key resolver
- * @returns {Function} Memoized function
- */
+// ─── Wrappers ───────────────────────────────────────────────────────────────
+
+export const once = (fn) => {
+    let called = false, result;
+    return (...args) => { if (!called) { called = true; result = fn(...args); } return result; };
+};
+
+// Enhanced memoize with cache management
 export function memoize(fn, resolver) {
     const cache = new Map();
-    return function(...args) {
+    const memoized = function(...args) {
         const key = resolver ? resolver(...args) : JSON.stringify(args);
         if (cache.has(key)) return cache.get(key);
         const result = fn.apply(this, args);
         cache.set(key, result);
         return result;
     };
+    memoized.clearCache = () => cache.clear();
+    memoized.getCacheSize = () => cache.size;
+    memoized.hasCached = (...args) => cache.has(resolver ? resolver(...args) : JSON.stringify(args));
+    return memoized;
 }
 
-/**
- * Once - create function that only executes once
- * @param {Function} fn - Function to wrap
- * @returns {Function} Function that executes once
- */
-export const once = (fn) => {
-    let called = false;
-    let result;
-    return (...args) => {
-        if (!called) {
-            called = true;
-            result = fn(...args);
-        }
+// Enhanced debounce with cancel
+export function debounce(fn, wait, options = {}) {
+    const { immediate = false } = options;
+    let timeout = null, result = null;
+    const debounced = function(...args) {
+        const callNow = immediate && !timeout;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => { timeout = null; if (!immediate) result = fn.apply(this, args); }, wait);
+        if (callNow) result = fn.apply(this, args);
         return result;
     };
-};
+    debounced.cancel = () => { clearTimeout(timeout); timeout = null; };
+    return debounced;
+}
 
-/**
- * Debounce a function
- * @param {Function} func - Function to debounce
- * @param {number} wait - Wait time in ms
- * @returns {Function} Debounced function
- */
-export function debounce(func, wait) {
-    let timeout;
+// Enhanced throttle with lastResult
+export function throttle(fn, limit) {
+    let inThrottle = false, lastResult = null;
     return function(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func(...args), wait);
+        if (!inThrottle) { inThrottle = true; lastResult = fn.apply(this, args); setTimeout(() => inThrottle = false, limit); }
+        return lastResult;
     };
 }
 
-/**
- * Throttle a function
- * @param {Function} func - Function to throttle
- * @param {number} limit - Time limit in ms
- * @returns {Function} Throttled function
- */
-export function throttle(func, limit) {
-    let inThrottle;
-    return function(...args) {
-        if (!inThrottle) {
-            func.apply(this, args);
-            inThrottle = true;
-            setTimeout(() => inThrottle = false, limit);
+// ─── Pipeline / Predicate / Decorator Namespaces ────────────────────────────
+
+export const FunctionPipeline = Object.freeze({
+    createPipeline(...fns) { return fns.reduceRight((a, b) => (...args) => a(b(...args)), v => v); },
+    createFilterPipeline(filters) { return (item) => filters.every(f => { try { return f(item); } catch { return false; } }); },
+    createTransformPipeline(transformers) {
+        return (item) => { let r = item; for (const t of transformers) { if (r == null) break; r = t(r); } return r; };
+    }
+});
+
+export const PredicateFactory = Object.freeze({
+    hasProperties(conditions) { return (item) => Object.entries(conditions).every(([k, v]) => typeof v === 'function' ? v(item[k]) : item[k] === v); },
+    isType(type) { return (item) => item?.type === type; },
+    hasProperty(prop) { return (item) => !!item[prop]; },
+    inRange(property, { min, max }) { return (item) => { const v = item[property]; return typeof v === 'number' && (min === undefined || v >= min) && (max === undefined || v <= max); }; },
+    and(...preds) { return (item) => preds.every(p => p(item)); },
+    or(...preds) { return (item) => preds.some(p => p(item)); },
+    not(pred) { return (item) => !pred(item); }
+});
+
+export const FunctionDecorator = Object.freeze({
+    memoize: memoize,
+    debounce: debounce,
+    throttle: throttle,
+    retryable(fn, { maxRetries = 3, delay = 100, exponential = true, shouldRetry = () => true } = {}) {
+        return async function(...args) {
+            let lastError;
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                try { return await fn.apply(this, args); }
+                catch (error) { lastError = error; if (!shouldRetry(error) || attempt === maxRetries) break; await new Promise(r => setTimeout(r, exponential ? delay * Math.pow(2, attempt) : delay)); }
+            }
+            throw lastError;
+        };
+    },
+    rateLimit(fn, rate, timeWindow = 1000) {
+        const timestamps = [];
+        return async function(...args) {
+            const now = Date.now();
+            while (timestamps.length && timestamps[0] < now - timeWindow) timestamps.shift();
+            if (timestamps.length >= rate) { await new Promise(r => setTimeout(r, timestamps[0] + timeWindow - now)); timestamps.shift(); }
+            timestamps.push(Date.now());
+            return fn.apply(this, args);
+        };
+    }
+});
+
+export const AsyncUtils = Object.freeze({
+    delay(ms) { return new Promise(r => setTimeout(r, ms)); },
+    async withTimeout(promise, ms, message = 'Operation timed out') { return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error(message)), ms))]); },
+    async withConcurrency(tasks, concurrency) {
+        const results = []; let idx = 0;
+        const worker = async () => { while (idx < tasks.length) { const i = idx++; results[i] = await tasks[i](); } };
+        await Promise.all(Array(Math.min(concurrency, tasks.length)).fill(null).map(() => worker()));
+        return results;
+    },
+    async retry(fn, { maxRetries = 3, baseDelay = 100, maxDelay = 10000, shouldRetry = () => true } = {}) {
+        let lastError;
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try { return await fn(); }
+            catch (error) { lastError = error; if (!shouldRetry(error) || attempt === maxRetries) break; await this.delay(Math.min(baseDelay * Math.pow(2, attempt), maxDelay)); }
         }
+        throw lastError;
+    }
+});
+
+// ─── Performance ────────────────────────────────────────────────────────────
+
+import { Logger } from './Logger.js';
+
+export function measureTime(fn, label = 'Function') {
+    return async function(...args) {
+        const start = performance.now();
+        try { const result = await fn.apply(this, args); Logger.debug(`${label} executed in ${(performance.now() - start).toFixed(2)}ms`); return result; }
+        catch (error) { Logger.error(`${label} failed after ${(performance.now() - start).toFixed(2)}ms: ${error.message}`); throw error; }
     };
+}
+
+export function cacheWithTTL(fn, ttl = 60000) {
+    const cache = new Map();
+    return async function(...args) {
+        const key = JSON.stringify(args);
+        const cached = cache.get(key);
+        if (cached && Date.now() - cached.timestamp < ttl) return cached.value;
+        const value = await fn.apply(this, args);
+        cache.set(key, { value, timestamp: Date.now() });
+        return value;
+    };
+}
+
+export function lazy(fn) {
+    let evaluated = false, result = null;
+    return function(...args) { if (!evaluated) { result = fn.apply(this, args); evaluated = true; } return result; };
 }

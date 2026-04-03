@@ -1,7 +1,7 @@
 import { Tensor } from './Tensor.js';
 import { TensorFunctor } from './TensorFunctor.js';
 import { SymbolicTensor, TensorOps } from './SymbolicTensor.js';
-import { mergeConfig } from '@senars/core/src/util/ConfigUtils';
+import { mergeConfig } from '@senars/core/src/util/config.js';
 
 const DEFAULTS = {
     defaultSymbolThreshold: 0.5,

@@ -1,7 +1,7 @@
 import {Logger} from '../util/Logger.js';
 import {EventBus} from '../util/EventBus.js';
 import {createEventPayload} from './IntrospectionEvents.js';
-import {validateWithSchema} from './ObjectUtils.js';
+import {validateWithSchema} from './object.js';
 import {emitComponentEvent} from './EventUtils.js';
 
 export class BaseComponent {

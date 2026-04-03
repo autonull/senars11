@@ -37,6 +37,6 @@ export * from './NetworkBuilder.js';
 export * from './DataStructures.js';
 
 // Re-export commonly used core utilities
-export { mergeConfig as coreMergeConfig, validateConfig as coreValidateConfig } from '@senars/core/src/util/ConfigUtils.js';
+export { mergeConfig as coreMergeConfig, validateConfig as coreValidateConfig } from '@senars/core/src/util/config.js';
 export { Metrics } from '@senars/core/src/util/Metrics.js';
 export { Logger } from '@senars/core/src/util/Logger.js';

@@ -1,7 +1,7 @@
 import {AnalyzerFactory} from './AnalyzerFactory.js';
 import {SoftwareAnalyzerConfig} from './SoftwareAnalyzerConfig.js';
 import {ResultDisplay} from './ResultDisplay.js';
-import {AnalysisError, ConfigurationError} from '../../../util/AnalyzerErrors.js';
+import {AnalysisError, ConfigurationError} from '../../../errors/index.js';
 import {Logger} from '../../../util/Logger.js';
 
 // For integration with NAR system

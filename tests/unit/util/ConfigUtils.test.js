@@ -3,9 +3,9 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { mergeConfig, ConfigManager } from '../../../core/src/util/ConfigUtils.js';
+import { mergeConfig, ConfigManager } from '../../../core/src/util/config.js';
 
-describe('ConfigUtils', () => {
+describe('Config', () => {
   describe('mergeConfig', () => {
     it('should merge user config with defaults', () => {
       const defaults = { a: 1, b: 2 };

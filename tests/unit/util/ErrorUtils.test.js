@@ -61,14 +61,16 @@ describe('ErrorUtils', () => {
   });
 
   describe('ErrorHandler', () => {
-    it('should create instance with component name', () => {
+    it('should create instance and handle errors', () => {
       const errorHandler = new ErrorHandler('TestComponent');
-      expect(errorHandler.componentName).toBe('TestComponent');
+      expect(errorHandler).toBeInstanceOf(ErrorHandler);
+      expect(() => errorHandler.logError(new Error('Test'), {}, 'error')).not.toThrow();
     });
-
-    it('should have handlers property', () => {
+    it('should wrap errors', () => {
       const errorHandler = new ErrorHandler('TestComponent');
-      expect(errorHandler.handlers).toBeDefined();
+      const wrapped = errorHandler.wrapError(new Error('Original'), 'Wrapper');
+      expect(wrapped.message).toContain('Wrapper');
+      expect(wrapped.message).toContain('Original');
     });
   });
 });

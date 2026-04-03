@@ -1,5 +1,5 @@
 import {BaseProvider} from './BaseProvider.js';
-import {withTimeout} from '../util/AsyncUtils.js';
+import {withTimeout} from '../util/async.js';
 
 let pipelinePromise = null;
 const importPipeline = () => {
