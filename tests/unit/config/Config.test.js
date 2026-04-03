@@ -18,9 +18,10 @@ jest.unstable_mockModule('fs', () => ({
 let ConfigManager, DEFAULT_CONFIG;
 
 beforeAll(async () => {
-    const module = await import('../../../core/src/config/ConfigManager.js');
-    ConfigManager = module.ConfigManager;
-    DEFAULT_CONFIG = module.DEFAULT_CONFIG;
+    const cm = await import('../../../core/src/config/ConfigManager.js');
+    ConfigManager = cm.ConfigManager;
+    const sc = await import('../../../core/src/config/SystemConfig.js');
+    DEFAULT_CONFIG = sc.DEFAULT_CONFIG;
 });
 
 describe('Config', () => {
@@ -166,17 +167,17 @@ describe('ConfigManager', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        configManager = new ConfigManager();
+        configManager = new ConfigManager(DEFAULT_CONFIG);
     });
 
     test('initializes with default config', () => {
-        expect(configManager._config).toMatchObject(DEFAULT_CONFIG);
-        expect(configManager._config.memory.focusSetSize).toBe(100);
+        expect(configManager.config).toMatchObject(DEFAULT_CONFIG);
+        expect(configManager.config.memory.focusSetSize).toBe(100);
     });
 
     test('updates config values', () => {
         configManager.update({lm: {enabled: true}});
-        expect(configManager._config.lm.enabled).toBe(true);
+        expect(configManager.config.lm.enabled).toBe(true);
     });
 
     test('validates config on update', () => {

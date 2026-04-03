@@ -48,12 +48,12 @@ describe('ConfigUtils', () => {
     it('should create instance with default config', () => {
       const defaultConfig = { a: 1, b: 2 };
       const manager = new ConfigManager(defaultConfig);
-      expect(manager.defaultConfig).toEqual(defaultConfig);
+      expect(manager.defaults).toEqual(defaultConfig);
     });
 
     it('should create instance with empty config', () => {
       const manager = new ConfigManager();
-      expect(manager.defaultConfig).toEqual({});
+      expect(manager.defaults).toEqual({});
     });
 
     describe('config getter', () => {
@@ -61,7 +61,8 @@ describe('ConfigUtils', () => {
         const manager = new ConfigManager({ a: 1 });
         const config = manager.config;
         expect(config).toEqual({ a: 1 });
-        expect(config).not.toBe(manager.currentConfig);
+        config.a = 999;
+        expect(manager.config.a).toBe(1);
       });
     });
 
@@ -85,33 +86,33 @@ describe('ConfigUtils', () => {
       });
     });
 
-    describe('getValue', () => {
+    describe('get', () => {
       it('should get config value', () => {
         const manager = new ConfigManager({ a: 1 });
-        expect(manager.getValue('a')).toBe(1);
+        expect(manager.get('a')).toBe(1);
       });
 
       it('should return undefined for missing key', () => {
         const manager = new ConfigManager();
-        expect(manager.getValue('missing')).toBeUndefined();
+        expect(manager.get('missing')).toBeUndefined();
       });
 
-      it('should return default value for missing key', () => {
+      it('should return fallback for missing key', () => {
         const manager = new ConfigManager();
-        expect(manager.getValue('missing', 'default')).toBe('default');
+        expect(manager.get('missing', 'default')).toBe('default');
       });
     });
 
-    describe('setValue', () => {
+    describe('set', () => {
       it('should set config value', () => {
         const manager = new ConfigManager();
-        manager.setValue('a', 1);
+        manager.set('a', 1);
         expect(manager.config.a).toBe(1);
       });
 
       it('should return this for chaining', () => {
         const manager = new ConfigManager();
-        const result = manager.setValue('a', 1);
+        const result = manager.set('a', 1);
         expect(result).toBe(manager);
       });
     });

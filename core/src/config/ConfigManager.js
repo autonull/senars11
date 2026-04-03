@@ -1,204 +1,79 @@
-/**
- * @file ConfigManager.js
- * @description Abstract configuration management utility
- */
+import { deepMerge } from '../util/object.js';
+import { Logger } from '../util/Logger.js';
+import { ConfigurationError, ValidationError } from '../errors/index.js';
 
-import {validateConfigWithDefaults} from '../config/ConfigValidator.js';
-import {deepClone, deepFreeze, deepMerge} from '../util/common.js';
+export class ConfigManager {
+    #defaults;
+    #config;
+    #schema;
+    #listeners = new Set();
+    #frozen = false;
 
-// Default configuration values
-const DEFAULT_CONFIG = deepFreeze({
-    memory: {
-        capacity: 1000,
-        consolidationThreshold: 0.1,
-        forgettingThreshold: 0.05,
-        conceptActivationDecay: 0.95
-    },
-    focus: {
-        size: 100,
-        setCount: 3,
-        attentionDecay: 0.98,
-        diversityFactor: 0.3
-    },
-    taskManager: {
-        defaultPriority: 0.5,
-        priorityThreshold: 0.1,
-        priority: {
-            confidenceMultiplier: 0.3,
-            goalBoost: 0.2,
-            questionBoost: 0.1
-        }
-    },
-    cycle: {
-        delay: 50,
-        maxTasksPerCycle: 10,
-        ruleApplicationLimit: 50
-    },
-    ruleEngine: {
-        enableValidation: true,
-        maxRuleApplicationsPerCycle: 20,
-        performanceTracking: true
-    },
-    lm: {
-        enabled: true,
-        defaultProvider: 'ollama',
-        maxConcurrentRequests: 5,
-        timeout: 10000,
-        retryAttempts: 2,
-        cacheEnabled: true,
-        cacheSize: 100,
-        providers: {
-            openai: {
-                name: 'OpenAI',
-                apiKey: '',
-                model: 'gpt-4',
-                baseURL: 'https://api.openai.com/v1',
-                temperature: 0.7,
-                maxTokens: 1000
-            },
-            ollama: {
-                name: 'Ollama',
-                apiKey: '',
-                model: 'llama2',
-                baseURL: 'http://localhost:11434/api',
-                temperature: 0.7,
-                maxTokens: 1000
-            },
-            anthropic: {
-                name: 'Anthropic',
-                apiKey: '',
-                model: 'claude-3-sonnet-20240229',
-                baseURL: 'https://api.anthropic.com/v1',
-                temperature: 0.7,
-                maxTokens: 1000
-            }
-        }
-    },
-    performance: {
-        enableProfiling: false,
-        maxExecutionTime: 100,
-        memoryLimit: 512 * 1024 * 1024,
-        gcThreshold: 0.8
-    },
-    logging: {
-        level: 'info',
-        enableConsole: true,
-        enableFile: false,
-        maxFileSize: 10 * 1024 * 1024,
-        retentionDays: 7
-    },
-    errorHandling: {
-        enableGracefulDegradation: true,
-        maxErrorRate: 0.1,
-        enableRecovery: true,
-        recoveryAttempts: 3
-    },
-    introspection: {
-        enabled: true,
-        perComponent: {
-            TermFactory: true,
-            Memory: true,
-            NAR: true,
-            Cycle: true,
-            RuleEngine: true
-        }
-    },
-    termFactory: {
-        maxCacheSize: 5000
-    },
-    reasoning: {
-        maxDerivationDepth: 10,
-        cpuThrottleInterval: 0,
-        streamSamplingObjectives: {priority: true},
-        streamStrategy: {},
-        streamRuleExecutor: {}
-    },
-    metacognition: {
-        analyzers: ['PerformanceAnalyzer'],
-        selfOptimization: {
-            enabled: true
-        },
-        PerformanceAnalyzer: {
-            avgCycleTimeThreshold: 100,
-            cacheHitRateThreshold: 0.8
-        }
-    },
-    components: {
-        metacognition: {
-            enabled: true,
-            path: 'self/Metacognition.js',
-            class: 'Metacognition',
-            dependencies: ['nar', 'eventBus'],
-            config: {
-                analyzers: ['PerformanceAnalyzer'],
-                selfOptimization: {
-                    enabled: true
-                },
-                PerformanceAnalyzer: {
-                    avgCycleTimeThreshold: 100,
-                    cacheHitRateThreshold: 0.8
-                }
-            }
-        }
-    }
-});
-
-class ConfigManager {
-    constructor(initialConfig = {}) {
-        this._config = this._validateAndMergeConfig(initialConfig);
+    constructor(defaults = {}, { schema = null, autoValidate = false, freeze = false } = {}) {
+        this.#defaults = Object.freeze({ ...defaults });
+        this.#config = { ...defaults };
+        this.#schema = schema;
+        this.#autoValidate = autoValidate;
+        if (freeze) this.freeze();
     }
 
-    _validateAndMergeConfig(userConfig) {
-        // Deep merge user config with defaults
-        const mergedConfig = deepMerge(DEFAULT_CONFIG, userConfig);
-        // Validate the merged config
-        return validateConfigWithDefaults(mergedConfig);
+    #autoValidate;
+
+    get config() { return { ...this.#config }; }
+    get defaults() { return { ...this.#defaults }; }
+
+    get(path, fallback) {
+        if (!path) return { ...this.#config };
+        return path.split('.').reduce((cur, key) => cur?.[key], this.#config) ?? fallback;
     }
 
-    get(path) {
-        if (!path) return this._config;
-
-        const pathParts = path.split('.');
-
-        return pathParts.reduce((current, part) => {
-            return current?.[part];
-        }, this._config);
-    }
-
-    set(path, value) {
-        const pathParts = path.split('.');
-        const newConfig = this._setNestedValue(deepClone(this._config), pathParts, value);
-
-        // Re-validate the config after modification
-        this._config = this._validateAndMergeConfig(newConfig);
+    set(path, value, { validate = true } = {}) {
+        if (this.#frozen) throw new ConfigurationError('Config is frozen', { key: path });
+        const keys = path.split('.');
+        const target = keys.slice(0, -1).reduce((cur, key) => { cur[key] ??= {}; return cur[key]; }, this.#config);
+        target[keys.at(-1)] = value;
+        if (validate && this.#autoValidate) this.#validate();
+        this.#notify(path, value);
         return this;
     }
 
-    _setNestedValue(obj, pathParts, value) {
-        if (pathParts.length === 1) {
-            obj[pathParts[0]] = value;
-            return obj;
-        }
-
-        const [head, ...tail] = pathParts;
-        obj[head] = obj[head] || {};
-        this._setNestedValue(obj[head], tail, value);
-        return obj;
-    }
-
-    update(updates) {
-        const newConfig = deepMerge(this._config, updates);
-        this._config = this._validateAndMergeConfig(newConfig);
+    update(updates, { deep = true, validate = true } = {}) {
+        if (this.#frozen) throw new ConfigurationError('Config is frozen');
+        this.#config = deep ? deepMerge({ ...this.#config }, updates) : { ...this.#config, ...updates };
+        if (validate && this.#autoValidate) this.#validate();
         return this;
     }
 
-    toJSON() {
-        return {...this._config};
+    reset(path = null) {
+        if (path) {
+            this.#config[path] = structuredClone(this.#defaults[path]);
+        } else {
+            this.#config = { ...this.#defaults };
+        }
+        return this;
     }
 
+    freeze() { this.#frozen = true; return this; }
+    get isFrozen() { return this.#frozen; }
+
+    onChange(fn) { this.#listeners.add(fn); return () => this.#listeners.delete(fn); }
+    #notify(key, value) { this.#listeners.forEach(fn => { try { fn(key, value, this.config); } catch { /* skip */ } }); }
+
+    #validate() {
+        if (!this.#schema) return true;
+        try { return this.#schema(this.#config); }
+        catch (error) {
+            Logger.warn('Config validation failed', { error: error.message });
+            return false;
+        }
+    }
+
+    getDiff() {
+        return Object.fromEntries(
+            Object.entries(this.#config).filter(([k, v]) => this.#defaults[k] !== v)
+        );
+    }
+
+    toJSON() { return { ...this.#config }; }
+    clone() { return new ConfigManager(this.#defaults, { schema: this.#schema, autoValidate: this.#autoValidate }).update(this.#config); }
 }
-
-// Singleton instance for global config management
-const globalConfigManager = new ConfigManager();
-
-export {ConfigManager, globalConfigManager, DEFAULT_CONFIG};

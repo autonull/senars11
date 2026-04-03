@@ -41,3 +41,26 @@
 (skill add-skill     (SExpr)          selfModifyingSkills :meta        "Register new skill definition")
 (skill consolidate   ()               memoryConsolidation :meta        "Trigger memory consolidation immediately")
 (skill spawn-agent   (String Int)     subAgentSpawning    :meta        "Spawn sub-agent with task + cycle budget")
+
+;; ── NARS goal management ──────────────────────────────────────
+(skill nar-goal-add       (String Float)   goalPursuit         :meta "Add goal to NARS memory")
+(skill nar-goal-complete  (String)         goalPursuit         :meta "Mark goal achieved")
+(skill nar-goal-status    (String)         goalPursuit         :meta "Query goal status")
+(skill nar-goals          (Sym)            goalPursuit         :meta "List goals: :active | :pending | :all")
+
+;; ── NARS state management ─────────────────────────────────────
+(skill nar-serialize      ()               persistentHistory   :meta "Serialize full NARS state")
+(skill nar-snapshot       (Sym)            memorySnapshots     :meta "Capture belief snapshot")
+(skill nar-snapshot-compare (String String Float) memorySnapshots :meta "Compare two snapshots")
+
+;; ── NARS derivation tracing ───────────────────────────────────
+(skill nar-stamps          (String)        actionTrace         :meta "Get derivation stamps for a term")
+(skill nar-recent-derivations (Int)        actionTrace         :meta "Get recent derivation events")
+
+;; ── NARS focus management ─────────────────────────────────────
+(skill nar-focus-sets     ()               coordinatorMode     :meta "List focus sets")
+(skill nar-focus-create   (String)         coordinatorMode     :meta "Create named focus set")
+(skill nar-focus-switch   (String)         coordinatorMode     :meta "Switch to focus set")
+
+;; ── NAL revision ──────────────────────────────────────────────
+(skill nar-revision       (String SExpr)   separateEvaluator   :meta "Input evidence for truth revision")

@@ -8,12 +8,13 @@ import { join } from 'path';
 import { isEnabled } from '../config/capabilities.js';
 
 export class ContextBuilder {
-  constructor(config, semanticMemory, historySpace, skillDispatcher, introspectionOps) {
+  constructor(config, semanticMemory, historySpace, skillDispatcher, introspectionOps, nar = null) {
     this.config = config;
     this.semanticMemory = semanticMemory;
     this.historySpace = historySpace;
     this.skillDispatcher = skillDispatcher;
     this.introspectionOps = introspectionOps;
+    this.nar = nar;
     this.lastFeedback = null;
     this.lastError = null;
 
@@ -21,6 +22,8 @@ export class ContextBuilder {
       pinnedMaxChars: config.memory?.pinnedMaxChars ?? 3000,
       wmRegisterChars: config.workingMemory?.maxEntries ? config.workingMemory.maxEntries * 75 : 1500,
       agentManifestChars: 2000,
+      startupOrientChars: 2000,
+      tasksChars: 1500,
       recallChars: config.memory?.maxRecallChars ?? 8000,
       recallItems: config.memory?.maxRecallItems ?? 20,
       historyChars: config.memory?.maxHistoryChars ?? 12000,
@@ -52,12 +55,16 @@ export class ContextBuilder {
     Logger.info('[ContextBuilder] Registered grounded ops');
   }
 
-  async build(msg) {
+  async build(msg, cycleCount = 0, wmEntries = []) {
+    this._currentWmEntries = wmEntries;
+    this._currentCycleCount = cycleCount;
     try {
       const sections = await Promise.all([
         this._loadHarnessPrompt(),
         this._filterCapabilities('active'),
         this._getActiveSkills(),
+        this._getStartupOrient(cycleCount),
+        this._getTasks(),
         this._getPinnedMemories(),
         this._getWmEntries(),
         this._generateManifest(),
@@ -81,10 +88,9 @@ export class ContextBuilder {
   _init() { return 'ok'; }
 
   _concat(sections) {
-    const headers = ['SYSTEM_PROMPT', 'CAPABILITIES', 'SKILLS', 'PINNED', 'WM_REGISTER', 'AGENT_MANIFEST', 'RECALL', 'HISTORY', 'FEEDBACK', 'INPUT'];
+    const headers = ['SYSTEM_PROMPT', 'CAPABILITIES', 'SKILLS', 'STARTUP_ORIENT', 'TASKS', 'PINNED', 'WM_REGISTER', 'AGENT_MANIFEST', 'RECALL', 'HISTORY', 'FEEDBACK', 'INPUT'];
     return sections
-      .filter(s => s && s.trim() !== '')
-      .map((s, i) => i < headers.length && s.trim() !== '' ? `═══ ${headers[i]} ═══\n${s}\n\n` : s)
+      .map((s, i) => s && s.trim() !== '' && i < headers.length ? `═══ ${headers[i]} ═══\n${s}\n\n` : '')
       .join('');
   }
 
@@ -114,6 +120,68 @@ export class ContextBuilder {
     return this.skillDispatcher?.getActiveSkillDefs() ?? '(no skills registered)';
   }
 
+  async _getStartupOrient(cycleCount) {
+    if (cycleCount !== 0 || !this.nar) return '';
+    try {
+      const parts = [];
+      const goals = this.nar.taskManager.findTasksByType('GOAL');
+      const active = goals.filter(g => g.budget?.priority >= 0.5);
+      if (active.length) parts.push(`Active goals: ${active.map(g => g.term.toString()).join('; ')}`);
+      const recent = this.nar.taskManager.getTasksNeedingAttention({ minPriority: 0.3, limit: 5 });
+      if (recent.length) parts.push(`Needs attention: ${recent.map(t => t.term.toString()).join('; ')}`);
+      return this._truncate(parts.join('\n'), this.budgets.startupOrientChars);
+    } catch {
+      Logger.warn('[ContextBuilder] Failed to get startup orient');
+      return '';
+    }
+  }
+
+  _getTasks() {
+    if (!this.nar) return '';
+    try {
+      const goals = this.nar.taskManager.findTasksByType('GOAL');
+      if (!goals.length) return '';
+      return this._truncate(
+        goals.map(g => `[${g.budget?.priority >= 0.5 ? 'active' : 'pending'}] ${g.term.toString()}`).join('\n'),
+        this.budgets.tasksChars
+      );
+    } catch {
+      Logger.warn('[ContextBuilder] Failed to get tasks');
+      return '';
+    }
+  }
+
+  async _getStartupOrient(cycleCount) {
+    if (cycleCount !== 0 || !this.nar) return '';
+    try {
+      const parts = [];
+      const goals = this.nar.taskManager.findTasksByType('GOAL');
+      const active = goals.filter(g => g.budget?.priority >= 0.5);
+      if (active.length) parts.push(`Active goals: ${active.map(g => g.term.toString()).join('; ')}`);
+      const recent = this.nar.taskManager.getTasksNeedingAttention({ minPriority: 0.3, limit: 5 });
+      if (recent.length) parts.push(`Needs attention: ${recent.map(t => t.term.toString()).join('; ')}`);
+      return this._truncate(parts.join('\n'), this.budgets.startupOrientChars);
+    } catch {
+      Logger.warn('[ContextBuilder] Failed to get startup orient');
+      return '';
+    }
+  }
+
+  _getTasks() {
+    if (!this.nar) return '';
+    try {
+      const goals = this.nar.taskManager.findTasksByType('GOAL');
+      if (!goals.length) return '';
+      return this._truncate(
+        goals.map(g => `[${g.budget?.priority >= 0.5 ? 'active' : 'pending'}] ${g.term.toString()}`).join('\n'),
+        this.budgets.tasksChars
+      );
+    } catch {
+      Logger.warn('[ContextBuilder] Failed to get tasks');
+      return '';
+    }
+  }
+
   async _getPinnedMemories() {
     if (!isEnabled(this.config, 'semanticMemory') || !this.semanticMemory) return '';
     try {
@@ -126,7 +194,7 @@ export class ContextBuilder {
   }
 
   _getWmEntries() {
-    const wmEntries = this.config._wmEntries || [];
+    const wmEntries = this._currentWmEntries || [];
     if (!wmEntries.length) return '';
     return this._truncate(
       wmEntries.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))

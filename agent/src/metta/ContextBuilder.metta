@@ -10,13 +10,15 @@
 ;;   1. SYSTEM_PROMPT   — loaded from memory/harness/prompt.metta
 ;;   2. CAPABILITIES    — active capability flags
 ;;   3. SKILLS          — S-expression skill declarations (filtered by capability)
-;;   4. PINNED          — pinned memories (always included)
-;;   5. WM_REGISTER     — working memory register entries
-;;   6. AGENT_MANIFEST  — runtime self-description (when runtimeIntrospection enabled)
-;;   7. RECALL          — semantically recalled memories
-;;   8. HISTORY         — recent conversation/action history
-;;   9. FEEDBACK        — last cycle feedback / errors
-;;   10. INPUT          — current input message
+;;   4. STARTUP_ORIENT  — active goals + needs attention, first cycle only
+;;   5. TASKS           — all NARS goals with status
+;;   6. PINNED          — pinned memories (always included)
+;;   7. WM_REGISTER     — working memory register entries
+;;   8. AGENT_MANIFEST  — runtime self-description (when runtimeIntrospection enabled)
+;;   9. RECALL          — semantically recalled memories
+;;   10. HISTORY         — recent conversation/action history
+;;   11. FEEDBACK        — last cycle feedback / errors
+;;   12. INPUT           — current input message
 ;;
 ;; Budget configuration (from agent.json):
 ;;   memory.maxRecallChars    — default 8000
@@ -25,6 +27,10 @@
 ;;   memory.pinnedMaxChars    — default 3000
 ;;   memory.wmRegisterChars   — default 1500
 ;;   memory.agentManifestChars — default 2000
+;;   memory.startupOrientChars — default 2000
+;;   memory.tasksChars        — default 1500
+;;   memory.startupOrientChars — default 2000
+;;   memory.tasksChars        — default 1500
 
 ;; ── Entry point ───────────────────────────────────────────────────
 ;; (build-context $msg) → assembled context string
@@ -34,21 +40,23 @@
      (context-init)
      
      ;; Assemble slots in order
-     (let*
-       (($system   (slot-system))
-        ($caps     (slot-capabilities))
-        ($skills   (slot-skills))
-        ($pinned   (slot-pinned))
-        ($wm       (slot-wm-register))
-        ($manifest (slot-agent-manifest))
-        ($recall   (slot-recall $msg))
-        ($history  (slot-history))
-        ($feedback (slot-feedback))
-        ($input    (slot-input $msg)))
-       
-       ;; Concatenate with section headers
-       (context-concat
-         $system $caps $skills $pinned $wm $manifest $recall $history $feedback $input))))
+      (let*
+        (($system   (slot-system))
+         ($caps     (slot-capabilities))
+         ($skills   (slot-skills))
+         ($orient   (slot-startup-orient))
+         ($tasks    (slot-tasks))
+         ($pinned   (slot-pinned))
+         ($wm       (slot-wm-register))
+         ($manifest (slot-agent-manifest))
+         ($recall   (slot-recall $msg))
+         ($history  (slot-history))
+         ($feedback (slot-feedback))
+         ($input    (slot-input $msg)))
+        
+        ;; Concatenate with section headers
+        (context-concat
+          $system $caps $skills $orient $tasks $pinned $wm $manifest $recall $history $feedback $input))))
 
 ;; ── Slot builders ─────────────────────────────────────────────────
 
@@ -69,6 +77,30 @@
      (if (cap? sExprSkillDispatch)
        (get-active-skills)
        "(skill dispatch disabled — using JSON tool calls)")))
+
+;; STARTUP_ORIENT — active goals + needs attention, first cycle only
+(= (slot-startup-orient $cycle)
+   (if (== $cycle 0)
+     (context-section "STARTUP_ORIENT" (get-startup-orient))
+     ""))
+
+;; TASKS — all NARS goals with status
+(= (slot-tasks)
+   (if (cap? goalPursuit)
+     (context-section "TASKS" (get-tasks))
+     ""))
+
+;; STARTUP_ORIENT — active goals + needs attention, first cycle only
+(= (slot-startup-orient $cycle)
+   (if (== $cycle 0)
+     (context-section "STARTUP_ORIENT" (get-startup-orient))
+     ""))
+
+;; TASKS — all NARS goals with status
+(= (slot-tasks)
+   (if (cap? goalPursuit)
+     (context-section "TASKS" (get-tasks))
+     ""))
 
 ;; PINNED — pinned memories (always included)
 (= (slot-pinned)

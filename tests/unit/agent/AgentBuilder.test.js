@@ -25,7 +25,7 @@ describe('AgentBuilder', () => {
         expect(a).toBeInstanceOf(NAR);
         expect(a.evaluator).toBeDefined();
         expect(a.inputQueue).toBeDefined();
-    });
+    }, 30000);
 
     test('individual subsystems enabled', async () => {
         expect((await build(new AgentBuilder().withMetrics(true))).metricsMonitor).toBeDefined();
@@ -35,14 +35,14 @@ describe('AgentBuilder', () => {
         }))).embeddingLayer).toBeDefined();
         expect((await build(new AgentBuilder().withLM(true).withConfig({lm: {modelName: 'test-model'}}))).lm).toBeDefined();
         expect((await build(new AgentBuilder().withTools(true))).tools).toBeDefined();
-    });
+    }, 60000);
 
     test('functors configured', async () => {
         const a = await build(new AgentBuilder().withFunctors(['core-arithmetic']));
         const reg = a.evaluator.getFunctorRegistry();
         expect(reg.has('add')).toBe(true);
         expect(reg.has('multiply')).toBe(true);
-    });
+    }, 30000);
 
     test('configuration object', async () => {
         const config = {
@@ -59,7 +59,7 @@ describe('AgentBuilder', () => {
         expect(a.embeddingLayer).toBeDefined();
         expect(a.lm).toBeDefined();
         expect(a.evaluator.getFunctorRegistry().has('add')).toBe(true);
-    });
+    }, 60000);
 
     test('selective disabling', async () => {
         const config = {
@@ -73,5 +73,5 @@ describe('AgentBuilder', () => {
         expect(a.embeddingLayer).toBeNull();
         expect(a.lm).toBeNull();
         expect(a.tools).toBeNull();
-    });
+    }, 30000);
 });

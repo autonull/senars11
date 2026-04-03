@@ -72,3 +72,23 @@
 (consequence-of (consolidate) (memory-consolidation :internal) :medium)
 
 (consequence-of (spawn-agent $task $cycles) (subagent-spawned) :high)
+
+;; ── NARS state protection ───────────────────────────────────────
+
+(consequence-of (nar-deserialize $path) (state-restored) :high)
+(consequence-of (nar-goal-add $desc $pri) (goal-created) :low)
+(consequence-of (nar-goal-complete $term) (goal-removed) :medium)
+(consequence-of (nar-revision $term $evidence) (belief-revised) :medium)
+
+;; Metta skill security gap fix
+(consequence-of (metta $expr) (arbitrary-evaluation) :high)
+
+;; ── NARS state protection ───────────────────────────────────────
+
+(consequence-of (nar-deserialize $path) (state-restored) :high)
+(consequence-of (nar-goal-add $desc $pri) (goal-created) :low)
+(consequence-of (nar-goal-complete $term) (goal-removed) :medium)
+(consequence-of (nar-revision $term $evidence) (belief-revised) :medium)
+
+;; Metta skill security gap fix
+(consequence-of (metta $expr) (arbitrary-evaluation) :high)

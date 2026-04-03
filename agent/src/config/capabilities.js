@@ -12,6 +12,7 @@ const DEFAULTS = {
   dynamicSkillDiscovery: false, executionHooks: false, runtimeIntrospection: false,
   selfModifyingSkills: false, harnessOptimization: false, memoryConsolidation: false,
   goalPursuit: false, subAgentSpawning: false, selfEvaluation: false, harnessDiffusion: false,
+  actionTrace: false, memorySnapshots: false, separateEvaluator: false, coordinatorMode: false,
 };
 
 const PROFILES = {
@@ -35,6 +36,7 @@ const PROFILES = {
     multiEmbodiment: true, virtualEmbodiment: true, autonomousLoop: true,
     attentionSalience: true, safetyLayer: true, auditLog: true, rlhfCollection: true,
     dynamicSkillDiscovery: false, executionHooks: false, runtimeIntrospection: false,
+    actionTrace: true,
   },
   full: {
     mettaControlPlane: true, sExprSkillDispatch: true, semanticMemory: true,
@@ -46,6 +48,7 @@ const PROFILES = {
     selfModifyingSkills: true, harnessOptimization: true, memoryConsolidation: true,
     goalPursuit: true, subAgentSpawning: true, selfEvaluation: true, harnessDiffusion: false,
     dynamicSkillDiscovery: true, executionHooks: true, runtimeIntrospection: true,
+    actionTrace: true, memorySnapshots: true, separateEvaluator: true, coordinatorMode: true,
   },
 };
 
@@ -60,6 +63,10 @@ const DEPENDENCY_TABLE = {
   harnessDiffusion: ['harnessOptimization'],
   dynamicSkillDiscovery: ['selfModifyingSkills'],
   executionHooks: ['safetyLayer', 'auditLog'],
+  actionTrace: ['auditLog'],
+  memorySnapshots: ['semanticMemory'],
+  separateEvaluator: ['subAgentSpawning'],
+  coordinatorMode: ['multiEmbodiment'],
 };
 
 export function isEnabled(config, flag) {

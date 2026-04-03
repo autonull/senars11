@@ -49,15 +49,78 @@
 ;; JS driver calls agent-start semantics directly; these rules serve
 ;; as specification and as entry points for future MeTTa execution.
 (= (agent-start)
-   (seq (agent-reset!)
+   (seq (agent-init)
         (agent-loop (agent-budget))))
+
+;; ── Initialization (runs once before main loop) ───────────────────
+(= (agent-init)
+   (do
+     ;; 1. Orient: manifest confirms active capabilities
+     (when (cap? runtimeIntrospection)
+       (let $m (manifest)
+            (attend (atom->string $m) 0.9)))
+
+     ;; 2. Restore session checkpoint (uses NARS deserialize)
+     (when (cap? persistentHistory)
+       (let $session (nar-latest-session)
+            (if (not (== $session ()))
+              (nar-deserialize (string-append "memory/sessions/" $session))
+              ())))
+
+     ;; 3. Orient on active goals (from NARS)
+     (let $goals (nar-goals :active)
+          (if (not (== $goals ()))
+            (attend (format-goals $goals) 0.85)
+            ()))
+
+     ;; 4. Surface recent derivation failures
+     (when (cap? auditLog)
+       (let $derivations (nar-recent-derivations 5)
+            (if (not (== $derivations ()))
+              (attend (format-derivations $derivations) 0.7)
+              ())))
+
+     (emit-cycle-audit :startup :complete)))
+
+;; ── Initialization (runs once before main loop) ───────────────────
+(= (agent-init)
+   (do
+     ;; 1. Orient: manifest confirms active capabilities
+     (when (cap? runtimeIntrospection)
+       (let $m (manifest)
+            (attend (atom->string $m) 0.9)))
+
+     ;; 2. Restore session checkpoint (uses NARS deserialize)
+     (when (cap? persistentHistory)
+       (let $session (nar-latest-session)
+            (if (not (== $session ()))
+              (nar-deserialize (string-append "memory/sessions/" $session))
+              ())))
+
+     ;; 3. Orient on active goals (from NARS)
+     (let $goals (nar-goals :active)
+          (if (not (== $goals ()))
+            (attend (format-goals $goals) 0.85)
+            ()))
+
+     ;; 4. Surface recent derivation failures
+     (when (cap? auditLog)
+       (let $derivations (nar-recent-derivations 5)
+            (if (not (== $derivations ()))
+              (attend (format-derivations $derivations) 0.7)
+              ())))
+
+     (emit-cycle-audit :startup :complete)))
 
 ;; ── Main loop (tail-recursive) ────────────────────────────────────
 (= (agent-loop $k)
    (if (== $k 0)
-     (if (cap? autonomousLoop)
-       (agent-loop (reset-budget))
-       (agent-halt))
+     (do
+       (when (cap? persistentHistory)
+         (nar-serialize))
+       (if (cap? autonomousLoop)
+         (agent-loop (reset-budget))
+         (agent-halt)))
      (let* (($msg     (check-embodiment-bus))
             ($k2      (if (new-message? $msg)
                         (reset-budget)

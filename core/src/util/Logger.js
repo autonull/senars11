@@ -1,24 +1,23 @@
 import { envDetector } from './EnvironmentDetector.js';
 
-class Logger {
-    constructor() {
+const LEVELS = { ERROR: 0, WARN: 1, INFO: 2, DEBUG: 3 };
+
+class LoggerClass {
+    #adapters = new Set();
+
+    constructor({ silent = null, level = 'INFO' } = {}) {
         this.isTestEnv = envDetector.isTest();
-        this.silent = this.isTestEnv;
-        this.levels = { ERROR: 0, WARN: 1, INFO: 2, DEBUG: 3 };
-        this.currentLevel = this.levels.INFO;
+        this.silent = silent ?? this.isTestEnv;
+        this.currentLevel = LEVELS[level.toUpperCase()] ?? LEVELS.INFO;
     }
 
-    _isDebugMode() {
-        return envDetector.isDebug();
-    }
+    addAdapter(adapter) { this.#adapters.add(adapter); return this; }
+    removeAdapter(adapter) { this.#adapters.delete(adapter); return this; }
 
     shouldLog(level) {
         if (this.silent) return false;
-        const levelValue = this.levels[level.toUpperCase()] ?? this.levels.INFO;
-
-        if (level === 'debug' && !this._isDebugMode()) return false;
-
-        return levelValue <= this.currentLevel;
+        if (level === 'debug' && !envDetector.isDebug()) return false;
+        return (LEVELS[level.toUpperCase()] ?? LEVELS.INFO) <= this.currentLevel;
     }
 
     log(level, msg, data) {
@@ -27,13 +26,14 @@ class Logger {
         const message = typeof msg === 'function' ? msg() : msg;
         const logData = typeof data === 'function' ? data() : data;
 
-        const consoleMethod = console[level] || console.log;
-        const prefix = `[${level.toUpperCase()}]`;
+        for (const adapter of this.#adapters) {
+            try { adapter.log?.(level, message, logData); } catch { /* skip broken adapters */ }
+        }
 
-        if (logData !== undefined) {
-            consoleMethod(prefix, message, logData);
-        } else {
-            consoleMethod(prefix, message);
+        if (this.#adapters.size === 0) {
+            const consoleMethod = console[level] || console.log;
+            logData !== undefined ? consoleMethod(`[${level.toUpperCase()}]`, message, logData)
+                : consoleMethod(`[${level.toUpperCase()}]`, message);
         }
     }
 
@@ -43,20 +43,17 @@ class Logger {
     error(msg, data) { this.log('error', msg, data); }
 
     setSilent(silent) { this.silent = silent; }
+    setLevel(level) { const v = LEVELS[level.toUpperCase()]; if (v !== undefined) this.currentLevel = v; }
+    getLevel() { return Object.keys(LEVELS).find(k => LEVELS[k] === this.currentLevel); }
+}
 
-    setLevel(level) {
-        const levelValue = this.levels[level.toUpperCase()];
-        if (levelValue !== undefined) {
-            this.currentLevel = levelValue;
-        }
-    }
-
-    getIsTestEnv() { return this.isTestEnv; }
-
-    getLevel() {
-        return Object.keys(this.levels).find(key => this.levels[key] === this.currentLevel);
+export class ConsoleLoggerAdapter {
+    log(level, message, data) {
+        const fn = console[level] || console.log;
+        data !== undefined ? fn(`[${level.toUpperCase()}]`, message, data)
+            : fn(`[${level.toUpperCase()}]`, message);
     }
 }
 
-const logger = new Logger();
+const logger = new LoggerClass();
 export { logger as Logger };

@@ -220,8 +220,8 @@ describe('Phase 1: MeTTa Control Plane', () => {
                 dispatcher.register('enabled-skill', mockHandler, 'mettaControlPlane', ':reflect');
                 dispatcher.register('disabled-skill', mockHandler, 'shellSkill', ':system');
                 const defs = dispatcher.getActiveSkillDefs();
-                expect(defs).toContain('(enabled-skill ...)');
-                expect(defs).not.toContain('(disabled-skill ...)');
+                expect(defs).toContain('enabled-skill');
+                expect(defs).not.toContain('disabled-skill');
             });
 
             it('returns "(no skills available)" when none enabled', () => {

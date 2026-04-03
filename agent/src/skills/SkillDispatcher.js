@@ -8,14 +8,50 @@ import { isEnabled } from '../config/capabilities.js';
 import { getSafetyLayer } from '../safety/SafetyLayer.js';
 import { AuditSpace } from '../memory/AuditSpace.js';
 import { getHookOrchestrator } from './HookOrchestrator.js';
+import { readFileSync, existsSync } from 'fs';
+import { Logger } from '@senars/core';
 
 export class SkillDispatcher {
   constructor(config) {
     this._config = config;
     this._handlers = new Map();
+    this._skillDecls = new Map();
     this._parser = new Parser();
     this._safetyLayer = null;
     this._auditSpace = null;
+  }
+
+  loadSkillsFromFile(path) {
+    if (!existsSync(path)) return;
+    const content = readFileSync(path, 'utf-8');
+    try {
+      for (const line of content.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('(skill ')) continue;
+        const atom = this._parser.parse(trimmed);
+        for (const decl of this._extractSkillDecls(atom)) {
+          this._skillDecls.set(decl.name, decl);
+        }
+      }
+    } catch (err) {
+      Logger.warn('[SkillDispatcher] Failed to load skills from', path, err.message);
+    }
+  }
+
+  _extractSkillDecls(atom) {
+    const decls = [];
+    if (!isExpression(atom) || atom.operator?.name !== 'skill') return decls;
+    const c = atom.components || [];
+    if (c.length >= 5) {
+      decls.push({
+        name: c[0]?.name ?? c[0]?.value,
+        argTypes: this._atomToJS(c[1]),
+        capFlag: c[2]?.name ?? c[2]?.value,
+        tier: c[3]?.name ?? c[3]?.value,
+        description: (c[4]?.name ?? c[4]?.value ?? '').replace(/^"|"$/g, ''),
+      });
+    }
+    return decls;
   }
 
   async _ensureSafetyAndAudit() {
@@ -36,7 +72,18 @@ export class SkillDispatcher {
     }
   }
 
-  register(name, handler, capFlag, tier) {
+  register(name, handler, capFlag, tier, description = '') {
+    const decl = this._skillDecls.get(name);
+    if (decl) {
+      if (decl.capFlag !== capFlag) {
+        Logger.warn(`[SkillDispatcher] Capability mismatch for ${name}: .metta says ${decl.capFlag}, JS says ${capFlag}`);
+      }
+      if (decl.tier !== tier) {
+        Logger.warn(`[SkillDispatcher] Tier mismatch for ${name}: .metta says ${decl.tier}, JS says ${tier}`);
+      }
+    } else {
+      this._skillDecls.set(name, { name, argTypes: 'any', capFlag, tier, description });
+    }
     this._handlers.set(name, { handler, capFlag, tier });
   }
 
@@ -75,8 +122,10 @@ export class SkillDispatcher {
 
   getActiveSkillDefs() {
     const lines = [];
-    for (const [name, { capFlag }] of this._handlers) {
-      if (isEnabled(this._config, capFlag)) lines.push(`(${name} ...)`);
+    for (const [name, decl] of this._skillDecls) {
+      if (isEnabled(this._config, decl.capFlag)) {
+        lines.push(`(skill ${name} ${decl.argTypes} ${decl.capFlag} ${decl.tier} "${decl.description}")`);
+      }
     }
     return lines.length ? lines.join('\n') : '(no skills available)';
   }
