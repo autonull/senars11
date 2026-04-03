@@ -13,21 +13,19 @@
  */
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { ContextBuilder } from '../../../agent/src/memory/ContextBuilder.js';
 import { existsSync, writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
 
-// Mock Logger
-const mockLogger = {
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    debug: () => {}
-};
-
 jest.mock('@senars/core', () => ({
-    Logger: mockLogger
+    Logger: {
+        info: () => {},
+        warn: () => {},
+        error: () => {},
+        debug: () => {}
+    }
 }));
+
+import { ContextBuilder } from '../../../agent/src/memory/ContextBuilder.js';
 
 describe('Phase 6: ContextBuilder', () => {
   let contextBuilder;
@@ -64,13 +62,13 @@ describe('Phase 6: ContextBuilder', () => {
     };
 
     mockSemanticMemory = {
-      queryByType: vi.fn(async (type) => {
+      queryByType: jest.fn(async (type) => {
         if (type === ':pinned') {
           return [{ content: 'Pinned memory 1' }, { content: 'Pinned memory 2' }];
         }
         return [];
       }),
-      query: vi.fn(async (text, k) => {
+      query: jest.fn(async (text, k) => {
         return [
           { content: `Recalled: ${text}`, score: 0.8 },
           { content: 'Related memory', score: 0.6 }
@@ -79,18 +77,18 @@ describe('Phase 6: ContextBuilder', () => {
     };
 
     mockHistorySpace = {
-      getRecent: vi.fn(async (n) => [
+      getRecent: jest.fn(async (n) => [
         { timestamp: Date.now(), content: 'History entry 1' },
         { timestamp: Date.now(), content: 'History entry 2' }
       ])
     };
 
     mockSkillDispatcher = {
-      getActiveSkillDefs: vi.fn(() => '(send "...")\n(remember "...")\n(query "...")')
+      getActiveSkillDefs: jest.fn(() => '(send "...")\n(remember "...")\n(query "...")')
     };
 
     mockIntrospectionOps = {
-      generateManifest: vi.fn(() => JSON.stringify({
+      generateManifest: jest.fn(() => JSON.stringify({
         version: '0.1.0',
         profile: 'parity',
         capabilities: { contextBudgets: true }
@@ -127,7 +125,7 @@ describe('Phase 6: ContextBuilder', () => {
   describe('registerGroundedOps()', () => {
     it('registers all required grounded ops', () => {
       const mockInterp = {
-        registerOp: vi.fn()
+        registerOp: jest.fn()
       };
 
       contextBuilder.registerGroundedOps(mockInterp);
@@ -233,21 +231,10 @@ describe('Phase 6: ContextBuilder', () => {
     });
 
     it('falls back to default prompt when file does not exist', () => {
-      // Temporarily mock existsSync to return false
-      const originalExistsSync = existsSync;
-      vi.mock('fs', async () => {
-        const actual = await vi.importActual('fs');
-        return {
-          ...actual,
-          existsSync: vi.fn((path) => {
-            if (path.includes('prompt.metta')) return false;
-            return actual.existsSync(path);
-          })
-        };
-      });
-
+      const spy = jest.spyOn(require('fs'), 'existsSync').mockReturnValue(false);
       const content = contextBuilder._loadHarnessPrompt();
       expect(content).toContain('SeNARchy');
+      spy.mockRestore();
     });
   });
 

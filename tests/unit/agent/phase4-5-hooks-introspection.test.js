@@ -9,22 +9,20 @@
  */
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { HookOrchestrator, resetHookOrchestrator, getHookOrchestrator } from '../../../agent/src/skills/HookOrchestrator.js';
-import { IntrospectionOps } from '../../../agent/src/introspection/IntrospectionOps.js';
 import { existsSync, writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
 
-// Mock Logger
-const mockLogger = {
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    debug: () => {}
-};
-
 jest.mock('@senars/core', () => ({
-    Logger: mockLogger
+    Logger: {
+        info: () => {},
+        warn: () => {},
+        error: () => {},
+        debug: () => {}
+    }
 }));
+
+import { HookOrchestrator, resetHookOrchestrator, getHookOrchestrator } from '../../../agent/src/skills/HookOrchestrator.js';
+import { IntrospectionOps } from '../../../agent/src/introspection/IntrospectionOps.js';
 
 describe('Phase 4.5: HookOrchestrator', () => {
   let orchestrator;
@@ -35,8 +33,8 @@ describe('Phase 4.5: HookOrchestrator', () => {
     resetHookOrchestrator();
     
     mockAuditSpace = {
-      emitSkillBlocked: vi.fn(async () => {}),
-      emitEvent: vi.fn(async () => {})
+      emitSkillBlocked: jest.fn(async () => {}),
+      emitEvent: jest.fn(async () => {})
     };
 
     mockConfig = {
@@ -211,18 +209,18 @@ describe('Phase 4.5: IntrospectionOps', () => {
     };
 
     mockSkillDispatcher = {
-      getActiveSkillDefs: vi.fn(() => '(send ...) \n(remember ...) \n(query ...)')
+      getActiveSkillDefs: jest.fn(() => '(send ...) \n(remember ...) \n(query ...)')
     };
 
     mockEmbodimentBus = {
-      getAll: vi.fn(() => [
+      getAll: jest.fn(() => [
         { id: 'irc-quakenet', type: 'irc', status: 'connected' },
         { id: 'cli', type: 'cli', status: 'connected' }
       ])
     };
 
     mockModelRouter = {
-      getScores: vi.fn(() => [
+      getScores: jest.fn(() => [
         { modelId: 'gpt-4o', truth: { f: 0.85, c: 0.72 } },
         { modelId: 'claude-sonnet-4-6', truth: { f: 0.91, c: 0.82 } }
       ])

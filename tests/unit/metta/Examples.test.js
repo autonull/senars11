@@ -1,13 +1,9 @@
 import { MeTTaInterpreter } from '@senars/metta/src/MeTTaInterpreter.js';
 import { Term } from '@senars/metta/src/kernel/Term.js';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-// Workaround for Jest VM environment
-const __filename = typeof __filename !== 'undefined' ? __filename : fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const stdlibDir = path.resolve(__dirname, '../../../metta/src/stdlib');
-const nalStdlibDir = path.resolve(__dirname, '../../../metta/src/nal/stdlib');
+const stdlibDir = path.resolve(process.cwd(), 'metta/src/stdlib');
+const nalStdlibDir = path.resolve(process.cwd(), 'metta/src/nal/stdlib');
 
 describe('Examples to Unit Tests Promotion', () => {
     let interpreter;

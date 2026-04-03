@@ -1,8 +1,8 @@
 /**
  * Unit Tests for Parallel Evaluation
- * 
- * NOTE: These tests are async/timing-dependent and may be unstable.
- * They are disabled by default. Run manually when needed.
+ *
+ * NOTE: &map-parallel uses lazy evaluation and returns Promises that are not
+ * fully resolved by runAsync. Re-enable when lazy eval is wired to auto-await.
  */
 import { MeTTaTestUtils } from '../../../helpers/MeTTaTestUtils.js';
 import { Formatter } from '../../../../metta/src/kernel/Formatter.js';
@@ -11,15 +11,12 @@ import { jest } from '@jest/globals';
 describe.skip('Parallel Evaluation', () => {
     let interpreter;
 
-    beforeEach(() => {
-        interpreter = MeTTaTestUtils.createInterpreter({ loadStdlib: true });
-    });
-
     afterEach(() => {
-        if (interpreter.workerPool) interpreter.workerPool.terminate();
+        if (interpreter?.workerPool) interpreter.workerPool.terminate();
     });
 
     test('should map items in parallel using background workers', async () => {
+        interpreter = MeTTaTestUtils.createInterpreter({ loadStdlib: true });
         const code = '!(&map-parallel (1 2 3 4) $x (+ $x 1))';
         const result = await interpreter.runAsync(code);
 
@@ -28,6 +25,7 @@ describe.skip('Parallel Evaluation', () => {
     }, 10000);
 
     test('should handle nested structure', async () => {
+        interpreter = MeTTaTestUtils.createInterpreter({ loadStdlib: true });
         const code = '!(&map-parallel (1) $x (: $x (: $x ())))';
         const result = await interpreter.runAsync(code);
 

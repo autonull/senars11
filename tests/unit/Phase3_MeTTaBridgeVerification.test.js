@@ -4,7 +4,7 @@ import { Task } from '../../core/src/task/Task.js';
 import { TermFactory } from '../../core/src/term/TermFactory.js';
 import { Truth } from '../../core/src/Truth.js';
 
-describe.skip('Phase 3.1: MeTTa Bridge Verification', () => {
+describe('Phase 3.1: MeTTa Bridge Verification', () => {
     let termFactory;
     let mockInterpreter;
     let mockReasoner;
@@ -36,7 +36,12 @@ describe.skip('Phase 3.1: MeTTa Bridge Verification', () => {
             }
         };
 
-        bridge = new SeNARSBridge(mockReasoner, mockInterpreter, {}, { emit: jest.fn() });
+        const mockEventBus = {
+            emit: jest.fn(),
+            hasSubscribers: jest.fn(() => false)
+        };
+
+        bridge = new SeNARSBridge(mockReasoner, mockInterpreter, {}, mockEventBus);
     });
 
     describe('SeNARSBridge', () => {

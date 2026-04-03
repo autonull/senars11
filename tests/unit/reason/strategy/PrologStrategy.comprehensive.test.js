@@ -38,68 +38,6 @@ describe('PrologStrategy - Comprehensive Tests', () => {
         expect(strategy.knowledgeBase.has('female')).toBe(true);
     });
 
-    test.skip('should correctly identify variable terms', () => {
-        // Test various ways variables might be represented
-        const var1 = {name: '?X'};
-        const var2 = {name: 'X'};  // Uppercase typically represents variables
-        const var3 = {name: '_Temp'};  // Underscore prefix typically represents variables
-        const constant = {name: 'tom'};  // Lowercase typically represents constants
-
-        expect(strategy._isVariable(var1)).toBe(true);
-        expect(strategy._isVariable(var2)).toBe(true);
-        expect(strategy._isVariable(var3)).toBe(true);
-        expect(strategy._isVariable(constant)).toBe(false);
-    });
-
-    test.skip('should perform simple unification', () => {
-        // Test variable to constant unification
-        const varTerm = {name: '?X'};
-        const constTerm = {name: 'tom'};
-
-        const result = strategy._unify(varTerm, constTerm, {});
-
-        expect(result.success).toBe(true);
-        expect(result.substitution['?X']).toBeDefined();
-        expect(strategy._getVariableName(result.substitution['?X'])).toBe('tom');
-    });
-
-    test.skip('should handle compound term structure', () => {
-        // Create a simple compound term structure
-        const parentTerm = {
-            name: '^',
-            components: [
-                {name: 'parent'},
-                {
-                    name: ',',
-                    components: [
-                        {name: '?X'},
-                        {name: 'bob'}
-                    ]
-                }
-            ]
-        };
-
-        const anotherTerm = {
-            name: '^',
-            components: [
-                {name: 'parent'},
-                {
-                    name: ',',
-                    components: [
-                        {name: 'tom'},
-                        {name: 'bob'}
-                    ]
-                }
-            ]
-        };
-
-        // These should be able to unify with ?X binding to 'tom'
-        const result = strategy._unify(parentTerm, anotherTerm, {});
-
-        expect(result.success).toBe(true);
-        expect(result.substitution['?X']).toBeDefined();
-    });
-
     test('should create tasks from terms correctly', () => {
         const mockTerm = termFactory.atomic('test_term');
         const task = strategy._createTaskFromTerm(mockTerm, '.', new Truth(0.9, 0.8)); // Using belief punctuation instead of question
@@ -109,15 +47,6 @@ describe('PrologStrategy - Comprehensive Tests', () => {
         expect(task.truth).toBeDefined();
         expect(task.truth.f).toBe(0.9);
         expect(task.truth.c).toBe(0.8);
-    });
-
-    test.skip('should apply substitutions to terms', () => {
-        const termWithVar = {name: '?X'};
-        const substitution = {'?X': {name: 'substituted_value'}};
-
-        const result = strategy._applySubstitutionToTerm(termWithVar, substitution);
-
-        expect(result.name).toBe('substituted_value');
     });
 
     test('should handle multiple solutions up to maxSolutions limit', () => {

@@ -14,22 +14,20 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { HarnessOptimizer, resetHarnessOptimizer, getHarnessOptimizer } from '../../../agent/src/harness/HarnessOptimizer.js';
 import { existsSync, writeFileSync, readFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
 
-// Mock Logger
-const mockLogger = {
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    debug: () => {}
-};
-
 jest.mock('@senars/core', () => ({
-    Logger: mockLogger
+    Logger: {
+        info: () => {},
+        warn: () => {},
+        error: () => {},
+        debug: () => {}
+    }
 }));
+
+import { HarnessOptimizer, resetHarnessOptimizer, getHarnessOptimizer } from '../../../agent/src/harness/HarnessOptimizer.js';
 
 describe('Phase 6: HarnessOptimizer', () => {
   let optimizer;
@@ -73,7 +71,7 @@ describe('Phase 6: HarnessOptimizer', () => {
 
     // Mock model router
     mockModelRouter = {
-      invoke: vi.fn(async (ctx, opts) => ({
+      invoke: jest.fn(async (ctx, opts) => ({
         response: 'Test response',
         model: 'test-model',
         latency: 100
@@ -82,8 +80,8 @@ describe('Phase 6: HarnessOptimizer', () => {
 
     // Mock audit space
     mockAuditSpace = {
-      queryByType: vi.fn(async (type, limit) => []),
-      emitHarnessModified: vi.fn(async (cycle, score) => {})
+      queryByType: jest.fn(async (type, limit) => []),
+      emitHarnessModified: jest.fn(async (cycle, score) => {})
     };
 
     // Create optimizer instance
@@ -175,14 +173,14 @@ describe('Phase 6: HarnessOptimizer', () => {
       });
 
       // Mock replay to show improvement
-      optimizer._replayTasks = vi.fn(async () => ({
+      optimizer._replayTasks = jest.fn(async () => ({
         scoreImprovement: 0.1,
         candidateScore: 0.8,
         baselineScore: 0.7
       }));
 
       // Mock git operations
-      optimizer._applyCandidate = vi.fn(async () => {});
+      optimizer._applyCandidate = jest.fn(async () => {});
 
       const result = await optimizer.runOptimizationCycle();
 
@@ -203,13 +201,13 @@ describe('Phase 6: HarnessOptimizer', () => {
         response: 'Proposed change'
       });
 
-      optimizer._replayTasks = vi.fn(async () => ({
+      optimizer._replayTasks = jest.fn(async () => ({
         scoreImprovement: 0.02, // Below threshold of 0.05
         candidateScore: 0.72,
         baselineScore: 0.7
       }));
 
-      optimizer._discardCandidate = vi.fn();
+      optimizer._discardCandidate = jest.fn();
 
       const result = await optimizer.runOptimizationCycle();
 

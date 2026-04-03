@@ -8,6 +8,15 @@ if (typeof window !== 'undefined') {
     window.URL.revokeObjectURL = window.URL.revokeObjectURL || function() {};
 }
 
+// Mock danfojs — heavy browser deps (plotly, mapbox-gl, tensorflow) can't run in jsdom
+jest.mock('danfojs', () => ({
+    DataFrame: class MockDataFrame {
+        constructor(data) { this._data = data || []; }
+        get values() { return Array.isArray(this._data) ? this._data : []; }
+        get columns() { return this._data?.length > 0 ? Object.keys(this._data[0]) : []; }
+    }
+}));
+
 import {Knowledge, KnowledgeFactory} from '../../../agent/src/know/index.js';
 
 class TestKnowledge extends Knowledge {

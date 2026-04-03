@@ -1,24 +1,5 @@
 import { describe, expect, test, beforeEach, jest } from '@jest/globals';
-
-await jest.unstable_mockModule('@modelcontextprotocol/sdk/server/mcp.js', () => ({
-    McpServer: class MockMcpServer {
-        constructor() {
-            this.tools = new Map();
-        }
-        tool(name, schema, callback) {
-            this.tools.set(name, callback);
-        }
-        async connect() {}
-        async close() {}
-    }
-}));
-
-await jest.unstable_mockModule('@modelcontextprotocol/sdk/server/stdio.js', () => ({
-    StdioServerTransport: class {}
-}));
-
-// Dynamic import after mocking
-const { Server } = await import('../../agent/src/mcp/Server.js');
+import { Server } from '../../agent/src/mcp/Server.js';
 
 describe('Phase 5.1: Distributed Minimalism Verification (MCP)', () => {
     let mockNAR;

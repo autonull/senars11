@@ -26,7 +26,12 @@ const baseConfig = {
         '^@senars/agent/(.*)$': '<rootDir>/agent/$1',
         '^@senars/rl$': '<rootDir>/rl/src/index.js',
         '^@senars/rl/(.*)$': '<rootDir>/rl/$1',
+        '^@modelcontextprotocol/sdk/server/mcp\\.js$': '<rootDir>/tests/mocks/mcp-sdk-mcp.js',
+        '^@modelcontextprotocol/sdk/server/stdio\\.js$': '<rootDir>/tests/mocks/mcp-sdk-stdio.js',
     },
+    transformIgnorePatterns: [
+        'node_modules/(?!(?:@noble|@modelcontextprotocol)/)',
+    ],
     collectCoverageFrom: [
         'core/src/**/*.js',
         'agent/src/**/*.js',
