@@ -2,25 +2,24 @@
  * AuditSpace.js — Append-only audit log for SeNARS agent
  */
 
-import { Logger } from '@senars/core';
 import { writeFile, readFile, mkdir } from 'fs/promises';
-import { join, dirname } from 'path';
+import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { Logger } from '@senars/core';
 
-// Workaround for Jest VM environment where import.meta.url might not be available
-let __dir;
+let __dataDir;
 try {
-    __dir = dirname(fileURLToPath(import.meta.url));
-} catch (e) {
-    __dir = typeof global !== 'undefined' && global.__dirname 
-        ? global.__dirname 
+    __dataDir = dirname(fileURLToPath(import.meta.url));
+} catch {
+    __dataDir = typeof global !== 'undefined' && global.__dirname
+        ? global.__dirname
         : process.cwd();
 }
 
 export class AuditSpace {
   constructor(config = {}) {
     this._config = config;
-    this._dataDir = config.dataDir ?? join(__dir, '../../memory/audit');
+    this._dataDir = config.dataDir ?? join(__dataDir, '../../memory/audit');
     this._events = [];
     this._cycleCount = 0;
     this._restored = false;
@@ -85,7 +84,7 @@ export class AuditSpace {
 
   async emit(type, data = {}) {
     await this.initialize();
-    const id = `aud_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const id = `aud_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const event = { id, timestamp: Date.now(), type, cycle: this._cycleCount, ...data };
     this._events.push(event);
     await this._persist();

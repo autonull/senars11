@@ -29,8 +29,6 @@
 ;;   memory.agentManifestChars — default 2000
 ;;   memory.startupOrientChars — default 2000
 ;;   memory.tasksChars        — default 1500
-;;   memory.startupOrientChars — default 2000
-;;   memory.tasksChars        — default 1500
 
 ;; ── Entry point ───────────────────────────────────────────────────
 ;; (build-context $msg) → assembled context string
@@ -77,18 +75,6 @@
      (if (cap? sExprSkillDispatch)
        (get-active-skills)
        "(skill dispatch disabled — using JSON tool calls)")))
-
-;; STARTUP_ORIENT — active goals + needs attention, first cycle only
-(= (slot-startup-orient $cycle)
-   (if (== $cycle 0)
-     (context-section "STARTUP_ORIENT" (get-startup-orient))
-     ""))
-
-;; TASKS — all NARS goals with status
-(= (slot-tasks)
-   (if (cap? goalPursuit)
-     (context-section "TASKS" (get-tasks))
-     ""))
 
 ;; STARTUP_ORIENT — active goals + needs attention, first cycle only
 (= (slot-startup-orient $cycle)
@@ -165,28 +151,8 @@
      $content
      (string-append (substring $content 0 (- $max 100)) "\n... [truncated]")))
 
-;; ── Grounded ops (implemented in JS) ──────────────────────────────
-;;
-;; These are registered by ContextBuilder.registerGroundedOps():
-;;
-;;   (context-init)              → ok
-;;   (context-concat &rest)      → String
-;;   (load-harness-prompt)       → String
-;;   (default-system-prompt)     → String
-;;   (filter-capabilities mode)  → String
-;;   (get-active-skills)         → String
-;;   (get-pinned-memories)       → String
-;;   (get-wm-entries)            → String
-;;   (generate-manifest)         → String
-;;   (query-memories msg k)      → String
-;;   (get-history)               → String
-;;   (get-feedback)              → String
-;;   (format-input msg)          → String
-;;   (get-budget key)            → Number
-;;
-;; ── Default system prompt (fallback) ──────────────────────────────
-
-(= (default-system-prompt)
-   "You are SeNARchy, a helpful AI assistant.
-Respond concisely. Use S-expression skill calls when taking actions.
-Example: ((send \"Hello\") (remember \"User prefers concise responses\"))")
+;; ── Grounded ops (implemented in ContextBuilder.js) ───────────────
+;; context-init, context-concat, load-harness-prompt, default-system-prompt,
+;; filter-capabilities, get-active-skills, get-pinned-memories, get-wm-entries,
+;; generate-manifest, query-memories, get-history, get-feedback, format-input,
+;; get-budget

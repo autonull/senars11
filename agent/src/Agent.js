@@ -1,8 +1,11 @@
+import { readFile } from 'fs/promises';
+import { resolve, dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import { FormattingUtils, Input, NAR, Logger } from '@senars/core';
 import { PersistenceManager } from './io/PersistenceManager.js';
 import { EmbodimentBus } from './io/EmbodimentBus.js';
 import { VirtualEmbodiment } from './io/VirtualEmbodiment.js';
-import * as Commands from './commands/Commands.js';
+import { AgentCommand, AgentCommandRegistry } from './commands/Commands.js';
 import { AGENT_EVENTS } from './constants.js';
 import { InputProcessor } from './InputProcessor.js';
 import { AgentStreamer } from './AgentStreamer.js';
@@ -10,9 +13,7 @@ import { AIClient } from './ai/AIClient.js';
 import { ToolAdapter } from './ai/ToolAdapter.js';
 import { isEnabled, validateDeps } from './config/capabilities.js';
 import { MeTTaLoopBuilder } from './metta/MeTTaLoopBuilder.js';
-import { readFile } from 'fs/promises';
-import { resolve, dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import * as CommandModules from './commands/Commands.js';
 
 let __agentDir;
 try {
@@ -27,7 +28,7 @@ export class Agent extends NAR {
     constructor(config = {}) {
         super(config);
 
-        this.id = config.id || `agent_${Date.now()}_${Math.random().toString(36).substr(2, 9)} `;
+        this.id = config.id || `agent_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
         this.inputQueue = new Input();
         this.sessionState = { history: [], lastResult: null, startTime: Date.now() };
         this.runState = { isRunning: false, intervalId: null };
@@ -88,16 +89,19 @@ export class Agent extends NAR {
 
     #registerMeTTaExtensions() {
         if (!this.metta || this._channelExtensionRegistered) return;
-        import('../../../metta/src/extensions/ChannelExtension.js').then(({ ChannelExtension }) => {
-            const ext = new ChannelExtension(this.metta, this.embodimentBus);
+        this.#registerExtension('../../../metta/src/extensions/ChannelExtension.js', ext => {
             ext.agent = this;
+        });
+        this.#registerExtension('../../../metta/src/extensions/MemoryExtension.js');
+    }
+
+    #registerExtension(path, configure) {
+        import(path).then(({ default: Extension }) => {
+            const ext = new Extension(this.metta, this.embodimentBus);
+            configure?.(ext);
             ext.register();
             this._channelExtensionRegistered = true;
-        }).catch(err => Logger.error('Failed to register ChannelExtension:', err));
-
-        import('../../../metta/src/extensions/MemoryExtension.js').then(({ MemoryExtension }) => {
-            new MemoryExtension(this.metta, this).register();
-        }).catch(err => Logger.error('Failed to register MemoryExtension:', err));
+        }).catch(err => Logger.error('Failed to register MeTTa extension:', err));
     }
 
     async initialize() {
@@ -155,9 +159,9 @@ export class Agent extends NAR {
     emit(event, ...args) { this._eventBus?.emit(event, ...args); }
 
     #initCommandRegistry() {
-        const registry = new Commands.AgentCommandRegistry();
-        for (const CmdClass of Object.values(Commands)) {
-            if (typeof CmdClass === 'function' && CmdClass.prototype instanceof Commands.AgentCommand && CmdClass !== Commands.AgentCommand) {
+        const registry = new AgentCommandRegistry();
+        for (const CmdClass of Object.values(CommandModules)) {
+            if (typeof CmdClass === 'function' && CmdClass.prototype instanceof AgentCommand && CmdClass !== AgentCommand) {
                 try { registry.register(new CmdClass()); }
                 catch (e) { Logger.warn(`Failed to register command ${CmdClass.name}: ${e.message}`); }
             }
@@ -179,10 +183,10 @@ export class Agent extends NAR {
         if (builtins[command]) return builtins[command]();
         if (this.commandRegistry.get(command)) {
             const result = await this.commandRegistry.execute(command, this, ...args);
-            this.emit(`command.${command} `, { command, args, result });
+            this.emit(`command.${command}`, { command, args, result });
             return result;
         }
-        return `Unknown command: ${command} `;
+        return `Unknown command: ${command}`;
     }
 
     async processNarsese(input) { return this.inputProcessor.processNarsese(input); }
@@ -193,10 +197,10 @@ export class Agent extends NAR {
         try {
             await this.step();
             this.emit(AGENT_EVENTS.NAR_CYCLE_STEP, { cycle: this.cycleCount });
-            return `Single cycle executed. Cycle: ${this.cycleCount} `;
+            return `Single cycle executed. Cycle: ${this.cycleCount}`;
         } catch (error) {
             this.emit(AGENT_EVENTS.NAR_ERROR, { error: error.message });
-            return `Error executing single cycle: ${error.message} `;
+            return `Error executing single cycle: ${error.message}`;
         }
     }
 

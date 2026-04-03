@@ -53,12 +53,7 @@ describe('Phase 6: ContextBuilder', () => {
     };
 
     mockSemanticMemory = {
-      queryByType: jest.fn(async (type) => {
-        if (type === ':pinned') {
-          return [{ content: 'Pinned memory 1' }, { content: 'Pinned memory 2' }];
-        }
-        return [];
-      }),
+      getPinned: jest.fn(async () => [{ content: 'Pinned memory 1' }, { content: 'Pinned memory 2' }]),
       query: jest.fn(async (text, k) => {
         return [
           { content: `Recalled: ${text}`, score: 0.8 },
@@ -152,7 +147,7 @@ describe('Phase 6: ContextBuilder', () => {
     it('includes pinned memories when semanticMemory is enabled', async () => {
       const context = await contextBuilder.build('test');
 
-      expect(mockSemanticMemory.queryByType).toHaveBeenCalledWith(':pinned');
+      expect(mockSemanticMemory.getPinned).toHaveBeenCalled();
       expect(context).toContain('PINNED');
     });
 

@@ -82,36 +82,6 @@
 
      (emit-cycle-audit :startup :complete)))
 
-;; ── Initialization (runs once before main loop) ───────────────────
-(= (agent-init)
-   (do
-     ;; 1. Orient: manifest confirms active capabilities
-     (when (cap? runtimeIntrospection)
-       (let $m (manifest)
-            (attend (atom->string $m) 0.9)))
-
-     ;; 2. Restore session checkpoint (uses NARS deserialize)
-     (when (cap? persistentHistory)
-       (let $session (nar-latest-session)
-            (if (not (== $session ()))
-              (nar-deserialize (string-append "memory/sessions/" $session))
-              ())))
-
-     ;; 3. Orient on active goals (from NARS)
-     (let $goals (nar-goals :active)
-          (if (not (== $goals ()))
-            (attend (format-goals $goals) 0.85)
-            ()))
-
-     ;; 4. Surface recent derivation failures
-     (when (cap? auditLog)
-       (let $derivations (nar-recent-derivations 5)
-            (if (not (== $derivations ()))
-              (attend (format-derivations $derivations) 0.7)
-              ())))
-
-     (emit-cycle-audit :startup :complete)))
-
 ;; ── Main loop (tail-recursive) ────────────────────────────────────
 (= (agent-loop $k)
    (if (== $k 0)
