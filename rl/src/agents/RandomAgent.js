@@ -5,16 +5,13 @@
  * 
  * @implements {import('../interfaces/IAgent.js').IAgent}
  */
-import { RLAgent } from '../core/RLAgent.js';
-import { deepMergeConfig } from '../utils/ConfigHelper.js';
+import { Agent } from '../core/RLCore.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 import { AgentFactoryUtils } from './QNetwork.js';
 
-/**
- * Random Agent - Takes random actions
- */
-export class RandomAgent extends RLAgent {
+export class RandomAgent extends Agent {
     constructor(env, config = {}) {
-        const mergedConfig = deepMergeConfig({ seed: null }, config);
+        const mergedConfig = mergeConfig({ seed: null }, config);
         super(env, mergedConfig);
         if (this.config.seed !== null) {
             this._random = AgentFactoryUtils.createSeededRandom(this.config.seed);

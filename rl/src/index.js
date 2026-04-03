@@ -20,9 +20,6 @@ export {
     LearnedGrounding
 } from './core/RLCore.js';
 
-// Backward compatibility
-export { RLAgent, RLEnvironment } from './core/RLCore.js';
-
 // ==================== Component System ====================
 export {
     Component,
@@ -211,7 +208,19 @@ export * from './config/ConfigManager.js';
 export * from './functional/FunctionalUtils.js';
 
 // ==================== Cognitive Architectures ====================
-export * from './systems/CognitiveArchitecture.js';
+export {
+    RLCognitiveArchitecture,
+    RLCognitiveArchitecture as CognitiveArchitecture,
+    CognitiveModule,
+    PerceptionModule,
+    ReasoningModule,
+    PlanningModule,
+    ActionModule,
+    MemoryModule,
+    SkillModule,
+    MetaCognitiveModule,
+    ArchitecturePresets
+} from './systems/CognitiveArchitecture.js';
 export * from './systems/EmergentArchitecture.js';
 
 // ==================== Utilities ====================

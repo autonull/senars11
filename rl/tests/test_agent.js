@@ -1,11 +1,11 @@
 
 import { NeuroSymbolicAgent } from '../src/agents/NeuroSymbolicAgent.js';
-import { RLEnvironment } from '../src/core/RLEnvironment.js';
+import { Environment } from '../src/core/RLCore.js';
 import { strict as assert } from 'assert';
 
 console.log("Testing NeuroSymbolicAgent...");
 
-class MockEnv extends RLEnvironment {
+class MockEnv extends Environment {
     constructor() {
         super();
         this.reset();

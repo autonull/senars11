@@ -1,4 +1,4 @@
-import { RLEnvironment } from '../core/RLEnvironment.js';
+import { Environment } from '../core/RLCore.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const DEFAULTS = {
@@ -11,7 +11,7 @@ const DEFAULTS = {
     forcePenalty: 0.1
 };
 
-export class Continuous1D extends RLEnvironment {
+export class Continuous1D extends Environment {
     constructor(config = {}) {
         super();
         this.config = mergeConfig(DEFAULTS, config);

@@ -2,7 +2,7 @@
  * Environment Factory and Registry
  * Factory pattern for creating and managing environments
  */
-import { RLEnvironment } from '../core/RLEnvironment.js';
+import { Environment } from '../core/RLCore.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 import { MetricsTracker } from '../utils/MetricsTracker.js';
 
@@ -18,7 +18,7 @@ const ENV_DEFAULTS = {
 /**
  * Enhanced environment with metrics and episode recording
  */
-export class EnhancedEnvironment extends RLEnvironment {
+export class EnhancedEnvironment extends Environment {
     constructor(env, config = {}) {
         super(mergeConfig(ENV_DEFAULTS, config));
         this.env = env;

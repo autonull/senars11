@@ -1,4 +1,4 @@
-import { RLEnvironment } from '../core/RLEnvironment.js';
+import { Environment } from '../core/RLCore.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const GRID_DEFAULTS = {
@@ -11,7 +11,7 @@ const GRID_DEFAULTS = {
     stepPenalty: -0.1
 };
 
-export class GridWorld extends RLEnvironment {
+export class GridWorld extends Environment {
     constructor(config = {}) {
         super();
         const merged = typeof config === 'number'

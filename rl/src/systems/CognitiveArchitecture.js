@@ -1,3 +1,7 @@
+/**
+ * RLCognitiveArchitecture - RL-focused cognitive architecture with experience stores and skill extractors
+ * Distinct from agent/src/cognitive/CognitiveArchitecture.js which is LLM/MeTTa-focused (LIDA model)
+ */
 import { Component } from '../composable/Component.js';
 import { ExperienceStore, SkillExtractor } from '../experience/ExperienceSystem.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
@@ -7,6 +11,8 @@ const MODULE_DEFAULTS = {
     enabled: true,
     priority: 0
 };
+
+export { RLCognitiveArchitecture as CognitiveArchitecture };
 
 const PERCEPTION_DEFAULTS = {
     featureExtractors: [],
@@ -546,7 +552,7 @@ export class MetaCognitiveModule extends CognitiveModule {
     getSelfKnowledge() { return Object.fromEntries(this.selfKnowledge); }
 }
 
-export class CognitiveArchitecture extends Component {
+export class RLCognitiveArchitecture extends Component {
     constructor(config = {}) {
         super(mergeConfig(ARCHITECTURE_DEFAULTS, config));
 

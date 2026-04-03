@@ -1,4 +1,4 @@
-import { RLEnvironment } from '../core/RLEnvironment.js';
+import { Environment } from '../core/RLCore.js';
 
 const PHYSICS = {
     gravity: 9.8,
@@ -12,7 +12,7 @@ const PHYSICS = {
     maxSteps: 500
 };
 
-export class CartPole extends RLEnvironment {
+export class CartPole extends Environment {
     constructor() {
         super();
         Object.assign(this, PHYSICS);

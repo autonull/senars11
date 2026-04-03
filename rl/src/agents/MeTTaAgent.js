@@ -1,22 +1,17 @@
-import { RLAgent } from '../core/RLAgent.js';
+import { Agent } from '../core/RLCore.js';
 import { MeTTaInterpreter } from '@senars/metta';
 import { NarseseUtils } from '../utils/NarseseUtils.js';
-import { deepMergeConfig } from '../utils/ConfigHelper.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const METTA_AGENT_DEFAULTS = {
     strategyPath: null,
     autoInitialize: true
 };
 
-/**
- * MeTTaAgent - Agent with MeTTa-based policy representation
- * Uses MeTTa interpreter for symbolic action selection and learning
- */
-export class MeTTaAgent extends RLAgent {
+export class MeTTaAgent extends Agent {
     constructor(env, config = {}) {
-        // Handle string config (strategy path) for backward compatibility
         const normalizedConfig = typeof config === 'string' ? { strategyPath: config } : config;
-        const mergedConfig = deepMergeConfig(METTA_AGENT_DEFAULTS, normalizedConfig);
+        const mergedConfig = mergeConfig(METTA_AGENT_DEFAULTS, normalizedConfig);
         super(env, mergedConfig);
 
         this.metta = new MeTTaInterpreter();

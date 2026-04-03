@@ -1,22 +1,22 @@
-import { RLEnvironment } from '../core/RLEnvironment.js';
-import { deepMergeConfig } from '../utils/ConfigHelper.js';
+import { Environment } from '../core/RLCore.js';
+import { mergeConfig } from '../utils/ConfigHelper.js';
 
 const DEFAULTS = {
     size: 10,
     numObjects: 3,
     maxSteps: 100,
     actions: [
-        [0, -1], // Up
-        [0, 1],  // Down
-        [-1, 0], // Left
-        [1, 0]   // Right
+        [0, -1],
+        [0, 1],
+        [-1, 0],
+        [1, 0]
     ]
 };
 
 /**
  * CompositionalWorld - Environment with multiple objects for composition testing
  */
-export class CompositionalWorld extends RLEnvironment {
+export class CompositionalWorld extends Environment {
     constructor(config = {}) {
         const mergedConfig = deepMergeConfig(DEFAULTS, config);
         super(mergedConfig);

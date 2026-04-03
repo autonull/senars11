@@ -2,7 +2,7 @@
  * Environment Wrappers
  * Composable wrappers for modifying environment behavior
  */
-import { RLEnvironment } from '../core/RLEnvironment.js';
+import { Environment } from '../core/RLCore.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 import { MetricsTracker } from '../utils/MetricsTracker.js';
 
@@ -13,7 +13,7 @@ const WRAPPER_DEFAULTS = {
 /**
  * Base environment wrapper
  */
-export class EnvironmentWrapper extends RLEnvironment {
+export class EnvironmentWrapper extends Environment {
     constructor(env, config = {}) {
         super(mergeConfig(WRAPPER_DEFAULTS, config));
         this.env = env;
