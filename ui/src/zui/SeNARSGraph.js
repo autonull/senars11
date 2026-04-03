@@ -36,10 +36,31 @@ export class SeNARSGraph extends GraphSystem {
         this.bag = null;
         this.historyStack = [];
 
+        // Visualization Settings
+        this.visSettings = {
+            edgeSpeed: 1.0,
+            showDerivations: true,
+            colorCodeRules: false,
+            traceDecay: 2000,
+            attentionSpotlight: false,
+            inferenceTypeColors: {
+                'Deduction': '#00ff9d',
+                'Induction': '#00d4ff',
+                'Abduction': '#ffcc00',
+                'Revision': '#ff4444',
+                'Analogy': '#ff00ff',
+                'Inference': '#FFaa00'
+            }
+        };
+
         this._setupGlobalListeners();
     }
 
     _setupGlobalListeners() {
+        eventBus.on('visualization.settings', (settings) => {
+            this.visSettings = { ...this.visSettings, ...settings };
+        });
+
         eventBus.on(EVENTS.CONCEPT_SELECT, (payload) => {
             const { id, concept } = payload;
             if (concept?.term) this.autoLearner.recordInteraction(concept.term, 1);
@@ -729,35 +750,66 @@ export class SeNARSGraph extends GraphSystem {
         });
     }
 
-    animateReasoning(sourceId, targetId, derivedId) {
-        if (!this.cy) return;
+    animateReasoning(sourceId, targetId, derivedId, ruleType = 'Inference') {
+        if (!this.cy || !this.visSettings.showDerivations) return;
 
-        const duration = 1000;
-
-        // Sequence: Source + Target flash -> Derived appears
+        const duration = 1000 / (this.visSettings.edgeSpeed || 1);
+        const color = this.visSettings.colorCodeRules
+            ? (this.visSettings.inferenceTypeColors[ruleType] || this.visSettings.inferenceTypeColors['Inference'])
+            : '#FFaa00';
 
         // 1. Highlight premises
         const nodes = [sourceId, targetId].filter(id => id).map(id => this.cy.getElementById(id));
         const foundNodes = nodes.filter(n => n.nonempty());
 
         if (foundNodes.length === 0) {
-            console.warn('SeNARSGraph: animateReasoning called but source/target nodes not found', { sourceId, targetId });
+            // console.warn('SeNARSGraph: animateReasoning called but source/target nodes not found', { sourceId, targetId });
         }
 
         foundNodes.forEach(node => {
-            node.flashClass('reasoning-active', duration);
+            if (this.visSettings.colorCodeRules) {
+                node.animate({
+                    style: { 'border-color': color, 'border-width': 6 },
+                    duration: duration * 0.2
+                }).promise().then(() => {
+                    node.animate({
+                        style: { 'border-color': '#ffffff', 'border-width': 1 },
+                        duration: duration * 0.5
+                    });
+                });
+            } else {
+                node.flashClass('reasoning-active', duration);
+            }
         });
 
-        // 2. Animate Derived Node (Delayed slightly)
+        // Spotlight
+        if (this.visSettings.attentionSpotlight && foundNodes.length > 0) {
+            const others = this.cy.elements().not(foundNodes[0]).not(foundNodes[1] || foundNodes[0]);
+            others.animate({ style: { 'opacity': 0.1 }, duration: 200 });
+            setTimeout(() => {
+                others.animate({ style: { 'opacity': 1 }, duration: 500 });
+            }, duration);
+        }
+
+        // 2. Animate Derived Node
         if (derivedId) {
             setTimeout(() => {
                 const node = this.cy.getElementById(derivedId);
                 if (node.nonempty()) {
-                    node.flashClass('reasoning-active', 1500);
-                } else {
-                     console.warn('SeNARSGraph: derived node not found for animation', derivedId);
+                    if (this.visSettings.colorCodeRules) {
+                         node.animate({
+                             style: { 'background-color': color, 'width': 60, 'height': 60 },
+                             duration: duration * 0.3
+                         }).promise().then(() => {
+                             setTimeout(() => {
+                                 node.removeStyle();
+                             }, this.visSettings.traceDecay || 2000);
+                         });
+                    } else {
+                        node.flashClass('reasoning-active', this.visSettings.traceDecay || 1500);
+                    }
                 }
-            }, duration / 2);
+            }, duration * 0.5);
         }
     }
 
