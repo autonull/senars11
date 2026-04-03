@@ -75,10 +75,17 @@ export class TaskMatchStrategy extends PremiseFormationStrategy {
      * @private
      */
     _getAvailableTasks(focus, memory) {
-        return focus?.getTasks?.(this.maxTasks)
-            ?? memory?.getAllConcepts?.()
-                .flatMap(c => c.getAllTasks?.() || [])
-                .slice(0, this.maxTasks)
+        if (focus?.getTasks) {
+            return focus.getTasks(this.maxTasks);
+        }
+
+        if (memory?.getTasks) {
+            return memory.getTasks(this.maxTasks);
+        }
+
+        return memory?.getAllConcepts?.()
+            .flatMap(c => c.getAllTasks?.() || [])
+            .slice(0, this.maxTasks)
             ?? [];
     }
 
