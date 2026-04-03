@@ -149,9 +149,16 @@ function isValueExpression(arg) {
     if (typeof arg === 'string' || typeof arg === 'number') return true;
     // Lists are values
     if (isList(arg)) return true;
-    // Simple expressions (operator is a symbol/number with no components) are values
+    // Bare expressions with numeric operators are values (e.g., (1 2 3))
     const op = arg.operator;
-    if (op && (isSymbol(op) || op._typeTag === 1) && (!arg.components || arg.components.length === 0)) {
+    if (op && op._typeTag === 1) {
+        // Check if it's a numeric symbol (name is a valid number)
+        if (op.name && /^-?\d+$/.test(op.name)) {
+            return true;
+        }
+    }
+    // Simple expressions with no components are values
+    if (!arg.components || arg.components.length === 0) {
         return true;
     }
     return false;

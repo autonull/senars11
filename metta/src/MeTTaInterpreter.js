@@ -296,12 +296,15 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
         const isRule = (expr.operator === '=' || expr.operator?.name === '=') && expr.components?.length === 2;
         const isTypeAnnotation = (expr.operator === ':' || expr.operator?.name === ':') && expr.components?.length === 2;
 
-        if (isRule || isTypeAnnotation) {
+        if (isRule) {
             this.space.addRule(expr.components[0], expr.components[1]);
-            // Also add type annotations as atoms so they can be queried
-            if (isTypeAnnotation) {
-                this.space.add(expr);
-            }
+            if (results) results.push(expr);
+            return;
+        }
+
+        if (isTypeAnnotation) {
+            // Type annotations are only added as atoms for querying, NOT as rules
+            this.space.add(expr);
             if (results) results.push(expr);
             return;
         }

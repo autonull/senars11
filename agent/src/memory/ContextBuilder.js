@@ -32,20 +32,23 @@ export class ContextBuilder {
   }
 
   registerGroundedOps(interp) {
-    interp.registerOp('context-init', () => this._init());
-    interp.registerOp('context-concat', (...sections) => this._concat(sections));
-    interp.registerOp('load-harness-prompt', () => this._loadHarnessPrompt());
-    interp.registerOp('default-system-prompt', () => this._defaultSystemPrompt());
-    interp.registerOp('filter-capabilities', (mode) => this._filterCapabilities(mode));
-    interp.registerOp('get-active-skills', () => this._getActiveSkills());
-    interp.registerOp('get-pinned-memories', () => this._getPinnedMemories());
-    interp.registerOp('get-wm-entries', () => this._getWmEntries());
-    interp.registerOp('generate-manifest', () => this._generateManifest());
-    interp.registerOp('query-memories', (msg, k) => this._queryMemories(msg, k));
-    interp.registerOp('get-history', () => this._getHistory());
-    interp.registerOp('get-feedback', () => this._getFeedback());
-    interp.registerOp('format-input', (msg) => this._formatInput(msg));
-    interp.registerOp('get-budget', (key) => this._getBudget(key));
+    // Register grounded operations using interpreter.ground.register()
+    const registerOp = (name, fn) => interp.ground.register(name, fn, { lazy: true });
+    
+    registerOp('context-init', () => this._init());
+    registerOp('context-concat', (...sections) => this._concat(sections));
+    registerOp('load-harness-prompt', () => this._loadHarnessPrompt());
+    registerOp('default-system-prompt', () => this._defaultSystemPrompt());
+    registerOp('filter-capabilities', (mode) => this._filterCapabilities(mode));
+    registerOp('get-active-skills', () => this._getActiveSkills());
+    registerOp('get-pinned-memories', () => this._getPinnedMemories());
+    registerOp('get-wm-entries', () => this._getWmEntries());
+    registerOp('generate-manifest', () => this._generateManifest());
+    registerOp('query-memories', (msg, k) => this._queryMemories(msg, k));
+    registerOp('get-history', () => this._getHistory());
+    registerOp('get-feedback', () => this._getFeedback());
+    registerOp('format-input', (msg) => this._formatInput(msg));
+    registerOp('get-budget', (key) => this._getBudget(key));
     Logger.info('[ContextBuilder] Registered grounded ops');
   }
 

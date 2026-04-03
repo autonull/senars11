@@ -158,7 +158,8 @@ export function* stepYield(atom, space, ground, limit = 10000, cache = null) {
 export function reduce(atom, space, ground, limit = 10000, cache = null, interpreter = null) {
   const ctx = acquireContext(space, ground, limit, cache, globalReduceND, interpreter);
   try {
-    const pl = getGlobalPipeline();
+    // Use interpreter-specific pipeline if available, otherwise use global
+    const pl = interpreter ? getOrCreatePipeline(interpreter) : getGlobalPipeline();
     let current = atom;
 
     while (ctx.steps < limit) {
@@ -507,4 +508,4 @@ export { ReductionPipeline, CacheStage, JITStage, ZipperStage,
          GroundedOpStage, ExplicitCallStage, RuleMatchStage, SuperposeStage };
 
 // Export for advanced usage
-export { contextPool, pipelineRegistry, getGlobalPipeline };
+export { contextPool, pipelineRegistry, getGlobalPipeline, getOrCreatePipeline };

@@ -3,7 +3,7 @@
  */
 
 // Kernel imports
-import { Term } from '../kernel/Term.js';
+import { Term, grounded } from '../kernel/Term.js';
 import { Unify } from '../kernel/Unify.js';
 import { objToBindingsAtom, bindingsAtomToObj } from '../kernel/Bindings.js';
 import { Formatter } from '../kernel/Formatter.js';
@@ -61,17 +61,20 @@ export function registerAdvancedOps(interpreter) {
                 // Query for (: atom $type) patterns in the space
                 const res = match(interpreter.space, exp(':', [atom, v('type')]), v('type'));
                 if (res.length > 0) {
-                    return res[0];
+                    // Return as grounded to prevent further reduction
+                    const typeName = res[0].name || res[0].toString();
+                    return grounded(typeName);
                 }
-                
+
                 // Fallback: try structural type inference
                 try {
                     const inferredType = interpreter.typeChecker?.infer(atom, {});
                     if (inferredType) {
-                        return sym(interpreter.typeChecker.typeToString(inferredType));
+                        const typeName = interpreter.typeChecker.typeToString(inferredType);
+                        return grounded(typeName);
                     }
                 } catch {}
-                return sym('Atom');
+                return grounded('Atom');
             },
             opts: {}
         },
