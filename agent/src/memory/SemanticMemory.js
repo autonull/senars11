@@ -166,6 +166,9 @@ export class SemanticMemory {
           }
         } else if (currentKey === 'timestamp' || currentKey === 'id') {
           currentAtom[currentKey] = value.replace(/"/g, '');
+        } else if (currentKey === 'type') {
+          // Strip leading colon from type values like :semantic -> semantic
+          currentAtom[currentKey] = value.replace(/^:/, '').replace(/^"|"$/g, '');
         } else {
           currentAtom[currentKey] = value.replace(/^"|"$/g, '');
         }

@@ -1,17 +1,12 @@
-import { WorkerPool } from '../../../../../metta/src/platform/node/WorkerPool.js';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { jest } from '@jest/globals';
+import { WorkerPool } from '../../../../../metta/src/platform/node/WorkerPool.js';
 
-// Workaround for Jest VM environment
-const __filename = typeof __filename !== 'undefined' ? __filename : fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const workerScript = path.resolve(__dirname, '../../../../../metta/src/platform/node/metta-worker.js');
+const workerScript = path.resolve(process.cwd(), 'metta/src/platform/node/metta-worker.js');
 
 describe('Node WorkerPool', () => {
     let pool;
 
-    afterEach(() => {
+    afterAll(() => {
         if (pool) {
             pool.terminate();
             pool = null;
@@ -19,12 +14,8 @@ describe('Node WorkerPool', () => {
     });
 
     test('should execute simple MeTTa code', async () => {
-        pool = new WorkerPool(workerScript, 2);
-
-        // !(+ 1 2) returns [3] (eval result)
+        pool = new WorkerPool(workerScript, 1);
         const result = await pool.execute({ code: '!(+ 1 2)' });
-
-        // Check string output
         expect(result).toContain('3');
     });
 
@@ -32,10 +23,10 @@ describe('Node WorkerPool', () => {
         pool = new WorkerPool(workerScript, 4);
 
         const tasks = [
-            { code: '!(+ 1 1)' }, // 2
-            { code: '!(+ 2 2)' }, // 4
-            { code: '!(+ 3 3)' }, // 6
-            { code: '!(+ 4 4)' }  // 8
+            { code: '!(+ 1 1)' },
+            { code: '!(+ 2 2)' },
+            { code: '!(+ 3 3)' },
+            { code: '!(+ 4 4)' }
         ];
 
         const results = await Promise.all(tasks.map(t => pool.execute(t)));
@@ -64,17 +55,6 @@ describe('Node WorkerPool', () => {
 
     test('should handle errors in worker', async () => {
         pool = new WorkerPool(workerScript, 1);
-
-        // Syntax error or runtime error
-        // (foo is not defined) triggers error if strict? Or just symbolic.
-        // Let's force an error by sending invalid task structure or internal error
-        // But interpreter usually doesn't crash.
-        // Let's invoke something that calls throw?
-        // MeTTa interpreter might not expose `throw`.
-
-        // If we send a task without 'code', metta-worker might crash attempting to run(undefined)
-        // interpreter.run(undefined) -> parser.parseProgram(undefined) -> crash potentially
-
         await expect(pool.execute({})).rejects.toThrow();
     });
 });

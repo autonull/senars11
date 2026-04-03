@@ -1,19 +1,25 @@
 /**
  * Phase 2 Unit Tests — Semantic Memory
- * 
+ *
  * Tests for:
  * - SemanticMemory.js remember/query/pin/forget operations
  * - Memory persistence and restore
  * - Context assembly with PINNED and RECALL slots
- * 
+ *
  * Note: Embedder tests are integration-heavy (ONNX model load).
  * Core SemanticMemory logic is tested here with mock embeddings.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, beforeAll } from '@jest/globals';
 import { mkdir, rm, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
+
+// Mock @huggingface/transformers for Jest environment
+beforeAll(() => {
+    // Provide minimal mock for transformers to prevent 'self is not defined' error
+    globalThis.self = globalThis.self || globalThis;
+});
 
 describe('Phase 2: Semantic Memory', () => {
     let testDir;
@@ -124,7 +130,7 @@ describe('Phase 2: Semantic Memory', () => {
 
         it('query filters by type', async () => {
             const { SemanticMemory } = await import('../../../agent/src/memory/SemanticMemory.js');
-            
+
             const memory = new SemanticMemory({ dataDir: testDir });
             await memory.initialize();
 
@@ -143,6 +149,11 @@ describe('Phase 2: Semantic Memory', () => {
                 type: 'semantic',
                 timestamp: Date.now()
             });
+
+            // Mock the embedder to return a simple query vector
+            memory._embedder = {
+                embed: async () => [1, 0, 0]
+            };
 
             // Query with type filter
             const results = await memory.query('test', 5, { type: 'episodic' });
