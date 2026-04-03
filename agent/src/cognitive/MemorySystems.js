@@ -1,3 +1,5 @@
+import { contentOverlap } from './TextAnalysis.js';
+
 export class SensoryBuffer {
     #buffer = [];
     constructor(capacity = 20) { this.capacity = capacity; }
@@ -103,12 +105,7 @@ export class AttentionMechanism {
         return attended;
     }
     #contentOverlap(a, b) {
-        if (!a || !b) return false;
-        const aWords = new Set(a.toLowerCase().split(/\s+/).filter(w => w.length > 3));
-        const bWords = new Set(b.toLowerCase().split(/\s+/).filter(w => w.length > 3));
-        let overlap = 0;
-        for (const word of aWords) { if (bWords.has(word)) overlap++; }
-        return overlap >= 2;
+        return contentOverlap(a, b);
     }
     getState() { return { currentFocus: this.currentFocus?.content ?? null, threshold: this.threshold, historyLength: this.#history.length }; }
 }

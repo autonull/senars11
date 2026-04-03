@@ -6,6 +6,7 @@ import { writeFile, readFile, mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { Logger } from '@senars/core';
+import { MettaParser, escapeQuotes, toMettaAtom } from './MettaParser.js';
 
 let __dataDir;
 try {
@@ -41,45 +42,9 @@ export class AuditSpace {
   }
 
   _parseEvents(content) {
-    const lines = content.split('\n');
-    let currentEvent = null, currentKey = null, inSkill = false, skillLines = [];
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed.startsWith('(audit-event')) {
-        currentEvent = {};
-        inSkill = false;
-        skillLines = [];
-        continue;
-      }
-      if (trimmed === ')') {
-        if (currentEvent?.id) {
-          if (skillLines.length > 0) currentEvent.skill = skillLines.join(' ').trim();
-          this._events.push(currentEvent);
-        }
-        currentEvent = null;
-        continue;
-      }
-      if (!currentEvent) continue;
-
-      const match = trimmed.match(/^:(\w+)\s*(.*)$/);
-      if (match) {
-        currentKey = match[1];
-        let value = match[2].trim();
-        if (['id', 'type', 'reason', 'model'].includes(currentKey)) {
-          currentEvent[currentKey] = value.replace(/^"|"$/g, '');
-        } else if (['timestamp', 'cycle'].includes(currentKey)) {
-          currentEvent[currentKey] = parseInt(value, 10);
-        } else if (currentKey === 'skill') {
-          inSkill = true;
-          skillLines.push(value);
-        } else {
-          currentEvent[currentKey] = value.replace(/^"|"$/g, '');
-        }
-      } else if (inSkill) {
-        skillLines.push(trimmed);
-      }
-    }
+    const parser = new MettaParser();
+    parser.registerHandler('audit-event', (event) => event);
+    this._events.push(...parser.parse(content));
   }
 
   async emit(type, data = {}) {
@@ -156,28 +121,28 @@ export class AuditSpace {
   }
 
   _eventToMetta(event) {
-    const lines = ['(audit-event'];
-    lines.push(`  :id        "${event.id}"`);
-    lines.push(`  :timestamp ${event.timestamp}`);
-    lines.push(`  :type      :${event.type.replace(':', '')}`);
-    lines.push(`  :cycle     ${event.cycle}`);
-    if (event.skill) lines.push(`  :skill     ${event.skill}`);
-    if (event.reason) lines.push(`  :reason    "${this._escapeQuotes(event.reason)}"`);
-    if (event.model) lines.push(`  :model     "${event.model}"`);
-    if (event.args) lines.push(`  :args      ${event.args}`);
-    if (event.result) lines.push(`  :result    "${this._escapeQuotes(event.result)}"`);
-    if (event.latencyMs !== undefined) lines.push(`  :latencyMs ${event.latencyMs}`);
-    if (event.promptChars !== undefined) lines.push(`  :promptChars ${event.promptChars}`);
-    if (event.responseChars !== undefined) lines.push(`  :responseChars ${event.responseChars}`);
-    if (event.tokensIn !== undefined) lines.push(`  :tokensIn  ${event.tokensIn}`);
-    if (event.tokensOut !== undefined) lines.push(`  :tokensOut ${event.tokensOut}`);
-    if (event.tokensTotal !== undefined) lines.push(`  :tokensTotal ${event.tokensTotal}`);
-    if (event.memoryId) lines.push(`  :memoryId  "${event.memoryId}"`);
-    if (event.content) lines.push(`  :content   "${this._escapeQuotes(event.content)}"`);
-    if (event.input) lines.push(`  :input     "${this._escapeQuotes(event.input)}"`);
-    if (event.output) lines.push(`  :output    "${this._escapeQuotes(event.output)}"`);
-    lines.push(')');
-    return lines.join('\n');
+    const fields = {
+      id: event.id,
+      timestamp: event.timestamp,
+      type: event.type.replace(':', ''),
+      cycle: event.cycle
+    };
+    if (event.skill) fields.skill = event.skill;
+    if (event.reason) fields.reason = escapeQuotes(event.reason);
+    if (event.model) fields.model = event.model;
+    if (event.args) fields.args = event.args;
+    if (event.result) fields.result = escapeQuotes(event.result);
+    if (event.latencyMs !== undefined) fields.latencyMs = event.latencyMs;
+    if (event.promptChars !== undefined) fields.promptChars = event.promptChars;
+    if (event.responseChars !== undefined) fields.responseChars = event.responseChars;
+    if (event.tokensIn !== undefined) fields.tokensIn = event.tokensIn;
+    if (event.tokensOut !== undefined) fields.tokensOut = event.tokensOut;
+    if (event.tokensTotal !== undefined) fields.tokensTotal = event.tokensTotal;
+    if (event.memoryId) fields.memoryId = event.memoryId;
+    if (event.content) fields.content = escapeQuotes(event.content);
+    if (event.input) fields.input = escapeQuotes(event.input);
+    if (event.output) fields.output = escapeQuotes(event.output);
+    return toMettaAtom('audit-event', fields);
   }
 
   _serializeArgs(args) {
@@ -191,9 +156,5 @@ export class AuditSpace {
   _truncate(str, max) {
     if (str.length <= max) return str;
     return str.slice(0, max - 3) + '...';
-  }
-
-  _escapeQuotes(str) {
-    return str.replace(/"/g, '\\"');
   }
 }

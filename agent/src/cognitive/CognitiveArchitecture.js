@@ -5,6 +5,7 @@
 import { Logger } from '@senars/core';
 import { EventEmitter } from 'events';
 import { SensoryBuffer, WorkingMemory, EpisodicMemory, SemanticMemory, ProceduralMemory, AttentionMechanism } from './MemorySystems.js';
+import { analyzeText, detectSentiment, extractFact, contentSimilarity } from './TextAnalysis.js';
 
 export class CognitiveArchitecture extends EventEmitter {
     constructor(config = {}) {
@@ -90,22 +91,8 @@ export class CognitiveArchitecture extends EventEmitter {
     }
 
     #extractFeatures(perception) {
-        const content = perception.content?.toLowerCase() ?? '';
-        const features = { entities: [], intents: [], sentiment: 'neutral', topics: [] };
-        for (const { regex, type } of [
-            { type: 'person', regex: /@(\w+)/g },
-            { type: 'topic', regex: /#(\w+)/g },
-            { type: 'technical', regex: /\b(AI|ML|NLP|API|HTTP|JSON)\b/gi }
-        ]) {
-            const matches = content.match(regex);
-            if (matches) features.entities.push(...matches.map(m => ({ type, value: m.replace(/[@#]/g, '') })));
-        }
-        if (content.match(/[?]|^(what|how|why|explain|tell me)\s/i)) features.intents.push('question');
-        if (content.match(/^[!/]/)) features.intents.push('command');
-        if (content.match(/\b(hi|hello|hey|greetings)\b/i)) features.intents.push('greeting');
-        if (['good', 'great', 'love', 'like', 'thanks'].some(w => content.includes(w))) features.sentiment = 'positive';
-        else if (['bad', 'hate', 'wrong', 'error'].some(w => content.includes(w))) features.sentiment = 'negative';
-        return features;
+        const analysis = analyzeText(perception.content);
+        return { entities: analysis.entities, intents: analysis.intents, sentiment: analysis.sentiment, topics: analysis.topics };
     }
 
     async #reason(attended) {
@@ -206,12 +193,8 @@ export class CognitiveArchitecture extends EventEmitter {
     }
 
     #extractKnowledge(percept) {
-        const content = percept.content ?? '';
-        for (const pattern of [/(\w+) is (?:a|an|the) (\w+)/i, /(\w+) lives in (\w+)/i, /(\w+) likes (\w+)/i, /I (?:live|work|study) in (\w+)/i]) {
-            const match = content.match(pattern);
-            if (match) return { type: 'fact', content: match[0], source: percept.metadata?.from ?? 'unknown', confidence: 0.7 };
-        }
-        return null;
+        const fact = extractFact(percept.content);
+        return fact ? { ...fact, source: percept.metadata?.from ?? 'unknown' } : null;
     }
 
     #updateUserModel(userId, percept, action, result) {

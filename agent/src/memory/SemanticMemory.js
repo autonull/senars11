@@ -6,6 +6,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { Logger } from '@senars/core';
 import { Embedder } from './Embedder.js';
+import { MettaParser, toMettaAtom } from './MettaParser.js';
 
 let __dataDir;
 try {
@@ -109,32 +110,11 @@ export class SemanticMemory {
     }
 
     _parseAtoms(content) {
-        let currentAtom = null, currentKey = null, tags = [];
-        for (const line of content.split('\n')) {
-            const trimmed = line.trim();
-            if (trimmed.startsWith('(memory-atom')) { currentAtom = {}; currentKey = null; tags = []; continue; }
-            if (trimmed === ')') {
-                if (currentAtom?.id) { if (tags.length > 0) currentAtom.tags = tags; this._atoms.set(currentAtom.id, currentAtom); }
-                currentAtom = null;
-                continue;
-            }
-            if (!currentAtom) continue;
-            const match = trimmed.match(/^:(\w+)\s*(.*)$/);
-            if (!match) continue;
-            currentKey = match[1];
-            const value = match[2].trim();
-            if (currentKey === 'tags' && value.startsWith('(')) {
-                tags = value.slice(1, -1).split('"').filter(s => s.trim()).map(s => s.trim());
-            } else if (currentKey === 'truth') {
-                const stvMatch = value.match(/\(stv\s+([\d.]+)\s+([\d.]+)\)/);
-                if (stvMatch) currentAtom.truth = { frequency: parseFloat(stvMatch[1]), confidence: parseFloat(stvMatch[2]) };
-            } else if (currentKey === 'timestamp' || currentKey === 'id') {
-                currentAtom[currentKey] = value.replace(/"/g, '');
-            } else if (currentKey === 'type') {
-                currentAtom[currentKey] = value.replace(/^:/, '').replace(/^"|"$/g, '');
-            } else {
-                currentAtom[currentKey] = value.replace(/^"|"$/g, '');
-            }
+        const parser = new MettaParser();
+        parser.registerHandler('memory-atom', (atom) => atom);
+        const parsed = parser.parse(content);
+        for (const atom of parsed) {
+            if (atom.id) this._atoms.set(atom.id, atom);
         }
     }
 
@@ -209,15 +189,15 @@ export class SemanticMemory {
 
     async _persist() {
         await mkdir(this._dataDir, { recursive: true });
-        const atomsContent = [...this._atoms.values()].map(a => `(memory-atom
-  :id        "${a.id}"
-  :timestamp ${a.timestamp}
-  :content   "${a.content}"
-  :source    "${a.source}"
-  :type      :${a.type}
-  :truth     (stv ${a.truth.frequency} ${a.truth.confidence})
-  :tags      (${a.tags.map(t => `"${t}"`).join(' ')})
-)`).join('\n');
+        const atomsContent = [...this._atoms.values()].map(a => toMettaAtom('memory-atom', {
+            id: a.id,
+            timestamp: String(a.timestamp),
+            content: a.content,
+            source: a.source,
+            type: `:${a.type}`,
+            truth: `(stv ${a.truth.frequency} ${a.truth.confidence})`,
+            tags: a.tags.join(' ')
+        })).join('\n');
         await writeFile(join(this._dataDir, 'atoms.metta'), atomsContent);
         await writeFile(join(this._dataDir, 'atoms.vec'), [...this._vectors.entries()].map(([id, vec]) => `${id}|${vec.join(',')}`).join('\n'));
         await this._index.save();

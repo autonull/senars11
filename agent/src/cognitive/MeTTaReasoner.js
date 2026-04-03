@@ -5,6 +5,7 @@
  * with proper fallback handling when MeTTa is unavailable.
  */
 import { Logger } from '@senars/core';
+import { extractEntities, contentOverlap } from './TextAnalysis.js';
 
 export class MeTTaReasoner {
     constructor(mettaInterpreter, config = {}) {
@@ -63,7 +64,7 @@ export class MeTTaReasoner {
         if (!this.metta) return inferences;
 
         try {
-            const entities = this._extractEntities(perception.content);
+            const entities = extractEntities(perception.content);
             if (entities.length > 0) {
                 inferences.push({ type: 'entity_extraction', entities, confidence: 0.7 });
             }
@@ -75,25 +76,10 @@ export class MeTTaReasoner {
         return inferences;
     }
 
-    _extractEntities(content) {
-        const entities = [];
-        const patterns = [
-            { type: 'person', regex: /@(\w+)/g },
-            { type: 'topic', regex: /#(\w+)/g },
-            { type: 'concept', regex: /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b/g },
-            { type: 'technical', regex: /\b(AI|ML|NLP|API|HTTP|TCP|UDP|JSON|XML)\b/gi }
-        ];
-        patterns.forEach(({ regex, type }) => {
-            const matches = content?.match(regex);
-            if (matches) entities.push(...matches.map(m => ({ type, value: m.replace(/[@#]/g, '') })));
-        });
-        return entities;
-    }
-
     async _findImplications(content) {
         const implications = [];
         for (const [id, belief] of this.beliefs.entries()) {
-            if (belief.content && this._contentRelated(belief.content, content)) {
+            if (belief.content && contentOverlap(belief.content, content)) {
                 implications.push({
                     type: 'association',
                     source: belief.content,
@@ -106,12 +92,7 @@ export class MeTTaReasoner {
     }
 
     _contentRelated(a, b) {
-        if (!a || !b) return false;
-        const aWords = new Set(a.toLowerCase().split(/\s+/).filter(w => w.length > 4));
-        const bWords = new Set(b.toLowerCase().split(/\s+/).filter(w => w.length > 4));
-        let overlap = 0;
-        for (const word of aWords) { if (bWords.has(word)) overlap++; }
-        return overlap >= 2;
+        return contentOverlap(a, b, { minWordLength: 4 });
     }
 
     async _matchGoals(perception) {
