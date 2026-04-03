@@ -1,6 +1,5 @@
 /**
- * @deprecated Import from '../errors/index.js' instead
- * Re-exports for backward compatibility
+ * Re-exports from @senars/core for convenience within nar/
  */
 export {
     ReasonerError,

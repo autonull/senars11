@@ -1,7 +1,7 @@
 import {BaseComponent} from '@senars/core/src/util/BaseComponent.js';
 import {Task} from '../task/Task.js';
 import {Truth} from '../Truth.js';
-import {Term} from '../term/TermFactory.js';
+import {Term} from '../term/Term.js';
 import {PRIORITY} from '../config/constants.js';
 
 export class InputProcessor extends BaseComponent {

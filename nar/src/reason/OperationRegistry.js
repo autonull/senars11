@@ -3,7 +3,7 @@
  * Provides validated operation registration and execution
  */
 
-import { logError } from '../reason/utils/error.js';
+import { logError } from './utils/error.js';
 
 /**
  * Registry for mathematical and comparison operations
