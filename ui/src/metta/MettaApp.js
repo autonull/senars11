@@ -7,6 +7,7 @@ import { LMConfigDialog } from '../agent/LMConfigDialog.js';
 import { SystemMetricsPanel } from '../components/SystemMetricsPanel.js';
 import { ExplorerInfoPanel } from '../explorer/ExplorerInfoPanel.js';
 import { CodeEditorPanel } from '../components/CodeEditorPanel.js';
+import { deepMerge } from '../../../core/src/util/object.js';
 
 import { InputManager } from '../explorer/managers/InputManager.js';
 import { ReasoningManager } from '../explorer/managers/ReasoningManager.js';
@@ -297,7 +298,7 @@ export class MettaApp extends BaseApp {
             if (node.nonempty()) existing = node.data('fullData') || node.data();
         }
 
-        const payload = this._deepMerge(existing, updates);
+        const payload = deepMerge(existing, updates);
         this.graph.updateNode(payload);
         this.log(`Updated node ${id}`, 'success');
         const item = this.graph.bag?.get(id);
@@ -360,20 +361,6 @@ export class MettaApp extends BaseApp {
     processNALContent(content, filename) {
         this.log(`Loading NAL content: ${filename}`, 'system');
         this._processNalInput(content);
-    }
-
-    _deepMerge(target, source) {
-        const isObject = (item) => (item && typeof item === 'object' && !Array.isArray(item));
-        const output = { ...target };
-        
-        if (isObject(target) && isObject(source)) {
-            for (const key of Object.keys(source)) {
-                output[key] = isObject(source[key]) && key in target
-                    ? this._deepMerge(target[key], source[key])
-                    : source[key];
-            }
-        }
-        return output;
     }
 
     _startStatsLoop() {

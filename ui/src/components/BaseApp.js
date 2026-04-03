@@ -16,6 +16,7 @@ import { CommandPalette } from '../components/CommandPalette.js';
 import { ToastManager } from '../components/ToastManager.js';
 import { getTacticalStyle } from '../visualization/ExplorerGraphTheme.js';
 import { processNalInput } from '../utils/InputProcessor.js';
+import { deepMerge } from '../../../core/src/util/object.js';
 
 /**
  * Base class for SeNARS UI applications.
@@ -150,24 +151,6 @@ export class BaseApp {
 
         const result = processNalInput(content, nar, (msg, type) => this.log(msg, type));
         this.log(`Processed ${result.valid}/${result.processed} NAL lines`, result.errors.length ? 'warning' : 'success');
-    }
-
-    _deepMerge(target, source) {
-        const isObject = (item) => (item && typeof item === 'object' && !Array.isArray(item));
-        const output = Object.assign({}, target);
-        
-        if (isObject(target) && isObject(source)) {
-            for (const key of Object.keys(source)) {
-                if (isObject(source[key])) {
-                    output[key] = key in target 
-                        ? this._deepMerge(target[key], source[key])
-                        : source[key];
-                } else {
-                    output[key] = source[key];
-                }
-            }
-        }
-        return output;
     }
 
     log(message, type = 'info') {

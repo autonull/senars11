@@ -1,9 +1,11 @@
-import { ConfigManager as BaseConfigManager } from '../../core/src/config/ConfigManager.js';
-import { Logger } from '../../core/src/util/Logger.js';
+/**
+ * @deprecated Import ConfigManager from '@senars/core' instead.
+ * This file re-exports core's ConfigManager and provides RL-specific hyperparameter utilities.
+ */
+export { ConfigManager, Validators, createConfigManager } from '../../core/src/config/ConfigManager.js';
 
 const ValidationFns = {
     clamp: (value, min, max) => Math.max(min, Math.min(max, value)),
-
     byType(type, value, min, max, choices) {
         if (choices) return choices.includes(value) ? value : null;
         switch (type) {
@@ -17,7 +19,6 @@ const ValidationFns = {
             default: return value;
         }
     },
-
     sample(param) {
         if (param.choices) return param.choices[Math.floor(Math.random() * param.choices.length)];
         const { min, max, scale, type } = param;
@@ -70,81 +71,6 @@ export class HyperparameterSpace {
         this.#params.forEach((param, name) => clone.#params.set(name, { ...param }));
         return clone;
     }
-}
-
-export class ConfigManager extends BaseConfigManager {
-    #overrides = new Map();
-    #validators = new Map();
-    #history = [];
-
-    constructor(defaults = {}) {
-        super(defaults);
-    }
-
-    define(key, defaultValue, validator = null) {
-        this.#validators.set(key, validator);
-        super.set(key, defaultValue);
-        return this;
-    }
-
-    get(key, defaultValue) {
-        for (const override of this.#overrides.values()) {
-            if (key in override) return override[key];
-        }
-        return super.get(key) ?? defaultValue ?? super.defaults[key];
-    }
-
-    set(key, value, { validate = true, persist = false, override: overrideName = null } = {}) {
-        if (validate) {
-            const validator = this.#validators.get(key);
-            if (validator && !validator(value)) throw new Error(`Invalid value for ${key}: ${value}`);
-        }
-
-        if (overrideName) {
-            if (!this.#overrides.has(overrideName)) this.#overrides.set(overrideName, {});
-            this.#overrides.get(overrideName)[key] = value;
-        } else {
-            super.set(key, value);
-        }
-
-        if (persist) this.#history.push({ key, value, timestamp: Date.now() });
-        return this;
-    }
-
-    batch(updates, options = {}) {
-        Object.entries(updates).forEach(([key, value]) => this.set(key, value, options));
-        return this;
-    }
-
-    reset(key = null) {
-        if (key) {
-            super.reset(key);
-            this.#overrides.delete(key);
-        } else {
-            super.reset();
-            this.#overrides.clear();
-        }
-        return this;
-    }
-
-    getAll() { return { ...super.defaults, ...super.config }; }
-
-    getDiff() {
-        return Object.fromEntries(
-            Object.entries(super.config).filter(([k, v]) => super.defaults[k] !== v)
-        );
-    }
-
-    toJSON() {
-        return {
-            defaults: { ...super.defaults },
-            current: { ...super.config },
-            overrides: Object.fromEntries(this.#overrides),
-            diff: this.getDiff()
-        };
-    }
-
-    clone() { return new ConfigManager(super.defaults).batch(super.config); }
 }
 
 export const HyperparameterSpaces = {
@@ -217,11 +143,12 @@ export class HyperparameterOptimizer {
 
     async gridSearch(paramValues) {
         const combinations = this._generateCombinations(paramValues);
-        combinations.forEach((config, i) => {
-            const score = this.objective(config);
+        for (let i = 0; i < combinations.length; i++) {
+            const config = combinations[i];
+            const score = await this.objective(config);
             this.results.push({ config, score, iteration: i });
             if (!this.best || score > this.best.score) this.best = { config, score, iteration: i };
-        });
+        }
         return this.best;
     }
 
@@ -229,19 +156,16 @@ export class HyperparameterOptimizer {
         const keys = Object.keys(paramValues);
         if (keys.length === 0) return [{}];
         const [firstKey, ...restKeys] = keys;
-        const restCombinations = this._generateCombinations(
-            Object.fromEntries(restKeys.map(k => [k, paramValues[k]]))
-        );
-        return paramValues[firstKey].flatMap(value =>
-            restCombinations.map(rest => ({ [firstKey]: value, ...rest }))
-        );
+        const restCombinations = this._generateCombinations(Object.fromEntries(restKeys.map(k => [k, paramValues[k]])));
+        return paramValues[firstKey].flatMap(value => restCombinations.map(rest => ({ [firstKey]: value, ...rest })));
     }
 
     getResults() { return this.results.sort((a, b) => b.score - a.score); }
 
     getImportance() {
         const importance = {};
-        this.space.params.forEach((_, name) => {
+        const params = this.space.#params || new Map();
+        params.forEach((_, name) => {
             const values = this.results.map(r => r.config[name]);
             const scores = this.results.map(r => r.score);
             importance[name] = this._correlation(values, scores);

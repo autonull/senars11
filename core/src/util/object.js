@@ -98,19 +98,24 @@ export function selectiveDeepClone(obj, deepProps = []) {
 }
 
 /**
- * Deep merge two objects recursively
+ * Deep merge two objects recursively with circular reference handling
  * @param {Object} target - Target object
  * @param {Object} source - Source object
+ * @param {WeakSet} [_visited] - Internal: visited objects for circular ref detection
  * @returns {Object} Merged object
  */
-export const deepMerge = (target, source) => {
+export const deepMerge = (target, source, _visited = new WeakSet()) => {
     if (!source) return target;
     if (!isObject(target) || !isObject(source)) return source;
+    if (_visited.has(target)) return target;
+    if (_visited.has(source)) return source;
+    _visited.add(target);
+    _visited.add(source);
 
     const output = { ...target };
     for (const key of Object.keys(source)) {
         output[key] = isObject(source[key]) && key in target
-            ? deepMerge(target[key], source[key])
+            ? deepMerge(target[key], source[key], _visited)
             : source[key];
     }
     return output;

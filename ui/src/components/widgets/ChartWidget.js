@@ -1,5 +1,6 @@
 import { Component } from '../Component.js';
 import Chart from 'chart.js/auto';
+import { deepMerge } from '../../../core/src/util/object.js';
 
 export class ChartWidget extends Component {
     constructor(container, config = {}) {
@@ -17,7 +18,7 @@ export class ChartWidget extends Component {
         this.container.appendChild(canvas);
 
         const ctx = canvas.getContext('2d');
-        const finalConfig = this._deepMerge(this._getDefaultConfig(), this.config);
+        const finalConfig = deepMerge(this._getDefaultConfig(), this.config);
         this.chart = new Chart(ctx, finalConfig);
     }
 
@@ -57,25 +58,6 @@ export class ChartWidget extends Component {
                 animation: false
             }
         };
-    }
-
-    _deepMerge(target, source) {
-        if (typeof source !== 'object' || source === null) {
-            return source;
-        }
-
-        const result = Array.isArray(target) ? [...target] : { ...target };
-
-        for (const key in source) {
-            if (source.hasOwnProperty(key)) {
-                if (typeof source[key] === 'object' && source[key] !== null && !Array.isArray(source[key])) {
-                    result[key] = this._deepMerge(result[key] || {}, source[key]);
-                } else {
-                    result[key] = source[key];
-                }
-            }
-        }
-        return result;
     }
 
     updateData(label, value, datasetIndex = 0) {

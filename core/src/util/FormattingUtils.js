@@ -46,33 +46,6 @@ export class FormattingUtils {
         return concept.term ? concept.term.toString() : concept.toString();
     }
 
-    static encodeShortId(input) {
-        if (!input) return 'N/A';
-
-        const inputStr = String(input);
-
-        // Calculate hash using reduce instead of traditional loop
-        let hash = Array.from(inputStr).reduce((acc, char) => {
-            const newHash = ((acc << 5) - acc) + char.charCodeAt(0);
-            return newHash | 0; // Convert to 32-bit signed integer
-        }, 0);
-
-        hash = Math.abs(hash);
-
-        if (hash === 0) return ID_CHARS[0];
-
-        let result = '';
-        const base = ID_CHARS.length;
-        let num = hash;
-
-        while (num > 0) {
-            result = ID_CHARS[num % base] + result;
-            num = Math.floor(num / base);
-        }
-
-        return result.length > 8 ? result.substring(0, 8) : result;
-    }
-
     static formatTaskDetails(task) {
         return [
             this.formatType(task.type),
@@ -123,15 +96,22 @@ export class FormattingUtils {
         return stamp ? ` | Occ:${stamp}` : null;
     }
 
-    static formatNumber(num) {
-        return num >= 1000000 ? (num / 1000000).toFixed(1) + 'M' :
-            num >= 1000 ? (num / 1000).toFixed(1) + 'K' :
-                num.toString();
-    }
-
-    static formatFileSize(sizeInBytes) {
-        return sizeInBytes >= 1000000 ? (sizeInBytes / 1000000).toFixed(2) + ' MB' :
-            sizeInBytes >= 1000 ? (sizeInBytes / 1000).toFixed(2) + ' KB' :
-                sizeInBytes + ' bytes';
+    static encodeShortId(input) {
+        if (!input) return 'N/A';
+        const inputStr = String(input);
+        let hash = Array.from(inputStr).reduce((acc, char) => {
+            const newHash = ((acc << 5) - acc) + char.charCodeAt(0);
+            return newHash | 0;
+        }, 0);
+        hash = Math.abs(hash);
+        if (hash === 0) return ID_CHARS[0];
+        let result = '';
+        const base = ID_CHARS.length;
+        let num = hash;
+        while (num > 0) {
+            result = ID_CHARS[num % base] + result;
+            num = Math.floor(num / base);
+        }
+        return result.length > 8 ? result.substring(0, 8) : result;
     }
 }

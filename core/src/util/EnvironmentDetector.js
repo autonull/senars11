@@ -163,3 +163,6 @@ export class EnvironmentDetector {
  * Default environment detector instance
  */
 export const envDetector = new EnvironmentDetector();
+
+export const isNodeEnvironment = () => envDetector.isNode();
+export const isBrowserEnvironment = () => envDetector.isBrowser();

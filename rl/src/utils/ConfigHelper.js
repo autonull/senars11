@@ -1,13 +1,11 @@
+import { deepMerge } from '../../../core/src/util/object.js';
+
 export function mergeConfig(defaults, overrides = {}) {
-    return { ...defaults, ...overrides };
+    return deepMerge(defaults, overrides);
 }
 
-/**
- * Merge configs without freezing - for mutable runtime configs
- */
 export function mergeMutableConfig(defaults, overrides = {}) {
-    const result = { ...defaults, ...overrides };
-    return result;
+    return { ...defaults, ...overrides };
 }
 
 export function createConfig(schema, overrides = {}) {
@@ -108,46 +106,7 @@ export function createConfiguredClass(defaults, schema = {}) {
     };
 }
 
-export function deepMergeConfig(defaults, overrides = {}, _visited = new WeakSet()) {
-    // Handle circular references
-    if (defaults && typeof defaults === 'object') {
-        if (_visited.has(defaults)) return defaults;
-        _visited.add(defaults);
-    }
-    if (overrides && typeof overrides === 'object') {
-        if (_visited.has(overrides)) return overrides;
-        _visited.add(overrides);
-    }
-
-    if (!defaults || typeof defaults !== 'object') {
-        return overrides ?? defaults;
-    }
-
-    if (!overrides || typeof overrides !== 'object') {
-        return defaults;
-    }
-
-    const result = { ...defaults };
-
-    for (const key of Object.keys(overrides)) {
-        const overrideVal = overrides[key];
-        const defaultVal = defaults[key];
-
-        // Only deep merge plain objects
-        if (overrideVal && typeof overrideVal === 'object' && !Array.isArray(overrideVal) &&
-            (overrideVal.constructor === Object || overrideVal.constructor === undefined)) {
-            result[key] = deepMergeConfig(
-                defaultVal && typeof defaultVal === 'object' && !Array.isArray(defaultVal) ? defaultVal : {},
-                overrideVal,
-                _visited
-            );
-        } else {
-            result[key] = overrideVal;
-        }
-    }
-
-    return result;
-}
+export { deepMerge as deepMergeConfig } from '../../../core/src/util/object.js';
 
 export class ConfigValidator {
     constructor(schema) {
