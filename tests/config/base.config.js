@@ -30,7 +30,7 @@ const baseConfig = {
         '^@modelcontextprotocol/sdk/server/stdio\\.js$': '<rootDir>/tests/mocks/mcp-sdk-stdio.js',
     },
     transformIgnorePatterns: [
-        'node_modules/(?!(?:@noble|@modelcontextprotocol)/)',
+        'node_modules/(?!(?:@noble|@modelcontextprotocol|node-fetch|data-uri-to-buffer|fetch-blob|formdata-polyfill)/)',
     ],
     collectCoverageFrom: [
         'core/src/**/*.js',

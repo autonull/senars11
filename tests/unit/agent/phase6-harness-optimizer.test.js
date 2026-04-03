@@ -13,19 +13,10 @@
  * - Git integration for version history
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { existsSync, writeFileSync, readFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
-
-jest.mock('@senars/core', () => ({
-    Logger: {
-        info: () => {},
-        warn: () => {},
-        error: () => {},
-        debug: () => {}
-    }
-}));
 
 import { HarnessOptimizer, resetHarnessOptimizer, getHarnessOptimizer } from '../../../agent/src/harness/HarnessOptimizer.js';
 
@@ -142,17 +133,28 @@ describe('Phase 6: HarnessOptimizer', () => {
         { cycleId: 1, error: 'parse-error', context: 'test', response: 'test' }
       ]);
 
-      // Temporarily rename prompt.metta if it exists
+      // Temporarily hide prompt.metta if it exists
       const promptPath = join(testHarnessDir, 'prompt.metta');
-      let originalContent = null;
+      const backupPath = join(testHarnessDir, 'prompt.metta.backup');
+      let hadPrompt = false;
       if (existsSync(promptPath)) {
-        originalContent = readFileSync(promptPath, 'utf-8');
+        hadPrompt = true;
+        writeFileSync(backupPath, readFileSync(promptPath, 'utf-8'));
+        rmSync(promptPath);
       }
 
-      const result = await optimizer.runOptimizationCycle();
+      try {
+        const result = await optimizer.runOptimizationCycle();
 
-      expect(result.applied).toBe(false);
-      expect(result.reason).toContain('No current prompt');
+        expect(result.applied).toBe(false);
+        expect(result.reason).toContain('No current prompt');
+      } finally {
+        // Restore prompt
+        if (hadPrompt && existsSync(backupPath)) {
+          writeFileSync(promptPath, readFileSync(backupPath, 'utf-8'));
+          rmSync(backupPath);
+        }
+      }
     });
 
     it('proposes a change when failures exist', async () => {
@@ -194,7 +196,7 @@ describe('Phase 6: HarnessOptimizer', () => {
       writeFileSync(promptPath, 'Initial prompt');
 
       mockAuditSpace.queryByType.mockResolvedValue([
-        { cycleId: 1, error: 'test-error', context: 'test', response: 'test' }
+        { cycleId: 1, error: 'parse-error', context: 'test', response: 'test' }
       ]);
 
       mockModelRouter.invoke.mockResolvedValue({

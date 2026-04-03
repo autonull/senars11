@@ -20,12 +20,14 @@ module.exports = {
         '^@senars/rl/(.*)$': '<rootDir>/rl/$1',
         '^@modelcontextprotocol/sdk/server/mcp\\.js$': '<rootDir>/tests/mocks/mcp-sdk-mcp.js',
         '^@modelcontextprotocol/sdk/server/stdio\\.js$': '<rootDir>/tests/mocks/mcp-sdk-stdio.js',
+        '^danfojs': '<rootDir>/tests/mocks/danfojs.js',
+        '^node-fetch': '<rootDir>/tests/mocks/node-fetch.js',
     },
     transform: {
         '^.+\\.js$': 'babel-jest',
     },
     transformIgnorePatterns: [
-        'node_modules/(?!(?:@noble|@modelcontextprotocol)/)',
+        'node_modules/(?!(?:@noble|@modelcontextprotocol|node-fetch|data-uri-to-buffer|fetch-blob|formdata-polyfill)/)',
     ],
     collectCoverageFrom: [
         'core/src/**/*.js',

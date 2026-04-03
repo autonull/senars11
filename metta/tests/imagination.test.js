@@ -3,15 +3,9 @@ import { MeTTaInterpreter } from '../src/MeTTaInterpreter.js';
 import fs from 'fs';
 import path from 'path';
 
-import { fileURLToPath } from 'url';
-
-// Workaround for Jest VM environment
-const __filename = typeof __filename !== 'undefined' ? __filename : fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 describe.skip('ImaginationExtension (Mind Eye)', () => {
     let interp;
-    const testDir = path.resolve(__dirname, 'test_output_imagination');
+    const testDir = path.resolve(process.cwd(), 'metta/tests/test_output_imagination');
 
     beforeEach(() => {
         interp = new MeTTaInterpreter();

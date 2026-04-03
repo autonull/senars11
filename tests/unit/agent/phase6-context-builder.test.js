@@ -12,18 +12,9 @@
  * - Integration with SemanticMemory and SkillDispatcher
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { existsSync, writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
-
-jest.mock('@senars/core', () => ({
-    Logger: {
-        info: () => {},
-        warn: () => {},
-        error: () => {},
-        debug: () => {}
-    }
-}));
 
 import { ContextBuilder } from '../../../agent/src/memory/ContextBuilder.js';
 
@@ -124,26 +115,27 @@ describe('Phase 6: ContextBuilder', () => {
 
   describe('registerGroundedOps()', () => {
     it('registers all required grounded ops', () => {
+      const mockRegister = jest.fn();
       const mockInterp = {
-        registerOp: jest.fn()
+        ground: { register: mockRegister }
       };
 
       contextBuilder.registerGroundedOps(mockInterp);
 
-      expect(mockInterp.registerOp).toHaveBeenCalledWith('context-init', expect.any(Function));
-      expect(mockInterp.registerOp).toHaveBeenCalledWith('context-concat', expect.any(Function));
-      expect(mockInterp.registerOp).toHaveBeenCalledWith('load-harness-prompt', expect.any(Function));
-      expect(mockInterp.registerOp).toHaveBeenCalledWith('default-system-prompt', expect.any(Function));
-      expect(mockInterp.registerOp).toHaveBeenCalledWith('filter-capabilities', expect.any(Function));
-      expect(mockInterp.registerOp).toHaveBeenCalledWith('get-active-skills', expect.any(Function));
-      expect(mockInterp.registerOp).toHaveBeenCalledWith('get-pinned-memories', expect.any(Function));
-      expect(mockInterp.registerOp).toHaveBeenCalledWith('get-wm-entries', expect.any(Function));
-      expect(mockInterp.registerOp).toHaveBeenCalledWith('generate-manifest', expect.any(Function));
-      expect(mockInterp.registerOp).toHaveBeenCalledWith('query-memories', expect.any(Function));
-      expect(mockInterp.registerOp).toHaveBeenCalledWith('get-history', expect.any(Function));
-      expect(mockInterp.registerOp).toHaveBeenCalledWith('get-feedback', expect.any(Function));
-      expect(mockInterp.registerOp).toHaveBeenCalledWith('format-input', expect.any(Function));
-      expect(mockInterp.registerOp).toHaveBeenCalledWith('get-budget', expect.any(Function));
+      expect(mockRegister).toHaveBeenCalledWith('context-init', expect.any(Function), { lazy: true });
+      expect(mockRegister).toHaveBeenCalledWith('context-concat', expect.any(Function), { lazy: true });
+      expect(mockRegister).toHaveBeenCalledWith('load-harness-prompt', expect.any(Function), { lazy: true });
+      expect(mockRegister).toHaveBeenCalledWith('default-system-prompt', expect.any(Function), { lazy: true });
+      expect(mockRegister).toHaveBeenCalledWith('filter-capabilities', expect.any(Function), { lazy: true });
+      expect(mockRegister).toHaveBeenCalledWith('get-active-skills', expect.any(Function), { lazy: true });
+      expect(mockRegister).toHaveBeenCalledWith('get-pinned-memories', expect.any(Function), { lazy: true });
+      expect(mockRegister).toHaveBeenCalledWith('get-wm-entries', expect.any(Function), { lazy: true });
+      expect(mockRegister).toHaveBeenCalledWith('generate-manifest', expect.any(Function), { lazy: true });
+      expect(mockRegister).toHaveBeenCalledWith('query-memories', expect.any(Function), { lazy: true });
+      expect(mockRegister).toHaveBeenCalledWith('get-history', expect.any(Function), { lazy: true });
+      expect(mockRegister).toHaveBeenCalledWith('get-feedback', expect.any(Function), { lazy: true });
+      expect(mockRegister).toHaveBeenCalledWith('format-input', expect.any(Function), { lazy: true });
+      expect(mockRegister).toHaveBeenCalledWith('get-budget', expect.any(Function), { lazy: true });
     });
   });
 
@@ -196,7 +188,7 @@ describe('Phase 6: ContextBuilder', () => {
       const context = await contextBuilder.build(null);
 
       expect(context).toBeDefined();
-      expect(context).toContain('INPUT');
+      expect(context).toContain('(no input)');
     });
   });
 
@@ -230,11 +222,11 @@ describe('Phase 6: ContextBuilder', () => {
       }
     });
 
-    it('falls back to default prompt when file does not exist', () => {
-      const spy = jest.spyOn(require('fs'), 'existsSync').mockReturnValue(false);
-      const content = contextBuilder._loadHarnessPrompt();
+    it('falls back to default prompt when harnessOptimization is disabled', () => {
+      const configWithoutHarness = { ...mockConfig, capabilities: { ...mockConfig.capabilities, harnessOptimization: false } };
+      const builder = new ContextBuilder(configWithoutHarness, null, null, null, null);
+      const content = builder._loadHarnessPrompt();
       expect(content).toContain('SeNARchy');
-      spy.mockRestore();
     });
   });
 
@@ -309,7 +301,7 @@ describe('Phase 6: ContextBuilder', () => {
 
     it('handles autonomous mode with no input', () => {
       const result = contextBuilder._formatInput(null);
-      expect(result).toContain('autonomous');
+      expect(result).toContain('(no input)');
     });
   });
 

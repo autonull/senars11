@@ -24,7 +24,12 @@ export class HookOrchestrator {
         Logger.warn('[HookOrchestrator] No hooks.metta found at', path);
         return;
       }
-      const atoms = this.parser.parse(readFileSync(path, 'utf-8'));
+      let content = readFileSync(path, 'utf-8');
+      // Wrap multiple top-level expressions in (do ...) for the parser
+      if (!content.trim().startsWith('(do')) {
+        content = `(do ${content})`;
+      }
+      const atoms = this.parser.parse(content);
       for (const hook of this._extractHooks(atoms)) {
         this.hooks[hook.phase].push({ pattern: hook.pattern, body: hook.body, order: this.hooks[hook.phase].length });
       }
@@ -81,6 +86,7 @@ export class HookOrchestrator {
   registerHook(phase, pattern, body) {
     if (!['pre', 'post'].includes(phase)) throw new Error(`Invalid hook phase: ${phase}`);
     this.hooks[phase].push({ pattern, body, order: this.hooks[phase].length });
+    this.loaded = true;
     Logger.debug('[HookOrchestrator] Registered hook', { phase, pattern });
   }
 
@@ -95,7 +101,7 @@ export class HookOrchestrator {
       if (isExpression(a) && a.operator?.name === 'hook') {
         const components = a.components || [];
         if (components.length >= 3) {
-          const phase = components[0]?.name;
+          const phase = components[0]?.name ?? components[0]?.value ?? components[0]?._name;
           if (phase === 'pre' || phase === 'post') {
             hooks.push({ phase, pattern: components[1], body: components[2] });
           }
@@ -108,7 +114,7 @@ export class HookOrchestrator {
   }
 
   _matchPattern(pattern, skillName, skillArgs) {
-    if (!isExpression(pattern)) return null;
+    if (!pattern || (!isExpression(pattern) && !pattern.operator)) return null;
     const patternName = pattern.operator?.name;
     if (patternName !== skillName) return null;
 
@@ -127,7 +133,7 @@ export class HookOrchestrator {
   }
 
   async _evaluateHook(body, bindings, result = null) {
-    if (!isExpression(body)) return { action: 'allow' };
+    if (!body || (!isExpression(body) && !body.operator)) return { action: 'allow' };
     const op = body.operator?.name;
     const components = body.components || [];
 
@@ -136,8 +142,8 @@ export class HookOrchestrator {
       case 'deny': return { action: 'deny', reason: String(this._resolveArg(components[0], bindings)) };
       case 'rewrite': {
         const newExpr = components[0];
-        if (isExpression(newExpr)) {
-          return { action: 'rewrite', newArgs: newExpr.components.map(c => this._resolveArg(c, bindings)) };
+        if (newExpr && (isExpression(newExpr) || newExpr.operator)) {
+          return { action: 'rewrite', newArgs: (newExpr.components || []).map(c => this._resolveArg(c, bindings)) };
         }
         return { action: 'allow' };
       }

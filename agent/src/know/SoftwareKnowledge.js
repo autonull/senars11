@@ -1,6 +1,11 @@
 import {TruthValueUtils} from './NarseseTemplate.js';
-import * as dfd from 'danfojs';
 import {DataTableKnowledge} from './DataTableKnowledge.js';
+
+// Reuse the mock mechanism from DataTableKnowledge
+async function loadDanfojs() {
+    if (globalThis.__mockDanfojs) return globalThis.__mockDanfojs;
+    return import('danfojs');
+}
 
 export class FileAnalysisKnowledge extends DataTableKnowledge {
     constructor(data = null, options = {}) {
@@ -20,6 +25,7 @@ export class FileAnalysisKnowledge extends DataTableKnowledge {
                     complexity_classCount: file.complexity?.classCount || 0,
                     complexity_conditionalCount: file.complexity?.conditionalCount || 0
                 }));
+                const dfd = await loadDanfojs();
                 this.df = new dfd.DataFrame(flatData);
             } else if (this.data?.fileAnalysis) {
                 const flatData = this.data.fileAnalysis.map(file => ({
@@ -30,6 +36,7 @@ export class FileAnalysisKnowledge extends DataTableKnowledge {
                     uncovered: file.uncovered,
                     size: file.size
                 }));
+                const dfd = await loadDanfojs();
                 this.df = new dfd.DataFrame(flatData);
             } else {
                 await super.initDataTable(this.data);
@@ -114,6 +121,7 @@ export class TestResultKnowledge extends DataTableKnowledge {
                     numPassingAsserts: test.numPassingAsserts,
                     failureMessages: test.failureMessages ? test.failureMessages.join('; ') : ''
                 }));
+                const dfd = await loadDanfojs();
                 this.df = new dfd.DataFrame(flatData);
             } else {
                 await super.initDataTable(this.data);
@@ -208,6 +216,7 @@ export class DirectoryStructureKnowledge extends DataTableKnowledge {
                     parentDirectory: stats.parentDirectory || null,
                     subdirectories: Array.isArray(stats.subdirectories) ? stats.subdirectories.join(',') : ''
                 }));
+                const dfd = await loadDanfojs();
                 this.df = new dfd.DataFrame(flatData);
             } else {
                 await super.initDataTable(this.data);
@@ -297,6 +306,7 @@ export class DependencyGraphKnowledge extends DataTableKnowledge {
                         type: 'dependency'
                     })) : []
                 );
+                const dfd = await loadDanfojs();
                 this.df = new dfd.DataFrame(flatData);
             } else {
                 await super.initDataTable(this.data);

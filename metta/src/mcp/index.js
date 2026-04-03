@@ -1,11 +1,6 @@
 import { McpClientManager } from './McpClientManager.js';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
-
-// Workaround for Jest VM environment
-const __filename = typeof __filename !== 'undefined' ? __filename : fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 /**
  * MeTTaMCPManager — one-call setup for MeTTa as MCP consumer.
@@ -21,7 +16,7 @@ export class MeTTaMCPManager {
     globalThis.mcpClientManager = this.manager;
 
     // Preload the MeTTa MCP stdlib
-    const stdPath = path.join(__dirname, 'mcp-std.metta');
+    const stdPath = path.join(process.cwd(), 'metta/src/mcp', 'mcp-std.metta');
     if (fs.existsSync(stdPath)) {
       this.interpreter.load(fs.readFileSync(stdPath, 'utf8'));
     }

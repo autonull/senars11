@@ -1,5 +1,14 @@
-import * as dfd from 'danfojs';
 import {Knowledge} from './Knowledge.js';
+
+let dfd = null;
+async function loadDanfojs() {
+    if (!dfd) {
+        // Allow test mocks to override
+        if (globalThis.__mockDanfojs) dfd = globalThis.__mockDanfojs;
+        else dfd = await import('danfojs');
+    }
+    return dfd;
+}
 
 export class DataTableKnowledge extends Knowledge {
     constructor(data = null, tableName = 'data', options = {}) {
@@ -8,6 +17,7 @@ export class DataTableKnowledge extends Knowledge {
     }
 
     async initDataTable(data) {
+        const dfd = await loadDanfojs();
         if (Array.isArray(data)) {
             this.df = new dfd.DataFrame(data);
         } else if (data && typeof data === 'object') {

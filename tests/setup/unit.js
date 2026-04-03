@@ -4,6 +4,17 @@
 import {setupCustomMatchers} from '../support/test-matchers.js';
 import {commonTestSetup, commonTestCleanup} from '../support/commonTestSetup.js';
 
+// Mock danfojs — heavy browser deps (plotly, mapbox-gl, tensorflow) can't run in jsdom
+// Source lazy-loads via dynamic import(), so we set a global mock
+globalThis.__mockDanfojs = {
+    DataFrame: class MockDataFrame {
+        constructor(data) { this._data = data || []; }
+        get values() { return Array.isArray(this._data) ? this._data : []; }
+        get columns() { return this._data?.length > 0 ? Object.keys(this._data[0]) : []; }
+        get shape() { return [this._data.length, this.columns.length]; }
+    }
+};
+
 // Setup custom Jest matchers for flexible assertions
 setupCustomMatchers();
 
