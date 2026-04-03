@@ -1,8 +1,6 @@
 import {EventEmitter} from 'events';
-import {MESSAGE_TYPES} from '@senars/core';
-import {Logger} from '../../../core/src/util/Logger.js';
-
-const CMD_MAP = {'start': 'run', 'stop': 'stop', 'step': 'next'};
+import {Logger, MESSAGE_TYPES} from '@senars/core';
+import {INTERNAL_COMMANDS, resolveControlCommand} from '../commands/CommandMappings.js';
 
 export class ReplMessageHandler extends EventEmitter {
     constructor(engine) {
@@ -22,20 +20,7 @@ export class ReplMessageHandler extends EventEmitter {
     }
 
     _setupDefaultCommandHandlers() {
-        // Map special commands to internal methods
-        const internalCommands = {
-            'n': '_next',
-            'next': '_next',
-            'run': '_run',
-            'go': '_run',
-            'stop': '_stop',
-            'st': '_stop',
-            'quit': 'shutdown',
-            'q': 'shutdown',
-            'exit': 'shutdown'
-        };
-
-        Object.entries(internalCommands).forEach(([cmd, method]) => {
+        Object.entries(INTERNAL_COMMANDS).forEach(([cmd, method]) => {
             this.commandHandlers.set(cmd, async () => {
                 try {
                     if (this.engine[method]) {
@@ -195,7 +180,7 @@ export class ReplMessageHandler extends EventEmitter {
                 return {error: 'No control command specified', type: MESSAGE_TYPES.ERROR};
             }
 
-            const mappedCommand = CMD_MAP[command] || command;
+            const mappedCommand = resolveControlCommand(command);
             const result = await this._handleCommand(mappedCommand);
 
             return {

@@ -1,17 +1,10 @@
 import { readFile, readdir } from 'fs/promises';
-import { dirname, join, resolve } from 'path';
+import { resolve, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { Logger } from '@senars/core';
+import { Logger, resolveWithFallback, fallbackAgentDir } from '@senars/core';
 import { isEnabled } from '../config/capabilities.js';
 
-let __agentDir;
-try {
-    __agentDir = dirname(fileURLToPath(import.meta.url));
-} catch {
-    __agentDir = typeof global !== 'undefined' && global.__dirname && global.__dirname.includes('agent')
-        ? global.__dirname
-        : resolve(process.cwd(), 'agent/src');
-}
+const __agentDir = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackAgentDir);
 
 const lazyImport = (cache, key, importFn) => async () => {
     if (!cache[key]) cache[key] = await importFn();

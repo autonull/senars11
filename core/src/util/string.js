@@ -22,7 +22,11 @@ export const capitalize = (str) => str ? str.charAt(0).toUpperCase() + str.slice
  * @param {number} length - Maximum length
  * @returns {string} Truncated string
  */
-export const truncate = (str, length) => !str || str.length <= length ? str : str.slice(0, length) + '...';
+export const truncate = (str, length, suffix = '...') => {
+    if (!str) return '';
+    const s = String(str);
+    return s.length <= length ? s : s.slice(0, length - suffix.length) + suffix;
+};
 
 /**
  * Escape special regex characters

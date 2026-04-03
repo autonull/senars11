@@ -1,5 +1,5 @@
 import {ReplMessageHandler} from '../messaging/MessageHandler.js';
-import {Logger} from '../../../core/src/util/Logger.js';
+import {Logger, sendToClient, broadcastToClients} from '@senars/core';
 
 export class SessionServerAdapter {
     /**
@@ -94,34 +94,11 @@ export class SessionServerAdapter {
     }
 
     _broadcastToAllClients(message) {
-        const clients = this.websocketServer?.clients;
-        if (!clients) return;
-
-        const serializedMessage = JSON.stringify(message);
-
-        for (const client of clients) {
-            if (client.readyState === client.OPEN) {
-                try {
-                    client.send(serializedMessage);
-                } catch (error) {
-                    Logger.error('Error broadcasting to client:', error);
-                }
-            }
-        }
+        broadcastToClients(this.websocketServer?.clients, message);
     }
 
     _sendToClient(client, message) {
-        if (client && typeof client.send === 'function' && client.readyState === client.OPEN) {
-            try {
-                client.send(JSON.stringify(message));
-            } catch (error) {
-                Logger.error('Error sending to client:', error);
-            }
-        } else if (client && typeof client.send === 'function') {
-            Logger.warn('Client not in OPEN state, readyState:', client.readyState);
-        } else {
-            Logger.debug('Would send to client (test mode):', message);
-        }
+        sendToClient(client, message);
     }
 
     registerWithWebSocketServer() {

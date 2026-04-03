@@ -1,4 +1,5 @@
 import {ActivityTypes} from './ActivityTypes.js';
+import {truncate} from '@senars/core';
 
 /**
  * Transforms raw Activity events into render-ready View Models.
@@ -101,9 +102,7 @@ export class ActivityViewModel {
     }
 
     static _truncate(str, len) {
-        if (!str) return '';
-        if (str.length <= len) return str;
-        return str.substring(0, len) + '...';
+        return truncate(str, len);
     }
 
     static _formatTruth(truth) {

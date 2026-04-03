@@ -7,7 +7,7 @@ import os from 'os';
 import {FileSystemDemoSource} from './FileSystemDemoSource.js';
 import {BuiltinDemoSource} from './BuiltinDemoSource.js';
 import {ProcessDemoRunner} from './ProcessDemoRunner.js';
-import {Logger} from '../../../core/src/util/Logger.js';
+import { Logger } from '@senars/core';
 
 export class DemosManager {
     constructor() {

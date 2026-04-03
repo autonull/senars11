@@ -4,18 +4,11 @@
 import { writeFile, readFile, mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { Logger } from '@senars/core';
+import { Logger, resolveWithFallback, fallbackMemoryDir } from '@senars/core';
 import { Embedder } from './Embedder.js';
 import { MettaParser, toMettaAtom } from './MettaParser.js';
 
-let __dataDir;
-try {
-    __dataDir = dirname(fileURLToPath(import.meta.url));
-} catch {
-    __dataDir = typeof global !== 'undefined' && global.__dirname
-        ? join(global.__dirname, 'agent/src/memory')
-        : join(process.cwd(), 'agent/src/memory');
-}
+const __dataDir = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackMemoryDir);
 
 class VectorIndex {
     constructor(dimensions, dataDir) {

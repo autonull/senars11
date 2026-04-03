@@ -5,17 +5,10 @@
 import { writeFile, readFile, mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { Logger } from '@senars/core';
+import { Logger, resolveWithFallback, fallbackMemoryDir, truncate } from '@senars/core';
 import { MettaParser, escapeQuotes, toMettaAtom } from './MettaParser.js';
 
-let __dataDir;
-try {
-    __dataDir = dirname(fileURLToPath(import.meta.url));
-} catch {
-    __dataDir = typeof global !== 'undefined' && global.__dirname
-        ? global.__dirname
-        : process.cwd();
-}
+const __dataDir = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackMemoryDir);
 
 export class AuditSpace {
   constructor(config = {}) {
@@ -154,7 +147,6 @@ export class AuditSpace {
   }
 
   _truncate(str, max) {
-    if (str.length <= max) return str;
-    return str.slice(0, max - 3) + '...';
+    return truncate(str, max);
   }
 }

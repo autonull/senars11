@@ -1,8 +1,7 @@
 import {WebSocketServer} from 'ws';
 import {EventEmitter} from 'events';
 import {ClientMessageHandlers} from './ClientMessageHandlers.js';
-import {DEFAULT_CLIENT_CAPABILITIES, WEBSOCKET_CONFIG, IntrospectionEvents} from '@senars/core';
-import {Logger} from '../../../core/src/util/Logger.js';
+import {DEFAULT_CLIENT_CAPABILITIES, WEBSOCKET_CONFIG, IntrospectionEvents, sendToClient, broadcastToClients, Logger} from '@senars/core';
 
 const DEFAULT_OPTIONS = Object.freeze({
     port: WEBSOCKET_CONFIG.defaultPort,
@@ -201,13 +200,7 @@ class WebSocketMonitor {
     }
 
     _sendToClient(client, message) {
-        try {
-            if (client && typeof client.send === 'function' && client.readyState === client.OPEN) {
-                client.send(JSON.stringify(message));
-            }
-        } catch (error) {
-            Logger.error('Error sending message to client:', error);
-        }
+        sendToClient(client, message);
     }
 
     _generateClientId() {

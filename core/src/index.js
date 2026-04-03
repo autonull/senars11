@@ -28,3 +28,7 @@ export * from './util/IntrospectionEvents.js';
 export * from './util/BaseComponent.js';
 export * from './util/ConfigUtils.js';
 export * from './util/Metrics.js';
+export * from './util/string.js';
+export * from './util/PathUtils.js';
+export * from './util/Singleton.js';
+export * from './util/WebSocketUtils.js';

@@ -41,7 +41,7 @@ export class EpisodicMemory {
     }
 }
 
-export class SemanticMemory {
+export class CognitiveSemanticMemory {
     #knowledge = new Map();
     constructor(limit = 5000) { this.limit = limit; }
     add(knowledge) { const key = this.#indexKey(knowledge); if (!this.#knowledge.has(key)) this.#knowledge.set(key, []); this.#knowledge.get(key).push({ ...knowledge, added: Date.now(), accessCount: 0 }); if (this.#knowledge.size > this.limit) this.#prune(); }

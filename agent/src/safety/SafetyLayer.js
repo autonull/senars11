@@ -2,21 +2,13 @@
  * SafetyLayer.js — Reflective consequence analysis before skill execution
  */
 
-import { Logger } from '@senars/core';
+import { Logger, resolveWithFallback, fallbackSafetyDir, createSingleton } from '@senars/core';
 import { MeTTaInterpreter } from '../../../metta/src/MeTTaInterpreter.js';
 import { readFile } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-// Workaround for Jest VM environment where import.meta.url might not be available
-let __dir;
-try {
-    __dir = dirname(fileURLToPath(import.meta.url));
-} catch (e) {
-    __dir = typeof global !== 'undefined' && global.__dirname 
-        ? global.__dirname 
-        : process.cwd();
-}
+const __dir = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackSafetyDir);
 const SAFETY_TIMEOUT_MS = 50;
 
 const RISK_ORDER = { ':low': 1, ':medium': 2, ':high': 3, ':critical': 4 };
@@ -144,8 +136,4 @@ export class SafetyLayer {
   }
 }
 
-let _instance = null;
-export function getSafetyLayer(config) {
-  if (!_instance) _instance = new SafetyLayer(config);
-  return _instance;
-}
+export const getSafetyLayer = createSingleton((config) => new SafetyLayer(config));

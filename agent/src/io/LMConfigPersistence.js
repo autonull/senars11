@@ -1,6 +1,5 @@
 import { promises as fs } from 'fs';
-import { LMConfig } from '../../../core/src/lm/LMConfig.js';
-import {Logger} from '../../../core/src/util/Logger.js';
+import { LMConfig, Logger } from '@senars/core';
 
 export class LMConfigPersistence {
     static async save(config, path) {

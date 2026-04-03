@@ -40,3 +40,8 @@ export * from './guard.js';
 export { Logger } from './Logger.js';
 export { EventBus } from './EventBus.js';
 export * from './CustomErrors.js';
+
+// New consolidated utilities
+export * from './PathUtils.js';
+export * from './Singleton.js';
+export * from './WebSocketUtils.js';

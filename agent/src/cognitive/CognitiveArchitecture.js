@@ -4,7 +4,7 @@
  */
 import { Logger } from '@senars/core';
 import { EventEmitter } from 'events';
-import { SensoryBuffer, WorkingMemory, EpisodicMemory, SemanticMemory, ProceduralMemory, AttentionMechanism } from './MemorySystems.js';
+import { SensoryBuffer, WorkingMemory, EpisodicMemory, CognitiveSemanticMemory, ProceduralMemory, AttentionMechanism } from './MemorySystems.js';
 import { analyzeText, detectSentiment, extractFact, contentSimilarity } from './TextAnalysis.js';
 
 export class CognitiveArchitecture extends EventEmitter {
@@ -29,7 +29,7 @@ export class CognitiveArchitecture extends EventEmitter {
             sensory: new SensoryBuffer(this.config.memory.sensorySize),
             working: new WorkingMemory(this.config.memory.workingCapacity),
             episodic: new EpisodicMemory(this.config.memory.episodicLimit),
-            semantic: new SemanticMemory(this.config.memory.semanticLimit),
+            semantic: new CognitiveSemanticMemory(this.config.memory.semanticLimit),
             procedural: new ProceduralMemory()
         };
         this.attention = new AttentionMechanism(this.config.attention);

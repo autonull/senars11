@@ -1,7 +1,7 @@
 import { readFile } from 'fs/promises';
 import { resolve, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { FormattingUtils, Input, NAR, Logger } from '@senars/core';
+import { FormattingUtils, Input, NAR, Logger, resolveWithFallback, fallbackAgentDir } from '@senars/core';
 import { PersistenceManager } from './io/PersistenceManager.js';
 import { EmbodimentBus } from './io/EmbodimentBus.js';
 import { VirtualEmbodiment } from './io/VirtualEmbodiment.js';
@@ -13,16 +13,10 @@ import { AIClient } from './ai/AIClient.js';
 import { ToolAdapter } from './ai/ToolAdapter.js';
 import { isEnabled, validateDeps } from './config/capabilities.js';
 import { MeTTaLoopBuilder } from './metta/MeTTaLoopBuilder.js';
+import { resolveCommand } from './commands/CommandMappings.js';
 import * as CommandModules from './commands/Commands.js';
 
-let __agentDir;
-try {
-    __agentDir = dirname(fileURLToPath(import.meta.url));
-} catch {
-    __agentDir = typeof global !== 'undefined' && global.__dirname && global.__dirname.includes('agent')
-        ? global.__dirname
-        : join(process.cwd(), 'agent/src');
-}
+const __agentDir = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackAgentDir);
 
 export class Agent extends NAR {
     constructor(config = {}) {
@@ -172,7 +166,7 @@ export class Agent extends NAR {
     async processInput(input) { return this.inputProcessor.processInput(input); }
 
     async executeCommand(cmd, ...args) {
-        const command = { next: 'n', stop: 'st', quit: 'exit', q: 'exit' }[cmd] ?? cmd;
+        const command = resolveCommand(cmd);
         const builtins = {
             n: () => this._next(),
             go: () => this.startAutoStep(10),

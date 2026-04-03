@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs';
-import {Logger} from '../../../core/src/util/Logger.js';
+import { Logger } from '@senars/core';
 
 class PreferenceCollector {
     constructor() {

@@ -2,7 +2,7 @@
  * HookOrchestrator.js — Pre/post-skill hook execution engine
  */
 
-import { Logger } from '@senars/core';
+import { Logger, createSingleton } from '@senars/core';
 import { Parser } from '../../../metta/src/Parser.js';
 import { isExpression } from '../../../metta/src/kernel/Term.js';
 import { readFileSync, existsSync } from 'fs';
@@ -189,12 +189,5 @@ export class HookOrchestrator {
   }
 }
 
-let _instance = null;
-export function getHookOrchestrator(config, auditSpace) {
-  if (!_instance) _instance = new HookOrchestrator(config, auditSpace);
-  return _instance;
-}
-
-export function resetHookOrchestrator() {
-  _instance = null;
-}
+export const getHookOrchestrator = createSingleton((config, auditSpace) => new HookOrchestrator(config, auditSpace));
+export const resetHookOrchestrator = () => getHookOrchestrator.reset();

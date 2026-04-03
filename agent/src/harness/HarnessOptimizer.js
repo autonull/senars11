@@ -2,7 +2,7 @@
  * HarnessOptimizer.js — Meta-harness self-improvement engine
  */
 
-import { Logger } from '@senars/core';
+import { Logger, createSingleton } from '@senars/core';
 import { execSync } from 'child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
@@ -277,12 +277,5 @@ Return ONLY a unified diff (diff -u format) showing the change. Do not explain.`
   }
 }
 
-let _instance = null;
-export function getHarnessOptimizer(config, modelRouter, auditSpace) {
-  if (!_instance) _instance = new HarnessOptimizer(config, modelRouter, auditSpace);
-  return _instance;
-}
-
-export function resetHarnessOptimizer() {
-  _instance = null;
-}
+export const getHarnessOptimizer = createSingleton((config, modelRouter, auditSpace) => new HarnessOptimizer(config, modelRouter, auditSpace));
+export const resetHarnessOptimizer = () => getHarnessOptimizer.reset();

@@ -3,7 +3,7 @@
  */
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { Logger } from '@senars/core';
+import { Logger, truncate } from '@senars/core';
 import { isEnabled } from '../config/capabilities.js';
 
 const safeGet = async (fn, fallback = '', warnMsg) => {
@@ -214,8 +214,6 @@ export class ContextBuilder {
     _getBudget(key) { return this.budgets[key] ?? 0; }
 
     _truncate(content, maxChars) {
-        if (!content) return '';
-        const str = String(content);
-        return str.length <= maxChars ? str : str.slice(0, maxChars - 100) + '\n... [truncated]';
+        return truncate(content, maxChars, '\n... [truncated]');
     }
 }
