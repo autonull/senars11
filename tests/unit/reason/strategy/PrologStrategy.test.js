@@ -2,10 +2,7 @@
  * Unit tests for PrologStrategy
  */
 
-import {PrologStrategy} from '../../../../core/src/reason/strategy/PrologStrategy.js';
-import {Task} from '../../../../core/src/task/Task.js';
-import {Truth} from '../../../../core/src/Truth.js';
-import {TermFactory} from '../../../../core/src/term/TermFactory.js';
+import {PrologStrategy, Task, Truth, TermFactory} from '@senars/nar';
 
 describe('PrologStrategy', () => {
     let strategy;

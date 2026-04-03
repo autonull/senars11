@@ -1,11 +1,4 @@
-import {
-    DependentVariableIntroductionRule,
-    VariableIntroductionRule
-} from '../../../../../core/src/reason/rules/nal/VariableIntroduction.js';
-import {TermFactory} from '../../../../../core/src/term/TermFactory.js';
-import {Task} from '../../../../../core/src/task/Task.js';
-import {Truth} from '../../../../../core/src/Truth.js';
-import {Stamp} from '../../../../../core/src/Stamp.js';
+import {DependentVariableIntroductionRule, VariableIntroductionRule, TermFactory, Task, Truth, Stamp} from '@senars/nar';
 
 
 describe('VariableIntroduction Rules', () => {

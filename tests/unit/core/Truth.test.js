@@ -1,5 +1,4 @@
-import {TRUTH_DEFAULTS, TRUTH_THRESHOLDS} from '../../../core/src/config/TruthConstants.js';
-import {Truth} from '../../../core/src/Truth.js';
+import {TRUTH_DEFAULTS, TRUTH_THRESHOLDS, Truth} from '@senars/nar';
 
 describe('Truth', () => {
     test('initialization', () => {

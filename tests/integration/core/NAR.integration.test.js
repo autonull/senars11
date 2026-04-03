@@ -1,6 +1,4 @@
-import {NAR} from '../../../core/src/nar/NAR.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
-import {IntrospectionEvents} from '../../../core/src/util/IntrospectionEvents.js';
+import {NAR, TermFactory, IntrospectionEvents} from '@senars/nar';
 import {inputAll} from '../../support/testHelpers.js';
 
 describe('NAR Integration', () => {

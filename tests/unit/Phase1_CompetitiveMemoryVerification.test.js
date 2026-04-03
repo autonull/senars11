@@ -1,12 +1,5 @@
 import { describe, expect, test, beforeEach, jest } from '@jest/globals';
-import { Bag } from '../../core/src/memory/Bag.js';
-import { Focus } from '../../core/src/memory/Focus.js';
-import { FocusSetSelector } from '../../core/src/memory/FocusSetSelector.js';
-import { MemoryResourceManager } from '../../core/src/memory/MemoryResourceManager.js';
-import { Task } from '../../core/src/task/Task.js';
-import { TermFactory } from '../../core/src/term/TermFactory.js';
-import { Stamp } from '../../core/src/Stamp.js';
-import { Truth } from '../../core/src/Truth.js';
+import {Bag, Focus, FocusSetSelector, MemoryResourceManager, Task, TermFactory, Stamp, Truth} from '@senars/nar';
 
 describe('Phase 1.3: Competitive Memory Verification', () => {
     let termFactory;

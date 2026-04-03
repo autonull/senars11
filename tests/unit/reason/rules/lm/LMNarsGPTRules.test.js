@@ -1,9 +1,5 @@
 import {beforeEach, describe, expect, it, jest} from '@jest/globals';
-import {createNarsGPTQARule} from '../../../../../core/src/reason/rules/lm/LMNarsGPTQARule.js';
-import {createNarsGPTBeliefRule} from '../../../../../core/src/reason/rules/lm/LMNarsGPTBeliefRule.js';
-import {createNarsGPTGoalRule} from '../../../../../core/src/reason/rules/lm/LMNarsGPTGoalRule.js';
-import {NarsGPTPrompts} from '../../../../../core/src/reason/rules/lm/NarsGPTPrompts.js';
-import {Punctuation} from '../../../../../core/src/task/Task.js';
+import {createNarsGPTQARule, createNarsGPTBeliefRule, createNarsGPTGoalRule, NarsGPTPrompts, Punctuation} from '@senars/nar';
 
 const mockLM = (response = 'Mock') => ({generateText: jest.fn().mockResolvedValue(response)});
 const mockStrategy = () => ({

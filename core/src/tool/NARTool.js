@@ -5,7 +5,7 @@
 
 import {BaseTool} from './BaseTool.js';
 import {PrologParser} from '../parser/PrologParser.js';
-import {PrologStrategy} from '../reason/strategy/PrologStrategy.js';
+import {PrologStrategy} from '@senars/nar';
 
 export class NARTool extends BaseTool {
     constructor(nar = null) {

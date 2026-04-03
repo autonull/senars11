@@ -22,6 +22,7 @@
     "@langchain/openai": "^1.4.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@senars/core": "workspace:*",
+    "@senars/nar": "workspace:*",
     "ai": "^5.0.163",
     "hnswlib-node": "^3.0.0",
     "ink": "^6.8.0",

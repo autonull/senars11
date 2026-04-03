@@ -5,6 +5,7 @@
   "type": "module",
   "workspaces": [
     "core",
+    "nar",
     "agent",
     "ui",
     "tensor",
@@ -60,7 +61,7 @@
     "agent": "pnpm exec http-server -p 8080 -o /ui/agent.html",
     "lint:patterns": "node scripts/utils/lint-patterns.js",
     "build": "pnpm run build:parser",
-    "build:parser": "pnpm exec peggy --format es -o core/src/parser/peggy-parser.js core/src/parser/narsese.peggy",
+    "build:parser": "pnpm exec peggy --format es -o nar/src/parser/peggy-parser.js nar/src/parser/narsese.peggy",
     "build:browser": "pnpm exec esbuild scripts/verification/browser-test.js --bundle --format=iife --platform=browser --outfile=browser-bundle.js --log-level=info --alias:fs/promises=./ui/src/shims/mock-node.js --alias:fs=./ui/src/shims/mock-node.js --alias:path=./ui/src/shims/mock-node.js --alias:child_process=./ui/src/shims/mock-node.js --alias:os=./ui/src/shims/mock-node.js --alias:crypto=./ui/src/shims/mock-node.js --alias:url=./ui/src/shims/mock-node.js --alias:node:readline=./ui/src/shims/mock-node.js --alias:node:util=./ui/src/shims/mock-node.js --alias:node:path=./ui/src/shims/mock-node.js --alias:node:os=./ui/src/shims/mock-node.js --alias:node:crypto=./ui/src/shims/mock-node.js --alias:stream=./ui/src/shims/mock-node.js --alias:node:async_hooks=./ui/src/shims/mock-node.js --alias:node:process=./ui/src/shims/mock-node.js --alias:tty=./ui/src/shims/mock-node.js --alias:module=./ui/src/shims/mock-node.js --alias:node:module=./ui/src/shims/mock-node.js --alias:events=./ui/src/shims/mock-node.js --alias:buffer=./ui/src/shims/mock-node.js --define:import.meta.url=\"''\" --inject:./ui/src/shims/process-shim.js",
     "benchmark": "node metta/benchmark/suite.js",
     "slides:dev": "slidev slides.md",

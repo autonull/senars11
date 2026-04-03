@@ -93,6 +93,9 @@ importers:
       '@senars/core':
         specifier: workspace:*
         version: link:../core
+      '@senars/nar':
+        specifier: workspace:*
+        version: link:../nar
       ai:
         specifier: ^5.0.163
         version: 5.0.163(zod@3.25.76)
@@ -165,6 +168,9 @@ importers:
       '@mlc-ai/web-llm':
         specifier: ^0.2.82
         version: 0.2.82
+      '@senars/nar':
+        specifier: workspace:*
+        version: link:../nar
       danfojs:
         specifier: ^0.1.6
         version: 0.1.6(seedrandom@2.4.3)
@@ -210,12 +216,27 @@ importers:
       '@senars/core':
         specifier: workspace:*
         version: link:../core
+      '@senars/nar':
+        specifier: workspace:*
+        version: link:../nar
       canvas:
         specifier: ^2.11.2
         version: 2.11.2
       gifencoder:
         specifier: ^2.0.1
         version: 2.0.1
+
+  nar:
+    dependencies:
+      '@senars/core':
+        specifier: workspace:*
+        version: link:../core
+      eventemitter3:
+        specifier: ^5.0.4
+        version: 5.0.4
+      uuid:
+        specifier: ^9.0.1
+        version: 9.0.1
 
   rl:
     dependencies:
@@ -225,6 +246,9 @@ importers:
       '@senars/metta':
         specifier: workspace:*
         version: link:../metta
+      '@senars/nar':
+        specifier: workspace:*
+        version: link:../nar
       '@senars/tensor':
         specifier: workspace:*
         version: link:../tensor
@@ -252,6 +276,9 @@ importers:
       '@senars/core':
         specifier: workspace:*
         version: link:../core
+      '@senars/nar':
+        specifier: workspace:*
+        version: link:../nar
       ai:
         specifier: ^5.0.163
         version: 5.0.163(zod@3.25.76)

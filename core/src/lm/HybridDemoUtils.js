@@ -3,9 +3,7 @@
  * Provides ergonomic APIs for creating hybrid reasoning demonstrations
  */
 
-import {createHypothesisGenerationRule} from '../reason/rules/lm/LMHypothesisGenerationRule.js';
-import {createConceptElaborationRule} from '../reason/rules/lm/LMConceptElaborationRule.js';
-import {createNarseseTranslationRule} from '../reason/rules/lm/LMNarseseTranslationRule.js';
+import {createHypothesisGenerationRule, createConceptElaborationRule, createNarseseTranslationRule} from '@senars/nar';
 
 // Trace capture utility
 export class Trace {

@@ -22,6 +22,8 @@ const baseConfig = {
         '^@senars/tensor/(.*)$': '<rootDir>/tensor/$1',
         '^@senars/core$': '<rootDir>/core/src/index.js',
         '^@senars/core/(.*)$': '<rootDir>/core/$1',
+        '^@senars/nar$': '<rootDir>/nar/src/index.js',
+        '^@senars/nar/(.*)$': '<rootDir>/nar/$1',
         '^@senars/agent$': '<rootDir>/agent/src/index.js',
         '^@senars/agent/(.*)$': '<rootDir>/agent/$1',
         '^@senars/rl$': '<rootDir>/rl/src/index.js',

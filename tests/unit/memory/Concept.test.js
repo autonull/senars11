@@ -1,4 +1,4 @@
-import {Concept} from '../../../core/src/memory/Concept.js';
+import {Concept} from '@senars/nar';
 import {createTask, createTerm} from '../../support/factories.js';
 
 describe('Concept', () => {

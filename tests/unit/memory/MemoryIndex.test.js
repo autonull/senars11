@@ -1,5 +1,4 @@
-import {MemoryIndex} from '../../../core/src/memory/MemoryIndex.js';
-import {Concept} from '../../../core/src/memory/Concept.js';
+import {MemoryIndex, Concept} from '@senars/nar';
 import {createConcept, tf} from './testUtils.js';
 
 describe('MemoryIndex', () => {

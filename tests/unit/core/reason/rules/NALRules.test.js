@@ -1,10 +1,5 @@
 
-import { InductionRule, AbductionRule } from '../../../../../core/src/reason/rules/nal/InductionAbductionRule.js';
-import { InheritanceSyllogisticRule } from '../../../../../core/src/reason/rules/nal/SyllogisticRule.js';
-import { ConversionRule } from '../../../../../core/src/reason/rules/nal/ConversionRule.js';
-import { Truth } from '../../../../../core/src/Truth.js';
-import { TermFactory } from '../../../../../core/src/term/TermFactory.js';
-import { Task } from '../../../../../core/src/task/Task.js';
+import {InductionRule, AbductionRule, InheritanceSyllogisticRule, ConversionRule, Truth, TermFactory, Task} from '@senars/nar';
 
 describe('NAL Inference Rules', () => {
     let factory;

@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, test} from '@jest/globals';
-import {DEFAULT_CONFIG, SystemConfig} from '../../../core/src/config/SystemConfig.js';
+import {DEFAULT_CONFIG, SystemConfig} from '@senars/nar/src/config/SystemConfig.js';
 
 describe('SystemConfig', () => {
     let systemConfig;

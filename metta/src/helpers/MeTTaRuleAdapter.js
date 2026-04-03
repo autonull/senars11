@@ -3,7 +3,7 @@
  * Following AGENTS.md: Elegant, Consolidated, Consistent, Organized, Deeply deduplicated
  */
 
-import {Rule} from '../../../core/src/reason/Rule.js';
+import {Rule} from '@senars/nar';
 import {Unify} from '../kernel/Unify.js';
 
 export class MeTTaRuleAdapter extends Rule {

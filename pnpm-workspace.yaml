@@ -1,5 +1,6 @@
 packages:
   - 'core'
+  - 'nar'
   - 'agent'
   - 'ui'
   - 'tensor'

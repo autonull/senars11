@@ -1,8 +1,4 @@
-import {Decompose1} from '../../../../../core/src/reason/rules/nal/Decompose1.js';
-import {TermFactory} from '../../../../../core/src/term/TermFactory.js';
-import {Task} from '../../../../../core/src/task/Task.js';
-import {Truth} from '../../../../../core/src/Truth.js';
-import {Stamp} from '../../../../../core/src/Stamp.js';
+import {Decompose1, TermFactory, Task, Truth, Stamp} from '@senars/nar';
 
 describe('Decompose1 Rule', () => {
     let rule;

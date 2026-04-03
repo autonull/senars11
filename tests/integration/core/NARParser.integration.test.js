@@ -1,7 +1,4 @@
-import {Truth} from '../../../core/src/Truth.js';
-import {createNARIntegrationTestSuite} from '../../support/narTestSetup.js';
-import {flexibleAssertions, runPerformanceTest} from '../../support/baseTestUtils.js';
-import {IntrospectionEvents} from '../../../core/src/util/IntrospectionEvents.js';
+import {Truth, IntrospectionEvents} from '@senars/nar';
 
 describe('NAR Parser Integration', () => {
     // Using the new NAR test setup utilities

@@ -1,4 +1,4 @@
-import {TermFactory} from '../../core/src/term/TermFactory.js';
+import {TermFactory} from '@senars/nar';
 import {MeTTaInterpreter} from '@senars/metta/src/MeTTaInterpreter.js';
 import path from 'path';
 import {fileURLToPath} from 'url';

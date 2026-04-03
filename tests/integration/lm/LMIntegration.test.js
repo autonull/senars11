@@ -1,4 +1,4 @@
-import {NAR} from '../../../core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 import {DummyProvider} from '../../../core/src/lm/DummyProvider.js';
 import {LangChainProvider} from '../../../core/src/lm/LangChainProvider.js';
 import {HuggingFaceProvider} from '../../../core/src/lm/HuggingFaceProvider.js';

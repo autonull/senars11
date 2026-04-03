@@ -1,6 +1,4 @@
-import {NAR} from '../../../core/src/nar/NAR.js';
-import {WebSocketMonitor} from '../../../agent/src/server/WebSocketMonitor.js';
-import {IntrospectionEvents} from '../../../core/src/util/IntrospectionEvents.js';
+import {NAR, IntrospectionEvents} from '@senars/nar';
 import WebSocket from 'ws';
 
 // Skip: WebSocket timing dependencies cause unreliable test results

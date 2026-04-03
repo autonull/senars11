@@ -1,4 +1,4 @@
-import {NAR} from '@senars/core';
+import {NAR} from '@senars/nar';
 import {Server} from './Server.js';
 
 async function main() {

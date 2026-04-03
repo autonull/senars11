@@ -1,5 +1,5 @@
-import {TermFactory, Term} from '../../../core/src/term/TermFactory.js';
-import * as TermUtils from '../../../core/src/term/TermUtils.js';
+import {TermFactory, Term} from '@senars/nar';
+import * as TermUtils from '@senars/nar/src/term/TermUtils.js';
 
 describe('TermFactory', () => {
     let factory;

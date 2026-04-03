@@ -6,13 +6,7 @@
  */
 
 import {beforeEach, describe, expect, it} from '@jest/globals';
-import {TermFactory} from '../../core/src/term/TermFactory.js';
-import {Unifier} from '../../core/src/term/Unifier.js';
-import {ResolutionStrategy} from '../../core/src/reason/strategy/ResolutionStrategy.js';
-import {GoalDrivenStrategy} from '../../core/src/reason/strategy/GoalDrivenStrategy.js';
-import {AnalogicalStrategy} from '../../core/src/reason/strategy/AnalogicalStrategy.js';
-import {Task} from '../../core/src/task/Task.js';
-import {Truth} from '../../core/src/Truth.js';
+import {TermFactory, Unifier, ResolutionStrategy, GoalDrivenStrategy, AnalogicalStrategy, Task, Truth} from '@senars/nar';
 
 describe('Phase 2: Variables & Goals', () => {
     let tf;

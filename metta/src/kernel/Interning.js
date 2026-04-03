@@ -6,7 +6,7 @@
  * (since cache has limited size, we can't assume all terms are interned)
  */
 
-import { TermFactory } from '../../../core/src/term/TermFactory.js';
+import { TermFactory } from '@senars/nar/src/term/TermFactory.js';
 import { configManager } from '../config/config.js';
 import { SymbolAtom } from './AtomTypes.js';
 

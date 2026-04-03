@@ -1,10 +1,7 @@
 import { describe, expect, test, beforeEach } from '@jest/globals';
-import { TermFactory } from '../../core/src/term/TermFactory.js';
-import { Truth } from '../../core/src/Truth.js';
-import { Task } from '../../core/src/task/Task.js';
-import { SimpleRuleExecutor } from '../../core/src/reason/exec/SimpleRuleExecutor.js';
-import { InductionRule, AbductionRule } from '../../core/src/reason/rules/nal/InductionAbductionRule.js';
-import { InheritanceSyllogisticRule } from '../../core/src/reason/rules/nal/SyllogisticRule.js';
+import {TermFactory, Truth, Task, SimpleRuleExecutor} from '@senars/nar';
+import {InductionRule, AbductionRule} from '@senars/nar';
+import {InheritanceSyllogisticRule} from '@senars/nar';
 
 describe('Phase 1.2: Stream Reasoning Verification', () => {
     let termFactory;

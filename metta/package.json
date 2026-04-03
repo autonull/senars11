@@ -7,6 +7,8 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@napi-rs/canvas": "^0.1.97",
     "@senars/core": "workspace:*",
+    "@senars/nar": "workspace:*",
+    "@senars/nar": "workspace:*",
     "canvas": "^2.11.2",
     "gifencoder": "^2.0.1"
   }

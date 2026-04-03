@@ -1,5 +1,4 @@
-import {TermLayer} from '../../../core/src/memory/TermLayer.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
+import {TermLayer, TermFactory} from '@senars/nar';
 
 describe('TermLayer', () => {
     let layer, tf;

@@ -1,6 +1,5 @@
 import {afterAll, beforeAll, describe, test} from '@jest/globals';
-import {Punctuation, Task} from '../../../../core/src/task/Task.js';
-import {TermFactory} from '../../../../core/src/term/TermFactory.js';
+import {Punctuation, Task, TermFactory} from '@senars/nar';
 import {createLMNALTestAgent} from '../../../support/lmTestHelpers.js';
 import {assertEventuallyTrue, getTerms, hasTermMatch} from '../../../support/testHelpers.js';
 

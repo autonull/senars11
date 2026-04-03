@@ -1,7 +1,8 @@
 import { readFile } from 'fs/promises';
 import { resolve, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { FormattingUtils, Input, NAR, Logger, resolveWithFallback, fallbackAgentDir } from '@senars/core';
+import { Input, NAR } from '@senars/nar';
+import { FormattingUtils, Logger, resolveWithFallback, fallbackAgentDir } from '@senars/core';
 import { PersistenceManager } from './io/PersistenceManager.js';
 import { EmbodimentBus } from './io/EmbodimentBus.js';
 import { VirtualEmbodiment } from './io/VirtualEmbodiment.js';

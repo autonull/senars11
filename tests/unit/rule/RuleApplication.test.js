@@ -1,8 +1,4 @@
-import {ImplicationSyllogisticRule} from '../../../core/src/reason/rules/nal/SyllogisticRule.js';
-import {ModusPonensRule} from '../../../core/src/reason/rules/nal/ModusPonensRule.js';
-import {Task} from '../../../core/src/task/Task.js';
-import {Truth} from '../../../core/src/Truth.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
+import {ImplicationSyllogisticRule, ModusPonensRule, Task, Truth, TermFactory} from '@senars/nar';
 
 describe('Rule Application', () => {
     let tf, tA, tB, tC;

@@ -1,6 +1,6 @@
 import {AgentBuilder} from '../../../agent/src/AgentBuilder.js';
 import {Agent} from '../../../agent/src/Agent.js';
-import {NAR} from '../../../core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 
 describe('AgentBuilder', () => {
     const agents = [];

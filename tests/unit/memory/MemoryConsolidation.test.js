@@ -1,8 +1,4 @@
-import {MemoryConsolidation} from '../../../core/src/memory/MemoryConsolidation.js';
-import {Memory} from '../../../core/src/memory/Memory.js';
-import {Concept} from '../../../core/src/memory/Concept.js';
-import {Task} from '../../../core/src/task/Task.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
+import {MemoryConsolidation, Memory, Concept, Task, TermFactory} from '@senars/nar';
 
 describe('MemoryConsolidation', () => {
     let consolidation, memory, tf;

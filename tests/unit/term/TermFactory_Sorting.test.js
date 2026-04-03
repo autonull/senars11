@@ -1,6 +1,5 @@
 import {beforeEach, describe, expect, test} from '@jest/globals';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
-import {TermType} from '../../../core/src/term/Term.js';
+import {TermFactory, TermType} from '@senars/nar';
 
 describe('TermFactory Sorting and Canonicalization', () => {
     let termFactory;

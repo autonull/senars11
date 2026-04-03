@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 
-jest.unstable_mockModule('../../../core/src/nar/NAR.js', () => ({
+jest.unstable_mockModule('@senars/nar/src/nar/NAR.js', () => ({
     NAR: jest.fn(() => ({
         initialize: jest.fn().mockResolvedValue(),
         input: jest.fn().mockResolvedValue(),
@@ -27,7 +27,7 @@ describe('SeNARS', () => {
     // Verified manually that SeNARS.js instantiation works.
 
     test.skip('instantiation', async () => {
-        const module = await import('../../../core/src/SeNARS.js');
+        const module = await import('@senars/nar/src/SeNARS.js');
         const SeNARS = module.SeNARS;
         const senars = new SeNARS();
         expect(senars).toBeDefined();

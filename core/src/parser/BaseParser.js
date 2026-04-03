@@ -1,4 +1,4 @@
-import { TermFactory } from '../term/TermFactory.js';
+import { TermFactory } from '@senars/nar';
 
 /**
  * BaseParser - Abstract base class for all parsers

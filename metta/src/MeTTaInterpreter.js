@@ -5,7 +5,7 @@
  */
 
 // Standard library imports
-import { TermFactory } from '../../core/src/term/TermFactory.js';
+import {TermFactory} from '@senars/nar';
 import {Logger} from '../../core/src/util/Logger.js';
 
 // Module Loader

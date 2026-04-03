@@ -1,4 +1,4 @@
-import { IntrospectionEvents } from '@senars/core';
+import { IntrospectionEvents } from '@senars/nar';
 
 export class ReasoningManager {
     constructor(app) {

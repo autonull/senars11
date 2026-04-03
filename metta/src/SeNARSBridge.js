@@ -1,8 +1,7 @@
 import {BaseMeTTaComponent} from './helpers/BaseMeTTaComponent.js';
 import {MeTTaRuleAdapter} from './helpers/MeTTaRuleAdapter.js';
 import {Term} from './kernel/Term.js';
-import {Task} from '../../core/src/task/Task.js';
-import {Truth} from '../../core/src/Truth.js';
+import {Task, Truth} from '@senars/nar';
 
 export class SeNARSBridge extends BaseMeTTaComponent {
     constructor(reasoner, mettaInterpreter, config = {}, eventBus = null) {

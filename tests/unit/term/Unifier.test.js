@@ -6,8 +6,7 @@
  */
 
 import {beforeEach, describe, expect, it} from '@jest/globals';
-import {Unifier} from '../../../core/src/term/Unifier.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
+import {Unifier, TermFactory} from '@senars/nar';
 
 describe('Unifier', () => {
     let unifier;

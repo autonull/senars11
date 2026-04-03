@@ -1,8 +1,5 @@
-import {LMRule} from '../../../core/src/reason/LMRule.js';
-import {Punctuation, Task} from '../../../core/src/task/Task.js';
-import {Truth} from '../../../core/src/Truth.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
-import {createGoalDecompositionRule, createHypothesisGenerationRule} from '../../../core/src/reason/rules/lm/index.js';
+import {LMRule, Punctuation, Task, Truth, TermFactory} from '@senars/nar';
+import {createGoalDecompositionRule, createHypothesisGenerationRule} from '@senars/nar';
 import {jest} from '@jest/globals';
 
 class MockLM {

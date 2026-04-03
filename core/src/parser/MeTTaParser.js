@@ -7,8 +7,7 @@
 
 import { BaseParser } from './BaseParser.js';
 import { MeTTaTokenizer, TokenType } from './MeTTaTokenizer.js';
-import { Task } from '../task/Task.js';
-import { Truth } from '../Truth.js';
+import {Task, Truth} from '@senars/nar';
 import { DEFAULT_MAPPINGS } from './MeTTaMappings.js';
 
 /**

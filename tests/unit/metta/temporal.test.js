@@ -1,6 +1,6 @@
 
 import { MeTTaInterpreter } from '../../../metta/src/MeTTaInterpreter.js';
-import { Truth } from '../../../core/src/Truth.js';
+import {Truth} from '@senars/nar';
 
 describe('MeTTa Temporal Logic (NAL-7)', () => {
     let metta;

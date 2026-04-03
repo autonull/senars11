@@ -1,7 +1,5 @@
 import { describe, expect, test, beforeEach } from '@jest/globals';
-import { TermFactory } from '../../core/src/term/TermFactory.js';
-import { Truth } from '../../core/src/Truth.js';
-import { Stamp, ArrayStamp, BloomStamp } from '../../core/src/Stamp.js';
+import {TermFactory, Truth, Stamp, ArrayStamp, BloomStamp} from '@senars/nar';
 
 describe('Phase 1: Immutable Core Verification', () => {
     let termFactory;

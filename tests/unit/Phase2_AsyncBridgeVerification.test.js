@@ -1,8 +1,5 @@
 import { describe, expect, test, beforeEach, jest } from '@jest/globals';
-import { LMRule } from '../../core/src/reason/LMRule.js';
-import { Task } from '../../core/src/task/Task.js';
-import { Truth } from '../../core/src/Truth.js';
-import { TermFactory } from '../../core/src/term/TermFactory.js';
+import {LMRule, Task, Truth, TermFactory} from '@senars/nar';
 
 describe('Phase 2.1: Async Neural-Symbolic Bridge Verification', () => {
     let termFactory;

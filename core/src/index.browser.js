@@ -1,4 +1,4 @@
-import { NAR } from './nar/NAR.js';
+import { NAR } from '@senars/nar';
 import { setPlatform } from './platform/index.js';
 import { PlatformBrowser } from './platform/PlatformBrowser.js';
 import {

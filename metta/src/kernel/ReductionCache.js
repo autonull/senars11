@@ -3,7 +3,7 @@
  * Q5: Reuse SeNARS TermCache for reduction memoization
  */
 
-import { TermCache } from '../../../core/src/term/TermCache.js';
+import { TermCache } from '@senars/nar/src/term/TermCache.js';
 import { configManager } from '../config/config.js';
 
 export class ReductionCache {

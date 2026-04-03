@@ -1,8 +1,6 @@
 import { describe, expect, test, beforeEach, jest } from '@jest/globals';
-import { SeNARSBridge } from '../../metta/src/SeNARSBridge.js';
-import { Task } from '../../core/src/task/Task.js';
-import { TermFactory } from '../../core/src/term/TermFactory.js';
-import { Truth } from '../../core/src/Truth.js';
+import {SeNARSBridge} from '../../metta/src/SeNARSBridge.js';
+import {Task, TermFactory, Truth} from '@senars/nar';
 
 describe('Phase 3.1: MeTTa Bridge Verification', () => {
     let termFactory;

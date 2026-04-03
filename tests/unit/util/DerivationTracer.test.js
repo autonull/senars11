@@ -1,7 +1,7 @@
 import {beforeEach, describe, expect, test} from '@jest/globals';
-import {DerivationTracer} from '../../../core/src/util/DerivationTracer.js';
-import {EventBus} from '../../../core/src/util/EventBus.js';
-import {IntrospectionEvents} from '../../../core/src/util/IntrospectionEvents.js';
+import {DerivationTracer} from '@senars/nar/src/util/DerivationTracer.js';
+import {EventBus} from '@senars/core/src/util/EventBus.js';
+import {IntrospectionEvents} from '@senars/core/src/util/IntrospectionEvents.js';
 
 describe('DerivationTracer', () => {
     let eventBus;

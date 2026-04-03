@@ -3,9 +3,7 @@
  * following OpenNARS approach to ensure tests terminate reliably.
  */
 
-import {NAR} from '../nar/NAR.js';
-import {Task} from '../task/Task.js';
-import {Truth} from '../Truth.js';
+import {NAR, Task, Truth} from '@senars/nar';
 
 /**
  * Runs a SeNARS test with a maximum cycle limit to ensure termination

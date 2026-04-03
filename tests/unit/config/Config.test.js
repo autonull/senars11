@@ -1,6 +1,6 @@
 import {beforeEach, describe, expect, jest, test} from '@jest/globals';
-import {Component, Config, DEFAULT_CONFIG_CORE} from '../../../core/src/config/Config.js';
-import {validateConfig, validateConfigWithDefaults} from '../../../core/src/config/ConfigSchemas.js';
+import {Component, Config, DEFAULT_CONFIG_CORE} from '@senars/core/src/config/Config.js';
+import {validateConfig, validateConfigWithDefaults} from '@senars/core/src/config/ConfigSchemas.js';
 
 jest.unstable_mockModule('fs', () => ({
     default: {
@@ -18,9 +18,9 @@ jest.unstable_mockModule('fs', () => ({
 let ConfigManager, DEFAULT_CONFIG;
 
 beforeAll(async () => {
-    const cm = await import('../../../core/src/config/ConfigManager.js');
+    const cm = await import('@senars/core/src/config/ConfigManager.js');
     ConfigManager = cm.ConfigManager;
-    const sc = await import('../../../core/src/config/SystemConfig.js');
+    const sc = await import('@senars/nar/src/config/SystemConfig.js');
     DEFAULT_CONFIG = sc.DEFAULT_CONFIG;
 });
 

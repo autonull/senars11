@@ -5,7 +5,7 @@
 import { Component } from '../composable/Component.js';
 import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
 import { mergeConfig } from '../utils/ConfigHelper.js';
-import { Reasoner as CoreReasoner, NAR, TermFactory } from '@senars/core';
+import { Reasoner as CoreReasoner, NAR, TermFactory } from '@senars/nar';
 
 const ATTENTION_DEFAULTS = {
     neuralDim: 64,

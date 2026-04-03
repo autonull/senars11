@@ -1,5 +1,4 @@
-import {EvaluationEngine} from '../../../core/src/reason/EvaluationEngine.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
+import {EvaluationEngine, TermFactory} from '@senars/nar';
 
 describe('EvaluationEngine', () => {
     let engine;

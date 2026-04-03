@@ -1,7 +1,4 @@
-import {Task} from '../task/Task.js';
-import {TermFactory} from '../term/TermFactory.js';
-import {NarseseParser} from '../parser/NarseseParser.js';
-import {TermSerializer} from '../term/TermSerializer.js';
+import {Task, TermFactory, TermSerializer, NarseseParser} from '@senars/nar';
 
 export class Serializer {
     static VERSION = '1.0.0';

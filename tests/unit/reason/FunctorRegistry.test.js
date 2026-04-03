@@ -1,4 +1,4 @@
-import {FunctorRegistry} from '../../../core/src/reason/FunctorRegistry.js';
+import {FunctorRegistry} from '@senars/nar';
 
 describe('FunctorRegistry', () => {
     let registry;

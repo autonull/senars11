@@ -1,10 +1,4 @@
-import {
-    ImplicationSyllogisticRule as SyllogisticRule
-} from '../../../../../core/src/reason/rules/nal/SyllogisticRule.js';
-import {Task} from '../../../../../core/src/task/Task.js';
-import {Truth} from '../../../../../core/src/Truth.js';
-import {ArrayStamp} from '../../../../../core/src/Stamp.js';
-import {TermFactory} from '../../../../../core/src/term/TermFactory.js';
+import {SyllogisticRule, ImplicationSyllogisticRule, Task, Truth, ArrayStamp, TermFactory} from '@senars/nar';
 
 describe('SyllogisticRule', () => {
     let termFactory;

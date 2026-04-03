@@ -1,6 +1,4 @@
-import {NarseseParser} from '../../../core/src/parser/NarseseParser.js';
-import {Term} from '../../../core/src/term/Term.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
+import {NarseseParser, Term, TermFactory} from '@senars/nar';
 
 describe('NarseseParser', () => {
     let parser, termFactory;

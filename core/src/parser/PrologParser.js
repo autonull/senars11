@@ -3,9 +3,7 @@
  */
 
 import { BaseParser } from './BaseParser.js';
-import { Task } from '../task/Task.js';
-import { Truth } from '../Truth.js';
-import { TermFactory } from '../term/TermFactory.js'; // Ensure TermFactory is imported if needed by helper functions not in class - wait, helper was using this.termFactory
+import { Task, Truth, TermFactory } from '@senars/nar';
 
 export class PrologParser extends BaseParser {
     /**

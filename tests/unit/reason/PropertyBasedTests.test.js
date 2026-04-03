@@ -1,6 +1,4 @@
-import {TaskBagPremiseSource} from '../../../core/src/reason/TaskBagPremiseSource.js';
-import {Strategy} from '../../../core/src/reason/Strategy.js';
-import {randomWeightedSelect} from '../../../core/src/reason/utils/randomWeightedSelect.js';
+import {TaskBagPremiseSource, Strategy, randomWeightedSelect} from '@senars/nar';
 import {createTestMemory, createTestTask} from '../../support/baseTestUtils.js';
 
 // Helper function to generate random tasks

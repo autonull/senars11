@@ -1,7 +1,4 @@
-import {Task} from '../../../core/src/task/Task.js';
-import {Stamp} from '../../../core/src/Stamp.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
-import {Truth} from '../../../core/src/Truth.js';
+import {Task, Stamp, TermFactory, Truth} from '@senars/nar';
 import {createTask, createTruth, TEST_CONSTANTS} from '../../support/factories.js';
 import {taskAssertions, testImmutability} from '../../support/testOrganizer.js';
 

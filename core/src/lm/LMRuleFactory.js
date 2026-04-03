@@ -1,4 +1,4 @@
-import {LMRule} from '../reason/LMRule.js';
+import {LMRule} from '@senars/nar';
 
 export class LMRuleFactory {
     static create(config) {

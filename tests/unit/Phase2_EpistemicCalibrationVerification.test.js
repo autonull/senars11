@@ -1,10 +1,6 @@
 import { describe, expect, test, beforeEach, jest } from '@jest/globals';
-import { LMStats } from '../../core/src/lm/LMStats.js';
-import { LMNarseseTranslationRule } from '../../core/src/reason/rules/lm/LMNarseseTranslationRule.js';
-import { createAnalogicalReasoningRule } from '../../core/src/reason/rules/lm/LMAnalogicalReasoningRule.js';
-import { TermFactory } from '../../core/src/term/TermFactory.js';
-import { Task } from '../../core/src/task/Task.js';
-import { Truth } from '../../core/src/Truth.js';
+import {LMStats} from '@senars/core/src/lm/LMStats.js';
+import {LMNarseseTranslationRule, createAnalogicalReasoningRule, TermFactory, Task, Truth} from '@senars/nar';
 
 describe('Phase 2.2: Epistemic Calibration Verification', () => {
     let lmStats;

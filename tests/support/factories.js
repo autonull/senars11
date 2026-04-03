@@ -1,10 +1,4 @@
-import {ArrayStamp} from '../../core/src/Stamp.js';
-import {TermFactory} from '../../core/src/term/TermFactory.js';
-import {Task} from '../../core/src/task/Task.js';
-import {Truth} from '../../core/src/Truth.js';
-import {TaskManager} from '../../core/src/task/TaskManager.js';
-import {Memory} from '../../core/src/memory/Memory.js';
-import {Focus} from '../../core/src/memory/Focus.js';
+import {ArrayStamp, TermFactory, Task, Truth, TaskManager, Memory, Focus} from '@senars/nar';
 
 const termFactory = new TermFactory();
 

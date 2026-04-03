@@ -1,6 +1,5 @@
-import {NAR} from '../../../core/src/nar/NAR.js';
-import {FormattingUtils} from '../../../core/src/util/FormattingUtils.js';
-import {IntrospectionEvents} from '../../../core/src/util/IntrospectionEvents.js';
+import {NAR, IntrospectionEvents} from '@senars/nar';
+import {FormattingUtils} from '@senars/core/src/util/FormattingUtils.js';
 
 describe('TUIRepl NAR Reasoning with Duplicate Suppression', () => {
     let nar;

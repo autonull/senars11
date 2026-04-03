@@ -11,7 +11,7 @@ import { getTypeTag, TYPE_SYMBOL, TYPE_VARIABLE, TYPE_EXPRESSION, isSymbol as fa
 import { configManager } from '../config/config.js';
 
 // External imports
-import * as UnifyCore from '../../../core/src/term/UnifyCore.js';
+import * as UnifyCore from '@senars/nar/src/term/UnifyCore.js';
 
 // Lazy SMT bridge initialization
 let _smtBridge = null;
