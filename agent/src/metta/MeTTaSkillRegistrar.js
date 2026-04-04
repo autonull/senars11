@@ -2,6 +2,7 @@ import { Logger, resolveWithFallback, fallbackAgentDir, generateId } from '@sena
 import { readFile, appendFile, readdir } from 'fs/promises';
 import { resolve, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
 
 const __agentDir = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackAgentDir);
 
@@ -255,10 +256,10 @@ export class MeTTaSkillRegistrar {
 
     #registerSelfModifyingSkills() {
         this.dispatcher.register('add-skill', async skillDef => {
-            const skillsPath = resolve(__agentDir, 'metta/skills.metta');
+            const skillsPath = this.#resolveMettaFile('skills.metta');
             const def = String(skillDef);
             await appendFile(skillsPath, `\n${def}`);
-            this.dispatcher.loadSkillsFromFile(resolve(__agentDir, 'metta/skills.metta'));
+            this.dispatcher.loadSkillsFromFile(this.#resolveMettaFile('skills.metta'));
             return `(skill-added "${def.slice(0, 80)}")`;
         }, 'selfModifyingSkills', ':meta');
     }
@@ -289,5 +290,11 @@ export class MeTTaSkillRegistrar {
                 return `(eval-result :model "${model}" :scores ${JSON.stringify(results.scores).replace(/"/g, "'")})`;
             }, 'modelExploration', ':meta');
         }
+    }
+
+    #resolveMettaFile(filename) {
+        const direct = resolve(__agentDir, filename);
+        const inMetta = resolve(__agentDir, 'metta', filename);
+        return existsSync(direct) ? direct : inMetta;
     }
 }

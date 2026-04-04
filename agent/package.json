@@ -25,6 +25,7 @@
     "@senars/core": "workspace:*",
     "@senars/nar": "workspace:*",
     "ai": "^5.0.163",
+    "dotenv": "^16.4.7",
     "hnswlib-node": "^3.0.0",
     "ink": "^6.8.0",
     "ink-big-text": "^2.0.0",

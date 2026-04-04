@@ -6,6 +6,7 @@ import { isEnabled } from '../config/capabilities.js';
 import { MeTTaOpRegistrar } from './MeTTaOpRegistrar.js';
 import { MeTTaSkillRegistrar } from './MeTTaSkillRegistrar.js';
 import { AgentMessageQueue } from './AgentMessageQueue.js';
+import { existsSync } from 'fs';
 
 const __agentDir = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackAgentDir);
 
@@ -38,7 +39,8 @@ export class MeTTaLoopBuilder {
         const interp = new MeTTaInterpreter();
         const Term = interp.ground.constructor.prototype.constructor;
         this._dispatcher = new SkillDispatcher(this.agentCfg);
-        this._dispatcher.loadSkillsFromFile(resolve(__agentDir, 'metta/skills.metta'));
+        const skillsFile = this.#resolveMettaFile('skills.metta');
+        this._dispatcher.loadSkillsFromFile(skillsFile);
         const loopState = this.#createLoopState();
         const budget = { current: this.#budget };
 
@@ -54,8 +56,8 @@ export class MeTTaLoopBuilder {
         const skillRegistrar = new MeTTaSkillRegistrar(this.agent, this.agentCfg, this._dispatcher, loopState, this.#cap);
         await skillRegistrar.registerAll();
 
-        const skillsCode = await readFile(resolve(__agentDir, 'metta/skills.metta'), 'utf8');
-        const loopCode = await readFile(resolve(__agentDir, 'metta/AgentLoop.metta'), 'utf8');
+        const skillsCode = await readFile(this.#resolveMettaFile('skills.metta'), 'utf8');
+        const loopCode = await readFile(this.#resolveMettaFile('AgentLoop.metta'), 'utf8');
         interp.run(skillsCode);
         interp.run(loopCode);
 
@@ -217,5 +219,11 @@ export class MeTTaLoopBuilder {
             Logger.error('[MeTTa execute-commands]', err.message);
             return [];
         }
+    }
+
+    #resolveMettaFile(filename) {
+        const direct = resolve(__agentDir, filename);
+        const inMetta = resolve(__agentDir, 'metta', filename);
+        return existsSync(direct) ? direct : inMetta;
     }
 }

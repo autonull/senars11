@@ -90,6 +90,8 @@ export class Agent extends BaseComponent {
     get modelBenchmark() { return this._modelBenchmark; }
 
     emit(event, ...args) { this.nar._eventBus?.emit(event, ...args); }
+    on(event, handler) { this.nar._eventBus?.on(event, handler); }
+    off(event, handler) { this.nar._eventBus?.off(event, handler); }
 
     async input(input, options = {}) { return this.nar.input(input, options); }
     getBeliefs() { return this.nar?.getBeliefs?.() ?? []; }

@@ -8,7 +8,8 @@
       "node": "./src/index.node.js",
       "default": "./src/index.js"
     },
-    "./src/*": "./src/*.js"
+    "./src/*": "./src/*.js",
+    "./src/*.js": "./src/*.js"
   },
   "files": [
     "src"

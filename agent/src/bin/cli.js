@@ -29,7 +29,7 @@ program
         // 1. Prefer Flags
         // 2. Fallback to Positional Args
         // 3. Fallback to Defaults
-        let provider = options.provider || providerArg || 'openai';
+        let provider = options.provider || providerArg || 'dummy';
         let model = options.model || modelArg;
 
         // Propagate back to config

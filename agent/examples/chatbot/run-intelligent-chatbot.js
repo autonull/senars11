@@ -243,20 +243,23 @@ class IntelligentChatBot {
         // Handle ALL messages (channel and PM) through single handler
         // The isPrivate flag in metadata tells us which it is
         ircChannel.on('message', async (msg) => {
-            // Ignore server messages immediately (no from, or special names)
-            if (!msg.from || msg.from === 'Server' || msg.from === 'AUTH' || msg.from === '*' || msg.from === '') {
+            // Ignore server/system messages immediately
+            if (!msg.from || msg.from === 'Server' || msg.from === 'AUTH' || msg.from === '*' || msg.from === '' || msg.from === 'unknown') {
                 return;
             }
-            
+
+            // Ignore notices (server operational messages like hostname lookups)
+            if (msg.metadata?.type === 'notice') return;
+
             const isPrivate = msg.metadata?.isPrivate || false;
             const channel = msg.metadata?.channel || this.config.channel;
-            
+
             if (isPrivate) {
                 Logger.info(`[IRC PM] From ${msg.from}: ${msg.content}`);
             } else {
                 Logger.debug(`[IRC Channel ${channel}] ${msg.from}: ${msg.content}`);
             }
-            
+
             await this._handleMessage(msg, isPrivate);
         });
 
@@ -310,29 +313,29 @@ class IntelligentChatBot {
 
         // Register additional primitives for chatbot operations
         const ground = this.agent.metta.ground;
-        
+
         // Get conversation history
-        ground.add('get-history', (channelAtom, userAtom) => {
+        ground.register('get-history', (channelAtom, userAtom) => {
             const channel = channelAtom.toString().replace(/"/g, '');
             const user = userAtom?.toString().replace(/"/g, '') || null;
-            
+
             const contextKey = user ? `${channel}:${user}` : channel;
             const context = this.messageProcessor.contexts.get(contextKey);
-            
+
             if (context) {
-                const history = context.messages.map(m => 
+                const history = context.messages.map(m =>
                     `${m.from}: ${m.content}`
-                ).join('\\n');
+                ).join('\n');
                 return this.agent.metta.grounded(history);
             }
             return this.agent.metta.sym('Empty');
         });
 
         // Clear conversation context
-        ground.add('clear-context', (channelAtom, userAtom) => {
+        ground.register('clear-context', (channelAtom, userAtom) => {
             const channel = channelAtom.toString().replace(/"/g, '');
             const user = userAtom?.toString().replace(/"/g, '') || null;
-            
+
             if (user) {
                 this.messageProcessor.clearContext(`${channel}:${user}`);
             } else {
@@ -347,7 +350,7 @@ class IntelligentChatBot {
         });
 
         // Get bot stats
-        ground.add('get-stats', () => {
+        ground.register('get-stats', () => {
             const stats = this.messageProcessor.getStats();
             const rateStats = this.agent.channelManager?.getRateLimitStats?.() || {};
             return this.agent.metta.grounded(JSON.stringify({
@@ -360,12 +363,10 @@ class IntelligentChatBot {
     async _handleMessage(msg, isPrivate = false) {
         try {
             // Ignore messages from the bot itself to prevent feedback loops
-            if (msg.from === this.config.nick) {
-                return;
-            }
+            if (msg.from === this.config.nick) return;
 
-            // Ignore server messages
-            if (!msg.from || msg.from === 'Server' || msg.from === 'AUTH' || msg.from === '*') {
+            // Ignore server/system messages
+            if (!msg.from || msg.from === 'Server' || msg.from === 'AUTH' || msg.from === '*' || msg.from === 'unknown') {
                 return;
             }
 
@@ -376,30 +377,37 @@ class IntelligentChatBot {
             // Process message through intelligent processor
             const result = await this.messageProcessor.processMessage(msg);
 
-            if (result.shouldRespond && result.response) {
-                // Response target: PM goes to user, channel message stays in channel
-                const target = isPrivate ? msg.from : channel;
-                
-                Logger.info(`[Response] Sending to ${target} (${isPrivate ? 'PM' : 'Channel'})`);
+            if (!result.shouldRespond || !result.response) return;
 
-                // Split long responses for IRC (max ~350 chars per line)
-                const maxLineLength = 350;
-                const responseLines = this._splitIntoLines(result.response, maxLineLength);
-
-                // Rate-limit delay between messages
-                const delay = 2500;
-                await new Promise(resolve => setTimeout(resolve, delay));
-
-                // Send each line separately
-                for (let i = 0; i < responseLines.length; i++) {
-                    await this._sendWithRateLimit(target, responseLines[i]);
-                    if (i < responseLines.length - 1) {
-                        await new Promise(resolve => setTimeout(resolve, 800));
-                    }
-                }
-
-                Logger.info(`[Sent] ${responseLines.length} line(s) to ${target}`);
+            // Don't respond if IRC isn't connected yet
+            const ircChannel = this.agent.channelManager?.get('irc');
+            if (ircChannel?.status !== 'connected') {
+                Logger.debug(`[Response] Skipped - IRC not connected (status: ${ircChannel?.status ?? 'unknown'})`);
+                return;
             }
+
+            // Response target: PM goes to user, channel message stays in channel
+            const target = isPrivate ? msg.from : channel;
+
+            Logger.info(`[Response] Sending to ${target} (${isPrivate ? 'PM' : 'Channel'})`);
+
+            // Split long responses for IRC (max ~350 chars per line)
+            const maxLineLength = 350;
+            const responseLines = this._splitIntoLines(result.response, maxLineLength);
+
+            // Rate-limit delay between messages
+            const delay = 2500;
+            await new Promise(resolve => setTimeout(resolve, delay));
+
+            // Send each line separately
+            for (let i = 0; i < responseLines.length; i++) {
+                await this._sendWithRateLimit(target, responseLines[i]);
+                if (i < responseLines.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                }
+            }
+
+            Logger.info(`[Sent] ${responseLines.length} line(s) to ${target}`);
         } catch (error) {
             Logger.error('Error handling message:', error);
         }

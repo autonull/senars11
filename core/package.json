@@ -5,7 +5,8 @@
   "main": "src/index.js",
   "exports": {
     ".": "./src/index.js",
-    "./src/*": "./src/*.js"
+    "./src/*": "./src/*.js",
+    "./src/*.js": "./src/*.js"
   },
   "files": [
     "src"
@@ -13,6 +14,7 @@
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
     "@langchain/core": "^1.1.38",
+    "@langchain/langgraph": "^1.2.6",
     "@langchain/ollama": "^1.2.6",
     "@langchain/openai": "^1.4.1",
     "@mlc-ai/web-llm": "^0.2.82",
