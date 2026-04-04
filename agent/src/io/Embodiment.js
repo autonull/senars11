@@ -19,7 +19,7 @@ export class Embodiment extends EventEmitter {
     constructor(config = {}) {
         super();
         this.config = config;
-        this.id = config.id || `embodiment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        this.id = config.id || `embodiment_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
         this.type = 'generic';
         this.status = 'disconnected';
         
@@ -149,7 +149,7 @@ export class Embodiment extends EventEmitter {
      */
     emitMessage(message) {
         const normalizedMessage = {
-            id: message.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            id: message.id || `msg_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
             embodimentId: this.id,
             protocol: this.type,
             from: message.from || 'unknown',

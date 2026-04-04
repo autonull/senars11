@@ -173,8 +173,9 @@ export class MeTTaLoopBuilder {
                 loopState.lastsend = result.text ?? '';
                 return result.text ?? '';
             } catch (err) {
-                Logger.error('[MeTTa llm-invoke]', err);
-                return '';
+                Logger.error('[MeTTa llm-invoke]', err.message);
+                loopState.error = `llm-error: ${err.message}`;
+                return `(llm-error "${err.message.slice(0, 200)}")`;
             }
         };
 
@@ -371,8 +372,9 @@ export class MeTTaLoopBuilder {
             loopState.lastsend = result.text ?? '';
             return result.text ?? '';
         } catch (err) {
-            Logger.error('[MeTTa invokeLLM]', err);
-            return '';
+            Logger.error('[MeTTa invokeLLM]', err.message);
+            loopState.error = `llm-error: ${err.message}`;
+            return `(llm-error "${err.message.slice(0, 200)}")`;
         }
     }
 
@@ -533,6 +535,82 @@ export class MeTTaLoopBuilder {
                 const count = await agent._semanticMemory.forget(String(queryText));
                 return `(forgot :count ${count})`;
             }, 'semanticMemory', ':memory');
+        }
+
+        if (cap('goalPursuit')) {
+            dispatcher.register('nar-goal-add', async (content, priority) => {
+                const term = String(content);
+                const pri = parseFloat(priority) || 0.5;
+                agent.nar._taskManager.createGoal(term, null, { priority: pri });
+                return `(goal-added "${term.slice(0, 100)}")`;
+            }, 'goalPursuit', ':meta');
+
+            dispatcher.register('nar-goal-complete', async goalId => {
+                const goals = agent.nar._taskManager.findTasksByType('GOAL');
+                const goal = goals.find(g => g.term?.toString?.().includes(String(goalId)));
+                if (goal) { agent.nar._taskManager.removeTask(goal); return `(goal-completed "${goalId}")`; }
+                return `(goal-not-found "${goalId}")`;
+            }, 'goalPursuit', ':meta');
+
+            dispatcher.register('nar-goal-status', async goalId => {
+                const goals = agent.nar._taskManager.findTasksByType('GOAL');
+                const goal = goals.find(g => g.term?.toString?.().includes(String(goalId)));
+                return goal ? `(goal-status :id "${goalId}" :priority ${goal.priority?.toFixed(2) ?? 'unknown'})` : `(goal-not-found "${goalId}")`;
+            }, 'goalPursuit', ':meta');
+
+            dispatcher.register('nar-goals', async filter => {
+                const goals = agent.nar._taskManager.findTasksByType('GOAL');
+                const count = goals.length;
+                const list = goals.slice(0, 10).map(g => `"${g.term?.toString?.().slice(0, 80) ?? 'unknown'}"`).join(' ');
+                return `(goals :count ${count} :items ${list || '()'})`;
+            }, 'goalPursuit', ':meta');
+        }
+
+        if (cap('coordinatorMode')) {
+            dispatcher.register('nar-focus-sets', async () => {
+                const stats = agent.nar._focus?.getStats() ?? {};
+                const sets = Object.keys(stats.focusSets ?? {});
+                return `(focus-sets :count ${sets.length} :names ${JSON.stringify(sets).replace(/"/g, "'")})`;
+            }, 'coordinatorMode', ':meta');
+
+            dispatcher.register('nar-focus-create', async name => {
+                agent.nar._focus?.createFocusSet(String(name), 20);
+                return `(focus-created "${name}")`;
+            }, 'coordinatorMode', ':meta');
+
+            dispatcher.register('nar-focus-switch', async name => {
+                const success = agent.nar._focus?.setFocus(String(name)) ?? false;
+                return success ? `(focus-switched "${name}")` : `(focus-switch-failed "${name}")`;
+            }, 'coordinatorMode', ':meta');
+        }
+
+        if (cap('separateEvaluator')) {
+            dispatcher.register('nar-revision', async (term, evidence) => {
+                const { Truth } = await import('../../../nar/src/Truth.js');
+                const beliefs = agent.nar.memory?.getBeliefsByTerm?.(String(term)) ?? [];
+                if (beliefs.length === 0) return `(revision-error :reason "no-beliefs-for-term" :term "${term}")`;
+                const evTruth = evidence?.value ?? evidence;
+                const revised = Truth.revision(beliefs[0].truth, evTruth);
+                return `(revised :term "${term}" :f ${revised.f.toFixed(3)} :c ${revised.c.toFixed(3)})`;
+            }, 'separateEvaluator', ':meta');
+        }
+
+        if (cap('memoryConsolidation')) {
+            dispatcher.register('consolidate', async () => {
+                const result = agent.nar.memory?.consolidate?.();
+                return result ? `(consolidated :concepts-removed ${result.conceptsRemoved ?? 0} :decayed ${result.conceptsDecayed ?? 0})` : '(consolidation-not-available)';
+            }, 'memoryConsolidation', ':meta');
+        }
+
+        if (cap('selfModifyingSkills')) {
+            dispatcher.register('add-skill', async skillDef => {
+                const { appendFile } = await import('fs/promises');
+                const skillsPath = resolve(__agentDir, 'metta/skills.metta');
+                const def = String(skillDef);
+                await appendFile(skillsPath, `\n${def}`);
+                dispatcher.loadSkillsFromFile(resolve(__agentDir, 'metta/skills.metta'));
+                return `(skill-added "${def.slice(0, 80)}")`;
+            }, 'selfModifyingSkills', ':meta');
         }
 
         if (cap('multiModelRouting')) {

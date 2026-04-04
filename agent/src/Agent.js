@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { Input, NAR } from '@senars/nar';
 import { BaseComponent, FormattingUtils, Logger, resolveWithFallback, fallbackAgentDir } from '@senars/core';
 import { PersistenceManager } from './io/PersistenceManager.js';
+import { ChannelManager } from './io/ChannelManager.js';
 import { EmbodimentBus } from './io/EmbodimentBus.js';
 import { VirtualEmbodiment } from './io/VirtualEmbodiment.js';
 import { AgentCommand, AgentCommandRegistry } from './commands/Commands.js';
@@ -13,6 +14,7 @@ import { AgentStreamer } from './AgentStreamer.js';
 import { AIClient } from './ai/AIClient.js';
 import { ToolAdapter } from './ai/ToolAdapter.js';
 import { isEnabled, validateDeps } from './config/capabilities.js';
+import { validate } from './config/validate.js';
 import { MeTTaLoopBuilder } from './metta/MeTTaLoopBuilder.js';
 import { resolveCommand } from './commands/CommandMappings.js';
 import * as CommandModules from './commands/Commands.js';
@@ -43,6 +45,7 @@ export class Agent extends BaseComponent {
             attentionSalience: config.capabilities?.attentionSalience ?? false,
             ...embodimentConfig
         });
+        this.channelManager = new ChannelManager(config, this.embodimentBus);
         this._virtualEmbodiment = new VirtualEmbodiment({
             autonomousMode: config.capabilities?.autonomousLoop ?? false,
             idleTimeout: config.capabilities?.virtualEmbodimentIdleTimeout ?? 5000
@@ -81,24 +84,8 @@ export class Agent extends BaseComponent {
     get componentManager() { return this.nar.componentManager; }
     get reasoningAboutReasoning() { return this.nar.reasoningAboutReasoning; }
     get ruleEngine() { return this.nar.ruleEngine; }
-    get tools() { return this.nar.tools; }
-    get evaluator() { return this.nar.evaluator; }
-    get metricsMonitor() { return this.nar.metricsMonitor; }
-    get embeddingLayer() { return this.nar.embeddingLayer; }
-    get termLayer() { return this.nar.termLayer; }
-    get streamReasoner() { return this.nar.streamReasoner; }
-    get explanationService() { return this.nar.explanationService; }
-    get componentManager() { return this.nar.componentManager; }
-    get reasoningAboutReasoning() { return this.nar.reasoningAboutReasoning; }
-    get ruleEngine() { return this.nar.ruleEngine; }
 
     emit(event, ...args) { this.nar._eventBus?.emit(event, ...args); }
-
-    async input(input, options = {}) { return this.nar.input(input, options); }
-    getBeliefs() { return this.nar.memory?.getBeliefs() ?? []; }
-    async runCycles(n = 1) { for (let i = 0; i < n; i++) await this.nar.step(); }
-    async start() { return this.nar.start(); }
-    async stop() { return this.nar.stop(); }
 
     async input(input, options = {}) { return this.nar.input(input, options); }
     getBeliefs() { return this.nar.memory?.getBeliefs() ?? []; }
@@ -161,6 +148,15 @@ export class Agent extends BaseComponent {
 
         this.#registerMeTTaExtensions();
         this.agentCfg = await this.#loadAgentConfig();
+        if (this.agentCfg.lm) {
+            this.ai = new AIClient(this.agentCfg.lm);
+        }
+        const validationErrors = validate(this.agentCfg);
+        if (validationErrors.length > 0) {
+            const msg = `[Agent] Configuration errors:\n${validationErrors.map(e => `  - ${e}`).join('\n')}`;
+            Logger.error(msg);
+            throw new Error(msg);
+        }
         try {
             validateDeps(this.agentCfg);
         } catch (err) {

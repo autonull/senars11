@@ -167,8 +167,8 @@ describe('EmbodimentBus', () => {
             const embodiment = new MockEmbodiment({ id: 'emb1', defaultSalience: 0.3 });
             bus.register(embodiment);
             
-            embodiment.emitMessage({ from: 'user', content: 'Public', metadata: { isPrivate: false } });
-            embodiment.emitMessage({ from: 'user', content: 'Private', metadata: { isPrivate: true } });
+            embodiment.emitMessage({ from: 'user', content: 'Public', isPrivate: false });
+            embodiment.emitMessage({ from: 'user', content: 'Private', isPrivate: true });
             
             const messages = bus.peekMessages(2, 'salience');
             
@@ -236,7 +236,7 @@ describe('EmbodimentBus', () => {
             const results = await bus.broadcast('target', 'Broadcast');
             
             expect(results.emb1.success).toBe(true);
-            expect(results.emb2.success).toBe(false);
+            expect(results.emb2).toBeUndefined();
         });
     });
 

@@ -1,4 +1,4 @@
-import { BaseParser } from '@senars/core/src/parser/BaseParser.js';
+import { BaseParser } from './BaseParser.js';
 import { parse } from './peggy-parser.js';
 
 export class NarseseParser extends BaseParser {

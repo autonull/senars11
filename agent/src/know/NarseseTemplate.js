@@ -1,3 +1,5 @@
+import {Logger} from '@senars/core';
+
 export class TruthValueUtils {
     static normalizeMetric(value, min, max) {
         if (value < min) return 0;
@@ -140,7 +142,7 @@ export class TemplateBasedKnowledge {
         try {
             return this.templateAPI.executeTemplate(templateName, data, options);
         } catch (error) {
-            console.error(`Template error: ${error.message}`);
+            Logger.error(`Template error: ${error.message}`);
             return null;
         }
     }

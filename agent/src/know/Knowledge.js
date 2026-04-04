@@ -1,4 +1,5 @@
 import {defaultNarseseTemplate, TruthValueUtils} from './NarseseTemplate.js';
+import {Logger} from '@senars/core';
 
 export class Knowledge {
     constructor(data = null, options = {}) {
@@ -63,7 +64,7 @@ export class Knowledge {
         try {
             return this.templateAPI.executeTemplate(templateName, data, options);
         } catch (error) {
-            console.error(`Template error: ${error.message}`);
+            Logger.error(`Template error: ${error.message}`);
             return null;
         }
     }

@@ -1,5 +1,6 @@
 import {TruthValueUtils} from './NarseseTemplate.js';
 import {DataTableKnowledge} from './DataTableKnowledge.js';
+import {Logger} from '@senars/core';
 
 // Reuse the mock mechanism from DataTableKnowledge
 async function loadDanfojs() {
@@ -71,7 +72,7 @@ export class FileAnalysisKnowledge extends DataTableKnowledge {
 
             return null;
         } catch (error) {
-            console.error(`Error converting file row to task: ${error.message}`);
+            Logger.error(`Error converting file row to task: ${error.message}`);
             return null;
         }
     }
@@ -156,7 +157,7 @@ export class TestResultKnowledge extends DataTableKnowledge {
 
             return null;
         } catch (error) {
-            console.error(`Error converting test row to task: ${error.message}`);
+            Logger.error(`Error converting test row to task: ${error.message}`);
             return null;
         }
     }
@@ -249,7 +250,7 @@ export class DirectoryStructureKnowledge extends DataTableKnowledge {
 
             return null;
         } catch (error) {
-            console.error(`Error converting directory row to task: ${error.message}`);
+            Logger.error(`Error converting directory row to task: ${error.message}`);
             return null;
         }
     }
@@ -326,7 +327,7 @@ export class DependencyGraphKnowledge extends DataTableKnowledge {
                 truth: {frequency: 1.0, confidence: 0.9}
             });
         } catch (error) {
-            console.error(`Error converting dependency row to task: ${error.message}`);
+            Logger.error(`Error converting dependency row to task: ${error.message}`);
             return null;
         }
     }

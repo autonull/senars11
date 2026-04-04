@@ -2,7 +2,7 @@
  * capabilities.js — Capability flag resolution for METTACLAW agent.json
  */
 
-const DEFAULTS = {
+export const DEFAULTS = {
   mettaControlPlane: true, sExprSkillDispatch: true, semanticMemory: true,
   persistentHistory: true, loopBudget: true, contextBudgets: true,
   fileReadSkill: true, webSearchSkill: true, fileWriteSkill: false, shellSkill: false,
@@ -65,8 +65,10 @@ const DEPENDENCY_TABLE = {
   executionHooks: ['safetyLayer', 'auditLog'],
   actionTrace: ['auditLog'],
   memorySnapshots: ['semanticMemory'],
-  separateEvaluator: ['subAgentSpawning'],
-  coordinatorMode: ['multiEmbodiment'],
+  separateEvaluator: ['subAgentSpawning', 'taskList'],
+  coordinatorMode: ['multiEmbodiment', 'multiModelRouting'],
+  taskList: ['goalPursuit', 'semanticMemory'],
+  backgroundTriggers: ['autonomousLoop', 'virtualEmbodiment'],
 };
 
 export function isEnabled(config, flag) {

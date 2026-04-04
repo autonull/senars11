@@ -9,7 +9,7 @@ export class Channel extends EventEmitter {
     constructor(config = {}) {
         super();
         this.config = config;
-        this.id = config.id || `channel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        this.id = config.id || `channel_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
         this.type = 'generic';
         this.status = 'disconnected'; // disconnected, connecting, connected, error
     }
@@ -49,7 +49,7 @@ export class Channel extends EventEmitter {
      */
     emitMessage(from, content, metadata = {}) {
         this.emit('message', {
-            id: metadata.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            id: metadata.id || `msg_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
             channelId: this.id,
             protocol: this.type,
             from,

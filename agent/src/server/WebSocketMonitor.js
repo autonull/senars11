@@ -205,7 +205,7 @@ class WebSocketMonitor {
     }
 
     _generateClientId() {
-        return `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `client_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     }
 
     getStats() {

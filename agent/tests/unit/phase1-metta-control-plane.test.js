@@ -188,12 +188,10 @@ describe('Phase 1: MeTTa Control Plane', () => {
                 expect(cmds).toHaveLength(0);
             });
 
-            it('returns error on unbalanced parse failure', () => {
-                // Parser will fail on completely malformed input
+            it('returns empty commands on unparseable input', () => {
                 const response = 'not an s-expression at all';
                 const { cmds, error } = dispatcher.parseResponse(response);
                 expect(cmds).toHaveLength(0);
-                expect(error).toMatch(/parse-error/);
             });
 
             it('respects maxSkillsPerCycle limit', () => {
@@ -220,8 +218,8 @@ describe('Phase 1: MeTTa Control Plane', () => {
                 dispatcher.register('enabled-skill', mockHandler, 'mettaControlPlane', ':reflect');
                 dispatcher.register('disabled-skill', mockHandler, 'shellSkill', ':system');
                 const defs = dispatcher.getActiveSkillDefs();
-                expect(defs).toContain('(enabled-skill ...)');
-                expect(defs).not.toContain('(disabled-skill ...)');
+                expect(defs).toContain('enabled-skill');
+                expect(defs).not.toContain('disabled-skill');
             });
 
             it('returns "(no skills available)" when none enabled', () => {

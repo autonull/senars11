@@ -4,7 +4,10 @@
   "type": "module",
   "main": "src/index.js",
   "exports": {
-    ".": "./src/index.js",
+    ".": {
+      "node": "./src/index.node.js",
+      "default": "./src/index.js"
+    },
     "./src/*": "./src/*.js"
   },
   "files": [

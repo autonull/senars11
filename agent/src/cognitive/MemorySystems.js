@@ -27,7 +27,7 @@ export class WorkingMemory {
 export class EpisodicMemory {
     #episodes = [];
     constructor(limit = 1000) { this.limit = limit; }
-    add(episode) { this.#episodes.push({ ...episode, id: `ep_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` }); if (this.#episodes.length > this.limit) this.#episodes.shift(); }
+    add(episode) { this.#episodes.push({ ...episode, id: `ep_${Date.now()}_${Math.random().toString(36).slice(2, 11)}` }); if (this.#episodes.length > this.limit) this.#episodes.shift(); }
     getRelevant(current, count = 5) {
         const currentContent = current.content?.toLowerCase() ?? '';
         return this.#episodes.map(ep => ({ episode: ep, score: this.#relevanceScore(ep, currentContent) })).sort((a, b) => b.score - a.score).slice(0, count).map(s => s.episode);
@@ -74,7 +74,7 @@ export class ProceduralMemory {
         this.add({ condition: { intent: 'greeting' }, actionType: 'respond', action: 'Hello! How can I help you today?' });
         this.add({ condition: { intent: 'command', command: 'help' }, actionType: 'respond', action: 'I can answer questions, remember facts, and help with various tasks. Just ask!' });
     }
-    add(rule) { this.#rules.set(`rule_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, { ...rule, usage: 0 }); }
+    add(rule) { this.#rules.set(`rule_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`, { ...rule, usage: 0 }); }
     match(perception) {
         const features = perception.features ?? {};
         const matches = [];

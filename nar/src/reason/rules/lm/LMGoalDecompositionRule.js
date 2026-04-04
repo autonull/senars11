@@ -6,6 +6,7 @@
 import {LMRule} from '../../LMRule.js';
 import {Punctuation, Task} from '../../../task/Task.js';
 import {cleanText, isGoal, isValidSubGoal, parseSubGoals} from '../../RuleHelpers.js';
+import {Logger} from '@senars/core';
 
 export const createGoalDecompositionRule = (dependencies, config = {}) => {
     const {lm, eventBus} = dependencies;
@@ -57,7 +58,7 @@ Output: List of subgoals, one per line`;
 
             const termFactory = context?.termFactory ?? dependencies.termFactory;
             if (!termFactory) {
-                console.warn('GoalDecomposition: No termFactory available');
+                Logger.warn('GoalDecomposition: No termFactory available');
                 return [];
             }
 

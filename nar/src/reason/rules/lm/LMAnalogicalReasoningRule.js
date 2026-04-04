@@ -7,6 +7,7 @@
 import {LMRule} from '../../LMRule.js';
 import {Punctuation, Task} from '../../../task/Task.js';
 import {hasPattern, isGoal, isQuestion, KeywordPatterns} from '../../RuleHelpers.js';
+import {Logger} from '@senars/core';
 
 /**
  * Creates an analogical reasoning rule using the enhanced LMRule.create method.
@@ -53,7 +54,7 @@ export const createAnalogicalReasoningRule = (dependencies) => {
                         }
                     }
                 } catch (e) {
-                    console.warn("AnalogicalReasoningRule: Error retrieving embeddings:", e);
+                    Logger.warn('AnalogicalReasoningRule: Error retrieving embeddings:', e);
                 }
             }
 
@@ -72,7 +73,7 @@ Based on that analogy, describe a step-by-step solution for the original problem
 
             const termFactory = context?.termFactory ?? dependencies.termFactory;
             if (!termFactory) {
-                console.warn('AnalogicalReasoning: No termFactory available');
+                Logger.warn('AnalogicalReasoning: No termFactory available');
                 return [];
             }
 

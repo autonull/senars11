@@ -5,7 +5,7 @@
  */
 
 import {Strategy} from '../Strategy.js';
-import {PrologParser} from '@senars/core/src/parser/PrologParser.js';
+import {PrologParser} from '../../parser/PrologParser.js';
 import {Task} from '../../task/Task.js';
 import {Truth} from '../../Truth.js';
 import {TermFactory} from '../../term/TermFactory.js';

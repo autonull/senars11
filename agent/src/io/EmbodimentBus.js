@@ -215,7 +215,7 @@ export class EmbodimentBus extends EventEmitter {
      * @param {Function} fn - (msg, next) => void
      */
     use(fn) {
-        this.middleware.push(fn);
+        this._middleware.push(fn);
     }
 
     /**
