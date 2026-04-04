@@ -2068,3 +2068,147 @@
   :reason    "test-block"
   :args      "(test.txt content)"
 )
+(audit-event
+  :id        "aud_1775333417931_2b36xrwe8"
+  :timestamp 1775333417931
+  :type      skill-invoked
+  :cycle     0
+  :skill     write-file
+  :args      "(test.txt content)"
+  :result    "success"
+)
+(audit-event
+  :id        "aud_1775333417950_cgy4rjj9a"
+  :timestamp 1775333417950
+  :type      skill-blocked
+  :cycle     0
+  :skill     write-file
+  :reason    "test-block"
+  :args      "(test.txt content)"
+)
+(audit-event
+  :id        "aud_1775333509253_kuhwew80c"
+  :timestamp 1775333509253
+  :type      skill-invoked
+  :cycle     0
+  :skill     write-file
+  :args      "(test.txt content)"
+  :result    "success"
+)
+(audit-event
+  :id        "aud_1775333509285_e3mol5jhz"
+  :timestamp 1775333509285
+  :type      skill-blocked
+  :cycle     0
+  :skill     write-file
+  :reason    "test-block"
+  :args      "(test.txt content)"
+)
+(audit-event
+  :id        "aud_1775333821786_4864be3ob"
+  :timestamp 1775333821786
+  :type      skill-invoked
+  :cycle     0
+  :skill     write-file
+  :args      "(test.txt content)"
+  :result    "success"
+)
+(audit-event
+  :id        "aud_1775333821799_cp8m2fimw"
+  :timestamp 1775333821799
+  :type      skill-blocked
+  :cycle     0
+  :skill     write-file
+  :reason    "test-block"
+  :args      "(test.txt content)"
+)
+(audit-event
+  :id        "aud_1775333886391_yzk9fimn4"
+  :timestamp 1775333886391
+  :type      skill-invoked
+  :cycle     0
+  :skill     write-file
+  :args      "(test.txt content)"
+  :result    "success"
+)
+(audit-event
+  :id        "aud_1775333886420_fpalhv87p"
+  :timestamp 1775333886420
+  :type      skill-blocked
+  :cycle     0
+  :skill     write-file
+  :reason    "test-block"
+  :args      "(test.txt content)"
+)
+(audit-event
+  :id        "aud_1775334562409_yxtjwkw1s"
+  :timestamp 1775334562409
+  :type      skill-invoked
+  :cycle     0
+  :skill     write-file
+  :args      "(test.txt content)"
+  :result    "success"
+)
+(audit-event
+  :id        "aud_1775334562446_p8glsl8cp"
+  :timestamp 1775334562446
+  :type      skill-blocked
+  :cycle     0
+  :skill     write-file
+  :reason    "test-block"
+  :args      "(test.txt content)"
+)
+(audit-event
+  :id        "aud_1775334575913_l70yorrgt"
+  :timestamp 1775334575913
+  :type      skill-invoked
+  :cycle     0
+  :skill     write-file
+  :args      "(test.txt content)"
+  :result    "success"
+)
+(audit-event
+  :id        "aud_1775334575932_o52qvafy1"
+  :timestamp 1775334575933
+  :type      skill-blocked
+  :cycle     0
+  :skill     write-file
+  :reason    "test-block"
+  :args      "(test.txt content)"
+)
+(audit-event
+  :id        "aud_1775334594403_f1e709prb"
+  :timestamp 1775334594403
+  :type      skill-invoked
+  :cycle     0
+  :skill     write-file
+  :args      "(test.txt content)"
+  :result    "success"
+)
+(audit-event
+  :id        "aud_1775334594425_bt67ictke"
+  :timestamp 1775334594425
+  :type      skill-blocked
+  :cycle     0
+  :skill     write-file
+  :reason    "test-block"
+  :args      "(test.txt content)"
+)
+(audit-event
+  :id        "aud_1775337671519_mc9su9j12"
+  :timestamp 1775337671519
+  :type      skill-invoked
+  :cycle     0
+  :skill     write-file
+  :args      "(test.txt content)"
+  :result    "success"
+)
+(audit-event
+  :id        "aud_1775337671540_a31opv0xe"
+  :timestamp 1775337671540
+  :type      skill-blocked
+  :cycle     0
+  :skill     write-file
+  :reason    "test-block"
+  :args      "(test.txt content)"
+)

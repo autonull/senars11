@@ -59,7 +59,6 @@ export class Agent extends BaseComponent {
 
         this.inputProcessor = new InputProcessor(this);
         this.agentStreamer = new AgentStreamer(this);
-        this.ai = new AIClient(config.lm || {});
 
         if (this.metta) this.#registerMeTTaExtensions();
     }
@@ -154,6 +153,19 @@ export class Agent extends BaseComponent {
 
         this.#registerMeTTaExtensions();
         this.agentCfg = await this.#loadAgentConfig();
+
+        // Merge constructor LM config with file config (constructor takes precedence)
+        const constructorLm = this.config.lm || {};
+        if (Object.keys(constructorLm).length > 0) {
+            this.agentCfg.lm = { ...this.agentCfg.lm, ...constructorLm };
+            // Deep-merge nested objects
+            for (const key of Object.keys(constructorLm)) {
+                if (typeof constructorLm[key] === 'object' && constructorLm[key] !== null && !Array.isArray(constructorLm[key])) {
+                    this.agentCfg.lm[key] = { ...(this.agentCfg.lm[key] || {}), ...constructorLm[key] };
+                }
+            }
+        }
+
         if (this.agentCfg.lm) {
             this.ai = new AIClient(this.agentCfg.lm);
         }

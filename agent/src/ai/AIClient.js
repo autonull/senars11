@@ -63,9 +63,19 @@ export class AIClient {
     }
 
     _initializeProviders(config) {
-        if (config.openai?.apiKey || process.env.OPENAI_API_KEY) {
+        // OpenAI-compatible endpoint (llama.cpp server, vLLM, etc.)
+        const openaiBaseURL = config.openai?.baseURL || config.baseURL;
+        const openaiApiKey = config.openai?.apiKey || process.env.OPENAI_API_KEY || 'sk-dummy';
+        if (openaiBaseURL) {
             const openai = createOpenAI({
-                apiKey: config.openai?.apiKey || process.env.OPENAI_API_KEY,
+                apiKey: openaiApiKey,
+                baseURL: openaiBaseURL,
+                compatibility: 'compatible',
+            });
+            this.providers.set('openai', (modelName) => openai(modelName || 'default'));
+        } else if (config.openai?.apiKey || process.env.OPENAI_API_KEY) {
+            const openai = createOpenAI({
+                apiKey: openaiApiKey,
                 compatibility: 'strict',
             });
             this.providers.set('openai', (modelName) => openai(modelName || 'gpt-4o'));
@@ -94,42 +104,26 @@ export class AIClient {
 
     _createAIProviderAdapter(provider, effectiveModel) {
         return {
-            specificationVersion: 'v1',
+            specificationVersion: 'v2',
             provider: provider.constructor.name,
             modelId: effectiveModel,
             defaultObjectGenerationMode: undefined,
 
             async doGenerate(options) {
-                // Determine prompt format. SDK calls with { prompt: [{role: 'user', content: ...}] } usually
-                // But options passed to generateText are here.
-                // generateText passes 'prompt' or 'messages' to the model adapter as 'inputFormat' and 'mode' in v2?
-                // Actually, adapter receives { prompt: ... } where prompt is parsed.
-
-                let promptText = '';
-                if (Array.isArray(options.prompt)) {
-                     // Convert messages to text prompt for legacy/simple providers
-                     promptText = options.prompt.map(m => {
-                         if (m.content && Array.isArray(m.content)) {
-                             return `${m.role}: ${m.content.map(c => c.text).join('')}`;
-                         }
-                         return `${m.role}: ${m.content}`;
-                     }).join('\n');
-                } else {
-                    promptText = String(options.prompt);
-                }
+                const prompt = options.prompt;
+                const promptText = AIClient._extractPrompt(options);
+                const promptMessages = Array.isArray(prompt) ? prompt : null;
 
                 let result;
-
-                // Support both generate (WebLLM) and generateText (Transformers/Dummy)
                 if (typeof provider.generate === 'function') {
-                    result = await provider.generate(promptText, {
+                    result = await provider.generate(promptMessages || promptText, {
                         temperature: options.temperature ?? 0.7,
                         maxTokens: options.maxTokens ?? 256,
                         tools: options.tools,
                         toolChoice: options.toolChoice
                     });
                 } else {
-                     const text = await provider.generateText(promptText, {
+                    const text = await provider.generateText(promptMessages || promptText, {
                         temperature: options.temperature ?? 0.7,
                         maxTokens: options.maxTokens ?? 256
                     });
@@ -157,8 +151,7 @@ export class AIClient {
 
                 return {
                     text: responseText,
-                    // COMPATIBILITY: internal SDK processing requires content array
-                    content: content,
+                    content,
                     finishReason: result.finishReason || 'stop',
                     usage: result.usage || {
                         promptTokens: promptText.length,
@@ -166,70 +159,54 @@ export class AIClient {
                         inputTokens: promptText.length,
                         outputTokens: responseText.length
                     },
-                    rawCall: {rawPrompt: promptText, rawSettings: {}},
-                    toolCalls: toolCalls,
+                    rawResponse: { headers: {} },
+                    toolCalls,
                     warnings: [],
-                    logprobs: undefined
                 };
             },
 
             async doStream(options) {
-                let promptText = '';
-                if (Array.isArray(options.prompt)) {
-                     promptText = options.prompt.map(m => {
-                         if (m.content && Array.isArray(m.content)) {
-                             return `${m.role}: ${m.content.map(c => c.text).join('')}`;
-                         }
-                         return `${m.role}: ${m.content}`;
-                     }).join('\n');
-                } else {
-                    promptText = String(options.prompt);
-                }
+                const promptText = AIClient._extractPrompt(options);
+                const prompt = options.prompt;
+                const promptMessages = Array.isArray(prompt) ? prompt : null;
 
+                const input = promptMessages || promptText;
                 const controller = new TransformableStream();
-
                 (async () => {
                     try {
                         let stream;
                         if (typeof provider.streamText === 'function') {
-                            stream = provider.streamText(promptText, {
+                            stream = provider.streamText(input, {
                                 temperature: options.temperature ?? 0.7,
                                 maxTokens: options.maxTokens ?? 256
                             });
                         } else {
-                            // Fallback if no streaming supported: generate full text and stream it as one chunk
-                             const text = await provider.generateText(promptText, {
+                            const text = await provider.generateText(input, {
                                 temperature: options.temperature ?? 0.7,
                                 maxTokens: options.maxTokens ?? 256
                             });
                             stream = (async function*() { yield text; })();
                         }
-
-                        // Handle both AsyncIterable (stream) and Promise (fallback) if implementation varies
                         if (stream && typeof stream[Symbol.asyncIterator] === 'function') {
-                             for await (const chunk of stream) {
+                            for await (const chunk of stream) {
                                 controller.enqueue({type: 'text-delta', textDelta: chunk});
                             }
                         } else {
-                             const text = await stream;
-                             controller.enqueue({type: 'text-delta', textDelta: text});
+                            const text = await stream;
+                            controller.enqueue({type: 'text-delta', textDelta: text});
                         }
-
                         controller.enqueue({
                             type: 'finish',
                             finishReason: 'stop',
                             usage: {promptTokens: 0, completionTokens: 0, inputTokens: 0, outputTokens: 0}
                         });
                         controller.close();
-                    } catch (error) {
-                        controller.error(error);
-                    }
+                    } catch (error) { controller.error(error); }
                 })();
 
                 return {
                     stream: controller.readable,
                     rawCall: {rawPrompt: promptText, rawSettings: {}},
-                    warnings: []
                 };
             }
         };
@@ -314,7 +291,7 @@ export class AIClient {
     }
 
     _createTransformersModel(modelName) {
-        const effectiveModel = modelName || 'Xenova/t5-small';
+        const effectiveModel = modelName || 'onnx-community/Qwen2.5-0.5B-Instruct';
         const cacheKey = `transformers:${effectiveModel}`;
 
         if (!this.modelInstances.has(cacheKey)) {

@@ -266,9 +266,7 @@ export class MeTTaSkillRegistrar {
 
     async #registerMultiModelSkills() {
         const { ModelRouter } = await import('../models/ModelRouter.js');
-        const { AIClient } = await import('../ai/AIClient.js');
-        this.agent._aiClient = new AIClient(this.agentCfg.lm ?? {});
-        this.agent._modelRouter = new ModelRouter(this.agentCfg, this.agent._aiClient, this.agent.semanticMemory);
+        this.agent._modelRouter = new ModelRouter(this.agentCfg, this.agent.ai, this.agent.semanticMemory);
         await this.agent._modelRouter.initialize();
         this.dispatcher.register('set-model', async (modelName, cycles) => {
             this.loopState.modelOverride = String(modelName);
@@ -278,7 +276,7 @@ export class MeTTaSkillRegistrar {
         }, 'multiModelRouting', ':meta');
         if (this.cap('modelExploration')) {
             const { ModelBenchmark } = await import('../models/ModelBenchmark.js');
-            this.agent._modelBenchmark = new ModelBenchmark(this.agent._aiClient, this.agentCfg);
+            this.agent._modelBenchmark = new ModelBenchmark(this.agent.ai, this.agentCfg);
             this.dispatcher.register('eval-model', async (modelName, taskType) => {
                 const model = String(modelName);
                 const type = taskType ? String(taskType) : null;

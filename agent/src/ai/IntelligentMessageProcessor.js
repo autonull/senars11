@@ -464,35 +464,34 @@ Just ask questions or talk naturally!`;
     }
 
     /**
-     * Learn from message (integrate with SeNARS)
+     * Learn from message (integrate with SeNARS via MeTTa)
      */
     async _learnFromMessage(msg, classification) {
         if (!this.agent.metta) return;
-        
-        // Store message in SeNARS memory
+
         const { from, content, channel } = msg;
-        
         try {
-            // Create a belief about the conversation
-            const belief = `heard("${channel}", "${from}", "${content.replace(/"/g, '\\"')}")`;
-            await this.agent.input(belief);
+            // Store as MeTTa atom: (heard channel user content)
+            const safeContent = content.replace(/[()"]/g, '').substring(0, 200);
+            const atom = `(heard "${channel}" "${from}" "${safeContent}")`;
+            this.agent.metta.run(atom);
         } catch (error) {
             Logger.debug('Error learning from message:', error);
         }
     }
 
     /**
-     * Learn from exchange (store conversation pair)
+     * Learn from exchange (store conversation pair via MeTTa)
      */
     async _learnFromExchange(msg, response, classification) {
         if (!this.agent.metta) return;
-        
+
         try {
             const { from, content, channel } = msg;
-            
-            // Store as conversation pair
-            const belief = `conversation("${channel}", "${from}", "${content.replace(/"/g, '\\"')}", "${response.replace(/"/g, '\\"')}")`;
-            await this.agent.input(belief);
+            const safeContent = content.replace(/[()"]/g, '').substring(0, 200);
+            const safeResponse = response.replace(/[()"]/g, '').substring(0, 200);
+            const atom = `(conversation "${channel}" "${from}" "${safeContent}" "${safeResponse}")`;
+            this.agent.metta.run(atom);
         } catch (error) {
             Logger.debug('Error learning from exchange:', error);
         }

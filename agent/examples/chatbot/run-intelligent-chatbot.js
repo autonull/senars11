@@ -43,10 +43,12 @@ function parseArgs() {
         port: 6667,
         nick: 'SeNARchy',
         channel: '##metta',
-        model: 'hf.co/bartowski/Qwen_Qwen3-8B-GGUF:Q6_K',
+        model: 'onnx-community/Qwen2.5-1.5B-Instruct',
         tls: false,
         debug: false,
         ollamaUrl: 'http://localhost:11434',
+        openaiBaseURL: null,
+        openaiApiKey: null,
         personality: 'helpful, knowledgeable, and concise. You are an intelligent assistant focused on reasoning and learning.',
         rateLimit: {
             perChannelMax: 5,
@@ -90,6 +92,14 @@ function parseArgs() {
                 config.ollamaUrl = next;
                 i++;
                 break;
+            case '--openai-base-url':
+                config.openaiBaseURL = next;
+                i++;
+                break;
+            case '--openai-api-key':
+                config.openaiApiKey = next;
+                i++;
+                break;
             case '--tls':
                 config.tls = true;
                 break;
@@ -116,29 +126,32 @@ Intelligent IRC ChatBot - SeNARS Agent
 Usage: node run-intelligent-chatbot.js [options]
 
 Options:
-  --host, -h      IRC server host (default: irc.quakenet.org)
-  --port, -p      IRC server port (default: 6667)
-  --nick, -n      Bot nickname (default: senars-bot)
-  --channel, -c   Channel to join (default: ##metta)
-  --model, -m     Ollama model name (default: hf.co/bartowski/Qwen_Qwen3-8B-GGUF:Q6_K)
-  --ollama-url    Ollama API URL (default: http://localhost:11434)
-  --tls           Enable TLS connection
-  --debug         Enable debug logging
-  --personality   Bot personality description
-  --help          Show this help message
+  --host, -h          IRC server host (default: irc.quakenet.org)
+  --port, -p          IRC server port (default: 6667)
+  --nick, -n          Bot nickname (default: SeNARchy)
+  --channel, -c       Channel to join (default: ##metta)
+  --model, -m         Model name
+  --ollama-url        Ollama API URL (default: http://localhost:11434)
+  --openai-base-url   OpenAI-compatible endpoint URL (e.g. http://localhost:8080/v1)
+  --openai-api-key    API key for OpenAI-compatible endpoint
+  --tls               Enable TLS connection
+  --debug             Enable debug logging
+  --personality       Bot personality description
+  --help              Show this help message
+
+Provider selection:
+  - Default: Transformers.js runs models locally on CPU (auto-downloads & caches)
+  - With --openai-base-url: Uses OpenAI-compatible endpoint (llama.cpp server, etc.)
 
 Examples:
-  # Connect to QuakeNet ##metta channel
+  # Local CPU inference with Transformers.js
   node run-intelligent-chatbot.js
 
-  # Connect to different server
+  # Use llama.cpp server (OpenAI-compatible API)
+  node run-intelligent-chatbot.js --openai-base-url http://localhost:8080/v1 --model my-model
+
+  # Connect to different IRC server
   node run-intelligent-chatbot.js --host irc.libera.chat --channel #test
-
-  # Use different model
-  node run-intelligent-chatbot.js --model llama3.2
-
-  # Enable debug mode
-  node run-intelligent-chatbot.js --debug
 `);
 }
 
@@ -157,7 +170,12 @@ class IntelligentChatBot {
         Logger.info(`   Host: ${this.config.host}:${this.config.port}`);
         Logger.info(`   Nick: ${this.config.nick}`);
         Logger.info(`   Channel: ${this.config.channel}`);
+        const provider = this.config.openaiBaseURL ? 'openai' : 'transformers';
+        Logger.info(`   Provider: ${provider}`);
         Logger.info(`   Model: ${this.config.model}`);
+        if (this.config.openaiBaseURL) {
+            Logger.info(`   Endpoint: ${this.config.openaiBaseURL}`);
+        }
 
         // Set log level
         if (this.config.debug) {
@@ -165,16 +183,21 @@ class IntelligentChatBot {
         }
 
         // Initialize Agent with LLM configuration
-        // Note: Using dummy provider for demo (ollama-ai-provider v1.x has AI SDK v5 compatibility issues)
-        // For production: npm install ollama-ai-provider@beta (v2.x beta with v2 spec support)
+        // Default: Transformers.js runs Qwen2.5-0.5B-Instruct locally on CPU (auto-downloads & caches)
+        // Switch to OpenAI-compatible endpoint: set provider='openai', baseURL='http://localhost:8080/v1'
+        const hasOpenAIEndpoint = this.config.openaiBaseURL;
         this.agent = new Agent({
             id: `chatbot-${this.config.nick}`,
             lm: {
-                provider: 'dummy',  // Change to 'ollama' when using ollama-ai-provider v2.x beta
+                provider: hasOpenAIEndpoint ? 'openai' : 'transformers',
                 baseURL: this.config.ollamaUrl,
-                modelName: this.config.model,
+                modelName: hasOpenAIEndpoint ? this.config.model : undefined,
+                openai: hasOpenAIEndpoint ? {
+                    baseURL: this.config.openaiBaseURL,
+                    apiKey: this.config.openaiApiKey || 'sk-dummy'
+                } : undefined,
                 temperature: 0.7,
-                maxTokens: 512
+                maxTokens: 256
             },
             inputProcessing: {
                 enableNarseseFallback: true,
