@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import {NAR} from '../../core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 import {log, section, takeaways} from '../utils/demo-helpers.js';
 
 async function demonstrateGoalDriven() {

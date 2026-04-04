@@ -1,4 +1,4 @@
-import {NAR} from '../../core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 
 // Test to see what happens to beliefs during reasoning
 async function testBeliefDisappearance() {

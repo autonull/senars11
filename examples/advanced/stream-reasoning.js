@@ -9,7 +9,7 @@
  * - Metrics and performance tracking
  */
 
-import {NAR} from '../../core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 
 const section = (title) => console.log(`\n${'═'.repeat(60)}\n${title}\n${'═'.repeat(60)}`);
 const metric = (label, value) => console.log(`  ${label.padEnd(25)} ${value}`);

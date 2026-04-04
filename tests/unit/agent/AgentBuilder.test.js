@@ -22,7 +22,7 @@ describe('AgentBuilder', () => {
     test('default configuration', async () => {
         const a = await build();
         expect(a).toBeInstanceOf(Agent);
-        expect(a).toBeInstanceOf(NAR);
+        expect(a.nar).toBeInstanceOf(NAR);
         expect(a.evaluator).toBeDefined();
         expect(a.inputQueue).toBeDefined();
     }, 30000);

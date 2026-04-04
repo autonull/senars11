@@ -3,7 +3,7 @@
  * Implements premise selection and inference using MeTTa reduction
  */
 
-import { Strategy } from '../../../core/src/reason/Strategy.js';
+import { Strategy } from '@senars/nar';
 
 export class MeTTaStrategy extends Strategy {
     constructor(mettaInterpreter, config = {}) {

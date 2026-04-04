@@ -5,8 +5,7 @@
  * This demo uses a more sophisticated approach to ensure proper LM responses
  */
 
-import {NAR} from './core/src/nar/NAR.js';
-import {TransformersJSProvider} from './core/src/lm/TransformersJSProvider.js';
+import {NAR, TransformersJSProvider} from '@senars/nar';
 
 // Custom trace capture for logging all system activity
 class ReasoningTrace {

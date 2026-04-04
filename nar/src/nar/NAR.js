@@ -36,6 +36,8 @@ export class NAR extends BaseComponent {
     get termLayer() { return this._termLayer; }
     get reasoningAboutReasoning() { return this._reasoningAboutReasoning; }
     get streamReasoner() { return this._streamReasoner; }
+    get metta() { return this._metta; }
+    set metta(v) { this._metta = v; }
 
     _initializeCoreComponents(config) {
         this._configManager = new ConfigManager(config);

@@ -4,7 +4,7 @@
  * Updated to show both traditional and new stream-based reasoner approaches.
  */
 
-import {NAR} from '../../core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 
 async function syllogismDemo() {
     console.log('=== NAL-only Syllogistic Reasoning Demo ===\n');

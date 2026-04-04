@@ -2,7 +2,7 @@ import { readFile } from 'fs/promises';
 import { resolve, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { Input, NAR } from '@senars/nar';
-import { FormattingUtils, Logger, resolveWithFallback, fallbackAgentDir } from '@senars/core';
+import { BaseComponent, FormattingUtils, Logger, resolveWithFallback, fallbackAgentDir } from '@senars/core';
 import { PersistenceManager } from './io/PersistenceManager.js';
 import { EmbodimentBus } from './io/EmbodimentBus.js';
 import { VirtualEmbodiment } from './io/VirtualEmbodiment.js';
@@ -19,11 +19,12 @@ import * as CommandModules from './commands/Commands.js';
 
 const __agentDir = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackAgentDir);
 
-export class Agent extends NAR {
+export class Agent extends BaseComponent {
     constructor(config = {}) {
-        super(config);
+        super(config, 'Agent');
 
         this.id = config.id || `agent_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+        this.nar = new NAR(config);
         this.inputQueue = new Input();
         this.sessionState = { history: [], lastResult: null, startTime: Date.now() };
         this.runState = { isRunning: false, intervalId: null };
@@ -59,6 +60,51 @@ export class Agent extends NAR {
 
         if (this.metta) this.#registerMeTTaExtensions();
     }
+
+    get metta() { return this.nar.metta; }
+    set metta(v) { this.nar.metta = v; }
+    get cycleCount() { return this.nar.cycleCount; }
+    get traceEnabled() { return this.nar.traceEnabled; }
+    set traceEnabled(v) { this.nar.traceEnabled = v; }
+    get lm() { return this.nar.lm; }
+    get agentLM() { return this.nar.lm; }
+    get config() { return this.nar.config; }
+    get memory() { return this.nar.memory; }
+    get isRunning() { return this.nar.isRunning; }
+    get tools() { return this.nar.tools; }
+    get evaluator() { return this.nar.evaluator; }
+    get metricsMonitor() { return this.nar.metricsMonitor; }
+    get embeddingLayer() { return this.nar.embeddingLayer; }
+    get termLayer() { return this.nar.termLayer; }
+    get streamReasoner() { return this.nar.streamReasoner; }
+    get explanationService() { return this.nar.explanationService; }
+    get componentManager() { return this.nar.componentManager; }
+    get reasoningAboutReasoning() { return this.nar.reasoningAboutReasoning; }
+    get ruleEngine() { return this.nar.ruleEngine; }
+    get tools() { return this.nar.tools; }
+    get evaluator() { return this.nar.evaluator; }
+    get metricsMonitor() { return this.nar.metricsMonitor; }
+    get embeddingLayer() { return this.nar.embeddingLayer; }
+    get termLayer() { return this.nar.termLayer; }
+    get streamReasoner() { return this.nar.streamReasoner; }
+    get explanationService() { return this.nar.explanationService; }
+    get componentManager() { return this.nar.componentManager; }
+    get reasoningAboutReasoning() { return this.nar.reasoningAboutReasoning; }
+    get ruleEngine() { return this.nar.ruleEngine; }
+
+    emit(event, ...args) { this.nar._eventBus?.emit(event, ...args); }
+
+    async input(input, options = {}) { return this.nar.input(input, options); }
+    getBeliefs() { return this.nar.memory?.getBeliefs() ?? []; }
+    async runCycles(n = 1) { for (let i = 0; i < n; i++) await this.nar.step(); }
+    async start() { return this.nar.start(); }
+    async stop() { return this.nar.stop(); }
+
+    async input(input, options = {}) { return this.nar.input(input, options); }
+    getBeliefs() { return this.nar.memory?.getBeliefs() ?? []; }
+    async runCycles(n = 1) { for (let i = 0; i < n; i++) await this.nar.step(); }
+    async start() { return this.nar.start(); }
+    async stop() { return this.nar.stop(); }
 
     async _autoJoinChannels(config) {
         if (!config.channels) return;
@@ -100,7 +146,7 @@ export class Agent extends NAR {
     }
 
     async initialize() {
-        await super.initialize();
+        await this.nar.initialize();
 
         if (!this.toolInstances.websearch) {
             const { WebSearchTool, FileTool } = await import('./io/index.js');
@@ -149,10 +195,6 @@ export class Agent extends NAR {
         }
     }
 
-    get agentLM() { return this.lm; }
-
-    emit(event, ...args) { this._eventBus?.emit(event, ...args); }
-
     #initCommandRegistry() {
         const registry = new AgentCommandRegistry();
         for (const CmdClass of Object.values(CommandModules)) {
@@ -190,7 +232,7 @@ export class Agent extends NAR {
 
     async _next() {
         try {
-            await this.step();
+            await this.nar.step();
             this.emit(AGENT_EVENTS.NAR_CYCLE_STEP, { cycle: this.cycleCount });
             return `Single cycle executed. Cycle: ${this.cycleCount}`;
         } catch (error) {
@@ -212,7 +254,7 @@ export class Agent extends NAR {
         const runLoop = async () => {
             if (!this.runState.isRunning) return;
             try {
-                await this.step();
+                await this.nar.step();
                 if (this.runState.isRunning) this.runState.intervalId = setTimeout(runLoop, interval);
             } catch (error) {
                 Logger.error(`Error during run: ${error.message}`);
@@ -237,20 +279,20 @@ export class Agent extends NAR {
     }
 
     reset(options = {}) {
-        super.reset(options);
+        this.nar.reset(options);
         this.sessionState.history = [];
         this.sessionState.lastResult = null;
         this.emit(AGENT_EVENTS.ENGINE_RESET);
         return 'Agent reset successfully.';
     }
 
-    async save() { return this.persistenceManager.saveToDefault(this.serialize()); }
+    async save() { return this.persistenceManager.saveToDefault(this.nar.serialize()); }
 
     async load(filepath = null) {
         const state = filepath
             ? await this.persistenceManager.loadFromPath(filepath)
             : await this.persistenceManager.loadFromDefault();
-        return state ? this.deserialize(state) : false;
+        return state ? this.nar.deserialize(state) : false;
     }
 
     getHistory() { return [...this.sessionState.history]; }
@@ -258,6 +300,6 @@ export class Agent extends NAR {
 
     async shutdown() {
         await this.embodimentBus?.shutdown();
-        await super.shutdown?.();
+        await this.nar.shutdown?.();
     }
 }

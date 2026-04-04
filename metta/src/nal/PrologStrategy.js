@@ -1,7 +1,6 @@
 /**
  * PrologStrategy Wrapper
- * Re-exports PrologStrategy from core for NAL consolidation
- * Note: Actual implementation remains in core/src/reason/strategy/ to avoid circular dependencies
+ * Re-exports PrologStrategy from @senars/nar
  */
 
-export { PrologStrategy } from '../../../core/src/reason/strategy/PrologStrategy.js';
+export { PrologStrategy } from '@senars/nar';

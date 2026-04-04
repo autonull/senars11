@@ -4,8 +4,7 @@
  * Demonstrates the MeTTa parser with various examples
  */
 
-import {MeTTaParser} from '../core/src/parser/MeTTaParser.js';
-import {TermFactory} from '../core/src/term/TermFactory.js';
+import {MeTTaParser, TermFactory} from '@senars/nar';
 
 const termFactory = new TermFactory();
 const parser = new MeTTaParser(termFactory);

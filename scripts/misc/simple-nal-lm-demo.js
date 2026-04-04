@@ -4,7 +4,7 @@
  * Simple demonstration of NAL reasoning with the new model configuration
  */
 
-import {NAR} from './core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 
 async function simpleDemo() {
     console.log("🚀 Starting SeNARS NAL Reasoning Demo...\n");

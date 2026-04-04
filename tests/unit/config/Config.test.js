@@ -20,8 +20,8 @@ let ConfigManager, DEFAULT_CONFIG;
 beforeAll(async () => {
     const cm = await import('@senars/core/src/config/ConfigManager.js');
     ConfigManager = cm.ConfigManager;
-    const sc = await import('@senars/nar/src/config/SystemConfig.js');
-    DEFAULT_CONFIG = sc.DEFAULT_CONFIG;
+    const cfg = await import('@senars/core/src/config/Config.js');
+    DEFAULT_CONFIG = cfg.DEFAULT_CONFIG;
 });
 
 describe('Config', () => {
@@ -172,7 +172,7 @@ describe('ConfigManager', () => {
 
     test('initializes with default config', () => {
         expect(configManager.config).toMatchObject(DEFAULT_CONFIG);
-        expect(configManager.config.memory.focusSetSize).toBe(100);
+        expect(configManager.config.memory.focusCapacity).toBe(100);
     });
 
     test('updates config values', () => {

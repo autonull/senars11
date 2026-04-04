@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import {NAR} from '../../core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 import {App} from '@senars/agent';
 
 const section = (title) => console.log(`\n${'═'.repeat(60)}\n${title}\n${'═'.repeat(60)}`);
@@ -95,7 +95,7 @@ async function demonstrateErrorHandling() {
 
     // 5. Event-Based Error Monitoring
     section('5️⃣  Event-Based Error Monitoring');
-    const {EventBus} = await import('../../core/src/util/EventBus.js');
+    const {EventBus} = await import('@senars/nar');
     const eventBus = new EventBus();
 
     const errors = [];
