@@ -64,7 +64,7 @@ export class NeuroSymbolicBridge extends Component {
         if (!this.config.useSeNARS) return;
 
         try {
-            const { SeNARS } = await import('@senars/core');
+            const { SeNARS } = await import('@senars/nar');
             this.senars = new SeNARS(this.config.senarsConfig);
             await this.senars.start();
 

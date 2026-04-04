@@ -4,7 +4,7 @@
 import { writeFile, readFile, mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { Logger, resolveWithFallback, fallbackMemoryDir } from '@senars/core';
+import { Logger, resolveWithFallback, fallbackMemoryDir, cosineSimilarity, generateId } from '@senars/core';
 import { Embedder } from './Embedder.js';
 import { MettaParser, toMettaAtom } from './MettaParser.js';
 
@@ -16,6 +16,7 @@ class VectorIndex {
         this._dataDir = dataDir;
         this._hnsw = null;
         this._itemMap = new Map();
+        this._vectors = new Map();
         this._labelCounter = 0;
     }
 
@@ -60,26 +61,17 @@ class VectorIndex {
     async save() { if (this._hnsw) Logger.debug('[VectorIndex] Index rebuild on restore (HNSW limitation)'); }
 }
 
-function cosineSimilarity(a, b) {
-    let dot = 0, normA = 0, normB = 0;
-    for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; normA += a[i] * a[i]; normB += b[i] * b[i]; }
-    return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-}
-
 export class SemanticMemory {
-    constructor(config = {}) {
-        this._config = config;
-        this._dataDir = config.dataDir ?? join(__dataDir, '../../memory');
-        this._embedder = new Embedder({
-            model: config.embedder ?? 'Xenova/all-MiniLM-L6-v2',
-            dimensions: config.vectorDimensions ?? 384,
-            fallback: config.embedderFallback
-        });
-        this._index = new VectorIndex(config.vectorDimensions ?? 384, this._dataDir);
+    constructor({ dataDir = join(__dataDir, '../../workspace/semantic') } = {}) {
+        this._dataDir = dataDir;
         this._atoms = new Map();
         this._vectors = new Map();
+        this._vectorIndex = new VectorIndex(384, dataDir);
+        this._embedder = new Embedder();
         this._restored = false;
     }
+
+    get _index() { return this._vectorIndex; }
 
     async initialize() {
         if (this._restored) return;
@@ -121,7 +113,7 @@ export class SemanticMemory {
 
     async remember({ content, type = 'semantic', source = 'local', tags = [], truth = { frequency: 0.9, confidence: 0.8 } }) {
         await this.initialize();
-        const id = `mem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const id = generateId('mem');
         const vector = await this._embedder.embed(content);
         this._atoms.set(id, { id, timestamp: Date.now(), content, source, type, truth, tags: Array.isArray(tags) ? tags : (tags.split?.(',') ?? []) });
         this._vectors.set(id, vector);

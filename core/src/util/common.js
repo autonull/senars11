@@ -22,8 +22,8 @@ export * from './validate.js';
 export * from './func.js';
 export * from './guard.js';
 export * from './MiscUtils.js';
-export * from './config.js';
+export * from '../config/ConfigUtils.js';
 export {
     freeze, deepFreeze, isObject, deepClone, safeClone, selectiveDeepClone,
-    deepMerge, deepMergeConfig, safeGet, setNestedProperty, deepEqual, validateWithSchema
+    deepMerge, deepMergeConfig, mergeConfig, safeGet, setNestedProperty, deepEqual, validateWithSchema
 } from './object.js';

@@ -12,12 +12,12 @@ import { configManager } from '../config/config.js';
 
 // External imports
 import * as UnifyCore from '@senars/nar/src/term/UnifyCore.js';
+import { SMTBridge } from '../extensions/SMTOps.js';
 
 // Lazy SMT bridge initialization
 let _smtBridge = null;
 function getSMTBridge() {
   if (!_smtBridge && configManager.get('smt')) {
-    const { SMTBridge } = require('../extensions/SMTOps.js');
     _smtBridge = new SMTBridge();
   }
   return _smtBridge;

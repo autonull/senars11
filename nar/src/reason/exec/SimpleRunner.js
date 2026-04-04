@@ -1,5 +1,5 @@
 import {Runner} from './Runner.js';
-import {Logger} from '@senars/core/src/util/Logger.js';
+import {Logger} from '@senars/core';
 
 /**
  * A simple, sequential execution runner that processes reasoning steps in a loop.

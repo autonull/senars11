@@ -1,4 +1,4 @@
-import {BaseComponent} from '@senars/core/src/util/BaseComponent.js';
+import {BaseComponent} from '@senars/core';
 import {Task} from '../task/Task.js';
 import {Truth} from '../Truth.js';
 import {Term} from '../term/Term.js';

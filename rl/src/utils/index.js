@@ -7,7 +7,7 @@
 export { mergeConfig, createConfig, ConfigSchema, withDefaults, extractConfig, validateConfig, createConfiguredClass, deepMergeConfig, ConfigValidator } from './ConfigHelper.js';
 
 // Error handling - RL-specific neuro-symbolic errors
-export { NeuroSymbolicError, handleError, validateConfig as validateNeuroConfig } from './ErrorHandler.js';
+export { NeuroSymbolicError, handleError } from './ErrorHandler.js';
 
 // Enhanced error classes with helpful messages
 export {
@@ -37,6 +37,6 @@ export * from './NetworkBuilder.js';
 export * from './DataStructures.js';
 
 // Re-export commonly used core utilities
-export { mergeConfig as coreMergeConfig, validateConfig as coreValidateConfig } from '@senars/core/src/util/config.js';
+export { mergeConfig as coreMergeConfig, validateConfig as coreValidateConfig } from '@senars/core';
 export { Metrics } from '@senars/core/src/util/Metrics.js';
-export { Logger } from '@senars/core/src/util/Logger.js';
+export { Logger } from '@senars/core';

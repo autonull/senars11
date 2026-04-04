@@ -1,5 +1,5 @@
 import { Environment } from '../core/RLCore.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import { deepMergeConfig } from '../utils/ConfigHelper.js';
 
 const DEFAULTS = {
     size: 10,

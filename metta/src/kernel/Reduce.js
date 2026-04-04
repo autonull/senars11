@@ -12,8 +12,8 @@
 import { ReductionPipeline, CacheStage, JITStage, ZipperStage,
          GroundedOpStage, ExplicitCallStage, RuleMatchStage, SuperposeStage } from './reduction/ReductionPipeline.js';
 import { JITCompiler } from './reduction/JITCompiler.js';
-import { configManager } from '../config/config.js';
 import { Unify } from './Unify.js';
+import { configManager } from '../config/config.js';
 
 // ===== Context Pool (reduces GC pressure) =====
 const contextPool = [];
@@ -47,7 +47,6 @@ const pipelineRegistry = new WeakMap();
 
 function getOrCreatePipeline(interpreter, customStages = null) {
   if (customStages) {
-    // Custom pipeline for this interpreter
     const pipeline = new ReductionPipeline(configManager);
     for (const stage of customStages) {
       pipeline.use(stage);
@@ -56,7 +55,6 @@ function getOrCreatePipeline(interpreter, customStages = null) {
     return pipeline;
   }
 
-  // Check for existing pipeline
   let pipeline = pipelineRegistry.get(interpreter);
   if (!pipeline) {
     const jitCompiler = new JITCompiler(configManager.get('jitThreshold'));
@@ -84,6 +82,21 @@ function getGlobalPipeline() {
 export function resetGlobalPipeline() {
   globalPipeline = null;
   globalReduceND = null;
+}
+
+/**
+ * Set the global reduceND reference (breaks circular dependency with MeTTaInterpreter)
+ */
+export function setReduceNDInternalReference(reduceFn) {
+  globalReduceND = reduceFn;
+}
+
+/**
+ * Legacy stub — config is now imported directly from config/config.js
+ * @deprecated No longer needed
+ */
+export function setReduceConfig(_configOrManager) {
+  // No-op: configManager is used directly in this module
 }
 
 // ===== Core Reduction Functions =====
@@ -262,71 +275,56 @@ export function* reduceNDGenerator(atom, space, ground, limit = 10000, cache = n
 }
 
 /**
- * Async reduction (for browser/worker environments)
- */
-export async function reduceAsync(atom, space, ground, limit, cache) {
-  // Yield to event loop periodically to avoid blocking
-  const ctx = acquireContext(space, ground, limit, cache, globalReduceND);
-  try {
-    const pl = getGlobalPipeline();
-    let current = atom;
-    let steps = 0;
-    const yieldInterval = 100; // Yield every N steps
-
-    while (steps < limit) {
-      if (steps % yieldInterval === 0) {
-        await new Promise(resolve => setTimeout(resolve, 0));
-      }
-
-      const gen = pl.execute(current, ctx);
-      const { value, done } = gen.next();
-
-      if (done || !value?.applied) {
-        return current;
-      }
-
-      current = value.reduced;
-      steps++;
-    }
-
-    throw new Error(`Max steps exceeded: ${limit} steps`);
-  } finally {
-    releaseContext(ctx);
-  }
-}
-
-/**
- * Async non-deterministic reduction
- */
-export async function reduceNDAsync(atom, space, ground, limit, cache) {
-  const ctx = acquireContext(space, ground, limit, cache, globalReduceND);
-  try {
-    const results = [];
-    const pl = getGlobalPipeline();
-    const yieldInterval = 100;
-    let stepCount = 0;
-
-    for (const result of pl.execute(atom, ctx)) {
-      if (++stepCount % yieldInterval === 0) {
-        await new Promise(resolve => setTimeout(resolve, 0));
-      }
-      if (result.applied) {
-        results.push(result.reduced);
-      }
-    }
-
-    return results.length > 0 ? results : [atom];
-  } finally {
-    releaseContext(ctx);
-  }
-}
-
-/**
- * Async step
+ * Async step — yields to event loop before delegating to sync step
  */
 export async function stepAsync(atom, space, ground, limit, cache) {
-  await new Promise(resolve => setTimeout(resolve, 0));
-  return step(atom, space, ground, limit, cache);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    return step(atom, space, ground, limit, cache);
+}
+
+/**
+ * Async reduction — yields periodically to avoid blocking
+ */
+export async function reduceAsync(atom, space, ground, limit = 10000, cache = null, interpreter = null) {
+    const ctx = acquireContext(space, ground, limit, cache, globalReduceND, interpreter);
+    try {
+        const pl = interpreter ? getOrCreatePipeline(interpreter) : getGlobalPipeline();
+        let current = atom;
+        const yieldInterval = 100;
+
+        while (ctx.steps < limit) {
+            if (ctx.steps % yieldInterval === 0) await new Promise(resolve => setTimeout(resolve, 0));
+            const gen = pl.execute(current, ctx);
+            const { value, done } = gen.next();
+            if (done || !value?.applied) return current;
+            current = value.reduced;
+            ctx.steps++;
+        }
+        throw new Error(`Max steps exceeded: ${limit} steps`);
+    } finally {
+        releaseContext(ctx);
+    }
+}
+
+/**
+ * Async non-deterministic reduction — yields periodically
+ */
+export async function reduceNDAsync(atom, space, ground, limit = 10000, cache = null, interpreter = null) {
+    const ctx = acquireContext(space, ground, limit, cache, globalReduceND, interpreter);
+    try {
+        const results = [];
+        const pl = getGlobalPipeline();
+        const yieldInterval = 100;
+        let stepCount = 0;
+
+        for (const result of pl.execute(atom, ctx)) {
+            if (++stepCount % yieldInterval === 0) await new Promise(resolve => setTimeout(resolve, 0));
+            if (result.applied) results.push(result.reduced);
+        }
+        return results.length > 0 ? results : [atom];
+    } finally {
+        releaseContext(ctx);
+    }
 }
 
 /**
@@ -478,28 +476,6 @@ export function createInterpreterBindings(interpreter, customStages = null) {
       return this;
     }
   };
-}
-
-// ===== Legacy Compatibility (will be removed) =====
-
-export function setInternalReferences(stepFn, stepYieldFn) {
-  // No-op in new architecture
-}
-
-export function setNDInternalReferences(stepYieldFn) {
-  // No-op in new architecture
-}
-
-export function setReduceNDInternalReference(ndReduceFn) {
-  globalReduceND = ndReduceFn;
-}
-
-export function setReduceDeterministicInternalReference(detReduceFn) {
-  // No-op in new architecture
-}
-
-export function setDeterministicInternalReference(detReduceFn) {
-  // No-op in new architecture
 }
 
 // ===== Exports =====

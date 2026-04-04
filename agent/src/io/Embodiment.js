@@ -13,13 +13,13 @@
  * - Embodiments support sub-agent scoping (Phase 6)
  */
 import { EventEmitter } from 'events';
-import { Logger } from '@senars/core';
+import { Logger, generateId } from '@senars/core';
 
 export class Embodiment extends EventEmitter {
     constructor(config = {}) {
         super();
         this.config = config;
-        this.id = config.id || `embodiment_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+        this.id = config.id || generateId('embodiment');
         this.type = 'generic';
         this.status = 'disconnected';
         
@@ -149,7 +149,7 @@ export class Embodiment extends EventEmitter {
      */
     emitMessage(message) {
         const normalizedMessage = {
-            id: message.id || `msg_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
+            id: message.id || generateId('msg'),
             embodimentId: this.id,
             protocol: this.type,
             from: message.from || 'unknown',

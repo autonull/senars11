@@ -1,6 +1,7 @@
 /**
  * Shared data structures for RL components
  */
+import { generateId as _genId } from '@senars/core';
 
 export class SumTree {
     constructor(capacity) {
@@ -209,7 +210,7 @@ export class Index {
 }
 
 export function generateId(prefix = 'id') {
-    return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    return _genId(prefix);
 }
 
 export function serializeValue(value) {

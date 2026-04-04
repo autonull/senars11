@@ -2,8 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import {fileURLToPath} from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+let __dirname;
+try {
+    __dirname = path.dirname(fileURLToPath(import.meta.url));
+} catch {
+    __dirname = process.cwd();
+}
 const EXAMPLES_PATH = path.resolve(__dirname, '../../../examples');
 
 export class FileSystemDemoSource {

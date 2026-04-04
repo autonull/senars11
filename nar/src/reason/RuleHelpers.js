@@ -1,4 +1,4 @@
-import { Logger } from '@senars/core/src/util/Logger.js';
+import { Logger } from '@senars/core';
 import { Punctuation } from '../task/Task.js';
 import { cleanText as cleanTextCommon, isValidLength } from '@senars/core/src/util/common.js';
 

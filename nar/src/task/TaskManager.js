@@ -1,7 +1,7 @@
 import {Task} from './Task.js';
 import {Truth} from '../Truth.js';
 import {collectTasksFromAllConcepts} from '../memory/MemoryUtils.js';
-import {BaseComponent} from '@senars/core/src/util/BaseComponent.js';
+import {BaseComponent} from '@senars/core';
 import {Statistics} from '@senars/core/src/util/Statistics.js';
 
 const PRIORITY_BUCKETS = Object.freeze({

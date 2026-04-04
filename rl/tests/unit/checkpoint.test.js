@@ -47,17 +47,37 @@ class MockAgent extends Component {
 
 describe('CheckpointManager', () => {
     let manager;
+    let testDir;
+    let testCounter = 0;
 
     beforeEach(async () => {
-        await fs.mkdir(TEST_DIR, { recursive: true });
-        manager = new CheckpointManager({ directory: TEST_DIR, interval: 10, maxKeep: 3 });
+        testDir = path.join(__dirname_fixed, `test_checkpoints_${Date.now()}_${++testCounter}`);
+        await fs.mkdir(testDir, { recursive: true });
+        manager = new CheckpointManager({ directory: testDir, interval: 10, maxKeep: 3 });
         await manager.initialize();
     });
 
     afterEach(async () => {
-        await manager.shutdown();
         try {
-            await fs.rm(TEST_DIR, { recursive: true, force: true });
+            await manager.shutdown();
+        } catch {
+            // Ignore shutdown errors
+        }
+        try {
+            await fs.rm(testDir, { recursive: true, force: true });
+        } catch {
+            // Ignore cleanup errors
+        }
+    });
+
+    afterEach(async () => {
+        try {
+            await manager.shutdown();
+        } catch {
+            // Ignore shutdown errors
+        }
+        try {
+            await fs.rm(testDir, { recursive: true, force: true });
         } catch {
             // Ignore cleanup errors
         }
@@ -65,7 +85,7 @@ describe('CheckpointManager', () => {
 
     describe('initialization', () => {
         it('should create checkpoint directory', async () => {
-            const stats = await fs.stat(TEST_DIR);
+            const stats = await fs.stat(testDir);
             expect(stats.isDirectory()).toBe(true);
         });
 

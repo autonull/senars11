@@ -1,4 +1,5 @@
 import { AgentCommand } from '../AgentCommand.js';
+import { FormattingUtils } from '@senars/core';
 
 export class AgentCreateCommand extends AgentCommand {
     constructor() { super('agent', 'Manage agent status', 'agent [status]'); }
@@ -36,7 +37,7 @@ export class GoalCommand extends AgentCommand {
     }
 
     #formatTask(task) {
-        try { return require('../../../core/src/util/FormattingUtils.js').FormattingUtils.formatTask(task); }
+        try { return FormattingUtils.formatTask(task); }
         catch { return String(task); }
     }
 }

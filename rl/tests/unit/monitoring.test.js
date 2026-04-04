@@ -14,7 +14,7 @@ try {
     // Jest VM environment - use global.__dirname or fallback
     __dirname_fixed = typeof global !== 'undefined' && global.__dirname 
         ? global.__dirname 
-        : process.cwd();
+        : path.join(process.cwd(), 'rl', 'tests', 'unit');
 }
 const TEST_DIR = path.join(__dirname_fixed, 'test_monitor_logs');
 

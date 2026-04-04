@@ -1,4 +1,12 @@
-import { categorizeMessage } from '../notebook/MessageFilter.js';
+let categorizeMessage = null;
+
+async function _loadMessageFilter() {
+    if (!categorizeMessage) {
+        const mod = await import('../notebook/MessageFilter.js');
+        categorizeMessage = mod.categorizeMessage;
+    }
+    return categorizeMessage;
+}
 
 export class MessageRouter {
     constructor(app) {
@@ -72,8 +80,9 @@ export class MessageRouter {
         });
     }
 
-    _logGenericMessage(message) {
-        const category = categorizeMessage(message);
+    async _logGenericMessage(message) {
+        const categorize = await _loadMessageFilter();
+        const category = categorize(message);
 
         if (category !== 'unknown' && category !== 'metric') {
             let content = message.content || message.payload;

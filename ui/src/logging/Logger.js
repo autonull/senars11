@@ -1,5 +1,5 @@
 import { UILoggerAdapter } from './UILoggerAdapter.js';
-import { Logger as CoreLogger } from '@senars/core/src/util/Logger.js';
+import { Logger as CoreLogger } from '@senars/core';
 
 export class Logger {
     #adapter;

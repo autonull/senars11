@@ -33,7 +33,7 @@ import {
 import {
     CrossModalAttention,
     SymbolicAttention,
-    NeuroSymbolicFusion
+    NeuroSymbolicFusionSystem
 } from '../../src/attention/CrossModalAttention.js';
 
 import {
@@ -374,7 +374,7 @@ function testSymbolicAttention() {
 function testNeuroSymbolicFusion() {
     console.log('  Testing NeuroSymbolicFusion...');
     
-    const fusion = new NeuroSymbolicFusion({ mode: 'gated' });
+    const fusion = new NeuroSymbolicFusionSystem({ mode: 'gated' });
     
     const neural = { data: new Float32Array([0.8, 0.2, 0.6, 0.4]) };
     const symbolic = { data: new Float32Array([0.1, 0.9, 0.3, 0.7]) };

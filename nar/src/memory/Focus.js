@@ -1,6 +1,6 @@
 import {clamp} from '@senars/core/src/util/common.js';
-import {BaseComponent} from '@senars/core/src/util/BaseComponent.js';
-import {Logger} from '@senars/core/src/util/Logger.js';
+import {BaseComponent} from '@senars/core';
+import {Logger} from '@senars/core';
 import {Task} from '../task/Task.js';
 
 const DEFAULT_CONFIG = Object.freeze({

@@ -1,4 +1,4 @@
-import { deepMerge } from '../../../core/src/util/object.js';
+import { deepMerge } from '@senars/core';
 
 export function mergeConfig(defaults, overrides = {}) {
     return deepMerge(defaults, overrides);
@@ -106,7 +106,7 @@ export function createConfiguredClass(defaults, schema = {}) {
     };
 }
 
-export { deepMerge as deepMergeConfig } from '../../../core/src/util/object.js';
+export { deepMerge as deepMergeConfig } from '@senars/core';
 
 export class ConfigValidator {
     constructor(schema) {

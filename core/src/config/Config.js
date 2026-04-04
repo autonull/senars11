@@ -55,6 +55,7 @@ export const DEFAULT_CONFIG = {
  */
 import { validateConfigWithDefaults } from './ConfigValidator.js';
 import { Logger } from '../util/Logger.js';
+import { deepMerge } from '../util/object.js';
 
 export const DEFAULT_CONFIG_CORE = Object.freeze({
     nar: {
@@ -230,7 +231,7 @@ export class ConfigValidator {
             return validateConfigWithDefaults(userConfig || {});
         } catch (error) {
             // If validation fails, return defaults merged with user config
-            return { ...DEFAULT_CONFIG, ...userConfig };
+            return deepMerge(DEFAULT_CONFIG, userConfig);
         }
     }
 

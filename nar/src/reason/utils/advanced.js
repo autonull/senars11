@@ -1,6 +1,7 @@
 /**
  * Advanced utility functions for the reasoner following AGENTS.md guidelines
  */
+import { generateId } from '@senars/core';
 
 /**
  * Create a configurable pipeline of functions that can be composed together
@@ -318,7 +319,7 @@ export function createTransformer(transforms) {
  */
 export function createRuleBuilder() {
     const ruleState = {
-        id: `rule_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: generateId('rule'),
         type: 'general',
         priority: 1.0,
         guards: [],

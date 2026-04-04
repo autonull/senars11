@@ -1,8 +1,8 @@
 import {WebSocketServer} from 'ws';
 import {EventEmitter} from 'events';
 import {ClientMessageHandlers} from './ClientMessageHandlers.js';
-import { IntrospectionEvents } from '@senars/nar';
-import {DEFAULT_CLIENT_CAPABILITIES, WEBSOCKET_CONFIG, sendToClient, broadcastToClients, Logger} from '@senars/core';
+import { IntrospectionEvents, DEFAULT_CLIENT_CAPABILITIES, WEBSOCKET_CONFIG } from '@senars/nar';
+import { sendToClient, broadcastToClients, Logger, generateId } from '@senars/core';
 
 const DEFAULT_OPTIONS = Object.freeze({
     port: WEBSOCKET_CONFIG.defaultPort,
@@ -205,7 +205,7 @@ class WebSocketMonitor {
     }
 
     _generateClientId() {
-        return `client_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+        return generateId('client');
     }
 
     getStats() {

@@ -10,7 +10,7 @@
  */
 import {Strategy} from '../Strategy.js';
 import {Unifier} from '../../term/Unifier.js';
-import {Logger} from '@senars/core/src/util/Logger.js';
+import {Logger} from '@senars/core';
 
 export class ResolutionStrategy extends Strategy {
     /**

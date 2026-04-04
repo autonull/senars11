@@ -2,6 +2,10 @@ import {AgentBuilder} from '../../../agent/src/AgentBuilder.js';
 import {Agent} from '../../../agent/src/Agent.js';
 import {NAR} from '@senars/nar';
 
+beforeAll(() => {
+    process.env.OPENAI_API_KEY = 'sk-test-fake-key-for-unit-tests';
+});
+
 describe('AgentBuilder', () => {
     const agents = [];
 

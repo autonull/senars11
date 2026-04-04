@@ -2,7 +2,7 @@
  * MetricsMonitor for the new reason system
  * Provides comprehensive monitoring and metrics collection for the reasoning process
  */
-import {Logger} from '@senars/core/src/util/Logger.js';
+import {Logger} from '@senars/core';
 import {logError} from './utils/error.js';
 import {getMemoryUsage} from '@senars/core/src/util/common.js';
 

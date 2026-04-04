@@ -3,7 +3,7 @@
  * @description Tool that allows LLM to control and interact with the NAR system
  */
 
-import {BaseTool} from './BaseTool.js';
+import {BaseTool} from '@senars/core';
 import {PrologParser} from '../parser/PrologParser.js';
 import {PrologStrategy} from '@senars/nar';
 

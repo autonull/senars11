@@ -1,7 +1,12 @@
-import {fileURLToPath} from 'url';
 import {dirname} from 'path';
+import {fileURLToPath} from 'url';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+let __dirname;
+try {
+    __dirname = dirname(fileURLToPath(import.meta.url));
+} catch {
+    __dirname = process.cwd();
+}
 
 export const DEFAULT_CONFIG = Object.freeze({
     nar: {

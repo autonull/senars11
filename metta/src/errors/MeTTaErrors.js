@@ -1,11 +1,11 @@
 /**
- * @deprecated Import from '../../../core/src/errors/index.js' instead
+ * @deprecated Import from '@senars/core' instead
  * Re-exports for backward compatibility
  */
 export {
     MeTTaError,
     OperationNotFoundError,
-    TypeError,
+    NarsTypeError as TypeError,
     ReductionError,
     ParseError,
     ConfigurationError,
@@ -14,4 +14,4 @@ export {
     TimeoutError,
     formatError,
     logError
-} from '../../../core/src/errors/index.js';
+} from '@senars/core';

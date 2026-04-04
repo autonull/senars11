@@ -139,10 +139,6 @@ export {
 // ==================== Planning & Modules ====================
 export {
     PlanningSystem,
-    Planner,
-    HierarchicalPlanner,
-    PathPlanner,
-    RuleInducer,
     IntrinsicMotivation
 } from './modules/PlanningSystem.js';
 
@@ -154,10 +150,7 @@ export { ReasoningSystem, CausalGraph, CausalNode, CausalEdge, CausalReasoner } 
 export {
     MetaController,
     ModificationOperator,
-    ArchitectureEvolver,
-    SelfModifier,
-    ArchitectureSearch,
-    Evolver
+    ArchitectureEvolver
 } from './meta/MetaControlSystem.js';
 
 // ==================== Skills ====================
@@ -211,16 +204,24 @@ export * from './functional/FunctionalUtils.js';
 export {
     RLCognitiveArchitecture,
     RLCognitiveArchitecture as CognitiveArchitecture,
-    CognitiveModule,
-    PerceptionModule,
-    ReasoningModule,
-    PlanningModule,
-    ActionModule,
-    MemoryModule,
-    SkillModule,
-    MetaCognitiveModule,
     ArchitecturePresets
 } from './systems/CognitiveArchitecture.js';
+export { CognitiveModule } from './systems/modules/CognitiveModule.js';
+export { PerceptionModule } from './systems/modules/PerceptionModule.js';
+export { ReasoningModule } from './systems/modules/ReasoningModule.js';
+export { PlanningModule } from './systems/modules/PlanningModule.js';
+export { ActionModule } from './systems/modules/ActionModule.js';
+export { MemoryModule } from './systems/modules/MemoryModule.js';
+export { SkillModule } from './systems/modules/SkillModule.js';
+export { MetaCognitiveModule } from './systems/modules/MetaCognitiveModule.js';
+export { CognitiveModule } from './systems/modules/CognitiveModule.js';
+export { PerceptionModule } from './systems/modules/PerceptionModule.js';
+export { ReasoningModule } from './systems/modules/ReasoningModule.js';
+export { PlanningModule } from './systems/modules/PlanningModule.js';
+export { ActionModule } from './systems/modules/ActionModule.js';
+export { MemoryModule } from './systems/modules/MemoryModule.js';
+export { SkillModule } from './systems/modules/SkillModule.js';
+export { MetaCognitiveModule } from './systems/modules/MetaCognitiveModule.js';
 export * from './systems/EmergentArchitecture.js';
 
 // ==================== Utilities ====================

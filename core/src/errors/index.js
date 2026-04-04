@@ -235,7 +235,7 @@ export class OperationNotFoundError extends MeTTaError {
     }
 }
 
-export class TypeError extends MeTTaError {
+export class NarsTypeError extends MeTTaError {
     constructor(message, expected, actual, { context = {}, ...rest } = {}) {
         super(message, { context: { ...context, expected, actual }, ...rest });
         this.expected = expected;
@@ -530,6 +530,13 @@ export function validateConfig(config, schema, defaults = {}) {
         }
     }
     return validated;
+}
+
+export class NotImplementedError extends SeNARSError {
+    constructor(feature, { suggestion = null, ...rest } = {}) {
+        super(`Not implemented: ${feature}`, { code: 'NOT_IMPLEMENTED', details: { feature, suggestion }, ...rest });
+        this.feature = feature;
+    }
 }
 
 export function handleError(error, context = '', fallbackMessage = 'An error occurred') {

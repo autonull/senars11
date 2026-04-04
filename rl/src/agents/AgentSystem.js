@@ -2,6 +2,10 @@ import { Agent } from '../core/RLCore.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
 import { AgentFactoryUtils } from './QNetwork.js';
 import { NeuralAgent } from './NeuralAgent.js';
+import { DQNAgent } from './DQNAgent.js';
+import { PPOAgent } from './PPOAgent.js';
+import { PolicyGradientAgent } from './PolicyGradientAgent.js';
+import { RandomAgent } from './RandomAgent.js';
 
 export { NeuralAgent };
 
@@ -16,22 +20,18 @@ export class AgentBuilder {
     }
 
     dqn(config = {}) {
-        const { DQNAgent } = require('./DQNAgent.js');
         return new DQNAgent(this.env, config);
     }
 
     ppo(config = {}) {
-        const { PPOAgent } = require('./PPOAgent.js');
         return new PPOAgent(this.env, config);
     }
 
     policyGradient(config = {}) {
-        const { PolicyGradientAgent } = require('./PolicyGradientAgent.js');
         return new PolicyGradientAgent(this.env, config);
     }
 
     random(config = {}) {
-        const { RandomAgent } = require('./RandomAgent.js');
         return new RandomAgent(this.env, config);
     }
 

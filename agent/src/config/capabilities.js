@@ -13,6 +13,7 @@ export const DEFAULTS = {
   selfModifyingSkills: false, harnessOptimization: false, memoryConsolidation: false,
   goalPursuit: false, subAgentSpawning: false, selfEvaluation: false, harnessDiffusion: false,
   actionTrace: false, memorySnapshots: false, separateEvaluator: false, coordinatorMode: false,
+  taskList: false, backgroundTriggers: false,
 };
 
 const PROFILES = {

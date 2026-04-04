@@ -12,6 +12,7 @@ export { collectTasksFromAllConcepts, getOrDefault, getWithDefaultSet, addToMapS
 export { MemoryStatistics } from './MemoryStatistics.js';
 export { MemoryScorer } from './MemoryScorer.js';
 export { ValidationUtils } from './ValidationUtils.js';
+export { ValidationRepair } from './ValidationRepair.js';
 export { TermCategorization } from './TermCategorization.js';
 export { Layer } from './Layer.js';
 export { ForgettingPolicy } from './ForgettingPolicy.js';

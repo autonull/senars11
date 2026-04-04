@@ -2,9 +2,7 @@ import {generateObject, generateText, streamText} from 'ai';
 import {createOpenAI} from '@ai-sdk/openai';
 import {createAnthropic} from '@ai-sdk/anthropic';
 import {createOllama} from 'ollama-ai-provider';
-import {TransformersJSProvider} from '../../../core/src/lm/TransformersJSProvider.js';
-import {WebLLMProvider} from '../../../core/src/lm/WebLLMProvider.js';
-import {DummyProvider} from '../../../core/src/lm/DummyProvider.js';
+import {TransformersJSProvider, WebLLMProvider, DummyProvider} from '@senars/core';
 
 export class AIClient {
     constructor(config = {}) {

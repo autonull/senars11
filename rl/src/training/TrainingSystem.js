@@ -8,6 +8,7 @@ import { Worker } from 'worker_threads';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { mergeConfig } from '../utils/ConfigHelper.js';
+import { generateId } from '@senars/core';
 
 // Import core training classes from TrainingLoop.js
 export { TrainingConfig, EpisodeResult, TrainingLoop, TrainingPresets } from './TrainingLoop.js';
@@ -79,7 +80,7 @@ export class WorkerPool extends Component {
     }
 
     async submitTask(task) {
-        const taskId = task.id ?? `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const taskId = task.id ?? generateId('task');
         const taskInfo = { ...task, id: taskId, submittedAt: Date.now() };
 
         this.taskQueue.push(taskInfo);

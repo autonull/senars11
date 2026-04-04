@@ -1,4 +1,4 @@
-import { Logger as CoreLogger, ConsoleLoggerAdapter } from '@senars/core/src/util/Logger.js';
+import { Logger as CoreLogger, ConsoleLoggerAdapter } from '@senars/core';
 import { UI_CONSTANTS } from '@senars/core';
 
 const DEFAULT_ICONS = {
@@ -75,4 +75,4 @@ export class UILoggerAdapter {
 }
 
 // Re-export the core Logger singleton for convenience
-export { Logger as CoreLogger } from '@senars/core/src/util/Logger.js';
+export { Logger as CoreLogger } from '@senars/core';

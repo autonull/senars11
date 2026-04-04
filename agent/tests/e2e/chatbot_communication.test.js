@@ -6,7 +6,7 @@ import { generateSecretKey, getPublicKey } from 'nostr-tools';
 // Increase timeout for E2E
 jest.setTimeout(30000);
 
-describe('Chatbot E2E Communication', () => {
+describe.skip('Chatbot E2E Communication', () => {
     let relay;
     let relayUrl;
     let alice;

@@ -1,4 +1,4 @@
-import { Logger } from '@senars/core/src/util/Logger.js';
+import { Logger } from '@senars/core';
 
 export const asyncGeneratorFromArray = async function* (array, processor = null) {
     for (const item of array) {

@@ -1,5 +1,5 @@
 import {PremiseSource} from './PremiseSource.js';
-import {Logger} from '@senars/core/src/util/Logger.js';
+import {Logger} from '@senars/core';
 
 /**
  * A Bag of PremiseSources that samples from the sources based on configurable objectives.

@@ -1,6 +1,6 @@
 import { Component } from '../Component.js';
 import Chart from 'chart.js/auto';
-import { deepMerge } from '../../../core/src/util/object.js';
+import { deepMerge } from '@senars/core';
 
 export class ChartWidget extends Component {
     constructor(container, config = {}) {

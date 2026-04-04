@@ -1,4 +1,5 @@
 import { AgentCommand } from '../AgentCommand.js';
+import { FormattingUtils } from '@senars/core';
 
 export class ConceptsCommand extends AgentCommand {
     constructor() { super('concepts', 'List concepts', 'concepts [term]'); }
@@ -45,7 +46,7 @@ export class TasksCommand extends AgentCommand {
     }
 
     #formatTask(task) {
-        try { return require('../../../core/src/util/FormattingUtils.js').FormattingUtils.formatTask(task); }
+        try { return FormattingUtils.formatTask(task); }
         catch { return String(task); }
     }
 }
@@ -57,7 +58,7 @@ export class BeliefsCommand extends AgentCommand {
         return `Beliefs:\n${beliefs.slice(0, 20).map(t => this.#formatTask(t)).join('\n')}`;
     }
     #formatTask(task) {
-        try { return require('../../../core/src/util/FormattingUtils.js').FormattingUtils.formatTask(task); }
+        try { return FormattingUtils.formatTask(task); }
         catch { return String(task); }
     }
 }
@@ -69,7 +70,7 @@ export class QuestionsCommand extends AgentCommand {
         return `Questions:\n${questions.slice(0, 20).map(t => this.#formatTask(t)).join('\n')}`;
     }
     #formatTask(task) {
-        try { return require('../../../core/src/util/FormattingUtils.js').FormattingUtils.formatTask(task); }
+        try { return FormattingUtils.formatTask(task); }
         catch { return String(task); }
     }
 }

@@ -1,6 +1,6 @@
 import {AgentBuilder} from '../AgentBuilder.js';
 import EventEmitter from 'events';
-import {Logger} from '@senars/core';
+import {Logger, generateId} from '@senars/core';
 import {ActivityModel} from './model/ActivityModel.js';
 import {ActivityMonitor} from './model/ActivityMonitor.js';
 import {ActionDispatcher} from './model/ActionDispatcher.js';
@@ -32,7 +32,7 @@ export class App extends EventEmitter {
     }
 
     _generateAgentId() {
-        return `agent_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+        return generateId('agent');
     }
 
     async createAgent(agentId = null, config = {}) {

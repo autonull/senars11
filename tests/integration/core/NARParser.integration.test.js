@@ -1,4 +1,10 @@
 import {Truth, IntrospectionEvents} from '@senars/nar';
+import {createNARIntegrationTestSuite} from '../../support/narTestSetup.js';
+import {flexibleAssertions, runPerformanceTest} from '../../support/baseTestUtils.js';
+
+// Make available as globals for the test patterns
+globalThis.flexibleAssertions = flexibleAssertions;
+globalThis.runPerformanceTest = runPerformanceTest;
 
 describe('NAR Parser Integration', () => {
     // Using the new NAR test setup utilities

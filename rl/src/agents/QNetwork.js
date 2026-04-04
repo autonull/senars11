@@ -2,7 +2,7 @@
  * Q-Network Module
  * Leverages tensor/Module patterns for cleaner architecture
  */
-import { Module, Linear, Tensor } from '@senars/tensor';
+import { Module, Linear, Tensor, randn } from '@senars/tensor';
 
 /**
  * Q-Network for DQN agent
@@ -88,8 +88,7 @@ export const AgentFactoryUtils = {
                 ? this.argmax(probs.data)
                 : this.sampleCategorical(probs.data);
         }
-        const { Tensor } = require('@senars/tensor');
-        const noise = Tensor.randn(policy.shape);
+        const noise = randn(policy.shape);
         return policy.add(noise).data;
     },
 

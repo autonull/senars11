@@ -23,7 +23,7 @@ export class SeNARSBridge {
     async initialize() {
         if (this.initialized) return;
 
-        const { SeNARS } = await import('@senars/core');
+        const { SeNARS } = await import('@senars/nar');
         this.senars = new SeNARS(this.config);
         await this.senars.start();
 

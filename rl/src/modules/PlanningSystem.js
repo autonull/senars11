@@ -229,8 +229,3 @@ export class IntrinsicMotivation {
         return this.visitCounts.get(key) ?? 0;
     }
 }
-
-export { PlanningSystem as Planner };
-export { PlanningSystem as HierarchicalPlanner };
-export { PlanningSystem as PathPlanner };
-export { PlanningSystem as RuleInducer };

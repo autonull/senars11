@@ -1,4 +1,4 @@
-import { deepMerge } from '../util/object.js';
+import { deepMerge, safeGet } from '../util/object.js';
 import { Logger } from '../util/Logger.js';
 import { ConfigurationError } from '../errors/index.js';
 
@@ -36,7 +36,7 @@ export class ConfigManager {
         }
         const entry = this.#entries.get(path);
         if (entry) return entry.value;
-        return path.split('.').reduce((cur, key) => cur?.[key], this.#config) ?? fallback ?? this.#defaults[path];
+        return safeGet(this.#config, path, fallback ?? this.#defaults[path]);
     }
 
     set(path, value, { validate = true, persist = false, override: overrideName = null } = {}) {

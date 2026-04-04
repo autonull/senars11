@@ -18,41 +18,16 @@ export class ShellGuard {
         this._allowlist = config.allowlist ?? [];
         this._allowedPrefixes = config.allowedPrefixes ?? [];
         this._forbiddenPatterns = config.forbiddenPatterns ?? [
-            'rm',
-            'sudo',
-            'curl',
-            'wget',
-            '>',
-            '|',
-            ';',
-            '&&',
-            '`',
-            '$(',
-            'eval',
-            'nc',
-            'netcat',
-            'bash -c',
-            'sh -c',
-            'python -c',
-            'perl -e',
-            'ruby -e'
+            'rm', 'sudo', 'curl', 'wget', '>', '|', ';', '&&', '`', '$(', 'eval',
+            'nc', 'netcat', 'bash -c', 'sh -c', 'python -c', 'perl -e', 'ruby -e'
         ];
         this._workingDir = config.workingDir ?? process.cwd();
     }
 
-    /**
-     * Validate a shell command.
-     * @param {string} cmd - Command string
-     * @returns {{valid: boolean, reason?: string, parsed?: {exec: string, args: string[]}}}
-     */
     validate(cmd) {
         const cmdStr = String(cmd).trim();
+        if (!cmdStr) return { valid: false, reason: 'empty-command' };
 
-        if (!cmdStr) {
-            return { valid: false, reason: 'empty-command' };
-        }
-
-        // Check forbidden patterns first (fast fail)
         for (const pattern of this._forbiddenPatterns) {
             if (cmdStr.includes(pattern)) {
                 Logger.warn(`[ShellGuard] Forbidden pattern "${pattern}" in: ${cmdStr.slice(0, 50)}`);
@@ -60,7 +35,6 @@ export class ShellGuard {
             }
         }
 
-        // Check for shell metacharacters that could be dangerous
         const dangerousChars = ['$', '`', '>', '<', '|', '&', ';', '\n', '\r'];
         for (const char of dangerousChars) {
             if (cmdStr.includes(char)) {
@@ -69,29 +43,20 @@ export class ShellGuard {
             }
         }
 
-        // Parse command into executable and arguments
         const parts = cmdStr.split(' ').filter(p => p.length > 0);
-        if (parts.length === 0) {
-            return { valid: false, reason: 'no-command' };
-        }
+        if (parts.length === 0) return { valid: false, reason: 'no-command' };
 
         const [exec, ...args] = parts;
 
-        // Check allowlist (exact match)
         if (this._allowlist.includes(cmdStr)) {
             Logger.debug(`[ShellGuard] Allowed (exact): ${cmdStr}`);
             return { valid: true, parsed: { exec, args } };
         }
 
-        // Check prefix allowlist
         for (const prefix of this._allowedPrefixes) {
             if (cmdStr.startsWith(prefix)) {
-                // Additional check: ensure the prefix is a complete word boundary
-                const afterPrefix = cmdStr.slice(prefix.length);
-                if (afterPrefix.length === 0 || afterPrefix[0] === ' ') {
-                    Logger.debug(`[ShellGuard] Allowed (prefix "${prefix}"): ${cmdStr}`);
-                    return { valid: true, parsed: { exec, args } };
-                }
+                Logger.debug(`[ShellGuard] Allowed (prefix "${prefix}"): ${cmdStr}`);
+                return { valid: true, parsed: { exec, args } };
             }
         }
 
@@ -99,9 +64,6 @@ export class ShellGuard {
         return { valid: false, reason: 'not-allowlisted', command: cmdStr.slice(0, 100) };
     }
 
-    /**
-     * Update configuration at runtime.
-     */
     configure(config) {
         if (config.allowlist) this._allowlist = config.allowlist;
         if (config.allowedPrefixes) this._allowedPrefixes = config.allowedPrefixes;
@@ -109,9 +71,6 @@ export class ShellGuard {
         if (config.workingDir) this._workingDir = config.workingDir;
     }
 
-    /**
-     * Get current configuration (for introspection).
-     */
     getConfig() {
         return {
             allowlist: [...this._allowlist],
@@ -122,69 +81,58 @@ export class ShellGuard {
     }
 }
 
-/**
- * Execute a validated command with spawn.
- * @param {string} cmd - Command string
- * @param {Object} options - ShellGuard config
- * @returns {Promise<{success: boolean, stdout?: string, stderr?: string, exitCode?: number}>}
- */
 export async function executeValidatedCommand(cmd, options = {}) {
     const guard = new ShellGuard(options);
     const validation = guard.validate(cmd);
 
     if (!validation.valid) {
-        return {
-            success: false,
-            error: validation.reason,
-            details: validation
-        };
+        return { success: false, error: validation.reason, details: validation };
     }
 
     const { spawn } = await import('child_process');
     const { exec, args } = validation.parsed;
+    const timeout = options.timeout ?? 30000;
 
     return new Promise((resolve) => {
         let stdout = '';
         let stderr = '';
+        let resolved = false;
 
         const proc = spawn(exec, args, {
             shell: false,
-            timeout: options.timeout ?? 30000,
             cwd: options.workingDir ?? process.cwd()
         });
 
-        proc.stdout.on('data', (data) => {
-            stdout += data.toString();
-        });
+        const timer = setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                proc.kill();
+                resolve({ success: false, error: 'timeout', stderr: `Command timed out after ${timeout}ms` });
+            }
+        }, timeout);
 
-        proc.stderr.on('data', (data) => {
-            stderr += data.toString();
-        });
+        proc.stdout.on('data', (data) => { stdout += data.toString(); });
+        proc.stderr.on('data', (data) => { stderr += data.toString(); });
 
         proc.on('close', (code) => {
-            resolve({
-                success: code === 0,
-                stdout: stdout.slice(0, options.maxOutput ?? 10000),
-                stderr: stderr.slice(0, options.maxErrorOutput ?? 2000),
-                exitCode: code
-            });
+            if (!resolved) {
+                resolved = true;
+                clearTimeout(timer);
+                resolve({
+                    success: code === 0,
+                    stdout: stdout.slice(0, options.maxOutput ?? 10000),
+                    stderr: stderr.slice(0, options.maxErrorOutput ?? 2000),
+                    exitCode: code
+                });
+            }
         });
 
         proc.on('error', (err) => {
-            resolve({
-                success: false,
-                error: err.message,
-                stderr: err.message
-            });
-        });
-
-        proc.on('timeout', () => {
-            proc.kill();
-            resolve({
-                success: false,
-                error: 'timeout',
-                stderr: `Command timed out after ${options.timeout ?? 30000}ms`
-            });
+            if (!resolved) {
+                resolved = true;
+                clearTimeout(timer);
+                resolve({ success: false, error: err.message, stderr: err.message });
+            }
         });
     });
 }

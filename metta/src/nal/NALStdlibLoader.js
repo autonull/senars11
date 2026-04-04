@@ -4,7 +4,10 @@
  * Separate from general MeTTa stdlib
  */
 
-import { createRequire } from 'module';
+import { Logger } from '@senars/core';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const NAL_MODULES = ['truth', 'nal', 'budget', 'attention', 'control', 'search', 'learn'];
 
@@ -45,13 +48,7 @@ export class NALStdlibLoader {
         // 2. Fallback to Node.js fs if available
         else if (typeof process !== 'undefined' && process.versions?.node) {
             try {
-                const require = createRequire(import.meta.url);
-                const fs = require('fs');
-                const path = require('path');
-                const { fileURLToPath } = require('url');
-
                 const currentDir = path.dirname(fileURLToPath(import.meta.url));
-                // NAL stdlib is in ../nal/stdlib/ relative to metta/src/nal/
                 const nalStdlibDir = this.nalStdlibDir || path.join(currentDir, 'stdlib');
                 const filePath = path.join(nalStdlibDir, fileName);
 

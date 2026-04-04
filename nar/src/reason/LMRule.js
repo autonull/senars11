@@ -1,5 +1,5 @@
 import {Rule} from './Rule.js';
-import {Logger} from '@senars/core/src/util/Logger.js';
+import {Logger} from '@senars/core';
 import {logError, RuleExecutionError} from './utils/error.js';
 import {CircuitBreaker} from '@senars/core/src/util/CircuitBreaker.js';
 import {emitEvent} from '@senars/core/src/util/EventUtils.js';

@@ -4,7 +4,7 @@
  * that could be relevant to the current primary premise.
  */
 import {Strategy} from '../Strategy.js';
-import {Logger} from '@senars/core/src/util/Logger.js';
+import {Logger} from '@senars/core';
 
 export class ExhaustiveStrategy extends Strategy {
     /**

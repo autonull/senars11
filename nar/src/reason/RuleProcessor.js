@@ -1,5 +1,5 @@
 import {deepMergeConfig as mergeConfig, processDerivation, sleep} from './utils/common.js';
-import {Logger} from '@senars/core/src/util/Logger.js';
+import {Logger} from '@senars/core';
 import {logError, ReasonerError} from './utils/error.js';
 import {Queue} from '@senars/core/src/util/Queue.js';
 import {Stamp, ArrayStamp} from '../Stamp.js';

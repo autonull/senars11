@@ -13,8 +13,12 @@ import {ConsoleFormatter, VirtualConsole, VirtualGraph} from '@senars/agent';
 
 export {RemoteTaskMatch};
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+let __dirname;
+try {
+    __dirname = dirname(fileURLToPath(import.meta.url));
+} catch {
+    __dirname = process.cwd();
+}
 
 export class TestNARRemote {
     constructor() {

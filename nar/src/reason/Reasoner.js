@@ -1,5 +1,5 @@
 import {EventEmitter} from 'eventemitter3';
-import {Logger} from '@senars/core/src/util/Logger.js';
+import {Logger} from '@senars/core';
 import {getHeapUsed} from '@senars/core/src/util/common.js';
 import {SimpleRunner} from './exec/SimpleRunner.js';
 import {PipelineRunner} from './exec/PipelineRunner.js';

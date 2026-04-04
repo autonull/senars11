@@ -2,6 +2,7 @@ import {BaseComponent} from '../util/BaseComponent.js';
 import {Capability, CapabilityManager} from '../util/CapabilityManager.js';
 import {PerformanceTracker} from './PerformanceTracker.js';
 import {ExecutionHistory} from './ExecutionHistory.js';
+import {generateId} from '../util/string.js';
 
 export class ToolEngine extends BaseComponent {
     constructor(config = {}) {
@@ -340,7 +341,7 @@ export class ToolEngine extends BaseComponent {
     }
 
     _generateExecutionId() {
-        return `exec_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+        return generateId('exec');
     }
 
     cancelAllExecutions() {

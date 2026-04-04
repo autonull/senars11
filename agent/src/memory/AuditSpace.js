@@ -5,7 +5,7 @@
 import { writeFile, readFile, mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { Logger, resolveWithFallback, fallbackMemoryDir, truncate } from '@senars/core';
+import { Logger, resolveWithFallback, fallbackMemoryDir, truncate, generateId } from '@senars/core';
 import { MettaParser, escapeQuotes, toMettaAtom } from './MettaParser.js';
 
 const __dataDir = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackMemoryDir);
@@ -42,7 +42,7 @@ export class AuditSpace {
 
   async emit(type, data = {}) {
     await this.initialize();
-    const id = `aud_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const id = generateId('aud');
     const event = { id, timestamp: Date.now(), type, cycle: this._cycleCount, ...data };
     this._events.push(event);
     await this._persist();

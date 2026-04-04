@@ -42,8 +42,20 @@ export class NostrChannel extends Embodiment {
              Logger.warn(`[Nostr:${this.id}] Using ephemeral private key. Identity will be lost on restart.`);
         }
 
+        // Convert hex string to Uint8Array for nostr-tools
+        this.skBytes = typeof this.sk === 'string' ? Uint8Array.from(this.sk.match(/.{2}/g).map(b => parseInt(b, 16))) : this.sk;
+
         try {
-            this.pk = getPublicKey(this.sk);
+            this.pk = getPublicKey(this.skBytes);
+        } catch (e) {
+            throw new Error(`Invalid private key for Nostr: ${e.message}`);
+        }
+
+        // Convert hex string to Uint8Array for nostr-tools
+        this.skBytes = typeof this.sk === 'string' ? Uint8Array.from(this.sk.match(/.{2}/g).map(b => parseInt(b, 16))) : this.sk;
+
+        try {
+            this.pk = getPublicKey(this.skBytes);
         } catch (e) {
             throw new Error(`Invalid private key for Nostr: ${e.message}`);
         }
@@ -167,7 +179,7 @@ export class NostrChannel extends Embodiment {
         }
 
         // Sign event
-        const event = finalizeEvent(eventTemplate, this.sk);
+        const event = finalizeEvent(eventTemplate, this.skBytes);
 
         // Publish to all relays
         try {

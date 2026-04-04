@@ -19,7 +19,7 @@
  * This supports "anytime" reasoning under resource constraints.
  */
 import {Strategy} from '../Strategy.js';
-import {Logger} from '@senars/core/src/util/Logger.js';
+import {Logger} from '@senars/core';
 
 export class BagStrategy extends Strategy {
     /**

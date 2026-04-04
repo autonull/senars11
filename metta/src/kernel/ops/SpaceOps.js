@@ -3,6 +3,7 @@ import { Space } from '../Space.js';
 import { match } from '../Reduce.js';
 import { sym, exp } from '../Term.js';
 import { AlgebraicOps } from './AlgebraicOps.js';
+import { generateId } from '@senars/core';
 
 const error = (...args) => exp(sym('Error'), args);
 const getSpace = (ctx, spaceId) => ctx?.spaces?.get(spaceId?.name);
@@ -21,7 +22,7 @@ export function registerSpaceOps(registry, interpreterContext) {
 
     registry.register('new-space', () => {
         const newSpace = new Space();
-        const id = `space-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const id = generateId('space');
         interpreterContext?.spaces?.set(id, newSpace);
         return sym(id);
     });

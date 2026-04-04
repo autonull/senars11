@@ -1,8 +1,7 @@
 import { Architecture } from '../core/RLCore.js';
 import { SeNARSBridge } from '../bridges/SeNARSBridge.js';
-import { Planner } from '../modules/Planner.js';
+import { PlanningSystem } from '../modules/PlanningSystem.js';
 import { HierarchicalPlanner } from '../modules/HierarchicalPlanner.js';
-import { RuleInducer } from '../modules/RuleInducer.js';
 import { IntrinsicMotivation } from '../modules/IntrinsicMotivation.js';
 import { MeTTaInterpreter } from '@senars/metta';
 import { registerTensorPrimitives } from '../core/TensorPrimitives.js';
@@ -32,9 +31,9 @@ export class DualProcessArchitecture extends Architecture {
         }
 
         this.bridge = new SeNARSBridge(agent, senarsConfig);
-        this.planner = new Planner(this.bridge, this.config);
+        this.planner = new PlanningSystem(this.bridge, this.config);
         this.hierarchical = new HierarchicalPlanner(this.bridge, agent.skills, this.config);
-        this.inducer = new RuleInducer(this.bridge, this.config);
+        this.inducer = new PlanningSystem(this.bridge, this.config);
         this.motivation = new IntrinsicMotivation(this.config);
     }
 

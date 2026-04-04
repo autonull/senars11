@@ -16,4 +16,4 @@ export {
     Errors,
     validateConfig,
     validateConfig as validateConfigEnhanced
-} from '../../../core/src/errors/index.js';
+} from '@senars/core';

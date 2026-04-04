@@ -5,7 +5,7 @@
  * Phase 5: Updated to work with EmbodimentBus instead of ChannelManager
  */
 import { Term } from '../kernel/Term.js';
-import { Logger } from '../../../core/src/util/Logger.js';
+import { Logger } from '@senars/core';
 
 export class ChannelExtension {
     constructor(interpreter, embodimentBus) {

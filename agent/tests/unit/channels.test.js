@@ -1,15 +1,20 @@
 import { jest } from '@jest/globals';
-import { Embodiment } from '../../src/io/Embodiment.js';
-import { ChannelManager } from '../../src/io/ChannelManager.js';
-import { EmbodimentBus } from '../../src/io/EmbodimentBus.js';
 
-jest.mock('@senars/core', () => ({
-    Logger: {
-        info: jest.fn(),
-        warn: jest.fn(),
-        error: jest.fn()
-    }
+const mockLogger = {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn()
+};
+
+await jest.unstable_mockModule('@senars/core', () => ({
+    Logger: mockLogger,
+    generateId: (prefix = 'id') => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
 }));
+
+const { Embodiment } = await import('../../src/io/Embodiment.js');
+const { ChannelManager } = await import('../../src/io/ChannelManager.js');
+const { EmbodimentBus } = await import('../../src/io/EmbodimentBus.js');
 
 if (typeof setImmediate === 'undefined') {
     global.setImmediate = (fn) => setTimeout(fn, 0);

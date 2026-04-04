@@ -1,8 +1,8 @@
 import {Bag} from './Bag.js';
 import {clamp} from '@senars/core/src/util/common.js';
-import {BaseComponent} from '@senars/core/src/util/BaseComponent.js';
+import {BaseComponent} from '@senars/core';
 import {Task} from '../task/Task.js';
-import {Logger} from '@senars/core/src/util/Logger.js';
+import {Logger} from '@senars/core';
 import { CONCEPT_CAPACITY, CONCEPT_ACTIVATION, CONCEPT_DECAY } from '../config/ConceptConstants.js';
 
 const TASK_TYPES = Object.freeze({BELIEF: 'BELIEF', GOAL: 'GOAL', QUESTION: 'QUESTION'});

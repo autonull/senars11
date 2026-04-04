@@ -8,4 +8,4 @@ export {
     MessageProcessingError,
     CommandExecutionError,
     ConfigurationError
-} from '../../../core/src/errors/index.js';
+} from '@senars/core';

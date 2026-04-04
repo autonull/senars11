@@ -3,7 +3,7 @@
  * Enables dynamic extension loading and clean separation of concerns
  */
 
-import { Logger } from '../../../core/src/util/Logger.js';
+import { Logger } from '@senars/core';
 
 export class ExtensionRegistry {
   constructor(context) {

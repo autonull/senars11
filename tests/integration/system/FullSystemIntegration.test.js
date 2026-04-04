@@ -74,7 +74,7 @@ describe('Full System Integration', () => {
         }
 
         // Verify memory consolidation
-        const concepts = agent.getConcepts();
+        const concepts = agent.nar?.getConcepts?.() ?? agent.getBeliefs?.() ?? [];
         expect(concepts.length).toBeGreaterThanOrEqual(3);
 
         // Verify key concepts are present
@@ -110,8 +110,8 @@ describe('Full System Integration', () => {
 
         await assertEventuallyTrue(
             () => {
-                const goals = agent.getGoals();
-                const concepts = agent.getConcepts();
+                const goals = agent.nar?.getGoals?.() ?? [];
+                const concepts = agent.nar?.getConcepts?.() ?? agent.getBeliefs?.() ?? [];
                 return goals.length > 0 || concepts.length > 0;
             },
             { description: 'goal processed by system', timeout: 3000 }
@@ -131,7 +131,7 @@ describe('Full System Integration', () => {
         await Promise.all(inputs.map(input => agent.input(input)));
 
         // Verify system handled concurrent inputs
-        const concepts = agent.getConcepts();
+        const concepts = agent.nar?.getConcepts?.() ?? [];
         const beliefs = agent.getBeliefs();
 
         expect(concepts.length + beliefs.length).toBeGreaterThan(0);
@@ -178,7 +178,7 @@ describe('Full System Integration', () => {
             await narTool.execute({ action: 'assert_prolog', content: 'mortal(X) :- man(X).' });
 
             // Verify prolog integration is working
-            const concepts = agent.getConcepts();
+            const concepts = agent.nar?.getConcepts?.() ?? agent.getBeliefs?.() ?? [];
             expect(concepts).toBeDefined();
         }, 5000);
 

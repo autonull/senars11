@@ -1,3 +1,5 @@
+import { generateId } from '@senars/core';
+
 /**
  * ActivityModel manages the state of the activity stream.
  * It is used on both Backend (for buffering) and Frontend (for display).
@@ -9,12 +11,8 @@ export class ActivityModel {
         this.listeners = new Set();
     }
 
-    /**
-     * Add a new activity to the model.
-     * @param {Object} activity - The activity object (must have id, type, timestamp)
-     */
     addActivity(activity) {
-        if (!activity.id) activity.id = Date.now() + Math.random().toString(36).substr(2, 9);
+        if (!activity.id) activity.id = generateId('activity');
         if (!activity.timestamp) activity.timestamp = Date.now();
 
         this.activities.unshift(activity);

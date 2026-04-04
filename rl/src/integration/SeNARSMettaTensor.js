@@ -6,6 +6,8 @@ import { mergeConfig } from '../utils/ConfigHelper.js';
 import { NeuroSymbolicBridge } from '../bridges/NeuroSymbolicBridge.js';
 import { TensorLogicPolicy } from '../policies/TensorLogicPolicy.js';
 import { NarseseUtils } from '../utils/NarseseUtils.js';
+import { extractVariables } from '../utils/extractVariables.js';
+import { extractVariables } from '../utils/extractVariables.js';
 
 const AGENT_DEFAULTS = {
     senarsConfig: {},
@@ -192,9 +194,7 @@ export class UnifiedNeuroSymbolicAgent extends Component {
     }
 
     _extractVariables(state) {
-        if (Array.isArray(state)) return Object.fromEntries(state.map((v, i) => [`var_${i}`, v]));
-        if (typeof state === 'object') return state;
-        return { value: state };
+        return extractVariables(state);
     }
 
     _extractTrajectories() {

@@ -3,10 +3,9 @@
  * All code should use configManager from config/config.js
  */
 
-import { configManager } from './config/config.js';
+import { configManager, getConfig } from './config/config.js';
 
-// Re-export configManager as default export for new code
-export { configManager as default, getConfig } from './config/config.js';
+export { configManager, getConfig };
 
 // Legacy export for backward compatibility
 export const METTA_CONFIG = configManager.getAll();

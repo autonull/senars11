@@ -1,4 +1,4 @@
-import {BaseComponent} from '@senars/core/src/util/BaseComponent.js';
+import {BaseComponent} from '@senars/core';
 
 /**
  * Archive: Long-Term Memory Storage

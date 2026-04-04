@@ -9,6 +9,9 @@ Tensor.randn = (shape, mean, std) => T.randn(shape, mean, std);
 Tensor.full = (shape, val) => T.full(shape, val);
 Tensor.fromArray = (arr) => new Tensor(arr, {backend: T});
 
+// Standalone factory functions
+export const randn = (shape, mean = 0, std = 1) => T.randn(shape, mean, std);
+
 // --- Instance Methods ---
 const OPS = [
     'matmul', 'add', 'sub', 'mul', 'div',

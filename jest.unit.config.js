@@ -7,6 +7,7 @@ export default {
     setupFiles: ['<rootDir>/tests/setup/browser-mocks.js'],
     setupFilesAfterEnv: ['<rootDir>/tests/setup/unit.js'],
     testMatch: ['**/tests/unit/**/*.test.js', '**/rl/tests/unit/**/*.test.js', '**/metta/tests/**/*.test.js', '**/agent/tests/**/*.test.js'],
+    testTimeout: 1000,
     testPathIgnorePatterns: [
         '<rootDir>/tests/unit/.*performance.*',
         '<rootDir>/tests/unit/.*benchmark.*',

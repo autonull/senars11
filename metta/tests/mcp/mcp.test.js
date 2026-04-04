@@ -173,13 +173,15 @@ describe('McpClientManager', () => {
     });
 
     it('should retry on failure', async () => {
-      await manager.connect('test', 'node', ['server.js']);
-      const client = manager.clients.get('test');
+      const mgr = new McpClientManager({ timeout: 5000, retryDelay: 10 });
+      await mgr.connect('test', 'node', ['server.js']);
+      const client = mgr.clients.get('test');
       client.callTool.mockRejectedValueOnce(new Error('Temporary error'));
       client.callTool.mockResolvedValueOnce({ content: [{ type: 'text', text: 'success' }] });
 
-      const result = await manager.callTool('test', 'test_tool', {}, 1);
+      const result = await mgr.callTool('test', 'test_tool', {}, 1);
       expect(result.content).toBeDefined();
+      await mgr.disconnectAll();
     });
   });
 
@@ -304,7 +306,7 @@ describe('MCP Utils', () => {
         attempts++;
         if (attempts < 3) throw new Error('Fail');
         return 'success';
-      }, { maxRetries: 3 });
+      }, { maxRetries: 3, baseDelay: 10 });
       const result = await fn();
       expect(result).toBe('success');
       expect(attempts).toBe(3);
@@ -313,7 +315,7 @@ describe('MCP Utils', () => {
     it('should throw after max retries', async () => {
       const fn = mcpUtils.withRetry(async () => {
         throw new Error('Always fails');
-      }, { maxRetries: 2 });
+      }, { maxRetries: 2, baseDelay: 10 });
       await expect(fn()).rejects.toThrow('Failed after 3 attempts');
     });
   });

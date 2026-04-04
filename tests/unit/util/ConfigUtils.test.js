@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { mergeConfig, ConfigManager } from '../../../core/src/util/config.js';
+import { mergeConfig, ConfigManager } from '../../../core/src/config/ConfigUtils.js';
 
 describe('Config', () => {
   describe('mergeConfig', () => {

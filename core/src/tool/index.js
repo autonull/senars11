@@ -6,3 +6,7 @@ export * from './ToolRegistry.js';
 export * from './BaseTool.js';
 export * from './SandboxedTool.js';
 export * from './ExplanationService.js';
+export * from './ToolDiscovery.js';
+export * from './PerformanceTracker.js';
+export * from './ExecutionHistory.js';
+export * from './node/index.js';

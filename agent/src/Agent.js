@@ -2,7 +2,7 @@ import { readFile } from 'fs/promises';
 import { resolve, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { Input, NAR } from '@senars/nar';
-import { BaseComponent, FormattingUtils, Logger, resolveWithFallback, fallbackAgentDir } from '@senars/core';
+import { BaseComponent, FormattingUtils, Logger, resolveWithFallback, fallbackAgentDir, generateId } from '@senars/core';
 import { PersistenceManager } from './io/PersistenceManager.js';
 import { ChannelManager } from './io/ChannelManager.js';
 import { EmbodimentBus } from './io/EmbodimentBus.js';
@@ -25,7 +25,7 @@ export class Agent extends BaseComponent {
     constructor(config = {}) {
         super(config, 'Agent');
 
-        this.id = config.id || `agent_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+        this.id = config.id || generateId('agent');
         this.nar = new NAR(config);
         this.inputQueue = new Input();
         this.sessionState = { history: [], lastResult: null, startTime: Date.now() };
@@ -84,11 +84,15 @@ export class Agent extends BaseComponent {
     get componentManager() { return this.nar.componentManager; }
     get reasoningAboutReasoning() { return this.nar.reasoningAboutReasoning; }
     get ruleEngine() { return this.nar.ruleEngine; }
+    get semanticMemory() { return this._semanticMemory; }
+    get modelRouter() { return this._modelRouter; }
+    get virtualEmbodiment() { return this._virtualEmbodiment; }
+    get modelBenchmark() { return this._modelBenchmark; }
 
     emit(event, ...args) { this.nar._eventBus?.emit(event, ...args); }
 
     async input(input, options = {}) { return this.nar.input(input, options); }
-    getBeliefs() { return this.nar.memory?.getBeliefs() ?? []; }
+    getBeliefs() { return this.nar?.getBeliefs?.() ?? []; }
     async runCycles(n = 1) { for (let i = 0; i < n; i++) await this.nar.step(); }
     async start() { return this.nar.start(); }
     async stop() { return this.nar.stop(); }

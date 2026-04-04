@@ -62,5 +62,5 @@ describe('RuleProcessor', () => {
         const results = [];
         for await (const r of rp.process(stream())) results.push(r);
         expect(results.length).toBeGreaterThan(0);
-    });
+    }, 3000);
 });

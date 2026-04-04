@@ -1,4 +1,4 @@
-import {BaseComponent} from '@senars/core/src/util/BaseComponent.js';
+import {BaseComponent} from '@senars/core';
 
 export class TermCache extends BaseComponent {
     constructor(config = {}) {

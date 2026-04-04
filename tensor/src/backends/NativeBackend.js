@@ -180,6 +180,17 @@ export class NativeBackend extends TensorBackend {
         const exp = a.data.map(x => Math.exp(x - max));
         const sum = exp.reduce((a, b) => a + b, 0);
         const t = this._createTensor(exp.map(x => x / sum), [...a.shape]);
+        if (a.requiresGrad) {
+            t.requiresGrad = true;
+            t._parents = [a];
+            t._gradFn = () => {
+                const s = t.data;
+                const g = t.grad.data;
+                const dot = s.reduce((acc, v, i) => acc + v * g[i], 0);
+                const grad = s.map((v, i) => (g[i] - dot) * v);
+                this._accumulateGrad(a, this._createTensor(grad, a.shape));
+            };
+        }
         return t;
     }
 

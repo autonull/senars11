@@ -27,7 +27,7 @@ export class ComponentManager extends BaseComponent {
             try {
                 // Hiding dynamic import from bundlers like esbuild to avoid static analysis issues
                 // This is strictly for the Node.js environment where these components exist on disk
-                const module = await eval(`import("../${config.path}")`);
+                const module = await import(`../${config.path}`);
                 const ComponentClass = module[config.class];
                 if (!ComponentClass) {
                     throw new Error(`Component class ${config.class} not found in ${config.path}`);

@@ -42,10 +42,12 @@ export const omit = (keys, obj) => {
     return Object.fromEntries(Object.entries(obj).filter(([key]) => !keys.includes(key)));
 };
 
-export const partition = (predicate, arr) => {
-    if (!Array.isArray(arr)) return [[], []];
-    return arr.reduce((acc, item) => { acc[predicate(item) ? 0 : 1].push(item); return acc; }, [[], []]);
-};
+export const pickObj = (obj, keys) => pick(keys, obj);
+export const omitObj = (obj, keys) => omit(keys, obj);
+
+// ─── Collection re-exports ──────────────────────────────────────────────────
+
+export { partition } from './collection.js';
 
 // ─── Wrappers ───────────────────────────────────────────────────────────────
 

@@ -5,7 +5,6 @@
 
 import { isExpression, isVariable } from './Term.js';
 import { Logger } from '@senars/core';
-import { Logger } from '@senars/core';
 
 export const ILKind = {
   SYMBOL: 0, NUMBER: 1, EXPR: 2, GROUND_CALL: 3,

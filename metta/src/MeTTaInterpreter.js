@@ -22,14 +22,15 @@ import { objToBindingsAtom, bindingsAtomToObj } from './kernel/Bindings.js';
 import { Ground } from './kernel/Ground.js';
 import { MemoizationCache } from './kernel/MemoizationCache.js';
 import { ReductionCache } from './kernel/ReductionCache.js';
-import { reduceND, reduceNDAsync, setReduceNDInternalReference, reduce, step, match } from './kernel/Reduce.js';
+import { reduceND, reduceNDAsync, setReduceNDInternalReference, setReduceConfig, reduce, step, match } from './kernel/Reduce.js';
 import { Space } from './kernel/Space.js';
 import { Term, isList, flattenList, isExpression } from './kernel/Term.js';
 import { Unify } from './kernel/Unify.js';
 import { Formatter } from './kernel/Formatter.js';
 
 // Configuration (new architecture)
-import { configManager, registerConfigOps, ExtensionRegistry, registerMeTTaExtensions } from './config/index.js';
+import { configManager, ExtensionRegistry, registerMeTTaExtensions } from './config/index.js';
+import { registerConfigOps } from './kernel/ops/StateOps.js';
 
 // Extensions
 import { ReactiveSpace } from './extensions/ReactiveSpace.js';
@@ -45,6 +46,8 @@ import { loadStdlib } from './stdlib/StdlibLoader.js';
 // Platform
 import { WorkerPool } from './platform/WorkerPool.js';
 import { ENV } from './platform/env.js';
+
+import { OperationHelpers } from './kernel/ops/OperationHelpers.js';
 
 // Operations
 import { registerAdvancedOps } from './interp/AdvancedOps.js';
@@ -105,7 +108,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      * Inject function references to break circular dependencies in reduction logic
      */
     _injectReductionDependencies() {
-        // With ReductionPipeline, circular deps are handled via the reduceND reference
+        setReduceConfig(configManager);
         setReduceNDInternalReference(reduceND);
     }
 
@@ -250,33 +253,67 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
      * Determine truthiness of an atom
      */
     _truthy(atom) {
-        return atom && !['False', '()', 'Empty'].includes(atom.name);
+        return OperationHelpers.truthy(atom);
     }
 
     /**
      * Execute a program string
      */
     run(code) {
-        return this.trackOperation('run', () => {
-            const exprs = this.parser.parseProgram(code);
-            const res = [];
+        return this.trackOperation('run', () => this.#processProgramSync(code));
+    }
 
-            for (let i = 0; i < exprs.length; i++) {
-                const e = exprs[i];
+    /**
+     * Run code asynchronously
+     */
+    async runAsync(code) {
+        return this.trackOperation('run', async () => this.#processProgramAsync(code));
+    }
 
-                if (e.name === '!' && i + 1 < exprs.length) {
-                    const evalRes = this.evaluate(exprs[++i]);
-                    if (Array.isArray(evalRes)) res.push(...evalRes);
-                    else if (evalRes !== undefined && evalRes !== null) res.push(evalRes);
-                    continue;
-                }
+    /**
+     * Synchronous program processing
+     */
+    #processProgramSync(code) {
+        const exprs = this.parser.parseProgram(code);
+        const res = [];
 
-                this._processExpression(e, res);
+        for (let i = 0; i < exprs.length; i++) {
+            const e = exprs[i];
+
+            if (e.name === '!' && i + 1 < exprs.length) {
+                const evalRes = this.evaluate(exprs[++i]);
+                if (Array.isArray(evalRes)) res.push(...evalRes);
+                else if (evalRes !== undefined && evalRes !== null) res.push(evalRes);
+                continue;
             }
 
-            res.toString = () => Formatter.formatResult(res);
-            return res;
-        });
+            this._processExpression(e, res);
+        }
+        res.toString = () => Formatter.formatResult(res);
+        return res;
+    }
+
+    /**
+     * Asynchronous program processing
+     */
+    async #processProgramAsync(code) {
+        const exprs = this.parser.parseProgram(code);
+        const res = [];
+
+        for (let i = 0; i < exprs.length; i++) {
+            const e = exprs[i];
+
+            if (e.name === '!' && i + 1 < exprs.length) {
+                const evalRes = await this.evaluateAsync(exprs[++i]);
+                if (Array.isArray(evalRes)) res.push(...evalRes);
+                else if (evalRes !== undefined && evalRes !== null) res.push(evalRes);
+                continue;
+            }
+
+            this._processExpression(e, res);
+        }
+        res.toString = () => Formatter.formatResult(res);
+        return res;
     }
 
     /**
@@ -332,6 +369,18 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
     }
 
     /**
+     * Evaluate asynchronously
+     */
+    async evaluateAsync(atom) {
+        return this.trackOperation('evaluate', async () => {
+            const res = await reduceNDAsync(atom, this.space, this.ground, configManager.get('maxReductionSteps'), this.reductionCache, this);
+            const steps = this._mettaMetrics.get('reductionSteps') || 0;
+            this._mettaMetrics.set('reductionSteps', steps + 1);
+            return res;
+        });
+    }
+
+    /**
      * Helper method to perform deterministic reduction with common parameters
      */
     _reduceDeterministic(atom) {
@@ -372,45 +421,5 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
             reductionCache: this.reductionCache.stats(),
             ...super.getStats()
         };
-    }
-
-    /**
-     * Run code asynchronously
-     */
-    async runAsync(code) {
-        return this.trackOperation('run', async () => {
-            const exprs = this.parser.parseProgram(code);
-            const res = [];
-
-            for (let i = 0; i < exprs.length; i++) {
-                const e = exprs[i];
-                if (e.name === '!' && i + 1 < exprs.length) {
-                    const evalRes = await this.evaluateAsync(exprs[++i]);
-                    if (Array.isArray(evalRes)) res.push(...evalRes);
-                    else res.push(evalRes);
-                    continue;
-                }
-
-                if ((e.operator === '=' || e.operator?.name === '=') && e.components?.length === 2) {
-                    this.space.addRule(e.components[0], e.components[1]);
-                } else {
-                    this.space.add(e);
-                }
-            }
-            res.toString = () => Formatter.formatResult(res);
-            return res;
-        });
-    }
-
-    /**
-     * Evaluate asynchronously
-     */
-    async evaluateAsync(atom) {
-        return this.trackOperation('evaluate', async () => {
-            const res = await reduceNDAsync(atom, this.space, this.ground, configManager.get('maxReductionSteps'));
-            const steps = this._mettaMetrics.get('reductionSteps') || 0;
-            this._mettaMetrics.set('reductionSteps', steps + 1);
-            return res;
-        });
     }
 }

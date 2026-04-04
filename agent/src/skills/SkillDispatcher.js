@@ -2,6 +2,7 @@
  * SkillDispatcher.js — S-expression parse + dispatch + registry
  */
 import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
 import { Logger } from '@senars/core';
 import { Parser } from '../../../metta/src/Parser.js';
 import { isExpression } from '../../../metta/src/kernel/Term.js';

@@ -1,5 +1,5 @@
 import {Runner} from './Runner.js';
-import {Logger} from '@senars/core/src/util/Logger.js';
+import {Logger} from '@senars/core';
 import {AdaptiveController} from './AdaptiveController.js';
 
 export class PipelineRunner extends Runner {

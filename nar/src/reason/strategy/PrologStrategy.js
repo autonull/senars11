@@ -13,7 +13,7 @@ import {Unifier} from '../../term/Unifier.js';
 import {FunctorRegistry} from '../FunctorRegistry.js';
 import {isQuestion} from '../RuleHelpers.js';
 import {getComponents, getVariableName, isCompound, isVariable} from '../../term/TermUtils.js';
-import {Logger} from '@senars/core/src/util/Logger.js';
+import {Logger} from '@senars/core';
 
 export class PrologStrategy extends Strategy {
     constructor(config = {}) {

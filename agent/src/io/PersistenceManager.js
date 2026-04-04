@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs';
-import { deepClone } from '../../../core/src/util/common.js';
+import { deepClone } from '@senars/core';
 
 class PersistenceAdapter {
     async save(state, identifier) {

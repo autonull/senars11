@@ -78,7 +78,7 @@ export class TestNAR {
 
     async execute() {
         // Dynamically import NAR to avoid circular dependencies
-        const {NAR} = await import('../nar/NAR.js');
+        const {NAR} = await import('@senars/nar');
 
         // Use optimized config for tests to improve performance
         const config = {

@@ -1,6 +1,3 @@
-/**
- * Mock for danfojs — CommonJS format for Jest compatibility
- */
 class MockDataFrame {
     constructor(data) { this._data = data || []; }
     get values() { return Array.isArray(this._data) ? this._data : []; }
@@ -12,5 +9,5 @@ class MockDataFrame {
     get shape() { return [this._data.length, this.columns.length]; }
 }
 
-module.exports = { DataFrame: MockDataFrame };
-module.exports.default = { DataFrame: MockDataFrame };
+export const DataFrame = MockDataFrame;
+export default { DataFrame: MockDataFrame };

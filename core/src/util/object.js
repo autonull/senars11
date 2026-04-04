@@ -81,21 +81,10 @@ export function safeClone(obj) {
     return deepClone(obj);
 }
 
-/**
- * Deep clone specific properties while shallow cloning the rest
- * @param {Object} obj - Object to clone
- * @param {string[]} deepProps - Properties to deep clone
- * @returns {Object} Cloned object
- */
-export function selectiveDeepClone(obj, deepProps = []) {
-    const result = { ...obj };
-    for (const prop of deepProps) {
-        if (obj[prop] !== undefined) {
-            result[prop] = deepClone(obj[prop]);
-        }
-    }
-    return result;
-}
+// pick/omit are canonically defined in func.js.
+// For (obj, keys) signature, use pickObj/omitObj from func.js.
+// Re-exported here for backward compatibility with callers importing from object.js:
+export { pickObj, omitObj } from './func.js';
 
 /**
  * Deep merge two objects recursively with circular reference handling
@@ -130,12 +119,29 @@ export const deepMerge = (target, source, _visited = new WeakSet()) => {
 export const deepMergeConfig = (base, ...overrides) => overrides.reduce((acc, curr) => deepMerge(acc, curr), base);
 
 /**
- * Merge configurations with freeze
+ * Merge configurations with optional options
  * @param {Object} base - Base configuration
- * @param {...Object} overrides - Override configurations
- * @returns {Object} Frozen merged configuration
+ * @param {Object} [overrides] - Override configurations
+ * @param {Object} [options] - Merge options
+ * @param {boolean} [options.freeze=true] - Whether to freeze result
+ * @param {boolean} [options.deep=false] - Whether to deep merge
+ * @returns {Object} Merged configuration
  */
-export const mergeConfig = (base, ...overrides) => freeze({ ...base, ...Object.assign({}, ...overrides) });
+export const mergeConfig = (base, overrides, options) => {
+    if (base === null || typeof base !== 'object') {
+        throw new Error('Defaults must be a valid object');
+    }
+    if (overrides === undefined || overrides === null) overrides = {};
+    const isOptions = overrides && ('freeze' in overrides || 'deep' in overrides || 'strict' in overrides || 'validate' in overrides);
+    const opts = isOptions ? overrides : (options || {});
+    const ov = isOptions ? {} : overrides;
+
+    const shouldFreeze = opts.freeze !== false;
+    const shouldDeep = opts.deep !== false;
+
+    const merged = shouldDeep ? deepMerge({ ...base }, { ...ov }) : { ...base, ...ov };
+    return shouldFreeze ? freeze(merged) : merged;
+};
 
 /**
  * Safely get a nested property value
@@ -168,29 +174,20 @@ export const setNestedProperty = (obj, path, value) => {
 };
 
 /**
- * Pick specific properties from an object
- * @param {Object} obj - Source object
- * @param {string[]} keys - Keys to pick
- * @returns {Object} Object with picked properties
+ * Deep clone specific properties while shallow cloning the rest
+ * @param {Object} obj - Object to clone
+ * @param {string[]} deepProps - Properties to deep clone
+ * @returns {Object} Cloned object
  */
-export const pick = (obj, keys) => {
-    if (!obj || !keys) return {};
-    return keys.reduce((acc, key) => {
-        if (key in obj) acc[key] = obj[key];
-        return acc;
-    }, {});
-};
-
-/**
- * Omit specific properties from an object
- * @param {Object} obj - Source object
- * @param {string[]} keys - Keys to omit
- * @returns {Object} Object without omitted properties
- */
-export const omit = (obj, keys) => {
-    if (!obj || !keys) return { ...obj };
-    return Object.fromEntries(Object.entries(obj).filter(([key]) => !keys.includes(key)));
-};
+export function selectiveDeepClone(obj, deepProps = []) {
+    const result = { ...obj };
+    for (const prop of deepProps) {
+        if (obj[prop] !== undefined) {
+            result[prop] = deepClone(obj[prop]);
+        }
+    }
+    return result;
+}
 
 /**
  * Deep equal comparison

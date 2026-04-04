@@ -4,7 +4,7 @@
  * Executes the compiled rule tree against incoming tasks.
  */
 
-import {Logger} from '@senars/core/src/util/Logger.js';
+import {Logger} from '@senars/core';
 
 export class RuleExecutor {
     constructor(compiledTree, unifier, discriminators = []) {

@@ -3,7 +3,7 @@ import {Term} from '../term/Term.js';
 import {MemoryIndex} from './MemoryIndex.js';
 import {MemoryConsolidation} from './MemoryConsolidation.js';
 import {Bag} from './Bag.js';
-import {BaseComponent} from '@senars/core/src/util/BaseComponent.js';
+import {BaseComponent} from '@senars/core';
 import {MemoryValidator} from '@senars/core/src/util/MemoryValidator.js';
 import {IntrospectionEvents} from '@senars/core';
 import {MemoryStatistics} from './MemoryStatistics.js';

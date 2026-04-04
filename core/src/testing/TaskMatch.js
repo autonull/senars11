@@ -102,8 +102,7 @@ export class TaskMatch {
     }
 
     async _checkTermMatch(task, providedFactory = null) {
-        const {NarseseParser} = await import('../parser/NarseseParser.js');
-        const {TermFactory} = await import('../term/TermFactory.js');
+        const {NarseseParser, TermFactory} = await import('@senars/nar');
 
         // Use provided factory if available to ensure term identity (reference equality)
         const termFactory = providedFactory || new TermFactory();

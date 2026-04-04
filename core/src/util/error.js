@@ -57,14 +57,12 @@ export function safeSync(syncFn, context = '', contextInfo = {}, defaultValue = 
 
 export async function safeExecute(operation, options = {}) {
     const { defaultValue = null, errorHandler = null, context = 'safe-execute', logErrors = true } = options;
-    try { return await Promise.resolve(operation()); }
-    catch (error) { if (errorHandler) return errorHandler(error); if (logErrors) logError(error, { context }, 'error', 'SafeExecute'); return defaultValue; }
+    return safeAsync(operation, context, {}, errorHandler ? (err) => errorHandler(err) : defaultValue);
 }
 
 export function safeExecuteSync(operation, options = {}) {
     const { defaultValue = null, errorHandler = null, context = 'safe-execute', logErrors = true } = options;
-    try { return operation(); }
-    catch (error) { if (errorHandler) return errorHandler(error); if (logErrors) logError(error, { context }, 'error', 'SafeExecute'); return defaultValue; }
+    return safeSync(operation, context, {}, errorHandler ? (err) => errorHandler(err) : defaultValue);
 }
 
 export function wrapError(error, message, context = {}) {
@@ -102,20 +100,16 @@ export function executeSyncWithHandling(operation, context = '', component = '',
     }
 }
 
+import { retry as _retry } from './async.js';
+
+export { _retry as retry };
+
 export async function withRetry(operation, options = {}) {
     const { maxRetries = 3, backoff = 100, exponential = true, onError = null, context = 'operation' } = options;
-    let lastError;
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try { return await operation(); }
-        catch (error) {
-            lastError = error;
-            if (onError) onError(error, attempt, maxRetries);
-            else logError(error, { attempt, maxRetries, context }, 'warn', 'RetryHandler');
-            if (attempt === maxRetries) break;
-            await new Promise(resolve => setTimeout(resolve, exponential ? backoff * Math.pow(2, attempt) : backoff));
-        }
-    }
-    throw new Errors.RuntimeError(`${context} failed after ${maxRetries + 1} attempts: ${lastError?.message || 'Unknown error'}`, { details: { maxRetries, lastError: lastError?.message } });
+    return _retry(operation, {
+        maxRetries, backoff, exponential,
+        onError: onError ?? ((error, attempt) => logError(error, { attempt, context }, 'warn', 'RetryHandler'))
+    });
 }
 
 export function createSafeWrapper(fn, options = {}) {
@@ -139,6 +133,9 @@ export function validateParams(params, schema, operation = 'operation') {
     return validateSchema(params, schema, operation);
 }
 
+/**
+ * @deprecated Use createErrorHandler() directly. Kept for backward compatibility.
+ */
 export class ErrorHandler {
     #handlers;
     constructor(componentName = '') { this.#handlers = createErrorHandler(componentName); }

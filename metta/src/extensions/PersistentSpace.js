@@ -1,6 +1,8 @@
 import { Space } from '../kernel/Space.js';
-import { isExpression } from '../kernel/Term.js';
+import { isExpression, sym, exp } from '../kernel/Term.js';
 import { Logger } from '@senars/core';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * PersistentSpace.js - MORK-parity Phase P2-B: Scalable Persistence
@@ -196,8 +198,8 @@ export class PersistentSpace extends Space {
       return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
     if (typeof require !== 'undefined') {
-      const crypto = require('crypto');
-      const hash = crypto.createHash('sha256');
+      const nodeCrypto = await import('crypto');
+      const hash = nodeCrypto.createHash('sha256');
       hash.update(Buffer.from(data.buffer));
       return hash.digest('hex');
     }
@@ -311,8 +313,8 @@ class IndexedDBStorage {
 class NodeFSStorage {
   constructor(dbName) {
     this.dbName = dbName;
-    this.fs = require('fs');
-    this.path = require('path');
+    this.fs = fs;
+    this.path = path;
     this.filePath = this.path.join(process.cwd(), `${dbName}.morkdb`);
   }
 

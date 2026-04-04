@@ -2,37 +2,21 @@
  * Configuration utilities for SeNARS
  */
 
-import { deepMerge } from './object.js';
-import { Logger } from './Logger.js';
+import { safeGet, setNestedProperty, mergeConfig } from '../util/object.js';
 import { ConfigurationError, ValidationError } from '../errors/index.js';
-import { validateSchema } from './validate.js';
-import { ConfigManager as BaseConfigManager } from '../config/ConfigManager.js';
+import { validateSchema } from '../util/validate.js';
+import { ConfigManager as BaseConfigManager } from './ConfigManager.js';
 
-export function mergeConfig(defaults, userConfig, { validate = false, validator = null, freeze = true, deep = true, strict = false } = {}) {
-    if (!defaults || typeof defaults !== 'object') {
-        throw new ConfigurationError('Defaults must be a valid object', { key: 'defaults' });
-    }
-    if (!userConfig || typeof userConfig !== 'object') userConfig = {};
+// Re-export for backward compatibility
+export { mergeConfig };
 
-    let mergedConfig = deep ? deepMerge({ ...defaults }, { ...userConfig }) : { ...defaults, ...userConfig };
-
-    if (validate && validator) {
-        try {
-            mergedConfig = validator(mergedConfig);
-        } catch (error) {
-            const configError = error instanceof ConfigurationError
-                ? error
-                : new ConfigurationError(`Configuration validation failed: ${error.message}`, { key: 'validation' });
-            if (strict) throw configError;
-            Logger.warn('Configuration validation failed, using defaults', { error: configError.message, defaults: Object.keys(defaults) });
-            return freeze ? Object.freeze({ ...defaults }) : { ...defaults };
-        }
-    }
-
-    return freeze ? Object.freeze(mergedConfig) : mergedConfig;
-}
-
-export function validateConfig(config, schemaValidator) {
+/**
+ * Validate config using a schema validator function
+ * @param {Object} config - Config to validate
+ * @param {Function} schemaValidator - Validator function
+ * @returns {Object} Validated config
+ */
+export function validateConfigWith(config, schemaValidator) {
     if (typeof schemaValidator !== 'function') {
         throw new ConfigurationError('Schema validator must be a function', { key: 'validator' });
     }
@@ -44,22 +28,14 @@ export function validateConfig(config, schemaValidator) {
 }
 
 export function getConfigValue(config, path, defaultValue = undefined) {
-    if (!config || typeof config !== 'object') return defaultValue;
-    return path.split('.').reduce((cur, key) => cur?.[key] ?? defaultValue, config);
+    return safeGet(config, path, defaultValue);
 }
 
 export function setConfigValue(config, path, value) {
     if (!config || typeof config !== 'object') {
         throw new ConfigurationError('Configuration must be a valid object', { key: 'config' });
     }
-    const keys = path.split('.');
-    const lastKey = keys.pop();
-    let current = config;
-    for (const key of keys) {
-        current[key] ??= {};
-        current = current[key];
-    }
-    current[lastKey] = value;
+    setNestedProperty(config, path, value);
     return config;
 }
 
@@ -93,5 +69,18 @@ export function validateAgainstSchema(config, schema) {
     return validateSchema(config, schema, 'Configuration');
 }
 
-// Re-export the unified ConfigManager
 export { BaseConfigManager as ConfigManager };
+
+export const Validators = {
+    positive: (v) => typeof v === 'number' && v > 0,
+    nonNegative: (v) => typeof v === 'number' && v >= 0,
+    boolean: (v) => typeof v === 'boolean',
+    string: (v) => typeof v === 'string' && v.length > 0,
+    integer: (v) => Number.isInteger(v),
+    range: (min, max) => (v) => typeof v === 'number' && v >= min && v <= max,
+    oneOf: (...values) => (v) => values.includes(v),
+};
+
+export function createConfigManager(options = {}) {
+    return new BaseConfigManager(options);
+}

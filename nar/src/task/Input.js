@@ -1,3 +1,5 @@
+import { generateId } from '@senars/core';
+
 export class Input {
     constructor() {
         this.tasks = [];
@@ -132,7 +134,7 @@ export class Input {
             }
             // Ensure derivedTask has an ID if it doesn't have one
             if (!derivedTask.id) {
-                derivedTask.id = `derived_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                derivedTask.id = generateId('derived');
             }
             taskItem.derivedTasks.push(derivedTask);
         }
@@ -147,7 +149,23 @@ export class Input {
             }
             for (const derivedTask of derivedTasks) {
                 if (!derivedTask.id) {
-                    derivedTask.id = `derived_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    derivedTask.id = generateId('derived');
+                }
+                taskItem.derivedTasks.push(derivedTask);
+            }
+        }
+    }
+
+    // Method to add multiple derived tasks at once
+    addMultipleDerivedTasks(inputId, derivedTasks) {
+        const taskItem = this.getTaskById(inputId);
+        if (taskItem) {
+            if (!taskItem.derivedTasks) {
+                taskItem.derivedTasks = [];
+            }
+            for (const derivedTask of derivedTasks) {
+                if (!derivedTask.id) {
+                    derivedTask.id = generateId('derived');
                 }
                 taskItem.derivedTasks.push(derivedTask);
             }

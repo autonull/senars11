@@ -2,6 +2,7 @@ import { Component } from '../composable/Component.js';
 import { SymbolicTensor } from '@senars/tensor';
 import { TensorLogicPolicy } from '../policies/TensorLogicPolicy.js';
 import { mergeConfig } from '../utils/ConfigHelper.js';
+import { generateId } from '@senars/core';
 
 const DEFAULTS = {
     minSupport: 5,
@@ -31,9 +32,7 @@ const PRIMITIVE_SKILLS = [
 ];
 
 const SkillUtils = {
-    generateId() {
-        return `skill_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-    },
+    generateId: () => generateId('skill'),
 
     extractMettaField(mettaStr, pattern) {
         return mettaStr.match(pattern)?.[1];
