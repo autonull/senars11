@@ -27,7 +27,6 @@
 import { Agent } from '../../src/Agent.js';
 import { Logger } from '@senars/core';
 import { IRCChannel } from '../../src/io/channels/IRCChannel.js';
-import { CLIChannel } from '../../src/io/channels/CLIChannel.js';
 import { IntelligentMessageProcessor } from '../../src/ai/IntelligentMessageProcessor.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -220,13 +219,7 @@ class IntelligentChatBot {
             respondToCommands: true,
             respondToGreeting: true,
             learnFromConversation: true,
-            verbose: this.config.debug,
-            ollama: {
-                baseURL: this.config.ollamaUrl,
-                model: this.config.model,
-                temperature: 0.7,
-                maxTokens: 200  // Short responses for IRC
-            }
+            verbose: this.config.debug
         });
         Logger.info('✅ Message Processor initialized');
 
@@ -377,7 +370,8 @@ class IntelligentChatBot {
             }
 
             const channel = msg.metadata?.channel || this.config.channel;
-            Logger.info(`[Message] ${isPrivate ? 'PM' : 'Channel'} from ${msg.from} in ${channel}: ${msg.content.substring(0, 60)}...`);
+            const content = msg.content ?? '';
+            Logger.info(`[Message] ${isPrivate ? 'PM' : 'Channel'} from ${msg.from} in ${channel}: ${content.substring(0, 60)}...`);
 
             // Process message through intelligent processor
             const result = await this.messageProcessor.processMessage(msg);

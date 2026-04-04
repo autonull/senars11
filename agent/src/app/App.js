@@ -119,7 +119,6 @@ export class App extends EventEmitter {
         this.log.info(`Stopping agent ${agentId}...`);
         try {
             await agent.save?.();
-            await agent.save?.();
             if (typeof agent.dispose === 'function') {
                 await agent.dispose();
             } else {

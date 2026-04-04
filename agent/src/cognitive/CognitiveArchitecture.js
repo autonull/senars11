@@ -13,6 +13,7 @@ export class CognitiveArchitecture extends EventEmitter {
         this.config = {
             agentName: config.agentName ?? 'SeNARchy',
             personality: config.personality ?? 'helpful, curious, and concise',
+            defaultChannel: config.defaultChannel ?? 'default',
             memory: {
                 workingCapacity: config.workingMemoryCapacity ?? 7,
                 sensorySize: config.sensoryBufferSize ?? 20,

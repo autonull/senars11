@@ -43,7 +43,7 @@ class CognitiveIRCBot {
         this.agent = new Agent({
             id: `cognitive-${this.config.cognitive.agentName}`,
             lm: { provider: 'dummy' },
-            inputProcessing: { enableNarseseFallback: false },
+            inputProcessing: { enableNarseseFallback: true },
             rateLimit: this.config.rateLimit
         });
         await this.agent.initialize();
@@ -68,9 +68,7 @@ class CognitiveIRCBot {
         Logger.info('✅ Cognitive Architecture initialized');
 
         // Initialize LLM
-        this.llm = new CognitiveLLM({
-            baseURL: this.config.ollama.baseURL,
-            model: this.config.ollama.model,
+        this.llm = new CognitiveLLM(this.agent, {
             agentName: this.config.cognitive.agentName,
             personality: this.config.cognitive.personality
         });

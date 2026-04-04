@@ -42,4 +42,8 @@ export class ChannelManager extends EventEmitter {
     async shutdown() {
         return this.bus.shutdown();
     }
+
+    getRateLimitStats() {
+        return this.bus._stats ?? { totalMessages: 0, messagesByEmbodiment: {}, lastMessageTime: null };
+    }
 }

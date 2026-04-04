@@ -9,67 +9,32 @@
  * - Rate-limited, deliberate output
  */
 import { Logger } from '@senars/core';
-import { OllamaClient } from './OllamaClient.js';
 
 export class IntelligentMessageProcessor {
     constructor(agent, config = {}) {
         this.agent = agent;
         this.config = {
-            // Response behavior
             respondToMentions: config.respondToMentions ?? true,
             respondToQuestions: config.respondToQuestions ?? true,
             respondToCommands: config.respondToCommands ?? true,
             respondToGreeting: config.respondToGreeting ?? true,
             learnFromConversation: config.learnFromConversation ?? true,
-
-            // Classification thresholds (lowered for more responsiveness)
             questionThreshold: config.questionThreshold ?? 0.5,
             commandThreshold: config.commandThreshold ?? 0.6,
-
-            // Context settings
             maxContextLength: config.maxContextLength ?? 10,
-            contextWindowMs: config.contextWindowMs ?? 300000, // 5 minutes
-
-            // Personality
+            contextWindowMs: config.contextWindowMs ?? 300000,
             botNick: config.botNick || 'senars',
             personality: config.personality || 'helpful and concise',
-
-            // Rate limiting per channel
             minResponseDelay: config.minResponseDelay ?? 500,
             maxResponseDelay: config.maxResponseDelay ?? 2000,
-
-            // Ollama config
-            ollama: config.ollama || {
-                baseURL: 'http://localhost:11434',
-                model: 'hf.co/bartowski/Qwen_Qwen3-8B-GGUF:Q6_K',
-                temperature: 0.7,
-                maxTokens: 256
-            },
-
-            // Debug
             verbose: config.verbose ?? false
         };
 
-        // Initialize Ollama client for direct LLM access
-        this.ollama = new OllamaClient(this.config.ollama);
-
-        // Conversation context per channel/user
         this.contexts = new Map();
-        
-        // Message classification cache
         this.classificationCache = new Map();
-        
-        // Response queue for rate-limited output
         this.responseQueue = [];
         this.processingResponse = false;
-        
-        // Statistics
-        this.stats = {
-            messagesProcessed: 0,
-            responsesGenerated: 0,
-            commandsExecuted: 0,
-            questionsAnswered: 0
-        };
+        this.stats = { messagesProcessed: 0, responsesGenerated: 0, commandsExecuted: 0, questionsAnswered: 0 };
     }
 
     /**
@@ -406,26 +371,25 @@ Respond with just the type name.`;
      * Handle question messages
      */
     async _handleQuestion(content, context, msg) {
-        // Build context-aware prompt
         const contextMessages = context.messages
             .slice(-5)
             .map(m => `${m.from}: ${m.content}`)
             .join('\n');
 
-        const systemPrompt = `You are ${this.config.botNick}, a helpful IRC chatbot.
+        const systemPrompt = `You are ${this.config.botNick}, a helpful assistant.
 Be CONCISE and DIRECT. Answer in 1-2 sentences max (under 300 characters).
 Personality: ${this.config.personality}`;
 
         const userPrompt = `${contextMessages ? `Context: ${contextMessages}\n\n` : ''}Question: ${content}`;
 
         try {
-            const result = await this.ollama.generate([
+            const result = await this.agent.ai.generate([
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
             ]);
             return result.text.trim();
         } catch (error) {
-            Logger.error('Error answering question:', error);
+            Logger.error('Error answering question:', error.message);
             return "Not sure about that one.";
         }
     }
@@ -459,26 +423,25 @@ Personality: ${this.config.personality}`;
      * Handle statement messages
      */
     async _handleStatement(content, context, msg) {
-        // For statements, use LLM to generate contextual response
         const contextMessages = context.messages
             .slice(-3)
             .map(m => `${m.from}: ${m.content}`)
             .join('\n');
 
-        const systemPrompt = `You are ${this.config.botNick}, a helpful IRC chatbot.
+        const systemPrompt = `You are ${this.config.botNick}, a helpful assistant.
 Be CONCISE and NATURAL. Respond in 1 sentence max (under 200 characters).
 Personality: ${this.config.personality}`;
 
         const userPrompt = `${contextMessages ? `Context: ${contextMessages}\n\n` : ''}Message: ${content}`;
 
         try {
-            const result = await this.ollama.generate([
+            const result = await this.agent.ai.generate([
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
             ]);
             return result.text.trim();
         } catch (error) {
-            Logger.debug('Error generating statement response:', error);
+            Logger.debug('Error generating statement response:', error.message);
             return null;
         }
     }

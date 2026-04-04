@@ -35,32 +35,6 @@ class MockChannel extends Embodiment {
         return true;
     }
 }
-}));
-
-if (typeof setImmediate === 'undefined') {
-    global.setImmediate = (fn) => setTimeout(fn, 0);
-    global.clearImmediate = (id) => clearTimeout(id);
-}
-
-class MockChannel extends Embodiment {
-    constructor(config) {
-        super({
-            ...config,
-            name: config.name || 'Mock',
-            description: 'Mock channel for testing',
-            capabilities: [],
-            constraints: {},
-            isPublic: false,
-            isInternal: false
-        });
-        this.type = 'mock';
-    }
-    async connect() { this.setStatus('connected'); }
-    async disconnect() { this.setStatus('disconnected'); }
-    async sendMessage(target, content, metadata) {
-        return true;
-    }
-}
 
 describe('Channel Infrastructure', () => {
     let manager;
