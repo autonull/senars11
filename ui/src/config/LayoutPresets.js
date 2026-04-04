@@ -35,6 +35,7 @@ export const LayoutPresets = {
                         { type: 'component', componentName: COMPONENTS.MEMORY, title: 'MEMORY INSPECTOR' },
                         { type: 'component', componentName: COMPONENTS.DERIVATION, title: 'DERIVATION TRACER' },
                         { type: 'component', componentName: COMPONENTS.METRICS, title: 'SYSTEM METRICS' },
+                        { type: 'component', componentName: COMPONENTS.VISUALIZATION, title: 'VISUALIZATION' },
                         { type: 'component', componentName: COMPONENTS.SETTINGS, title: 'SETTINGS' }
                     ]
                 }
@@ -240,6 +241,11 @@ export const LayoutPresets = {
                         type: 'component',
                         componentName: COMPONENTS.METRICS,
                         title: 'METRICS'
+                    },
+                    {
+                        type: 'component',
+                        componentName: COMPONENTS.VISUALIZATION,
+                        title: 'VISUALIZATION'
                     },
                     {
                         type: 'component',

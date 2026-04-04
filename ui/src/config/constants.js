@@ -22,7 +22,8 @@ export const COMPONENTS = {
     SETTINGS: 'settingsComponent',
     EXAMPLES: 'examplesComponent',
     EDITOR: 'editorComponent',
-    ZUI: 'zuiComponent'
+    ZUI: 'zuiComponent',
+    VISUALIZATION: 'visualizationComponent'
 };
 
 export const STORAGE_KEYS = {

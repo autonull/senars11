@@ -8,6 +8,7 @@ import { ExampleBrowser } from '../components/ExampleBrowser.js';
 import { CodeEditorPanel } from '../components/CodeEditorPanel.js';
 import { LMActivityIndicator } from '../components/LMActivityIndicator.js';
 import { ZUIPanel } from '../components/ZUIPanel.js';
+import { VisualizationPanel } from '../components/VisualizationPanel.js';
 import { LayoutPresets } from '../config/LayoutPresets.js';
 import { COMPONENTS, STORAGE_KEYS } from '../config/constants.js';
 
@@ -51,7 +52,8 @@ export class LayoutManager {
             [COMPONENTS.SETTINGS]: (c) => this._createSettings(c),
             [COMPONENTS.EXAMPLES]: (c) => this._createExamples(c),
             [COMPONENTS.EDITOR]: (c) => this._createEditor(c),
-            [COMPONENTS.ZUI]: (c) => this._createZUI(c)
+            [COMPONENTS.ZUI]: (c) => this._createZUI(c),
+            [COMPONENTS.VISUALIZATION]: (c) => this._createStandard(c, VisualizationPanel, 'visualization')
         };
     }
 

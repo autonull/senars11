@@ -208,13 +208,6 @@ export class StatusBar extends Component {
     _renderInfo(parent) {
         const toolbar = div().class('status-toolbar-items').mount(parent);
 
-        // Search
-        const searchWrapper = div().style({ display: 'flex', alignItems: 'center', position: 'relative' }).mount(toolbar);
-        input('text', { id: 'search-input', placeholder: 'Search...', class: 'control-input-small' }).mount(searchWrapper);
-        button('✕', { id: 'btn-clear-search', class: 'status-btn-small' })
-            .style({ position: 'absolute', right: '2px', fontSize: '0.8em', display: 'none' })
-            .mount(searchWrapper);
-
         // Demo Select
         const select = $('select').id('demo-select').class('control-select-small').mount(toolbar);
         $('option').attr({ value: '', disabled: true, selected: true }).text('Load Demo...').mount(select);
@@ -228,9 +221,9 @@ export class StatusBar extends Component {
         this.elStatus = div().class('status-metric').id('connection-status').text('Connecting...').mount(parent);
 
         // Metrics
-        this.elCycles = div().class('status-metric').id('status-cycles').text('📊 Cycles: 0').mount(parent);
-        this.elNodes = div().class('status-metric').id('status-nodes').text('🧠 Nodes: 0/50').mount(parent);
-        this.elTps = div().class('status-metric').id('status-tps').text('⚡ TPS: 0').mount(parent);
+        this.elCycles = div().class('status-metric').id('status-cycles').text('📊 0').attr('title', 'Cycles').mount(parent);
+        this.elNodes = div().class('status-metric').id('status-nodes').text('🧠 0').attr('title', 'Nodes').mount(parent);
+        this.elTps = div().class('status-metric').id('status-tps').text('⚡ 0').attr('title', 'TPS').mount(parent);
 
         div().class('status-divider').mount(parent);
 
@@ -241,35 +234,61 @@ export class StatusBar extends Component {
 
         div().class('status-divider').mount(parent);
 
-        // Widget Toggles
-        const toggleBtn = (id, icon, title, active = false) => {
-            button(icon).id(id).class('widget-toggle-btn').class(active ? 'active' : '').attr('title', title)
-                .on('click', (e) => {
-                    // Logic to toggle widget via callback
-                    // Need to map id to widgetId
-                    const mapping = {
-                        'toggle-layers': 'layers',
-                        'toggle-metrics': 'metrics',
-                        'toggle-logs': 'log',
-                        'toggle-inspector': 'inspector',
-                        'toggle-tasks': 'tasks'
-                    };
-                    const widgetId = mapping[id];
-                    if (widgetId && this.onWidgetToggle) {
-                        const isVisible = this.onWidgetToggle(widgetId);
-                        $(e.target).toggleClass('active', isVisible);
-                    }
-                }).mount(parent);
-        };
-
-        toggleBtn('toggle-layers', '📐', 'Toggle Layers (1)', true);
-        toggleBtn('toggle-metrics', '📊', 'Toggle Metrics (2)', true);
-        toggleBtn('toggle-logs', '📝', 'Toggle Logs (3)', true);
-        toggleBtn('toggle-inspector', '🔍', 'Toggle Inspector (4)', false);
-        toggleBtn('toggle-tasks', '✅', 'Toggle Tasks (5)', true);
+        // Widget Toggles (Grouped)
+        this._renderWidgetMenu(parent);
 
         div().class('status-metric', 'status-interactive').id('status-config').attr('title', 'Config').text('⚙️')
             .on('click', () => this.onConfig?.()).mount(parent);
+    }
+
+    _renderWidgetMenu(parent) {
+        const wrapper = div().class('status-menu-item').style({ marginLeft: '5px' }).mount(parent);
+
+        button('Widgets ▲').class('status-menu-btn').on('click', (e) => {
+            e.stopPropagation();
+            this.container.querySelectorAll('.status-menu-item.active').forEach(item => {
+                if (item !== wrapper.dom) item.classList.remove('active');
+            });
+            wrapper.dom.classList.toggle('active');
+        }).mount(wrapper);
+
+        const dropdown = div().class('status-menu-dropdown').style({ right: '0', left: 'auto', minWidth: '150px', bottom: '100%', top: 'auto', marginBottom: '5px' }).mount(wrapper);
+
+        const createToggle = (id, icon, label, defaultActive) => {
+            const row = div().class('widget-menu-row')
+                .style({ padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#ccc' })
+                .mount(dropdown);
+
+            const left = div().style({ display: 'flex', alignItems: 'center' }).mount(row);
+            span().text(icon).style({ marginRight: '8px', width: '16px', textAlign: 'center' }).mount(left);
+            span().text(label).mount(left);
+
+            const check = span().text(defaultActive ? '✓' : '').style({ color: '#00ff9d', fontWeight: 'bold' }).mount(row);
+
+            row.on('click', (e) => {
+                e.stopPropagation();
+                const mapping = {
+                    'toggle-layers': 'layers',
+                    'toggle-metrics': 'metrics',
+                    'toggle-logs': 'log',
+                    'toggle-inspector': 'inspector',
+                    'toggle-tasks': 'tasks',
+                    'toggle-visualization': 'visualization'
+                };
+                const widgetId = mapping[id];
+                if (widgetId && this.onWidgetToggle) {
+                    const isVisible = this.onWidgetToggle(widgetId);
+                    check.text(isVisible ? '✓' : '');
+                }
+            });
+        };
+
+        createToggle('toggle-layers', '📐', 'Explorer Info', true);
+        createToggle('toggle-visualization', '👁️', 'Visualization', false);
+        createToggle('toggle-metrics', '📊', 'Metrics', true);
+        createToggle('toggle-logs', '📝', 'Logs', true);
+        createToggle('toggle-inspector', '🔍', 'Inspector', false);
+        createToggle('toggle-tasks', '✅', 'Tasks', true);
     }
 
     updateMode(mode) {
@@ -289,13 +308,13 @@ export class StatusBar extends Component {
     updateStats(stats = {}) {
         this.state.stats = { ...this.state.stats, ...stats };
 
-        if (this.elCycles) this.elCycles.text(`📊 Cycles: ${stats.cycles || 0}`);
+        if (this.elCycles) this.elCycles.text(`📊 ${stats.cycles || 0}`);
 
         const activeNodes = stats.activeNodes !== undefined ? stats.activeNodes : (stats.nodes || 0);
         const maxNodes = stats.maxNodes || 50;
-        if (this.elNodes) this.elNodes.text(`🧠 Nodes: ${activeNodes}/${maxNodes}`);
+        if (this.elNodes) this.elNodes.text(`🧠 ${activeNodes}/${maxNodes}`);
 
-        if (this.elTps) this.elTps.text(`⚡ TPS: ${stats.tps || 0}`);
+        if (this.elTps) this.elTps.text(`⚡ ${stats.tps || 0}`);
     }
 
     setReasonerRunning(isRunning) {
