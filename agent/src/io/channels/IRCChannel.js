@@ -268,7 +268,7 @@ export class IRCChannel extends Embodiment {
                 nick: this.config.nick || 'senars-bot',
                 username: this.config.username || 'senars',
                 gecos: this.config.realname || `${this.config.nick} Bot`,
-                tls: this.config.tls !== false,
+                tls: !!this.config.tls,
                 password: this.config.password,
                 auto_reconnect: true,
                 auto_reconnect_wait: 2000,

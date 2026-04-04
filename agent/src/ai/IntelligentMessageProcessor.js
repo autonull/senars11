@@ -44,13 +44,13 @@ export class IntelligentMessageProcessor {
      */
     async processMessage(msg) {
         this.stats.messagesProcessed++;
-        
-        const { channelId, from, content, metadata } = msg;
+
+        const { from, content, metadata } = msg;
         const isPrivate = metadata?.isPrivate || false;
-        const channel = metadata?.channel || channelId;
-        
+        const channel = metadata?.channel || msg.channelId || 'unknown';
+
         // Get or create context for this conversation
-        const contextKey = `${channelId}:${from}`;
+        const contextKey = `${channel}:${from}`;
         const context = this._getOrCreateContext(contextKey);
         
         // Update context with new message
@@ -326,7 +326,8 @@ Respond with just the type name.`;
             'ping': async () => 'Pong!',
             'version': async () => `${this.config.botNick} v1.0 - Intelligent IRC Agent`,
             'uptime': async () => {
-                const uptime = Math.floor((Date.now() - this.agent.sessionState.startTime) / 1000);
+                const uptime = Math.floor((Date.now() - this.agent.startTime) / 1000);
+                if (isNaN(uptime) || uptime < 0) return 'Uptime: unknown';
                 const mins = Math.floor(uptime / 60);
                 const secs = uptime % 60;
                 return `Uptime: ${mins}m ${secs}s`;
