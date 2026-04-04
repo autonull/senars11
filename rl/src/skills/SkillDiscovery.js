@@ -32,7 +32,7 @@ const PRIMITIVE_SKILLS = [
 
 const SkillUtils = {
     generateId() {
-        return `skill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `skill_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     },
 
     extractMettaField(mettaStr, pattern) {

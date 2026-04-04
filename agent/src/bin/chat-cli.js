@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 
 import { readFile } from 'fs/promises';
-import { resolve, dirname, join } from 'path';
+import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createInterface } from 'readline';
 import { Agent } from '../Agent.js';
-import { CLIChannel } from '../io/channels/CLIChannel.js';
 import { Logger } from '@senars/core';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
@@ -20,6 +19,9 @@ const DUMMY_PROVIDER = {
     })
 };
 
+const COLORS = { cyan: '\x1b[36m', green: '\x1b[32m', magenta: '\x1b[35m', red: '\x1b[31m', yellow: '\x1b[33m', reset: '\x1b[0m' };
+const color = (text, c) => `${COLORS[c] ?? ''}${text}${COLORS.reset}`;
+
 async function main() {
     const args = process.argv.slice(2);
     const useDummy = args.includes('--provider') && args[args.indexOf('--provider') + 1] === 'dummy';
@@ -31,21 +33,24 @@ async function main() {
     const agent = new Agent(agentConfig);
     await agent.initialize();
 
-    const cli = new CLIChannel({ prompt: 'senars> ' });
-    agent.embodimentBus.register(cli);
-    await cli.connect();
-
-    Logger.info('[chat-cli] Ready. Type messages or /quit to exit.');
+    Logger.info(color('[chat-cli] Ready. Type messages or /quit to exit.', 'green'));
 
     const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-    const prompt = () => rl.question('senars> ', handleInput);
+    const prompt = () => rl.question(color('senars> ', 'cyan'), handleInput);
+
+    agent.embodimentBus.on('message', async (msg) => {
+        const text = msg.content ?? '';
+        if (text.startsWith('[user@')) return;
+        process.stdout.write('\r\x1b[K');
+        console.log(color('🤖', 'magenta'), text);
+        prompt();
+    });
 
     async function handleInput(line) {
         const trimmed = line.trim();
         if (!trimmed) { prompt(); return; }
         if (trimmed === '/quit' || trimmed === '/exit') {
-            Logger.info('[chat-cli] Goodbye.');
-            await cli.disconnect();
+            Logger.info(color('[chat-cli] Goodbye.', 'yellow'));
             await agent.shutdown();
             rl.close();
             process.exit(0);
@@ -53,10 +58,14 @@ async function main() {
 
         try {
             const response = await agent.processInput(trimmed);
-            await cli.sendMessage('user', response ?? '(no response)', { isBotResponse: true });
+            if (response) {
+                process.stdout.write('\r\x1b[K');
+                console.log(color('🤖', 'magenta'), response);
+            }
         } catch (err) {
             Logger.error('[chat-cli]', err.message);
-            await cli.sendMessage('user', `Error: ${err.message}`, { error: true });
+            process.stdout.write('\r\x1b[K');
+            console.log(color('❌', 'red'), `Error: ${err.message}`);
         }
         prompt();
     }
@@ -76,6 +85,6 @@ async function loadAgentConfig() {
 }
 
 main().catch(err => {
-    console.error('[chat-cli] Fatal:', err.message);
+    console.error(color('[chat-cli] Fatal:', 'red'), err.message);
     process.exit(1);
 });

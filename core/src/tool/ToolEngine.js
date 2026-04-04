@@ -340,7 +340,7 @@ export class ToolEngine extends BaseComponent {
     }
 
     _generateExecutionId() {
-        return `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `exec_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     }
 
     cancelAllExecutions() {

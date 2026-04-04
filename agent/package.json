@@ -12,7 +12,7 @@
     "repl": "node src/bin/cli.js",
     "chat:cli": "node src/bin/chat-cli.js",
     "chat-bot": "node examples/chatbot/run.js",
-    "demo:mcp": "node ../examples/mcp-demo.js"
+    "demo:mcp": "node ../examples/advanced/mcp-demo.js"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.72",

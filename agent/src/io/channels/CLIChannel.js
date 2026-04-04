@@ -56,8 +56,8 @@ export class CLIChannel extends Embodiment {
         try {
             // Create readline interface
             this.rl = readline.createInterface({
-                input: config.inputStream ?? process.stdin,
-                output: config.outputStream ?? process.stdout,
+                input: this.config.inputStream ?? process.stdin,
+                output: this.config.outputStream ?? process.stdout,
                 prompt: this._colorize(`${this.config.prompt || 'senars> '} `, 'prompt'),
                 historySize: this.maxHistory,
                 completer: this._completer.bind(this),

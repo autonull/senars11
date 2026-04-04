@@ -1,5 +1,5 @@
 import {TermFactory, Term} from '@senars/nar';
-import {MeTTaParser, parseMeTTaToNars, parseMeTTaExpression} from '@senars/core/src/parser/MeTTaParser.js';
+import {MeTTaParser, parseMeTTaToNars, parseMeTTaExpression} from '@senars/nar/src/parser/MeTTaParser.js';
 
 describe('MeTTaParser', () => {
     let parser, termFactory;

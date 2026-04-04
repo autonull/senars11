@@ -30,9 +30,6 @@ export * from './config.js';
 // Functional utilities
 export * from './func.js';
 
-// Functional utilities (includes performance utils)
-export * from './func.js';
-
 // Guard utilities
 export * from './guard.js';
 

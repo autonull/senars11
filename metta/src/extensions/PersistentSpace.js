@@ -1,5 +1,6 @@
 import { Space } from '../kernel/Space.js';
 import { isExpression } from '../kernel/Term.js';
+import { Logger } from '@senars/core';
 
 /**
  * PersistentSpace.js - MORK-parity Phase P2-B: Scalable Persistence
@@ -59,7 +60,7 @@ export class PersistentSpace extends Space {
       const merkleHash = await this._computeMerkleHash(serialized);
       await this._storage.write({ atoms: serialized, merkleHash, vectorClocks: this._serializeVectorClocks(), timestamp: Date.now(), atomCount: this.atoms.size });
       this._pendingWrites = 0;
-    } catch (e) { console.error('Checkpoint failed:', e); }
+    } catch (e) { Logger.error('Checkpoint failed:', e); }
     finally {
       this._checkpointInProgress = false;
       if (this._pendingCheckpoint) { this._pendingCheckpoint = false; queueMicrotask(() => this._checkpoint()); }
@@ -210,14 +211,14 @@ export class PersistentSpace extends Space {
       const data = await this._storage.read();
       if (!data?.atoms) return false;
       const computedHash = await this._computeMerkleHash(data.atoms);
-      if (computedHash !== data.merkleHash) console.warn('Merkle hash mismatch');
+      if (computedHash !== data.merkleHash) Logger.warn('Merkle hash mismatch');
       const atoms = this._deserialize(data.atoms);
       this.clear();
       atoms.forEach(atom => this.atoms.add(atom));
       if (data.vectorClocks) this._deserializeVectorClocks(data.vectorClocks);
       this._pendingWrites = 0;
       return true;
-    } catch (e) { console.error('Restore failed:', e); return false; }
+    } catch (e) { Logger.error('Restore failed:', e); return false; }
   }
 
   merge(otherSpace) {

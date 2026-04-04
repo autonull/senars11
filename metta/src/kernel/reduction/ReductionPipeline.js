@@ -7,6 +7,7 @@
 import { isExpression, exp, isSymbol, isVariable, equals, isList } from '../Term.js';
 import { Zipper } from '../Zipper.js';
 import { JITCompiler } from './JITCompiler.js';
+import { Logger } from '@senars/core';
 
 /**
  * Base class for reduction stages
@@ -307,7 +308,7 @@ export class ReductionPipeline {
                 result = stage.execute(atom, context);
             } catch (e) {
                 if (e.message.startsWith('Max steps exceeded')) throw e;
-                console.error(`ReductionStage ${stage.name} error:`, e);
+                Logger.error(`ReductionStage ${stage.name} error:`, e);
                 continue;
             }
             const stageTime = Date.now() - stageStart;

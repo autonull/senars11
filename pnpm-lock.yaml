@@ -168,9 +168,6 @@ importers:
       '@mlc-ai/web-llm':
         specifier: ^0.2.82
         version: 0.2.82
-      '@senars/nar':
-        specifier: workspace:*
-        version: link:../nar
       danfojs:
         specifier: ^0.1.6
         version: 0.1.6(seedrandom@2.4.3)
@@ -198,12 +195,13 @@ importers:
       uuid:
         specifier: ^9.0.1
         version: 9.0.1
-      vite:
-        specifier: 8.0.3
-        version: 8.0.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@25.5.0)(esbuild@0.27.5)(jiti@2.6.1)(yaml@2.8.3)
       zod:
         specifier: ^3.25.76
         version: 3.25.76
+    devDependencies:
+      vite:
+        specifier: 8.0.3
+        version: 8.0.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@25.5.0)(esbuild@0.27.5)(jiti@2.6.1)(yaml@2.8.3)
 
   metta:
     dependencies:

@@ -5,6 +5,7 @@
 
 import { ReactiveSpace } from '../../../../metta/src/extensions/ReactiveSpace.js';
 import { sym, exp, var_ } from '../../../../metta/src/kernel/Term.js';
+import { Logger } from '@senars/core';
 import { jest } from '@jest/globals';
 
 
@@ -259,7 +260,7 @@ describe('ReactiveSpace', () => {
 
     describe('Error Handling', () => {
         test('should catch and log observer errors', () => {
-            const consoleError = jest.spyOn(console, 'error').mockImplementation();
+            const loggerError = jest.spyOn(Logger, 'error').mockImplementation();
             const callback = jest.fn(() => {
                 throw new Error('Observer error');
             });
@@ -267,12 +268,12 @@ describe('ReactiveSpace', () => {
             space.observe(sym('test'), callback);
             space.add(sym('test'));
 
-            expect(consoleError).toHaveBeenCalled();
-            consoleError.mockRestore();
+            expect(loggerError).toHaveBeenCalled();
+            loggerError.mockRestore();
         });
 
         test('should continue notifying other observers after error', () => {
-            const consoleError = jest.spyOn(console, 'error').mockImplementation();
+            const loggerError = jest.spyOn(Logger, 'error').mockImplementation();
             const callback1 = jest.fn(() => {
                 throw new Error('Error');
             });
@@ -284,7 +285,7 @@ describe('ReactiveSpace', () => {
             space.add(atom);
 
             expect(callback2).toHaveBeenCalled();
-            consoleError.mockRestore();
+            loggerError.mockRestore();
         });
     });
 

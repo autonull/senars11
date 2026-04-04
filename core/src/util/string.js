@@ -70,7 +70,7 @@ export const formatTimestamp = (timestamp = Date.now()) => new Date(timestamp).t
  * @param {string} prefix - ID prefix
  * @returns {string} Unique ID
  */
-export const generateId = (prefix = 'id') => `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+export const generateId = (prefix = 'id') => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 
 /**
  * Check if string is empty

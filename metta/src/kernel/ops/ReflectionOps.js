@@ -4,6 +4,7 @@
 
 import { sym, grounded, isGrounded } from '../../kernel/Term.js';
 import { OperationHelpers } from './OperationHelpers.js';
+import { Logger } from '@senars/core';
 
 export function registerReflectionOps(registry) {
     const unwrap = (atom) => {
@@ -212,7 +213,7 @@ export function registerReflectionOps(registry) {
                 }
                 return unwrap(res);
             } catch (e) {
-                console.error("Error executing MeTTa callback:", e);
+                Logger.error("Error executing MeTTa callback:", e);
                 throw e;
             }
         };

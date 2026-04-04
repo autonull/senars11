@@ -4,7 +4,7 @@
  * Distributes large non-deterministic branches (e.g., superpose) across threads.
  */
 
-// Basic detection for SharedArrayBuffer environment constraints (COOP/COEP headers)
+import { Logger } from '@senars/core';
 const hasSAB = typeof SharedArrayBuffer !== 'undefined';
 
 export class ParallelExecutor {
@@ -61,7 +61,7 @@ export class ParallelExecutor {
           return results.reduce((acc, curr) => acc.concat(curr), []);
 
       } catch (err) {
-          console.warn('Parallel reduction failed, falling back to sequential', err.message);
+          Logger.warn('Parallel reduction failed, falling back to sequential', err.message);
           return this._sequentialFallback(exprs, reduceOne);
       }
   }

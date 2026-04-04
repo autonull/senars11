@@ -1,4 +1,5 @@
 import { sym, exp } from '../Term.js';
+import { Logger } from '@senars/core';
 
 const stateRegistry = new Map();
 let stateIdCounter = 0;
@@ -62,7 +63,7 @@ export function registerStateOps(registry) {
  */
 export function registerConfigOps(registry, configManager) {
   if (!configManager) {
-    console.warn('ConfigOps: No configManager provided, config ops not registered');
+    Logger.warn('ConfigOps: No configManager provided, config ops not registered');
     return;
   }
 

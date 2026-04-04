@@ -1,5 +1,4 @@
 export * from './util/IntrospectionEvents.js';
-export * from './util/IntrospectionEvents.js';
 export * from './util/FormattingUtils.js';
 export * from './util/EventBus.js';
 export * from './util/Logger.js';

@@ -4,6 +4,8 @@
  */
 
 import { isExpression, isVariable } from './Term.js';
+import { Logger } from '@senars/core';
+import { Logger } from '@senars/core';
 
 export const ILKind = {
   SYMBOL: 0, NUMBER: 1, EXPR: 2, GROUND_CALL: 3,
@@ -289,5 +291,5 @@ export const ILEmit = {
 export function compileIL(il, ground) {
   const source = ILEmit.emit(il, ground);
   try { return new Function('ground', 'space', source); }
-  catch (e) { console.warn('IL compilation failed:', e.message); return null; }
+  catch (e) { Logger.warn('IL compilation failed:', e.message); return null; }
 }

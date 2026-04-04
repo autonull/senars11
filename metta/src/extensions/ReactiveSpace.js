@@ -6,6 +6,7 @@
 
 import { Space } from '../kernel/Space.js';
 import { Unify } from '../kernel/Unify.js';
+import { Logger } from '@senars/core';
 
 export class ReactiveSpace extends Space {
     constructor() {
@@ -130,7 +131,7 @@ export class ReactiveSpace extends Space {
                     try {
                         callback(entry);
                     } catch (e) {
-                        console.error('Observer error:', e);
+                        Logger.error('Observer error:', e);
                     }
                 }
             }

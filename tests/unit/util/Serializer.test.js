@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, test} from '@jest/globals';
-import {Serializer} from '@senars/core/src/util/Serializer.js';
+import {Serializer} from '@senars/nar/src/util/Serializer.js';
 import {Punctuation, Task, Truth, TermFactory} from '@senars/nar';
 
 describe('Serializer', () => {

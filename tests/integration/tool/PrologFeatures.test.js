@@ -1,5 +1,5 @@
 import {NAR, PrologStrategy} from '@senars/nar';
-import {NARTool} from '@senars/core/src/tool/NARTool.js';
+import {NARTool} from '@senars/nar/src/tool/NARTool.js';
 
 describe('Prolog Features Exploration', () => {
     let nar;
