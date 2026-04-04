@@ -21,13 +21,13 @@ export class IntelligentMessageProcessor {
             learnFromConversation: config.learnFromConversation ?? true,
             questionThreshold: config.questionThreshold ?? 0.5,
             commandThreshold: config.commandThreshold ?? 0.6,
-            maxContextLength: config.maxContextLength ?? 10,
-            contextWindowMs: config.contextWindowMs ?? 300000,
+            maxContextLength: config.maxContextLength ?? 30,
+            contextWindowMs: config.contextWindowMs ?? 3600000,
             botNick: config.botNick || 'senars',
             personality: config.personality || 'helpful and concise',
             minResponseDelay: config.minResponseDelay ?? 500,
             maxResponseDelay: config.maxResponseDelay ?? 2000,
-            verbose: config.verbose ?? false
+            verbose: config.verbose ?? false,
         };
 
         this.contexts = new Map();
@@ -343,6 +343,37 @@ Respond with just the type name.`;
                     return `Users in ${channel}: ${users.join(', ')}`;
                 }
                 return 'Cannot get user list';
+            },
+            'context': async () => {
+                const lines = [];
+                lines.push('=== System State ===');
+
+                const ctxKey = `${channel}:${from}`;
+                const ctx = this.contexts.get(ctxKey);
+                lines.push(`\nHISTORY (${ctx?.messages?.length || 0} messages):`);
+                if (ctx?.messages) {
+                    ctx.messages.slice(-10).forEach(m => {
+                        lines.push(`  ${m.from}: ${m.content.substring(0, 80)}`);
+                    });
+                }
+
+                if (this.agent.semanticMemory) {
+                    const recent = await this.agent.semanticMemory.getRecent(10) || [];
+                    lines.push(`\nMEMORIES (${recent.length} recent):`);
+                    recent.forEach(m => {
+                        lines.push(`  [${m.type || '?'}] ${m.content.substring(0, 80)}`);
+                    });
+                }
+
+                const beliefs = this.agent.getBeliefs?.() || [];
+                lines.push(`\nBELIEFS (${beliefs.length} total):`);
+                beliefs.slice(0, 5).forEach(b => {
+                    lines.push(`  ${b}`);
+                });
+
+                lines.push(`\nLLM: ${this.agent.ai?.defaultProvider || '?'}/${this.agent.ai?.defaultModel || '?'}`);
+                lines.push('\n=== End State ===');
+                return lines.join('\n');
             }
         };
         
@@ -369,19 +400,56 @@ Respond with just the type name.`;
     }
 
     /**
+     * Build structured context: RECALL + HISTORY (mirrors ContextBuilder.metta pattern)
+     */
+    async _buildContext(content, context) {
+        const parts = {};
+
+        // RECALL — SemanticMemory query for relevant past exchanges
+        if (this.agent.semanticMemory && content) {
+            try {
+                const memories = await this.agent.semanticMemory.query(content, 5);
+                if (memories.length > 0) {
+                    parts.RECALL = memories.map((m, i) =>
+                        `[${m.type || 'memory'}] ${m.content}${m.score ? ` (relevance: ${m.score.toFixed(2)})` : ''}`
+                    ).join('\n');
+                }
+            } catch (e) {
+                Logger.debug('SemanticMemory query failed:', e.message);
+            }
+        }
+
+        // HISTORY — recent conversation
+        const history = context.messages
+            .map(m => `${m.from}: ${m.content}`)
+            .join('\n');
+        if (history) parts.HISTORY = history;
+
+        return parts;
+    }
+
+    /**
+     * Format structured context into a prompt string
+     */
+    _formatContext(parts) {
+        const sections = [];
+        if (parts.RECALL) sections.push(`RECALL:\n${parts.RECALL}`);
+        if (parts.HISTORY) sections.push(`HISTORY:\n${parts.HISTORY}`);
+        return sections.join('\n\n');
+    }
+
+    /**
      * Handle question messages
      */
     async _handleQuestion(content, context, msg) {
-        const contextMessages = context.messages
-            .slice(-5)
-            .map(m => `${m.from}: ${m.content}`)
-            .join('\n');
+        const structuredContext = await this._buildContext(content, context);
+        const contextStr = this._formatContext(structuredContext);
 
         const systemPrompt = `You are ${this.config.botNick}, a helpful assistant.
 Be CONCISE and DIRECT. Answer in 1-2 sentences max (under 300 characters).
 Personality: ${this.config.personality}`;
 
-        const userPrompt = `${contextMessages ? `Context: ${contextMessages}\n\n` : ''}Question: ${content}`;
+        const userPrompt = `${contextStr ? contextStr + '\n\n' : ''}Question: ${content}`;
 
         try {
             const result = await this.agent.ai.generate([
@@ -424,16 +492,14 @@ Personality: ${this.config.personality}`;
      * Handle statement messages
      */
     async _handleStatement(content, context, msg) {
-        const contextMessages = context.messages
-            .slice(-3)
-            .map(m => `${m.from}: ${m.content}`)
-            .join('\n');
+        const structuredContext = await this._buildContext(content, context);
+        const contextStr = this._formatContext(structuredContext);
 
         const systemPrompt = `You are ${this.config.botNick}, a helpful assistant.
 Be CONCISE and NATURAL. Respond in 1 sentence max (under 200 characters).
 Personality: ${this.config.personality}`;
 
-        const userPrompt = `${contextMessages ? `Context: ${contextMessages}\n\n` : ''}Message: ${content}`;
+        const userPrompt = `${contextStr ? contextStr + '\n\n' : ''}Message: ${content}`;
 
         try {
             const result = await this.agent.ai.generate([
@@ -457,6 +523,7 @@ Personality: ${this.config.personality}`;
 !version - Show bot version
 !uptime - Show bot uptime
 !stats - Show message statistics
+!context - Dump system state (memories, beliefs, history)
 !whoami - Show your nick
 !users - Show users in channel
 

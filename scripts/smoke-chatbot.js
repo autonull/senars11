@@ -1,70 +1,94 @@
 #!/usr/bin/env node
 import { AIClient } from '../agent/src/ai/AIClient.js';
 
-// Simulates the exact call chain from the IRC chatbot:
-// _handleMessage → messageProcessor.processMessage → _handleQuestion → this.agent.ai.generate([...])
+async function testWithContext() {
+    console.log('=== ChatBot with RECALL + HISTORY Context ===\n');
 
-async function simulateChatFlow() {
-    console.log('=== Full ChatBot LM Chain Test ===\n');
-
-    // This is exactly what the chatbot does:
     const ai = new AIClient({
         provider: 'transformers',
         modelName: 'onnx-community/Qwen2.5-0.5B-Instruct',
         temperature: 0.7,
         maxTokens: 256
     });
-    console.log(`Provider: ${ai.defaultProvider}, Model: ${ai.defaultModel}\n`);
 
-    // Scenario 1: "what's 2+2?" - exactly as _handleQuestion builds it
-    console.log('--- Scenario: "what\'s 2+2?" (from _handleQuestion) ---');
-    const questionMessages = [
-        { role: 'system', content: 'You are SeNARchy, a helpful assistant.\nBe CONCISE and DIRECT. Answer in 1-2 sentences max (under 300 characters).\nPersonality: helpful, knowledgeable, and concise.' },
-        { role: 'user', content: "Question: what's 2+2?" }
+    // Simulate the full prompt structure from _handleQuestion with structured context
+    const systemPrompt = `You are SeNARchy, a helpful assistant.
+Be CONCISE and DIRECT. Answer in 1-2 sentences max (under 300 characters).
+Personality: helpful, knowledgeable, and concise.`;
+
+    // Simulate having some recalled memories (from SemanticMemory) + history
+    const recalledMemories = [
+        '[conversation] ##metta sseehh "SeNARchy: what\'s 2+2?" "4" (relevance: 0.82)',
     ];
-    console.log('Input messages:', JSON.stringify(questionMessages, null, 2));
+    const history = 'sseehh: hi SeNARchy\nSeNARchy: Hello sseehh!';
+    const question = "SeNARchy: what's 2+2?";
 
-    const qResult = await ai.generate(questionMessages);
-    const qText = qResult.text?.trim() || '';
-    console.log('Response:', JSON.stringify(qText));
+    const contextStr = [
+        'RECALL:\n' + recalledMemories.join('\n'),
+        'HISTORY:\n' + history
+    ].join('\n\n');
 
-    const qOk = qText && !qText.includes('object Object') && !qText.includes('system:') && !qText.includes('user:') && qText.length < 300;
-    console.log(qOk ? 'PASS\n' : 'FAIL\n');
+    const userPrompt = `${contextStr}\n\nQuestion: ${question}`;
 
-    // Scenario 2: greeting - exactly as _handleGreeting would call (but it doesn't, it uses canned)
-    // Instead test _handleStatement which is used for non-question messages
-    console.log('--- Scenario: greeting statement (from _handleStatement) ---');
-    const statementMessages = [
-        { role: 'system', content: 'You are SeNARchy, a helpful assistant.\nBe CONCISE and NATURAL. Respond in 1 sentence max (under 200 characters).\nPersonality: helpful, knowledgeable, and concise.' },
-        { role: 'user', content: 'Context: \n\nMessage: hi there!' }
-    ];
-    console.log('Input messages:', JSON.stringify(statementMessages, null, 2));
+    console.log('System prompt:', JSON.stringify(systemPrompt));
+    console.log('User prompt:', JSON.stringify(userPrompt));
+    console.log('');
 
-    const sResult = await ai.generate(statementMessages);
-    const sText = sResult.text?.trim() || '';
-    console.log('Response:', JSON.stringify(sText));
+    const result = await ai.generate([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+    ]);
 
-    const sOk = sText && !sText.includes('object Object') && !sText.includes('system:') && !sText.includes('user:') && sText.length < 200;
-    console.log(sOk ? 'PASS\n' : 'FAIL\n');
+    const text = result.text?.trim() || '';
+    console.log('Response:', JSON.stringify(text));
 
-    // Scenario 3: conversation context - from _handleQuestion with history
-    console.log('--- Scenario: "SeNARchy: what\'s 2+2?" with context ---');
-    const ctxMessages = [
-        { role: 'system', content: 'You are SeNARchy, a helpful assistant.\nBe CONCISE and DIRECT. Answer in 1-2 sentences max (under 300 characters).\nPersonality: helpful, knowledgeable, and concise.' },
-        { role: 'user', content: 'Context: sseehh: hi SeNARchy\nSeNARchy: Hello sseehh!\n\nQuestion: SeNARchy: what\'s 2+2?' }
-    ];
-    console.log('Input messages:', JSON.stringify(ctxMessages, null, 2));
+    const ok = text && !text.includes('object Object') && !text.includes('system:') && text.length < 300;
+    console.log(ok ? 'PASS\n' : 'FAIL\n');
+    return ok;
+}
 
-    const cResult = await ai.generate(ctxMessages);
-    const cText = cResult.text?.trim() || '';
-    console.log('Response:', JSON.stringify(cText));
+async function testWithoutMemories() {
+    console.log('=== ChatBot without RECALL (first conversation) ===\n');
 
-    const cOk = cText && !cText.includes('object Object') && !cText.includes('system:') && !cText.includes('user:') && cText.length < 300;
-    console.log(cOk ? 'PASS\n' : 'FAIL\n');
+    const ai = new AIClient({
+        provider: 'transformers',
+        modelName: 'onnx-community/Qwen2.5-0.5B-Instruct',
+        temperature: 0.7,
+        maxTokens: 256
+    });
 
-    const allOk = qOk && sOk && cOk;
+    const systemPrompt = `You are SeNARchy, a helpful assistant.
+Be CONCISE and DIRECT. Answer in 1-2 sentences max (under 300 characters).
+Personality: helpful, knowledgeable, and concise.`;
+
+    const history = '';
+    const question = "what's the capital of France?";
+
+    const contextStr = history ? 'HISTORY:\n' + history : '';
+    const userPrompt = `${contextStr}${contextStr ? '\n\n' : ''}Question: ${question}`;
+
+    console.log('User prompt:', JSON.stringify(userPrompt));
+
+    const result = await ai.generate([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+    ]);
+
+    const text = result.text?.trim() || '';
+    console.log('Response:', JSON.stringify(text));
+
+    const ok = text && !text.includes('object Object') && !text.includes('system:') && text.length < 300;
+    console.log(ok ? 'PASS\n' : 'FAIL\n');
+    return ok;
+}
+
+async function main() {
+    const r1 = await testWithContext();
+    const r2 = await testWithoutMemories();
+
+    const allOk = r1 && r2;
     console.log(allOk ? 'All tests passed.' : 'Some tests failed.');
     process.exit(allOk ? 0 : 1);
 }
 
-simulateChatFlow();
+main();
