@@ -229,7 +229,7 @@ const tests = [
                 commandRegistry: null, 
                 metta: null,
                 sessionState: { startTime: Date.now() },
-                channelManager: { get: () => null }
+                channels: { get: () => null, send: async () => ({}) }
             },
             { botNick: 'test-bot' }
         );
@@ -346,9 +346,9 @@ const tests = [
             },
             metta: null,
             sessionState: { startTime: Date.now(), history: [] },
-            channelManager: {
+            channels: {
                 get: () => mockChannel,
-                sendMessage: async () => true
+                send: async () => true
             }
         };
         

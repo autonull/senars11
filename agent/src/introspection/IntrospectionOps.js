@@ -60,7 +60,7 @@ export class IntrospectionOps {
 
     describeSubsystems() {
         const subsystems = {
-            channelManager: !!this.embodimentBus,
+            channels: !!this.embodimentBus,
             embodiments: this._getEmbodimentList(),
             ai: true,
             toolInstances: ['websearch', 'file'],

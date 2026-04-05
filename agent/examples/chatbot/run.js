@@ -297,20 +297,20 @@ async function createCLIBot(agent, config) {
 }
 
 async function createDemoBot(agent, config) {
-    const { Channel } = await import('@senars/agent/io/index.js');
+    const { Embodiment } = await import('@senars/agent/io/index.js');
 
-    class MockChannel extends Channel {
-        constructor() { super({ id: 'mock' }); this.type = 'mock'; this.status = 'connected'; }
+    class MockChannel extends Embodiment {
+        constructor() {
+            super({ id: 'mock', type: 'mock', name: 'Mock' });
+            this.status = 'connected';
+        }
         async sendMessage(target, content) { Logger.info(`[Mock] → ${target}: ${content}`); return true; }
         async connect() { this.status = 'connected'; this.emit('connected', { nick: config.nick }); }
         async disconnect() { this.status = 'disconnected'; }
-        emitMessage(from, content, metadata = {}) {
-            this.emit('message', { from, content, metadata: { isPrivate: false, channel: 'demo', ...metadata }, channelId: 'demo' });
-        }
     }
 
     const mock = new MockChannel();
-    agent.channelManager.register(mock);
+    agent.channels.register(mock);
 
     const { IntelligentMessageProcessor } = await import('@senars/agent/ai/index.js');
     const processor = new IntelligentMessageProcessor(agent, {
@@ -330,7 +330,7 @@ async function createDemoBot(agent, config) {
         Logger.info(`[Demo] ${msg.from}: ${msg.content}`);
         const result = await processor.processMessage(msg);
         if (result.shouldRespond && result.response) {
-            await agent.channelManager.sendMessage('mock', 'demo', result.response);
+            await agent.channels.send('mock', 'demo', result.response);
         }
     });
 

@@ -86,7 +86,7 @@ export class IntelligentMessageProcessor {
         }, 'mettaControlPlane', ':reflect', 'Evaluate MeTTa expression');
         this._skillDispatcher.register('send', async (channel, text) => {
             try {
-                await this.agent.channelManager?.sendMessage(String(channel), String(channel), String(text));
+                await this.agent.channels?.send(String(channel), String(channel), String(text));
                 return { sent: true };
             } catch (e) { return { error: e.message }; }
         }, 'mettaControlPlane', ':network', 'Send to specific channel');
@@ -151,7 +151,7 @@ export class IntelligentMessageProcessor {
             return { shouldRespond: true, response, action, classification, skillResults };
         } catch (error) {
             Logger.error('Error generating response:', error);
-            return { shouldRespond: false, error: error.message };
+            return { shouldRespond: true, response: "I encountered an error processing your message.", error: error.message };
         }
     }
 

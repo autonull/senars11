@@ -255,6 +255,8 @@ export class EmbodimentBus extends EventEmitter {
      * Shutdown all embodiments
      */
     async shutdown() {
+        if (this._shuttingDown) return;
+        this._shuttingDown = true;
         const promises = Array.from(this.embodiments.values()).map(e => e.disconnect());
         await Promise.all(promises);
         this.embodiments.clear();
@@ -269,6 +271,7 @@ export class EmbodimentBus extends EventEmitter {
      */
     async _handleIncomingMessage(message) {
         try {
+            Logger.debug(`[EmbodimentBus] ${message.embodimentId}: [${message.from}] ${message.content?.substring(0, 80)}`);
             // Execute middleware pipeline
             const msg = {...message};
             for (const mw of this._middleware) {
@@ -298,6 +301,7 @@ export class EmbodimentBus extends EventEmitter {
             Logger.debug(`Message ${msg.id} queued from ${msg.embodimentId} (salience: ${msg.salience})`);
         } catch (error) {
             Logger.error('Error in embodiment message processing:', error);
+            this.emit('message.error', { error, originalMessage: message });
         }
     }
 }

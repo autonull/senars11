@@ -103,7 +103,7 @@ export class CognitiveArchitecture extends EventEmitter {
                 const mettaResult = await this.reasoner.reason(attended);
                 reasoning.metta = mettaResult;
                 if (mettaResult?.conclusions) { reasoning.conclusions.push(...mettaResult.conclusions); reasoning.confidence += 0.3; }
-            } catch (e) { Logger.debug('[Cognitive] MeTTa reasoning skipped:', e.message); }
+            } catch (e) { Logger.warn('[Cognitive] MeTTa reasoning skipped:', e.message); }
         }
         if (this.llm) {
             try {
@@ -113,7 +113,7 @@ export class CognitiveArchitecture extends EventEmitter {
                     reasoning.conclusions.push({ source: 'llm', content: llmResult.response, type: llmResult.type ?? 'response' });
                     reasoning.confidence += 0.5;
                 }
-            } catch (e) { Logger.debug('[Cognitive] LLM reasoning skipped:', e.message); }
+            } catch (e) { Logger.warn('[Cognitive] LLM reasoning skipped:', e.message); }
         }
         reasoning.confidence = Math.min(1.0, reasoning.confidence);
         return reasoning;

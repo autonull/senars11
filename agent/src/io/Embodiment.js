@@ -67,12 +67,16 @@ export class Embodiment extends EventEmitter {
     }
 
     emitMessage(message) {
+        if (!message || !message.from) {
+            Logger.debug(`[${this.type}:${this.id}] Dropped message with no sender`);
+            return;
+        }
         const normalizedMessage = {
             id: message.id || generateId('msg'),
             embodimentId: this.id,
             protocol: this.type,
-            from: message.from || 'unknown',
-            content: message.content || '',
+            from: message.from,
+            content: message.content ?? '',
             timestamp: message.timestamp || Date.now(),
             metadata: message.metadata || {},
             isPrivate: message.isPrivate ?? false,

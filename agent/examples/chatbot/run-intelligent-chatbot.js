@@ -163,10 +163,62 @@ class IntelligentChatBot {
         this.messageProcessor = null;
         this.isRunning = false;
         this.startTime = Date.now();
+        this._hostedServer = null;
+    }
+
+    async _maybeStartHostedServer() {
+        if (this.config.host) return null;
+
+        const { MockIRCServer } = await import('../../tests/integration/irc/MockIRCServer.js');
+        const server = new MockIRCServer();
+        const port = this.config.hostedPort ?? 6668;
+        await server.start(port);
+
+        Logger.info('🏠 Hosting embedded IRC server');
+        Logger.info(`   Address: 127.0.0.1:${server.port}`);
+        Logger.info(`   Connect with: /server 127.0.0.1 ${server.port}`);
+
+        this.config.host = '127.0.0.1';
+        this.config.port = server.port;
+        this._hostedServer = server;
+        return server;
+    }
+
+    async _warmUpLLM() {
+        if (!this.agent.ai) {
+            Logger.warn('⚠️  No LLM available — bot will log messages but cannot respond');
+            this.agent._mettaLoopBuilder?.resolveLlmReady();
+            return;
+        }
+        try {
+            Logger.info('🔥 Warming up LLM...');
+            const timeout = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('LLM warm-up timed out')), 60000)
+            );
+            const result = await Promise.race([
+                this.agent.ai.generate('Hi', { maxTokens: 16 }),
+                timeout
+            ]);
+            const text = result?.text ?? '';
+            if (text) {
+                Logger.info(`✅ LLM ready (${result.model ?? this.agent.ai.defaultModel ?? 'unknown'})`);
+            } else {
+                Logger.warn('⚠️  LLM returned empty response');
+            }
+        } catch (err) {
+            Logger.warn(`⚠️  LLM warm-up failed: ${err.message}`);
+            Logger.info('   Bot will log messages and attempt responses on demand');
+        } finally {
+            this.agent._mettaLoopBuilder?.resolveLlmReady();
+        }
     }
 
     async initialize() {
         Logger.info('🤖 Initializing Intelligent ChatBot...');
+
+        // Start embedded IRC server if no external host configured
+        await this._maybeStartHostedServer();
+
         Logger.info(`   Host: ${this.config.host}:${this.config.port}`);
         Logger.info(`   Nick: ${this.config.nick}`);
         Logger.info(`   Channel: ${this.config.channel}`);
@@ -231,7 +283,7 @@ class IntelligentChatBot {
             rateLimit: { interval: 4000 }
         });
         
-        this.agent.channelManager.register(ircChannel);
+        this.agent.channels.register(ircChannel);
         Logger.info('✅ IRC Channel registered');
 
         // Initialize Intelligent Message Processor with Ollama
@@ -247,6 +299,9 @@ class IntelligentChatBot {
             agentConfig: this.agent.agentCfg
         });
         Logger.info('✅ Message Processor initialized');
+
+        // Warm up LLM in background — does not block startup
+        this._warmUpLLM();
 
         // Wire SemanticMemory to agent if enabled by capabilities
         if (isEnabled(this.agent.agentCfg, 'semanticMemory') && !this.agent._semanticMemory) {
@@ -270,7 +325,7 @@ class IntelligentChatBot {
     }
 
     _setupChannelHandlers() {
-        const ircChannel = this.agent.channelManager?.get('irc');
+        const ircChannel = this.agent.channels?.get('irc');
 
         if (!ircChannel) {
             Logger.warn('IRC channel not available');
@@ -396,10 +451,10 @@ class IntelligentChatBot {
         // Get bot stats
         ground.register('get-stats', () => {
             const stats = this.messageProcessor.getStats();
-            const rateStats = this.agent.channelManager?.getRateLimitStats?.() || {};
+            const busStats = this.agent.embodimentBus?.getStats() || {};
             return this.agent.metta.grounded(JSON.stringify({
                 processor: stats,
-                rateLimiter: rateStats
+                bus: busStats
             }));
         });
     }
@@ -424,7 +479,7 @@ class IntelligentChatBot {
             if (!result.shouldRespond || !result.response) return;
 
             // Don't respond if IRC isn't connected yet
-            const ircChannel = this.agent.channelManager?.get('irc');
+            const ircChannel = this.agent.channels?.get('irc');
             if (ircChannel?.status !== 'connected') {
                 Logger.debug(`[Response] Skipped - IRC not connected (status: ${ircChannel?.status ?? 'unknown'})`);
                 return;
@@ -517,7 +572,7 @@ class IntelligentChatBot {
 
     async _sendWithRateLimit(target, content, metadata = {}) {
         try {
-            await this.agent.channelManager.sendMessage('irc', target, content, metadata);
+            await this.agent.channels.send('irc', target, content, metadata);
         } catch (error) {
             Logger.error('Failed to send message:', error);
         }
@@ -532,7 +587,7 @@ class IntelligentChatBot {
         Logger.info('🚀 Starting ChatBot...');
 
         // Connect IRC channel
-        const ircChannel = this.agent.channelManager?.get('irc');
+        const ircChannel = this.agent.channels?.get('irc');
         if (ircChannel) {
             try {
                 await ircChannel.connect();
@@ -571,7 +626,7 @@ class IntelligentChatBot {
         const hours = Math.floor(mins / 60);
         
         const stats = this.messageProcessor?.getStats() || {};
-        const rateStats = this.agent.channelManager?.getRateLimitStats?.() || {};
+        const busStats = this.agent.embodimentBus?.getStats() || {};
         
         Logger.info(`📊 Status Report:
    Uptime: ${hours}h ${mins % 60}m
@@ -605,10 +660,16 @@ class IntelligentChatBot {
         }
 
         // Disconnect channels
-        await this.agent.channelManager?.shutdown();
-        
+        await this.agent.embodimentBus?.shutdown();
+
         // Shutdown agent
         await this.agent.shutdown();
+
+        // Shut down hosted IRC server
+        if (this._hostedServer) {
+            await this._hostedServer.stop();
+            Logger.info('✅ Embedded IRC server stopped');
+        }
         
         Logger.info('✅ ChatBot shutdown complete');
         process.exit(0);

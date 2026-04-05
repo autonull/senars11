@@ -108,7 +108,7 @@ class TestEnv {
             semanticMemory: this.semanticMemory,
             getBeliefs: () => [...this.opts.beliefs],
             metta: this.metta,
-            channelManager: { sendMessage: async () => ({}) },
+            channels: { send: async () => ({}) },
             commandRegistry: null,
         };
 
@@ -130,8 +130,8 @@ class TestEnv {
     /** Send a message through the full pipeline, capturing what would be sent back */
     async send(from, content, channel = 'test') {
         const sent = [];
-        const origSend = this.imp.agent.channelManager.sendMessage;
-        this.imp.agent.channelManager.sendMessage = async (...args) => {
+        const origSend = this.imp.agent.channels.send;
+        this.imp.agent.channels.send = async (...args) => {
             sent.push(args);
             return origSend?.(...args) ?? {};
         };
@@ -142,7 +142,7 @@ class TestEnv {
             channelId: channel
         };
         const result = await this.imp.processMessage(msg);
-        this.imp.agent.channelManager.sendMessage = origSend;
+        this.imp.agent.channels.send = origSend;
         return { result, sent };
     }
 

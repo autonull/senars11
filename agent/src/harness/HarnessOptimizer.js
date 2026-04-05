@@ -171,9 +171,10 @@ Return ONLY a unified diff (diff -u format) showing the change. Do not explain.`
 
         try {
             const result = await this.modelRouter.invoke(prompt, {taskType: ':introspection'});
-            const diffMatch = result.response.match(/```diff\n?([\s\S]*?)```/) || result.response.match(/---[\s\S]*?\+\+\+[\s\S]*?@@[\s\S]*?(\+[^\n]*\n)+/);
+            const responseText = result?.response ?? '';
+            const diffMatch = responseText.match(/```diff\n?([\s\S]*?)```/) || responseText.match(/---[\s\S]*?\+\+\+[\s\S]*?@@[\s\S]*?(\+[^\n]*\n)+/);
             return {
-                diff: diffMatch ? (diffMatch[1] || diffMatch[0]) : result.response,
+                diff: diffMatch ? (diffMatch[1] || diffMatch[0]) : responseText,
                 model: result.model,
                 latency: result.latency
             };
@@ -235,8 +236,9 @@ Return ONLY a unified diff (diff -u format) showing the change. Do not explain.`
             totalScore += await this._scoreResponse(failure.context, failure.response, failure.error);
             try {
                 const candidateResult = await this.modelRouter.invoke(failure.context, {taskType: ':reasoning'});
-                const candidateError = candidateResult.response.includes('error') ? 'error' : null;
-                candidateScore += await this._scoreResponse(failure.context, candidateResult.response, candidateError);
+                const candidateText = candidateResult?.response ?? '';
+                const candidateError = candidateText.includes('error') ? 'error' : null;
+                candidateScore += await this._scoreResponse(failure.context, candidateText, candidateError);
             } catch {
                 candidateScore += 0;
             }

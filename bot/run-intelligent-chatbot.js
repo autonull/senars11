@@ -166,10 +166,62 @@ class IntelligentChatBot {
         this.messageProcessor = null;
         this.isRunning = false;
         this.startTime = Date.now();
+        this._hostedServer = null;
+    }
+
+    async _maybeStartHostedServer() {
+        if (this.config.host) return null;
+
+        const { MockIRCServer } = await import('../tests/integration/irc/MockIRCServer.js');
+        const server = new MockIRCServer();
+        const port = this.config.hostedPort ?? 6668;
+        await server.start(port);
+
+        Logger.info('🏠 Hosting embedded IRC server');
+        Logger.info(`   Address: 127.0.0.1:${server.port}`);
+        Logger.info(`   Connect with: /server 127.0.0.1 ${server.port}`);
+
+        this.config.host = '127.0.0.1';
+        this.config.port = server.port;
+        this._hostedServer = server;
+        return server;
+    }
+
+    async _warmUpLLM() {
+        if (!this.agent.ai) {
+            Logger.warn('⚠️  No LLM available — bot will log messages but cannot respond');
+            this.agent._mettaLoopBuilder?.resolveLlmReady();
+            return;
+        }
+        try {
+            Logger.info('🔥 Warming up LLM...');
+            const timeout = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('LLM warm-up timed out (model may be downloading)')), 60000)
+            );
+            const result = await Promise.race([
+                this.agent.ai.generate('Hi', { maxTokens: 16 }),
+                timeout
+            ]);
+            const text = result?.text ?? '';
+            if (text) {
+                Logger.info(`✅ LLM ready (${result.model ?? this.agent.ai.defaultModel ?? 'unknown'})`);
+            } else {
+                Logger.warn('⚠️  LLM returned empty response — model may not be loaded');
+            }
+        } catch (err) {
+            Logger.warn(`⚠️  LLM warm-up failed: ${err.message}`);
+            Logger.info('   Bot will log messages and attempt responses on demand');
+        } finally {
+            this.agent._mettaLoopBuilder?.resolveLlmReady();
+        }
     }
 
     async initialize() {
         Logger.info('🤖 Initializing Intelligent ChatBot...');
+
+        // Start embedded IRC server if no external host configured
+        await this._maybeStartHostedServer();
+
         Logger.info(`   Host: ${this.config.host}:${this.config.port}`);
         Logger.info(`   Nick: ${this.config.nick}`);
         Logger.info(`   Channel: ${this.config.channel}`);
@@ -185,41 +237,38 @@ class IntelligentChatBot {
             Logger.setLevel('DEBUG');
         }
 
-        // Initialize Agent with LLM configuration
-        // Default: Transformers.js runs Qwen2.5-0.5B-Instruct locally on CPU (auto-downloads & caches)
-        // Switch to OpenAI-compatible endpoint: set provider='openai', baseURL='http://localhost:8080/v1'
-        const hasOpenAIEndpoint = this.config.openaiBaseURL;
-        this.agent = new Agent({
-            id: `chatbot-${this.config.nick}`,
-            lm: {
-                provider: hasOpenAIEndpoint ? 'openai' : 'transformers',
-                baseURL: this.config.ollamaUrl,
-                modelName: hasOpenAIEndpoint ? this.config.model : undefined,
-                openai: hasOpenAIEndpoint ? {
-                    baseURL: this.config.openaiBaseURL,
-                    apiKey: this.config.openaiApiKey || 'sk-dummy'
-                } : undefined,
-                temperature: 0.7,
-                maxTokens: 256
-            },
-            inputProcessing: {
-                enableNarseseFallback: true,
-                checkNarseseSyntax: true,
-                lmTemperature: 0.7
-            },
-            rateLimit: {
-                // IRC-safe rate limiting (prevents "Excess Flood" kicks)
-                perChannelMax: 3,        // Only 3 messages per channel
-                perChannelInterval: 8000, // Over 8 seconds (very conservative)
-                globalMax: 10,           // 10 messages total
-                globalInterval: 10000    // Over 10 seconds
-            },
-            workspace: join(__dirname, '../../workspace')
-        });
-
-        // Initialize the agent
-        await this.agent.initialize();
-        Logger.info('✅ Agent initialized');
+        // Initialize Agent (skip if already provided — e.g. from createBot factory)
+        if (!this.agent) {
+            Logger.info('Creating new Agent instance...');
+            const hasOpenAIEndpoint = this.config.openaiBaseURL;
+            this.agent = new Agent({
+                id: `chatbot-${this.config.nick}`,
+                lm: {
+                    provider: hasOpenAIEndpoint ? 'openai' : 'transformers',
+                    baseURL: this.config.ollamaUrl,
+                    modelName: hasOpenAIEndpoint ? this.config.model : undefined,
+                    openai: hasOpenAIEndpoint ? {
+                        baseURL: this.config.openaiBaseURL,
+                        apiKey: this.config.openaiApiKey || 'sk-dummy'
+                    } : undefined,
+                    temperature: 0.7,
+                    maxTokens: 256
+                },
+                inputProcessing: {
+                    enableNarseseFallback: true,
+                    checkNarseseSyntax: true,
+                    lmTemperature: 0.7
+                },
+                rateLimit: this.config.rateLimit ?? {
+                    perChannelMax: 3, perChannelInterval: 8000, globalMax: 10, globalInterval: 10000
+                },
+                workspace: join(__dirname, '../../workspace')
+            });
+            await this.agent.initialize();
+            Logger.info('✅ Agent initialized');
+        } else {
+            Logger.info('Using pre-initialized Agent');
+        }
 
         // Manually create and register IRC channel
         const ircChannel = new IRCChannel({
@@ -231,10 +280,10 @@ class IntelligentChatBot {
             realname: 'SeNARS Intelligent Bot',
             tls: this.config.tls,
             channels: [this.config.channel],
-            rateLimit: { interval: 4000 }
+            rateLimit: { interval: this.config.rateLimit?.perChannelInterval ?? 4000 }
         });
         
-        this.agent.channelManager.register(ircChannel);
+        this.agent.channels.register(ircChannel);
         Logger.info('✅ IRC Channel registered');
 
         // Initialize Intelligent Message Processor with Ollama
@@ -251,16 +300,8 @@ class IntelligentChatBot {
         });
         Logger.info('✅ Message Processor initialized');
 
-        // Wire SemanticMemory to agent if enabled by capabilities
-        if (isEnabled(this.agent.agentCfg, 'semanticMemory') && !this.agent._semanticMemory) {
-            const { SemanticMemory } = await import('../../src/memory/SemanticMemory.js');
-            this.agent._semanticMemory = new SemanticMemory({
-                dataDir: join(this.agent.agentCfg.workspace?.memoryDir ?? 'agent/memory', 'semantic'),
-                embedderConfig: this.agent.agentCfg.embedder ?? {}
-            });
-            await this.agent._semanticMemory.initialize();
-            Logger.info('✅ SemanticMemory wired to agent');
-        }
+        // Warm up LLM in background — does not block startup
+        this._warmUpLLM();
 
         // Set up enhanced channel event handling
         this._setupChannelHandlers();
@@ -273,7 +314,7 @@ class IntelligentChatBot {
     }
 
     _setupChannelHandlers() {
-        const ircChannel = this.agent.channelManager?.get('irc');
+        const ircChannel = this.agent.channels?.get('irc');
 
         if (!ircChannel) {
             Logger.warn('IRC channel not available');
@@ -291,15 +332,18 @@ class IntelligentChatBot {
             }
 
             // Ignore notices (server operational messages like hostname lookups)
-            if (msg.metadata?.type === 'notice') return;
+            if (msg.metadata?.type === 'notice') {
+                Logger.debug(`[IRC notice from ${msg.from}]: ${msg.content}`);
+                return;
+            }
 
             const isPrivate = msg.metadata?.isPrivate || false;
             const channel = msg.metadata?.channel || this.config.channel;
 
             if (isPrivate) {
-                Logger.info(`[IRC PM] From ${msg.from}: ${msg.content}`);
+                Logger.info(`[IRC PM] ${msg.from}: ${msg.content}`);
             } else {
-                Logger.debug(`[IRC Channel ${channel}] ${msg.from}: ${msg.content}`);
+                Logger.info(`[IRC ${channel}] ${msg.from}: ${msg.content}`);
             }
 
             // When MeTTa control plane is active, the MeTTa loop reads messages
@@ -313,13 +357,24 @@ class IntelligentChatBot {
         // Handle user joins
         ircChannel.on('user_joined', ({ nick, channel }) => {
             Logger.debug(`[IRC] ${nick} joined ${channel}`);
-            // Greet new users (with rate limiting consideration)
             if (channel === this.config.channel && nick !== this.config.nick) {
                 setTimeout(async () => {
                     await this._sendWithRateLimit(channel,
                         `Welcome ${nick}! 👋 I'm ${this.config.nick}. Ask me anything or type !help.`
                     );
                 }, 1000);
+            }
+        });
+
+        ircChannel.on('user_part', ({ nick, channel }) => {
+            Logger.debug(`[IRC] ${nick} left ${channel}`);
+            this.messageProcessor?.clearContext(`${channel}:${nick}`);
+        });
+
+        ircChannel.on('user_quit', ({ nick }) => {
+            Logger.debug(`[IRC] ${nick} quit`);
+            for (const key of this.messageProcessor?.contexts.keys() ?? []) {
+                if (key.endsWith(`:${nick}`)) this.messageProcessor.clearContext(key);
             }
         });
 
@@ -331,6 +386,7 @@ class IntelligentChatBot {
         // Handle connection events
         ircChannel.on('connected', (event) => {
             Logger.info(`🔌 Connected to IRC as ${event.nick}`);
+            this.agent._mettaLoopBuilder?.resume();
 
             // Send join message after a delay
             setTimeout(async () => {
@@ -348,6 +404,7 @@ class IntelligentChatBot {
 
         ircChannel.on('disconnected', () => {
             Logger.warn('❌ Disconnected from IRC');
+            this.agent._mettaLoopBuilder?.pause();
         });
 
         ircChannel.on('error', (err) => {
@@ -399,7 +456,7 @@ class IntelligentChatBot {
         // Get bot stats
         ground.register('get-stats', () => {
             const stats = this.messageProcessor.getStats();
-            const rateStats = this.agent.channelManager?.getRateLimitStats?.() || {};
+            const rateStats = this.agent.embodimentBus?.getStats() || {};
             return this.agent.metta.grounded(JSON.stringify({
                 processor: stats,
                 rateLimiter: rateStats
@@ -427,7 +484,7 @@ class IntelligentChatBot {
             if (!result.shouldRespond || !result.response) return;
 
             // Don't respond if IRC isn't connected yet
-            const ircChannel = this.agent.channelManager?.get('irc');
+            const ircChannel = this.agent.channels?.get('irc');
             if (ircChannel?.status !== 'connected') {
                 Logger.debug(`[Response] Skipped - IRC not connected (status: ${ircChannel?.status ?? 'unknown'})`);
                 return;
@@ -443,12 +500,16 @@ class IntelligentChatBot {
             const batches = this._batchLines(responseLines, maxLineLength);
 
             for (const batch of batches) {
-                await this._sendWithRateLimit(target, batch);
+                try {
+                    await this._sendWithRateLimit(target, batch);
+                } catch { break; }
             }
 
             Logger.info(`[Sent] ${responseLines.length} line(s) → ${batches.length} msg(s) to ${target}`);
         } catch (error) {
             Logger.error('Error handling message:', error);
+            const target = isPrivate ? msg.from : (msg.metadata?.channel || this.config.channel);
+            await this._sendWithRateLimit(target, "I'm having trouble thinking right now. Try again in a moment.");
         }
     }
 
@@ -511,18 +572,12 @@ class IntelligentChatBot {
         return batches.length ? batches : lines;
     }
 
-    /**
-     * Strip bot nick prefix from message content: "SeNARchy: hi" → "hi"
-     */
-    _stripNickPrefix(content) {
-        return content.replace(new RegExp(`^\\s*${this.config.nick}[,:\\s]+\\s*`, 'i'), '').trim();
-    }
-
     async _sendWithRateLimit(target, content, metadata = {}) {
         try {
-            await this.agent.channelManager.sendMessage('irc', target, content, metadata);
+            await this.agent.channels.send('irc', target, content, metadata);
         } catch (error) {
             Logger.error('Failed to send message:', error);
+            throw error;
         }
     }
 
@@ -535,7 +590,7 @@ class IntelligentChatBot {
         Logger.info('🚀 Starting ChatBot...');
 
         // Connect IRC channel
-        const ircChannel = this.agent.channelManager?.get('irc');
+        const ircChannel = this.agent.channels?.get('irc');
         if (ircChannel) {
             try {
                 await ircChannel.connect();
@@ -574,7 +629,7 @@ class IntelligentChatBot {
         const hours = Math.floor(mins / 60);
         
         const stats = this.messageProcessor?.getStats() || {};
-        const rateStats = this.agent.channelManager?.getRateLimitStats?.() || {};
+        const busStats = this.agent.embodimentBus?.getStats() || {};
         
         Logger.info(`📊 Status Report:
    Uptime: ${hours}h ${mins % 60}m
@@ -607,12 +662,15 @@ class IntelligentChatBot {
             // Ignore send errors during shutdown
         }
 
-        // Disconnect channels
-        await this.agent.channelManager?.shutdown();
-        
-        // Shutdown agent
+        // Shutdown agent (also shuts down embodimentBus)
         await this.agent.shutdown();
-        
+
+        // Shut down hosted IRC server
+        if (this._hostedServer) {
+            await this._hostedServer.stop();
+            Logger.info('✅ Embedded IRC server stopped');
+        }
+
         Logger.info('✅ ChatBot shutdown complete');
         process.exit(0);
     }

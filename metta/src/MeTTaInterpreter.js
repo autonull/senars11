@@ -78,8 +78,8 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
     }
 
     async _initializeExtensions(options) {
-        if (options.channelManager) {
-            new ChannelExtension(this, options.channelManager, {
+        if (options.embodimentBus) {
+            new ChannelExtension(this, options.embodimentBus, {
                 channelFactories: options.channelFactories ?? {},
                 toolFactories: options.toolFactories ?? {},
             }).register();

@@ -10,6 +10,7 @@ import {isEnabled} from '../config/index.js';
 import {getSafetyLayer} from '../safety/index.js';
 import {AuditSpace} from '../memory/index.js';
 import {getHookOrchestrator} from './HookOrchestrator.js';
+import {SkillResult} from './SkillResult.js';
 
 const atomValue = c => c?.name ?? c?.value ?? '';
 
@@ -100,6 +101,12 @@ export class SkillDispatcher {
         if (!str) {
             return {cmds: [], error: null};
         }
+
+        // Try JSON tool calls first
+        const jsonCmds = this._tryParseJsonActions(str);
+        if (jsonCmds) return {cmds: jsonCmds, error: null};
+
+        // Fall back to S-expression parsing
         let atom;
         try {
             atom = this._parser.parse(this._balanceParens(str));
@@ -110,6 +117,46 @@ export class SkillDispatcher {
             return {cmds: [], error: null};
         }
         return {cmds: this._extractCommands(atom).slice(0, this._config.loop?.maxSkillsPerCycle ?? 3), error: null};
+    }
+
+    _tryParseJsonActions(str) {
+        // Extract JSON block handling nested braces properly
+        const jsonBlock = this._extractJsonBlock(str);
+        if (!jsonBlock) return null;
+        try {
+            const parsed = JSON.parse(jsonBlock);
+            if (!parsed.actions || !Array.isArray(parsed.actions)) return null;
+            const cmds = parsed.actions
+                .filter(a => a.name && Array.isArray(a.args))
+                .map(a => ({ name: a.name, args: a.args }))
+                .slice(0, this._config.loop?.maxSkillsPerCycle ?? 3);
+            return cmds.length > 0 ? cmds : null;
+        } catch {
+            return null;
+        }
+    }
+
+    _extractJsonBlock(str) {
+        // Find first `{` and match balanced braces
+        let depth = 0, start = -1;
+        let inString = false, escaped = false;
+        for (let i = 0; i < str.length; i++) {
+            const ch = str[i];
+            if (escaped) { escaped = false; continue; }
+            if (ch === '\\') { escaped = true; continue; }
+            if (ch === '"') { inString = !inString; continue; }
+            if (inString) continue;
+            if (ch === '{') {
+                if (depth === 0) start = i;
+                depth++;
+            } else if (ch === '}') {
+                depth--;
+                if (depth === 0 && start >= 0) {
+                    return str.substring(start, i + 1);
+                }
+            }
+        }
+        return null;
     }
 
     async execute(cmds) {
@@ -137,10 +184,10 @@ export class SkillDispatcher {
     async _dispatch({name, args}) {
         const entry = this._handlers.get(name);
         if (!entry) {
-            return {skill: name, result: null, error: `unknown-skill: ${name}`};
+            return SkillResult.fail(name, `unknown-skill: ${name}`);
         }
         if (!isEnabled(this._config, entry.capFlag)) {
-            return {skill: name, result: null, error: `capability-disabled: ${entry.capFlag}`};
+            return SkillResult.fail(name, `capability-disabled: ${entry.capFlag}`);
         }
 
         let currentArgs = args;
@@ -148,7 +195,7 @@ export class SkillDispatcher {
             const orchestrator = getHookOrchestrator(this._config, this._auditSpace);
             const preHookResult = await orchestrator.runPreHooks({name, args: currentArgs});
             if (preHookResult.action === 'deny') {
-                return {skill: name, result: null, error: `hook-deny: ${preHookResult.reason}`};
+                return SkillResult.fail(name, `hook-deny: ${preHookResult.reason}`);
             }
             if (preHookResult.action === 'rewrite') {
                 currentArgs = preHookResult.newArgs || currentArgs;
@@ -161,7 +208,7 @@ export class SkillDispatcher {
                 if (this._auditSpace) {
                     await this._auditSpace.emitSkillBlocked(name, currentArgs, safety.reason);
                 }
-                return {skill: name, result: null, error: `safety-blocked: ${safety.reason}`};
+                return SkillResult.fail(name, `safety-blocked: ${safety.reason}`);
             }
         }
 
@@ -183,7 +230,7 @@ export class SkillDispatcher {
             await this._auditSpace.emitSkillInvoked(name, currentArgs, result ?? error);
         }
 
-        return {skill: name, result, error};
+        return error ? SkillResult.fail(name, error) : SkillResult.ok(name, result);
     }
 
     _extractCommands(atom) {

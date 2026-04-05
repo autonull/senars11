@@ -20,7 +20,7 @@ export class InputProcessor extends BaseComponent {
      * Process input and create a Task
      * @param {string|Task|Object} input - Input to process
      * @param {Object} options - Processing options
-     * @returns {Task|null} Created task or null if processing failed
+     * @returns {Task|{success: boolean, error?: string}} Created task or error result
      */
     processInput(input, options = {}) {
         if (!input) {
@@ -35,7 +35,17 @@ export class InputProcessor extends BaseComponent {
 
             // Process string input
             if (typeof input === 'string') {
-                return this._processStringInput(input, options);
+                const normalized = this._normalize(input);
+                if (!normalized) {
+                    return { success: false, error: 'Empty or invalid input' };
+                }
+
+                const validation = this._validate(normalized);
+                if (!validation.valid) {
+                    return { success: false, error: validation.message };
+                }
+
+                return this._processStringInput(normalized, options);
             }
 
             // Process object input (parsed structure)
@@ -49,6 +59,31 @@ export class InputProcessor extends BaseComponent {
             this.logError('Error processing input:', error);
             throw error;
         }
+    }
+
+    /**
+     * Normalize string input
+     * @private
+     */
+    _normalize(input) {
+        if (typeof input !== 'string') return input;
+        const trimmed = input.trim();
+        return trimmed || null;
+    }
+
+    /**
+     * Validate input before processing
+     * @private
+     */
+    _validate(input) {
+        const maxLen = this._inputConfig?.maxInputLength ?? 4096;
+        if (input.length > maxLen) {
+            return { valid: false, message: `Input too long (${input.length} chars)` };
+        }
+        if (/[\x00-\x08\x0e-\x1f\x7f]/.test(input)) {
+            return { valid: false, message: 'Input contains control characters' };
+        }
+        return { valid: true };
     }
 
     /**

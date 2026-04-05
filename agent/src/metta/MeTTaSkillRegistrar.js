@@ -110,21 +110,52 @@ class CoreSkills {
             return `dismissed ${before - deps.loopState.wm.length} items matching "${query}"`;
         }, 'mettaControlPlane', ':reflect');
 
+        disp.register('respond', async content => {
+            const msg = String(content);
+            if (msg === deps.loopState.lastsend) return '(duplicate suppressed)';
+            deps.loopState.lastsend = msg;
+            const lastMsg = deps.loopState.lastmsg;
+            if (!lastMsg?.from) {
+                Logger.debug(`[respond] ${msg}`);
+                return `responded: ${msg.slice(0, 120)}`;
+            }
+            const embodiment = deps.agent.embodimentBus?.get(lastMsg.embodimentId);
+            if (embodiment?.status !== 'connected') {
+                Logger.debug(`[respond] ${msg}`);
+                return `responded: ${msg.slice(0, 120)}`;
+            }
+            const target = lastMsg.isPrivate ? lastMsg.from : (lastMsg.channel ?? 'default');
+            try {
+                await embodiment.sendMessage(target, msg);
+                return `responded-to ${lastMsg.from}@${lastMsg.embodimentId}`;
+            } catch (err) {
+                Logger.warn(`[respond] Send failed: ${err.message}`);
+                deps.loopState.wm.push({ content: `respond failed: ${err.message.slice(0, 120)}`, priority: 0.8, ttl: 2 });
+                return `(respond-error "${err.message.slice(0, 200)}")`;
+            }
+        }, 'mettaControlPlane', ':reflect', 'Reply to user');
+
         disp.register('send', async content => {
             const msg = String(content);
             if (msg === deps.loopState.lastsend) return '(duplicate suppressed)';
             deps.loopState.lastsend = msg;
+            const lastMsg = deps.loopState.lastmsg;
             const connected = (deps.agent.embodimentBus?.getAll() ?? []).filter(e => e.status === 'connected');
             if (connected.length > 0) {
-                await Promise.all(connected.map(e => e.sendMessage('default', msg).catch(err => Logger.warn(`Send to ${e.id} failed:`, err.message))));
+                const target = lastMsg?.isPrivate ? lastMsg.from : (lastMsg?.channel ?? connected[0].id);
+                const emb = connected.find(e => e.id === lastMsg?.embodimentId) ?? connected[0];
+                await emb.sendMessage(target, msg).catch(err => Logger.warn(`Send to ${emb.id} failed:`, err.message));
             } else { Logger.info(`[AGENT→] ${msg}`); }
             return `sent: ${msg.slice(0, 120)}${msg.length > 120 ? '...' : ''}`;
         }, 'mettaControlPlane', ':network');
 
         disp.register('send-to', async (embodimentId, content) => {
-            const embodiment = deps.agent.embodimentBus?.get(String(embodimentId));
-            if (embodiment?.status === 'connected') { await embodiment.sendMessage('default', String(content)); }
-            else { Logger.info(`[AGENT→${embodimentId}] ${content}`); }
+            const emb = deps.agent.embodimentBus?.get(String(embodimentId));
+            if (emb?.status === 'connected') {
+                const lastMsg = deps.loopState.lastmsg;
+                const target = lastMsg?.isPrivate ? lastMsg.from : (lastMsg?.channel ?? 'default');
+                await emb.sendMessage(target, String(content));
+            } else { Logger.info(`[AGENT→${embodimentId}] ${content}`); }
             return `sent-to ${embodimentId}`;
         }, 'multiEmbodiment', ':network');
 

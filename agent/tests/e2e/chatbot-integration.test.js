@@ -112,6 +112,36 @@ describe('MeTTaClaw Chatbot E2E', () => {
             expect(cmds[0].name).toBe('think');
         });
 
+        it('parses JSON action format', async () => {
+            dispatcher.register('respond', mockHandler, 'mettaControlPlane', ':reflect');
+            dispatcher.register('remember', mockHandler, 'semanticMemory', ':memory');
+
+            const response = `{"actions":[{"name":"respond","args":["Hello!"]},{"name":"remember","args":["User is friendly"]}]}
+Plain text after JSON is fine.`;
+            const { cmds, error } = dispatcher.parseResponse(response);
+
+            expect(error).toBeNull();
+            expect(cmds).toHaveLength(2);
+            expect(cmds[0]).toEqual({ name: 'respond', args: ['Hello!'] });
+            expect(cmds[1]).toEqual({ name: 'remember', args: ['User is friendly'] });
+        });
+
+        it('parses plain text response when no JSON actions', () => {
+            const response = `Hello there! How can I help you today?`;
+            const { cmds, error } = dispatcher.parseResponse(response);
+
+            expect(error).toBeNull();
+            expect(cmds).toHaveLength(0);
+        });
+
+        it('handles malformed JSON gracefully', () => {
+            const response = `{"actions":[{"name":"respond","args":["broken]}`;
+            const { cmds, error } = dispatcher.parseResponse(response);
+
+            expect(error).toBeNull();
+            expect(cmds).toHaveLength(0);
+        });
+
         it('returns empty commands on completely invalid input', () => {
             const response = 'this is not an s-expression at all {{{';
             const { cmds, error } = dispatcher.parseResponse(response);

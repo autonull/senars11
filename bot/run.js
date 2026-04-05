@@ -46,7 +46,8 @@ const DEFAULTS = {
     mode: 'irc',
     nick: 'SeNARchy',
     personality: 'helpful, curious, and concise. You engage genuinely and remember context.',
-    host: 'irc.quakenet.org',
+    host: null, // null → auto-host embedded IRC server
+    hostedPort: 6668,
     port: 6667,
     channel: '##metta',
     model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',
@@ -313,23 +314,23 @@ async function createCLIBot(agent, config) {
 }
 
 async function createDemoBot(agent, config) {
-    const { Channel } = await import('@senars/agent/io/index.js');
+    const { Embodiment } = await import('@senars/agent/io/index.js');
 
-    class MockChannel extends Channel {
-        constructor() { super({ id: 'mock' }); this.type = 'mock'; this.status = 'connected'; }
+    class MockChannel extends Embodiment {
+        constructor() {
+            super({ id: 'mock', type: 'mock', name: 'Mock' });
+            this.status = 'connected';
+        }
         async sendMessage(target, content) {
             console.log(`\n  ${config.nick}: ${content}\n`);
             return true;
         }
         async connect() { this.status = 'connected'; this.emit('connected', { nick: config.nick }); }
         async disconnect() { this.status = 'disconnected'; }
-        emitMessage(from, content, metadata = {}) {
-            this.emit('message', { from, content, metadata: { isPrivate: false, channel: 'demo', ...metadata }, channelId: 'demo' });
-        }
     }
 
     const mock = new MockChannel();
-    agent.channelManager.register(mock);
+    agent.channels.register(mock);
 
     const { IntelligentMessageProcessor } = await import('@senars/agent/ai/index.js');
     const processor = new IntelligentMessageProcessor(agent, {
@@ -349,7 +350,7 @@ async function createDemoBot(agent, config) {
         console.log(`  ${msg.from}: ${msg.content}`);
         const result = await processor.processMessage(msg);
         if (result.shouldRespond && result.response) {
-            await agent.channelManager.sendMessage('mock', 'demo', result.response);
+            await agent.channels.send('mock', 'demo', result.response);
         }
     });
 
@@ -366,7 +367,7 @@ async function createDemoBot(agent, config) {
     console.log('\n── Demo Session ──────────────────────────────');
 
     for (const msg of demoMessages) {
-        setTimeout(() => mock.emitMessage(msg.from, msg.content), msg.delay);
+        setTimeout(() => mock.emitMessage({ from: msg.from, content: msg.content, metadata: { isPrivate: false, channel: 'demo' } }), msg.delay);
     }
 
     const lastDelay = demoMessages[demoMessages.length - 1].delay + 3000;

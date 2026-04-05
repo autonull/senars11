@@ -4,7 +4,6 @@ import { fileURLToPath } from 'url';
 import { Input, NAR } from '@senars/nar';
 import { BaseComponent, FormattingUtils, Logger, resolveWithFallback, fallbackAgentDir, generateId } from '@senars/core';
 import { PersistenceManager } from './io/PersistenceManager.js';
-import { ChannelManager } from './io/ChannelManager.js';
 import { EmbodimentBus } from './io/EmbodimentBus.js';
 import { VirtualEmbodiment } from './io/VirtualEmbodiment.js';
 import { AgentCommand, AgentCommandRegistry } from './commands/AgentCommand.js';
@@ -45,7 +44,15 @@ export class Agent extends BaseComponent {
             attentionSalience: config.capabilities?.attentionSalience ?? false,
             ...embodimentConfig
         });
-        this.channelManager = new ChannelManager(config, this.embodimentBus);
+        this.channels = {
+            get: (id) => this.embodimentBus.get(id),
+            register: (emb) => this.embodimentBus.register(emb),
+            send: async (id, target, content, metadata) => {
+                const emb = this.embodimentBus.get(id);
+                if (emb?.status !== 'connected') throw new Error(`Channel ${id} not connected`);
+                return emb.sendMessage(target, content, metadata);
+            }
+        };
         this._virtualEmbodiment = new VirtualEmbodiment({
             autonomousMode: config.capabilities?.autonomousLoop ?? false,
             idleTimeout: config.capabilities?.virtualEmbodimentIdleTimeout ?? 5000
@@ -181,6 +188,7 @@ export class Agent extends BaseComponent {
 
         if (isEnabled(this.agentCfg, 'mettaControlPlane')) {
             const builder = new MeTTaLoopBuilder(this, this.agentCfg);
+            this._mettaLoopBuilder = builder;
             this._mettaLoopStarter = await builder.build();
             Logger.info('[Agent] MeTTa control plane ready. Call agent.startMeTTaLoop() to begin.');
         }

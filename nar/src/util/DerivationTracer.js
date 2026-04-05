@@ -295,11 +295,23 @@ export class DerivationTracer {
     }
 
     async load(path) {
-        const data = await this.platform.fs.promises.readFile(path, 'utf-8');
-        const trace = JSON.parse(data);
-
-        this.traces.set(trace.id, trace);
-        return trace;
+        try {
+            const data = await this.platform.fs.promises.readFile(path, 'utf-8');
+            const trace = JSON.parse(data);
+            if (!trace?.id) {
+                throw new Error('Trace missing required field: id');
+            }
+            this.traces.set(trace.id, trace);
+            return trace;
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                throw new Error(`Trace file not found: ${path}`);
+            }
+            if (err instanceof SyntaxError) {
+                throw new Error(`Invalid JSON in trace file ${path}: ${err.message}`);
+            }
+            throw err;
+        }
     }
 
     _computeMetrics(trace) {

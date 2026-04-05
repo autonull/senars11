@@ -51,6 +51,14 @@ export class MeTTaLoopBuilder {
         this.#budget = agentCfg.loop?.budget ?? 50;
         this.#sleepMs = agentCfg.loop?.sleepMs ?? 2000;
         this.#cap = flag => isEnabled(agentCfg, flag);
+        this._llmReady = false;
+        this._llmReadyPromise = new Promise(resolve => { this._llmResolve = resolve; });
+    }
+
+    /** Call this when LLM warmup completes (background or foreground) */
+    resolveLlmReady() {
+        this._llmReady = true;
+        this._llmResolve?.();
     }
 
     /* ── Lifecycle ─────────────────────────────────────────────────── */
@@ -165,30 +173,74 @@ export class MeTTaLoopBuilder {
                     this.#emit('cycle-start', { cycle: loopState.cycleCount, budget: budget.current });
 
                     const msg = await msgQueue.dequeue();
-                    const isNew = msg !== null && msg !== loopState.prevmsg;
+
+                    // No message — idle cycle, skip expensive work
+                    if (!msg) {
+                        budget.current--;
+                        loopState.wm = (loopState.wm ?? []).map(e => ({ ...e, ttl: e.ttl - 1 })).filter(e => e.ttl > 0);
+                        loopState.cycleCount++;
+                        this.#emit('cycle-end', { cycle: loopState.cycleCount, budget: budget.current, error: null });
+                        await new Promise(res => setTimeout(res, this.#sleepMs));
+                        continue;
+                    }
+
+                    // Wait for LLM warmup on first real message
+                    if (!this._llmReady) {
+                        Logger.info('[MeTTa] Waiting for LLM warmup...');
+                        await this._llmReadyPromise;
+                        Logger.info('[MeTTa] LLM warmup complete');
+                        this._llmReady = true;
+                    }
+
+                    const isNew = msg.text !== loopState.prevmsg;
                     if (isNew) {
-                        loopState.prevmsg = msg;
+                        loopState.prevmsg = msg.text;
+                        loopState.lastmsg = msg;
                         budget.current = this.#budget;
+                        Logger.info(`[MeTTa] New message: ${msg.text.substring(0, 120)}`);
                     } else {
                         budget.current--;
                     }
 
                     loopState.wm = (loopState.wm ?? []).map(e => ({ ...e, ttl: e.ttl - 1 })).filter(e => e.ttl > 0);
 
-                    const ctx = await contextBuilder.build(msg, loopState.cycleCount, loopState.wm);
+                    const ctx = await contextBuilder.build(msg.text, loopState.cycleCount, loopState.wm);
                     const resp = await llmInvoker.invoke(ctx);
                     const { cmds, error } = this.#parseResponse(resp, loopState);
+                    Logger.info(`[MeTTa] LLM: ${String(resp).substring(0, 120)}`);
+                    if (cmds.length > 0) {
+                        Logger.debug(`[MeTTa] Actions: ${cmds.map(c => c.name).join(', ')}`);
+                    } else if (error) {
+                        Logger.debug(`[MeTTa] Parse error: ${error}`);
+                    }
 
                     let results = [];
                     if (cmds.length > 0) {
                         try { results = await this.#executeCommands(cmds, loopState); }
                         catch (err) { Logger.error('[MeTTa execute-commands]', err.message); }
                         loopState.lastresults = results;
+                    } else if (resp && loopState.lastmsg) {
+                        // LLM returned plain text — auto-respond
+                        const sanitized = this.#sanitizeResponse(resp);
+                        if (!sanitized) {
+                            Logger.debug(`[MeTTa auto-respond] Suppressed: ${resp?.substring(0, 80)}`);
+                            return;
+                        }
+                        const lastMsg = loopState.lastmsg;
+                        const embodiment = this.agent.embodimentBus?.get(lastMsg.embodimentId);
+                        if (embodiment?.status === 'connected') {
+                            const target = lastMsg.isPrivate ? lastMsg.from : (lastMsg.channel ?? 'default');
+                            Logger.info(`[MeTTa auto-respond] → ${target}: ${sanitized.substring(0, 80)}`);
+                            try { await embodiment.sendMessage(target, sanitized); }
+                            catch (e) { Logger.warn('[MeTTa auto-respond] Send failed:', e.message); }
+                        } else {
+                            Logger.warn(`[MeTTa auto-respond] Not connected: ${lastMsg.embodimentId} (status: ${embodiment?.status ?? 'none'})`);
+                        }
                     }
 
                     if (this.#cap('persistentHistory')) {
                         loopState.historyBuffer.push([
-                            `USER: ${msg ?? '(no input)'}`, `AGENT: ${resp}`,
+                            `USER: ${msg?.text ?? '(no input)'}`, `AGENT: ${resp}`,
                             `RESULT: ${JSON.stringify(results)}`
                         ].join('\n'));
                     }
@@ -196,7 +248,7 @@ export class MeTTaLoopBuilder {
                     if (this.#cap('auditLog')) {
                         await this._dispatcher._ensureSafetyAndAudit();
                         if (this._dispatcher._auditSpace) {
-                            await this._dispatcher._auditSpace.emitCycleAudit(msg, resp, results);
+                            await this._dispatcher._auditSpace.emitCycleAudit(msg?.text, resp, results);
                         }
                     }
 
@@ -241,11 +293,25 @@ export class MeTTaLoopBuilder {
         }
     }
 
+    #sanitizeResponse(text) {
+        if (!text || typeof text !== 'string') return null;
+        const trimmed = text.trim();
+        if (!trimmed) return null;
+        if (trimmed.startsWith('(llm-error') || trimmed.startsWith('(respond-error')) return null;
+        const nick = this.agent.agentCfg?.nick ?? this.agent?.agentCfg?.bot?.nick;
+        if (nick) {
+            const stripped = trimmed.replace(new RegExp(`^\\s*${nick}[,:\\s]+\\s*`, 'i'), '').trim();
+            if (!stripped) return null;
+            return stripped.length > 2000 ? stripped.slice(0, 2000) + '...' : stripped;
+        }
+        return trimmed.length > 2000 ? trimmed.slice(0, 2000) + '...' : trimmed;
+    }
+
     /* ── Helpers ───────────────────────────────────────────────────── */
 
     #createLoopState() {
         return {
-            prevmsg: null, lastresults: [], lastsend: '', error: null,
+            prevmsg: null, lastmsg: null, lastresults: [], lastsend: '', error: null,
             cycleCount: 0, wm: [], historyBuffer: [],
             modelOverride: null, modelOverrideCycles: 0
         };

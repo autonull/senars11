@@ -13,7 +13,6 @@ await jest.unstable_mockModule('@senars/core', () => ({
 }));
 
 const {Embodiment} = await import('../../src/io/Embodiment.js');
-const {ChannelManager} = await import('../../src/io/ChannelManager.js');
 const {EmbodimentBus} = await import('../../src/io/EmbodimentBus.js');
 
 if (typeof setImmediate === 'undefined') {
@@ -49,29 +48,27 @@ class MockChannel extends Embodiment {
 }
 
 describe('Channel Infrastructure', () => {
-    let manager;
     let bus;
     let channel;
 
     beforeEach(() => {
         bus = new EmbodimentBus();
-        manager = new ChannelManager({}, bus);
         channel = new MockChannel({id: 'test-chan'});
     });
 
     test('should register and connect channel', async () => {
         const emitSpy = jest.spyOn(bus, 'emit');
-        manager.register(channel);
+        bus.register(channel);
         await channel.connect();
 
-        expect(manager.get('test-chan')).toBe(channel);
+        expect(bus.get('test-chan')).toBe(channel);
         expect(channel.status).toBe('connected');
         expect(emitSpy).toHaveBeenCalledWith('embodiment.registered', channel);
     });
 
     test('should route messages from channel to bus', () => {
         const emitSpy = jest.spyOn(bus, 'emit');
-        manager.register(channel);
+        bus.register(channel);
 
         channel.emitMessage({from: 'user1', content: 'hello'});
 
@@ -81,23 +78,23 @@ describe('Channel Infrastructure', () => {
         }));
     });
 
-    test('should send message through manager', async () => {
-        manager.register(channel);
+    test('should send message through bus', async () => {
+        bus.register(channel);
         await channel.connect();
         const sendSpy = jest.spyOn(channel, 'sendMessage');
 
-        await manager.sendMessage('test-chan', '#general', 'hi');
+        await bus.sendMessage('test-chan', '#general', 'hi');
         expect(sendSpy).toHaveBeenCalledWith('#general', 'hi', {});
     });
 
     test('should unregister and disconnect', async () => {
-        manager.register(channel);
+        bus.register(channel);
         await channel.connect();
 
         const disconnectSpy = jest.spyOn(channel, 'disconnect');
-        await manager.unregister('test-chan');
+        await bus.unregister('test-chan');
 
         expect(disconnectSpy).toHaveBeenCalled();
-        expect(manager.get('test-chan')).toBeUndefined();
+        expect(bus.get('test-chan')).toBeUndefined();
     });
 });

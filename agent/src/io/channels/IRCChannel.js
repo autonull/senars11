@@ -42,13 +42,19 @@ export class IRCChannel extends Embodiment {
         });
 
         this.client.on('message', (event) => {
-            // Normalize event structure
             const from = event.nick;
+            // Drop all server/system messages at source
+            if (!from || from === 'Server' || from === 'AUTH' || from === '*' || from === '') {
+                return;
+            }
             const content = event.message;
-            const {target} = event;
+            if (content == null || content === '') return;
+
+            const { target } = event;
             const isPrivate = this._isPrivateMessage(event);
 
-            // Emit as unified message event with isPrivate flag
+            Logger.debug(`[IRC:${this.id}] Message from ${from} in ${target} (private=${isPrivate}): ${content?.substring(0, 80)}`);
+
             this.emitMessage({
                 from,
                 content,
@@ -135,16 +141,14 @@ export class IRCChannel extends Embodiment {
             Logger.error(`[IRC:${this.id}] Error:`, err);
         });
 
-        // Notice event
+        // Notice event (server operational messages — skip)
         this.client.on('notice', (event) => {
-            const from = event.nick || 'Server';
-            const content = event.message;
-            const {target} = event;
-
+            const from = event.nick;
+            if (!from || from === 'Server' || from === 'AUTH' || from === '*') return;
             this.emitMessage({
                 from,
-                content,
-                metadata: {channel: target, type: 'notice'}
+                content: event.message,
+                metadata: {channel: event.target, type: 'notice'}
             });
         });
 

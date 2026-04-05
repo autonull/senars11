@@ -63,7 +63,7 @@ class CognitiveIRCBot {
             tls: this.config.irc.tls,
             channels: [this.config.irc.channel]
         });
-        this.agent.channelManager.register(ircChannel);
+        this.agent.channels.register(ircChannel);
         Logger.info('✅ IRC Channel registered');
 
         // Initialize Cognitive Architecture
@@ -101,7 +101,7 @@ class CognitiveIRCBot {
     }
 
     _setupHandlers() {
-        const ircChannel = this.agent.channelManager?.get('irc');
+        const ircChannel = this.agent.channels?.get('irc');
         if (!ircChannel) { Logger.warn('IRC channel not available'); return; }
 
         ircChannel.on('message', async (msg) => {
@@ -169,7 +169,7 @@ class CognitiveIRCBot {
         try {
             const maxLen = 350;
             if (content.length <= maxLen) {
-                await this.agent.channelManager.sendMessage('irc', target, content);
+                await this.agent.channels.send('irc', target, content);
             } else {
                 const chunks = [];
                 let remaining = content;
@@ -181,7 +181,7 @@ class CognitiveIRCBot {
                 }
                 if (remaining) chunks.push(remaining);
                 for (let i = 0; i < chunks.length; i++) {
-                    await this.agent.channelManager.sendMessage('irc', target, chunks[i]);
+                    await this.agent.channels.send('irc', target, chunks[i]);
                     if (i < chunks.length - 1) await new Promise(r => setTimeout(r, 800));
                 }
             }
@@ -204,7 +204,7 @@ class CognitiveIRCBot {
         this.isRunning = true;
         Logger.info('🚀 Starting Cognitive IRC Bot...');
 
-        const ircChannel = this.agent.channelManager?.get('irc');
+        const ircChannel = this.agent.channels?.get('irc');
         if (ircChannel) await ircChannel.connect();
         await this.mcpClient.connect();
 
@@ -230,7 +230,7 @@ class CognitiveIRCBot {
         this.isRunning = false;
         if (this.statusInterval) clearInterval(this.statusInterval);
         await this.mcpClient.disconnect();
-        await this.agent.channelManager.shutdown();
+        await this.agent.embodimentBus.shutdown();
         await this.agent.shutdown();
         Logger.info('✅ Shutdown complete');
         process.exit(0);

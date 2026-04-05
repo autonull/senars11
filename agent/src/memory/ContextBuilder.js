@@ -110,7 +110,20 @@ export class ContextBuilder {
     }
 
     _defaultSystemPrompt() {
-        return `You are SeNARchy, a helpful AI assistant.\nRespond concisely. Use S-expression skill calls when taking actions.\nExample: ((send "Hello") (remember "User prefers concise responses"))`;
+        return `You are SeNARchy, a helpful AI assistant.
+Respond in plain text. Be concise.
+
+If you need to take actions (send a message, remember something, search, etc.), output a JSON tool call at the start of your response:
+{"actions":[{"name":"action_name","args":["arg1","arg2"]}]}
+
+Available actions: respond, think, send, remember, search, read-file, write-file, attend, dismiss
+
+Examples:
+{"actions":[{"name":"respond","args":["Hello! How can I help?"]}]}
+{"actions":[{"name":"think","args":["User seems confused"]},{"name":"respond","args":["Let me explain..."]}]}
+{"actions":[{"name":"remember","args":["User prefers technical answers"]}]}
+
+If you just want to respond, plain text is fine — no JSON needed.`;
     }
 
     _filterCapabilities() {
@@ -122,7 +135,15 @@ export class ContextBuilder {
         if (!isEnabled(this.config, 'sExprSkillDispatch')) {
             return '(skill dispatch disabled — using JSON tool calls)';
         }
-        return this.skillDispatcher?.getActiveSkillDefs() ?? '(no skills registered)';
+        const defs = this.skillDispatcher?.getActiveSkillDefs();
+        if (!defs || defs.startsWith('(no skills')) return defs;
+        // Convert raw S-expr skill defs to human-readable action list
+        return defs.split('\n')
+            .map(line => {
+                const m = line.match(/^\(skill\s+(\S+)\s+\S+\s+\S+\s+\S+\s+"([^"]*)"/);
+                return m ? `• ${m[1]}: ${m[2]}` : line;
+            })
+            .join('\n');
     }
 
     async _getStartupOrient(cycleCount) {
@@ -130,6 +151,7 @@ export class ContextBuilder {
             return '';
         }
         return safeGet(async () => {
+            if (!this.nar.taskManager) return '';
             const goals = this.nar.taskManager.findTasksByType('GOAL');
             const parts = [];
             const active = goals.filter(g => g.budget?.priority >= 0.5);
@@ -149,6 +171,7 @@ export class ContextBuilder {
             return '';
         }
         return safeGet(async () => {
+            if (!this.nar.taskManager) return '';
             const goals = this.nar.taskManager.findTasksByType('GOAL');
             if (!goals.length) {
                 return '';
