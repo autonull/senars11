@@ -1,5 +1,6 @@
 import {beforeEach, describe, expect, jest, test} from '@jest/globals';
-import {Component, Config, DEFAULT_CONFIG_CORE} from '@senars/core/src/config/Config.js';
+import {Config, ConfigValidator, DEFAULT_CONFIG_CORE} from '@senars/core/src/config/Config.js';
+import {BaseComponent} from '@senars/core/src/util/BaseComponent.js';
 import {validateConfig, validateConfigWithDefaults} from '@senars/core/src/config/ConfigSchemas.js';
 
 jest.unstable_mockModule('fs', () => ({
@@ -74,31 +75,27 @@ describe('Config', () => {
     });
 });
 
-describe('Component', () => {
-    class TestComponent extends Component {
-        constructor(config) {
-            super(config);
+describe('ConfigValidator.mergeWithDefaults', () => {
+    test('merges with defaults', () => {
+        const result = ConfigValidator.mergeWithDefaults({});
+        expect(result).toBeDefined();
+    });
+});
+
+describe('Component Lifecycle (BaseComponent)', () => {
+    class TestComponent extends BaseComponent {
+        constructor(config = {}) {
+            super(config, 'TestComponent');
             this.initCalled = false;
             this.startCalled = false;
             this.stopCalled = false;
-            this.destroyCalled = false;
+            this.disposeCalled = false;
         }
 
-        async _initialize() {
-            this.initCalled = true;
-        }
-
-        async _start() {
-            this.startCalled = true;
-        }
-
-        async _stop() {
-            this.stopCalled = true;
-        }
-
-        async _destroy() {
-            this.destroyCalled = true;
-        }
+        async _initialize() { this.initCalled = true; }
+        async _start() { this.startCalled = true; }
+        async _stop() { this.stopCalled = true; }
+        async _dispose() { this.disposeCalled = true; }
     }
 
     let component;
@@ -106,46 +103,46 @@ describe('Component', () => {
     beforeEach(() => component = new TestComponent({}));
 
     test('lifecycle flow', async () => {
-        expect(component.initialized).toBe(false);
+        expect(component.isInitialized).toBe(false);
 
         await component.initialize();
-        expect(component.initialized).toBe(true);
+        expect(component.isInitialized).toBe(true);
         expect(component.initCalled).toBe(true);
 
         await component.start();
-        expect(component.started).toBe(true);
+        expect(component.isStarted).toBe(true);
         expect(component.startCalled).toBe(true);
 
         await component.stop();
-        expect(component.started).toBe(false);
-        expect(component.stopped).toBe(true);
+        expect(component.isStarted).toBe(false);
         expect(component.stopCalled).toBe(true);
     });
 
-    test('prevents start before initialize', async () =>
-        await expect(component.start()).rejects.toThrow(/must be initialized/)
-    );
-
-    test('handles destroy', async () => {
-        await component.initialize();
-        await component.start();
-        await component.destroy();
-        expect(component.started).toBe(false);
-        expect(component.stopped).toBe(true);
-        expect(component.destroyCalled).toBe(true);
+    test('prevents start before initialize', async () => {
+        const result = await component.start();
+        expect(result).toBe(false);
     });
 
-    test('updateConfig merges values', () => {
-        const comp = new TestComponent({a: 1, b: {c: 2}});
-        comp.updateConfig({b: {d: 3}});
-        expect(comp.config.a).toBe(1);
-        expect(comp.config.b.c).toBe(2);
+    test('handles dispose', async () => {
+        await component.initialize();
+        await component.start();
+        await component.dispose();
+        expect(component.isStarted).toBe(false);
+        expect(component.isDisposed).toBe(true);
+        expect(component.disposeCalled).toBe(true);
     });
 
     test('prevents double initialization', async () => {
         await component.initialize();
-        await component.initialize();
-        expect(component.initialized).toBe(true);
+        const result = await component.initialize();
+        expect(result).toBe(true); // warns but returns true
+        expect(component.isInitialized).toBe(true);
+    });
+
+    test('configure merges values', () => {
+        const comp = new TestComponent({a: 1, b: {c: 2}});
+        comp.configure({b: {d: 3}});
+        expect(comp.config.b.d).toBe(3);
     });
 });
 

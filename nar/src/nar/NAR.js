@@ -7,88 +7,37 @@ import {NARIntegration} from './NARIntegration.js';
 import {validateSchema} from '@senars/core/src/util/InputValidator.js';
 
 export class NAR extends BaseComponent {
+    #monitoringInterval;
+
     constructor(config = {}) {
         super(config, 'NAR');
         this._initializer = new NARInitializer(this, config, this._eventBus);
         this._initializeCoreComponents(config);
         this._debugMode = this.config.debug?.pipeline || false;
         this.traceEnabled = false;
-        this._serializer = new NARSerializer(this);
-        this._queryEngine = new NARQueryEngine(this);
-        this._integration = new NARIntegration(this);
+        this.serializer = new NARSerializer(this);
+        this.queryEngine = new NARQueryEngine(this);
+        this.integration = new NARIntegration(this);
     }
 
-    get memory() {
-        return this._memory;
-    }
-
-    get isRunning() {
-        return this._isRunning;
-    }
-
-    get cycleCount() {
-        return this._streamReasoner?.metrics?.totalDerivations || 0;
-    }
-
-    get lm() {
-        return this._lm;
-    }
-
-    get tools() {
-        return this._toolIntegration;
-    }
-
-    get explanationService() {
-        return this._explanationService;
-    }
-
-    get componentManager() {
-        return this._componentManager;
-    }
-
-    get metricsMonitor() {
-        return this._metricsMonitor;
-    }
-
-    get evaluator() {
-        return this._evaluator;
-    }
-
-    get ruleEngine() {
-        return this._ruleEngine;
-    }
-
-    get embeddingLayer() {
-        return this._embeddingLayer;
-    }
-
-    get termLayer() {
-        return this._termLayer;
-    }
-
-    get reasoningAboutReasoning() {
-        return this._reasoningAboutReasoning;
-    }
-
-    get streamReasoner() {
-        return this._streamReasoner;
-    }
-
-    get metta() {
-        return this._metta;
-    }
-
-    set metta(v) {
-        this._metta = v;
-    }
-
-    get taskManager() {
-        return this._taskManager;
-    }
-
-    get focus() {
-        return this._focus;
-    }
+    get memory() { return this._memory; }
+    get isRunning() { return this._isRunning; }
+    get cycleCount() { return this._streamReasoner?.metrics?.totalDerivations || 0; }
+    get lm() { return this._lm; }
+    get tools() { return this._toolIntegration; }
+    get explanationService() { return this._explanationService; }
+    get componentManager() { return this._componentManager; }
+    get metricsMonitor() { return this._metricsMonitor; }
+    get evaluator() { return this._evaluator; }
+    get ruleEngine() { return this._ruleEngine; }
+    get embeddingLayer() { return this._embeddingLayer; }
+    get termLayer() { return this._termLayer; }
+    get reasoningAboutReasoning() { return this._reasoningAboutReasoning; }
+    get streamReasoner() { return this._streamReasoner; }
+    get metta() { return this._metta; }
+    set metta(v) { this._metta = v; }
+    get taskManager() { return this._taskManager; }
+    get focus() { return this._focus; }
 
     _initializeCoreComponents(config) {
         this._configManager = new ConfigManager(config);
@@ -147,7 +96,7 @@ export class NAR extends BaseComponent {
 
     async _handleStreamDerivation(derivation) {
         try {
-            const added = await this._integration._inputTask(derivation, {traceId: 'stream'});
+            const added = await this.integration._inputTask(derivation, {traceId: 'stream'});
             if (added && this.traceEnabled) {
                 await this._eventBus.emit(IntrospectionEvents.REASONING_DERIVATION, {
                     derivedTask: derivation, source: 'streamReasoner.stream', timestamp: Date.now()
@@ -265,11 +214,8 @@ export class NAR extends BaseComponent {
     }
 
     _setupStreamMonitoring(options) {
-        this._streamMonitoringInterval = setInterval(() => {
-            if (this._streamReasoner) {
-                const metrics = this._streamReasoner.getMetrics();
-                this._eventBus.emit('streamReasoner.metrics', metrics, {traceId: options.traceId});
-            }
+        this.#monitoringInterval = setInterval(() => {
+            this._streamReasoner && this._eventBus.emit('streamReasoner.metrics', this._streamReasoner.getMetrics(), {traceId: options.traceId});
         }, 5000);
     }
 
@@ -309,11 +255,11 @@ export class NAR extends BaseComponent {
     }
 
     _cleanupMonitoring() {
-        if (this._streamMonitoringInterval) {
-            clearInterval(this._streamMonitoringInterval);
-            this._streamMonitoringInterval = null;
+        if (this.#monitoringInterval) {
+            clearInterval(this.#monitoringInterval);
+            this.#monitoringInterval = null;
         }
-        this._integration.disconnectFromWebSocketMonitor();
+        this.integration.disconnectFromWebSocketMonitor();
     }
 
     _shutdownOptionalComponents() {
@@ -358,7 +304,7 @@ export class NAR extends BaseComponent {
         const validResults = results.filter(Boolean);
         try {
             const addedResults = await Promise.all(validResults.map(async result => {
-                const added = await this._integration._inputTask(result, {traceId});
+                const added = await this.integration._inputTask(result, {traceId});
                 return {result, added};
             }));
             for (const {result, added} of addedResults) {
@@ -424,148 +370,54 @@ export class NAR extends BaseComponent {
     getStats() {
         return {
             isRunning: this._isRunning,
-            cycleCount: this._streamReasoner?.metrics?.totalDerivations || 0,
+            cycleCount: this.cycleCount,
             memoryStats: this._memory.getDetailedStats(),
-            termLayerStats: this._termLayer ? this._termLayer.getStats() : null,
+            termLayerStats: this._termLayer?.getStats() ?? null,
             taskManagerStats: this._taskManager.getTaskStats?.() ?? this._taskManager.stats,
             config: this.config,
             lmStats: this._lm?.getMetrics?.(),
-            streamReasonerStats: this._streamReasoner?.getMetrics?.() || null
+            streamReasonerStats: this._streamReasoner?.getMetrics?.() ?? null,
         };
     }
 
-    // Delegate to NARSerializer
-    serialize() {
-        return this._serializer.serialize();
-    }
+    // Delegation facades - prefer nar.serializer, nar.queryEngine, nar.integration directly
+    serialize() { return this.serializer.serialize(); }
+    async deserialize(state) { return this.serializer.deserialize(state); }
+    getConcepts() { return this.serializer.getConcepts(); }
+    getConceptByName(name) { return this.serializer.getConceptByName(name); }
+    getConceptPriorities() { return this.serializer.getConceptPriorities(); }
 
-    async deserialize(state) {
-        return this._serializer.deserialize(state);
-    }
+    query(q) { return this.queryEngine.query(q); }
+    getBeliefs(q = null) { return this.queryEngine.getBeliefs(q); }
+    getGoals() { return this.queryEngine.getGoals(); }
+    getQuestions() { return this.queryEngine.getQuestions(); }
+    async reconcile(data) { return this.queryEngine.reconcile(data); }
+    async ask(task) { return this.queryEngine.ask(task); }
 
-    getConcepts() {
-        return this._serializer.getConcepts();
-    }
+    registerLMProvider(id, p) { return this.integration.registerLMProvider(id, p); }
+    async generateWithLM(prompt, opts = {}) { return this.integration.generateWithLM(prompt, opts); }
+    translateToNarsese(t) { return this.integration.translateToNarsese(t); }
+    translateFromNarsese(n) { return this.integration.translateFromNarsese(n); }
+    connectToWebSocketMonitor(m) { return this.integration.connectToWebSocketMonitor(m); }
+    disconnectFromWebSocketMonitor() { return this.integration.disconnectFromWebSocketMonitor(); }
+    getReasoningState() { return this.integration.getReasoningState(); }
+    getMetrics() { return this.integration.getMetrics(); }
+    performSelfOptimization() { return this.integration.performSelfOptimization(); }
+    async solveEquation(l, r, v, ctx = null) { return this.integration.solveEquation(l, r, v, ctx); }
+    async performMetaCognitiveReasoning() { return this.integration.performMetaCognitiveReasoning(); }
+    async performSelfCorrection() { return this.integration.performSelfCorrection(); }
+    querySystemState(q) { return this.integration.querySystemState(q); }
+    getReasoningTrace() { return this.integration.getReasoningTrace(); }
+    async initializeTools() { return this.integration.initializeTools(); }
+    async executeTool(id, p, ctx = {}) { return this.integration.executeTool(id, p, ctx); }
+    async executeTools(calls, ctx = {}) { return this.integration.executeTools(calls, ctx); }
+    getAvailableTools() { return this.integration.getAvailableTools(); }
+    async explainToolResult(r, ctx = {}) { return this.integration.explainToolResult(r, ctx); }
+    async explainToolResults(results, ctx = {}) { return this.integration.explainToolResults(results, ctx); }
+    async summarizeToolExecution(results, ctx = {}) { return this.integration.summarizeToolExecution(results, ctx); }
+    async assessToolResults(results, ctx = {}) { return this.integration.assessToolResults(results, ctx); }
 
-    getConceptByName(termString) {
-        return this._serializer.getConceptByName(termString);
-    }
-
-    getConceptPriorities() {
-        return this._serializer.getConceptPriorities();
-    }
-
-    // Delegate to NARQueryEngine
-    query(queryTerm) {
-        return this._queryEngine.query(queryTerm);
-    }
-
-    getBeliefs(queryTerm = null) {
-        return this._queryEngine.getBeliefs(queryTerm);
-    }
-
-    getGoals() {
-        return this._queryEngine.getGoals();
-    }
-
-    getQuestions() {
-        return this._queryEngine.getQuestions();
-    }
-
-    async reconcile(beliefData) {
-        return this._queryEngine.reconcile(beliefData);
-    }
-
-    async ask(task) {
-        return this._queryEngine.ask(task);
-    }
-
-    // Delegate to NARIntegration
-    registerLMProvider(id, provider) {
-        return this._integration.registerLMProvider(id, provider);
-    }
-
-    async generateWithLM(prompt, options = {}) {
-        return this._integration.generateWithLM(prompt, options);
-    }
-
-    translateToNarsese(text) {
-        return this._integration.translateToNarsese(text);
-    }
-
-    translateFromNarsese(narsese) {
-        return this._integration.translateFromNarsese(narsese);
-    }
-
-    connectToWebSocketMonitor(monitor) {
-        return this._integration.connectToWebSocketMonitor(monitor);
-    }
-
-    disconnectFromWebSocketMonitor() {
-        return this._integration.disconnectFromWebSocketMonitor();
-    }
-
-    getReasoningState() {
-        return this._integration.getReasoningState();
-    }
-
-    getMetrics() {
-        return this._integration.getMetrics();
-    }
-
-    performSelfOptimization() {
-        return this._integration.performSelfOptimization();
-    }
-
-    async solveEquation(leftTerm, rightTerm, variableName, context = null) {
-        return this._integration.solveEquation(leftTerm, rightTerm, variableName, context);
-    }
-
-    async performMetaCognitiveReasoning() {
-        return this._integration.performMetaCognitiveReasoning();
-    }
-
-    async performSelfCorrection() {
-        return this._integration.performSelfCorrection();
-    }
-
-    querySystemState(query) {
-        return this._integration.querySystemState(query);
-    }
-
-    getReasoningTrace() {
-        return this._integration.getReasoningTrace();
-    }
-
-    async initializeTools() {
-        return this._integration.initializeTools();
-    }
-
-    async executeTool(toolId, params, context = {}) {
-        return this._integration.executeTool(toolId, params, context);
-    }
-
-    async executeTools(toolCalls, context = {}) {
-        return this._integration.executeTools(toolCalls, context);
-    }
-
-    getAvailableTools() {
-        return this._integration.getAvailableTools();
-    }
-
-    async explainToolResult(toolResult, context = {}) {
-        return this._integration.explainToolResult(toolResult, context);
-    }
-
-    async explainToolResults(toolResults, context = {}) {
-        return this._integration.explainToolResults(toolResults, context);
-    }
-
-    async summarizeToolExecution(toolResults, context = {}) {
-        return this._integration.summarizeToolExecution(toolResults, context);
-    }
-
-    async assessToolResults(toolResults, context = {}) {
-        return this._integration.assessToolResults(toolResults, context);
+    _processPendingTasks() {
+        return this._taskManager.processPendingTasks(Date.now());
     }
 }

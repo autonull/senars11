@@ -2944,3 +2944,21 @@
   :reason    "test-block"
   :args      "(test.txt content)"
 )
+(audit-event
+  :id        "aud_1775397887536_56iy1b342"
+  :timestamp 1775397887536
+  :type      skill-invoked
+  :cycle     0
+  :skill     write-file
+  :args      "(test.txt content)"
+  :result    "success"
+)
+(audit-event
+  :id        "aud_1775397887592_v8ygrk3iy"
+  :timestamp 1775397887592
+  :type      skill-blocked
+  :cycle     0
+  :skill     write-file
+  :reason    "test-block"
+  :args      "(test.txt content)"
+)
