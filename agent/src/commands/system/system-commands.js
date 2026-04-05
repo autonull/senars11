@@ -1,4 +1,4 @@
-import { AgentCommand } from '@senars/agent';
+import { AgentCommand } from '../AgentCommand.js';
 
 export class HelpCommand extends AgentCommand {
     constructor() { super('help', 'Show available commands', 'help'); }

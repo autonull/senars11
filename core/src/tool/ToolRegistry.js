@@ -3,7 +3,7 @@
  * @description Automatic tool discovery and registration system
  */
 
-import {BaseComponent} from '@senars/core';
+import {BaseComponent} from '../util/BaseComponent.js';
 import {ToolEngine} from './ToolEngine.js';
 import {ToolDiscovery} from './ToolDiscovery.js';
 

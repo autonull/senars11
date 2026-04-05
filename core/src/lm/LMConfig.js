@@ -1,5 +1,4 @@
-import { TransformersJSProvider } from '@senars/core';
-import { DummyProvider } from '@senars/core';
+import { TransformersJSProvider, DummyProvider } from './index.js';
 import { LangChainProvider } from './LangChainProvider.js';
 import { HuggingFaceProvider } from './HuggingFaceProvider.js';
 

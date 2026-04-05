@@ -6,7 +6,7 @@
 
 import {NAR} from '@senars/nar';
 import {DemoWrapper} from './DemoWrapper.js';
-import {WebSocketMonitor} from '@senars/agent';
+import {WebSocketMonitor} from '../server/WebSocketMonitor.js';
 
 async function main() {
     console.log('Starting SeNARS Demo Runner...');

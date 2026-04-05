@@ -90,6 +90,10 @@ export class HyperparameterSpace {
         this.#params.forEach((param, name) => clone.#params.set(name, {...param}));
         return clone;
     }
+
+    getParamNames() {
+        return [...this.#params.keys()];
+    }
 }
 
 export const HyperparameterSpaces = {
@@ -185,8 +189,8 @@ export class HyperparameterOptimizer {
 
     getImportance() {
         const importance = {};
-        const params = this.space.#params || new Map();
-        params.forEach((_, name) => {
+        const paramNames = this.space.getParamNames?.() || [];
+        paramNames.forEach((name) => {
             const values = this.results.map(r => r.config[name]);
             const scores = this.results.map(r => r.score);
             importance[name] = this._correlation(values, scores);

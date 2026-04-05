@@ -3,7 +3,7 @@
  */
 
 import { Logger } from './Logger.js';
-import { ValidationError } from '@senars/core';
+import { ValidationError } from '../errors/index.js';
 
 /**
  * Validate required value

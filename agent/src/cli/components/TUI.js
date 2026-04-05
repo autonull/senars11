@@ -8,7 +8,7 @@ import {useCommandHistory} from '../hooks/useCommandHistory.js';
 import {useAgentLogs} from '../hooks/useAgentLogs.js';
 import {useAgentMetrics} from '../hooks/useAgentMetrics.js';
 import {LogEntry} from './LogEntry.js';
-import {ActionRegistry} from '@senars/agent';
+import {ActionRegistry} from '../../app/model/ActionRegistry.js';
 
 export const TUI = ({engine, app}) => {
     const {logs, status, addLog, setLogs, updateLog} = useAgentLogs(engine, app);

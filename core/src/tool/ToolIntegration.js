@@ -1,6 +1,6 @@
 import { ToolEngine } from './ToolEngine.js';
 import { ToolRegistry } from './ToolRegistry.js';
-import { BaseComponent } from '@senars/core';
+import { BaseComponent } from '../util/BaseComponent.js';
 
 /**
  * Integration layer that connects tools to the reasoning core

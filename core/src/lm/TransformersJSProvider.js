@@ -1,5 +1,5 @@
 import {BaseProvider} from './BaseProvider.js';
-import {withTimeout} from '@senars/core';
+import {withTimeout} from '../util/async.js';
 
 let pipelinePromise = null;
 const importPipeline = () => {

@@ -183,6 +183,7 @@ export class CognitiveSystem extends Component {
     }
 }
 
+export {AttentionSystem} from './AttentionSystem.js';
 export {CausalEdge} from './CausalEdge.js';
 export {CausalGraph} from './CausalGraph.js';
 export {CausalNode} from './CausalNode.js';

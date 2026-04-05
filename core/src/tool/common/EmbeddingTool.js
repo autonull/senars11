@@ -4,7 +4,7 @@
  */
 
 import { BaseTool } from '../BaseTool.js';
-import { cosineSimilarity } from '@senars/core';
+import { cosineSimilarity } from '../../util/math.js';
 
 /**
  * Tool for generating embeddings from text content

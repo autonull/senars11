@@ -1,4 +1,4 @@
-import { envDetector } from '@senars/core';
+import { envDetector } from './EnvironmentDetector.js';
 
 const LEVELS = { ERROR: 0, WARN: 1, INFO: 2, DEBUG: 3 };
 

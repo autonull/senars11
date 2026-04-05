@@ -127,7 +127,7 @@ export class AuditSpace {
         const fields = {
             id: event.id,
             timestamp: event.timestamp,
-            type: event.type.replace(':', ''),
+            type: (event.type || '').replace(':', ''),
             cycle: event.cycle
         };
         if (event.skill) {

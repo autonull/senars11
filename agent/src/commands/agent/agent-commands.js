@@ -1,4 +1,4 @@
-import { AgentCommand } from '@senars/agent';
+import { AgentCommand } from '../AgentCommand.js';
 import { FormattingUtils } from '@senars/core';
 
 export class AgentCreateCommand extends AgentCommand {

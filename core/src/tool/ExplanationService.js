@@ -3,7 +3,7 @@
  * @description LM-based explanation service for tool execution results
  */
 
-import {BaseComponent} from '@senars/core';
+import {BaseComponent} from '../util/BaseComponent.js';
 
 /**
  * Service that uses Language Models to explain tool execution results

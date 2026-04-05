@@ -1,8 +1,8 @@
-import {BaseComponent} from '@senars/core';
+import {BaseComponent} from '../util/BaseComponent.js';
 import {Capability, CapabilityManager} from '../util/CapabilityManager.js';
 import {PerformanceTracker} from './PerformanceTracker.js';
 import {ExecutionHistory} from './ExecutionHistory.js';
-import {generateId} from '@senars/core';
+import {generateId} from '../util/string.js';
 
 export class ToolEngine extends BaseComponent {
     constructor(config = {}) {

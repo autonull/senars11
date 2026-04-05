@@ -1,7 +1,7 @@
 import {Bag} from '../memory/Bag.js';
 import {Logger} from '@senars/core';
 import {StrategyHelper} from './strategy/StrategyHelper.js';
-import {DefaultFormationStrategy} from './strategy/index.js';
+import {DefaultFormationStrategy} from './strategy/DefaultFormationStrategy.js';
 
 /**
  * Strategy component handles premise pairing and budget management.

@@ -10,7 +10,7 @@ export {ReactiveSpace} from './ReactiveSpace.js';
 // MORK-parity extensions (Phase P2-P4)
 export {NeuralBridge} from './NeuralBridge.js';
 export {PersistentSpace} from './PersistentSpace.js';
-export {SMTBridge, SMTOps} from './SMTOps.js';
+export {SMTBridge} from './SMTOps.js';
 export {VisualDebugger, visualDebugger} from './VisualDebugger.js';
 
 // ImaginationExtension requires @napi-rs/canvas and gifencoder

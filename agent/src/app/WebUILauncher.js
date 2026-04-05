@@ -8,9 +8,9 @@
 import {spawn} from 'child_process';
 import {fileURLToPath} from 'url';
 import {dirname, join} from 'path';
-import {WebSocketMonitor} from '@senars/agent';
+import {WebSocketMonitor} from '../server/WebSocketMonitor.js';
 import {NAR} from '@senars/nar';
-import {DemoWrapper} from '@senars/agent';
+import {DemoWrapper} from '../demo/DemoWrapper.js';
 import { Logger } from '@senars/core';
 
 const __filename = fileURLToPath(import.meta.url);

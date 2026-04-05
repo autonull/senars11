@@ -2,9 +2,9 @@
  * Configuration utilities for SeNARS
  */
 
-import { safeGet, setNestedProperty, mergeConfig } from '@senars/core';
-import { ConfigurationError, ValidationError } from '@senars/core';
-import { validateSchema } from '@senars/core';
+import { safeGet, setNestedProperty, mergeConfig } from '../util/object.js';
+import { ConfigurationError, ValidationError } from '../errors/index.js';
+import { validateSchema } from '../util/validate.js';
 import { ConfigManager as BaseConfigManager } from './ConfigManager.js';
 
 // Re-export for backward compatibility

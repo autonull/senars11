@@ -1,4 +1,4 @@
-import {AgentBuilder} from '@senars/agent';
+import {AgentBuilder} from '../AgentBuilder.js';
 import EventEmitter from 'events';
 import {Logger, generateId} from '@senars/core';
 import {ActivityModel} from './model/ActivityModel.js';

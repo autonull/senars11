@@ -1,4 +1,4 @@
-import {MessageHandler} from '@senars/agent';
+import {MessageHandler} from './message-handlers/MessageHandler.js';
 
 export class VirtualConsole {
     constructor(virtualGraph) {

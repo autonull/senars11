@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useState} from 'react';
 import {v4 as uuidv4} from 'uuid';
-import {ActivityViewModel} from '@senars/agent';
+import {ActivityViewModel} from '../../app/model/ActivityViewModel.js';
 
 export const useAgentLogs = (engine, app) => {
     const [logs, setLogs] = useState([{

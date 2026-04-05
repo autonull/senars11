@@ -29,7 +29,6 @@ export {
     globalRegistry,
     CompositionEngine,
     EnhancedCompositionEngine,
-    ComposableUtils,
     PipelineBuilder
 } from './composable/ComposableSystem.js';
 
@@ -169,8 +168,6 @@ export {
     BoltzmannExploration,
     UCB,
     ThompsonSampling,
-    PluginSystem,
-    StrategySystem,
     Explore
 } from './plugins/PluginStrategySystem.js';
 
@@ -179,9 +176,6 @@ export {
     BenchmarkRunner,
     MetricsCollector,
     StatisticalTests,
-    AgentComparator,
-    PowerAnalysis,
-    MultipleComparisonCorrection,
     Evaluator,
     Collector,
     Statistics,
@@ -206,14 +200,6 @@ export {
     RLCognitiveArchitecture as CognitiveArchitecture,
     ArchitecturePresets
 } from './systems/CognitiveArchitecture.js';
-export {CognitiveModule} from './systems/modules/CognitiveModule.js';
-export {PerceptionModule} from './systems/modules/PerceptionModule.js';
-export {ReasoningModule} from './systems/modules/ReasoningModule.js';
-export {PlanningModule} from './systems/modules/PlanningModule.js';
-export {ActionModule} from './systems/modules/ActionModule.js';
-export {MemoryModule} from './systems/modules/MemoryModule.js';
-export {SkillModule} from './systems/modules/SkillModule.js';
-export {MetaCognitiveModule} from './systems/modules/MetaCognitiveModule.js';
 export {CognitiveModule} from './systems/modules/CognitiveModule.js';
 export {PerceptionModule} from './systems/modules/PerceptionModule.js';
 export {ReasoningModule} from './systems/modules/ReasoningModule.js';

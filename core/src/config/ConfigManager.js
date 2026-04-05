@@ -1,6 +1,6 @@
-import { deepMerge, safeGet } from '@senars/core';
+import { deepMerge, safeGet } from '../util/object.js';
 import { Logger } from '../util/Logger.js';
-import { ConfigurationError } from '@senars/core';
+import { ConfigurationError } from '../errors/index.js';
 
 export class ConfigManager {
     #defaults;

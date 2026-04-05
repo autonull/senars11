@@ -1,5 +1,5 @@
-import {BaseComponent} from '@senars/core';
-import {Metrics} from '@senars/core';
+import {BaseComponent} from '../util/BaseComponent.js';
+import {Metrics} from '../util/Metrics.js';
 import {ProviderRegistry} from './ProviderRegistry.js';
 import {ModelSelector} from './ModelSelector.js';
 import {NarseseTranslator} from './NarseseTranslator.js';

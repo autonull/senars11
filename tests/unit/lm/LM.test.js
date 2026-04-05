@@ -75,8 +75,9 @@ describe('LM System', () => {
         });
     });
 
-    test('metrics', () => {
+    test('metrics', async () => {
         expect(lm.getMetrics()).toMatchObject({providerCount: 1});
-        expect(lm.lmStats._countTokens('a b')).toBe(2);
+        await lm.generateText('hello world', {}, 'test-provider');
+        expect(lm.lmStats.totalTokens).toBeGreaterThan(0);
     });
 });

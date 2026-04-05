@@ -101,8 +101,9 @@ describe('SerializationUtils', () => {
 
         describe('standardDeserialize', () => {
             it('should return false for null data', async () => {
-                const result = Serializable.standardDeserialize(null, async () => {
-                });
+                // Re-import to ensure clean module reference
+                const {Serializable: LocalSerializable} = await import('@senars/core/src/util/SerializationUtils');
+                const result = await LocalSerializable.standardDeserialize(null, async () => {});
                 expect(result).toBe(false);
             });
         });

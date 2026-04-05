@@ -1,6 +1,6 @@
 import {Logger} from '../util/Logger.js';
-import {EventBus} from '@senars/core';
-import {createEventPayload} from '@senars/core';
+import {EventBus} from './EventBus.js';
+import {createEventPayload} from './introspectionEvents.js';
 import {validateWithSchema} from './object.js';
 import {emitComponentEvent} from './eventUtils.js';
 

@@ -55,7 +55,7 @@ export const DEFAULT_CONFIG = {
  */
 import { validateConfigWithDefaults } from './ConfigValidator.js';
 import { Logger } from '../util/Logger.js';
-import { deepMerge } from '@senars/core';
+import { deepMerge } from '../util/object.js';
 
 export const DEFAULT_CONFIG_CORE = Object.freeze({
     nar: {

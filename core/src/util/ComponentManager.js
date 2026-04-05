@@ -1,4 +1,4 @@
-import { BaseComponent } from '@senars/core';
+import { BaseComponent } from './BaseComponent.js';
 
 export class ComponentManager extends BaseComponent {
     constructor(config = {}, eventBus = null, nar = null) {

@@ -1,4 +1,4 @@
-import {EmptyOutputError} from '@senars/core';
+import {EmptyOutputError} from './EmptyOutputError.js';
 
 export class LMValidator {
     constructor(config = {}, translator = null, eventBus = null) {

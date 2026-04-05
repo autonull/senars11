@@ -85,6 +85,8 @@ export class MemorySystem extends Component {
     }
 }
 
+export {EpisodicMemory};
+export {SemanticMemory};
 export {EpisodicMemory as Memory};
 export {SemanticMemory as Knowledge};
 export {LearnedGrounding as Grounding, LearnedGrounding};
