@@ -63,13 +63,15 @@ class VectorIndex {
 }
 
 export class SemanticMemory {
-    constructor({ dataDir = join(__dataDir, '../../workspace/semantic') } = {}) {
+    constructor({ dataDir = join(__dataDir, '../../workspace/semantic'), autoPinThreshold = 3 } = {}) {
         this._dataDir = dataDir;
         this._atoms = new Map();
         this._vectors = new Map();
         this._vectorIndex = new VectorIndex(384, dataDir);
         this._embedder = new Embedder();
         this._restored = false;
+        this._accessCount = new Map();
+        this._autoPinThreshold = autoPinThreshold;
     }
 
     get _index() { return this._vectorIndex; }
@@ -98,6 +100,7 @@ export class SemanticMemory {
     _parseAtoms(content) {
         const parser = new MettaParser();
         parser.registerHandler('memory-atom', (atom) => atom);
+        parser.registerHandler('memory-item', (item) => item);
         const parsed = parser.parse(content);
         for (const atom of parsed) {
             if (atom.id) {this._atoms.set(atom.id, atom);}
@@ -112,11 +115,12 @@ export class SemanticMemory {
         }
     }
 
-    async remember({ content, type = 'semantic', source = 'local', tags = [], truth = { frequency: 0.9, confidence: 0.8 } }) {
+    async remember({ content, atom, type = 'semantic', source = 'local', tags = [], truth = { frequency: 0.9, confidence: 0.8 } }) {
         await this.initialize();
         const id = generateId('mem');
-        const vector = await this._embedder.embed(content);
-        this._atoms.set(id, { id, timestamp: Date.now(), content, source, type, truth, tags: Array.isArray(tags) ? tags : (tags.split?.(',') ?? []) });
+        const contentStr = atom ? (typeof atom === 'string' ? atom : atom.toString?.() ?? String(atom)) : content;
+        const vector = await this._embedder.embed(contentStr);
+        this._atoms.set(id, { id, timestamp: Date.now(), content: contentStr, atom: atom ?? contentStr, source, type, truth, tags: Array.isArray(tags) ? tags : (tags.split?.(',') ?? []) });
         this._vectors.set(id, vector);
         await this._index.add(id, vector);
         await this._persist();
@@ -124,14 +128,23 @@ export class SemanticMemory {
         return id;
     }
 
-    async query(queryText, k = 10, options = {}) {
+async query(queryText, k = 10, options = {}) {
         await this.initialize();
         const queryVector = await this._embedder.embed(queryText);
         const results = await this._index.search(queryVector, k * 2);
-        return results
-            .map(({ id, score }) => { const atom = this._atoms.get(id); return atom ? { ...atom, score } : null; })
-            .filter(atom => atom && (!options.type || atom.type === options.type) && atom.score >= (options.minScore ?? 0.0))
-            .slice(0, k);
+        const filtered = results
+        .map(({ id, score }) => { const atom = this._atoms.get(id); return atom ? { ...atom, score } : null; })
+        .filter(atom => atom && (!options.type || atom.type === options.type) && atom.score >= (options.minScore ?? 0.0))
+        .slice(0, k);
+        for (const atom of filtered) {
+            const count = (this._accessCount.get(atom.id) || 0) + 1;
+            this._accessCount.set(atom.id, count);
+            if (count >= this._autoPinThreshold && atom.type !== 'pinned') {
+                await this.pin(atom.id);
+                Logger.debug(`[SemanticMemory] Auto-pinned ${atom.id} after ${count} accesses`);
+            }
+        }
+        return filtered;
     }
 
     async pin(memoryId) {
@@ -141,6 +154,35 @@ export class SemanticMemory {
         atom.type = 'pinned';
         await this._persist();
         return true;
+    }
+
+    async consolidate(options = {}) {
+        await this.initialize();
+        const { maxAgeMs = 7 * 24 * 60 * 60 * 1000, minAccessCount = 1, pruneLowAccess = false } = options;
+        const now = Date.now();
+        let pinned = 0, pruned = 0;
+
+        for (const [id, atom] of this._atoms) {
+            const accessCount = this._accessCount.get(id) || 0;
+            if (accessCount >= this._autoPinThreshold && atom.type !== 'pinned') {
+                atom.type = 'pinned';
+                pinned++;
+                Logger.debug(`[SemanticMemory] Consolidated: auto-pinned ${id}`);
+            }
+            if (pruneLowAccess && accessCount < minAccessCount && atom.type !== 'pinned') {
+                const age = now - (atom.timestamp || 0);
+                if (age > maxAgeMs) {
+                    this._atoms.delete(id);
+                    this._vectors.delete(id);
+                    pruned++;
+                }
+            }
+        }
+        if (pinned > 0 || pruned > 0) {
+            await this._persist();
+            Logger.info(`[SemanticMemory] Consolidation: ${pinned} pinned, ${pruned} pruned`);
+        }
+        return { pinned, pruned };
     }
 
     async forget(queryText, k = 10) {
@@ -175,10 +217,10 @@ export class SemanticMemory {
 
     async _persist() {
         await mkdir(this._dataDir, { recursive: true });
-        const atomsContent = [...this._atoms.values()].map(a => toMettaAtom('memory-atom', {
+        const atomsContent = [...this._atoms.values()].map(a => toMettaAtom('memory-item', {
             id: a.id,
             timestamp: String(a.timestamp),
-            content: a.content,
+            atom: a.atom ?? a.content,
             source: a.source,
             type: `:${a.type}`,
             truth: `(stv ${a.truth.frequency} ${a.truth.confidence})`,

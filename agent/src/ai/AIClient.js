@@ -1,7 +1,7 @@
 import {generateObject, generateText, streamText} from 'ai';
 import {createOpenAI} from '@ai-sdk/openai';
 import {createAnthropic} from '@ai-sdk/anthropic';
-import {createOllama} from 'ollama-ai-provider';
+import {OllamaClient} from './OllamaClient.js';
 import {TransformersJSProvider, WebLLMProvider, DummyProvider} from '@senars/core';
 
 export class AIClient {
@@ -15,40 +15,22 @@ export class AIClient {
         this._initializeProviders(config);
     }
 
+    static _extractMessage(msg) {
+        if (typeof msg === 'string') {return msg;}
+        if (msg.content) {
+            if (typeof msg.content === 'string') {return msg.content;}
+            if (Array.isArray(msg.content)) {return msg.content.map(c => c.text || '').join('');}
+        }
+        if (msg.text) {return msg.text;}
+        return JSON.stringify(msg);
+    }
+
     static _extractPrompt(options) {
-        if (options.messages && Array.isArray(options.messages)) {
-            return options.messages.map(msg => {
-                if (typeof msg === 'string') {return msg;}
-                if (msg.content) {
-                    if (typeof msg.content === 'string') {return msg.content;}
-                    if (Array.isArray(msg.content)) {return msg.content.map(c => c.text || '').join('');}
-                }
-                if (msg.text) {return msg.text;}
-                return JSON.stringify(msg);
-            }).join('\n');
+        const messages = options.messages ?? (Array.isArray(options.prompt) ? options.prompt : null);
+        if (messages) {
+            return messages.map(AIClient._extractMessage).join('\n');
         }
-        if (typeof options.prompt === 'string') {return options.prompt;}
-        if (Array.isArray(options.prompt)) {
-            if (options.prompt.length > 0 && options.prompt[0].role) {
-                return options.prompt.map(msg => {
-                    if (typeof msg === 'string') {return msg;}
-                    if (msg.content) {
-                        if (typeof msg.content === 'string') {return msg.content;}
-                        if (Array.isArray(msg.content)) {return msg.content.map(c => c.text || '').join('');}
-                    }
-                    if (msg.text) {return msg.text;}
-                    return JSON.stringify(msg);
-                }).join('\n');
-            }
-            return options.prompt.map(msg => {
-                if (typeof msg === 'string') {return msg;}
-                if (msg.content) {return msg.content;}
-                if (msg.text) {return msg.text;}
-                if (Array.isArray(msg.content)) {return msg.content.map(c => c.text || '').join('');}
-                return JSON.stringify(msg);
-            }).join('\n');
-        }
-        return String(options.prompt || '');
+        return String(options.prompt ?? '');
     }
 
     #resolveArgs(prompt, options = {}) {
@@ -98,10 +80,81 @@ export class AIClient {
         this.providers.set('dummy', (modelName) => this._createDummyModel(modelName));
     }
 
-    _createOllamaModel(baseURL, modelName) {
-        const ollama = createOllama({ baseURL });
-        return ollama(modelName);
+_createOllamaModel(baseURL, modelName) {
+    const client = new OllamaClient({ baseURL, model: modelName });
+    return this._createOllamaAdapter(client, modelName);
+}
+
+_createOllamaAdapter(client, modelName) {
+    const effectiveModel = modelName || 'llama3.2';
+    const cacheKey = `ollama:${effectiveModel}`;
+
+    if (!this.modelInstances.has(cacheKey)) {
+        this.modelInstances.set(cacheKey, client);
     }
+
+    return {
+        specificationVersion: 'v2',
+        provider: 'OllamaClient',
+        modelId: effectiveModel,
+        defaultObjectGenerationMode: undefined,
+
+        async doGenerate(options) {
+            const prompt = AIClient._extractPrompt(options);
+            try {
+                const result = await client.generate(prompt, {
+                    temperature: options.temperature ?? 0.7,
+                    maxTokens: options.maxTokens ?? 256
+                });
+                return {
+                    text: result.text,
+                    content: [{ type: 'text', text: result.text }],
+                    finishReason: result.done ? 'stop' : 'length',
+                    usage: {
+                        promptTokens: prompt.length,
+                        completionTokens: result.text.length
+                    },
+                    rawResponse: { headers: {} }
+                };
+            } catch (error) {
+                return {
+                    text: '',
+                    content: [{ type: 'text', text: '' }],
+                    finishReason: 'error',
+                    usage: { promptTokens: 0, completionTokens: 0 },
+                    rawResponse: { headers: {} },
+                    warnings: [`Ollama error: ${error.message}`]
+                };
+            }
+        },
+
+        async doStream(options) {
+            const prompt = AIClient._extractPrompt(options);
+            const controller = new TransformableStream();
+
+            try {
+                for await (const chunk of client.stream(prompt, {
+                    temperature: options.temperature ?? 0.7,
+                    maxTokens: options.maxTokens ?? 256
+                })) {
+                    controller.enqueue({ type: 'text-delta', textDelta: chunk });
+                }
+                controller.enqueue({
+                    type: 'finish',
+                    finishReason: 'stop',
+                    usage: { promptTokens: 0, completionTokens: 0 }
+                });
+            } catch (error) {
+                controller.error(error);
+            }
+
+            return {
+                stream: controller.readable,
+                rawCall: { rawPrompt: prompt, rawSettings: {} }
+            };
+        }
+    };
+}
 
     _createAIProviderAdapter(provider, effectiveModel) {
         return {

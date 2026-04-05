@@ -77,10 +77,8 @@
        "(skill dispatch disabled — using JSON tool calls)")))
 
 ;; STARTUP_ORIENT — active goals + needs attention, first cycle only
-(= (slot-startup-orient $cycle)
-   (if (== $cycle 0)
-     (context-section "STARTUP_ORIENT" (get-startup-orient))
-     ""))
+(= (slot-startup-orient)
+   (context-section "STARTUP_ORIENT" (get-startup-orient)))
 
 ;; TASKS — all NARS goals with status
 (= (slot-tasks)

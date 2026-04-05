@@ -71,7 +71,10 @@ export function validateAgainstSchema(config, schema) {
 
 export { BaseConfigManager as ConfigManager };
 
-export const Validators = {
+/**
+ * @deprecated Use Validators from '@senars/core/config/ConfigManager.js' instead.
+ */
+export const LegacyValidators = {
     positive: (v) => typeof v === 'number' && v > 0,
     nonNegative: (v) => typeof v === 'number' && v >= 0,
     boolean: (v) => typeof v === 'boolean',
@@ -81,6 +84,9 @@ export const Validators = {
     oneOf: (...values) => (v) => values.includes(v),
 };
 
-export function createConfigManager(options = {}) {
+/**
+ * @deprecated Use createConfigManager from '@senars/core/config/ConfigManager.js' instead.
+ */
+export function createLegacyConfigManager(options = {}) {
     return new BaseConfigManager(options);
 }

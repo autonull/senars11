@@ -2980,3 +2980,57 @@
   :reason    "test-block"
   :args      "(test.txt content)"
 )
+(audit-event
+  :id        "aud_1775413019986_lyfqd7lly"
+  :timestamp 1775413019986
+  :type      skill-invoked
+  :cycle     0
+  :skill     write-file
+  :args      "(test.txt content)"
+  :result    "success"
+)
+(audit-event
+  :id        "aud_1775413020002_qjtfyck4v"
+  :timestamp 1775413020002
+  :type      skill-blocked
+  :cycle     0
+  :skill     write-file
+  :reason    "test-block"
+  :args      "(test.txt content)"
+)
+(audit-event
+  :id        "aud_1775413056697_zlbt6x76u"
+  :timestamp 1775413056697
+  :type      skill-invoked
+  :cycle     0
+  :skill     write-file
+  :args      "(test.txt content)"
+  :result    "success"
+)
+(audit-event
+  :id        "aud_1775413056717_2mez7u8zl"
+  :timestamp 1775413056717
+  :type      skill-blocked
+  :cycle     0
+  :skill     write-file
+  :reason    "test-block"
+  :args      "(test.txt content)"
+)
+(audit-event
+  :id        "aud_1775413082269_u120h61nw"
+  :timestamp 1775413082269
+  :type      skill-invoked
+  :cycle     0
+  :skill     write-file
+  :args      "(test.txt content)"
+  :result    "success"
+)
+(audit-event
+  :id        "aud_1775413082312_ais2lovkg"
+  :timestamp 1775413082312
+  :type      skill-blocked
+  :cycle     0
+  :skill     write-file
+  :reason    "test-block"
+  :args      "(test.txt content)"
+)

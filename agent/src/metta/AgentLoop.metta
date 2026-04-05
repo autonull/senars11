@@ -2,17 +2,11 @@
 ;;
 ;; "MeTTa is the operating system. LLMs are peripherals."
 ;;
-;; PHASE 1 EXECUTION MODEL
-;; -----------------------
-;; The JS driver in Agent._buildMeTTaLoop() implements this loop semantics
-;; directly as an async JS function. MeTTa drives the cycle via grounded
-;; op calls for dispatch, context assembly, and rule evaluation.
-;;
 ;; This file defines the authoritative loop specification. The JS driver
-;; mirrors it exactly. Future phases migrate execution here as the
-;; MeTTa interpreter gains robust async grounded-op support.
+;; in MeTTaLoopBuilder.js mirrors it exactly. As the MeTTa interpreter
+;; gains robust async grounded-op support, execution migrates here.
 ;;
-;; Grounded ops provided by Agent._buildMeTTaLoop():
+;; ── Grounded ops (registered by MeTTaOpRegistrar + NarsOps) ────────
 ;;
 ;;   CAPABILITY
 ;;     cap? flag             → True | False
@@ -30,9 +24,15 @@
 ;;   COGNITIVE
 ;;     tick-wm               → ok
 ;;     build-context msg     → String
-;;     llm-invoke ctx        → String   (async)
+;;     llm-invoke ctx        → String   (async, via LLMInvoker)
 ;;     parse-response resp   → GroundedCmds
 ;;     execute-commands cmds → GroundedResults  (async)
+;;
+;;   NAL INFERENCE (via NarsOps)
+;;     |- premises           → NAL conclusions
+;;     nar-beliefs term      → beliefs matching term
+;;     nar-add sentence      → add belief/goal to NARS
+;;     nar-truth term        → current truth value
 ;;
 ;;   HISTORY / AUDIT
 ;;     append-history m r rs → ok
@@ -40,6 +40,12 @@
 ;;
 ;;   TIMING
 ;;     sleep-cycle           → ok  (async)
+;;
+;;   INTROSPECTION
+;;     manifest              → JSON manifest
+;;     skill-inventory       → list of registered skills
+;;     subsystems            → subsystem descriptions
+;;     agent-state key       → value of loop state key
 
 ;; ── Combinators ───────────────────────────────────────────────────
 (= (when True  $expr) $expr)

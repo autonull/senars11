@@ -1,82 +1,123 @@
-;; safety.metta — Consequence rules for SafetyLayer
+;; safety.metta — Unified safety rules for the Symbolic Core
 ;;
-;; Format: (consequence-of skill-call consequence risk-level)
+;; This file is the SINGLE SOURCE OF TRUTH for skill safety classification.
+;; It replaces the previous split between safety.metta (consequence rules)
+;; and hooks.metta (pre/post hooks). The HookOrchestrator loads this file
+;; and auto-generates pre-hooks from consequence rules.
+;;
+;; Format: (safety skill-pattern risk-level consequence-description)
 ;;
 ;; Risk levels: :low | :medium | :high | :critical
 ;;
-;; Phase 4 ships with direct rules only — one fact per skill.
-;; No consequence chaining (A→B→C inference) in this phase.
+;; Auto-generated pre-hooks:
+;;   - :critical → deny unless harnessOptimization enabled
+;;   - :high     → deny unless capability gate explicitly allows
+;;   - :medium   → allow with audit
+;;   - :low      → allow
 ;;
-;; These rules are loaded by SafetyLayer.js and evaluated via MeTTa
-;; inference before side-effecting skills execute. Fail-closed on timeout.
-;;
-;; Migration note: When executionHooks is enabled, these rules are
-;; automatically wrapped as pre-skill hooks by HookOrchestrator.
-;; Authors may migrate rules to hooks.metta for finer control.
+;; Custom hooks (pre/post) may still be defined below for fine-grained control.
 
-;; ── System tier (:high / :critical) ───────────────────────────────
+;; ── Tier 1: System (:critical / :high) ────────────────────────────
 
-(consequence-of (shell $cmd) (system-state-change :unknown) :high)
+(safety (shell $cmd) :high (system-execution :unknown-command))
+(safety (add-skill $def) :high (skills-modified :self-alteration))
+(safety (write-file "memory/harness/prompt.metta" $_) :critical (system-prompt-modified))
+(safety (metta $expr) :high (arbitrary-evaluation :untrusted-code))
+(safety (spawn-agent $task $cycles) :high (subagent-spawned :resource-allocation))
+(safety (nar-deserialize $path) :high (state-restored :full-overwrite))
 
-(consequence-of (add-skill $def) (skills-modified) :high)
+;; ── Tier 2: Local Write (:medium) ─────────────────────────────────
 
-(consequence-of (write-file "memory/harness/prompt.metta" $_)
-                (system-prompt-modified) :critical)
+(safety (write-file $path $_) :medium (file-modified $path))
+(safety (append-file $path $_) :medium (file-modified $path))
+(safety (send $msg) :medium (message-delivered :external))
+(safety (send-to $channel $msg) :medium (message-delivered $channel :external))
+(safety (set-goal $desc $priority) :medium (goal-created))
+(safety (set-model $model) :medium (model-overridden))
+(safety (eval-model $model $taskType) :medium (model-benchmark))
+(safety (consolidate) :medium (memory-consolidation))
+(safety (nar-goal-complete $term) :medium (goal-removed))
+(safety (nar-revision $term $evidence) :medium (belief-revised))
 
-;; ── Local write tier (:medium) ────────────────────────────────────
+;; ── Tier 3: Read / Reflective (:low) ──────────────────────────────
 
-(consequence-of (write-file $path $_) (file-modified $path) :medium)
+(safety (remember $content) :low (memory-updated :local))
+(safety (query $q) :low (memory-read :local))
+(safety (pin $id) :low (memory-pinned :local))
+(safety (forget $q) :low (memory-deleted :local))
+(safety (search $query) :low (network-request :outbound))
+(safety (think $content) :low (internal-monologue))
+(safety (cognitive-cycle $stimulus) :low (cognitive-cycle :internal))
+(safety (attend $content $priority) :low (attention-updated :internal))
+(safety (dismiss $content) :low (attention-removed :internal))
+(safety (nar-goal-add $desc $pri) :low (goal-created))
 
-(consequence-of (append-file $path $_) (file-modified $path) :medium)
+;; ── Custom Pre-Hooks (fine-grained overrides) ─────────────────────
 
-;; ── Network tier (:medium) ────────────────────────────────────────
+;; Path traversal protection for file operations
+(hook pre (write-file $path $_)
+      (if (path-within? $path "memory")
+        (allow)
+        (deny "Path traversal outside memory/ directory")))
 
-(consequence-of (send $msg) (message-delivered :external) :medium)
+(hook pre (append-file $path $_)
+      (if (path-within? $path "memory")
+        (allow)
+        (deny "Path traversal outside memory/ directory")))
 
-(consequence-of (send-to $channel $msg) (message-delivered :external $channel) :medium)
+;; Block harness prompt modification unless harnessOptimization enabled
+(hook pre (write-file "memory/harness/prompt.metta" $_)
+      (if (capability-enabled? harnessOptimization)
+        (allow)
+        (deny "harnessOptimization not enabled")))
 
-;; ── Memory tier (:low) ────────────────────────────────────────────
+;; Sanitize search queries
+(hook pre (search $query)
+      (rewrite (search (string-append $query " safe_search=active"))))
 
-(consequence-of (remember $content) (memory-updated :local) :low)
+;; Block send-to unknown embodiments
+(hook pre (send-to $embodiment $_)
+      (if $embodiment
+        (allow)
+        (deny "Unknown embodiment")))
 
-(consequence-of (query $q) (memory-read :local) :low)
+;; ── Post-Hooks (audit logging) ────────────────────────────────────
 
-(consequence-of (pin $id) (memory-pinned :local) :low)
+(hook post (write-file $path $content)
+      (audit-emit (audit-event :type :file-write :path $path :size (string-length $content))))
 
-(consequence-of (forget $q) (memory-deleted :local) :low)
+(hook post (append-file $path $content)
+      (audit-emit (audit-event :type :file-append :path $path :size (string-length $content))))
 
-;; ── Network read tier (:low) ──────────────────────────────────────
+(hook post (shell $cmd)
+      (audit-emit (audit-event :type :shell-exec :cmd $cmd)))
 
-(consequence-of (search $query) (network-request :outbound) :low)
+(hook post (remember $_)
+      (audit-emit (audit-event :type :memory-remember)))
 
-;; ── Reflective tier (:low) — always permitted ─────────────────────
+(hook post (forget $q)
+      (audit-emit (audit-event :type :memory-forget :query $q)))
 
-(consequence-of (think $content) (internal-monologue :internal) :low)
+(hook post (pin $id)
+      (audit-emit (audit-event :type :memory-pin :id $id)))
 
-(consequence-of (cognitive-cycle $stimulus) (cognitive-cycle :internal) :low)
+(hook post (send $msg)
+      (audit-emit (audit-event :type :network-send :msg-length (string-length $msg))))
 
-(consequence-of (attend $content $priority) (attention-updated :internal) :low)
+(hook post (send-to $embodiment $msg)
+      (audit-emit (audit-event :type :network-send-to :embodiment $embodiment :msg-length (string-length $msg))))
 
-(consequence-of (dismiss $content) (attention-removed :internal) :low)
+(hook post (search $query)
+      (audit-emit (audit-event :type :network-search :query $query)))
 
-;; ── Meta tier (:medium / :high) ───────────────────────────────────
+(hook post (add-skill $def)
+      (audit-emit (audit-event :type :skill-add)))
 
-(consequence-of (set-goal $desc $priority) (goal-set :internal) :medium)
+(hook post (set-goal $desc $priority)
+      (audit-emit (audit-event :type :goal-set :desc $desc :priority $priority)))
 
-(consequence-of (set-model $model) (model-overridden) :medium)
+(hook post (set-model $model)
+      (audit-emit (audit-event :type :model-override :model $model)))
 
-(consequence-of (eval-model $model $taskType) (model-benchmark :internal) :medium)
-
-(consequence-of (consolidate) (memory-consolidation :internal) :medium)
-
-(consequence-of (spawn-agent $task $cycles) (subagent-spawned) :high)
-
-;; ── NARS state protection ───────────────────────────────────────
-
-(consequence-of (nar-deserialize $path) (state-restored) :high)
-(consequence-of (nar-goal-add $desc $pri) (goal-created) :low)
-(consequence-of (nar-goal-complete $term) (goal-removed) :medium)
-(consequence-of (nar-revision $term $evidence) (belief-revised) :medium)
-
-;; Metta skill security gap fix
-(consequence-of (metta $expr) (arbitrary-evaluation) :high)
+(hook post (spawn-agent $_ $cycles)
+      (audit-emit (audit-event :type :subagent-spawn :cycles $cycles)))

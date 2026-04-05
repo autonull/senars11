@@ -365,17 +365,17 @@ describe('Phase 4: Safety & Accountability', () => {
     });
 
     describe('safety.metta rules', () => {
-        it('defines consequence rules for all skill tiers', async () => {
+        it('defines safety rules for all skill tiers', async () => {
             const { readFile } = await import('fs/promises');
             const { join } = await import('path');
 
             const rulesPath = join(process.cwd(), 'agent/src/metta/safety.metta');
             const content = await readFile(rulesPath, 'utf8');
 
-            expect(content).toContain('(consequence-of (shell');
-            expect(content).toContain('(consequence-of (write-file');
-            expect(content).toContain('(consequence-of (remember');
-            expect(content).toContain('(consequence-of (send');
+            expect(content).toContain('(safety (shell $cmd) :high');
+            expect(content).toContain('(safety (write-file $path $_) :medium');
+            expect(content).toContain('(safety (remember $content) :low');
+            expect(content).toContain('(safety (send $msg) :medium');
             expect(content).toContain(':high');
             expect(content).toContain(':medium');
             expect(content).toContain(':low');

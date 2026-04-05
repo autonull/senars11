@@ -1,8 +1,5 @@
 #!/usr/bin/env node
 /**
- * @deprecated Moved to agent/examples/chatbot/tests/smoke.js
- * This file is kept for backward compatibility. Run: node agent/examples/chatbot/tests/smoke.js
- *
  * smoke-chatbot.js — Full pipeline integration tests for IMP
  *
  * Tests run against a mock embodiment (no IRC). Each test uses an isolated
@@ -16,16 +13,16 @@
  *   • Memory — persistence, recall, trimming
  *   • Skills — S-expr detection, dispatch, fallback
  */
-import { AIClient } from '../agent/src/ai/AIClient.js';
-import { IntelligentMessageProcessor } from '../agent/src/ai/index.js';
-import { SemanticMemory } from '../agent/src/memory/index.js';
-import { AuditSpace } from '../agent/src/memory/index.js';
+import { AIClient } from '../../../src/ai/AIClient.js';
+import { IntelligentMessageProcessor } from '../../../src/ai/index.js';
+import { SemanticMemory } from '../../../src/memory/index.js';
+import { AuditSpace } from '../../../src/memory/index.js';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { mkdir, rm } from 'fs/promises';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
-const TEST_MEMORY_DIR = join(__dir, '..', 'memory', '_smoke-test');
+const TEST_MEMORY_DIR = join(__dir, '..', '..', '..', 'memory', '_smoke-test');
 
 // ── Test harness ──────────────────────────────────────────────────────────
 

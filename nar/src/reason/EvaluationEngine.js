@@ -79,6 +79,10 @@ export class EvaluationEngine {
             return term;
         }
 
+        if ('value' in term) {
+            return term.value;
+        }
+
         if (term.type === 'VARIABLE' || term.name?.startsWith('#')) {
             return bindings[term.name] ?? this.variableBindings.get(term.name) ?? term;
         }

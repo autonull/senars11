@@ -6,10 +6,7 @@ export class LossFunctor {
     }
 
     _clipTensor(tensor, eps) {
-        const clipped = new Tensor(tensor.data.map(x => Math.max(eps, Math.min(1 - eps, x))),
-            {backend: this.backend, requiresGrad: tensor.requiresGrad});
-        clipped.shape = tensor.shape;
-        return clipped;
+        return this.backend.clamp(tensor, eps, 1 - eps);
     }
 
     mse(predicted, target) {

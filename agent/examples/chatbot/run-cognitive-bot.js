@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 
 /**
+ * @deprecated Use `run.js --mode cognitive` instead.
+ * This file is kept for backward compatibility. See run.js for the unified entry point.
+ *
  * Cognitive IRC Bot - Full Cognitive Architecture
  * 
  * Integrates: Cognitive Architecture, MeTTa Reasoning, LLM, MCP Tools, and IRC

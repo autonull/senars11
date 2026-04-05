@@ -27,7 +27,6 @@ const AsyncFunction = Object.getPrototypeOf(async function () {
 const isAsyncFunction = fn => fn instanceof AsyncFunction;
 
 export class Ground extends CoreRegistry {
-    #normalizedCache = new Map();
     #opsById = [];
     #nameToId = new Map();
     #nextId = 0;
@@ -96,7 +95,7 @@ export class Ground extends CoreRegistry {
                 return this.#opsById[id]?.op;
             }
         }
-        return this.operations.get(this.#getNormalized(name))?.fn;
+        return this.operations.get(this._normalize(name))?.fn;
     }
 
     get(name) {
@@ -179,13 +178,5 @@ export class Ground extends CoreRegistry {
                 throw new Error(`${op} should be provided by Interpreter`);
             })
         );
-    }
-
-    #getNormalized(name) {
-        if (this.#normalizedCache.has(name)) {
-            return this.#normalizedCache.get(name);
-        }
-        const normalized = name.startsWith('&') ? name : `&${name}`;
-        return this.#normalizedCache.set(name, normalized), normalized;
     }
 }

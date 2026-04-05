@@ -1,0 +1,43 @@
+{
+  "_comment": "SeNARS ChatBot configuration — copy to bot.config.json and edit",
+  "profile": "parity",
+  "bot": {
+    "nick": "SeNARchy",
+    "personality": "helpful, curious, and concise. You engage genuinely and remember context.",
+    "maxContextLength": 30,
+    "contextWindowMs": 3600000
+  },
+  "irc": {
+    "enabled": true,
+    "host": "irc.quakenet.org",
+    "port": 6667,
+    "channel": "##metta",
+    "tls": false
+  },
+  "lm": {
+    "provider": "transformers",
+    "modelName": "onnx-community/Qwen2.5-1.5B-Instruct",
+    "temperature": 0.7,
+    "maxTokens": 256,
+    "openai": {
+      "baseURL": null,
+      "apiKey": null
+    }
+  },
+  "capabilities": {
+    "shellSkill": false,
+    "fileWriteSkill": false,
+    "auditLog": true,
+    "safetyLayer": false
+  },
+  "loop": {
+    "budget": 50,
+    "sleepMs": 2000
+  },
+  "rateLimit": {
+    "perChannelMax": 3,
+    "perChannelInterval": 8000,
+    "globalMax": 10,
+    "globalInterval": 10000
+  }
+}
