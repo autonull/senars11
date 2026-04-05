@@ -78,7 +78,12 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
     }
 
     async _initializeExtensions(options) {
-        options.channelManager && new ChannelExtension(this, options.channelManager).register();
+        if (options.channelManager) {
+            new ChannelExtension(this, options.channelManager, {
+                channelFactories: options.channelFactories ?? {},
+                toolFactories: options.toolFactories ?? {},
+            }).register();
+        }
 
         const extensionsToLoad = [
             configManager.get('tensor') && 'neural-bridge',

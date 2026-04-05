@@ -2,7 +2,7 @@ import {Component} from '../composable/Component.js';
 import {mergeConfig, MetricsTracker} from '../utils/index.js';
 import {CausalGraph} from '../systems/CausalGraph.js';
 import {Memory as CoreMemory} from '@senars/nar';
-import {generateId} from '@senars/core';
+import {generateId, cosineSimilarity} from '@senars/core';
 
 const MEMORY_DEFAULTS = {
     capacity: 10000,
@@ -156,23 +156,10 @@ export class EpisodicMemory extends Component {
     }
 
     _computeSimilarity(a, b) {
-        if (!a.state || !b.state) {
-            return 0;
-        }
-
+        if (!a.state || !b.state) return 0;
         const aState = Array.isArray(a.state) ? a.state : [a.state];
         const bState = Array.isArray(b.state) ? b.state : [b.state];
-
-        let dot = 0, normA = 0, normB = 0;
-        const len = Math.min(aState.length, bState.length);
-
-        for (let i = 0; i < len; i++) {
-            dot += aState[i] * bState[i];
-            normA += aState[i] * aState[i];
-            normB += bState[i] * bState[i];
-        }
-
-        return dot / (Math.sqrt(normA) * Math.sqrt(normB) || 1);
+        return cosineSimilarity(aState, bState);
     }
 
     consolidate() {

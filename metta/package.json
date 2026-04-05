@@ -6,7 +6,6 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@napi-rs/canvas": "^0.1.97",
-    "@senars/agent": "workspace:*",
     "@senars/core": "workspace:*",
     "@senars/nar": "workspace:*",
     "@senars/tensor": "workspace:*",

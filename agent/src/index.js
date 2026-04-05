@@ -1,7 +1,6 @@
 export * from './Agent.js';
 export * from './AgentBuilder.js';
 export * from './app/App.js';
-export * from './app/Config.js';
 export * from './io/PersistenceManager.js';
 export * from './server/WebSocketMonitor.js';
 export * from './demo/DemoWrapper.js';

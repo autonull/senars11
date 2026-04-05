@@ -1,68 +1,16 @@
 /**
- * New EvaluationEngine for the stream-based reasoner system
- * Provides equation solving and evaluation capabilities
+ * EvaluationEngine for the stream-based reasoner system
+ * Provides equation solving and evaluation capabilities using FunctorRegistry
  */
 import {FunctorRegistry} from './FunctorRegistry.js';
 import {logError} from '@senars/core';
-import {OperationRegistry} from './OperationRegistry.js';
 
 export class EvaluationEngine {
     constructor(context = null, termFactory = null) {
         this.context = context;
         this.termFactory = termFactory;
-        this.operationRegistry = new OperationRegistry();
         this.variableBindings = new Map();
         this._functorRegistry = new FunctorRegistry();
-        this._initDefaultOperations();
-    }
-
-    _initDefaultOperations() {
-        const ops = [
-            ['+', (a, b) => this._op(a, b, (x, y) => x + y, 0), {arity: 2, category: 'arithmetic', identity: 0}],
-            ['-', (a, b) => this._op(a, b, (x, y) => x - y, 0, true), {arity: 2, category: 'arithmetic', identity: 0}],
-            ['*', (a, b) => this._op(a, b, (x, y) => x * y, 1), {arity: 2, category: 'arithmetic', identity: 1}],
-            ['/', (a, b) => this._op(a, b, (x, y) => x / (y || 1), 1, true), {
-                arity: 2,
-                category: 'arithmetic',
-                identity: 1
-            }],
-            ['>', (a, b) => this._cmp(a, b, (x, y) => x > y), {arity: 2, category: 'comparison'}],
-            ['<', (a, b) => this._cmp(a, b, (x, y) => x < y), {arity: 2, category: 'comparison'}],
-            ['>=', (a, b) => this._cmp(a, b, (x, y) => x >= y), {arity: 2, category: 'comparison'}],
-            ['<=', (a, b) => this._cmp(a, b, (x, y) => x <= y), {arity: 2, category: 'comparison'}],
-            ['==', (a, b) => a === b, {arity: 2, category: 'logical'}],
-            ['!=', (a, b) => a !== b, {arity: 2, category: 'logical'}]
-        ];
-
-        this.operationRegistry.registerAll(ops);
-    }
-
-    _op(a, b, fn, identity, strictOrder = false) {
-        // If arguments are passed individually, wrap them
-        const args = (b === undefined) ? (Array.isArray(a) ? a : [a]) : [a, b];
-
-        const values = args
-            .filter(v => v != null)
-            .map(v => typeof v === 'object' && v.value !== undefined ? v.value : v)
-            .map(Number);
-
-        if (!values.length) {
-            return identity;
-        }
-        if (values.length === 1 && strictOrder) {
-            return fn(identity, values[0]);
-        }
-
-        return values.reduce((acc, val, i) => i === 0 ? val : fn(acc, val), strictOrder ? values[0] : identity);
-    }
-
-    _cmp(a, b, fn) {
-        // Comparison expects two arguments typically, but if arrays passed, take first two
-        const args = (b === undefined && Array.isArray(a)) ? a : [a, b];
-        const v1 = args[0] && typeof args[0] === 'object' && args[0].value !== undefined ? args[0].value : args[0];
-        const v2 = args[1] && typeof args[1] === 'object' && args[1].value !== undefined ? args[1].value : args[1];
-
-        return (v1 != null && v2 != null) ? fn(Number(v1), Number(v2)) : false;
     }
 
     async solveEquation(leftTerm, rightTerm, variableName, evaluationContext = null) {
@@ -152,14 +100,7 @@ export class EvaluationEngine {
             return term;
         }
 
-        const opFunc = this.operationRegistry.get(operator);
         const evalComps = components.map(c => this._evaluateTerm(c, bindings));
-
-        // Pass array of components to opFunc
-        if (opFunc) {
-            return opFunc(evalComps);
-        }
-
         return this._executeFunctor(operator, evalComps) ?? term;
     }
 
@@ -178,20 +119,11 @@ export class EvaluationEngine {
             }
 
             const {operator, components = []} = operationTerm;
-            const opFunc = this.operationRegistry.get(operator);
-
-            if (opFunc) {
-                // Pass array of components to opFunc
-                const result = opFunc(components);
-                return {result, success: true, message: 'Operation completed'};
-            }
-
-            // Fallback to functor
             const evalArgs = components.map(c => this._evaluateTerm(c, context?.bindings || {}));
             const result = this._executeFunctor(operator, evalArgs);
 
             if (result !== null) {
-                return {result, success: true, message: 'Functor executed'};
+                return {result, success: true, message: 'Operation completed'};
             }
 
             return {result: null, success: false, message: `Unsupported: ${operator}`};
@@ -204,8 +136,7 @@ export class EvaluationEngine {
 
     reset() {
         this.variableBindings.clear();
-        this.operationRegistry.clear();
-        this._initDefaultOperations();
+        this._functorRegistry.clear();
     }
 
     getFunctorRegistry() {
@@ -214,9 +145,8 @@ export class EvaluationEngine {
 
     getState() {
         return {
-            operationRegistrySize: this.operationRegistry.size,
-            bindingsCount: this.variableBindings.size,
-            functorRegistryStats: this._functorRegistry.getStats()
+            functorRegistryStats: this._functorRegistry.getStats(),
+            bindingsCount: this.variableBindings.size
         };
     }
 }

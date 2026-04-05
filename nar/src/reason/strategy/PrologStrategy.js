@@ -26,44 +26,8 @@ export class PrologStrategy extends Strategy {
         this.substitutionStack = [];
         this.variableCounter = 0;
         this.functorRegistry = config.functorRegistry ?? new FunctorRegistry();
-        this.tensorFunctor = config.tensorFunctor ?? null; // Optional tensor support
-        this._registerPrologOperatorAliases();
+        this.tensorFunctor = config.tensorFunctor ?? null;
         this.config = {maxDepth: 10, maxSolutions: 5, backtrackingEnabled: true, ...config};
-    }
-
-    _registerPrologOperatorAliases() {
-        const ops = [
-            ['>', (a, b) => Number(a) > Number(b), 'Greater than'],
-            ['<', (a, b) => Number(a) < Number(b), 'Less than'],
-            ['>=', (a, b) => Number(a) >= Number(b), 'Greater than or equal', ['=<']],
-            ['<=', (a, b) => Number(a) <= Number(b), 'Less than or equal'],
-            ['=', (a, b) => a === b, 'Equality', ['=:=']],
-            ['\\=', (a, b) => a !== b, 'Inequality', ['=\\=']]
-        ];
-
-        ops.forEach(([op, fn, desc, aliases]) =>
-            this.functorRegistry.registerFunctorDynamic(op, fn, {
-                arity: 2,
-                category: 'comparison',
-                description: desc,
-                ...(aliases && {aliases})
-            })
-        );
-
-        const arith = [
-            ['+', (a, b) => Number(a) + Number(b), 'Addition'],
-            ['-', (a, b) => Number(a) - Number(b), 'Subtraction'],
-            ['*', (a, b) => Number(a) * Number(b), 'Multiplication'],
-            ['/', (a, b) => Number(a) / Number(b), 'Division']
-        ];
-
-        arith.forEach(([op, fn, desc]) =>
-            this.functorRegistry.registerFunctorDynamic(op, fn, {
-                arity: 2,
-                category: 'arithmetic',
-                description: desc
-            })
-        );
     }
 
     async selectSecondaryPremises(primaryPremise) {

@@ -1,5 +1,6 @@
 import {Component} from '../composable/Component.js';
 import {mergeConfig, MetricsTracker} from '../utils/index.js';
+import {cosineSimilarity} from '@senars/core';
 
 const MEMORY_DEFAULTS = {
     capacity: 10000,
@@ -90,22 +91,10 @@ export class SemanticMemory extends Component {
     }
 
     _computeFeatureSimilarity(a, b) {
-        if (!a || !b) {
-            return 0;
-        }
+        if (!a || !b) return 0;
         const aArr = Array.isArray(a) ? a : Object.values(a);
         const bArr = Array.isArray(b) ? b : Object.values(b);
-
-        let dot = 0, normA = 0, normB = 0;
-        const len = Math.min(aArr.length, bArr.length);
-
-        for (let i = 0; i < len; i++) {
-            dot += aArr[i] * bArr[i];
-            normA += aArr[i] * aArr[i];
-            normB += bArr[i] * bArr[i];
-        }
-
-        return dot / (Math.sqrt(normA) * Math.sqrt(normB) || 1);
+        return cosineSimilarity(aArr, bArr);
     }
 
     getStats() {

@@ -5,8 +5,7 @@
   "main": "src/index.js",
   "bin": {
     "senars-agent": "./src/bin/cli.js",
-    "senars-chat": "./examples/chatbot/run.js",
-    "senars": "../../scripts/cli/senars.js"
+    "senars-chat": "./examples/chatbot/run.js"
   },
   "scripts": {
     "repl": "node src/bin/cli.js",

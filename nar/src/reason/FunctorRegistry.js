@@ -32,39 +32,56 @@ export class FunctorRegistry {
             category: 'null'
         });
 
-        // Default arithmetic functors
+        // Arithmetic functors (symbol aliases for Prolog-style evaluation)
+        this.registerFunctorDynamic('+', (a, b) => (a !== null && b !== null) ? Number(a) + Number(b) : null, {
+            arity: 2, isCommutative: true, isAssociative: true, description: 'Addition', category: 'arithmetic',
+            aliases: ['add']
+        });
+        this.registerFunctorDynamic('-', (a, b) => (a !== null && b !== null) ? Number(a) - Number(b) : null, {
+            arity: 2, isCommutative: false, isAssociative: false, description: 'Subtraction', category: 'arithmetic',
+            aliases: ['subtract']
+        });
+        this.registerFunctorDynamic('*', (a, b) => (a !== null && b !== null) ? Number(a) * Number(b) : null, {
+            arity: 2, isCommutative: true, isAssociative: true, description: 'Multiplication', category: 'arithmetic',
+            aliases: ['multiply']
+        });
+        this.registerFunctorDynamic('/', (a, b) => (a !== null && b !== null && Number(b) !== 0) ? Number(a) / Number(b) : null, {
+            arity: 2, isCommutative: false, isAssociative: false, description: 'Division', category: 'arithmetic',
+            aliases: ['divide']
+        });
         this.registerFunctorDynamic('add', (a, b) => (a !== null && b !== null) ? Number(a) + Number(b) : null, {
-            arity: 2,
-            isCommutative: true,
-            isAssociative: true,
-            description: 'Addition operation',
-            category: 'arithmetic'
+            arity: 2, isCommutative: true, isAssociative: true, description: 'Addition operation', category: 'arithmetic'
         });
         this.registerFunctorDynamic('subtract', (a, b) => (a !== null && b !== null) ? Number(a) - Number(b) : null, {
-            arity: 2,
-            isCommutative: false,
-            isAssociative: false,
-            description: 'Subtraction operation',
-            category: 'arithmetic'
+            arity: 2, isCommutative: false, isAssociative: false, description: 'Subtraction operation', category: 'arithmetic'
         });
         this.registerFunctorDynamic('multiply', (a, b) => (a !== null && b !== null) ? Number(a) * Number(b) : null, {
-            arity: 2,
-            isCommutative: true,
-            isAssociative: true,
-            description: 'Multiplication operation',
-            category: 'arithmetic'
+            arity: 2, isCommutative: true, isAssociative: true, description: 'Multiplication operation', category: 'arithmetic'
         });
         this.registerFunctorDynamic('divide', (a, b) => (a !== null && b !== null && Number(b) !== 0) ? Number(a) / Number(b) : null, {
-            arity: 2,
-            isCommutative: false,
-            isAssociative: false,
-            description: 'Division operation',
-            category: 'arithmetic'
+            arity: 2, isCommutative: false, isAssociative: false, description: 'Division operation', category: 'arithmetic'
         });
         this.registerFunctorDynamic('cmp', (a, b) => (a !== null && b !== null) ? (Number(a) < Number(b) ? -1 : Number(a) > Number(b) ? 1 : 0) : null, {
-            arity: 2,
-            description: 'Comparison operation',
-            category: 'comparison'
+            arity: 2, description: 'Comparison operation', category: 'comparison'
+        });
+        // Comparison functors (symbol aliases for EvaluationEngine/Prolog)
+        this.registerFunctorDynamic('>', (a, b) => (a !== null && b !== null) ? Number(a) > Number(b) : false, {
+            arity: 2, isCommutative: false, description: 'Greater than', category: 'comparison'
+        });
+        this.registerFunctorDynamic('<', (a, b) => (a !== null && b !== null) ? Number(a) < Number(b) : false, {
+            arity: 2, isCommutative: false, description: 'Less than', category: 'comparison'
+        });
+        this.registerFunctorDynamic('>=', (a, b) => (a !== null && b !== null) ? Number(a) >= Number(b) : false, {
+            arity: 2, isCommutative: false, description: 'Greater than or equal', category: 'comparison', aliases: ['=<']
+        });
+        this.registerFunctorDynamic('<=', (a, b) => (a !== null && b !== null) ? Number(a) <= Number(b) : false, {
+            arity: 2, isCommutative: false, description: 'Less than or equal', category: 'comparison'
+        });
+        this.registerFunctorDynamic('==', (a, b) => a === b, {
+            arity: 2, isCommutative: true, description: 'Strict equality', category: 'comparison', aliases: ['=', '=:=']
+        });
+        this.registerFunctorDynamic('!=', (a, b) => a !== b, {
+            arity: 2, isCommutative: true, description: 'Strict inequality', category: 'comparison', aliases: ['\\=', '=\\=']
         });
 
         // Additional useful functors
