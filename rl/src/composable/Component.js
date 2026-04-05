@@ -206,6 +206,9 @@ export class Component extends BaseComponent {
     }
 
     getMetrics() {
+        if (this._metricsTracker && typeof this._metricsTracker.getAll === 'function') {
+            return this._metricsTracker.getAll();
+        }
         return {...this._metrics};
     }
 

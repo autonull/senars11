@@ -19,6 +19,7 @@ export class TensorFunctor {
         this.bridge = new TruthTensorBridge(this.backend);
         this.loss = new LossFunctor(this.backend);
         this.ops = new Map();
+        this._optimizers = new Map();
     }
 
     evaluate(term, bindings) {
@@ -123,7 +124,8 @@ export class TensorFunctor {
                 if (!param.grad) {
                     return param;
                 }
-                new SGDOptimizer(lr, momentum).step(new Map([['param', param]]));
+                const optimizer = this._getOrCreateOptimizer('sgd', param, {lr, momentum});
+                optimizer.step(new Map([['param', param]]));
                 return param;
             }
 
@@ -138,7 +140,8 @@ export class TensorFunctor {
                 if (!param.grad) {
                     return param;
                 }
-                new AdamOptimizer(lr, beta1, beta2).step(new Map([['param', param]]));
+                const optimizer = this._getOrCreateOptimizer('adam', param, {lr, beta1, beta2});
+                optimizer.step(new Map([['param', param]]));
                 return param;
             }
 
@@ -226,5 +229,13 @@ export class TensorFunctor {
         return this.ops.has(op) || TensorFunctor._TENSOR_OPS.has(op);
     }
 
-
+    _getOrCreateOptimizer(type, param, config) {
+        const key = `${type}:${param.data.byteOffset ?? param.data.toString().slice(0, 20)}`;
+        if (!this._optimizers.has(key)) {
+            this._optimizers.set(key, type === 'adam'
+                ? new AdamOptimizer(config.lr, config.beta1, config.beta2)
+                : new SGDOptimizer(config.lr, config.momentum));
+        }
+        return this._optimizers.get(key);
+    }
 }

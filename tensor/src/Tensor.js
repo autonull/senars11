@@ -112,6 +112,15 @@ export class Tensor {
         return coords.reduce((sum, c, i) => sum + c * strides[i], 0);
     }
 
+    indexToCoords(index) {
+        const strides = this._computeStrides(this.shape);
+        return strides.map(s => {
+            const c = Math.floor(index / s);
+            index %= s;
+            return c;
+        });
+    }
+
     toJSON() {
         return {data: this.toArray(), shape: this.shape, requiresGrad: this.requiresGrad};
     }

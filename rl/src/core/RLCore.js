@@ -539,7 +539,8 @@ export class SymbolicGrounding extends Grounding {
 }
 
 /**
- * Simple learned grounding
+ * Simple learned grounding (DEPRECATED: use memory/LearnedGrounding.js instead)
+ * @deprecated Use the feature-rich version in memory/LearnedGrounding.js
  */
 export class LearnedGrounding extends Grounding {
     constructor(config = {}) {

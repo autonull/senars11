@@ -44,16 +44,14 @@ export class NativeBackend extends TensorBackend {
         }
 
         if (a.requiresGrad || b.requiresGrad) {
-            result.requiresGrad = true;
-            result._parents = [a, b];
-            result._gradFn = () => {
+            this._withGrad(result, [a, b], () => {
                 if (a.requiresGrad) {
                     this._accumulateGrad(a, this.matmul(result.grad, this.transpose(b)));
                 }
                 if (b.requiresGrad) {
                     this._accumulateGrad(b, this.matmul(this.transpose(a), result.grad));
                 }
-            };
+            });
         }
         return result;
     }
@@ -151,6 +149,15 @@ export class NativeBackend extends TensorBackend {
         t.data = data;
         t.shape = shape;
         return t;
+    }
+
+    _withGrad(result, parents, gradFn) {
+        if (parents.some(p => p.requiresGrad)) {
+            result.requiresGrad = true;
+            result._parents = parents;
+            result._gradFn = gradFn;
+        }
+        return result;
     }
 
     transpose(a) {

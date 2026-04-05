@@ -36,4 +36,7 @@ export * from './TruthTensorBridge.js';
 export * from './TensorFunctor.js';
 export * from './SymbolicTensor.js';
 export * from './TensorLogicBridge.js';
+export * from './TrainingUtils.js';
 export {T as torch};
+export {TensorBackend} from './backends/TensorBackend.js';
+export {NativeBackend, backend} from './backends/NativeBackend.js';

@@ -24,9 +24,6 @@ export * from './error.js';
 // Validation utilities
 export * from './validate.js';
 
-// Configuration utilities
-export * from './config.js';
-
 // Functional utilities
 export * from './func.js';
 
@@ -36,6 +33,9 @@ export * from './guard.js';
 // Re-export commonly used items for backward compatibility
 export {Logger} from './Logger.js';
 export {EventBus} from './EventBus.js';
+
+// Security utilities
+export * from './securityUtils.js';
 
 // Additional utilities
 export * from './pathUtils.js';

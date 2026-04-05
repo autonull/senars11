@@ -32,7 +32,6 @@ export class EnhancedComponent extends Component {
             return;
         }
 
-        // Run validators
         for (const validator of this._validators) {
             const valid = await validator(this);
             if (!valid) {
@@ -40,10 +39,8 @@ export class EnhancedComponent extends Component {
             }
         }
 
-        // Initialize children
         await Promise.all(Array.from(this.children.values()).map(child => child.initialize()));
 
-        // Run middleware (before)
         for (const mw of this._middleware) {
             if (mw.beforeInitialize) {
                 await mw.beforeInitialize(this);
@@ -51,9 +48,9 @@ export class EnhancedComponent extends Component {
         }
 
         await this.onInitialize();
-        this.initialized = true;
+        this._initialized = true;
+        this._started = true;
 
-        // Run middleware (after)
         for (const mw of this._middleware) {
             if (mw.afterInitialize) {
                 await mw.afterInitialize(this);
@@ -64,7 +61,6 @@ export class EnhancedComponent extends Component {
     }
 
     async shutdown() {
-        // Run middleware (before shutdown)
         for (const mw of this._middleware) {
             if (mw.beforeShutdown) {
                 await mw.beforeShutdown(this);
@@ -74,7 +70,6 @@ export class EnhancedComponent extends Component {
         await Promise.all(Array.from(this.children.values()).map(child => child.shutdown()));
         await this.onShutdown();
 
-        // Run middleware (after shutdown)
         for (const mw of this._middleware) {
             if (mw.afterShutdown) {
                 await mw.afterShutdown(this);
@@ -82,7 +77,9 @@ export class EnhancedComponent extends Component {
         }
 
         this._subscriptions.forEach(sub => this.unsubscribe(sub));
-        this.initialized = false;
+        this._started = false;
+        this._initialized = false;
+        this._disposed = true;
         this.emit('shutdown', this);
     }
 

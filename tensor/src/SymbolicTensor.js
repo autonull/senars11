@@ -106,13 +106,7 @@ export class SymbolicTensor extends Tensor {
         if (!this.shape || this.shape.length <= 1) {
             return [flatIndex];
         }
-        const res = [];
-        let current = flatIndex;
-        for (let i = this.shape.length - 1; i >= 0; i--) {
-            res.unshift(current % this.shape[i]);
-            current = Math.floor(current / this.shape[i]);
-        }
-        return res;
+        return this.indexToCoords(flatIndex);
     }
 
     projectToSymbols(threshold = 0.5) {
@@ -139,16 +133,28 @@ export class SymbolicTensor extends Tensor {
     }
 
     clone() {
-        return new SymbolicTensor(
+        const cloned = new SymbolicTensor(
             new Float32Array(this.data),
             this.shape,
             {
                 symbols: new Map(this.symbols),
                 provenance: [...this.provenance],
                 confidence: this.confidence,
-                type: this.type
+                type: this.type,
+                requiresGrad: this.requiresGrad,
+                backend: this.backend
             }
         );
+        if (this.grad) {
+            cloned.grad = new Float32Array(this.grad);
+        }
+        if (this._gradFn) {
+            cloned._gradFn = this._gradFn;
+        }
+        if (this._parents) {
+            cloned._parents = [...this._parents];
+        }
+        return cloned;
     }
 
     toJSON() {
@@ -158,7 +164,8 @@ export class SymbolicTensor extends Tensor {
             symbols: Array.from(this.symbols.entries()),
             provenance: this.provenance,
             confidence: this.confidence,
-            type: this.type
+            type: this.type,
+            requiresGrad: this.requiresGrad
         };
     }
 }

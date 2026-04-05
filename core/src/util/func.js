@@ -184,7 +184,8 @@ export const FunctionDecorator = Object.freeze({
     memoize,
     debounce,
     throttle,
-    retryable(fn, {maxRetries = 3, delay = 100, exponential = true, shouldRetry = () => true} = {}) {
+    retryable(fn, options = {}) {
+        const {maxRetries = 3, delay = 100, exponential = true, shouldRetry = () => true} = options;
         return async function (...args) {
             let lastError;
             for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -218,12 +219,14 @@ export const FunctionDecorator = Object.freeze({
     }
 });
 
+import {withTimeout, retry, sleep} from './async.js';
+
 export const AsyncUtils = Object.freeze({
     delay(ms) {
-        return new Promise(r => setTimeout(r, ms));
+        return sleep(ms);
     },
-    async withTimeout(promise, ms, message = 'Operation timed out') {
-        return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error(message)), ms))]);
+    withTimeout(promise, ms, message) {
+        return withTimeout(promise, ms, message);
     },
     async withConcurrency(tasks, concurrency) {
         const results = [];
@@ -237,20 +240,13 @@ export const AsyncUtils = Object.freeze({
         await Promise.all(Array(Math.min(concurrency, tasks.length)).fill(null).map(() => worker()));
         return results;
     },
-    async retry(fn, {maxRetries = 3, baseDelay = 100, maxDelay = 10000, shouldRetry = () => true} = {}) {
-        let lastError;
-        for (let attempt = 0; attempt <= maxRetries; attempt++) {
-            try {
-                return await fn();
-            } catch (error) {
-                lastError = error;
-                if (!shouldRetry(error) || attempt === maxRetries) {
-                    break;
-                }
-                await this.delay(Math.min(baseDelay * 2 ** attempt, maxDelay));
-            }
-        }
-        throw lastError;
+    retry(fn, options) {
+        return retry(fn, {
+            maxRetries: options?.maxRetries ?? 3,
+            backoff: options?.baseDelay ?? 100,
+            exponential: true,
+            onError: options?.shouldRetry ? (err) => { if (!options.shouldRetry(err)) { throw err; } } : null
+        });
     }
 });
 

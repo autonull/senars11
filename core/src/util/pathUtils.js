@@ -22,3 +22,12 @@ export const resolveWithFallback = (resolveFn, fallbackFn) => {
         return fallbackFn();
     }
 };
+
+export const containsPathTraversal = (path) =>
+    path.includes('..') || path.includes('../') || path.includes('..\\');
+
+export const validateNoPathTraversal = (path, context = 'path') => {
+    if (containsPathTraversal(path)) {
+        throw new Error(`Path traversal detected in ${context}: ${path}`);
+    }
+};

@@ -3,7 +3,7 @@ export * from './util/FormattingUtils.js';
 export * from './util/EventBus.js';
 export * from './util/Logger.js';
 export * from './util/uiConstants.js';
-export * from './config/Config.js';
+export * from './config/ConfigManager.js';
 export * from './util/messageTypes.js';
 export * from './util/Plugin.js';
 export {handleError, logError, createErrorHandler, safeAsync, safeSync, withRetry, ErrorHandler} from './util/error.js';
