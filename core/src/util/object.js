@@ -128,18 +128,11 @@ export const deepMergeConfig = (base, ...overrides) => overrides.reduce((acc, cu
  * @returns {Object} Merged configuration
  */
 export const mergeConfig = (base, overrides, options) => {
-    if (base === null || typeof base !== 'object') {
-        throw new Error('Defaults must be a valid object');
-    }
-    if (overrides === undefined || overrides === null) overrides = {};
-    const isOptions = overrides && ('freeze' in overrides || 'deep' in overrides || 'strict' in overrides || 'validate' in overrides);
-    const opts = isOptions ? overrides : (options || {});
-    const ov = isOptions ? {} : overrides;
-
-    const shouldFreeze = opts.freeze !== false;
-    const shouldDeep = opts.deep !== false;
-
-    const merged = shouldDeep ? deepMerge({ ...base }, { ...ov }) : { ...base, ...ov };
+    if (base === null || typeof base !== 'object') throw new Error('Defaults must be a valid object');
+    const ov = overrides ?? {};
+    const shouldFreeze = options?.freeze !== false;
+    const shouldDeep = options?.deep !== false;
+    const merged = shouldDeep ? deepMerge({ ...base }, ov) : { ...base, ...ov };
     return shouldFreeze ? freeze(merged) : merged;
 };
 

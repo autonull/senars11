@@ -1,10 +1,3 @@
-/**
- * CLIChannel.js - Command Line Interface Channel
- * Provides interactive terminal-based communication.
- * Uses readline for input and supports colored output.
- * 
- * Phase 5: Updated to extend Embodiment for unified I/O abstraction
- */
 import { Embodiment } from '../Embodiment.js';
 import { Logger } from '@senars/core';
 import * as readline from 'readline';
@@ -19,9 +12,8 @@ export class CLIChannel extends Embodiment {
             constraints: {},
             isPublic: false,
             isInternal: false,
-            defaultSalience: config.defaultSalience ?? 0.8  // Higher salience for direct user input
+            defaultSalience: config.defaultSalience ?? 0.8
         });
-        
         this.type = 'cli';
         this.rl = null;
         this.inputQueue = [];
@@ -30,16 +22,10 @@ export class CLIChannel extends Embodiment {
         this.history = [];
         this.historyIndex = -1;
         this.maxHistory = 100;
-        
-        // Colors configuration
         this.colors = config.colors ?? true;
         this.colorScheme = config.colorScheme ?? {
-            prompt: '\x1b[36m',    // Cyan
-            user: '\x1b[32m',      // Green
-            bot: '\x1b[35m',       // Magenta
-            error: '\x1b[31m',     // Red
-            info: '\x1b[33m',      // Yellow
-            reset: '\x1b[0m'
+            prompt: '\x1b[36m', user: '\x1b[32m', bot: '\x1b[35m',
+            error: '\x1b[31m', info: '\x1b[33m', reset: '\x1b[0m'
         };
     }
 
@@ -185,51 +171,36 @@ export class CLIChannel extends Embodiment {
         return true;
     }
 
-    /**
-     * Display a message without waiting for input
-     */
-    async display(content, options = {}) {
-        return this.sendMessage('cli', content, {
-            ...options,
-            isBotResponse: true
-        });
-    }
+    async sendMessage(target, content, metadata = {}) {
+        if (this.status !== 'connected') throw new Error('CLI not connected');
 
-    /**
-     * Display an error message
-     */
-    async displayError(content) {
-        return this.sendMessage('cli', content, { error: true });
-    }
+        let output;
+        if (metadata.error) output = this._colorize(`❌ ${content}`, 'error');
+        else if (metadata.action) output = this._colorize(`* ${content} *`, 'info');
+        else if (metadata.from === 'bot' || metadata.isBotResponse) output = this._colorize(`🤖 ${content}`, 'bot');
+        else if (metadata.system) output = this._colorize(`ℹ️  ${content}`, 'info');
+        else output = content;
+        if (metadata.prefix) output = `${metadata.prefix} ${output}`;
 
-    /**
-     * Display system info
-     */
-    async displayInfo(content) {
-        return this.sendMessage('cli', content, { system: true });
-    }
-
-    /**
-     * Prompt for input and wait for response
-     */
-    async promptInput(question) {
-        if (this.status !== 'connected') {
-            throw new Error('CLI not connected');
+        if (this.rl.output) {
+            readline.clearLine(this.rl.output, 0);
+            readline.cursorTo(this.rl.output, 0);
+            console.log(output);
+            this.rl.prompt(true);
         }
-
-        // Display question
-        await this.sendMessage('cli', question, { prefix: this._colorize('?', 'info') });
-        
-        // Wait for input
-        return new Promise((resolve) => {
-            this.waitingForInput = true;
-            this.inputResolver = resolve;
-        });
+        return true;
     }
 
-    /**
-     * Clear the terminal screen
-     */
+    async display(content, options = {}) { return this.sendMessage('cli', content, { ...options, isBotResponse: true }); }
+    async displayError(content) { return this.sendMessage('cli', content, { error: true }); }
+    async displayInfo(content) { return this.sendMessage('cli', content, { system: true }); }
+
+    async promptInput(question) {
+        if (this.status !== 'connected') throw new Error('CLI not connected');
+        await this.sendMessage('cli', question, { prefix: this._colorize('?', 'info') });
+        return new Promise((resolve) => { this.waitingForInput = true; this.inputResolver = resolve; });
+    }
+
     async clear() {
         if (this.rl.output) {
             readline.clearScreenDown(this.rl.output);
@@ -238,34 +209,8 @@ export class CLIChannel extends Embodiment {
         return true;
     }
 
-    /**
-     * Get command history
-     */
-    getHistory() {
-        return [...this.history];
-    }
-
-    /**
-     * Clear command history
-     */
-    clearHistory() {
-        this.history = [];
-        this.historyIndex = -1;
-    }
-
-    /**
-     * Set custom prompt
-     */
-    setPrompt(prompt) {
-        if (this.rl) {
-            this.rl.setPrompt(this._colorize(`${prompt} `, 'prompt'));
-        }
-    }
-
-    /**
-     * Enable/disable colors
-     */
-    setColors(enabled) {
-        this.colors = enabled;
-    }
+    getHistory() { return [...this.history]; }
+    clearHistory() { this.history = []; this.historyIndex = -1; }
+    setPrompt(prompt) { if (this.rl) this.rl.setPrompt(this._colorize(`${prompt} `, 'prompt')); }
+    setColors(enabled) { this.colors = enabled; }
 }

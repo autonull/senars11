@@ -129,85 +129,48 @@ export class Input {
     addDerivedTask(inputId, derivedTask) {
         const taskItem = this.getTaskById(inputId);
         if (taskItem) {
-            if (!taskItem.derivedTasks) {
-                taskItem.derivedTasks = [];
-            }
-            // Ensure derivedTask has an ID if it doesn't have one
-            if (!derivedTask.id) {
-                derivedTask.id = generateId('derived');
-            }
+            taskItem.derivedTasks ||= [];
+            derivedTask.id ||= generateId('derived');
             taskItem.derivedTasks.push(derivedTask);
         }
     }
 
-    // Method to add multiple derived tasks at once
     addMultipleDerivedTasks(inputId, derivedTasks) {
         const taskItem = this.getTaskById(inputId);
         if (taskItem) {
-            if (!taskItem.derivedTasks) {
-                taskItem.derivedTasks = [];
-            }
+            taskItem.derivedTasks ||= [];
             for (const derivedTask of derivedTasks) {
-                if (!derivedTask.id) {
-                    derivedTask.id = generateId('derived');
-                }
+                derivedTask.id ||= generateId('derived');
                 taskItem.derivedTasks.push(derivedTask);
             }
         }
     }
 
-    // Method to add multiple derived tasks at once
-    addMultipleDerivedTasks(inputId, derivedTasks) {
-        const taskItem = this.getTaskById(inputId);
-        if (taskItem) {
-            if (!taskItem.derivedTasks) {
-                taskItem.derivedTasks = [];
-            }
-            for (const derivedTask of derivedTasks) {
-                if (!derivedTask.id) {
-                    derivedTask.id = generateId('derived');
-                }
-                taskItem.derivedTasks.push(derivedTask);
-            }
-        }
-    }
-
-    // Method to remove a specific derived task
     removeDerivedTask(inputId, derivedTaskId) {
         const taskItem = this.getTaskById(inputId);
-        if (taskItem && taskItem.derivedTasks) {
-            taskItem.derivedTasks = taskItem.derivedTasks.filter(task => task.id !== derivedTaskId);
+        if (taskItem?.derivedTasks) {
+            taskItem.derivedTasks = taskItem.derivedTasks.filter(t => t.id !== derivedTaskId);
         }
     }
 
-    // Method to clear all derived tasks for an input
     clearDerivedTasks(inputId) {
         const taskItem = this.getTaskById(inputId);
-        if (taskItem) {
-            taskItem.derivedTasks = [];
-        }
+        if (taskItem) taskItem.derivedTasks = [];
     }
 
-    // Method to update a derived task
     updateDerivedTask(inputId, derivedTaskId, updatedTask) {
         const taskItem = this.getTaskById(inputId);
-        if (taskItem && taskItem.derivedTasks) {
-            const index = taskItem.derivedTasks.findIndex(task => task.id === derivedTaskId);
-            if (index !== -1) {
-                taskItem.derivedTasks[index] = {...taskItem.derivedTasks[index], ...updatedTask};
-            }
-        }
+        const idx = taskItem?.derivedTasks?.findIndex(t => t.id === derivedTaskId);
+        if (idx >= 0) taskItem.derivedTasks[idx] = {...taskItem.derivedTasks[idx], ...updatedTask};
     }
 
-    // Method to get all derived tasks for an input
     getDerivedTasks(inputId) {
         const taskItem = this.getTaskById(inputId);
         return taskItem ? [...taskItem.derivedTasks] : [];
     }
 
-    // Method to get all inputs that have derived tasks
     getInputsWithDerivedTasks() {
-        return this.tasks.filter(taskItem => taskItem.derivedTasks && taskItem.derivedTasks.length > 0);
+        return this.tasks.filter(t => t.derivedTasks?.length > 0);
     }
 
     _updateDerivedPriorities(inputId, priority) {
@@ -230,15 +193,9 @@ export class Input {
 
     _validateTask = task => task != null;
 
-    _isValidIndex(index) {
-        return index >= 0 && index < this.tasks.length;
-    }
+    _isValidIndex(index) { return index >= 0 && index < this.tasks.length; }
 
-    _sortTasks() {
-        this.tasks.sort((a, b) => b.priority - a.priority || a.timestamp - b.timestamp);
-    }
+    _sortTasks() { this.tasks.sort((a, b) => b.priority - a.priority || a.timestamp - b.timestamp); }
 
-    _generateId() {
-        return `input_${++this.idCounter}_${Date.now()}`;
-    }
+    _generateId() { return `input_${++this.idCounter}_${Date.now()}`; }
 }

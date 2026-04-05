@@ -222,52 +222,24 @@ export class ToolRegistry extends BaseComponent {
         };
     }
 
-    /**
-     * Gets tools that match certain criteria
-     * @param {object} criteria - Selection criteria
-     * @param {string} [criteria.category] - Tool category
-     * @param {boolean} [criteria.supportsStreaming] - Whether to require streaming support
-     * @param {Array<string>} [criteria.requiredCapabilities] - Required capabilities
-     * @returns {Array<object>} - Matching tools
-     */
     findTools(criteria = {}) {
         const matching = [];
-
-        for (const [id, {class: ToolClass, metadata}] of this.discoveredTools.entries()) {
-            if (this._matchesCriteria(metadata, criteria)) {
-                matching.push({
-                    id,
-                    class: ToolClass,
-                    metadata
-                });
+        for (const [id, { class: ToolClass, metadata }] of this.discoveredTools.entries()) {
+            if (this.#matchesCriteria(metadata, criteria)) {
+                matching.push({ id, class: ToolClass, metadata });
             }
         }
-
         return matching;
     }
 
-    /**
-     * Check if metadata matches criteria
-     * @private
-     */
-    _matchesCriteria(metadata, criteria) {
-        if (criteria.category && metadata.category !== criteria.category) {
-            return false;
-        }
-
-        if (criteria.supportsStreaming !== undefined &&
-            metadata.supportsStreaming !== criteria.supportsStreaming) {
-            return false;
-        }
-
-        if (criteria.requiredCapabilities && Array.isArray(criteria.requiredCapabilities)) {
+    #matchesCriteria(metadata, criteria) {
+        if (criteria.category && metadata.category !== criteria.category) return false;
+        if (criteria.supportsStreaming !== undefined && metadata.supportsStreaming !== criteria.supportsStreaming) return false;
+        if (criteria.requiredCapabilities?.length) {
             for (const cap of criteria.requiredCapabilities) {
-                if (!metadata.capabilities || !metadata.capabilities.includes(cap)) {
-                    return false;
-                }
+                if (!metadata.capabilities?.includes(cap)) return false;
             }
         }
-
         return true;
     }
 

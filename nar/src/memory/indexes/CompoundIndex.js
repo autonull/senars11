@@ -82,75 +82,49 @@ export class CompoundIndex extends BaseIndex {
     }
 
     _removeFromIndex(index, key, concept) {
-        if (index.has(key)) {
-            const concepts = index.get(key);
-            concepts.delete(concept);
-            if (concepts.size === 0) {
-                index.delete(key);
-            }
-        }
+        const concepts = index.get(key);
+        if (!concepts?.size) return;
+        concepts.delete(concept);
+        if (concepts.size === 0) index.delete(key);
     }
 
     find(filters = {}) {
         const {operator, category, minComplexity, maxComplexity, component} = filters;
         let candidates = null;
 
-        if (operator !== undefined) {
-            const matches = this._index.get(operator);
-            if (!matches || matches.size === 0) return [];
-            candidates = new Set(matches);
-        }
+        const filterSets = [
+            operator !== undefined && this._index.get(operator),
+            category !== undefined && this._categoryIndex.get(category),
+            component !== undefined && this._componentIndex.get(component)
+        ].filter(Boolean);
 
-        if (category !== undefined) {
-            const matches = this._categoryIndex.get(category);
-            if (!matches || matches.size === 0) return [];
-
-            if (candidates === null) {
-                candidates = new Set(matches);
-            } else {
-                const intersection = new Set();
-                for (const c of candidates) {
-                    if (matches.has(c)) intersection.add(c);
-                }
-                candidates = intersection;
-                if (candidates.size === 0) return [];
-            }
-        }
-
-        if (component !== undefined) {
-            const matches = this._componentIndex.get(component);
-            if (!matches || matches.size === 0) return [];
-
-            if (candidates === null) {
-                candidates = new Set(matches);
-            } else {
-                const intersection = new Set();
-                for (const c of candidates) {
-                    if (matches.has(c)) intersection.add(c);
-                }
-                candidates = intersection;
-                if (candidates.size === 0) return [];
-            }
+        for (const matches of filterSets) {
+            if (matches.size === 0) return [];
+            candidates = candidates ? this._intersectSets(candidates, matches) : new Set(matches);
+            if (candidates.size === 0) return [];
         }
 
         if (minComplexity !== undefined || maxComplexity !== undefined) {
             const matches = this._getConceptsByComplexityRange(minComplexity, maxComplexity);
             if (matches.length === 0) return [];
-
-            if (candidates === null) {
-                candidates = new Set(matches);
-            } else {
-                const matchesSet = new Set(matches);
-                const intersection = new Set();
-                for (const c of candidates) {
-                    if (matchesSet.has(c)) intersection.add(c);
-                }
-                candidates = intersection;
-                if (candidates.size === 0) return [];
-            }
+            candidates = candidates ? this._intersectSetWithArray(candidates, matches) : new Set(matches);
+            if (candidates.size === 0) return [];
         }
 
         return candidates ? Array.from(candidates) : this.getAll();
+    }
+
+    _intersectSets(a, b) {
+        const result = new Set();
+        for (const item of a) if (b.has(item)) result.add(item);
+        return result;
+    }
+
+    _intersectSetWithArray(set, arr) {
+        const arrSet = new Set(arr);
+        const result = new Set();
+        for (const item of set) if (arrSet.has(item)) result.add(item);
+        return result;
     }
 
     _getConceptsByComplexityRange(minComplexity, maxComplexity) {

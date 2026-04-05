@@ -35,15 +35,12 @@ export class SelfAnalyzer {
     }
 
     async _identifyOptimizations(patterns) {
-        const optimizations = {
-            rulePriorities: [], strategyAdjustments: [], resourceAllocations: [],
-            performanceImprovements: [], systemAdjustments: []
+        return {
+            rulePriorities: this._identifyRulePriorityAdjustments(),
+            strategyAdjustments: this._identifyStrategyAdjustments(),
+            resourceAllocations: this._identifyResourceAllocations(),
+            performanceImprovements: this._identifyPerformanceImprovements(patterns)
         };
-        optimizations.rulePriorities = this._identifyRulePriorityAdjustments();
-        optimizations.strategyAdjustments = this._identifyStrategyAdjustments();
-        optimizations.resourceAllocations = this._identifyResourceAllocations();
-        optimizations.performanceImprovements = this._identifyPerformanceImprovements(patterns);
-        return optimizations;
     }
 
     _identifyRulePriorityAdjustments() { return []; }
@@ -124,13 +121,11 @@ export class SelfAnalyzer {
 
     async _applyCorrections(issues) {
         const corrections = { appliedCorrections: [], pendingCorrections: [] };
-        for (const [issueType, issueList] of Object.entries(issues)) {
-            if (Array.isArray(issueList)) {
-                for (const issue of issueList) {
-                    const correction = await this._applySpecificCorrection(issue);
-                    if (correction.applied) corrections.appliedCorrections.push(correction);
-                    else corrections.pendingCorrections.push(correction);
-                }
+        for (const [, issueList] of Object.entries(issues)) {
+            if (!Array.isArray(issueList)) continue;
+            for (const issue of issueList) {
+                const correction = await this._applySpecificCorrection(issue);
+                (correction.applied ? corrections.appliedCorrections : corrections.pendingCorrections).push(correction);
             }
         }
         return corrections;

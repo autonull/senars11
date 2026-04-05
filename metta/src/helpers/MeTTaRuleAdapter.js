@@ -1,5 +1,5 @@
-import {Rule, Truth, Task, Unifier} from '@senars/nar';
-import {Unify} from '../kernel/Unify.js';
+import { Rule, Truth, Task, Unifier } from '@senars/nar';
+import { Unify } from '../kernel/Unify.js';
 
 export class MeTTaRuleAdapter extends Rule {
     constructor(ruleTerm, interpreter, config = {}) {
@@ -15,11 +15,10 @@ export class MeTTaRuleAdapter extends Rule {
         const [condition, resultTemplate] = this.components;
         const p1Term = primaryPremise?.term;
         const p2Term = secondaryPremise?.term;
-
         if (!p1Term) return [];
 
         const inputTerm = secondaryPremise && p2Term
-            ? {operator: 'Pair', components: [p1Term, p2Term], name: 'Pair', isCompound: true}
+            ? { operator: 'Pair', components: [p1Term, p2Term], name: 'Pair', isCompound: true }
             : p1Term;
 
         const validBindings = Unify.unify(condition, inputTerm, {});
@@ -27,28 +26,17 @@ export class MeTTaRuleAdapter extends Rule {
 
         const unifier = new Unifier(this.interpreter.termFactory);
         const resultTerm = unifier.applySubstitution(resultTemplate, validBindings);
-
         if (!resultTerm) return [];
 
         const truth = this._deriveTruth(primaryPremise, secondaryPremise);
-
-        return [new Task({
-            term: resultTerm,
-            truth,
-            stamp: primaryPremise.stamp
-        })];
+        return [new Task({ term: resultTerm, truth, stamp: primaryPremise.stamp })];
     }
 
     _deriveTruth(primaryPremise, secondaryPremise) {
-        const p1Truth = primaryPremise?.truth;
-        const p2Truth = secondaryPremise?.truth;
-
-        if (p1Truth && p2Truth) {
-            return Truth.deduction(p1Truth, p2Truth);
-        }
-        if (p1Truth) {
-            return new Truth(p1Truth.f * 0.9, p1Truth.c * 0.9);
-        }
+        const p1 = primaryPremise?.truth;
+        const p2 = secondaryPremise?.truth;
+        if (p1 && p2) return Truth.deduction(p1, p2);
+        if (p1) return new Truth(p1.f * 0.9, p1.c * 0.9);
         return new Truth(0.9, 0.9);
     }
 }

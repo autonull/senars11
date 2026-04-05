@@ -22,23 +22,17 @@ export class LM extends BaseComponent {
         this.validator = new LMValidator(config.validation, this.narseseTranslator, eventBus);
     }
 
-    get config() { return {...this._config}; }
+    get config() { return { ...this._config }; }
     get metrics() { return this.lmMetrics; }
 
     _getCircuitBreakerConfig() {
-        return {
-            failureThreshold: 5,
-            timeout: 60000,
-            resetTimeout: 30000,
-            ...this.config?.circuitBreaker
-        };
+        return { failureThreshold: 5, timeout: 60000, resetTimeout: 30000, ...this.config?.circuitBreaker };
     }
 
     async _initialize() {
         if (this.lmMetrics.initialize) {
             await this.lmMetrics.initialize(this.config?.metrics ?? {});
         }
-
         this.logInfo('LM component initialized', {
             config: Object.keys(this.config),
             providerCount: this.providers.size
@@ -48,12 +42,9 @@ export class LM extends BaseComponent {
     registerProvider(id, provider) {
         this.providers.register(id, provider);
         this.logInfo('Provider registered', { providerId: id, default: id === this.providers.defaultProviderId });
-
-        if (typeof provider.on === 'function') {
-            provider.on('lm:model-dl-progress', (data) => {
-                this.eventBus?.emit('lm:model-dl-progress', {...data, providerId: id});
-            });
-        }
+        provider.on?.('lm:model-dl-progress', (data) => {
+            this.eventBus?.emit('lm:model-dl-progress', { ...data, providerId: id });
+        });
         return this;
     }
 

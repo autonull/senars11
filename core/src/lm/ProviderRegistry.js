@@ -1,43 +1,32 @@
 export class ProviderRegistry {
-    constructor() {
-        this.providers = new Map();
-        this.defaultProviderId = null;
-    }
+    #providers = new Map();
+    #defaultProviderId = null;
 
-    get size() {
-        return this.providers.size;
-    }
+    get providers() { return this.#providers; }
+    get size() { return this.#providers.size; }
+    get defaultProviderId() { return this.#defaultProviderId; }
 
     register(id, provider) {
         if (!id || !provider) throw new Error('Provider ID and provider object are required');
-        this.providers.set(id, provider);
-        this.defaultProviderId ||= id;
+        this.#providers.set(id, provider);
+        this.#defaultProviderId ||= id;
         return this;
     }
 
-    get(id) {
-        return this.providers.get(id);
-    }
-
-    has(id) {
-        return this.providers.has(id);
-    }
+    get(id) { return this.#providers.get(id); }
+    has(id) { return this.#providers.has(id); }
 
     remove(id) {
-        if (this.defaultProviderId === id) {
-            const remainingProviders = Array.from(this.providers.keys());
-            this.defaultProviderId = remainingProviders.length > 1 ?
-                remainingProviders.find(key => key !== id) || null : null;
+        if (this.#defaultProviderId === id) {
+            this.#defaultProviderId = [...this.#providers.keys()].find(k => k !== id) ?? null;
         }
-        return this.providers.delete(id);
+        return this.#providers.delete(id);
     }
 
-    getAll() {
-        return new Map(this.providers);
-    }
+    getAll() { return new Map(this.#providers); }
 
     setDefault(id) {
-        if (this.providers.has(id)) this.defaultProviderId = id;
+        if (this.#providers.has(id)) this.#defaultProviderId = id;
         return this;
     }
 }

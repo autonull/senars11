@@ -1,8 +1,3 @@
-/**
- * Functional utilities for SeNARS
- * Flat exports (Ramda-style) as primary API, plus namespace objects for advanced use.
- */
-
 // ─── Composition ────────────────────────────────────────────────────────────
 
 export const compose = (...fns) => (x) => fns.reduceRight((acc, fn) => fn(acc), x);
@@ -56,10 +51,9 @@ export const once = (fn) => {
     return (...args) => { if (!called) { called = true; result = fn(...args); } return result; };
 };
 
-// Enhanced memoize with cache management
 export function memoize(fn, resolver) {
     const cache = new Map();
-    const memoized = function(...args) {
+    const memoized = function (...args) {
         const key = resolver ? resolver(...args) : JSON.stringify(args);
         if (cache.has(key)) return cache.get(key);
         const result = fn.apply(this, args);
@@ -72,11 +66,10 @@ export function memoize(fn, resolver) {
     return memoized;
 }
 
-// Enhanced debounce with cancel
 export function debounce(fn, wait, options = {}) {
     const { immediate = false } = options;
     let timeout = null, result = null;
-    const debounced = function(...args) {
+    const debounced = function (...args) {
         const callNow = immediate && !timeout;
         clearTimeout(timeout);
         timeout = setTimeout(() => { timeout = null; if (!immediate) result = fn.apply(this, args); }, wait);
@@ -87,23 +80,20 @@ export function debounce(fn, wait, options = {}) {
     return debounced;
 }
 
-// Enhanced throttle with lastResult
 export function throttle(fn, limit) {
     let inThrottle = false, lastResult = null;
-    return function(...args) {
+    return function (...args) {
         if (!inThrottle) { inThrottle = true; lastResult = fn.apply(this, args); setTimeout(() => inThrottle = false, limit); }
         return lastResult;
     };
 }
 
-// ─── Pipeline / Predicate / Decorator Namespaces ────────────────────────────
+// ─── Namespaces ─────────────────────────────────────────────────────────────
 
 export const FunctionPipeline = Object.freeze({
     createPipeline(...fns) { return fns.reduceRight((a, b) => (...args) => a(b(...args)), v => v); },
     createFilterPipeline(filters) { return (item) => filters.every(f => { try { return f(item); } catch { return false; } }); },
-    createTransformPipeline(transformers) {
-        return (item) => { let r = item; for (const t of transformers) { if (r == null) break; r = t(r); } return r; };
-    }
+    createTransformPipeline(transformers) { return (item) => { let r = item; for (const t of transformers) { if (r == null) break; r = t(r); } return r; }; }
 });
 
 export const PredicateFactory = Object.freeze({
@@ -117,22 +107,26 @@ export const PredicateFactory = Object.freeze({
 });
 
 export const FunctionDecorator = Object.freeze({
-    memoize: memoize,
-    debounce: debounce,
-    throttle: throttle,
+    memoize,
+    debounce,
+    throttle,
     retryable(fn, { maxRetries = 3, delay = 100, exponential = true, shouldRetry = () => true } = {}) {
-        return async function(...args) {
+        return async function (...args) {
             let lastError;
             for (let attempt = 0; attempt <= maxRetries; attempt++) {
                 try { return await fn.apply(this, args); }
-                catch (error) { lastError = error; if (!shouldRetry(error) || attempt === maxRetries) break; await new Promise(r => setTimeout(r, exponential ? delay * Math.pow(2, attempt) : delay)); }
+                catch (error) {
+                    lastError = error;
+                    if (!shouldRetry(error) || attempt === maxRetries) break;
+                    await new Promise(r => setTimeout(r, exponential ? delay * 2 ** attempt : delay));
+                }
             }
             throw lastError;
         };
     },
     rateLimit(fn, rate, timeWindow = 1000) {
         const timestamps = [];
-        return async function(...args) {
+        return async function (...args) {
             const now = Date.now();
             while (timestamps.length && timestamps[0] < now - timeWindow) timestamps.shift();
             if (timestamps.length >= rate) { await new Promise(r => setTimeout(r, timestamps[0] + timeWindow - now)); timestamps.shift(); }
@@ -155,7 +149,11 @@ export const AsyncUtils = Object.freeze({
         let lastError;
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
             try { return await fn(); }
-            catch (error) { lastError = error; if (!shouldRetry(error) || attempt === maxRetries) break; await this.delay(Math.min(baseDelay * Math.pow(2, attempt), maxDelay)); }
+            catch (error) {
+                lastError = error;
+                if (!shouldRetry(error) || attempt === maxRetries) break;
+                await this.delay(Math.min(baseDelay * 2 ** attempt, maxDelay));
+            }
         }
         throw lastError;
     }
@@ -166,7 +164,7 @@ export const AsyncUtils = Object.freeze({
 import { Logger } from './Logger.js';
 
 export function measureTime(fn, label = 'Function') {
-    return async function(...args) {
+    return async function (...args) {
         const start = performance.now();
         try { const result = await fn.apply(this, args); Logger.debug(`${label} executed in ${(performance.now() - start).toFixed(2)}ms`); return result; }
         catch (error) { Logger.error(`${label} failed after ${(performance.now() - start).toFixed(2)}ms: ${error.message}`); throw error; }
@@ -175,7 +173,7 @@ export function measureTime(fn, label = 'Function') {
 
 export function cacheWithTTL(fn, ttl = 60000) {
     const cache = new Map();
-    return async function(...args) {
+    return async function (...args) {
         const key = JSON.stringify(args);
         const cached = cache.get(key);
         if (cached && Date.now() - cached.timestamp < ttl) return cached.value;
@@ -187,5 +185,5 @@ export function cacheWithTTL(fn, ttl = 60000) {
 
 export function lazy(fn) {
     let evaluated = false, result = null;
-    return function(...args) { if (!evaluated) { result = fn.apply(this, args); evaluated = true; } return result; };
+    return function (...args) { if (!evaluated) { result = fn.apply(this, args); evaluated = true; } return result; };
 }

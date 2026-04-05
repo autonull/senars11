@@ -154,11 +154,9 @@ export class Agent extends BaseComponent {
         this.#registerMeTTaExtensions();
         this.agentCfg = await this.#loadAgentConfig();
 
-        // Merge constructor LM config with file config (constructor takes precedence)
         const constructorLm = this.config.lm || {};
         if (Object.keys(constructorLm).length > 0) {
             this.agentCfg.lm = { ...this.agentCfg.lm, ...constructorLm };
-            // Deep-merge nested objects
             for (const key of Object.keys(constructorLm)) {
                 if (typeof constructorLm[key] === 'object' && constructorLm[key] !== null && !Array.isArray(constructorLm[key])) {
                     this.agentCfg.lm[key] = { ...(this.agentCfg.lm[key] || {}), ...constructorLm[key] };
@@ -166,9 +164,8 @@ export class Agent extends BaseComponent {
             }
         }
 
-        if (this.agentCfg.lm) {
-            this.ai = new AIClient(this.agentCfg.lm);
-        }
+        if (this.agentCfg.lm) this.ai = new AIClient(this.agentCfg.lm);
+
         const validationErrors = validate(this.agentCfg);
         if (validationErrors.length > 0) {
             const msg = `[Agent] Configuration errors:\n${validationErrors.map(e => `  - ${e}`).join('\n')}`;

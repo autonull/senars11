@@ -16,34 +16,25 @@ export class AIClient {
     }
 
     static _extractPrompt(options) {
-        // Handle messages array (Vercel AI SDK format)
         if (options.messages && Array.isArray(options.messages)) {
-            // Convert messages to a single text prompt
             return options.messages.map(msg => {
                 if (typeof msg === 'string') return msg;
                 if (msg.content) {
                     if (typeof msg.content === 'string') return msg.content;
-                    if (Array.isArray(msg.content)) {
-                        return msg.content.map(c => c.text || '').join('');
-                    }
+                    if (Array.isArray(msg.content)) return msg.content.map(c => c.text || '').join('');
                 }
                 if (msg.text) return msg.text;
                 return JSON.stringify(msg);
             }).join('\n');
         }
-        
-        // Handle prompt field
         if (typeof options.prompt === 'string') return options.prompt;
         if (Array.isArray(options.prompt)) {
-            // Check if it's already a messages array [ {role, content} ]
             if (options.prompt.length > 0 && options.prompt[0].role) {
                 return options.prompt.map(msg => {
                     if (typeof msg === 'string') return msg;
                     if (msg.content) {
                         if (typeof msg.content === 'string') return msg.content;
-                        if (Array.isArray(msg.content)) {
-                            return msg.content.map(c => c.text || '').join('');
-                        }
+                        if (Array.isArray(msg.content)) return msg.content.map(c => c.text || '').join('');
                     }
                     if (msg.text) return msg.text;
                     return JSON.stringify(msg);
@@ -53,13 +44,23 @@ export class AIClient {
                 if (typeof msg === 'string') return msg;
                 if (msg.content) return msg.content;
                 if (msg.text) return msg.text;
-                if (Array.isArray(msg.content)) {
-                    return msg.content.map(c => c.text || '').join('');
-                }
+                if (Array.isArray(msg.content)) return msg.content.map(c => c.text || '').join('');
                 return JSON.stringify(msg);
             }).join('\n');
         }
         return String(options.prompt || '');
+    }
+
+    #resolveArgs(prompt, options = {}) {
+        const model = this.getModel(options.provider || prompt?.provider, options.model || prompt?.model);
+        const args = { model, ...options };
+        if (Array.isArray(prompt)) args.messages = prompt;
+        else if (typeof prompt === 'string') args.prompt = prompt;
+        else if (prompt?.messages) args.messages = prompt.messages;
+        else if (prompt?.prompt && Array.isArray(prompt.prompt)) args.messages = prompt.prompt;
+        else if (prompt?.prompt) args.prompt = prompt.prompt;
+        if (args.tools && Object.keys(args.tools).length === 0) delete args.tools;
+        return args;
     }
 
     _initializeProviders(config) {
@@ -277,7 +278,6 @@ export class AIClient {
         };
     }
 
-    // ... (rest of methods)
     _createWebLLMModel(modelName) {
         const effectiveModel = modelName || 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
         const cacheKey = `webllm:${effectiveModel}`;
@@ -315,54 +315,11 @@ export class AIClient {
     }
 
     async generate(prompt, options = {}) {
-        // AI SDK v5 generateText expects { model, messages, ... } or { model, prompt }
-        // AgentStreamer passes 'prompt' which contains messages array.
-        // We need to unwrap it if it's named 'prompt' but is messages.
-
-        let args = { model: this.getModel(options.provider || prompt.provider, options.model || prompt.model), ...options };
-
-        // If prompt is an object with 'prompt' property which is messages
-        if (prompt && prompt.prompt && Array.isArray(prompt.prompt)) {
-             args.messages = prompt.prompt;
-        } else if (Array.isArray(prompt)) {
-             args.messages = prompt;
-        } else if (typeof prompt === 'string') {
-             args.prompt = prompt;
-        } else if (typeof prompt === 'object') {
-             // prompt might be the whole options object from AgentStreamer if passed incorrectly,
-             // but here prompt argument is usually the text or messages.
-             // If prompt has messages property
-             if (prompt.messages) args.messages = prompt.messages;
-             else if (prompt.prompt) args.prompt = prompt.prompt;
-        }
-
-        // Clean up tools if empty to avoid validation errors
-        if (args.tools && Object.keys(args.tools).length === 0) {
-            delete args.tools;
-        }
-
-        return generateText(args);
+        return generateText(this.#resolveArgs(prompt, options));
     }
 
     async stream(prompt, options = {}) {
-        let args = { model: this.getModel(options.provider || prompt.provider, options.model || prompt.model), ...options };
-
-        if (prompt && prompt.prompt && Array.isArray(prompt.prompt)) {
-             args.messages = prompt.prompt;
-        } else if (Array.isArray(prompt)) {
-             args.messages = prompt;
-        } else if (typeof prompt === 'string') {
-             args.prompt = prompt;
-        } else if (typeof prompt === 'object') {
-             if (prompt.messages) args.messages = prompt.messages;
-             else if (prompt.prompt) args.prompt = prompt.prompt;
-        }
-
-        if (args.tools && Object.keys(args.tools).length === 0) {
-            delete args.tools;
-        }
-
-        return streamText(args);
+        return streamText(this.#resolveArgs(prompt, options));
     }
 
     async generateObject(prompt, schema, options = {}) {

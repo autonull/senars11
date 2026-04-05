@@ -16,9 +16,8 @@ export const parseListFromResponse = (lmResponse, { removeEmpty = true } = {}) =
 
     const lines = lmResponse
         .split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0)
-        .map(line => line.replace(/^\s*\d+[\.)]|\s*|^[-*]\s*/, '').trim());
+        .map(line => line.trim().replace(/^\s*\d+[\.)]|\s*|^[-*]\s*/, '').trim())
+        .filter(line => line.length > 0);
 
     return removeEmpty ? lines.filter(item => item.length > 0) : lines;
 };
@@ -41,28 +40,21 @@ export const processDerivation = (result, maxDerivationDepth, budgetManager = nu
     if (!result?.stamp) return result;
 
     try {
-        const derivationDepth = result.stamp.depth ?? 0;
+        const depth = result.stamp.depth ?? 0;
+        const withinBudget = budgetManager?.checkDerivationDepth
+            ? budgetManager.checkDerivationDepth(depth, maxDerivationDepth)
+            : depth <= maxDerivationDepth;
 
-        if (budgetManager?.checkDerivationDepth) {
-            if (!budgetManager.checkDerivationDepth(derivationDepth, maxDerivationDepth)) {
-                Logger.debug(`Discarding derivation - BudgetManager rejected depth (${derivationDepth} > ${maxDerivationDepth})`);
-                return null;
-            }
-        } else if (derivationDepth > maxDerivationDepth) {
-            Logger.debug(`Discarding derivation - exceeds max depth (${derivationDepth} > ${maxDerivationDepth})`);
-            return null;
-        }
+        if (!withinBudget) return null;
 
-        if (budgetManager?.calculateComplexityPenalty && result.term?.complexity) {
+        if (budgetManager?.calculateComplexityPenalty && result.term?.complexity && result.budget) {
             const penalty = budgetManager.calculateComplexityPenalty(result.term.complexity);
-            if (result.budget) {
-                const newBudget = {
-                    ...result.budget,
-                    priority: result.budget.priority / penalty,
-                    durability: result.budget.durability / penalty
-                };
-                result = result.clone?.({ budget: newBudget }) ?? Object.assign(result, { budget: newBudget });
-            }
+            const newBudget = {
+                ...result.budget,
+                priority: result.budget.priority / penalty,
+                durability: result.budget.durability / penalty
+            };
+            return result.clone?.({ budget: newBudget }) ?? Object.assign(result, { budget: newBudget });
         }
 
         return result;

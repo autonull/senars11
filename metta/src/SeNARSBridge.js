@@ -1,7 +1,7 @@
-import {BaseMeTTaComponent} from './helpers/BaseMeTTaComponent.js';
-import {MeTTaRuleAdapter} from './helpers/MeTTaRuleAdapter.js';
-import {Term} from './kernel/Term.js';
-import {Task, Truth} from '@senars/nar';
+import { BaseMeTTaComponent } from './helpers/BaseMeTTaComponent.js';
+import { MeTTaRuleAdapter } from './helpers/MeTTaRuleAdapter.js';
+import { Term } from './kernel/Term.js';
+import { Task, Truth } from '@senars/nar';
 
 export class SeNARSBridge extends BaseMeTTaComponent {
     constructor(reasoner, mettaInterpreter, config = {}, eventBus = null) {
@@ -12,23 +12,16 @@ export class SeNARSBridge extends BaseMeTTaComponent {
 
     mettaToNars(term, punctuation = '.') {
         return this.trackOperation('mettaToNars', () => {
-            this.emitMeTTaEvent('metta-to-nars', {term: term.toString()});
-            // Construct a proper Task object to ensure compatibility with Reasoner
-            // QUESTIONS must not have truth values
+            this.emitMeTTaEvent('metta-to-nars', { term: term.toString() });
             const truth = (punctuation === '?' || punctuation === 'QUESTION') ? null : new Truth(0.9, 0.9);
-            return new Task({
-                term,
-                punctuation,
-                truth
-            });
+            return new Task({ term, punctuation, truth });
         });
     }
 
     narsToMetta(task) {
         return this.trackOperation('narsToMetta', () => {
-            // task might be a Task object or a plain object
-            const term = task.term || task;
-            this.emitMeTTaEvent('nars-to-metta', {term: term.toString()});
+            const term = task.term ?? task;
+            this.emitMeTTaEvent('nars-to-metta', { term: term.toString() });
             return term;
         });
     }
@@ -38,7 +31,7 @@ export class SeNARSBridge extends BaseMeTTaComponent {
             const qTerm = typeof query === 'string' ? this.mettaInterpreter.parser.parseExpression(query) : query;
             const task = this.mettaToNars(qTerm, '?');
             const derived = this.reasoner?.derive?.(task) ?? [];
-            this.emitMeTTaEvent('reasoning-complete', {derivationCount: derived.length});
+            this.emitMeTTaEvent('reasoning-complete', { derivationCount: derived.length });
             return derived;
         });
     }
@@ -47,14 +40,14 @@ export class SeNARSBridge extends BaseMeTTaComponent {
         return this.trackOperation('importToSeNARS', () => {
             const tasks = this.mettaInterpreter.load(code);
             tasks.forEach(t => this.reasoner?.process?.(this.mettaToNars(t.term, t.punctuation)));
-            this.emitMeTTaEvent('knowledge-imported', {taskCount: tasks.length});
+            this.emitMeTTaEvent('knowledge-imported', { taskCount: tasks.length });
         });
     }
 
     exportFromSeNARS() {
         return this.trackOperation('exportFromSeNARS', () => {
             const terms = (this.reasoner?.memory?.getBeliefs?.() ?? []).map(b => this.narsToMetta(b));
-            this.emitMeTTaEvent('knowledge-exported', {termCount: terms.length});
+            this.emitMeTTaEvent('knowledge-exported', { termCount: terms.length });
             return terms;
         });
     }
@@ -63,7 +56,7 @@ export class SeNARSBridge extends BaseMeTTaComponent {
         return this.trackOperation('injectRule', () => {
             const rule = new MeTTaRuleAdapter(ruleTerm, this.mettaInterpreter);
             this.reasoner.ruleProcessor.ruleExecutor.registerRule(rule);
-            this.emitMeTTaEvent('rule-injected', {ruleId: rule.id});
+            this.emitMeTTaEvent('rule-injected', { ruleId: rule.id });
             return rule;
         });
     }
@@ -72,27 +65,14 @@ export class SeNARSBridge extends BaseMeTTaComponent {
         return this.trackOperation('sync', () => {
             this.importToSeNARS(code);
             const exported = this.exportFromSeNARS();
-            return {imported: code, exported: exported.map(t => t.toString()).join('\n')};
+            return { imported: code, exported: exported.map(t => t.toString()).join('\n') };
         });
     }
 
-    // === Attention & Introspection ===
-
-    getConceptSTI(atom) {
-        return this._getBudget(atom, 'sti');
-    }
-
-    setConceptSTI(atom, value) {
-        this._setBudget(atom, 'sti', value);
-    }
-
-    getConceptLTI(atom) {
-        return this._getBudget(atom, 'lti');
-    }
-
-    setConceptLTI(atom, value) {
-        this._setBudget(atom, 'lti', value);
-    }
+    getConceptSTI(atom) { return this._getBudget(atom, 'sti'); }
+    setConceptSTI(atom, value) { this._setBudget(atom, 'sti', value); }
+    getConceptLTI(atom) { return this._getBudget(atom, 'lti'); }
+    setConceptLTI(atom, value) { this._setBudget(atom, 'lti', value); }
 
     _getBudget(atom, type) {
         return this.trackOperation(`getConcept${type.toUpperCase()}`, () => {
@@ -105,7 +85,10 @@ export class SeNARSBridge extends BaseMeTTaComponent {
         this.trackOperation(`setConcept${type.toUpperCase()}`, () => {
             const term = atom?.toString?.() ?? String(atom);
             const c = this.reasoner?.memory?.getConcept?.(term);
-            if (c?.budget) c.budget[type] = value, this.emitMeTTaEvent(`${type}-updated`, {concept: term, [type]: value});
+            if (c?.budget) {
+                c.budget[type] = value;
+                this.emitMeTTaEvent(`${type}-updated`, { concept: term, [type]: value });
+            }
         });
     }
 
@@ -114,9 +97,8 @@ export class SeNARSBridge extends BaseMeTTaComponent {
             const term = atom?.toString?.() ?? String(atom);
             const c = this.reasoner?.memory?.getConcept?.(term);
             if (!c?.links) return [];
-
-            const linked = Array.from(c.links).slice(0, max).map(l => l.target?.term ?? l.target);
-            this.emitMeTTaEvent('related-concepts-retrieved', {concept: term, count: linked.length});
+            const linked = [...c.links].slice(0, max).map(l => l.target?.term ?? l.target);
+            this.emitMeTTaEvent('related-concepts-retrieved', { concept: term, count: linked.length });
             return linked;
         });
     }
@@ -136,16 +118,14 @@ export class SeNARSBridge extends BaseMeTTaComponent {
             const concepts = this.reasoner?.memory?.getAllConcepts?.() ?? [];
             const stis = concepts.map(c => c.budget?.sti ?? 0).filter(s => s > 0);
             const avgSti = stis.length ? (stis.reduce((a, b) => a + b, 0) / stis.length).toFixed(2) : '0';
-            const maxSti = Math.max(...stis, 0).toFixed(2);
-            const minSti = stis.length ? Math.min(...stis).toFixed(2) : '0';
             const memUsage = process.memoryUsage ? (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2) : '0';
 
             return {
                 atomCount: this.mettaInterpreter?.space?.size?.() ?? 0,
                 conceptCount: concepts.length,
                 avgSTI: avgSti,
-                maxSTI: maxSti,
-                minSTI: minSti,
+                maxSTI: Math.max(...stis, 0).toFixed(2),
+                minSTI: stis.length ? Math.min(...stis).toFixed(2) : '0',
                 memoryMB: memUsage
             };
         });
@@ -162,21 +142,15 @@ export class SeNARSBridge extends BaseMeTTaComponent {
     }
 
     registerPrimitives(ground) {
-        const {constructList, sym, exp} = Term;
+        const { constructList, sym, exp } = Term;
         const reg = (name, fn) => ground.register(name, fn);
 
         reg('&get-sti', a => sym(String(this.getConceptSTI(a))));
-        reg('&set-sti', (a, v) => (this.setConceptSTI(a, parseFloat(v.name || v)), a));
+        reg('&set-sti', (a, v) => (this.setConceptSTI(a, parseFloat(v.name ?? v)), a));
         reg('&get-lti', a => sym(String(this.getConceptLTI(a))));
-        reg('&set-lti', (a, v) => (this.setConceptLTI(a, parseFloat(v.name || v)), a));
-
+        reg('&set-lti', (a, v) => (this.setConceptLTI(a, parseFloat(v.name ?? v)), a));
         reg('&get-related', a => constructList(this.getRelatedConcepts(a), sym('()')));
-
-        reg('&nars-derive', (t, p) => {
-            const res = this.executeNARSDerivation(t, p?.name === '()' ? null : p);
-            return res || sym('()');
-        });
-
+        reg('&nars-derive', (t, p) => this.executeNARSDerivation(t, p?.name === '()' ? null : p) ?? sym('()'));
         reg('&system-stats', () => constructList(
             Object.entries(this.getSystemStats()).map(([k, v]) => exp(sym(':'), [sym(k), sym(String(v))])),
             sym('()')

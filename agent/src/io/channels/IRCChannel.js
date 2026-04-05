@@ -1,10 +1,3 @@
-/**
- * IRCChannel.js - IRC Protocol Implementation
- * Wraps 'irc-framework' for resilient IRC connectivity.
- * Supports: channel messages, private messages, CTCP, actions, notices
- * 
- * Phase 5: Updated to extend Embodiment for unified I/O abstraction
- */
 import { Embodiment } from '../Embodiment.js';
 import { Client } from 'irc-framework';
 import { Logger } from '@senars/core';
@@ -162,25 +155,15 @@ export class IRCChannel extends Embodiment {
         });
     }
 
-    /**
-     * Check if a message is private (not to a channel)
-     */
     _isPrivateMessage(event) {
         const target = event.target;
-        // Private if target matches our nick or doesn't start with #/&/!/+
         return target === this.client.user.nick || !/^[#&!+]/.test(target);
     }
 
-    /**
-     * Check if content is CTCP
-     */
     _isCTCP(content) {
         return content.startsWith('\x01') && content.endsWith('\x01');
     }
 
-    /**
-     * Handle CTCP messages
-     */
     _handleCTCP(from, content, target) {
         const ctcpData = content.slice(1, -1).split(' ');
         const command = ctcpData[0].toUpperCase();
@@ -215,50 +198,25 @@ export class IRCChannel extends Embodiment {
         });
     }
 
-    /**
-     * Track user in channel
-     */
     _trackUser(channel, nick) {
-        if (!this.knownUsers.has(channel)) {
-            this.knownUsers.set(channel, new Set());
-        }
+        if (!this.knownUsers.has(channel)) this.knownUsers.set(channel, new Set());
         this.knownUsers.get(channel).add(nick);
     }
 
-    /**
-     * Untrack user from channel
-     */
     _untrackUser(channel, nick) {
-        const users = this.knownUsers.get(channel);
-        if (users) {
-            users.delete(nick);
-        }
+        this.knownUsers.get(channel)?.delete(nick);
     }
 
-    /**
-     * Remove user from all channels
-     */
     _removeUserFromAllChannels(nick) {
-        for (const users of this.knownUsers.values()) {
-            users.delete(nick);
-        }
+        for (const users of this.knownUsers.values()) users.delete(nick);
     }
 
-    /**
-     * Update user nick
-     */
     _updateUserNick(oldNick, newNick) {
         for (const users of this.knownUsers.values()) {
-            if (users.has(oldNick)) {
-                users.delete(oldNick);
-                users.add(newNick);
-            }
+            if (users.has(oldNick)) { users.delete(oldNick); users.add(newNick); }
         }
     }
 
-    /**
-     * Get users in a channel
-     */
     getUsersInChannel(channel) {
         const users = this.knownUsers.get(channel);
         return users ? Array.from(users) : [];
@@ -320,17 +278,26 @@ export class IRCChannel extends Embodiment {
         }
     }
 
-    /**
-     * Send a message to channel or user
-     * @param {string} target - Channel (#channel) or nick
-     * @param {string} content - Message content
-     * @param {object} metadata - Options: action, notice, private
-     */
-    async sendMessage(target, content, metadata = {}) {
+    async join(channel) {
         if (this.status !== 'connected') {
-            throw new Error('Not connected to IRC');
+            Logger.warn(`[IRC:${this.id}] Cannot join ${channel} - not connected`);
+            return;
         }
+        this.client.join(channel);
+        this.channels.add(channel);
+        Logger.info(`[IRC:${this.id}] Joined ${channel}`);
+    }
 
+    async part(channel, reason) {
+        if (this.channels.has(channel)) {
+            this.client.part(channel, reason || 'Leaving');
+            this.channels.delete(channel);
+            this.knownUsers.delete(channel);
+        }
+    }
+
+    async sendMessage(target, content, metadata = {}) {
+        if (this.status !== 'connected') throw new Error('Not connected to IRC');
         return new Promise((resolve, reject) => {
             this._sendQueue.push({ target, content, metadata, resolve, reject });
             this._processQueue();
@@ -363,54 +330,24 @@ export class IRCChannel extends Embodiment {
         this._processingQueue = false;
     }
 
-    /**
-     * Send a private message to a user
-     */
-    async sendPrivateMessage(nick, content) {
-        return this.sendMessage(nick, content, { private: true });
-    }
+    async sendPrivateMessage(nick, content) { return this.sendMessage(nick, content, { private: true }); }
+    async sendAction(target, content) { return this.sendMessage(target, content, { action: true }); }
+    async sendNotice(target, content) { return this.sendMessage(target, content, { notice: true }); }
 
-    /**
-     * Send an action message (/me)
-     */
-    async sendAction(target, content) {
-        return this.sendMessage(target, content, { action: true });
-    }
-
-    /**
-     * Send a notice
-     */
-    async sendNotice(target, content) {
-        return this.sendMessage(target, content, { notice: true });
-    }
-
-    /**
-     * Set channel topic
-     */
     async setTopic(channel, topic) {
-        if (this.status !== 'connected') {
-            throw new Error('Not connected to IRC');
-        }
+        if (this.status !== 'connected') throw new Error('Not connected to IRC');
         this.client.raw(`TOPIC ${channel} :${topic}`);
         return true;
     }
 
-    /**
-     * Get channel user list
-     */
     async getChannelUsers(channel) {
         return new Promise((resolve) => {
             const users = [];
             const namesListener = (event) => {
-                if (event.channel === channel) {
-                    users.push(...event.nicks);
-                }
+                if (event.channel === channel) users.push(...event.nicks);
             };
-
             this.client.on('names', namesListener);
             this.client.raw(`NAMES ${channel}`);
-
-            // Timeout after 5 seconds
             setTimeout(() => {
                 this.client.removeListener('names', namesListener);
                 resolve(users);
@@ -418,29 +355,12 @@ export class IRCChannel extends Embodiment {
         });
     }
 
-    /**
-     * Send CTCP query
-     */
     async sendCTCP(nick, command, data = '') {
-        if (this.status !== 'connected') {
-            throw new Error('Not connected to IRC');
-        }
+        if (this.status !== 'connected') throw new Error('Not connected to IRC');
         this.client.ctcp(nick, command, data);
         return true;
     }
 
-    /**
-     * Check if target is a channel
-     */
-    isChannel(target) {
-        return /^[#&!+]/.test(target);
-    }
-
-    /**
-     * Check if user is in a channel
-     */
-    isUserInChannel(channel, nick) {
-        const users = this.knownUsers.get(channel);
-        return users ? users.has(nick) : false;
-    }
+    isChannel(target) { return /^[#&!+]/.test(target); }
+    isUserInChannel(channel, nick) { return this.knownUsers.get(channel)?.has(nick) ?? false; }
 }

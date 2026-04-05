@@ -1,10 +1,3 @@
-/**
- * MatrixChannel.js - Matrix Protocol Implementation
- * Prototype for Matrix/Element integration.
- * Uses matrix-js-sdk for connectivity.
- * 
- * Phase 5: Updated to extend Embodiment for unified I/O abstraction
- */
 import { Embodiment } from '../Embodiment.js';
 import { Logger } from '@senars/core';
 
@@ -20,7 +13,6 @@ export class MatrixChannel extends Embodiment {
             isInternal: false,
             defaultSalience: config.defaultSalience ?? 0.5
         });
-        
         this.type = 'matrix';
         this.client = null;
         this.matrixSdk = null;
@@ -29,7 +21,6 @@ export class MatrixChannel extends Embodiment {
     }
 
     async _loadSdk() {
-        // Dynamic import for matrix-js-sdk
         try {
             this.matrixSdk = await import('matrix-js-sdk');
             return true;
