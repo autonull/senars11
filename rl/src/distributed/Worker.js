@@ -40,7 +40,7 @@ const TaskExecutors = {
             totalReward += result.reward;
             state = result;
 
-            if (result.terminated) break;
+            if (result.terminated) {break;}
         }
 
         return { trajectory, totalReward, steps: trajectory.length };

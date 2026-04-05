@@ -2,15 +2,26 @@
  * Guard utilities for SeNARS
  */
 
-import { Logger } from './Logger.js';
+import {Logger} from './Logger.js';
 
 function runGuarded(guard, execute, options, isAsync) {
-    const { defaultValue = null, throwOnGuardFailure = false, errorHandler = null, context = 'guarded-execution' } = options;
+    const {
+        defaultValue = null,
+        throwOnGuardFailure = false,
+        errorHandler = null,
+        context = 'guarded-execution'
+    } = options;
 
     const handleGuardError = (err) => errorHandler?.(err, 'guard') ?? (Logger.error(`[${context}] Guard evaluation failed`, err), defaultValue);
     const handleExecError = (err) => errorHandler?.(err, 'execute') ?? (Logger.error(`[${context}] Execution failed`, err), defaultValue);
 
-    const guardResult = isAsync ? Promise.resolve(guard()).catch(handleGuardError) : (() => { try { return guard(); } catch (err) { return handleGuardError(err); } })();
+    const guardResult = isAsync ? Promise.resolve(guard()).catch(handleGuardError) : (() => {
+        try {
+            return guard();
+        } catch (err) {
+            return handleGuardError(err);
+        }
+    })();
 
     const processResult = (result) => {
         const isValid = typeof result === 'boolean' ? result : result?.isValid;
@@ -21,10 +32,18 @@ function runGuarded(guard, execute, options, isAsync) {
                 error.guardErrors = errors;
                 throw error;
             }
-            if (errors?.length > 0) Logger.warn(`[${context}] Guard failed`, { errors });
+            if (errors?.length > 0) {
+                Logger.warn(`[${context}] Guard failed`, {errors});
+            }
             return defaultValue;
         }
-        return isAsync ? Promise.resolve(execute()).catch(handleExecError) : (() => { try { return execute(); } catch (err) { return handleExecError(err); } })();
+        return isAsync ? Promise.resolve(execute()).catch(handleExecError) : (() => {
+            try {
+                return execute();
+            } catch (err) {
+                return handleExecError(err);
+            }
+        })();
     };
 
     return isAsync ? Promise.resolve(guardResult).then(processResult) : processResult(guardResult);
@@ -70,7 +89,7 @@ export class GuardedExecutor {
      * @returns {Promise<*>} Result of execution or default value
      */
     async run(options = {}) {
-        return executeGuarded(() => this.canExecute(), () => this.execute(), { context: this.constructor.name, ...options });
+        return executeGuarded(() => this.canExecute(), () => this.execute(), {context: this.constructor.name, ...options});
     }
 
     /**
@@ -79,6 +98,6 @@ export class GuardedExecutor {
      * @returns {*} Result of execution or default value
      */
     runSync(options = {}) {
-        return executeGuardedSync(() => this.canExecute(), () => this.execute(), { context: this.constructor.name, ...options });
+        return executeGuardedSync(() => this.canExecute(), () => this.execute(), {context: this.constructor.name, ...options});
     }
 }

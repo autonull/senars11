@@ -1,6 +1,6 @@
 /**
  * End-to-End Integration Test — MeTTaClaw Personal Assistant Chatbot
- * 
+ *
  * Tests the full agent pipeline:
  * - Agent initialization with parity profile
  * - MeTTa control plane setup
@@ -14,19 +14,18 @@
  * - Full chatbot interaction cycles
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { EventEmitter } from 'events';
-import { isEnabled, validateDeps } from '../../src/config/capabilities.js';
-import { SkillDispatcher } from '../../src/skills/SkillDispatcher.js';
-import { VirtualEmbodiment } from '../../src/io/VirtualEmbodiment.js';
-import { EmbodimentBus } from '../../src/io/EmbodimentBus.js';
+import {afterEach, beforeEach, describe, expect, it, jest} from '@jest/globals';
+import {isEnabled, validateDeps} from '../../src/config/index.js';
+import {SkillDispatcher} from '../../src/skills/index.js';
+import {VirtualEmbodiment} from '../../src/io/index.js';
+import {EmbodimentBus} from '../../src/io/index.js';
 
 jest.setTimeout(15000);
 
 describe('MeTTaClaw Chatbot E2E', () => {
     describe('1. Agent Initialization & Configuration', () => {
         it('resolves parity profile capabilities correctly', () => {
-            const config = { profile: 'parity' };
+            const config = {profile: 'parity'};
             expect(isEnabled(config, 'mettaControlPlane')).toBe(true);
             expect(isEnabled(config, 'sExprSkillDispatch')).toBe(true);
             expect(isEnabled(config, 'semanticMemory')).toBe(true);
@@ -41,7 +40,7 @@ describe('MeTTaClaw Chatbot E2E', () => {
         });
 
         it('validates capability dependencies for parity profile', () => {
-            const config = { profile: 'parity' };
+            const config = {profile: 'parity'};
             expect(() => validateDeps(config)).not.toThrow();
         });
 
@@ -77,8 +76,8 @@ describe('MeTTaClaw Chatbot E2E', () => {
         beforeEach(() => {
             const config = {
                 profile: 'parity',
-                loop: { maxSkillsPerCycle: 3 },
-                capabilities: { sExprSkillDispatch: true }
+                loop: {maxSkillsPerCycle: 3},
+                capabilities: {sExprSkillDispatch: true}
             };
             dispatcher = new SkillDispatcher(config);
             mockHandler = jest.fn().mockResolvedValue('mock-result');
@@ -89,12 +88,12 @@ describe('MeTTaClaw Chatbot E2E', () => {
             dispatcher.register('send', mockHandler, 'mettaControlPlane', ':network');
 
             const response = '((think "processing request") (send "Hello user"))';
-            const { cmds, error } = dispatcher.parseResponse(response);
+            const {cmds, error} = dispatcher.parseResponse(response);
 
             expect(error).toBeNull();
             expect(cmds).toHaveLength(2);
-            expect(cmds[0]).toEqual({ name: 'think', args: ['processing request'] });
-            expect(cmds[1]).toEqual({ name: 'send', args: ['Hello user'] });
+            expect(cmds[0]).toEqual({name: 'think', args: ['processing request']});
+            expect(cmds[1]).toEqual({name: 'send', args: ['Hello user']});
 
             const results = await dispatcher.execute(cmds);
             expect(results).toHaveLength(2);
@@ -106,7 +105,7 @@ describe('MeTTaClaw Chatbot E2E', () => {
 
         it('handles malformed S-expression with parenthesis balancing', () => {
             const response = '((think "incomplete"';
-            const { cmds, error } = dispatcher.parseResponse(response);
+            const {cmds, error} = dispatcher.parseResponse(response);
 
             expect(error).toBeNull();
             expect(cmds.length).toBeGreaterThan(0);
@@ -115,14 +114,14 @@ describe('MeTTaClaw Chatbot E2E', () => {
 
         it('returns empty commands on completely invalid input', () => {
             const response = 'this is not an s-expression at all {{{';
-            const { cmds, error } = dispatcher.parseResponse(response);
+            const {cmds, error} = dispatcher.parseResponse(response);
             expect(cmds).toHaveLength(0);
         });
 
         it('gates skill execution on capability flags', async () => {
             dispatcher.register('shell', mockHandler, 'shellSkill', ':system');
 
-            const results = await dispatcher.execute([{ name: 'shell', args: ['ls'] }]);
+            const results = await dispatcher.execute([{name: 'shell', args: ['ls']}]);
             expect(results[0].error).toMatch(/capability-disabled/);
             expect(mockHandler).not.toHaveBeenCalled();
         });
@@ -134,7 +133,7 @@ describe('MeTTaClaw Chatbot E2E', () => {
             dispatcher.register('skill3', mockHandler, 'mettaControlPlane', ':reflect');
             dispatcher.register('skill4', mockHandler, 'mettaControlPlane', ':reflect');
 
-            const { cmds, error } = dispatcher.parseResponse(response);
+            const {cmds, error} = dispatcher.parseResponse(response);
             expect(error).toBeNull();
             expect(cmds).toHaveLength(3);
         });
@@ -149,19 +148,19 @@ describe('MeTTaClaw Chatbot E2E', () => {
             const content = 'User prefers concise responses';
             const priority = 0.85;
 
-            wm.push({ content, priority, ttl: defaultTtl, cycleAdded: 0 });
+            wm.push({content, priority, ttl: defaultTtl, cycleAdded: 0});
             wm.sort((a, b) => b.priority - a.priority);
             if (wm.length > maxEntries) wm.length = maxEntries;
 
             expect(wm).toHaveLength(1);
-            expect(wm[0]).toMatchObject({ content, priority, ttl: 10 });
+            expect(wm[0]).toMatchObject({content, priority, ttl: 10});
         });
 
         it('dismiss removes matching items from working memory', () => {
             const wm = [
-                { content: 'item 1', priority: 0.5, ttl: 5 },
-                { content: 'important task', priority: 0.9, ttl: 5 },
-                { content: 'item 3', priority: 0.3, ttl: 5 }
+                {content: 'item 1', priority: 0.5, ttl: 5},
+                {content: 'important task', priority: 0.9, ttl: 5},
+                {content: 'item 3', priority: 0.3, ttl: 5}
             ];
 
             const query = 'important';
@@ -174,13 +173,13 @@ describe('MeTTaClaw Chatbot E2E', () => {
 
         it('tick-wm decrements TTLs and removes expired entries', () => {
             const wm = [
-                { content: 'expiring soon', priority: 0.5, ttl: 1 },
-                { content: 'persistent item', priority: 0.8, ttl: 3 },
-                { content: 'already expired', priority: 0.3, ttl: 0 }
+                {content: 'expiring soon', priority: 0.5, ttl: 1},
+                {content: 'persistent item', priority: 0.8, ttl: 3},
+                {content: 'already expired', priority: 0.3, ttl: 0}
             ];
 
             wm.splice(0, wm.length, ...wm
-                .map(e => ({ ...e, ttl: e.ttl - 1 }))
+                .map(e => ({...e, ttl: e.ttl - 1}))
                 .filter(e => e.ttl > 0)
             );
 
@@ -194,15 +193,15 @@ describe('MeTTaClaw Chatbot E2E', () => {
             const maxEntries = 3;
 
             const items = [
-                { content: 'low priority', priority: 0.2 },
-                { content: 'high priority', priority: 0.9 },
-                { content: 'medium priority', priority: 0.5 },
-                { content: 'very high', priority: 0.95 },
-                { content: 'another low', priority: 0.1 }
+                {content: 'low priority', priority: 0.2},
+                {content: 'high priority', priority: 0.9},
+                {content: 'medium priority', priority: 0.5},
+                {content: 'very high', priority: 0.95},
+                {content: 'another low', priority: 0.1}
             ];
 
             for (const item of items) {
-                wm.push({ ...item, ttl: 10, cycleAdded: 0 });
+                wm.push({...item, ttl: 10, cycleAdded: 0});
                 wm.sort((a, b) => b.priority - a.priority);
                 if (wm.length > maxEntries) wm.length = maxEntries;
             }
@@ -219,7 +218,7 @@ describe('MeTTaClaw Chatbot E2E', () => {
         let virtual;
 
         beforeEach(async () => {
-            bus = new EmbodimentBus({ attentionSalience: false });
+            bus = new EmbodimentBus({attentionSalience: false});
             virtual = new VirtualEmbodiment({
                 autonomousMode: false,
                 idleTimeout: 5000
@@ -245,7 +244,7 @@ describe('MeTTaClaw Chatbot E2E', () => {
                 });
             });
 
-            virtual.generateSelfTask('test-task', { type: 'integration-test' });
+            virtual.generateSelfTask('test-task', {type: 'integration-test'});
 
             const msg = await received;
             expect(msg.content).toBe('test-task');
@@ -300,9 +299,9 @@ describe('MeTTaClaw Chatbot E2E', () => {
     describe('5. Context Building & Budget Management', () => {
         it('builds context string with all required slots', () => {
             const loopState = {
-                wm: [{ content: 'test item', priority: 0.8, ttl: 5 }],
+                wm: [{content: 'test item', priority: 0.8, ttl: 5}],
                 historyBuffer: ['USER: hello\nAGENT: hi'],
-                lastresults: [{ skill: 'send', result: 'sent' }],
+                lastresults: [{skill: 'send', result: 'sent'}],
                 error: null,
                 cycleCount: 1
             };
@@ -356,9 +355,9 @@ describe('MeTTaClaw Chatbot E2E', () => {
         it('processes user message through complete pipeline', async () => {
             const config = {
                 profile: 'parity',
-                loop: { maxSkillsPerCycle: 3 },
-                workingMemory: { defaultTtl: 10, maxEntries: 20 },
-                capabilities: { sExprSkillDispatch: true }
+                loop: {maxSkillsPerCycle: 3},
+                workingMemory: {defaultTtl: 10, maxEntries: 20},
+                capabilities: {sExprSkillDispatch: true}
             };
 
             const dispatcher = new SkillDispatcher(config);
@@ -380,7 +379,7 @@ describe('MeTTaClaw Chatbot E2E', () => {
             }, 'mettaControlPlane', ':network');
             dispatcher.register('attend', async (content, priority) => {
                 const pri = parseFloat(priority) || 0.5;
-                loopState.wm.push({ content: String(content), priority: pri, ttl: 10, cycleAdded: loopState.cycleCount });
+                loopState.wm.push({content: String(content), priority: pri, ttl: 10, cycleAdded: loopState.cycleCount});
                 loopState.wm.sort((a, b) => b.priority - a.priority);
                 return `attended: ${content}`;
             }, 'mettaControlPlane', ':reflect');
@@ -388,7 +387,7 @@ describe('MeTTaClaw Chatbot E2E', () => {
             const userInput = 'Hello, can you help me?';
             const mockLLMResponse = `((think "User is asking for help") (send "Of course! How can I assist you?") (attend "User needs help" 0.8))`;
 
-            const { cmds, error } = dispatcher.parseResponse(mockLLMResponse);
+            const {cmds, error} = dispatcher.parseResponse(mockLLMResponse);
             expect(error).toBeNull();
             expect(cmds).toHaveLength(3);
 
@@ -410,9 +409,9 @@ describe('MeTTaClaw Chatbot E2E', () => {
         it('maintains state across multiple interaction cycles', async () => {
             const config = {
                 profile: 'parity',
-                loop: { maxSkillsPerCycle: 3 },
-                workingMemory: { defaultTtl: 10, maxEntries: 20 },
-                capabilities: { sExprSkillDispatch: true }
+                loop: {maxSkillsPerCycle: 3},
+                workingMemory: {defaultTtl: 10, maxEntries: 20},
+                capabilities: {sExprSkillDispatch: true}
             };
 
             const dispatcher = new SkillDispatcher(config);
@@ -428,7 +427,7 @@ describe('MeTTaClaw Chatbot E2E', () => {
 
             dispatcher.register('attend', async (content, priority) => {
                 const pri = parseFloat(priority) || 0.5;
-                loopState.wm.push({ content: String(content), priority: pri, ttl: 5, cycleAdded: loopState.cycleCount });
+                loopState.wm.push({content: String(content), priority: pri, ttl: 5, cycleAdded: loopState.cycleCount});
                 loopState.wm.sort((a, b) => b.priority - a.priority);
                 return `attended: ${content}`;
             }, 'mettaControlPlane', ':reflect');
@@ -438,7 +437,7 @@ describe('MeTTaClaw Chatbot E2E', () => {
             for (let cycle = 0; cycle < 3; cycle++) {
                 loopState.cycleCount = cycle;
                 const response = `((attend "memory from cycle ${cycle}" ${0.5 + cycle * 0.1}) (send "response ${cycle}"))`;
-                const { cmds } = dispatcher.parseResponse(response);
+                const {cmds} = dispatcher.parseResponse(response);
                 await dispatcher.execute(cmds);
                 loopState.historyBuffer.push(`Cycle ${cycle} completed`);
             }
@@ -452,8 +451,8 @@ describe('MeTTaClaw Chatbot E2E', () => {
         it('working memory TTL expiration across cycles', async () => {
             const loopState = {
                 wm: [
-                    { content: 'short-lived', priority: 0.5, ttl: 2, cycleAdded: 0 },
-                    { content: 'long-lived', priority: 0.8, ttl: 5, cycleAdded: 0 }
+                    {content: 'short-lived', priority: 0.5, ttl: 2, cycleAdded: 0},
+                    {content: 'long-lived', priority: 0.8, ttl: 5, cycleAdded: 0}
                 ],
                 cycleCount: 0
             };
@@ -461,7 +460,7 @@ describe('MeTTaClaw Chatbot E2E', () => {
             for (let cycle = 0; cycle < 3; cycle++) {
                 loopState.cycleCount = cycle;
                 loopState.wm = loopState.wm
-                    .map(e => ({ ...e, ttl: e.ttl - 1 }))
+                    .map(e => ({...e, ttl: e.ttl - 1}))
                     .filter(e => e.ttl > 0);
             }
 
@@ -473,7 +472,7 @@ describe('MeTTaClaw Chatbot E2E', () => {
 
     describe('7. Capability Gating & Safety', () => {
         it('disabled skills are invisible to getActiveSkillDefs', () => {
-            const config = { profile: 'parity' };
+            const config = {profile: 'parity'};
             const dispatcher = new SkillDispatcher(config);
 
             dispatcher.register('send', jest.fn(), 'mettaControlPlane', ':network');
@@ -485,7 +484,7 @@ describe('MeTTaClaw Chatbot E2E', () => {
         });
 
         it('capability mismatch warnings logged on registration', () => {
-            const config = { profile: 'parity' };
+            const config = {profile: 'parity'};
             const dispatcher = new SkillDispatcher(config);
 
             dispatcher.loadSkillsFromFile = jest.fn();
@@ -499,20 +498,20 @@ describe('MeTTaClaw Chatbot E2E', () => {
 
     describe('8. Error Handling & Recovery', () => {
         it('handles handler errors without crashing dispatcher', async () => {
-            const config = { profile: 'parity', loop: { maxSkillsPerCycle: 3 } };
+            const config = {profile: 'parity', loop: {maxSkillsPerCycle: 3}};
             const dispatcher = new SkillDispatcher(config);
 
             dispatcher.register('failing-skill', async () => {
                 throw new Error('intentional failure');
             }, 'mettaControlPlane', ':reflect');
 
-            const results = await dispatcher.execute([{ name: 'failing-skill', args: [] }]);
+            const results = await dispatcher.execute([{name: 'failing-skill', args: []}]);
             expect(results[0].error).toBe('intentional failure');
             expect(results[0].skill).toBe('failing-skill');
         });
 
         it('handles empty command list gracefully', async () => {
-            const config = { profile: 'parity' };
+            const config = {profile: 'parity'};
             const dispatcher = new SkillDispatcher(config);
 
             const results = await dispatcher.execute([]);
@@ -520,14 +519,14 @@ describe('MeTTaClaw Chatbot E2E', () => {
         });
 
         it('handles null/undefined parse input', () => {
-            const config = { profile: 'parity', capabilities: { sExprSkillDispatch: true } };
+            const config = {profile: 'parity', capabilities: {sExprSkillDispatch: true}};
             const dispatcher = new SkillDispatcher(config);
 
-            const { cmds: cmds1, error: error1 } = dispatcher.parseResponse(null);
+            const {cmds: cmds1, error: error1} = dispatcher.parseResponse(null);
             expect(cmds1).toHaveLength(0);
             expect(error1).toBeNull();
 
-            const { cmds: cmds2, error: error2 } = dispatcher.parseResponse('');
+            const {cmds: cmds2, error: error2} = dispatcher.parseResponse('');
             expect(cmds2).toHaveLength(0);
             expect(error2).toBeNull();
         });

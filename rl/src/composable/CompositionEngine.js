@@ -90,7 +90,7 @@ export class CompositionEngine {
     }
 
     async executeStage(stage, input, context) {
-        const component = stage.component;
+        const {component} = stage;
 
         if (!component) {
             throw new Error(`Stage ${stage.id} has no component`);
@@ -127,8 +127,8 @@ export class CompositionEngine {
     }
 
     evaluateCondition(condition, input, context) {
-        if (typeof condition === 'function') return condition(input, context);
-        if (typeof condition === 'boolean') return condition;
+        if (typeof condition === 'function') {return condition(input, context);}
+        if (typeof condition === 'boolean') {return condition;}
         return true;
     }
 
@@ -198,7 +198,7 @@ export class CompositionEngine {
 
     serialize(name) {
         const pipeline = this.pipelines.get(name);
-        if (!pipeline) return null;
+        if (!pipeline) {return null;}
 
         return {
             name: pipeline.name,

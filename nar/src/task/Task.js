@@ -3,7 +3,7 @@ import { Truth } from '../Truth.js';
 import { Term } from '../term/Term.js';
 import { getOperator, getComponents } from '../term/TermUtils.js';
 
-const freeze = Object.freeze;
+const {freeze} = Object;
 
 export const Punctuation = freeze({ BELIEF: '.', GOAL: '!', QUESTION: '?' });
 const TaskType = freeze({ BELIEF: 'BELIEF', GOAL: 'GOAL', QUESTION: 'QUESTION' });
@@ -24,7 +24,7 @@ const DEFAULT_BUDGET = freeze({ priority: 0.5, durability: 0.5, quality: 0.5, cy
 
 export class Task {
     constructor({ term, punctuation = Punctuation.BELIEF, truth = null, budget = DEFAULT_BUDGET, stamp = null, metadata = null }) {
-        if (!(term instanceof Term)) throw new Error('Task must be initialized with a valid Term object.');
+        if (!(term instanceof Term)) {throw new Error('Task must be initialized with a valid Term object.');}
 
         this.type = PUNCTUATION_TO_TYPE[punctuation] ?? TaskType.BELIEF;
 
@@ -45,7 +45,7 @@ export class Task {
     get punctuation() { return TYPE_TO_PUNCTUATION[this.type]; }
 
     static fromJSON(data) {
-        if (!data) throw new Error('Task.fromJSON requires valid data object');
+        if (!data) {throw new Error('Task.fromJSON requires valid data object');}
 
         const term = typeof data.term === 'string'
             ? { toString: () => data.term, equals: (o) => o?.toString?.() === data.term }
@@ -60,10 +60,10 @@ export class Task {
     }
 
     _unwrapNegation(term, truth) {
-        if (getOperator(term) !== '--') return {term, truth};
+        if (getOperator(term) !== '--') {return {term, truth};}
 
         const comps = getComponents(term);
-        if (comps.length !== 1) return {term, truth};
+        if (comps.length !== 1) {return {term, truth};}
 
         const t = this._createTruth(truth);
         return {
@@ -84,7 +84,7 @@ export class Task {
     }
 
     _createTruth(truth) {
-        if (truth instanceof Truth) return truth;
+        if (truth instanceof Truth) {return truth;}
         return (truth?.frequency != null && truth?.confidence != null)
             ? Truth.create(truth.frequency, truth.confidence)
             : null;
@@ -106,8 +106,8 @@ export class Task {
     isQuestion() { return this.type === TaskType.QUESTION; }
 
     equals(other) {
-        if (this === other) return true;
-        if (!(other instanceof Task) || this.type !== other.type) return false;
+        if (this === other) {return true;}
+        if (!(other instanceof Task) || this.type !== other.type) {return false;}
 
         return (this.term === other.term || this.term.equals(other.term)) &&
                (this.truth === other.truth || (this.truth?.equals(other.truth) ?? false));

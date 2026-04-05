@@ -16,7 +16,7 @@ export class OperationHelpers {
      * Convert an atom to a number
      */
     static atomToNum(atom) {
-        if (typeof atom === 'number') return atom;
+        if (typeof atom === 'number') {return atom;}
         if (atom?.name) {
             const num = parseFloat(atom.name);
             return isNaN(num) ? null : num;
@@ -28,9 +28,9 @@ export class OperationHelpers {
      * Require numeric arguments
      */
     static requireNums(args, count = null) {
-        if (count !== null && args.length !== count) throw new Error(`Expected ${count} args`);
+        if (count !== null && args.length !== count) {throw new Error(`Expected ${count} args`);}
         const nums = args.map(a => OperationHelpers.atomToNum(a));
-        if (nums.some(n => n === null)) throw new Error("Expected numbers");
+        if (nums.some(n => n === null)) {throw new Error("Expected numbers");}
         return nums;
     }
 
@@ -45,12 +45,12 @@ export class OperationHelpers {
      * Determine the truthiness of a value
      */
     static truthy(val) {
-        if (!val) return false;
-        if (!val.name) return Boolean(val);
+        if (!val) {return false;}
+        if (!val.name) {return Boolean(val);}
 
         const name = val.name.toLowerCase();
-        if (['false', 'null', 'nil'].includes(name)) return false;
-        if (name === 'true') return true;
+        if (['false', 'null', 'nil'].includes(name)) {return false;}
+        if (name === 'true') {return true;}
 
         const num = parseFloat(val.name);
         return !isNaN(num) ? num !== 0 : true;
@@ -61,8 +61,8 @@ export class OperationHelpers {
      */
     static flattenExpr(expr) {
         // Early return for empty list symbol to prevent it being included in results
-        if (!expr || expr.name === '()') return [];
-        if (!isExpression(expr)) return [expr];
+        if (!expr || expr.name === '()') {return [];}
+        if (!isExpression(expr)) {return [expr];}
 
         // Special handling for list structure (: head tail)
         if (isList(expr)) {
@@ -74,7 +74,7 @@ export class OperationHelpers {
 
         // For other expressions, flatten all parts
         const result = [];
-        if (expr.operator) result.push(expr.operator);
+        if (expr.operator) {result.push(expr.operator);}
         if (expr.components) {
             for (const comp of expr.components) {
                 if (comp.name !== '()') {

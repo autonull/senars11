@@ -33,7 +33,7 @@ export class RelationshipIndex extends BaseIndex {
         const {term} = concept;
         if (!term.isAtomic && term.operator) {
             const operation = this._indexOperations[term.operator];
-            if (operation) operation(term, concept);
+            if (operation) {operation(term, concept);}
         }
     }
 
@@ -74,7 +74,7 @@ export class RelationshipIndex extends BaseIndex {
         const {term} = concept;
         if (!term.isAtomic && term.operator) {
             const operation = this._removeOperations[term.operator];
-            if (operation) operation(term, concept);
+            if (operation) {operation(term, concept);}
         }
     }
 
@@ -131,11 +131,11 @@ export class RelationshipIndex extends BaseIndex {
 
         if (subject) {
             const concepts = this._inheritanceIndex.get(`subject:${subject.toString()}`);
-            if (concepts) result.push(...Array.from(concepts));
+            if (concepts) {result.push(...Array.from(concepts));}
         }
         if (predicate) {
             const concepts = this._inheritanceIndex.get(`predicate:${predicate.toString()}`);
-            if (concepts) result.push(...Array.from(concepts));
+            if (concepts) {result.push(...Array.from(concepts));}
         }
 
         return result;
@@ -147,11 +147,11 @@ export class RelationshipIndex extends BaseIndex {
 
         if (premise) {
             const concepts = this._implicationIndex.get(`premise:${premise.toString()}`);
-            if (concepts) result.push(...Array.from(concepts));
+            if (concepts) {result.push(...Array.from(concepts));}
         }
         if (conclusion) {
             const concepts = this._implicationIndex.get(`conclusion:${conclusion.toString()}`);
-            if (concepts) result.push(...Array.from(concepts));
+            if (concepts) {result.push(...Array.from(concepts));}
         }
 
         return result;
@@ -163,7 +163,7 @@ export class RelationshipIndex extends BaseIndex {
 
         if (term) {
             const concepts = this._similarityIndex.get(`similar:${term.toString()}`);
-            if (concepts) result.push(...Array.from(concepts));
+            if (concepts) {result.push(...Array.from(concepts));}
         }
 
         return result;

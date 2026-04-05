@@ -26,7 +26,7 @@ export const TUI = ({engine, app}) => {
     const handleControlCommand = async (type) => {
         const res = await messageHandler.processMessage({type: `control/${type}`});
         if (res.payload?.result) {
-            const result = res.payload.result;
+            const {result} = res.payload;
             if (typeof result === 'string') {
                 addLog(result, 'success');
             } else {
@@ -131,8 +131,12 @@ export const TUI = ({engine, app}) => {
         }
 
 
-        if (key.upArrow) navigateHistory('up', setInputValue);
-        if (key.downArrow) navigateHistory('down', setInputValue);
+        if (key.upArrow) {
+            navigateHistory('up', setInputValue);
+        }
+        if (key.downArrow) {
+            navigateHistory('down', setInputValue);
+        }
     });
 
     const handleSubmit = async () => {
@@ -148,7 +152,7 @@ export const TUI = ({engine, app}) => {
 
         addLog(`> ${command}`, 'info');
 
-        (async () => {
+        await (async () => {
             try {
                 if (command.startsWith('/')) {
                     const [cmdName, ...args] = command.slice(1).split(' ');
@@ -219,7 +223,7 @@ export const TUI = ({engine, app}) => {
                     if (mode === 'narsese') {
                         const res = await messageHandler.processMessage({type: 'narseseInput', payload: command});
                         if (res.payload?.result) {
-                            const result = res.payload.result;
+                            const {result} = res.payload;
                             if (typeof result === 'string') {
                                 addLog(result, 'success');
                             } else {
@@ -234,7 +238,9 @@ export const TUI = ({engine, app}) => {
                                 }
                             }
                         }
-                        if (res.error) addLog(res.error, 'error');
+                        if (res.error) {
+                            addLog(res.error, 'error');
+                        }
                     } else {
                         const responseLogId = uuidv4();
                         streamingResponseRef.current = responseLogId;
@@ -263,7 +269,9 @@ export const TUI = ({engine, app}) => {
 
                             try {
                                 for await (const chunk of engine.streamExecution(command)) {
-                                    if (abortController.signal.aborted) break;
+                                    if (abortController.signal.aborted) {
+                                        break;
+                                    }
 
                                     if (chunk.type === 'agent_response') {
                                         fullResponse += chunk.content;

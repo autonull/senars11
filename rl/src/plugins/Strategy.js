@@ -116,7 +116,7 @@ export class BoltzmannExploration extends Strategy {
     }
 
     select(values) {
-        const temperature = this.config.temperature;
+        const {temperature} = this.config;
         const expValues = values.map(v => Math.exp(v / temperature));
         const sumExp = expValues.reduce((a, b) => a + b, 0);
         const probs = expValues.map(e => e / sumExp);
@@ -125,7 +125,7 @@ export class BoltzmannExploration extends Strategy {
         let cumsum = 0;
         for (let i = 0; i < probs.length; i++) {
             cumsum += probs[i];
-            if (r <= cumsum) return i;
+            if (r <= cumsum) {return i;}
         }
         return probs.length - 1;
     }
@@ -163,7 +163,7 @@ export class UCB extends Strategy {
 
         // Try each action once
         for (let i = 0; i < this.counts.length; i++) {
-            if (this.counts[i] === 0) return i;
+            if (this.counts[i] === 0) {return i;}
         }
 
         // UCB selection

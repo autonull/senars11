@@ -11,17 +11,17 @@ export class Decompose1 extends NALRule {
      * (A && B). |- A. B.
      */
     canApply(primaryPremise, secondaryPremise, context) {
-        if (!primaryPremise || secondaryPremise) return false; // Only unary
-        const term = primaryPremise.term;
+        if (!primaryPremise || secondaryPremise) {return false;} // Only unary
+        const {term} = primaryPremise;
         // Check for conjunction-like compounds: &&, &, *
         return term && term.isCompound && ['&&', '&', '*'].includes(term.operator);
     }
 
     apply(primaryPremise, secondaryPremise, context) {
-        if (!this.canApply(primaryPremise, secondaryPremise, context)) return [];
+        if (!this.canApply(primaryPremise, secondaryPremise, context)) {return [];}
 
-        const term = primaryPremise.term;
-        const truth = primaryPremise.truth;
+        const {term} = primaryPremise;
+        const {truth} = primaryPremise;
         const derived = [];
 
         // Apply structural deduction to get truth of components
@@ -36,7 +36,7 @@ export class Decompose1 extends NALRule {
                     [primaryPremise],
                     context
                 );
-                if (task) derived.push(task);
+                if (task) {derived.push(task);}
             });
         }
 

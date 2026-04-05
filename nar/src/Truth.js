@@ -20,9 +20,9 @@ export class Truth {
 
     static create(f, c) {
         if (Math.abs(c - TRUTH_DEFAULTS.DEFAULT_CONFIDENCE) < TRUTH_THRESHOLDS.EPSILON) {
-            if (Math.abs(f - 1.0) < TRUTH_THRESHOLDS.EPSILON) return Truth.TRUE;
-            if (Math.abs(f - 0.0) < TRUTH_THRESHOLDS.EPSILON) return Truth.FALSE;
-            if (Math.abs(f - TRUTH_DEFAULTS.NEUTRAL_FREQUENCY) < TRUTH_THRESHOLDS.EPSILON) return Truth.NEUTRAL;
+            if (Math.abs(f - 1.0) < TRUTH_THRESHOLDS.EPSILON) {return Truth.TRUE;}
+            if (Math.abs(f - 0.0) < TRUTH_THRESHOLDS.EPSILON) {return Truth.FALSE;}
+            if (Math.abs(f - TRUTH_DEFAULTS.NEUTRAL_FREQUENCY) < TRUTH_THRESHOLDS.EPSILON) {return Truth.NEUTRAL;}
         }
         return new Truth(f, c);
     }
@@ -62,8 +62,8 @@ export class Truth {
     }
 
     static revision(t1, t2) {
-        if (!t1 || !t2) return t1 || t2;
-        if (t1 === t2 || t1.equals(t2)) return t1;
+        if (!t1 || !t2) {return t1 || t2;}
+        if (t1 === t2 || t1.equals(t2)) {return t1;}
 
         const { f: f1, c: c1 } = t1;
         const { f: f2, c: c2 } = t2;
@@ -72,15 +72,15 @@ export class Truth {
         const w2 = Truth.c2w(c2);
         const w = w1 + w2;
 
-        if (w <= 0) return Truth.create((f1 + f2) / 2, 0);
+        if (w <= 0) {return Truth.create((f1 + f2) / 2, 0);}
 
         const f = (w1 * f1 + w2 * f2) / w;
         return Truth.create(f, Truth.w2c(w));
     }
 
     static choice(t1, t2) {
-        if (!t1) return t2;
-        if (!t2) return t1;
+        if (!t1) {return t2;}
+        if (!t2) {return t1;}
 
         const e1 = Truth.expectation(t1);
         const e2 = Truth.expectation(t2);
@@ -100,7 +100,7 @@ export class Truth {
     }
 
     static expectation(t) {
-        if (!t) return 0.5;
+        if (!t) {return 0.5;}
         const { f, c } = t;
         return c * (f - 0.5) + 0.5;
     }

@@ -36,7 +36,7 @@ export class ValidationUtils {
         this._validation.autoValidation = true;
         this._validation.validationInterval = setInterval(() => {
             const result = this.validate(null, callback);
-            if (callback) callback(result);
+            if (callback) {callback(result);}
         }, interval);
     }
 
@@ -66,7 +66,7 @@ export class ValidationUtils {
         } catch (error) {
             results.passed = false;
             results.errors.push(`Validation failed with exception: ${error.message}`);
-            if (logger) logger.error('Validation failed with exception:', error);
+            if (logger) {logger.error('Validation failed with exception:', error);}
         }
 
         results.duration = Date.now() - validationStartTime;
@@ -157,7 +157,7 @@ export class ValidationUtils {
         };
 
         const validator = validationMap[concept.term.operator];
-        if (validator) validator(concept, termId, indexes, result);
+        if (validator) {validator(concept, termId, indexes, result);}
     }
 
     _validateRelationshipConsistency(concept, termId, indexes, result, operator, indexName, componentExtractor) {

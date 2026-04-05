@@ -191,7 +191,7 @@ export class CheckpointManager extends Component {
 
         // Remove old checkpoint files (but never delete best)
         for (const checkpoint of toRemove) {
-            if (checkpoint.isBest) continue; // Never delete best
+            if (checkpoint.isBest) {continue;} // Never delete best
 
             const filepath = path.join(this.config.directory, checkpoint.filename);
             try {
@@ -306,7 +306,7 @@ export class CheckpointManager extends Component {
      */
     async delete(filename) {
         const idx = this.checkpoints.findIndex(cp => cp.filename === filename);
-        if (idx === -1) return false;
+        if (idx === -1) {return false;}
 
         const checkpoint = this.checkpoints[idx];
         const filepath = path.join(this.config.directory, filename);

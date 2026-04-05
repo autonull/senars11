@@ -19,10 +19,10 @@ export class LMNarseseTranslationRule extends LMRule {
                 !primary.term.includes('==>'),
             process: (response, primary, secondary, context) => response,
             generate: (response, primary, secondary, context) => {
-                if (!response) return [];
+                if (!response) {return [];}
 
                 const translator = new NarseseTranslator();
-                const lmStats = context.lmStats;
+                const {lmStats} = context;
                 const providerId = this.lm.providerId || 'unknown';
 
                 let logProb = null;

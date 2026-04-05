@@ -13,7 +13,7 @@ export function registerSetOps(registry) {
         const seen = new Set();
         const result = OperationHelpers.flattenExpr(expr).filter(el => {
             const key = toKey(el);
-            if (seen.has(key)) return false;
+            if (seen.has(key)) {return false;}
             seen.add(key);
             return true;
         });

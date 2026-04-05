@@ -52,11 +52,11 @@ export class SkillLibrary extends Component {
 
         const candidates = Array.from(this.skills.entries())
             .filter(([name, skill]) => {
-                if (abstractionLevel !== null && skill.config.abstractionLevel !== abstractionLevel) return false;
+                if (abstractionLevel !== null && skill.config.abstractionLevel !== abstractionLevel) {return false;}
                 const stats = this.usageStats.get(name);
                 if (stats && stats.count > 0) {
                     const successRate = stats.success / stats.count;
-                    if (successRate < minSuccessRate) return false;
+                    if (successRate < minSuccessRate) {return false;}
                 }
                 return skill.canInitiate(context.observation, context);
             })
@@ -77,7 +77,7 @@ export class SkillLibrary extends Component {
     }
 
     computeRelevance(skill, context) {
-        if (!skill.config.precondition) return 0.5;
+        if (!skill.config.precondition) {return 0.5;}
         try {
             return skill.config.precondition(context.observation, context) ? 0.8 : 0.2;
         } catch {
@@ -117,7 +117,7 @@ export class SkillLibrary extends Component {
 
     recordSuccess(name, success) {
         const stats = this.usageStats.get(name);
-        if (stats) stats.success += success ? 1 : 0;
+        if (stats) {stats.success += success ? 1 : 0;}
     }
 
     list() {
@@ -131,7 +131,7 @@ export class SkillLibrary extends Component {
 
     getSuccessRate(name) {
         const stats = this.usageStats.get(name);
-        if (!stats || stats.count === 0) return 0.5;
+        if (!stats || stats.count === 0) {return 0.5;}
         return stats.success / stats.count;
     }
 
@@ -203,8 +203,8 @@ export class SkillDiscoveryEngine extends Component {
     }
 
     stateToKey(state) {
-        if (Array.isArray(state)) return state.map(x => Math.round(x * 10)).join('_');
-        if (state instanceof SymbolicTensor) return state.toNarseseTerm('s');
+        if (Array.isArray(state)) {return state.map(x => Math.round(x * 10)).join('_');}
+        if (state instanceof SymbolicTensor) {return state.toNarseseTerm('s');}
         return String(state);
     }
 
@@ -212,11 +212,11 @@ export class SkillDiscoveryEngine extends Component {
         const visits = this.stateVisits.get(stateKey) ?? 0;
         const transitions = this.transitionGraph.get(stateKey);
 
-        if (!transitions || visits < this.config.minUsageCount) return false;
+        if (!transitions || visits < this.config.minUsageCount) {return false;}
 
         let inDegree = 0;
         for (const [, trans] of this.transitionGraph) {
-            if (trans.has(stateKey)) inDegree += trans.get(stateKey);
+            if (trans.has(stateKey)) {inDegree += trans.get(stateKey);}
         }
 
         const outDegree = Array.from(transitions.values()).reduce((a, b) => a + b, 0);
@@ -277,7 +277,7 @@ export class SkillDiscoveryEngine extends Component {
         const visited = new Set();
 
         for (const [state] of this.transitionGraph) {
-            if (visited.has(state)) continue;
+            if (visited.has(state)) {continue;}
 
             const community = [state];
             visited.add(state);
@@ -298,7 +298,7 @@ export class SkillDiscoveryEngine extends Component {
                 }
             }
 
-            if (community.length > 1) communities.push(community);
+            if (community.length > 1) {communities.push(community);}
         }
 
         return communities;
@@ -344,7 +344,7 @@ export class SkillDiscoveryEngine extends Component {
 
     promoteSkill(skillName) {
         const idx = this.candidateSkills.findIndex(s => s.config.name === skillName);
-        if (idx === -1) return false;
+        if (idx === -1) {return false;}
         const skill = this.candidateSkills[idx];
         this.library.register(skillName, skill);
         this.candidateSkills.splice(idx, 1);

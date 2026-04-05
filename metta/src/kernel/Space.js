@@ -14,7 +14,7 @@ export class Space {
     get atoms() { return this.#atoms; }
 
     add(atom) {
-        if (!atom) throw new Error('Cannot add null/undefined atom');
+        if (!atom) {throw new Error('Cannot add null/undefined atom');}
         if (!this.#atoms.has(atom)) {
             this.#atoms.add(atom);
             const rule = { pattern: atom };
@@ -45,7 +45,7 @@ export class Space {
     }
 
     addRule(pattern, result) {
-        if (!pattern) throw new Error('Pattern cannot be null');
+        if (!pattern) {throw new Error('Pattern cannot be null');}
         const rule = { pattern, result };
         this.#ruleIndex.addRule(rule);
         this.#pathTrie?.insert(pattern, rule);
@@ -57,10 +57,10 @@ export class Space {
     }
 
     rulesFor(term) {
-        if (typeof term === 'string') term = sym(term);
+        if (typeof term === 'string') {term = sym(term);}
         if (this.#pathTrie) {
             const trieRules = this.#pathTrie.query(term);
-            if (trieRules.length > 0) return trieRules;
+            if (trieRules.length > 0) {return trieRules;}
         }
         return this.#ruleIndex.rulesFor(term);
     }

@@ -57,8 +57,8 @@ export class ComponentRegistry {
             }
         }
 
-        if (entry.factory) return entry.factory(config, context, this);
-        if (this.factories.has(resolvedName)) return this.factories.get(resolvedName)(config, context, this);
+        if (entry.factory) {return entry.factory(config, context, this);}
+        if (this.factories.has(resolvedName)) {return this.factories.get(resolvedName)(config, context, this);}
 
         return new entry.class(config);
     }
@@ -100,7 +100,7 @@ export class ComponentRegistry {
 
         while (toResolve.length > 0) {
             const current = toResolve.pop();
-            if (resolved.has(current)) continue;
+            if (resolved.has(current)) {continue;}
 
             const entry = this.components.get(current);
             if (!entry) {
@@ -139,8 +139,8 @@ export class ComponentRegistry {
         const { prefix = '', suffix = '', filter = null } = options;
 
         Object.entries(module).forEach(([name, ComponentClass]) => {
-            if (typeof ComponentClass !== 'function') return;
-            if (filter && !filter(name, ComponentClass)) return;
+            if (typeof ComponentClass !== 'function') {return;}
+            if (filter && !filter(name, ComponentClass)) {return;}
 
             const fullName = `${prefix}${name}${suffix}`;
             this.register(fullName, ComponentClass);

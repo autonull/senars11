@@ -54,8 +54,8 @@ export class ILNode {
   }
 
   equals(other) {
-    if (!other || this.kind !== other.kind || this.arity !== other.arity || this.opId !== other.opId) return false;
-    if (this.value !== other.value || this.children.length !== other.children.length) return false;
+    if (!other || this.kind !== other.kind || this.arity !== other.arity || this.opId !== other.opId) {return false;}
+    if (this.value !== other.value || this.children.length !== other.children.length) {return false;}
     return this.children.every((c, i) => c.equals(other.children[i]));
   }
 
@@ -74,13 +74,13 @@ export class ILNode {
 
 export const ILLower = {
   lower(term, ground) {
-    if (!term) return ILNode.symbol('()');
-    if (isVariable(term)) return ILNode.symbol(term.name);
-    if (typeof term === 'number') return ILNode.number(term);
+    if (!term) {return ILNode.symbol('()');}
+    if (isVariable(term)) {return ILNode.symbol(term.name);}
+    if (typeof term === 'number') {return ILNode.number(term);}
     if (typeof term.name === 'string' && !term.components) {
       return isNaN(Number(term.name)) ? ILNode.symbol(term.name) : ILNode.number(Number(term.name));
     }
-    if (isExpression(term)) return this.lowerExpression(term, ground);
+    if (isExpression(term)) {return this.lowerExpression(term, ground);}
     return ILNode.symbol(String(term));
   },
 
@@ -89,11 +89,11 @@ export const ILLower = {
     const comps = expr.components || [];
     const opName = op?.name || op;
 
-    if (opName === 'let' && comps.length === 3) return this.lowerLet(expr, ground);
-    if (opName === 'let*' && comps.length >= 2) return this.lowerLetStar(expr, ground);
-    if (opName === 'if' && comps.length >= 3) return this.lowerIf(expr, ground);
-    if (opName === 'superpose' && comps.length > 0) return this.lowerSuperpose(expr, ground);
-    if (opName === 'match' && comps.length >= 3) return this.lowerMatch(expr, ground);
+    if (opName === 'let' && comps.length === 3) {return this.lowerLet(expr, ground);}
+    if (opName === 'let*' && comps.length >= 2) {return this.lowerLetStar(expr, ground);}
+    if (opName === 'if' && comps.length >= 3) {return this.lowerIf(expr, ground);}
+    if (opName === 'superpose' && comps.length > 0) {return this.lowerSuperpose(expr, ground);}
+    if (opName === 'match' && comps.length >= 3) {return this.lowerMatch(expr, ground);}
 
     if (op && ground?.has(op)) {
       const opId = ground.getOpId(op);
@@ -110,7 +110,7 @@ export const ILLower = {
 
   lowerLetStar(expr, ground) {
     const comps = expr.components;
-    if (comps.length < 2) return ILNode.symbol('()');
+    if (comps.length < 2) {return ILNode.symbol('()');}
 
     const bindings = [];
     let i = 0;
@@ -122,7 +122,7 @@ export const ILLower = {
       } else if (isExpression(binding)) {
         bindings.push({ var: this.lower(binding.operator, ground), val: this.lower(binding.components[0], ground) });
         i++;
-      } else break;
+      } else {break;}
     }
 
     const body = this.lower(comps[comps.length - 1], ground);
@@ -155,7 +155,7 @@ export const ILOpt = {
   },
 
   constantFold(il, ground) {
-    if (!il) return il;
+    if (!il) {return il;}
     const node = il.clone();
     node.children = il.children.map(c => this.constantFold(c, ground));
 
@@ -167,7 +167,7 @@ export const ILOpt = {
           const op = ground.getOpById(node.opId);
           if (op && ground.isPure(op)) {
             const result = ground.execute(op, ...args);
-            if (typeof result === 'number') return ILNode.number(result);
+            if (typeof result === 'number') {return ILNode.number(result);}
           }
         } catch (e) { /* Keep node on error */ }
       }
@@ -185,35 +185,35 @@ export const ILOpt = {
           case '*': result = values.reduce((a, b) => a * b, 1); break;
           case '/': result = values.reduce((a, b) => a / b); break;
         }
-        if (result !== undefined) return ILNode.number(result);
+        if (result !== undefined) {return ILNode.number(result);}
       }
     }
     return node;
   },
 
   inlinePureGroundCalls(il, ground) {
-    if (!il) return il;
+    if (!il) {return il;}
     const node = il.clone();
     node.children = il.children.map(c => this.inlinePureGroundCalls(c, ground));
     if (node.kind === ILKind.GROUND_CALL && ground) {
       const op = ground.getOpById(node.opId);
-      if (op && ground.isPure(op) && node.children.length <= 2) node.opId = -node.opId;
+      if (op && ground.isPure(op) && node.children.length <= 2) {node.opId = -node.opId;}
     }
     return node;
   },
 
   deadBranchElimination(il) {
-    if (!il) return il;
+    if (!il) {return il;}
     const node = il.clone();
     node.children = il.children.map(c => this.deadBranchElimination(c));
 
     if (node.kind === ILKind.IF) {
       const [cond, thenB, elseB] = node.children;
       if (cond.kind === ILKind.SYMBOL) {
-        if (cond.value === 'True') return thenB;
-        if (cond.value === 'False') return elseB;
+        if (cond.value === 'True') {return thenB;}
+        if (cond.value === 'False') {return elseB;}
       }
-      if (cond.kind === ILKind.NUMBER) return cond.value !== 0 ? thenB : elseB;
+      if (cond.kind === ILKind.NUMBER) {return cond.value !== 0 ? thenB : elseB;}
     }
 
     if (node.kind === ILKind.SUPERPOSE) {
@@ -228,17 +228,17 @@ export const ILOpt = {
   },
 
   _cseInternal(il, seen) {
-    if (!il) return il;
+    if (!il) {return il;}
     const key = this._nodeKey(il);
-    if (seen.has(key) && il.kind !== ILKind.SYMBOL && il.kind !== ILKind.NUMBER) return seen.get(key);
+    if (seen.has(key) && il.kind !== ILKind.SYMBOL && il.kind !== ILKind.NUMBER) {return seen.get(key);}
     const node = il.clone();
     node.children = il.children.map(c => this._cseInternal(c, seen));
-    if (il.kind !== ILKind.SYMBOL && il.kind !== ILKind.NUMBER) seen.set(key, node);
+    if (il.kind !== ILKind.SYMBOL && il.kind !== ILKind.NUMBER) {seen.set(key, node);}
     return node;
   },
 
   _nodeKey(il) {
-    if (!il) return '';
+    if (!il) {return '';}
     return [il.kind, il.arity, il.opId, il.value, ...il.children.map(c => this._nodeKey(c))].join('|');
   }
 };
@@ -277,7 +277,7 @@ export const ILEmit = {
       }
       case ILKind.SUPERPOSE: return `[${il.children.map(c => this.emitNode(c, ground, indent)).join(', ')}]`;
       case ILKind.EXPR: {
-        if (il.children.length === 0) return `sym('()')`;
+        if (il.children.length === 0) {return `sym('()')`;}
         const op = this.emitNode(il.children[0], ground, indent);
         const args = il.children.slice(1).map(c => this.emitNode(c, ground, indent));
         return `exp(${op}, [${args.join(', ')}])`;

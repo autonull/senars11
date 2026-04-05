@@ -16,7 +16,7 @@ export class StdlibLoader {
     }
 
     _createAdapter(options) {
-        if (options.adapter) return options.adapter;
+        if (options.adapter) {return options.adapter;}
         const env = getEnvironment();
         if (env === 'node') {
             return new FileLoader({ baseDir: options.stdlibDir, searchPaths: options.searchPaths });
@@ -45,7 +45,7 @@ export class StdlibLoader {
 
     loadModule(name) {
         const fileName = `${name}.metta`;
-        if (!this.adapter.exists(fileName)) throw new Error(`Module '${name}' not found`);
+        if (!this.adapter.exists(fileName)) {throw new Error(`Module '${name}' not found`);}
 
         const content = this.adapter.read(fileName);
         const sizeBefore = this.interpreter.space?.size?.() ?? 0;

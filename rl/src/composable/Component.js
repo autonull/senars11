@@ -66,7 +66,7 @@ export class Component extends BaseComponent {
     }
 
     async initialize() {
-        if (this.initialized) return this;
+        if (this.initialized) {return this;}
 
         await Promise.all(Array.from(this.children.values()).map(child => child.initialize()));
         await this.onInitialize();
@@ -147,7 +147,7 @@ export class Component extends BaseComponent {
     unsubscribe({ event, callback }) {
         this._localEventListeners.get(event)?.delete(callback);
         const idx = this._subscriptions.findIndex(s => s.event === event && s.callback === callback);
-        if (idx >= 0) this._subscriptions.splice(idx, 1);
+        if (idx >= 0) {this._subscriptions.splice(idx, 1);}
     }
 
     emit(event, data) {

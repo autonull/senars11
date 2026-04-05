@@ -3,7 +3,7 @@
  * Run in Agent.initialize() before validateDeps().
  * Per METTACLAW §5.9 — Invalid configurations should produce clear errors.
  */
-import { DEFAULTS } from './capabilities.js';
+import {DEFAULTS} from './capabilities.js';
 
 const VALID_PROFILES = ['minimal', 'parity', 'evolved', 'full'];
 
@@ -15,7 +15,9 @@ export function validate(config) {
     }
 
     for (const key of Object.keys(config.capabilities ?? {})) {
-        if (!(key in DEFAULTS)) errors.push(`Unknown capability: ${key}`);
+        if (!(key in DEFAULTS)) {
+            errors.push(`Unknown capability: ${key}`);
+        }
     }
 
     const lm = config.lm ?? {};

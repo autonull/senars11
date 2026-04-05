@@ -20,14 +20,14 @@ const MAX_UNIFICATION_DEPTH = 2000;
  * @returns {Object|null} - Updated bindings or null if unification fails
  */
 export const unify = (t1, t2, bindings = {}, adapter, depth = 0) => {
-    if (depth > MAX_UNIFICATION_DEPTH) return null; // Prevent stack overflow by failing unification on deep recursion
+    if (depth > MAX_UNIFICATION_DEPTH) {return null;} // Prevent stack overflow by failing unification on deep recursion
 
     const b1 = adapter.substitute(t1, bindings);
     const b2 = adapter.substitute(t2, bindings);
 
-    if (adapter.equals(b1, b2)) return bindings;
-    if (adapter.isVariable(b1)) return bindVariable(b1, b2, bindings, adapter);
-    if (adapter.isVariable(b2)) return bindVariable(b2, b1, bindings, adapter);
+    if (adapter.equals(b1, b2)) {return bindings;}
+    if (adapter.isVariable(b1)) {return bindVariable(b1, b2, bindings, adapter);}
+    if (adapter.isVariable(b2)) {return bindVariable(b2, b1, bindings, adapter);}
 
     if (adapter.isCompound(b1) && adapter.isCompound(b2)) {
         return unifyCompounds(b1, b2, bindings, adapter, depth);
@@ -43,7 +43,7 @@ const unifyCompounds = (t1, t2, bindings, adapter, depth) => {
     const comps1 = adapter.getComponents(t1);
     const comps2 = adapter.getComponents(t2);
 
-    if (comps1.length !== comps2.length) return null;
+    if (comps1.length !== comps2.length) {return null;}
 
     const op1 = adapter.getOperator(t1);
     const op2 = adapter.getOperator(t2);
@@ -51,7 +51,7 @@ const unifyCompounds = (t1, t2, bindings, adapter, depth) => {
     // Unify operators instead of identity check to support variable operators
     // (e.g., in lambda patterns like ((λ $x $x) 5) where operator is an expression)
     const opResult = unify(op1, op2, bindings, adapter, depth + 1);
-    if (!opResult) return null;
+    if (!opResult) {return null;}
 
     return comps1.reduce((current, comp1, i) => {
         return current ? unify(comp1, comps2[i], current, adapter, depth + 1) : null;
@@ -87,7 +87,7 @@ const occursCheck = (varName, term, bindings, adapter) => {
         const curr = stack.pop();
 
         if (adapter.isVariable(curr)) {
-            if (adapter.getVariableName(curr) === varName) return true;
+            if (adapter.getVariableName(curr) === varName) {return true;}
         } else if (adapter.isCompound(curr)) {
             const comps = adapter.getComponents(curr);
             // Push in reverse order to process first component first (DFS)
@@ -109,12 +109,12 @@ const occursCheck = (varName, term, bindings, adapter) => {
  * @returns {*} - Substituted term
  */
 export const substitute = (term, bindings, adapter, visited = new Set()) => {
-    if (!term) return term;
+    if (!term) {return term;}
 
     if (adapter.isVariable(term)) {
         const varName = adapter.getVariableName(term);
         if (bindings[varName]) {
-            if (visited.has(varName)) return term; // Cycle detected
+            if (visited.has(varName)) {return term;} // Cycle detected
             visited.add(varName);
             return substitute(bindings[varName], bindings, adapter, visited);
         }
@@ -126,7 +126,7 @@ export const substitute = (term, bindings, adapter, visited = new Set()) => {
         let changed = false;
         const newComponents = components.map(comp => {
             const newComp = substitute(comp, bindings, adapter, new Set(visited));
-            if (newComp !== comp) changed = true;
+            if (newComp !== comp) {changed = true;}
             return newComp;
         });
 
@@ -150,11 +150,11 @@ export const match = (pattern, term, bindings = {}, adapter) => {
     }
 
     if (adapter.isCompound(p) && adapter.isCompound(term)) {
-        if (adapter.getOperator(p) !== adapter.getOperator(term)) return null;
+        if (adapter.getOperator(p) !== adapter.getOperator(term)) {return null;}
 
         const pComps = adapter.getComponents(p);
         const tComps = adapter.getComponents(term);
-        if (pComps.length !== tComps.length) return null;
+        if (pComps.length !== tComps.length) {return null;}
 
         return pComps.reduce((current, pComp, i) => {
             return current ? match(pComp, tComps[i], current, adapter) : null;

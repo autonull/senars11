@@ -13,7 +13,7 @@ export class FileManager {
         input.accept = '.csv';
         input.onchange = (e) => {
             const file = e.target.files[0];
-            if (!file) return;
+            if (!file) {return;}
             this.loadCSVFile(file);
         };
         input.click();
@@ -87,7 +87,7 @@ export class FileManager {
     }
 
     handleSaveJSON() {
-        if (!this.app.graph || !this.app.graph.cy) return;
+        if (!this.app.graph || !this.app.graph.cy) {return;}
         const json = this.app.graph.cy.json();
         const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
         this._downloadBlob(blob, 'senars-graph.json');
@@ -100,7 +100,7 @@ export class FileManager {
         input.accept = '.json';
         input.onchange = (e) => {
             const file = e.target.files[0];
-            if (!file) return;
+            if (!file) {return;}
             this.loadFile(file);
         };
         input.click();
@@ -121,7 +121,7 @@ export class FileManager {
     }
 
     handleExportImage(format) {
-        if (!this.app.graph || !this.app.graph.cy) return;
+        if (!this.app.graph || !this.app.graph.cy) {return;}
 
         let content, type, ext;
         if (format === 'png') {
@@ -220,8 +220,8 @@ export class FileManager {
     async loadRemoteFile(path) {
         try {
             this.app.log(`Fetching remote file: ${path}`, 'system');
-            const response = await fetch('/' + path);
-            if (!response.ok) throw new Error(response.statusText);
+            const response = await fetch(`/${  path}`);
+            if (!response.ok) {throw new Error(response.statusText);}
             const content = await response.text();
 
             if (path.endsWith('.metta')) {

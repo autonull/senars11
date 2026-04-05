@@ -7,7 +7,7 @@ export class Input {
     }
 
     addTask(task, priority = 0, metadata = {}) {
-        if (!this._validateTask(task)) throw new Error('Invalid task format');
+        if (!this._validateTask(task)) {throw new Error('Invalid task format');}
 
         const taskId = this._generateId();
         const taskItem = {
@@ -35,7 +35,7 @@ export class Input {
     }
 
     updatePriority(index, newPriority, mode = 'direct') {
-        if (!this._isValidIndex(index)) return false;
+        if (!this._isValidIndex(index)) {return false;}
 
         const taskItem = this.tasks[index];
         taskItem.priority = newPriority;
@@ -87,7 +87,7 @@ export class Input {
 
     getDerivationPath(taskId) {
         const task = this.getTaskById(taskId);
-        if (!task) return [];
+        if (!task) {return [];}
 
         // In a full implementation, this would trace the full derivation path
         // For now, return direct dependencies
@@ -155,13 +155,13 @@ export class Input {
 
     clearDerivedTasks(inputId) {
         const taskItem = this.getTaskById(inputId);
-        if (taskItem) taskItem.derivedTasks = [];
+        if (taskItem) {taskItem.derivedTasks = [];}
     }
 
     updateDerivedTask(inputId, derivedTaskId, updatedTask) {
         const taskItem = this.getTaskById(inputId);
         const idx = taskItem?.derivedTasks?.findIndex(t => t.id === derivedTaskId);
-        if (idx >= 0) taskItem.derivedTasks[idx] = {...taskItem.derivedTasks[idx], ...updatedTask};
+        if (idx >= 0) {taskItem.derivedTasks[idx] = {...taskItem.derivedTasks[idx], ...updatedTask};}
     }
 
     getDerivedTasks(inputId) {

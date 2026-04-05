@@ -59,7 +59,7 @@ export class NeuroSymbolicArchitecture extends Component {
 
         for (const layerName of this.executionOrder) {
             const layer = this.layers.get(layerName);
-            if (!layer) continue;
+            if (!layer) {continue;}
 
             const output = await layer.process(current, {
                 ...context,

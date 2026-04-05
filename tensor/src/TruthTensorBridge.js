@@ -20,18 +20,18 @@ export class TruthTensorBridge {
             bounds: () => [f * c, f * c + (1 - c)],
             vector: () => [f, c, c * (f - 0.5) + 0.5]
         };
-        if (!modes[mode]) throw new Error(`Unknown truthToTensor mode: ${mode}`);
+        if (!modes[mode]) {throw new Error(`Unknown truthToTensor mode: ${mode}`);}
         return this._createTensor(modes[mode]());
     }
 
     tensorToTruth(tensor, mode = 'sigmoid') {
-        const data = tensor.data;
+        const {data} = tensor;
         const modes = {
             sigmoid: () => ({f: data[0], c: 0.9}),
             dual: () => ({f: data[0], c: data[1]}),
             softmax: () => ({f: Math.max(...data), c: 1 - 1 / (data.length + 1)})
         };
-        if (!modes[mode]) throw new Error(`Unknown tensorToTruth mode: ${mode}`);
+        if (!modes[mode]) {throw new Error(`Unknown tensorToTruth mode: ${mode}`);}
         return modes[mode]();
     }
 

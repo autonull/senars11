@@ -112,7 +112,7 @@ export class NotebookManager {
     }
 
     _onDragOver(e, el) {
-        if (e.preventDefault) e.preventDefault();
+        if (e.preventDefault) {e.preventDefault();}
         e.dataTransfer.dropEffect = 'move';
         el.classList.add('drag-over');
         return false;
@@ -125,7 +125,7 @@ export class NotebookManager {
     }
 
     _onDrop(e, targetCell) {
-        if (e.stopPropagation) e.stopPropagation();
+        if (e.stopPropagation) {e.stopPropagation();}
 
         const srcId = e.dataTransfer.getData('text/plain');
         const srcCell = this.state.cells.find(c => c.id === srcId);
@@ -191,7 +191,7 @@ export class NotebookManager {
             this.executionCount++;
             cellInstance.executionCount = this.executionCount;
             this.lastInsertionPoint = cellInstance;
-            if (executeHandler) executeHandler(content, cellInstance);
+            if (executeHandler) {executeHandler(content, cellInstance);}
             this.handleCellExecution(cellInstance, options);
         };
         const cell = new CodeCell(content, wrappedExecute);
@@ -246,7 +246,7 @@ export class NotebookManager {
         if (index > -1) {
             // Push to undo history
             this.history.push({ action: 'delete', cell, index });
-            if (this.history.length > 50) this.history.shift();
+            if (this.history.length > 50) {this.history.shift();}
 
             currentCells.splice(index, 1);
             this.state.cells = currentCells;
@@ -266,7 +266,7 @@ export class NotebookManager {
 
     undo() {
         const lastAction = this.history.pop();
-        if (!lastAction) return;
+        if (!lastAction) {return;}
 
         if (lastAction.action === 'delete') {
             const { cell, index } = lastAction;
@@ -318,7 +318,7 @@ export class NotebookManager {
         const index = this.cells.indexOf(cell);
         if (index > -1 && index < this.cells.length - 1) {
             const next = this.cells[index + 1];
-            if (next instanceof CodeCell) next.focus();
+            if (next instanceof CodeCell) {next.focus();}
         }
     }
 
@@ -326,7 +326,7 @@ export class NotebookManager {
         const index = this.cells.indexOf(cell);
         if (index > 0) {
             const prev = this.cells[index - 1];
-            if (prev instanceof CodeCell) prev.focus();
+            if (prev instanceof CodeCell) {prev.focus();}
         }
     }
 
@@ -410,8 +410,8 @@ export class NotebookManager {
             if (this.state.viewMode === 'list') {
                 const el = newCell.render ? newCell.render() : newCell.element;
                 // Ensure events are bound if not already
-                if (!newCell.element) this._addDnDListeners(el, newCell);
-                else if (!newCell.element.classList.contains('drag-over')) this._addDnDListeners(el, newCell);
+                if (!newCell.element) {this._addDnDListeners(el, newCell);}
+                else if (!newCell.element.classList.contains('drag-over')) {this._addDnDListeners(el, newCell);}
 
                 if (referenceCell.element && referenceCell.element.nextElementSibling) {
                     this.viewContainer.insertBefore(el, referenceCell.element.nextElementSibling);
@@ -483,7 +483,7 @@ export class NotebookManager {
                 data.category = cell.category;
                 data.viewMode = cell.viewMode;
             }
-            if (cell.type === 'widget') data.widgetType = cell.widgetType;
+            if (cell.type === 'widget') {data.widgetType = cell.widgetType;}
             return data;
         });
     }
@@ -491,16 +491,16 @@ export class NotebookManager {
     importNotebook(data) {
         this.clear();
         data.forEach(d => {
-            if (d.type === 'code') this.createCodeCell(d.content);
-            else if (d.type === 'result') this.createResultCell(d.content, d.category, d.viewMode);
-            else if (d.type === 'markdown') this.createMarkdownCell(d.content);
-            else if (d.type === 'widget') this.createWidgetCell(d.widgetType, d.content);
+            if (d.type === 'code') {this.createCodeCell(d.content);}
+            else if (d.type === 'result') {this.createResultCell(d.content, d.category, d.viewMode);}
+            else if (d.type === 'markdown') {this.createMarkdownCell(d.content);}
+            else if (d.type === 'widget') {this.createWidgetCell(d.widgetType, d.content);}
         });
         this.triggerSave();
     }
 
     triggerSave() {
-        if (this.saveTimeout) clearTimeout(this.saveTimeout);
+        if (this.saveTimeout) {clearTimeout(this.saveTimeout);}
         this.saveTimeout = setTimeout(() => this.saveToStorage(), 1000);
     }
 
@@ -508,7 +508,7 @@ export class NotebookManager {
         try {
             const data = this.exportNotebook();
             const limit = Config.getConstants().MAX_NOTEBOOK_CELLS || 500;
-            if (data.length > limit) data.splice(0, data.length - limit);
+            if (data.length > limit) {data.splice(0, data.length - limit);}
             localStorage.setItem(this.storageKey, JSON.stringify(data));
         } catch (e) {
             this.onError(`Failed to save notebook: ${e.message}`);
@@ -536,11 +536,11 @@ export class NotebookManager {
     async loadDemoFile(path, options = {}) {
         const { clearFirst = false, autoRun = false } = options;
 
-        if (clearFirst) this.clear();
+        if (clearFirst) {this.clear();}
 
         try {
             const response = await fetch(`/${path}`);
-            if (!response.ok) throw new Error(`Failed to load demo: ${path}`);
+            if (!response.ok) {throw new Error(`Failed to load demo: ${path}`);}
             const content = await response.text();
 
             const cell = this.createCodeCell(content.trim());

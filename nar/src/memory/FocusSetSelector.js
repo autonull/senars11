@@ -35,11 +35,11 @@ export class FocusSetSelector extends ConfigurableComponent {
      * @returns {Task[]} Selected tasks ordered by composite score
      */
     select(tasks, currentTime = Date.now(), context = null) {
-        if (!tasks?.length) return [];
+        if (!tasks?.length) {return [];}
 
         // Filter by priority threshold
         const candidates = tasks.filter(task => task.budget.priority >= this.getConfigValue('priorityThreshold'));
-        if (!candidates.length) return [];
+        if (!candidates.length) {return [];}
 
         // Calculate normalization factors
         const maxUrgency = Math.max(...candidates.map(task => currentTime - task.stamp.creationTime));
@@ -65,7 +65,7 @@ export class FocusSetSelector extends ConfigurableComponent {
      */
     _calculateCompositeScore(task, context, currentTime, maxUrgency, maxComplexity, maxAccessCount) {
         // Base components
-        const priority = task.budget.priority;
+        const {priority} = task.budget;
         const urgency = maxUrgency > 0 ? (currentTime - task.stamp.creationTime) / maxUrgency : 0;
         const diversity = maxComplexity > 0 ? (task.term.complexity || 1) / maxComplexity : 0;
 
@@ -90,7 +90,7 @@ export class FocusSetSelector extends ConfigurableComponent {
      */
     _calculateRecencyScore(task, currentTime) {
         const lastAccess = this._taskLastAccessed.get(task);
-        if (!lastAccess) return 1.0; // New tasks get high recency score
+        if (!lastAccess) {return 1.0;} // New tasks get high recency score
 
         const timeSinceAccess = currentTime - lastAccess;
         // Higher score for more recent access (inverse relationship)
@@ -110,7 +110,7 @@ export class FocusSetSelector extends ConfigurableComponent {
      * Calculate relevance to current goals
      */
     _calculateGoalRelevanceScore(task, context) {
-        if (!context?.memory?.concepts) return 0.0;
+        if (!context?.memory?.concepts) {return 0.0;}
 
         // Check how closely the task relates to active goals
         let maxRelevance = 0.0;
@@ -132,7 +132,7 @@ export class FocusSetSelector extends ConfigurableComponent {
      * Calculate potential conflict with existing beliefs
      */
     _calculateConflictScore(task, context) {
-        if (!context?.memory?.concepts) return 0.0;
+        if (!context?.memory?.concepts) {return 0.0;}
 
         // Check for potential conflicts with existing beliefs
         let maxConflict = 0.0;
@@ -158,15 +158,15 @@ export class FocusSetSelector extends ConfigurableComponent {
      * Calculate term relevance based on structural similarity
      */
     _calculateTermRelevance(term1, term2) {
-        if (!term1 || !term2) return 0.0;
+        if (!term1 || !term2) {return 0.0;}
 
         // Simple similarity based on shared components
-        if (term1.name === term2.name) return 1.0;
+        if (term1.name === term2.name) {return 1.0;}
 
         if (term1.isCompound && term2.isCompound && term1.components && term2.components) {
             // Calculate overlap in components
             let matches = 0;
-            let total = Math.max(term1.components.length, term2.components.length, 1);
+            const total = Math.max(term1.components.length, term2.components.length, 1);
 
             for (const comp1 of term1.components) {
                 for (const comp2 of term2.components) {

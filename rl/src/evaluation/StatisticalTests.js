@@ -9,7 +9,7 @@ const MathUtils = {
     },
 
     median(arr) {
-        if (arr.length === 0) return 0;
+        if (arr.length === 0) {return 0;}
         const sorted = [...arr].sort((a, b) => a - b);
         const mid = Math.floor(sorted.length / 2);
         return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
@@ -29,7 +29,7 @@ const MathUtils = {
     },
 
     confidenceInterval(arr, confidence = 0.95) {
-        if (arr.length < 2) return { lower: 0, upper: 0, margin: 0 };
+        if (arr.length < 2) {return { lower: 0, upper: 0, margin: 0 };}
 
         const mean = this.mean(arr);
         const sem = this.sem(arr);
@@ -54,7 +54,7 @@ const MathUtils = {
     },
 
     percentile(arr, p) {
-        if (arr.length === 0) return 0;
+        if (arr.length === 0) {return 0;}
         const sorted = [...arr].sort((a, b) => a - b);
         const idx = Math.ceil((p / 100) * sorted.length) - 1;
         return sorted[Math.max(0, idx)];
@@ -91,7 +91,7 @@ export class StatisticalTests {
         const var2 = MathUtils.variance(sample2, mean2);
 
         const se = Math.sqrt(var1 / n1 + var2 / n2);
-        if (se === 0) return { significant: false, pValue: 1.0, tStatistic: 0 };
+        if (se === 0) {return { significant: false, pValue: 1.0, tStatistic: 0 };}
 
         const t = (mean1 - mean2) / se;
         const df = n1 + n2 - 2;
@@ -130,7 +130,7 @@ export class StatisticalTests {
         const var2 = MathUtils.variance(sample2, mean2);
 
         const se = Math.sqrt(var1 / n1 + var2 / n2);
-        if (se === 0) return { significant: false, pValue: 1.0, tStatistic: 0 };
+        if (se === 0) {return { significant: false, pValue: 1.0, tStatistic: 0 };}
 
         const t = (mean1 - mean2) / se;
 
@@ -164,13 +164,13 @@ export class StatisticalTests {
         }
 
         const n = sample1.length;
-        if (n < 5) return { significant: false, pValue: 1.0, error: 'Sample size too small' };
+        if (n < 5) {return { significant: false, pValue: 1.0, error: 'Sample size too small' };}
 
         const differences = sample1
             .map((v, i) => ({ diff: v - sample2[i], absDiff: Math.abs(v - sample2[i]) }))
             .filter(d => d.diff !== 0);
 
-        if (differences.length === 0) return { significant: false, pValue: 1.0 };
+        if (differences.length === 0) {return { significant: false, pValue: 1.0 };}
 
         differences.sort((a, b) => a.absDiff - b.absDiff);
         differences.forEach((d, i) => d.rank = i + 1);
@@ -211,7 +211,7 @@ export class StatisticalTests {
         for (let p = 0; p < permutations; p++) {
             const shuffled = [...combined].sort(() => Math.random() - 0.5);
             const permDiff = MathUtils.mean(shuffled.slice(0, n1)) - MathUtils.mean(shuffled.slice(n1));
-            if (Math.abs(permDiff) >= Math.abs(obsDiff)) extreme++;
+            if (Math.abs(permDiff) >= Math.abs(obsDiff)) {extreme++;}
         }
 
         const pValue = extreme / permutations;
@@ -224,7 +224,7 @@ export class StatisticalTests {
      * @returns {object} Test results
      */
     static anova(...samples) {
-        if (samples.length < 2) return { significant: false, error: 'Need at least 2 samples' };
+        if (samples.length < 2) {return { significant: false, error: 'Need at least 2 samples' };}
 
         const k = samples.length;
         const allData = samples.flat();

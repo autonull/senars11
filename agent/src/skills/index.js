@@ -1,2 +1,2 @@
-export { HookOrchestrator, getHookOrchestrator, resetHookOrchestrator } from './HookOrchestrator.js';
-export { SkillDispatcher } from './SkillDispatcher.js';
+export {HookOrchestrator, getHookOrchestrator, resetHookOrchestrator} from './HookOrchestrator.js';
+export {SkillDispatcher} from './SkillDispatcher.js';

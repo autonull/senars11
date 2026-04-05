@@ -2,7 +2,7 @@
  * @deprecated Import ConfigManager from '@senars/core' instead.
  * This file re-exports core's ConfigManager and provides RL-specific hyperparameter utilities.
  */
-export { ConfigManager, Validators, createConfigManager } from '../../core/src/config/ConfigManager.js';
+export { ConfigManager, Validators, createConfigManager } from '@senars/core/config/ConfigManager.js';
 
 const ValidationFns = {
     clamp: (value, min, max) => Math.max(min, Math.min(max, value)),

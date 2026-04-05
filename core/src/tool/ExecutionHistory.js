@@ -5,17 +5,23 @@ export class ExecutionHistory {
     }
 
     add(execution) {
-        this.history.push({ ...execution, timestamp: Date.now() });
+        this.history.push({...execution, timestamp: Date.now()});
         if (this.history.length > this.maxHistorySize) {
             this.history = this.history.slice(-this.maxHistorySize);
         }
     }
 
     get(options = {}, tools) {
-        let { history } = this;
-        if (options.toolName) history = history.filter(e => e.toolId === options.toolName);
-        if (options.category) history = history.filter(e => tools.get(e.toolId)?.category === options.category);
-        if (options.limit) history = history.slice(-options.limit);
+        let {history} = this;
+        if (options.toolName) {
+            history = history.filter(e => e.toolId === options.toolName);
+        }
+        if (options.category) {
+            history = history.filter(e => tools.get(e.toolId)?.category === options.category);
+        }
+        if (options.limit) {
+            history = history.slice(-options.limit);
+        }
         return [...history];
     }
 }

@@ -94,11 +94,9 @@ export class TaskMatch {
         }
 
         // Check range-based truth matching if specified
-        if (!this._checkRangeTruth(task)) {
-            return false;
-        }
+        return this._checkRangeTruth(task);
 
-        return true;
+
     }
 
     async _checkTermMatch(task, providedFactory = null) {
@@ -107,7 +105,7 @@ export class TaskMatch {
         // Use provided factory if available to ensure term identity (reference equality)
         const termFactory = providedFactory || new TermFactory();
         const parser = new NarseseParser(termFactory);
-        const expectedTerm = parser.parse(this.termFilter + '.').term;
+        const expectedTerm = parser.parse(`${this.termFilter}.`).term;
         return task.term?.equals(expectedTerm);
     }
 
@@ -120,10 +118,8 @@ export class TaskMatch {
         if (this.minFreq !== null && (task.truth?.f ?? 0) < this.minFreq) {
             return false;
         }
-        if (this.minConf !== null && (task.truth?.c ?? 0) < this.minConf) {
-            return false;
-        }
-        return true;
+        return !(this.minConf !== null && (task.truth?.c ?? 0) < this.minConf);
+
     }
 
     _checkFlexibleTruth(task) {
@@ -141,11 +137,9 @@ export class TaskMatch {
             ((task.truth.f ?? 0) < this.minFreq || (task.truth.f ?? 0) > this.maxFreq)) {
             return false;
         }
-        if (this.minConf !== null && this.maxConf !== null && task.truth &&
-            ((task.truth.c ?? 0) < this.minConf || (task.truth.c ?? 0) > this.maxConf)) {
-            return false;
-        }
-        return true;
+        return !(this.minConf !== null && this.maxConf !== null && task.truth &&
+            ((task.truth.c ?? 0) < this.minConf || (task.truth.c ?? 0) > this.maxConf));
+
     }
 
     _punctToType(punct) {
@@ -214,7 +208,7 @@ export class RemoteTaskMatch extends TaskMatch {
                                     parseString = `<${args.join(` ${op} `)}>`;
                                 }
                             }
-                            actualParsedTerm = parser.parse(parseString + '.').term;
+                            actualParsedTerm = parser.parse(`${parseString}.`).term;
                         }
                     }
                 } catch (parseError) {
@@ -276,11 +270,9 @@ export class RemoteTaskMatch extends TaskMatch {
             (frequency < this.minFreq || frequency > this.maxFreq)) {
             return false;
         }
-        if (this.minConf !== null && this.maxConf !== null &&
-            (confidence < this.minConf || confidence > this.maxConf)) {
-            return false;
-        }
+        return !(this.minConf !== null && this.maxConf !== null &&
+            (confidence < this.minConf || confidence > this.maxConf));
 
-        return true;
+
     }
 }

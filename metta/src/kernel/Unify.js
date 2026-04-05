@@ -8,7 +8,7 @@ let _smtBridge = null;
 const getSMTBridge = () => _smtBridge ??= configManager.get('smt') ? new SMTBridge() : null;
 
 const safeSubstitute = (rootTerm, bindings, rootVisited = new Set(), recursive = true) => {
-    if (!rootTerm || !bindings || Object.keys(bindings).length === 0) return rootTerm;
+    if (!rootTerm || !bindings || Object.keys(bindings).length === 0) {return rootTerm;}
 
     const stack = [{ type: 'PROCESS', term: rootTerm, visited: rootVisited }];
     const resultStack = [];
@@ -39,7 +39,7 @@ const safeSubstitute = (rootTerm, bindings, rootVisited = new Set(), recursive =
                 if (isList(term)) {
                     const { elements, tail } = flattenList(term);
                     stack.push({ type: 'CONSTRUCT_LIST', elemCount: elements.length, hasTail: !!tail, original: term });
-                    if (tail) stack.push({ type: 'PROCESS', term: tail, visited: new Set(visited) });
+                    if (tail) {stack.push({ type: 'PROCESS', term: tail, visited: new Set(visited) });}
                     for (let i = elements.length - 1; i >= 0; i--) {
                         stack.push({ type: 'PROCESS', term: elements[i], visited: new Set(visited) });
                     }
@@ -51,7 +51,7 @@ const safeSubstitute = (rootTerm, bindings, rootVisited = new Set(), recursive =
                 for (let i = term.components.length - 1; i >= 0; i--) {
                     stack.push({ type: 'PROCESS', term: term.components[i], visited: new Set(visited) });
                 }
-                if (typeof op === 'object') stack.push({ type: 'PROCESS', term: op, visited });
+                if (typeof op === 'object') {stack.push({ type: 'PROCESS', term: op, visited });}
                 continue;
             }
 
@@ -92,7 +92,7 @@ const unifyLists = (t1, t2, bindings) => {
     for (let i = 0; i < minLen && currBindings; i++) {
         currBindings = unifiedUnify(f1.elements[i], f2.elements[i], currBindings);
     }
-    if (!currBindings) return null;
+    if (!currBindings) {return null;}
 
     const t1Rem = f1.elements.length > minLen ? constructList(f1.elements.slice(minLen), f1.tail) : f1.tail;
     const t2Rem = f2.elements.length > minLen ? constructList(f2.elements.slice(minLen), f2.tail) : f2.tail;
@@ -126,7 +126,7 @@ const unifiedUnify = (t1, t2, binds = {}) => {
         return (t1 === t2 || t1.name === t2.name) ? binds : null;
     }
 
-    if (isList(t1) && isList(t2)) return unifyLists(t1, t2, binds);
+    if (isList(t1) && isList(t2)) {return unifyLists(t1, t2, binds);}
 
     const result = UnifyCore.unify(t1, t2, binds, mettaAdapter);
 
@@ -134,7 +134,7 @@ const unifiedUnify = (t1, t2, binds = {}) => {
         const bridge = getSMTBridge();
         if (bridge?.canSolve(binds)) {
             const smtResult = bridge.solve([t1, t2]);
-            if (smtResult) return smtResult;
+            if (smtResult) {return smtResult;}
         }
     }
 
@@ -149,7 +149,7 @@ export const Unify = {
         const res = [];
         pats.forEach(p => terms.forEach(t => {
             const b = unifiedUnify(p, t);
-            if (b) res.push({ pattern: p, term: t, bindings: b });
+            if (b) {res.push({ pattern: p, term: t, bindings: b });}
         }));
         return res;
     },

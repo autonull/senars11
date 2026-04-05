@@ -1,7 +1,7 @@
 /**
  * Mock DataTableKnowledge — avoids loading danfojs
  */
-import { Knowledge } from './Knowledge.js';
+import {Knowledge} from './Knowledge.js';
 
 export class DataTableKnowledge extends Knowledge {
     constructor(data = null, tableName = 'data', options = {}) {

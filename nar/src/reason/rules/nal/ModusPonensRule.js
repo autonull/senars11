@@ -22,14 +22,14 @@ export class ModusPonensRule extends NALRule {
      * @returns {boolean} Whether the rule can be applied
      */
     canApply(primaryPremise, secondaryPremise, context) {
-        if (!primaryPremise || !secondaryPremise) return false;
+        if (!primaryPremise || !secondaryPremise) {return false;}
         return this._getMatch(primaryPremise, secondaryPremise, context) !== null;
     }
 
     apply(primaryPremise, secondaryPremise, context = {}) {
         try {
             const match = this._getMatch(primaryPremise, secondaryPremise, context);
-            if (!match) return [];
+            if (!match) {return [];}
 
             const {implicationPremise, antecedentPremise, substitution} = match;
             const Q = implicationPremise.term.components[1];
@@ -49,7 +49,7 @@ export class ModusPonensRule extends NALRule {
 
     _getMatch(p1, p2, context) {
         const check = (imp, ant) => {
-            if (imp.term.operator !== '==>') return null;
+            if (imp.term.operator !== '==>') {return null;}
             const match = this.unify(imp.term.components[0], ant.term, context);
             return match.success ? {implicationPremise: imp, antecedentPremise: ant, substitution: match.substitution} : null;
         };

@@ -91,14 +91,14 @@ export class ExperienceStream {
     filter(predicate) {
         const self = this;
         return new ExperienceStream((function*() {
-            for (const exp of self._iterator) if (predicate(exp)) yield exp;
+            for (const exp of self._iterator) {if (predicate(exp)) {yield exp;}}
         })());
     }
 
     map(fn) {
         const self = this;
         return new ExperienceStream((function*() {
-            for (const exp of self._iterator) yield fn(exp);
+            for (const exp of self._iterator) {yield fn(exp);}
         })());
     }
 
@@ -107,19 +107,19 @@ export class ExperienceStream {
         return new ExperienceStream((function*() {
             let count = 0;
             for (const exp of self._iterator) {
-                if (count++ >= n) break;
+                if (count++ >= n) {break;}
                 yield exp;
             }
         })());
     }
 
     reduce(fn, acc) {
-        for (const exp of this._iterator) acc = fn(acc, exp);
+        for (const exp of this._iterator) {acc = fn(acc, exp);}
         return acc;
     }
 
     collect() { return Array.from(this._iterator); }
-    forEach(fn) { for (const exp of this._iterator) fn(exp); return this; }
+    forEach(fn) { for (const exp of this._iterator) {fn(exp);} return this; }
     [Symbol.iterator]() { return this._iterator; }
 }
 
@@ -169,31 +169,31 @@ export class ExperienceIndex {
     }
 
     add(experience) {
-        const id = experience.id;
+        const {id} = experience;
         this.timeline.push(id);
 
         experience.info.tags.forEach(tag => {
-            if (!this.byTag.has(tag)) this.byTag.set(tag, new Set());
+            if (!this.byTag.has(tag)) {this.byTag.set(tag, new Set());}
             this.byTag.get(tag).add(id);
         });
 
         const epId = experience.info.episode;
-        if (!this.byEpisode.has(epId)) this.byEpisode.set(epId, new Set());
+        if (!this.byEpisode.has(epId)) {this.byEpisode.set(epId, new Set());}
         this.byEpisode.get(epId).add(id);
 
         const rewardBin = Math.floor(experience.reward * 10);
-        if (!this.byReward.has(rewardBin)) this.byReward.set(rewardBin, new Set());
+        if (!this.byReward.has(rewardBin)) {this.byReward.set(rewardBin, new Set());}
         this.byReward.get(rewardBin).add(id);
 
         const stateHash = hashState(experience.state);
-        if (!this.byState.has(stateHash)) this.byState.set(stateHash, new Set());
+        if (!this.byState.has(stateHash)) {this.byState.set(stateHash, new Set());}
         this.byState.get(stateHash).add(id);
     }
 
     remove(id) {
         [this.byTag, this.byEpisode, this.byReward, this.byState].forEach(set => set.forEach(s => s.delete(id)));
         const idx = this.timeline.indexOf(id);
-        if (idx >= 0) this.timeline.splice(idx, 1);
+        if (idx >= 0) {this.timeline.splice(idx, 1);}
     }
 
     query(options = {}) {
@@ -214,7 +214,7 @@ export class ExperienceIndex {
 
         if (minReward !== undefined) {
             this.byReward.forEach((ids, bin) => {
-                if (bin * 0.1 < minReward) ids.forEach(id => candidates.delete(id));
+                if (bin * 0.1 < minReward) {ids.forEach(id => candidates.delete(id));}
             });
         }
 
@@ -283,14 +283,14 @@ export class ExperienceStore {
     }
 
     startEpisode(metadata = {}) {
-        if (this.currentEpisode) this.endEpisode();
+        if (this.currentEpisode) {this.endEpisode();}
         this.currentEpisode = new Episode();
         Object.entries(metadata).forEach(([k, v]) => this.currentEpisode.setMetadata(k, v));
         return this.currentEpisode;
     }
 
     endEpisode() {
-        if (!this.currentEpisode) return null;
+        if (!this.currentEpisode) {return null;}
         this.currentEpisode.finalize();
         const episode = this.currentEpisode;
         this.episodes.set(episode.id, episode);
@@ -299,7 +299,7 @@ export class ExperienceStore {
     }
 
     sample(batchSize = this.config.batchSize) {
-        if (this.buffer.length === 0) return [];
+        if (this.buffer.length === 0) {return [];}
         const indices = new Set();
         while (indices.size < Math.min(batchSize, this.buffer.length)) {
             indices.add(Math.floor(Math.random() * this.buffer.length));
@@ -416,15 +416,15 @@ export class ExperienceLearner {
     async learn() {
         this.step++;
 
-        if (this.step % this.config.updateFrequency !== 0) return null;
+        if (this.step % this.config.updateFrequency !== 0) {return null;}
 
         const batch = this.store.sample(this.config.batchSize);
-        if (batch.length === 0) return null;
+        if (batch.length === 0) {return null;}
 
         let totalLoss = 0;
         for (const exp of batch) {
             const loss = await this.agent.learn(exp.toTransition(), exp.reward);
-            if (loss) totalLoss += loss.loss ?? 0;
+            if (loss) {totalLoss += loss.loss ?? 0;}
         }
 
         return {
@@ -438,7 +438,7 @@ export class ExperienceLearner {
         const results = [];
         for (let i = 0; i < numSteps; i++) {
             const result = await this.learn();
-            if (result) results.push(result);
+            if (result) {results.push(result);}
         }
         return results;
     }

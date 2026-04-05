@@ -2,10 +2,12 @@
  * Object utilities for SeNARS
  */
 
-export const freeze = Object.freeze;
+export const {freeze} = Object;
 
 export const deepFreeze = (obj) => {
-    if (obj === null || typeof obj !== 'object') return obj;
+    if (obj === null || typeof obj !== 'object') {
+        return obj;
+    }
     for (const prop of Object.getOwnPropertyNames(obj)) {
         deepFreeze(obj[prop]);
     }
@@ -21,9 +23,15 @@ export const isObject = (item) => item && typeof item === 'object' && !Array.isA
  * @returns {*} Cloned object
  */
 export function deepClone(obj, hash = new WeakMap()) {
-    if (obj === null || typeof obj !== 'object') return obj;
-    if (obj instanceof Date) return new Date(obj.getTime());
-    if (obj instanceof RegExp) return new RegExp(obj.source, obj.flags);
+    if (obj === null || typeof obj !== 'object') {
+        return obj;
+    }
+    if (obj instanceof Date) {
+        return new Date(obj.getTime());
+    }
+    if (obj instanceof RegExp) {
+        return new RegExp(obj.source, obj.flags);
+    }
 
     if (obj instanceof Map) {
         const result = new Map();
@@ -53,7 +61,9 @@ export function deepClone(obj, hash = new WeakMap()) {
     }
 
     if (typeof obj === 'object') {
-        if (hash.has(obj)) return hash.get(obj);
+        if (hash.has(obj)) {
+            return hash.get(obj);
+        }
         const result = Object.create(Object.getPrototypeOf(obj));
         hash.set(obj, result);
         for (const key of Object.keys(obj)) {
@@ -84,7 +94,7 @@ export function safeClone(obj) {
 // pick/omit are canonically defined in func.js.
 // For (obj, keys) signature, use pickObj/omitObj from func.js.
 // Re-exported here for backward compatibility with callers importing from object.js:
-export { pickObj, omitObj } from './func.js';
+export {pickObj, omitObj} from './func.js';
 
 /**
  * Deep merge two objects recursively with circular reference handling
@@ -94,14 +104,22 @@ export { pickObj, omitObj } from './func.js';
  * @returns {Object} Merged object
  */
 export const deepMerge = (target, source, _visited = new WeakSet()) => {
-    if (!source) return target;
-    if (!isObject(target) || !isObject(source)) return source;
-    if (_visited.has(target)) return target;
-    if (_visited.has(source)) return source;
+    if (!source) {
+        return target;
+    }
+    if (!isObject(target) || !isObject(source)) {
+        return source;
+    }
+    if (_visited.has(target)) {
+        return target;
+    }
+    if (_visited.has(source)) {
+        return source;
+    }
     _visited.add(target);
     _visited.add(source);
 
-    const output = { ...target };
+    const output = {...target};
     for (const key of Object.keys(source)) {
         output[key] = isObject(source[key]) && key in target
             ? deepMerge(target[key], source[key], _visited)
@@ -128,11 +146,13 @@ export const deepMergeConfig = (base, ...overrides) => overrides.reduce((acc, cu
  * @returns {Object} Merged configuration
  */
 export const mergeConfig = (base, overrides, options) => {
-    if (base === null || typeof base !== 'object') throw new Error('Defaults must be a valid object');
+    if (base === null || typeof base !== 'object') {
+        throw new Error('Defaults must be a valid object');
+    }
     const ov = overrides ?? {};
     const shouldFreeze = options?.freeze !== false;
     const shouldDeep = options?.deep !== false;
-    const merged = shouldDeep ? deepMerge({ ...base }, ov) : { ...base, ...ov };
+    const merged = shouldDeep ? deepMerge({...base}, ov) : {...base, ...ov};
     return shouldFreeze ? freeze(merged) : merged;
 };
 
@@ -144,7 +164,9 @@ export const mergeConfig = (base, overrides, options) => {
  * @returns {*} Property value or default
  */
 export const safeGet = (obj, path, defaultValue) => {
-    if (!obj || typeof obj !== 'object' || !path) return defaultValue;
+    if (!obj || typeof obj !== 'object' || !path) {
+        return defaultValue;
+    }
     return path.split('.').reduce((current, key) => current?.[key] ?? defaultValue, obj) ?? defaultValue;
 };
 
@@ -155,7 +177,9 @@ export const safeGet = (obj, path, defaultValue) => {
  * @param {*} value - Value to set
  */
 export const setNestedProperty = (obj, path, value) => {
-    if (!obj || typeof path !== 'string') return;
+    if (!obj || typeof path !== 'string') {
+        return;
+    }
 
     const keys = path.split('.');
     let current = obj;
@@ -173,7 +197,7 @@ export const setNestedProperty = (obj, path, value) => {
  * @returns {Object} Cloned object
  */
 export function selectiveDeepClone(obj, deepProps = []) {
-    const result = { ...obj };
+    const result = {...obj};
     for (const prop of deepProps) {
         if (obj[prop] !== undefined) {
             result[prop] = deepClone(obj[prop]);
@@ -189,26 +213,44 @@ export function selectiveDeepClone(obj, deepProps = []) {
  * @returns {boolean} True if values are deeply equal
  */
 export const deepEqual = (a, b) => {
-    if (a === b) return true;
-    if (a === null || b === null) return false;
-    if (typeof a !== typeof b) return false;
-    if (typeof a !== 'object') return false;
-    if (Array.isArray(a) !== Array.isArray(b)) return false;
+    if (a === b) {
+        return true;
+    }
+    if (a === null || b === null) {
+        return false;
+    }
+    if (typeof a !== typeof b) {
+        return false;
+    }
+    if (typeof a !== 'object') {
+        return false;
+    }
+    if (Array.isArray(a) !== Array.isArray(b)) {
+        return false;
+    }
 
     if (Array.isArray(a)) {
-        if (a.length !== b.length) return false;
+        if (a.length !== b.length) {
+            return false;
+        }
         for (let i = 0; i < a.length; i++) {
-            if (!deepEqual(a[i], b[i])) return false;
+            if (!deepEqual(a[i], b[i])) {
+                return false;
+            }
         }
         return true;
     }
 
     const keysA = Object.keys(a);
     const keysB = Object.keys(b);
-    if (keysA.length !== keysB.length) return false;
+    if (keysA.length !== keysB.length) {
+        return false;
+    }
 
     for (const key of keysA) {
-        if (!keysB.includes(key) || !deepEqual(a[key], b[key])) return false;
+        if (!keysB.includes(key) || !deepEqual(a[key], b[key])) {
+            return false;
+        }
     }
     return true;
 };
@@ -220,7 +262,9 @@ export const deepEqual = (a, b) => {
  * @returns {Object} Validated configuration
  */
 export function validateWithSchema(config, schema) {
-    if (!schema) return config;
+    if (!schema) {
+        return config;
+    }
 
     const resolvedSchema = typeof schema === 'function' ? schema() : schema;
     const result = resolvedSchema.validate(config, {

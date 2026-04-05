@@ -1,5 +1,5 @@
 import { TermFactory } from '@senars/nar';
-import { Logger } from '../../core/src/util/Logger.js';
+import { Logger } from '@senars/core/util/Logger.js';
 
 import { ModuleLoader } from './kernel/ModuleLoader.js';
 import { BaseMeTTaComponent } from './helpers/BaseMeTTaComponent.js';
@@ -115,29 +115,29 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
 
     _listify(arr) {
         let list = Term.sym('()');
-        for (let i = arr.length - 1; i >= 0; i--) list = Term.exp(':', [arr[i], list]);
+        for (let i = arr.length - 1; i >= 0; i--) {list = Term.exp(':', [arr[i], list]);}
         return list;
     }
 
     _handleLetStar(bindings, body) {
         const { flattenList, sym, exp } = Term;
         const pairs = this._extractLetStarPairs(bindings);
-        if (!pairs.length) return reduce(body, this.space, this.ground);
+        if (!pairs.length) {return reduce(body, this.space, this.ground);}
 
         const [first, ...rest] = pairs;
-        if (!first?.components?.length) return body;
+        if (!first?.components?.length) {return body;}
 
         const [v, val] = this._extractVarAndValue(first);
-        if (!v || !val) return body;
+        if (!v || !val) {return body;}
 
         const inner = rest.length ? exp(sym('let*'), [exp(rest[0], rest.slice(1)), body]) : body;
         return reduce(exp(sym('let'), [v, val, inner]), this.space, this.ground);
     }
 
     _extractLetStarPairs(bindings) {
-        if (bindings.operator?.name === ':') return flattenList(bindings).elements;
-        if (bindings.type === 'compound') return [bindings.operator, ...bindings.components];
-        if (bindings.name !== '()') Logger.error('Invalid &let* bindings', bindings);
+        if (bindings.operator?.name === ':') {return flattenList(bindings).elements;}
+        if (bindings.type === 'compound') {return [bindings.operator, ...bindings.components];}
+        if (bindings.name !== '()') {Logger.error('Invalid &let* bindings', bindings);}
         return [];
     }
 
@@ -146,9 +146,9 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
     }
 
     _flattenToList(atom) {
-        if (!atom || atom.name === '()') return [];
-        if (isList(atom)) return flattenList(atom).elements;
-        if (isExpression(atom)) return [atom.operator, ...atom.components];
+        if (!atom || atom.name === '()') {return [];}
+        if (isList(atom)) {return flattenList(atom).elements;}
+        if (isExpression(atom)) {return [atom.operator, ...atom.components];}
         return [atom];
     }
 
@@ -164,8 +164,8 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
             const e = exprs[i];
             if (e.name === '!' && i + 1 < exprs.length) {
                 const evalRes = this.evaluate(exprs[++i]);
-                if (Array.isArray(evalRes)) res.push(...evalRes);
-                else if (evalRes != null) res.push(evalRes);
+                if (Array.isArray(evalRes)) {res.push(...evalRes);}
+                else if (evalRes != null) {res.push(evalRes);}
                 continue;
             }
             this._processExpression(e, res);
@@ -180,8 +180,8 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
             const e = exprs[i];
             if (e.name === '!' && i + 1 < exprs.length) {
                 const evalRes = await this.evaluateAsync(exprs[++i]);
-                if (Array.isArray(evalRes)) res.push(...evalRes);
-                else if (evalRes != null) res.push(evalRes);
+                if (Array.isArray(evalRes)) {res.push(...evalRes);}
+                else if (evalRes != null) {res.push(evalRes);}
                 continue;
             }
             this._processExpression(e, res);

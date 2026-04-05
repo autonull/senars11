@@ -17,7 +17,7 @@ export class StrategyHelper {
         if (focus) {
             const tasks = focus.getTasks();
             const found = tasks.find(t => t.term.equals(term));
-            if (found) return found;
+            if (found) {return found;}
         }
 
         if (memory && memory.getConcept) {

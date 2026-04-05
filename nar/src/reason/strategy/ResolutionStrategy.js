@@ -74,7 +74,7 @@ export class ResolutionStrategy extends Strategy {
 
         // Check if the task is marked as a goal or question in its punctuation
         // In NARS, goals are typically marked differently from beliefs
-        const punctuation = task.sentence.punctuation;
+        const {punctuation} = task.sentence;
         if (punctuation) {
             // Typically goals are marked with '!' and questions with '?'
             // Beliefs are marked with '.'

@@ -10,7 +10,7 @@ const getSpace = (ctx, spaceId) => ctx?.spaces?.get(spaceId?.name);
 const validateContext = ctx => ctx?.spaces ? null : error(sym('NoContext'));
 const validateSpace = (ctx, spaceId) => {
     const err = validateContext(ctx);
-    if (err) return err;
+    if (err) {return err;}
     const space = getSpace(ctx, spaceId);
     return space ? null : error(spaceId, sym('SpaceNotFound'));
 };
@@ -29,23 +29,23 @@ export function registerSpaceOps(registry, interpreterContext) {
 
     registry.register('add-atom-to', (spaceId, atom) => {
         const err = validateSpace(interpreterContext, spaceId);
-        if (err) return err;
+        if (err) {return err;}
         getSpace(interpreterContext, spaceId).add(atom);
         return sym('ok');
     });
 
     registry.register('match-in', (spaceId, pattern, template) => {
         const err = validateSpace(interpreterContext, spaceId);
-        if (err) return err;
+        if (err) {return err;}
         return OperationHelpers.listify(match(getSpace(interpreterContext, spaceId), pattern, template));
     }, { lazy: true });
 
     registry.register('merge-spaces', (sourceId, targetId) => {
         const err = validateContext(interpreterContext);
-        if (err) return err;
+        if (err) {return err;}
         const source = getSpace(interpreterContext, sourceId);
         const target = getSpace(interpreterContext, targetId);
-        if (!source || !target) return error(sym('SpaceNotFound'));
+        if (!source || !target) {return error(sym('SpaceNotFound'));}
         source.all().forEach(atom => target.add(atom));
         return sym('ok');
     });
@@ -53,20 +53,20 @@ export function registerSpaceOps(registry, interpreterContext) {
     registry.register('compose', (s1Id, s2Id) => {
         const s1 = getSpace(interpreterContext, s1Id);
         const s2 = getSpace(interpreterContext, s2Id);
-        if (!s1 || !s2) return error(sym('SpaceNotFound'));
+        if (!s1 || !s2) {return error(sym('SpaceNotFound'));}
         return AlgebraicOps.compose(s1, s2);
     });
 
     registry.register('project', (sId, pred) => {
         const s = getSpace(interpreterContext, sId);
-        if (!s) return error(sym('SpaceNotFound'));
+        if (!s) {return error(sym('SpaceNotFound'));}
         return AlgebraicOps.project(s, pred);
     });
 
     registry.register('join', (s1Id, s2Id, key) => {
         const s1 = getSpace(interpreterContext, s1Id);
         const s2 = getSpace(interpreterContext, s2Id);
-        if (!s1 || !s2) return error(sym('SpaceNotFound'));
+        if (!s1 || !s2) {return error(sym('SpaceNotFound'));}
         return AlgebraicOps.join(s1, s2, key);
     });
 }

@@ -45,13 +45,13 @@ export class VariableIntroductionRule extends NALRule {
      * Requires two statements with matching structure.
      */
     canApply(primaryPremise, secondaryPremise, context = {}) {
-        if (!primaryPremise?.term || !secondaryPremise?.term) return false;
+        if (!primaryPremise?.term || !secondaryPremise?.term) {return false;}
 
         const p = primaryPremise.term;
         const s = secondaryPremise.term;
 
-        if (!p.isCompound || !s.isCompound || p.operator !== s.operator || !['-->', '<->'].includes(p.operator)) return false;
-        if (termsEqual(p, s)) return false;
+        if (!p.isCompound || !s.isCompound || p.operator !== s.operator || !['-->', '<->'].includes(p.operator)) {return false;}
+        if (termsEqual(p, s)) {return false;}
 
         // Shared predicate or shared subject, but not both (identity)
         const samePred = termsEqual(p.predicate, s.predicate);
@@ -64,12 +64,12 @@ export class VariableIntroductionRule extends NALRule {
      * Apply variable introduction to create generalized statement.
      */
     apply(primaryPremise, secondaryPremise, context = {}) {
-        if (!this.canApply(primaryPremise, secondaryPremise, context)) return [];
+        if (!this.canApply(primaryPremise, secondaryPremise, context)) {return [];}
 
         const p = primaryPremise.term;
         const s = secondaryPremise.term;
-        const termFactory = context.termFactory;
-        if (!termFactory) return [];
+        const {termFactory} = context;
+        if (!termFactory) {return [];}
 
         const results = [];
         const truth = this._calculateGeneralizationTruth(primaryPremise.truth, secondaryPremise.truth);
@@ -147,15 +147,15 @@ export class DependentVariableIntroductionRule extends NALRule {
 
     canApply(primaryPremise, secondaryPremise, context = {}) {
         // This is a unary rule - only needs primary premise
-        if (!primaryPremise?.term) return false;
+        if (!primaryPremise?.term) {return false;}
 
-        const term = primaryPremise.term;
-        if (!term.isCompound) return false;
-        if (!['-->', '<->'].includes(term.operator)) return false;
+        const {term} = primaryPremise;
+        if (!term.isCompound) {return false;}
+        if (!['-->', '<->'].includes(term.operator)) {return false;}
 
         // Subject must be atomic (not already a variable)
-        const subject = term.subject;
-        if (!subject || subject.isVariable) return false;
+        const {subject} = term;
+        if (!subject || subject.isVariable) {return false;}
 
         return true;
     }
@@ -165,10 +165,10 @@ export class DependentVariableIntroductionRule extends NALRule {
             return [];
         }
 
-        const termFactory = context.termFactory;
-        if (!termFactory) return [];
+        const {termFactory} = context;
+        if (!termFactory) {return [];}
 
-        const term = primaryPremise.term;
+        const {term} = primaryPremise;
         const variableTerm = termFactory.variable(`?z${this._varCounter++}`);
 
         let generalizedTerm;
@@ -183,7 +183,7 @@ export class DependentVariableIntroductionRule extends NALRule {
                 return [];
         }
 
-        if (!generalizedTerm) return [];
+        if (!generalizedTerm) {return [];}
 
         // Very weak confidence for existential generalization
         const truth = new Truth(

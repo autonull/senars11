@@ -19,7 +19,7 @@ export const createExplanationGenerationRule = (dependencies) => {
         priority: 0.5,
 
         condition: (primaryPremise, secondaryPremise, context) => {
-            if (!primaryPremise) return false;
+            if (!primaryPremise) {return false;}
 
             const belief = isBelief(primaryPremise);
             const priority = primaryPremise.budget?.priority ?? 0.5;
@@ -42,10 +42,10 @@ Focus on conveying the core meaning and implication of the statement.`;
         },
 
         generate: (processedOutput, primaryPremise, secondaryPremise, context) => {
-            if (!processedOutput) return [];
+            if (!processedOutput) {return [];}
 
             const termFactory = context?.termFactory ?? dependencies.termFactory;
-            if (!termFactory) return [];
+            if (!termFactory) {return [];}
 
             const originalTermStr = primaryPremise.term?.toString?.() ?? String(primaryPremise.term ?? '');
             const explanationTermStr = `explanation_for_(${originalTermStr})`;

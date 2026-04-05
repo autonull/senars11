@@ -53,7 +53,7 @@ export class MemoryIndex {
         const {term} = concept;
         this._totalConcepts++;
         if (term.id) {
-            if (!this._termIdToConcepts.has(term.id)) this._termIdToConcepts.set(term.id, []);
+            if (!this._termIdToConcepts.has(term.id)) {this._termIdToConcepts.set(term.id, []);}
             this._termIdToConcepts.get(term.id).push(concept);
         }
         this._indexes.forEach(index => index.add(concept));
@@ -66,7 +66,7 @@ export class MemoryIndex {
             const index = concepts.indexOf(concept);
             if (index !== -1) {
                 concepts.splice(index, 1);
-                if (concepts.length === 0) this._termIdToConcepts.delete(term.id);
+                if (concepts.length === 0) {this._termIdToConcepts.delete(term.id);}
             }
         }
         this._indexes.forEach(index => index.remove(concept));
@@ -80,7 +80,7 @@ export class MemoryIndex {
     }
 
     addConcepts(concepts) {
-        for (const concept of concepts) this.addConcept(concept);
+        for (const concept of concepts) {this.addConcept(concept);}
     }
 
     getConcept(termHash) {
@@ -92,7 +92,7 @@ export class MemoryIndex {
         const allConcepts = new Set();
         for (const index of this._indexes) {
             if (index?.getAll) {
-                for (const concept of index.getAll()) allConcepts.add(concept);
+                for (const concept of index.getAll()) {allConcepts.add(concept);}
             }
         }
         return Array.from(allConcepts);
@@ -105,7 +105,7 @@ export class MemoryIndex {
 
     rebuildIndex(concepts) {
         this.clear();
-        for (const concept of concepts) this.addConcept(concept);
+        for (const concept of concepts) {this.addConcept(concept);}
     }
 
     findConceptsWithFilters(filters = {}) {

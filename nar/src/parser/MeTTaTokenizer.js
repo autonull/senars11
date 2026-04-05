@@ -29,7 +29,7 @@ export class MeTTaTokenizer {
     tokenize() {
         while (this.pos < this.input.length) {
             this._skipWhitespaceAndComments();
-            if (this.pos >= this.input.length) break;
+            if (this.pos >= this.input.length) {break;}
 
             const char = this.input[this.pos];
 

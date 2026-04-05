@@ -29,7 +29,7 @@ export class EnhancedComponent extends Component {
     }
 
     async initialize() {
-        if (this.initialized) return;
+        if (this.initialized) {return;}
 
         // Run validators
         for (const validator of this._validators) {

@@ -8,7 +8,7 @@ export const ParameterInitializer = {
 
 export const PolicyUtils = {
     argmax(array) {
-        if (!array || array.length === 0) return -1;
+        if (!array || array.length === 0) {return -1;}
         let maxIdx = 0;
         let maxVal = array[0];
         for (let i = 1; i < array.length; i++) {
@@ -25,7 +25,7 @@ export const PolicyUtils = {
         let cumsum = 0;
         for (let i = 0; i < probs.length; i++) {
             cumsum += probs[i];
-            if (rand < cumsum) return i;
+            if (rand < cumsum) {return i;}
         }
         return probs.length - 1;
     },

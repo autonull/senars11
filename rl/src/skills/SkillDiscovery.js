@@ -84,7 +84,7 @@ export class Skill {
     }
 
     isApplicable(state, bridge) {
-        if (!this.precondition) return true;
+        if (!this.precondition) {return true;}
         const stateNarsese = bridge?.observationToNarsese(state) ?? '';
         return stateNarsese.includes(this.precondition);
     }
@@ -139,7 +139,7 @@ export class Skill {
 
     static fromMetta(mettaStr, policyMap = {}) {
         const idMatch = mettaStr.match(/skill (\S+)/);
-        if (!idMatch) return null;
+        if (!idMatch) {return null;}
 
         const extract = (pattern) => SkillUtils.extractMettaField(mettaStr, pattern);
 
@@ -309,7 +309,7 @@ export class SkillDiscovery extends Component {
     }
 
     _inducePrecondition(states) {
-        if (!this.bridge || !this.config.useNarseseGrounding) return null;
+        if (!this.bridge || !this.config.useNarseseGrounding) {return null;}
 
         const predicateCounts = new Map();
         states.forEach(state => {
@@ -405,12 +405,12 @@ export class SkillDiscovery extends Component {
     }
 
     async _planWithNARS(goal, maxDepth) {
-        if (!this.bridge) return null;
+        if (!this.bridge) {return null;}
 
         const goalNarsese = `<${goal} --> goal>!`;
         const plan = await this.bridge.achieveGoal(goalNarsese, { cycles: 100 });
 
-        if (!plan?.executedOperations) return null;
+        if (!plan?.executedOperations) {return null;}
 
         const skillSequence = plan.executedOperations.map(op => this._findSkillForOperation(op)).filter(Boolean);
         return skillSequence.length > 0 ? this._createCompositeSkill(skillSequence, goal) : null;
@@ -418,7 +418,7 @@ export class SkillDiscovery extends Component {
 
     async _greedyComposition(goal, maxDepth) {
         const goalSkills = Array.from(this.skills.values()).filter(s => s.postcondition?.includes(goal));
-        if (goalSkills.length === 0) return null;
+        if (goalSkills.length === 0) {return null;}
 
         goalSkills.sort((a, b) => b.getSuccessRate() - a.getSuccessRate());
         const bestSkill = goalSkills[0];
@@ -509,7 +509,7 @@ export class SkillDiscovery extends Component {
         const skillBlocks = mettaStr.split('(skill ').slice(1);
 
         for (const block of skillBlocks) {
-            const skill = Skill.fromMetta('(skill ' + block, policyMap);
+            const skill = Skill.fromMetta(`(skill ${  block}`, policyMap);
             if (skill) {
                 this.skills.set(skill.id, skill);
                 (skill.level === 0 ? this.primitiveSkills : this.compositeSkills).add(skill.id);

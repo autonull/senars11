@@ -6,7 +6,7 @@ import { ENV } from '../env.js';
 
 export class WorkerPool {
     constructor(workerScript, poolSize = 4) {
-        if (!ENV.isNode) throw new Error('Node.js environment required');
+        if (!ENV.isNode) {throw new Error('Node.js environment required');}
 
         this.workerScript = workerScript;
         this.workers = [];
@@ -30,7 +30,7 @@ export class WorkerPool {
         worker.on('message', (msg) => this._handleResult(msg, worker));
         worker.on('error', (err) => console.error('Worker error:', err));
         worker.on('exit', (code) => {
-            if (code !== 0) console.error(`Worker stopped with exit code ${code}`);
+            if (code !== 0) {console.error(`Worker stopped with exit code ${code}`);}
             // Remove dead worker and replace if needed (not implemented for simplicity)
         });
 

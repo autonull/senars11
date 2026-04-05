@@ -10,7 +10,7 @@ export class SMTBridge {
   }
 
   canSolve(bindings) {
-    if (!bindings) return false;
+    if (!bindings) {return false;}
     const size = bindings instanceof Map ? bindings.size : Object.keys(bindings).length;
     return size > (configManager.get('smtVarThreshold') || 5);
   }

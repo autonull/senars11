@@ -16,8 +16,8 @@ const PLANNING_DEFAULTS = {
 };
 
 const formatTerm = (val) => {
-    if (Array.isArray(val)) return `(${val.join(',')})`;
-    if (typeof val === 'object' && val !== null) return JSON.stringify(val);
+    if (Array.isArray(val)) {return `(${val.join(',')})`;}
+    if (typeof val === 'object' && val !== null) {return JSON.stringify(val);}
     return String(val);
 };
 
@@ -42,7 +42,7 @@ export class PlanningSystem {
     }
 
     async act(obs, goal = null) {
-        if (!this.bridge) return null;
+        if (!this.bridge) {return null;}
 
         if (goal) {
             if (this.skills) {
@@ -127,7 +127,7 @@ export class PlanningSystem {
     }
 
     async plan(startState, goal) {
-        if (!this.bridge) return null;
+        if (!this.bridge) {return null;}
 
         const cacheKey = `${startState}_to_${goal}`;
         if (this.config.useCache && this.pathCache.has(cacheKey)) {
@@ -150,7 +150,7 @@ export class PlanningSystem {
     }
 
     async induce(trajectories) {
-        if (!this.bridge) return;
+        if (!this.bridge) {return;}
 
         const promises = trajectories.map(ep => this._processEpisode(ep));
         await Promise.all(promises);
@@ -158,7 +158,7 @@ export class PlanningSystem {
     }
 
     async _processEpisode({ obs, action, nextObs, reward }) {
-        if (!this.bridge) return;
+        if (!this.bridge) {return;}
 
         const o = formatTerm(obs);
         const n = formatTerm(nextObs);
@@ -204,7 +204,7 @@ export class IntrinsicMotivation {
     }
 
     calculate(transition) {
-        if (this.config.intrinsicMode === 'none') return 0;
+        if (this.config.intrinsicMode === 'none') {return 0;}
 
         return this.config.intrinsicMode === 'novelty'
             ? this._calculateNovelty(transition.nextObs)

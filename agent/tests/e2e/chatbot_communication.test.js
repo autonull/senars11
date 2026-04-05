@@ -1,7 +1,7 @@
-import { jest } from '@jest/globals';
-import { Agent } from '../../src/Agent.js';
-import { EmbeddedRelay } from '../helpers/EmbeddedRelay.js';
-import { generateSecretKey, getPublicKey } from 'nostr-tools';
+import {jest} from '@jest/globals';
+import {Agent} from '../../src/Agent.js';
+import {EmbeddedRelay} from '../helpers/EmbeddedRelay.js';
+import {generateSecretKey, getPublicKey} from 'nostr-tools';
 
 // Increase timeout for E2E
 jest.setTimeout(30000);
@@ -47,17 +47,17 @@ describe.skip('Chatbot E2E Communication', () => {
         alice = new Agent({
             id: 'alice',
             channelConfigPath: null, // manual config
-            lm: { provider: 'dummy' }
+            lm: {provider: 'dummy'}
         });
 
         // Manual Channel Setup for Alice
-        const { NostrChannel } = await import('../../src/io/index.js');
+        const {NostrChannel} = await import('../../src/io/index.js');
         const aliceChan = new NostrChannel({
             id: 'nostr',
             relays: [relayUrl],
             privateKey: aliceHex,
             // Listen for everything or specifically Bob
-            filters: [{ kinds: [1], '#p': [alicePub] }]
+            filters: [{kinds: [1], '#p': [alicePub]}]
         });
         alice.channelManager.register(aliceChan);
         await aliceChan.connect();
@@ -65,13 +65,13 @@ describe.skip('Chatbot E2E Communication', () => {
         // Init Bob
         bob = new Agent({
             id: 'bob',
-            lm: { provider: 'dummy' }
+            lm: {provider: 'dummy'}
         });
         const bobChan = new NostrChannel({
             id: 'nostr',
             relays: [relayUrl],
             privateKey: bobHex,
-            filters: [{ kinds: [1], '#p': [bobPub] }]
+            filters: [{kinds: [1], '#p': [bobPub]}]
         });
         bob.channelManager.register(bobChan);
         await bobChan.connect();
@@ -99,7 +99,7 @@ describe.skip('Chatbot E2E Communication', () => {
         // 1. Alice sends to Bob
         // Using MeTTa primitive simulation or direct JS call
         // Direct JS for reliability in test:
-        await alice.channelManager.sendMessage('nostr', bobPub, 'Hello Bob', { kind: 1 }); // Public mention/DM logic depends on implementation.
+        await alice.channelManager.sendMessage('nostr', bobPub, 'Hello Bob', {kind: 1}); // Public mention/DM logic depends on implementation.
         // NostrChannel sends kind 1 by default unless kind 4 specified.
         // If we want DM, use kind 4. But relay filter above listens for kind 1 with p tag (mention).
         // To send a mention (kind 1 with p tag), we need to handle that in NostrChannel.

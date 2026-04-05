@@ -20,20 +20,20 @@ export class ConversionRule extends NALRule {
     }
 
     canApply(primaryPremise, secondaryPremise) {
-        if (!primaryPremise || secondaryPremise) return false; // Unary rule
+        if (!primaryPremise || secondaryPremise) {return false;} // Unary rule
         const {term} = primaryPremise;
         return term?.isCompound && term.operator === '-->' && term.subject && term.predicate;
     }
 
     apply(primaryPremise, secondaryPremise, context) {
-        if (!this.canApply(primaryPremise, secondaryPremise)) return [];
+        if (!this.canApply(primaryPremise, secondaryPremise)) {return [];}
 
         const {term} = primaryPremise;
         const termFactory = context?.termFactory;
-        if (!termFactory) return [];
+        if (!termFactory) {return [];}
 
         const newTruth = Truth.conversion(primaryPremise.truth);
-        if (!newTruth) return [];
+        if (!newTruth) {return [];}
 
         const task = this.createDerivedTask(
             termFactory.create('-->', [term.predicate, term.subject]),
@@ -49,20 +49,20 @@ export class ContrapositionRule extends NALRule {
     }
 
     canApply(primaryPremise, secondaryPremise) {
-        if (!primaryPremise || secondaryPremise) return false; // Unary rule
+        if (!primaryPremise || secondaryPremise) {return false;} // Unary rule
         const {term} = primaryPremise;
         return term?.isCompound && term.operator === '==>' && term.subject && term.predicate;
     }
 
     apply(primaryPremise, secondaryPremise, context) {
-        if (!this.canApply(primaryPremise, secondaryPremise)) return [];
+        if (!this.canApply(primaryPremise, secondaryPremise)) {return [];}
 
         const {term} = primaryPremise;
         const termFactory = context?.termFactory;
-        if (!termFactory) return [];
+        if (!termFactory) {return [];}
 
         const newTruth = Truth.structuralReduction(primaryPremise.truth);
-        if (!newTruth) return [];
+        if (!newTruth) {return [];}
 
         const negS = termFactory.create('--', [term.predicate]);
         const negP = termFactory.create('--', [term.subject]);

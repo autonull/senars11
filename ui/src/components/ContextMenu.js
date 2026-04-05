@@ -23,11 +23,11 @@ export class ContextMenu {
 
     _setupGlobalListeners() {
         document.addEventListener('click', (e) => {
-            if (!this.menuElement.contains(e.target)) this.hide();
+            if (!this.menuElement.contains(e.target)) {this.hide();}
         });
 
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.isVisible) this.hide();
+            if (e.key === 'Escape' && this.isVisible) {this.hide();}
         });
     }
 

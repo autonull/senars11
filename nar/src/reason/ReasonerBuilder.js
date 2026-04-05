@@ -41,7 +41,7 @@ export class ReasonerBuilder {
     }
 
     static async registerDefaultRules(streamReasoner, config, dependencies = {}) {
-        const ruleExecutor = streamReasoner.ruleProcessor.ruleExecutor;
+        const {ruleExecutor} = streamReasoner.ruleProcessor;
 
         // Import and register new stream reasoner rules
         const {
@@ -212,7 +212,7 @@ export class ReasonerBuilder {
             throw new Error('Strategy must be set before adding formation strategies');
         }
 
-        const strategy = this.components.strategy;
+        const {strategy} = this.components;
 
         // TaskMatchStrategy: pairs with existing tasks (core NARS behavior)
         strategy.addFormationStrategy(new TaskMatchStrategy({

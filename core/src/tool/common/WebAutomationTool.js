@@ -3,7 +3,7 @@
  * @description Tool for web automation and web-based operations with safety features
  */
 
-import { BaseTool } from '../BaseTool.js';
+import {BaseTool} from '../BaseTool.js';
 import {Logger} from '../../util/Logger.js';
 
 /**
@@ -41,24 +41,36 @@ export class WebAutomationTool extends BaseTool {
     async execute(params, context) {
         const {operation, url, method = 'GET', headers = {}, body, options = {}} = params;
 
-        if (!operation) throw new Error('Operation is required');
+        if (!operation) {
+            throw new Error('Operation is required');
+        }
 
         switch (operation.toLowerCase()) {
             case 'get':
             case 'fetch':
-                if (!url) throw new Error('URL is required for fetch operation');
+                if (!url) {
+                    throw new Error('URL is required for fetch operation');
+                }
                 return await this._fetchUrl(url, {method: 'GET', headers, ...options});
             case 'post':
-                if (!url) throw new Error('URL is required for POST operation');
+                if (!url) {
+                    throw new Error('URL is required for POST operation');
+                }
                 return await this._fetchUrl(url, {method: 'POST', headers, body, ...options});
             case 'scrape':
-                if (!url) throw new Error('URL is required for scrape operation');
+                if (!url) {
+                    throw new Error('URL is required for scrape operation');
+                }
                 return await this._scrapeUrl(url, {headers, ...options});
             case 'check':
-                if (!url) throw new Error('URL is required for check operation');
+                if (!url) {
+                    throw new Error('URL is required for check operation');
+                }
                 return await this._checkUrl(url, {headers, ...options});
             case 'head':
-                if (!url) throw new Error('URL is required for HEAD operation');
+                if (!url) {
+                    throw new Error('URL is required for HEAD operation');
+                }
                 return await this._headRequest(url, {headers, ...options});
             default:
                 throw new Error(`Unsupported operation: ${operation}. Supported operations: get, post, scrape, check, head`);
@@ -375,7 +387,7 @@ export class WebAutomationTool extends BaseTool {
 
             // Check if domain is in allowed list
             const isAllowed = Array.from(this.allowedDomains).some(allowed =>
-                domain === allowed || domain.endsWith('.' + allowed)
+                domain === allowed || domain.endsWith(`.${allowed}`)
             );
 
             if (!isAllowed) {

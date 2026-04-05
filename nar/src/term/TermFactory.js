@@ -38,9 +38,9 @@ export class TermFactory extends BaseComponent {
     }
 
     fromJSON(data) {
-        if (!data) return null;
-        if (data instanceof Term) return data;
-        if (typeof data === 'string') return this.create(data);
+        if (!data) {return null;}
+        if (data instanceof Term) {return data;}
+        if (typeof data === 'string') {return this.create(data);}
         return this.create(data);
     }
 
@@ -48,8 +48,8 @@ export class TermFactory extends BaseComponent {
         if (typeof data === 'string' && Array.isArray(components)) {
             return this._createCompound(data, components);
         }
-        if (!data) throw new Error('TermFactory.create: data is required');
-        if (data instanceof Term) return data;
+        if (!data) {throw new Error('TermFactory.create: data is required');}
+        if (data instanceof Term) {return data;}
 
         const isAtomic = typeof data === 'string' || (data.name && !data.components && !data.operator);
         return isAtomic
@@ -145,7 +145,7 @@ export class TermFactory extends BaseComponent {
 
     _createAndCache(operator, components, name) {
         const existing = this._cache.get(name);
-        if (existing) return existing;
+        if (existing) {return existing;}
 
         const term = new Term(
             operator ? TermType.COMPOUND : TermType.ATOM,
@@ -164,10 +164,10 @@ export class TermFactory extends BaseComponent {
     }
 
     _canonicalizeComponents(operator, components) {
-        if (!operator) return components;
+        if (!operator) {return components;}
 
         const handler = CANONICALIZATION_HANDLERS[operator];
-        if (handler) return handler.call(this, components);
+        if (handler) {return handler.call(this, components);}
 
         if (COMMUTATIVE_OPERATORS.has(operator)) {
             const comps = [...components].sort(this._compareTermsAlphabetically);
@@ -187,26 +187,26 @@ export class TermFactory extends BaseComponent {
     }
 
     _removeRedundancy(comps) {
-        if (comps.length < 2) return comps;
+        if (comps.length < 2) {return comps;}
         const seen = new Set();
         return comps.filter(c => !seen.has(c.name) && seen.add(c.name));
     }
 
     _buildCanonicalName(op, comps) {
-        if (!op) return comps[0].toString();
+        if (!op) {return comps[0].toString();}
         const pattern = CANONICAL_NAME_PATTERNS[op];
-        if (pattern) return pattern(comps.map(c => c.toString()));
+        if (pattern) {return pattern(comps.map(c => c.toString()));}
         return `(${op === ',' ? '' : `${op}, `}${comps.map(c => c.toString()).join(', ')})`;
     }
 
     getComplexity(term) {
-        if (typeof term !== 'string' && term?.complexity) return term.complexity;
+        if (typeof term !== 'string' && term?.complexity) {return term.complexity;}
         const name = typeof term === 'string' ? term : term?.name;
         return this._cache.get(name)?.complexity ?? 1;
     }
 
     setMaxCacheSize(size) {
-        if (typeof size === 'number' && size > 0) this._cache.setMaxSize(size);
+        if (typeof size === 'number' && size > 0) {this._cache.setMaxSize(size);}
     }
 
     getCacheSize() { return this._cache.size; }
@@ -226,7 +226,7 @@ export class TermFactory extends BaseComponent {
     }
 
     _topK(limit, compareFn) {
-        if (limit <= 0) return [];
+        if (limit <= 0) {return [];}
         return Array.from(this._cache.values())
             .sort(compareFn)
             .slice(0, limit)

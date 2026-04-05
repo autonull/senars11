@@ -13,7 +13,7 @@ class peg$SyntaxError extends SyntaxError {
   }
 
   format(sources) {
-    let str = "Error: " + this.message;
+    let str = `Error: ${  this.message}`;
     if (this.location) {
       let src = null;
       const st = sources.find(s => s.source === this.location.source);
@@ -24,20 +24,20 @@ class peg$SyntaxError extends SyntaxError {
       const offset_s = (this.location.source && (typeof this.location.source.offset === "function"))
         ? this.location.source.offset(s)
         : s;
-      const loc = this.location.source + ":" + offset_s.line + ":" + offset_s.column;
+      const loc = `${this.location.source  }:${  offset_s.line  }:${  offset_s.column}`;
       if (src) {
         const e = this.location.end;
         const filler = "".padEnd(offset_s.line.toString().length, " ");
         const line = src[s.line - 1];
         const last = s.line === e.line ? e.column : line.length + 1;
         const hatLen = (last - s.column) || 1;
-        str += "\n --> " + loc + "\n"
-            + filler + " |\n"
-            + offset_s.line + " | " + line + "\n"
-            + filler + " | " + "".padEnd(s.column - 1, " ")
-            + "".padEnd(hatLen, "^");
+        str += `\n --> ${  loc  }\n${
+             filler  } |\n${
+             offset_s.line  } | ${  line  }\n${
+             filler  } | ${  "".padEnd(s.column - 1, " ")
+             }${"".padEnd(hatLen, "^")}`;
       } else {
-        str += "\n at " + loc;
+        str += `\n at ${  loc}`;
       }
     }
     return str;
@@ -53,7 +53,7 @@ class peg$SyntaxError extends SyntaxError {
       : null;
     function unicodeEscape(s) {
       if (nonPrintable) {
-        return s.replace(nonPrintable,  ch => "\\u{" + hex(ch) + "}");
+        return s.replace(nonPrintable,  ch => `\\u{${  hex(ch)  }}`);
       }
       return s;
     }
@@ -66,8 +66,8 @@ class peg$SyntaxError extends SyntaxError {
         .replace(/\t/g, "\\t")
         .replace(/\n/g, "\\n")
         .replace(/\r/g, "\\r")
-        .replace(/[\x00-\x0F]/g,          ch => "\\x0" + hex(ch))
-        .replace(/[\x10-\x1F\x7F-\x9F]/g, ch => "\\x"  + hex(ch)));
+        .replace(/[\x00-\x0F]/g,          ch => `\\x0${  hex(ch)}`)
+        .replace(/[\x10-\x1F\x7F-\x9F]/g, ch => `\\x${   hex(ch)}`));
     }
 
     function classEscape(s) {
@@ -80,23 +80,23 @@ class peg$SyntaxError extends SyntaxError {
         .replace(/\t/g, "\\t")
         .replace(/\n/g, "\\n")
         .replace(/\r/g, "\\r")
-        .replace(/[\x00-\x0F]/g,          ch => "\\x0" + hex(ch))
-        .replace(/[\x10-\x1F\x7F-\x9F]/g, ch => "\\x"  + hex(ch)));
+        .replace(/[\x00-\x0F]/g,          ch => `\\x0${  hex(ch)}`)
+        .replace(/[\x10-\x1F\x7F-\x9F]/g, ch => `\\x${   hex(ch)}`));
     }
 
     const DESCRIBE_EXPECTATION_FNS = {
       literal(expectation) {
-        return "\"" + literalEscape(expectation.text) + "\"";
+        return `"${  literalEscape(expectation.text)  }"`;
       },
 
       class(expectation) {
         const escapedParts = expectation.parts.map(
           part => (Array.isArray(part)
-            ? classEscape(part[0]) + "-" + classEscape(part[1])
+            ? `${classEscape(part[0])  }-${  classEscape(part[1])}`
             : classEscape(part))
         );
 
-        return "[" + (expectation.inverted ? "^" : "") + escapedParts.join("") + "]" + (expectation.unicode ? "u" : "");
+        return `[${  expectation.inverted ? "^" : ""  }${escapedParts.join("")  }]${  expectation.unicode ? "u" : ""}`;
       },
 
       any() {
@@ -136,20 +136,20 @@ class peg$SyntaxError extends SyntaxError {
           return descriptions[0];
 
         case 2:
-          return descriptions[0] + " or " + descriptions[1];
+          return `${descriptions[0]  } or ${  descriptions[1]}`;
 
         default:
-          return descriptions.slice(0, -1).join(", ")
-            + ", or "
-            + descriptions[descriptions.length - 1];
+          return `${descriptions.slice(0, -1).join(", ")
+             }, or ${
+             descriptions[descriptions.length - 1]}`;
       }
     }
 
     function describeFound(found) {
-      return found ? "\"" + literalEscape(found) + "\"" : "end of input";
+      return found ? `"${  literalEscape(found)  }"` : "end of input";
     }
 
-    return "Expected " + describeExpected(expected) + " but " + describeFound(found) + " found.";
+    return `Expected ${  describeExpected(expected)  } but ${  describeFound(found)  } found.`;
   }
 }
 
@@ -267,10 +267,10 @@ function peg$parse(input, options) {
   function peg$f0(content) {    return content;  }
   function peg$f1(term, punc, truth) {
     let taskType = 'BELIEF';
-    if (punc === '?') taskType = 'QUESTION';
-    else if (punc === '!') taskType = 'GOAL';
-    else if (punc === '@') taskType = 'QUEST';
-    else if (punc === ';') taskType = 'COMMAND';
+    if (punc === '?') {taskType = 'QUESTION';}
+    else if (punc === '!') {taskType = 'GOAL';}
+    else if (punc === '@') {taskType = 'QUEST';}
+    else if (punc === ';') {taskType = 'COMMAND';}
 
     return {
       term: term,
@@ -329,7 +329,7 @@ function peg$parse(input, options) {
     return terms;
   }
   function peg$f21(chars) {    return options.termFactory.atomic(chars);  }
-  function peg$f22(chars) {    return options.termFactory.atomic('"' + chars + '"');  }
+  function peg$f22(chars) {    return options.termFactory.atomic(`"${  chars  }"`);  }
   function peg$f23(varName) {    return options.termFactory.atomic(varName);  }
   function peg$f24(val) {    return parseFloat(val);  }
   let peg$currPos = options.peg$currPos | 0;
@@ -343,7 +343,7 @@ function peg$parse(input, options) {
 
   if (options.startRule) {
     if (!(options.startRule in peg$startRuleFunctions)) {
-      throw new Error("Can't start parsing from rule \"" + options.startRule + "\".");
+      throw new Error(`Can't start parsing from rule "${  options.startRule  }".`);
     }
 
     peg$startRuleFunction = peg$startRuleFunctions[options.startRule];

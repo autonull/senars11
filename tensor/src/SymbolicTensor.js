@@ -2,7 +2,7 @@ import { Tensor } from './Tensor.js';
 
 const TensorOps = {
     reshape(flat, shape) {
-        if (shape.length === 1) return Array.from(flat);
+        if (shape.length === 1) {return Array.from(flat);}
         if (shape.length === 2) {
             const [rows, cols] = shape;
             return Array.from({ length: rows }, (_, i) =>
@@ -92,7 +92,7 @@ export class SymbolicTensor extends Tensor {
     }
 
     _getIndices(flatIndex) {
-        if (!this.shape || this.shape.length <= 1) return [flatIndex];
+        if (!this.shape || this.shape.length <= 1) {return [flatIndex];}
         const res = [];
         let current = flatIndex;
         for (let i = this.shape.length - 1; i >= 0; i--) {

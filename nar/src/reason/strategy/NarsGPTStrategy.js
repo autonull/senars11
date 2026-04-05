@@ -49,8 +49,8 @@ export class NarsGPTStrategy extends PremiseFormationStrategy {
         });
 
         // Legacy compat
-        if (config.perspectiveSwapEnabled === false) this.perspectiveMode = 'none';
-        if (config.perspectiveSwapEnabled === true && !config.perspectiveMode) this.perspectiveMode = 'swap';
+        if (config.perspectiveSwapEnabled === false) {this.perspectiveMode = 'none';}
+        if (config.perspectiveSwapEnabled === true && !config.perspectiveMode) {this.perspectiveMode = 'swap';}
 
         this.groundings = new Map();
         this.atoms = new Map();
@@ -78,7 +78,7 @@ export class NarsGPTStrategy extends PremiseFormationStrategy {
     }
 
     async* generateCandidates(primaryTask, context) {
-        if (!context.memory) return;
+        if (!context.memory) {return;}
         const termStr = primaryTask.term?.toString?.() ?? String(primaryTask.term);
         const buffer = await this.buildAttentionBuffer(termStr, context.memory, context.currentTime ?? Date.now());
 
@@ -95,7 +95,7 @@ export class NarsGPTStrategy extends PremiseFormationStrategy {
 
     async buildAttentionBuffer(queryText, memory, currentTime) {
         this._metrics.attentionBufferBuilds++;
-        if (!memory) return [];
+        if (!memory) {return [];}
 
         const relevant = await this._getRelevantItems(queryText, memory);
         const recent = this._getRecentItems(memory, currentTime);
@@ -110,17 +110,17 @@ export class NarsGPTStrategy extends PremiseFormationStrategy {
     }
 
     async _getRelevantItems(queryText, memory) {
-        if (!this.embeddingLayer) return [];
+        if (!this.embeddingLayer) {return [];}
 
         try {
             const queryEmbed = await this.embeddingLayer.getEmbedding(queryText);
             const concepts = this._getConcepts(memory);
-            if (!concepts) return [];
+            if (!concepts) {return [];}
 
             const tasks = [];
             for (const [, concept] of concepts) {
-                for (const task of concept.beliefs ?? []) tasks.push(task);
-                if (tasks.length >= this.relevantViewSize * 2) break;
+                for (const task of concept.beliefs ?? []) {tasks.push(task);}
+                if (tasks.length >= this.relevantViewSize * 2) {break;}
             }
 
             const results = [];
@@ -130,7 +130,7 @@ export class NarsGPTStrategy extends PremiseFormationStrategy {
                 if (relevance > this.relevanceThreshold) {
                     results.push({task, relevance, recency: 0, score: relevance * this.weights.relevance});
                 }
-                if (results.length >= this.relevantViewSize) break;
+                if (results.length >= this.relevantViewSize) {break;}
             }
             return results.sort((a, b) => b.relevance - a.relevance).slice(0, this.relevantViewSize);
         } catch {
@@ -139,7 +139,7 @@ export class NarsGPTStrategy extends PremiseFormationStrategy {
     }
 
     async batchScore(queryText, candidateTexts) {
-        if (!this.embeddingLayer || !candidateTexts?.length) return [];
+        if (!this.embeddingLayer || !candidateTexts?.length) {return [];}
         try {
             const queryEmbed = await this.embeddingLayer.getEmbedding(queryText);
             const results = await Promise.all(
@@ -156,7 +156,7 @@ export class NarsGPTStrategy extends PremiseFormationStrategy {
 
     _getRecentItems(memory, currentTime) {
         const concepts = this._getConcepts(memory);
-        if (!concepts) return [];
+        if (!concepts) {return [];}
 
         const tasks = [];
         for (const [, concept] of concepts) {
@@ -176,7 +176,7 @@ export class NarsGPTStrategy extends PremiseFormationStrategy {
 
     async atomize(termString, type = 'NOUN') {
         this._metrics.atomizations++;
-        if (!this.embeddingLayer) return {isNew: true, unifiedTerm: null};
+        if (!this.embeddingLayer) {return {isNew: true, unifiedTerm: null};}
 
         try {
             const embedding = await this.embeddingLayer.getEmbedding(termString);
@@ -198,7 +198,7 @@ export class NarsGPTStrategy extends PremiseFormationStrategy {
     }
 
     async ground(narsese, sentence) {
-        if (!this.embeddingLayer) return;
+        if (!this.embeddingLayer) {return;}
         try {
             const embedding = await this.embeddingLayer.getEmbedding(sentence);
             this.groundings.set(narsese, {sentence, embedding});
@@ -209,7 +209,7 @@ export class NarsGPTStrategy extends PremiseFormationStrategy {
 
     async checkGrounding(input) {
         this._metrics.groundingChecks++;
-        if (!this.embeddingLayer || !this.groundings.size) return {grounded: false, match: null, similarity: 0};
+        if (!this.embeddingLayer || !this.groundings.size) {return {grounded: false, match: null, similarity: 0};}
 
         try {
             const inputEmbed = await this.embeddingLayer.getEmbedding(input);
@@ -231,7 +231,7 @@ export class NarsGPTStrategy extends PremiseFormationStrategy {
 
     eternalize(memory, currentTime) {
         const concepts = this._getConcepts(memory);
-        if (!concepts) return;
+        if (!concepts) {return;}
 
         let count = 0;
         for (const [, concept] of concepts) {
@@ -243,18 +243,18 @@ export class NarsGPTStrategy extends PremiseFormationStrategy {
                 }
             }
         }
-        if (count) this._emit('narsgpt:eternalized', {count});
+        if (count) {this._emit('narsgpt:eternalized', {count});}
     }
 
     // Perspective transformations
 
     perspectiveSwap(text) {
-        if (this.perspectiveMode === 'none' || !text) return text;
-        if (this.perspectiveMode === 'neutralize') return this.perspectiveNeutralize(text);
+        if (this.perspectiveMode === 'none' || !text) {return text;}
+        if (this.perspectiveMode === 'neutralize') {return this.perspectiveNeutralize(text);}
 
         this._metrics.perspectiveOps++;
         let result = ` ${text} `;
-        for (const [pattern, placeholder] of SWAP_PATTERNS) result = result.replace(pattern, placeholder);
+        for (const [pattern, placeholder] of SWAP_PATTERNS) {result = result.replace(pattern, placeholder);}
         for (const [placeholder, replacement] of Object.entries(SWAP_RESTORE)) {
             result = result.replaceAll(placeholder, replacement);
         }
@@ -262,15 +262,15 @@ export class NarsGPTStrategy extends PremiseFormationStrategy {
     }
 
     perspectiveNeutralize(text) {
-        if (!text) return text;
+        if (!text) {return text;}
         this._metrics.perspectiveOps++;
         let result = text;
-        for (const [pattern, replacement] of NEUTRALIZE_PATTERNS) result = result.replace(pattern, replacement);
+        for (const [pattern, replacement] of NEUTRALIZE_PATTERNS) {result = result.replace(pattern, replacement);}
         return result;
     }
 
     formatContext(buffer) {
-        if (!buffer?.length) return '(No relevant memory items)';
+        if (!buffer?.length) {return '(No relevant memory items)';}
         return buffer.map((item, i) => {
             const term = item.task.term?.toString?.() ?? String(item.task.term);
             const {f = 0, c = 0} = item.task.truth ?? {};
@@ -280,7 +280,7 @@ export class NarsGPTStrategy extends PremiseFormationStrategy {
 
     reviseWithMemory(newTruth, memory, termString) {
         const concepts = this._getConcepts(memory);
-        if (!concepts) return newTruth;
+        if (!concepts) {return newTruth;}
 
         for (const [, concept] of concepts) {
             for (const belief of concept.beliefs ?? []) {

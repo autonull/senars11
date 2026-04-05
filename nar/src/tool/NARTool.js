@@ -47,7 +47,7 @@ export class NARTool extends BaseTool {
     }
 
     get prologStrategy() {
-        if (this._prologStrategy) return this._prologStrategy;
+        if (this._prologStrategy) {return this._prologStrategy;}
 
         // Try to find it in the strategies list
         this._prologStrategy = this.nar?.streamReasoner?.strategy?.strategies?.find(s => s instanceof PrologStrategy);
@@ -61,12 +61,12 @@ export class NARTool extends BaseTool {
     }
 
     async execute(args) {
-        if (!this.nar) return {error: 'NAR system not initialized'};
+        if (!this.nar) {return {error: 'NAR system not initialized'};}
 
         const {action, content} = args;
         const actionHandler = this._getActionHandler(action);
 
-        if (!actionHandler) return {error: `Unknown action: ${action}`};
+        if (!actionHandler) {return {error: `Unknown action: ${action}`};}
 
         try {
             if (actionHandler.requiresContent && !content) {
@@ -150,7 +150,7 @@ export class NARTool extends BaseTool {
 
     async _executeNARInputCommand(content) {
         const inputMethod = this.nar.input ?? this.nar.addInput ?? this.nar.execute;
-        if (!inputMethod) throw new Error('NAR system has no available input method');
+        if (!inputMethod) {throw new Error('NAR system has no available input method');}
 
         const result = await inputMethod.call(this.nar, content);
         await this._runReasoningCycle();

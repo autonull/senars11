@@ -21,7 +21,9 @@ export class FormattingUtils {
     }
 
     static formatTruth(truth) {
-        if (!truth) return DEFAULT_TRUTH;
+        if (!truth) {
+            return DEFAULT_TRUTH;
+        }
 
         const freq = truth.frequency?.toFixed(3) ?? '1.000';
         const conf = truth.confidence?.toFixed(3) ?? '0.900';
@@ -29,7 +31,9 @@ export class FormattingUtils {
     }
 
     static formatOccurrence(task) {
-        if (task.occurrenceTime === undefined && !task.stamp) return DEFAULT_PRIORITY; // Return empty string
+        if (task.occurrenceTime === undefined && !task.stamp) {
+            return DEFAULT_PRIORITY;
+        } // Return empty string
 
         const timeStr = task.occurrenceTime ?? '';
         const stampStr = task.stamp ? this.encodeShortId(task.stamp.id ?? task.stamp) : '';
@@ -42,7 +46,9 @@ export class FormattingUtils {
     }
 
     static formatConcept(concept) {
-        if (!concept) return 'undefined concept';
+        if (!concept) {
+            return 'undefined concept';
+        }
         return concept.term ? concept.term.toString() : concept.toString();
     }
 
@@ -97,14 +103,18 @@ export class FormattingUtils {
     }
 
     static encodeShortId(input) {
-        if (!input) return 'N/A';
+        if (!input) {
+            return 'N/A';
+        }
         const inputStr = String(input);
         let hash = Array.from(inputStr).reduce((acc, char) => {
             const newHash = ((acc << 5) - acc) + char.charCodeAt(0);
             return newHash | 0;
         }, 0);
         hash = Math.abs(hash);
-        if (hash === 0) return ID_CHARS[0];
+        if (hash === 0) {
+            return ID_CHARS[0];
+        }
         let result = '';
         const base = ID_CHARS.length;
         let num = hash;

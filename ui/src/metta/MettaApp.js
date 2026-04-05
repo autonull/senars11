@@ -40,7 +40,7 @@ export class MettaApp extends BaseApp {
             processCommand: (text, isSystem, language) => {
                 let cmd = text;
                 if (language === 'metta' && !cmd.trim().startsWith('!')) {
-                    cmd = '!' + cmd;
+                    cmd = `!${  cmd}`;
                 }
                 this.handleReplCommand(cmd);
             }
@@ -193,13 +193,13 @@ export class MettaApp extends BaseApp {
     }
 
     _addMettaTermToGraph(atom, parentId = null, edgeLabel = '') {
-        if (!atom) return;
+        if (!atom) {return;}
 
         const id = atom.toString();
         let type = 'concept';
-        if (atom.type === 'compound' || (atom.components && atom.components.length > 0)) type = 'compound';
-        else if (atom.name && atom.name.startsWith('$')) type = 'variable';
-        else if (atom.name) type = 'symbol';
+        if (atom.type === 'compound' || (atom.components && atom.components.length > 0)) {type = 'compound';}
+        else if (atom.name && atom.name.startsWith('$')) {type = 'variable';}
+        else if (atom.name) {type = 'symbol';}
 
         this.graph.addNode({
             id: id,

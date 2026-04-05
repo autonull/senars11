@@ -58,8 +58,8 @@ export class RuleIndex {
         this.stats.inserts++;
         this.allRules.push(rule);
 
-        const pattern = rule.pattern;
-        if (!pattern) return;
+        const {pattern} = rule;
+        if (!pattern) {return;}
 
         // Index by functor
         if (isExpression(pattern)) {
@@ -96,7 +96,7 @@ export class RuleIndex {
             this.allRules.splice(idx, 1);
         }
 
-        if (!this.enabled) return;
+        if (!this.enabled) {return;}
 
         // Note: Full removal from indexes would require reverse lookup
         // For now, we just remove from allRules (lazy deletion)
@@ -185,9 +185,9 @@ export class RuleIndex {
      */
     _getSignature(functor, arity, firstArg) {
         let type = 'other';
-        if (isSymbol(firstArg)) type = 'sym';
-        else if (isVariable(firstArg)) type = 'var';
-        else if (isExpression(firstArg)) type = 'exp';
+        if (isSymbol(firstArg)) {type = 'sym';}
+        else if (isVariable(firstArg)) {type = 'var';}
+        else if (isExpression(firstArg)) {type = 'exp';}
         return `${functor}/${arity}/${type}`;
     }
 

@@ -19,7 +19,7 @@ export class GraphInteraction {
     set cy(val) { this._cy = val; }
 
     setupHoverEffects() {
-        if (!this._cy) return;
+        if (!this._cy) {return;}
         this._cy.on('mouseover', 'node', (evt) => {
             const node = evt.target;
             node.addClass('hovered');
@@ -37,16 +37,16 @@ export class GraphInteraction {
     }
 
     flyTo(nodeId) {
-        if (!this._cy) return;
+        if (!this._cy) {return;}
         const node = this._cy.getElementById(nodeId);
-        if (node.empty()) return;
+        if (node.empty()) {return;}
 
         this.historyStack.push({
             zoom: this._cy.zoom(),
             pan: { ...this._cy.pan() },
             time: Date.now()
         });
-        if (this.historyStack.length > 20) this.historyStack.shift();
+        if (this.historyStack.length > 20) {this.historyStack.shift();}
 
         this._cy.animate({
             zoom: 2.5,
@@ -59,7 +59,7 @@ export class GraphInteraction {
     }
 
     goBack() {
-        if (!this._cy || this.historyStack.length === 0) return;
+        if (!this._cy || this.historyStack.length === 0) {return;}
         const state = this.historyStack.pop();
         this._cy.animate({
             zoom: state.zoom,
@@ -70,7 +70,7 @@ export class GraphInteraction {
     }
 
     focusNode(nodeId) {
-        if (!this._cy) return;
+        if (!this._cy) {return;}
         const node = this._cy.getElementById(nodeId);
         if (node.length > 0) {
             this._cy.animate({
@@ -86,7 +86,7 @@ export class GraphInteraction {
     }
 
     enterNode(nodeId) {
-        if (!this._cy) return;
+        if (!this._cy) {return;}
         const node = this._cy.getElementById(nodeId);
         if (node.length > 0) {
             this._cy.animate({
@@ -100,16 +100,16 @@ export class GraphInteraction {
     }
 
     highlightNode(nodeId) {
-        if (!this._cy) return;
+        if (!this._cy) {return;}
         const node = typeof nodeId === 'string' ? this._cy.getElementById(nodeId) : nodeId;
-        if (!node?.length) return;
+        if (!node?.length) {return;}
         this._cy.elements().removeClass('keyboard-selected');
         node.addClass('keyboard-selected');
         this._cy.animate({ center: { eles: node } }, { duration: 200 });
     }
 
     toggleTraceMode(nodeId) {
-        if (!this._cy) return;
+        if (!this._cy) {return;}
         if (this.traceMode && this.tracedNode === nodeId) {
             this.traceMode = false;
             this.tracedNode = null;
@@ -130,9 +130,9 @@ export class GraphInteraction {
     }
 
     traceDerivationPath(nodeId) {
-        if (!this._cy) return;
+        if (!this._cy) {return;}
         const node = this._cy.getElementById(nodeId);
-        if (node.empty()) return;
+        if (node.empty()) {return;}
 
         const predecessors = node.predecessors();
         const edges = predecessors.filter('edge');
@@ -148,7 +148,7 @@ export class GraphInteraction {
     }
 
     setCommandProcessor(commandProcessor, graphInstance) {
-        if (!commandProcessor) return;
+        if (!commandProcessor) {return;}
         this.commandProcessor = commandProcessor;
         if (!this.contextMenu) {
             this.contextMenu = new ContextMenu(graphInstance, commandProcessor);
@@ -158,7 +158,7 @@ export class GraphInteraction {
     }
 
     handleContextMenu(evt) {
-        if (!this.contextMenu) return;
+        if (!this.contextMenu) {return;}
         const { target, originalEvent } = evt;
         if (target && target !== this._cy) {
             const type = target.isNode() ? 'node' : 'edge';
@@ -170,7 +170,7 @@ export class GraphInteraction {
     _emitConceptSelect(nodeId, showDetails = false) {
         const node = this._cy.getElementById(nodeId);
         const data = this._getNodeData(node);
-        if (data?.term) this._autoLearner.recordInteraction(data.term, 1);
+        if (data?.term) {this._autoLearner.recordInteraction(data.term, 1);}
         eventBus.emit(EVENTS.CONCEPT_SELECT, {
             concept: data?.fullData,
             id: nodeId,

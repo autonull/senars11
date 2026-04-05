@@ -81,7 +81,7 @@ export class MetricsMonitor {
     }
 
     start() {
-        if (this._reportingInterval || this.config.reportingInterval <= 0) return;
+        if (this._reportingInterval || this.config.reportingInterval <= 0) {return;}
 
         this._reportingInterval = setInterval(() => {
             this._updatePerformanceMetrics();
@@ -140,7 +140,7 @@ export class MetricsMonitor {
             baseline: null,
             anomalies: [],
             detect: (currentValue, history) => {
-                if (history.length < 10) return false;
+                if (history.length < 10) {return false;}
 
                 const recentAvg = history.slice(-5).reduce((sum, val) => sum + val, 0) / 5;
                 const baseline = history.slice(-10, -5).reduce((sum, val) => sum + val, 0) / 5 || 1;
@@ -156,7 +156,7 @@ export class MetricsMonitor {
             baseline: null,
             anomalies: [],
             detect: (currentValue, history) => {
-                if (history.length < 5) return false;
+                if (history.length < 5) {return false;}
 
                 const recentAvg = history.slice(-5).reduce((sum, val) => sum + val, 0) / 5;
                 // Memory usage increasing rapidly
@@ -170,7 +170,7 @@ export class MetricsMonitor {
             baseline: null,
             anomalies: [],
             detect: (currentValue, history) => {
-                if (history.length < 5) return false;
+                if (history.length < 5) {return false;}
 
                 const recentAvg = history.slice(-5).reduce((sum, val) => sum + val, 0) / 5;
                 // Latency spiking significantly
@@ -297,7 +297,7 @@ export class MetricsMonitor {
      * Check for metric anomalies
      */
     _checkAnomalies() {
-        if (!this.config.anomalyDetectionEnabled) return;
+        if (!this.config.anomalyDetectionEnabled) {return;}
 
         // Check throughput anomalies
         const throughputDetector = this.anomalyDetectors.get('throughput');
@@ -329,7 +329,7 @@ export class MetricsMonitor {
      * Check for threshold alerts
      */
     _checkThresholdAlerts() {
-        if (!this.config.thresholdAlerts) return;
+        if (!this.config.thresholdAlerts) {return;}
 
         for (const [alertName, alertConfig] of this.thresholdAlerts) {
             const value = this.metrics[alertConfig.metric];

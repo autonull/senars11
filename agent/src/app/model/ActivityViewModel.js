@@ -106,7 +106,9 @@ export class ActivityViewModel {
     }
 
     static _formatTruth(truth) {
-        if (!truth) return '';
+        if (!truth) {
+            return '';
+        }
         const f = truth.frequency !== undefined ? Number(truth.frequency).toFixed(2) : '?';
         const c = truth.confidence !== undefined ? Number(truth.confidence).toFixed(2) : '?';
         return `{f:${f}, c:${c}}`;

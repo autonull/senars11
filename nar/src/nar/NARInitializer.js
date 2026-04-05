@@ -38,7 +38,7 @@ export class NARInitializer {
         componentManager.registerComponent('focus', memory.focus, ['memory']);
         componentManager.registerComponent('taskManager', reasoning.taskManager, ['memory', 'focus']);
 
-        if (base.lm) componentManager.registerComponent('lm', base.lm);
+        if (base.lm) {componentManager.registerComponent('lm', base.lm);}
 
         if (tools.toolIntegration) {
             componentManager.registerComponent('toolIntegration', tools.toolIntegration);

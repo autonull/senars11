@@ -17,20 +17,20 @@ export const createConceptElaborationRule = (dependencies) => {
         singlePremise: true,
 
         condition: (primaryPremise) => {
-            if (!primaryPremise?.term) return false;
-            const term = primaryPremise.term;
-            if (term.components?.length > 0 && !term.isAtomic) return false;
+            if (!primaryPremise?.term) {return false;}
+            const {term} = primaryPremise;
+            if (term.components?.length > 0 && !term.isAtomic) {return false;}
 
             const name = term.name ?? term.toString();
-            if (typeof name !== 'string') return false;
-            if (name.startsWith('?') || name.startsWith('#')) return false;
-            if (/^\d+$/.test(name)) return false;
+            if (typeof name !== 'string') {return false;}
+            if (name.startsWith('?') || name.startsWith('#')) {return false;}
+            if (/^\d+$/.test(name)) {return false;}
 
             return (primaryPremise.type ?? 'BELIEF') === 'BELIEF';
         },
 
         prompt: (primaryPremise) => {
-            const term = primaryPremise.term;
+            const {term} = primaryPremise;
             const content = (term.name ?? term.toString()).replace(/^"|"$/g, '');
 
             const concept = memory?.getConcept?.(term);
@@ -53,12 +53,12 @@ export const createConceptElaborationRule = (dependencies) => {
         process: (r) => r?.trim() ?? '',
 
         generate: (processedOutput) => {
-            if (!processedOutput) return [];
+            if (!processedOutput) {return [];}
 
             const parsed = tryParseNarsese(processedOutput, parser);
             const termToCreate = parsed?.term ?? parsed ?? createFallbackTerm(processedOutput, termFactory);
 
-            if (!termToCreate) return [];
+            if (!termToCreate) {return [];}
 
             const punctuation = parsed?.punctuation ?? Punctuation.BELIEF;
             const truth = parsed?.truthValue

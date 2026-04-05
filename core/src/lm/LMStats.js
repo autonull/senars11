@@ -34,11 +34,19 @@ export class LMStats {
             this.avgTokensPerSecond = this.#updateAvg(this.avgTokensPerSecond, (resultTokens / responseTime) * 1000, this.totalCalls);
         }
 
-        const usage = this.providerUsage.get(providerId) ?? { calls: 0, tokens: 0, avgLatency: 0, successfulCalls: 0, reputation: 0.5 };
+        const usage = this.providerUsage.get(providerId) ?? {
+            calls: 0,
+            tokens: 0,
+            avgLatency: 0,
+            successfulCalls: 0,
+            reputation: 0.5
+        };
         usage.calls++;
         usage.tokens += resultTokens;
         usage.avgLatency = this.#updateAvg(usage.avgLatency, responseTime, usage.calls);
-        if (result?.length > 0) usage.successfulCalls++;
+        if (result?.length > 0) {
+            usage.successfulCalls++;
+        }
         usage.reputation = usage.successfulCalls / usage.calls;
         this.providerUsage.set(providerId, usage);
 
@@ -66,7 +74,7 @@ export class LMStats {
         const usage = this.providerUsage.get(providerId);
         const reputation = usage?.reputation ?? 0.5;
 
-        let confidence = logProb !== null
+        const confidence = logProb !== null
             ? Math.exp(logProb) * (0.5 + reputation * 0.5)
             : 0.6 + reputation * 0.3;
 

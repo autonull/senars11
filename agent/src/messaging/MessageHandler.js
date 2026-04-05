@@ -133,25 +133,25 @@ export class ReplMessageHandler extends EventEmitter {
 
     async _handleAgentResponse(message) {
         try {
-            const { id, response } = message.payload || {};
+            const {id, response} = message.payload || {};
             if (!id || response === undefined) {
-                return { error: 'Invalid agent response format', type: MESSAGE_TYPES.ERROR };
+                return {error: 'Invalid agent response format', type: MESSAGE_TYPES.ERROR};
             }
 
             // Emit event so the Agent/NAR can pick it up
             if (this.engine.emit) {
-                this.engine.emit('agent.response', { id, response });
+                this.engine.emit('agent.response', {id, response});
             } else {
-                 Logger.warn('Engine does not support emitting agent.response');
+                Logger.warn('Engine does not support emitting agent.response');
             }
 
             return {
                 type: 'ack',
-                payload: { id, success: true, timestamp: Date.now() }
+                payload: {id, success: true, timestamp: Date.now()}
             };
         } catch (error) {
             Logger.error('Error in agent response handler:', error);
-            return { error: error.message, type: MESSAGE_TYPES.ERROR };
+            return {error: error.message, type: MESSAGE_TYPES.ERROR};
         }
     }
 
@@ -238,14 +238,22 @@ export class ReplMessageHandler extends EventEmitter {
     }
 
     registerCommandHandler(name, handler) {
-        if (typeof name !== 'string' || name.trim() === '') throw new Error('Command name must be a non-empty string');
-        if (typeof handler !== 'function') throw new Error('Command handler must be a function');
+        if (typeof name !== 'string' || name.trim() === '') {
+            throw new Error('Command name must be a non-empty string');
+        }
+        if (typeof handler !== 'function') {
+            throw new Error('Command handler must be a function');
+        }
         this.commandHandlers.set(name, handler);
     }
 
     registerMessageHandler(type, handler) {
-        if (typeof type !== 'string' || type.trim() === '') throw new Error('Message type must be a non-empty string');
-        if (typeof handler !== 'function') throw new Error('Message handler must be a function');
+        if (typeof type !== 'string' || type.trim() === '') {
+            throw new Error('Message type must be a non-empty string');
+        }
+        if (typeof handler !== 'function') {
+            throw new Error('Message handler must be a function');
+        }
         this.messageHandlers.set(type, handler);
     }
 

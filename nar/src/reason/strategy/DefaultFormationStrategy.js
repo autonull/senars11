@@ -92,8 +92,8 @@ export class DefaultFormationStrategy extends PremiseFormationStrategy {
     }
 
     _termsEqual(t1, t2) {
-        if (!t1 || !t2) return false;
-        if (typeof t1.equals === 'function') return t1.equals(t2);
+        if (!t1 || !t2) {return false;}
+        if (typeof t1.equals === 'function') {return t1.equals(t2);}
         return t1.toString() === t2.toString();
     }
 

@@ -43,7 +43,7 @@ export class MetricsCollector {
      * @param {object} step - Step data
      */
     recordStep(step) {
-        if (!this.currentEpisode) return;
+        if (!this.currentEpisode) {return;}
 
         this.currentEpisode.steps++;
         this.currentEpisode.rewards.push(step.reward);
@@ -59,7 +59,7 @@ export class MetricsCollector {
      * @returns {object} Episode summary
      */
     endEpisode(result = {}) {
-        if (!this.currentEpisode) return null;
+        if (!this.currentEpisode) {return null;}
 
         const episode = {
             ...this.currentEpisode,
@@ -221,7 +221,7 @@ export class PerformanceAnalyzer {
      */
     end(name) {
         const timing = this.timings.get(name);
-        if (!timing) return 0;
+        if (!timing) {return 0;}
 
         const duration = performance.now() - timing.start;
         this.counts.set(name, timing.count);
@@ -263,7 +263,7 @@ export class PerformanceAnalyzer {
     getAllStats() {
         const stats = {};
         for (const [key, value] of this.timings) {
-            if (!key.endsWith('_durations')) continue;
+            if (!key.endsWith('_durations')) {continue;}
             const name = key.replace('_durations', '');
             stats[name] = this.getStats(name);
         }

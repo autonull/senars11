@@ -43,7 +43,7 @@ export class NeuroSymbolicUnit extends Component {
     }
 
     _encode(input) {
-        if (input instanceof SymbolicTensor) return input;
+        if (input instanceof SymbolicTensor) {return input;}
         const data = Array.isArray(input)
             ? new Float32Array(input)
             : new Float32Array([input]);
@@ -59,7 +59,7 @@ export class NeuroSymbolicUnit extends Component {
     }
 
     _applyAttention(tensor) {
-        if (!tensor.symbols?.size) return tensor;
+        if (!tensor.symbols?.size) {return tensor;}
         const mask = this.bridge.createAttentionMask(
             tensor,
             new Set(Array.from(tensor.symbols.values()).map(s => s.symbol))
@@ -83,7 +83,7 @@ export class NeuroSymbolicUnit extends Component {
      */
     setState(neural, symbolic = null) {
         this.state.neural = neural;
-        if (symbolic) this.state.symbolic = symbolic;
+        if (symbolic) {this.state.symbolic = symbolic;}
         this.emit('stateUpdate', { neural, symbolic: this.state.symbolic });
     }
 

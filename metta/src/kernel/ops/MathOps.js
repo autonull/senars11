@@ -54,7 +54,7 @@ export function registerMathOps(registry) {
     const aggregateOp = (fn, errLabel) => (expr) => {
         const elements = OperationHelpers.flattenExpr(expr);
         const nums = elements.map(toNum).filter(n => !Number.isNaN(n));
-        if (nums.length === 0) return exp(sym('Error'), [expr, sym(errLabel)]);
+        if (nums.length === 0) {return exp(sym('Error'), [expr, sym(errLabel)]);}
         return toSym(fn(...nums));
     };
 

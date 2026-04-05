@@ -1,5 +1,5 @@
-import { Logger } from '../util/Logger.js';
-import { dotProduct, euclideanNorm } from '../util/math.js';
+import {Logger} from '../util/Logger.js';
+import {dotProduct, euclideanNorm} from '../util/math.js';
 
 export class EmbeddingLayer {
     constructor(config = {}) {
@@ -72,11 +72,11 @@ export class EmbeddingLayer {
             try {
                 if (!this._pipeline) {
                     Logger.info(`EmbeddingLayer: Loading pipeline for model ${this.config.model}...`);
-                    const { pipeline } = await import('@huggingface/transformers');
+                    const {pipeline} = await import('@huggingface/transformers');
                     this._pipeline = await pipeline('feature-extraction', this.config.model);
                     Logger.info(`EmbeddingLayer: Pipeline loaded.`);
                 }
-                const output = await this._pipeline(text, { pooling: 'mean', normalize: true });
+                const output = await this._pipeline(text, {pooling: 'mean', normalize: true});
                 return Array.from(output.data);
             } catch (e) {
                 Logger.warn(`EmbeddingLayer: Failed to load/use model ${this.config.model}, falling back to mock. Error: ${e.message}`);
@@ -98,7 +98,7 @@ export class EmbeddingLayer {
         for (let i = 0; i < str.length; i++) {
             const char = str.charCodeAt(i);
             hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
+            hash &= hash;
         }
         return Math.abs(hash);
     }

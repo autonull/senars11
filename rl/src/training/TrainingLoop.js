@@ -101,7 +101,7 @@ export class TrainingLoop extends Component {
             const result = await this.runEpisode();
 
             this.episodeHistory.push(result);
-            if (result.reward > this.bestReward) this.bestReward = result.reward;
+            if (result.reward > this.bestReward) {this.bestReward = result.reward;}
 
             await this.learn(result);
 
@@ -141,7 +141,7 @@ export class TrainingLoop extends Component {
             state = result.nextState;
             steps++;
 
-            if (result.done) break;
+            if (result.done) {break;}
         }
 
         return new EpisodeResult(this.currentEpisode, totalReward, steps, totalReward > 0);
@@ -185,10 +185,10 @@ export class TrainingLoop extends Component {
     }
 
     async learn(episodeResult) {
-        if (this.currentEpisode % this.config.updateFrequency !== 0) return;
+        if (this.currentEpisode % this.config.updateFrequency !== 0) {return;}
 
         const batch = await this.experienceBuffer.sample(this.config.batchSize);
-        if (batch.length === 0) return;
+        if (batch.length === 0) {return;}
 
         for (const experience of batch) {
             await this.agent.learn(experience, experience.reward);
@@ -224,7 +224,7 @@ export class TrainingLoop extends Component {
                 const result = this.env.step(action);
                 totalReward += result.reward;
                 state = result.observation;
-                if (result.terminated || result.truncated) break;
+                if (result.terminated || result.truncated) {break;}
             }
 
             evalEpisodes.push(totalReward);

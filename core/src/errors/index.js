@@ -8,33 +8,62 @@ export class SeNARSError extends Error {
     #suggestion = null;
     #docsLink = null;
 
-    constructor(message, { code = 'SE_NARS_ERROR', details = null, originalError = null, suggestion = null, docsLink = null } = {}) {
+    constructor(message, {
+        code = 'SE_NARS_ERROR',
+        details = null,
+        originalError = null,
+        suggestion = null,
+        docsLink = null
+    } = {}) {
         super(message);
         this.name = this.constructor.name;
         this.code = code;
         this.details = details;
         this.originalError = originalError;
         this.timestamp = Date.now();
-        if (suggestion) this.#suggestion = suggestion;
-        if (docsLink) this.#docsLink = docsLink;
-        if (Error.captureStackTrace) Error.captureStackTrace(this, this.constructor);
+        if (suggestion) {
+            this.#suggestion = suggestion;
+        }
+        if (docsLink) {
+            this.#docsLink = docsLink;
+        }
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, this.constructor);
+        }
         if (originalError?.stack) {
             this.stack = `${this.stack}\nCaused by: ${originalError.stack}`;
         }
     }
 
-    withSuggestion(suggestion) { this.#suggestion = suggestion; return this; }
-    withDocsLink(docsLink) { this.#docsLink = docsLink; return this; }
-    get suggestion() { return this.#suggestion; }
-    get docsLink() { return this.#docsLink; }
+    get suggestion() {
+        return this.#suggestion;
+    }
+
+    get docsLink() {
+        return this.#docsLink;
+    }
+
+    withSuggestion(suggestion) {
+        this.#suggestion = suggestion;
+        return this;
+    }
+
+    withDocsLink(docsLink) {
+        this.#docsLink = docsLink;
+        return this;
+    }
 
     toString() {
         let msg = `${this.name}: ${this.message}`;
         if (this.details && Object.keys(this.details).length > 0) {
             msg += `\nDetails: ${JSON.stringify(this.details, null, 2)}`;
         }
-        if (this.#suggestion) msg += `\nSuggestion: ${this.#suggestion}`;
-        if (this.#docsLink) msg += `\nDocumentation: ${this.#docsLink}`;
+        if (this.#suggestion) {
+            msg += `\nSuggestion: ${this.#suggestion}`;
+        }
+        if (this.#docsLink) {
+            msg += `\nDocumentation: ${this.#docsLink}`;
+        }
         return msg;
     }
 }
@@ -42,29 +71,38 @@ export class SeNARSError extends Error {
 // Backward-compat: EnhancedError with array suggestions + formatMessage
 export class EnhancedError extends SeNARSError {
     constructor(message, suggestions = [], docsLink = null) {
-        super(message, { code: 'ENHANCED_ERROR', suggestion: Array.isArray(suggestions) ? suggestions.join('; ') : suggestions, docsLink });
+        super(message, {
+            code: 'ENHANCED_ERROR',
+            suggestion: Array.isArray(suggestions) ? suggestions.join('; ') : suggestions,
+            docsLink
+        });
         this.suggestions = Array.isArray(suggestions) ? suggestions : [];
     }
+
     formatMessage() {
         let msg = this.message;
-        if (this.suggestions.length > 0) msg += '\n\n💡 Suggestions:\n' + this.suggestions.map(s => `   - ${s}`).join('\n');
-        if (this.docsLink) msg += `\n\n📖 Documentation: ${this.docsLink}`;
+        if (this.suggestions.length > 0) {
+            msg += `\n\n💡 Suggestions:\n${this.suggestions.map(s => `   - ${s}`).join('\n')}`;
+        }
+        if (this.docsLink) {
+            msg += `\n\n📖 Documentation: ${this.docsLink}`;
+        }
         return msg;
     }
 }
 
 // Core errors
 export class ValidationError extends SeNARSError {
-    constructor(message, { field = null, value = null, ...rest } = {}) {
-        super(message, { code: 'VALIDATION_ERROR', details: { field, value }, ...rest });
+    constructor(message, {field = null, value = null, ...rest} = {}) {
+        super(message, {code: 'VALIDATION_ERROR', details: {field, value}, ...rest});
         this.field = field;
         this.value = value;
     }
 }
 
 export class ConfigurationError extends SeNARSError {
-    constructor(message, { key = null, value = null, expected = null, ...rest } = {}) {
-        super(message, { code: 'CONFIGURATION_ERROR', details: { key, value, expected }, ...rest });
+    constructor(message, {key = null, value = null, expected = null, ...rest} = {}) {
+        super(message, {code: 'CONFIGURATION_ERROR', details: {key, value, expected}, ...rest});
         this.key = key;
         this.value = value;
         this.expected = expected;
@@ -72,56 +110,56 @@ export class ConfigurationError extends SeNARSError {
 }
 
 export class ParseError extends SeNARSError {
-    constructor(message, { position = null, source = null, ...rest } = {}) {
-        super(message, { code: 'PARSE_ERROR', details: { position, source: source?.substring(0, 100) }, ...rest });
+    constructor(message, {position = null, source = null, ...rest} = {}) {
+        super(message, {code: 'PARSE_ERROR', details: {position, source: source?.substring(0, 100)}, ...rest});
         this.position = position;
         this.source = source;
     }
 }
 
 export class ConnectionError extends SeNARSError {
-    constructor(message, { providerType = null, endpoint = null, ...rest } = {}) {
-        super(message, { code: 'CONNECTION_ERROR', details: { providerType, endpoint }, ...rest });
+    constructor(message, {providerType = null, endpoint = null, ...rest} = {}) {
+        super(message, {code: 'CONNECTION_ERROR', details: {providerType, endpoint}, ...rest});
         this.providerType = providerType;
         this.endpoint = endpoint;
     }
 }
 
 export class ResourceError extends SeNARSError {
-    constructor(message, { resourceType = null, resourceId = null, ...rest } = {}) {
-        super(message, { code: 'RESOURCE_ERROR', details: { resourceType, resourceId }, ...rest });
+    constructor(message, {resourceType = null, resourceId = null, ...rest} = {}) {
+        super(message, {code: 'RESOURCE_ERROR', details: {resourceType, resourceId}, ...rest});
         this.resourceType = resourceType;
         this.resourceId = resourceId;
     }
 }
 
 export class TimeoutError extends SeNARSError {
-    constructor(message, { operation = null, timeout = null, ...rest } = {}) {
-        super(message, { code: 'TIMEOUT_ERROR', details: { operation, timeout }, ...rest });
+    constructor(message, {operation = null, timeout = null, ...rest} = {}) {
+        super(message, {code: 'TIMEOUT_ERROR', details: {operation, timeout}, ...rest});
         this.operation = operation;
         this.timeout = timeout;
     }
 }
 
 export class RuntimeError extends SeNARSError {
-    constructor(message, { operation = null, context = null, ...rest } = {}) {
-        super(message, { code: 'RUNTIME_ERROR', details: { operation, context }, ...rest });
+    constructor(message, {operation = null, context = null, ...rest} = {}) {
+        super(message, {code: 'RUNTIME_ERROR', details: {operation, context}, ...rest});
         this.operation = operation;
         this.context = context;
     }
 }
 
 export class SerializationError extends SeNARSError {
-    constructor(message, { entityType = null, entityData = null, ...rest } = {}) {
-        super(message, { code: 'SERIALIZATION_ERROR', details: { entityType, entityData }, ...rest });
+    constructor(message, {entityType = null, entityData = null, ...rest} = {}) {
+        super(message, {code: 'SERIALIZATION_ERROR', details: {entityType, entityData}, ...rest});
         this.entityType = entityType;
         this.entityData = entityData;
     }
 }
 
 export class DeserializationError extends SeNARSError {
-    constructor(message, { entityType = null, entityData = null, ...rest } = {}) {
-        super(message, { code: 'DESERIALIZATION_ERROR', details: { entityType, entityData }, ...rest });
+    constructor(message, {entityType = null, entityData = null, ...rest} = {}) {
+        super(message, {code: 'DESERIALIZATION_ERROR', details: {entityType, entityData}, ...rest});
         this.entityType = entityType;
         this.entityData = entityData;
     }
@@ -129,28 +167,28 @@ export class DeserializationError extends SeNARSError {
 
 // Provider/LM errors
 export class ProviderError extends SeNARSError {
-    constructor(message, { ...rest } = {}) {
-        super(message, { code: 'PROVIDER_ERROR', ...rest });
+    constructor(message, {...rest} = {}) {
+        super(message, {code: 'PROVIDER_ERROR', ...rest});
     }
 }
 
 export class ModelNotFoundError extends SeNARSError {
     constructor(modelName) {
-        super(`Model '${modelName}' not found`, { code: 'MODEL_NOT_FOUND_ERROR', details: { modelName } });
+        super(`Model '${modelName}' not found`, {code: 'MODEL_NOT_FOUND_ERROR', details: {modelName}});
         this.modelName = modelName;
     }
 }
 
 export class InitializationError extends SeNARSError {
-    constructor(message, { providerType = null, ...rest } = {}) {
-        super(message, { code: 'INIT_ERROR', details: { providerType }, ...rest });
+    constructor(message, {providerType = null, ...rest} = {}) {
+        super(message, {code: 'INIT_ERROR', details: {providerType}, ...rest});
         this.providerType = providerType;
     }
 }
 
 export class ToolExecutionError extends SeNARSError {
-    constructor(message, { toolName = null, input = null, ...rest } = {}) {
-        super(message, { code: 'TOOL_EXECUTION_ERROR', details: { toolName, input }, ...rest });
+    constructor(message, {toolName = null, input = null, ...rest} = {}) {
+        super(message, {code: 'TOOL_EXECUTION_ERROR', details: {toolName, input}, ...rest});
         this.toolName = toolName;
         this.input = input;
     }
@@ -158,42 +196,42 @@ export class ToolExecutionError extends SeNARSError {
 
 // Analyzer errors
 export class AnalyzerError extends SeNARSError {
-    constructor(message, { ...rest } = {}) {
-        super(message, { code: 'ANALYZER_ERROR', ...rest });
+    constructor(message, {...rest} = {}) {
+        super(message, {code: 'ANALYZER_ERROR', ...rest});
     }
 }
 
 export class AnalysisError extends SeNARSError {
-    constructor(message, { analysisType = 'unknown', ...rest } = {}) {
-        super(message, { code: `ANALYSIS_ERROR_${analysisType.toUpperCase()}`, details: { analysisType }, ...rest });
+    constructor(message, {analysisType = 'unknown', ...rest} = {}) {
+        super(message, {code: `ANALYSIS_ERROR_${analysisType.toUpperCase()}`, details: {analysisType}, ...rest});
         this.analysisType = analysisType;
     }
 }
 
 // Reasoner errors
 export class ReasonerError extends SeNARSError {
-    constructor(message, { ...rest } = {}) {
-        super(message, { code: 'REASONER_ERROR', ...rest });
+    constructor(message, {...rest} = {}) {
+        super(message, {code: 'REASONER_ERROR', ...rest});
     }
 }
 
 export class RuleExecutionError extends SeNARSError {
-    constructor(message, { ruleId = null, ...rest } = {}) {
-        super(message, { code: 'RULE_EXECUTION_ERROR', details: { ruleId }, ...rest });
+    constructor(message, {ruleId = null, ...rest} = {}) {
+        super(message, {code: 'RULE_EXECUTION_ERROR', details: {ruleId}, ...rest});
         this.ruleId = ruleId;
     }
 }
 
 export class PremiseSourceError extends SeNARSError {
-    constructor(message, { sourceType = null, ...rest } = {}) {
-        super(message, { code: 'PREMISE_SOURCE_ERROR', details: { sourceType }, ...rest });
+    constructor(message, {sourceType = null, ...rest} = {}) {
+        super(message, {code: 'PREMISE_SOURCE_ERROR', details: {sourceType}, ...rest});
         this.sourceType = sourceType;
     }
 }
 
 export class StreamProcessingError extends SeNARSError {
-    constructor(message, { streamType = null, ...rest } = {}) {
-        super(message, { code: 'STREAM_PROCESSING_ERROR', details: { streamType }, ...rest });
+    constructor(message, {streamType = null, ...rest} = {}) {
+        super(message, {code: 'STREAM_PROCESSING_ERROR', details: {streamType}, ...rest});
         this.streamType = streamType;
     }
 }
@@ -202,9 +240,13 @@ export class StreamProcessingError extends SeNARSError {
 export class MeTTaError extends SeNARSError {
     #suggestion = null;
 
-    constructor(message, { context = {}, ...rest } = {}) {
-        super(message, { code: 'METTA_ERROR', details: context, ...rest });
+    constructor(message, {context = {}, ...rest} = {}) {
+        super(message, {code: 'METTA_ERROR', details: context, ...rest});
         this.context = context;
+    }
+
+    get suggestion() {
+        return this.#suggestion;
     }
 
     withSuggestion(suggestion) {
@@ -212,32 +254,32 @@ export class MeTTaError extends SeNARSError {
         return this;
     }
 
-    get suggestion() { return this.#suggestion; }
-
     toString() {
         let msg = `${this.name}: ${this.message}`;
         if (this.context && Object.keys(this.context).length > 0) {
             msg += `\nContext: ${JSON.stringify(this.context, null, 2)}`;
         }
-        if (this.#suggestion) msg += `\nSuggestion: ${this.#suggestion}`;
+        if (this.#suggestion) {
+            msg += `\nSuggestion: ${this.#suggestion}`;
+        }
         return msg;
     }
 }
 
 export class OperationNotFoundError extends MeTTaError {
-    constructor(operationName, { availableOps = [], ...rest } = {}) {
+    constructor(operationName, {availableOps = [], ...rest} = {}) {
         const similar = findSimilar(operationName, availableOps);
         const message = similar.length > 0
             ? `Operation '${operationName}' not found. Did you mean: ${similar.join(', ')}?`
             : `Operation '${operationName}' not found`;
-        super(message, { context: { operationName, availableOps }, ...rest });
+        super(message, {context: {operationName, availableOps}, ...rest});
         this.withSuggestion('Check the operation name or use (help) to list available operations');
     }
 }
 
 export class NarsTypeError extends MeTTaError {
-    constructor(message, expected, actual, { context = {}, ...rest } = {}) {
-        super(message, { context: { ...context, expected, actual }, ...rest });
+    constructor(message, expected, actual, {context = {}, ...rest} = {}) {
+        super(message, {context: {...context, expected, actual}, ...rest});
         this.expected = expected;
         this.actual = actual;
         this.withSuggestion(`Expected ${expected}, but got ${actual}`);
@@ -245,8 +287,8 @@ export class NarsTypeError extends MeTTaError {
 }
 
 export class ReductionError extends MeTTaError {
-    constructor(message, atom, step, limit, { context = {}, ...rest } = {}) {
-        super(message, { context: { ...context, atom: atom?.toString(), step, limit }, ...rest });
+    constructor(message, atom, step, limit, {context = {}, ...rest} = {}) {
+        super(message, {context: {...context, atom: atom?.toString(), step, limit}, ...rest});
         this.atom = atom;
         this.step = step;
         this.limit = limit;
@@ -257,37 +299,37 @@ export class ReductionError extends MeTTaError {
 }
 
 export class ExtensionError extends MeTTaError {
-    constructor(extensionName, message, { context = {}, ...rest } = {}) {
-        super(`Extension '${extensionName}' error: ${message}`, { context: { ...context, extensionName }, ...rest });
+    constructor(extensionName, message, {context = {}, ...rest} = {}) {
+        super(`Extension '${extensionName}' error: ${message}`, {context: {...context, extensionName}, ...rest});
         this.extensionName = extensionName;
     }
 }
 
 // WebSocket error
 export class WebSocketConnectionError extends ConnectionError {
-    constructor(message, { ...rest } = {}) {
-        super(message, { ...rest });
+    constructor(message, {...rest} = {}) {
+        super(message, {...rest});
     }
 }
 
 // UI-specific errors
 export class GraphOperationError extends SeNARSError {
-    constructor(message, { operation = 'unknown', ...rest } = {}) {
-        super(message, { code: 'GRAPH_OPERATION_ERROR', details: { operation }, ...rest });
+    constructor(message, {operation = 'unknown', ...rest} = {}) {
+        super(message, {code: 'GRAPH_OPERATION_ERROR', details: {operation}, ...rest});
         this.operation = operation;
     }
 }
 
 export class MessageProcessingError extends SeNARSError {
-    constructor(message, { messageType = 'unknown', ...rest } = {}) {
-        super(message, { code: 'MESSAGE_PROCESSING_ERROR', details: { messageType }, ...rest });
+    constructor(message, {messageType = 'unknown', ...rest} = {}) {
+        super(message, {code: 'MESSAGE_PROCESSING_ERROR', details: {messageType}, ...rest});
         this.messageType = messageType;
     }
 }
 
 export class CommandExecutionError extends SeNARSError {
-    constructor(message, { command = 'unknown', ...rest } = {}) {
-        super(message, { code: 'COMMAND_EXECUTION_ERROR', details: { command }, ...rest });
+    constructor(message, {command = 'unknown', ...rest} = {}) {
+        super(message, {code: 'COMMAND_EXECUTION_ERROR', details: {command}, ...rest});
         this.command = command;
     }
 }
@@ -295,7 +337,7 @@ export class CommandExecutionError extends SeNARSError {
 // RL / Neuro-symbolic errors
 export class LifecycleError extends EnhancedError {
     constructor(issue, context = {}) {
-        const { component, method, state } = context;
+        const {component, method, state} = context;
         let message = `Component lifecycle error: ${issue}`;
         const suggestions = [];
         if (method === 'act' && state === 'not_initialized') {
@@ -312,7 +354,7 @@ export class LifecycleError extends EnhancedError {
 
 export class EnvironmentError extends EnhancedError {
     constructor(issue, context = {}) {
-        const { env, action, observation } = context;
+        const {env, action, observation} = context;
         let message = `Environment error: ${issue}`;
         const suggestions = [];
         if (issue === 'not_reset') {
@@ -333,7 +375,7 @@ export class EnvironmentError extends EnhancedError {
 
 export class AgentError extends EnhancedError {
     constructor(issue, context = {}) {
-        const { agent, observation, action } = context;
+        const {agent, observation, action} = context;
         let message = `Agent error: ${issue}`;
         const suggestions = [];
         if (issue === 'not_trained') {
@@ -351,7 +393,7 @@ export class AgentError extends EnhancedError {
 
 export class TensorError extends EnhancedError {
     constructor(issue, context = {}) {
-        const { expected, actual, operation } = context;
+        const {expected, actual, operation} = context;
         let message = `Tensor error: ${issue}`;
         const suggestions = [];
         if (issue === 'shape_mismatch') {
@@ -368,7 +410,7 @@ export class TensorError extends EnhancedError {
 
 export class TrainingError extends EnhancedError {
     constructor(issue, context = {}) {
-        const { episode, metric, value } = context;
+        const {episode, metric, value} = context;
         let message = `Training error: ${issue}`;
         const suggestions = [];
         if (issue === 'nan_loss') {
@@ -388,7 +430,7 @@ export class TrainingError extends EnhancedError {
 
 export class ConfigError extends EnhancedError {
     constructor(issue, context = {}) {
-        const { key, value, expected } = context;
+        const {key, value, expected} = context;
         let message = `Configuration error: ${issue}`;
         const suggestions = [];
         if (issue === 'missing_required') {
@@ -407,7 +449,7 @@ export class ConfigError extends EnhancedError {
 
 export class NeuroSymbolicError extends EnhancedError {
     constructor(issue, context = {}) {
-        const { bridge, symbolic, neural } = context;
+        const {bridge, symbolic, neural} = context;
         let message = `Neuro-symbolic error: ${issue}`;
         const suggestions = [];
         if (issue === 'grounding_failed') {
@@ -423,19 +465,25 @@ export class NeuroSymbolicError extends EnhancedError {
     }
 
     static wrap(error, message, context = {}) {
-        return new NeuroSymbolicError(`${message}: ${error.message}`, { ...context, originalError: error });
+        return new NeuroSymbolicError(`${message}: ${error.message}`, {...context, originalError: error});
     }
 
     static component(component, message, context = {}) {
-        return new NeuroSymbolicError(message, { code: `COMPONENT_${component.toUpperCase()}`, ...context });
+        return new NeuroSymbolicError(message, {code: `COMPONENT_${component.toUpperCase()}`, ...context});
     }
 
     static configuration(key, value, expected) {
-        return new NeuroSymbolicError(`Invalid configuration for ${key}`, { code: 'CONFIGURATION_ERROR', details: { key, value, expected } });
+        return new NeuroSymbolicError(`Invalid configuration for ${key}`, {
+            code: 'CONFIGURATION_ERROR',
+            details: {key, value, expected}
+        });
     }
 
     static unavailable(component, reason) {
-        return new NeuroSymbolicError(`${component} unavailable`, { code: 'COMPONENT_UNAVAILABLE', details: { component, reason } });
+        return new NeuroSymbolicError(`${component} unavailable`, {
+            code: 'COMPONENT_UNAVAILABLE',
+            details: {component, reason}
+        });
     }
 }
 
@@ -459,8 +507,12 @@ function findSimilar(name, available) {
 
 function levenshteinDistance(a, b) {
     const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
-    for (let i = 0; i <= b.length; i++) matrix[i][0] = i;
-    for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+    for (let i = 0; i <= b.length; i++) {
+        matrix[i][0] = i;
+    }
+    for (let j = 0; j <= a.length; j++) {
+        matrix[0][j] = j;
+    }
     for (let i = 1; i <= b.length; i++) {
         for (let j = 1; j <= a.length; j++) {
             matrix[i][j] = b.charAt(i - 1) === a.charAt(j - 1)
@@ -475,9 +527,11 @@ export function formatError(error) {
     return error instanceof MeTTaError ? error.toString() : `${error.name}: ${error.message}\n${error.stack ?? ''}`;
 }
 
-export function logError(error, { logger = console, includeStack = false } = {}) {
+export function logError(error, {logger = console, includeStack = false} = {}) {
     logger.error(formatError(error));
-    if (includeStack && error.stack) logger.error(error.stack);
+    if (includeStack && error.stack) {
+        logger.error(error.stack);
+    }
 }
 
 export function tryCatch(fn, ...args) {
@@ -488,10 +542,10 @@ export function tryCatch(fn, ...args) {
 
 export function createErrorHandler(context) {
     return (error, additionalContext = {}) => {
-        logError(error, { context: { ...additionalContext, context } });
+        logError(error, {context: {...additionalContext, context}});
         throw new ReasonerError(
             `Error in ${context}: ${error.message}`,
-            { code: 'CONTEXT_ERROR', originalError: error, details: { context, ...additionalContext } }
+            {code: 'CONTEXT_ERROR', originalError: error, details: {context, ...additionalContext}}
         );
     };
 }
@@ -507,21 +561,27 @@ export function withErrorHandler(fn, context) {
 }
 
 export function validateConfig(config, schema, defaults = {}) {
-    const validated = { ...defaults };
+    const validated = {...defaults};
     for (const [key, spec] of Object.entries(schema)) {
         const value = config[key];
         if (value === undefined) {
-            if (spec.required) throw new ConfigError('missing_required', { key, expected: spec.default });
+            if (spec.required) {
+                throw new ConfigError('missing_required', {key, expected: spec.default});
+            }
             validated[key] = defaults[key];
         } else if (typeof spec === 'function') {
-            if (!spec(value)) throw new ConfigurationError(`Invalid value for ${key}`, { key, value, expected: spec.name });
+            if (!spec(value)) {
+                throw new ConfigurationError(`Invalid value for ${key}`, {key, value, expected: spec.name});
+            }
             validated[key] = value;
         } else if (typeof spec === 'object' && spec.type) {
-            if (typeof value !== spec.type) throw new ConfigError('invalid_type', { key, value, expected: spec.type });
+            if (typeof value !== spec.type) {
+                throw new ConfigError('invalid_type', {key, value, expected: spec.type});
+            }
             if (spec.range) {
                 const [min, max] = spec.range;
                 if (typeof value === 'number' && (value < min || value > max)) {
-                    throw new ConfigError('invalid_range', { key, value, expected: `[${min}, ${max}]` });
+                    throw new ConfigError('invalid_range', {key, value, expected: `[${min}, ${max}]`});
                 }
             }
             validated[key] = value;
@@ -533,18 +593,30 @@ export function validateConfig(config, schema, defaults = {}) {
 }
 
 export class NotImplementedError extends SeNARSError {
-    constructor(feature, { suggestion = null, ...rest } = {}) {
-        super(`Not implemented: ${feature}`, { code: 'NOT_IMPLEMENTED', details: { feature, suggestion }, ...rest });
+    constructor(feature, {suggestion = null, ...rest} = {}) {
+        super(`Not implemented: ${feature}`, {code: 'NOT_IMPLEMENTED', details: {feature, suggestion}, ...rest});
         this.feature = feature;
     }
 }
 
 export function handleError(error, context = '', fallbackMessage = 'An error occurred') {
-    if (error instanceof ModelNotFoundError) return `❌ Model Error: ${error.message}`;
-    if (error instanceof ConnectionError) return `❌ Connection Error: ${error.message}`;
-    if (error instanceof ParseError) return `❌ Parse Error: ${error.message}`;
-    if (error instanceof ConfigurationError) return `❌ Configuration Error: ${error.message}`;
-    if (error.message?.includes('model') && error.message?.includes('not found')) return `❌ Model Error: ${error.message}`;
-    if (error.message?.includes('ECONNREFUSED') || error.message?.includes('fetch failed')) return `❌ Connection Error: ${error.message}`;
+    if (error instanceof ModelNotFoundError) {
+        return `❌ Model Error: ${error.message}`;
+    }
+    if (error instanceof ConnectionError) {
+        return `❌ Connection Error: ${error.message}`;
+    }
+    if (error instanceof ParseError) {
+        return `❌ Parse Error: ${error.message}`;
+    }
+    if (error instanceof ConfigurationError) {
+        return `❌ Configuration Error: ${error.message}`;
+    }
+    if (error.message?.includes('model') && error.message?.includes('not found')) {
+        return `❌ Model Error: ${error.message}`;
+    }
+    if (error.message?.includes('ECONNREFUSED') || error.message?.includes('fetch failed')) {
+        return `❌ Connection Error: ${error.message}`;
+    }
     return context ? `❌ ${context}: ${error.message || fallbackMessage}` : `❌ Error: ${error.message || fallbackMessage}`;
 }

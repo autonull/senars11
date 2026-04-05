@@ -28,7 +28,7 @@ export class ReductionPipeline {
     remove(stageName) { this.stages = this.stages.filter(s => s.name !== stageName); return this; }
     setStageEnabled(stageName, enabled) {
         const stage = this.stages.find(s => s.name === stageName);
-        if (stage) stage.enabled = enabled;
+        if (stage) {stage.enabled = enabled;}
         return this;
     }
 
@@ -43,23 +43,23 @@ export class ReductionPipeline {
             try {
                 result = stage.execute(atom, context);
             } catch (e) {
-                if (e.message.startsWith('Max steps exceeded')) throw e;
+                if (e.message.startsWith('Max steps exceeded')) {throw e;}
                 Logger.error(`ReductionStage ${stage.name} error:`, e);
                 continue;
             }
             const stageTime = Date.now() - stageStart;
-            if (!result) continue;
+            if (!result) {continue;}
             this._recordStageHit(stage.name, stageTime);
 
             let stageGenerator = null;
-            if (result.useZipper) stageGenerator = this._executeWithZipper(result.atom, context);
-            else if (result.executeGrounded) stageGenerator = this._executeGrounded(result.atom, result.op, result.args, context);
-            else if (result.executeExplicit) stageGenerator = this._executeExplicit(result.atom, result.op, result.args, context);
-            else if (result.matchRules) stageGenerator = this._matchRules(result.atom, result.rules, context);
-            else if (result.reduceOperator) stageGenerator = this._reduceOperator(result.atom, context);
-            else if (result.reduceArgument) stageGenerator = this._reduceArgument(result.atom, result.argIndex, result.arg, context);
-            else if (result.reduceNestedSuperpose) stageGenerator = this._reduceNestedSuperpose(result.atom, result.superposeAtom, result.path, context);
-            else if (result.superpose) stageGenerator = this._executeSuperpose(result.alternatives, context);
+            if (result.useZipper) {stageGenerator = this._executeWithZipper(result.atom, context);}
+            else if (result.executeGrounded) {stageGenerator = this._executeGrounded(result.atom, result.op, result.args, context);}
+            else if (result.executeExplicit) {stageGenerator = this._executeExplicit(result.atom, result.op, result.args, context);}
+            else if (result.matchRules) {stageGenerator = this._matchRules(result.atom, result.rules, context);}
+            else if (result.reduceOperator) {stageGenerator = this._reduceOperator(result.atom, context);}
+            else if (result.reduceArgument) {stageGenerator = this._reduceArgument(result.atom, result.argIndex, result.arg, context);}
+            else if (result.reduceNestedSuperpose) {stageGenerator = this._reduceNestedSuperpose(result.atom, result.superposeAtom, result.path, context);}
+            else if (result.superpose) {stageGenerator = this._executeSuperpose(result.alternatives, context);}
             else if (result.superposeEmpty) {
                 yield { reduced: atom, applied: true, deadEnd: true };
                 return;
@@ -73,7 +73,7 @@ export class ReductionPipeline {
                 for (const res of stageGenerator) {
                     if (res.applied) { yield res; anyApplied = true; }
                 }
-                if (anyApplied) return;
+                if (anyApplied) {return;}
             }
         }
         yield { reduced: atom, applied: false };
@@ -89,7 +89,7 @@ export class ReductionPipeline {
             }
         }
         const zipper = new Zipper(atom);
-        while (zipper.down(0)) {}
+        while (zipper.down(0)) { /* advance to deepest */ }
         do {
             let focusApplied = false;
             for (const res of this.execute(zipper.focus, context)) {
@@ -98,40 +98,42 @@ export class ReductionPipeline {
                     focusApplied = true;
                 }
             }
-            if (focusApplied) return;
-            while (!zipper.right()) if (!zipper.up()) break;
+            if (focusApplied) {return;}
+            while (!zipper.right()) {if (!zipper.up()) {break;}}
         } while (zipper.depth > 0);
     }
 
-    *_executeGrounded(atom, op, args, context) {
+    *_executeGrounded(atom, op, args, _context) {
         try {
             const result = op(...args);
             if (result !== undefined && result !== null && !equals(result, atom)) {
                 yield { reduced: result, applied: true, stage: 'grounded' };
             }
         } catch (e) {
-            if (args.every(a => !isExpression(a)) && !args.some(isVariable)) throw e;
+            if (args.every(a => !isExpression(a)) && !args.some(isVariable)) {throw e;}
         }
     }
 
-    *_executeExplicit(atom, op, args, context) {
+    *_executeExplicit(atom, op, args, _context) {
         try {
             const result = op(...args);
             if (result !== undefined && result !== null && !equals(result, atom)) {
                 yield { reduced: result, applied: true, stage: 'explicit' };
             }
-        } catch (e) { }
+        } catch (e) {
+            Logger.debug(`Explicit call failed for op '${op?.name || 'unknown'}': ${e.message}`);
+        }
     }
 
     *_matchRules(atom, rules, context) {
         for (const rule of rules) {
             const { pattern, result: template } = rule;
-            if (template === undefined) continue;
+            if (template === undefined) {continue;}
             const binds = context.Unify?.unify(pattern, atom);
             if (binds !== null && binds !== undefined) {
                 let reduced;
-                if (typeof template === 'function') reduced = template(binds);
-                else reduced = context.Unify?.subst(template, binds, { recursive: false });
+                if (typeof template === 'function') {reduced = template(binds);}
+                else {reduced = context.Unify?.subst(template, binds, { recursive: false });}
                 if (reduced !== undefined && reduced !== null) {
                     yield { reduced, applied: true, stage: 'rule-match' };
                 }
@@ -167,16 +169,16 @@ export class ReductionPipeline {
         }
     }
 
-    _unpackSuperpose(superposeAtom, context) {
+    _unpackSuperpose(superposeAtom, _context) {
         const alternatives = superposeAtom.components ?? [];
-        if (alternatives.length === 0) return [];
+        if (alternatives.length === 0) {return [];}
         let alts = alternatives;
         if (alternatives.length === 1) {
             const first = alternatives[0];
-            if (first.name === '()') return [];
+            if (first.name === '()') {return [];}
             if (isExpression(first)) {
-                if (first.operator?.name === ':') alts = this._unpackList(first);
-                else alts = [first.operator, ...(first.components ?? [])];
+                if (first.operator?.name === ':') {alts = this._unpackList(first);}
+                else {alts = [first.operator, ...(first.components ?? [])];}
             }
         }
         return alts;
@@ -187,8 +189,8 @@ export class ReductionPipeline {
         let current = term;
         while (current && isExpression(current)) {
             const op = current.operator?.name ?? current.operator;
-            if (op !== ':') break;
-            if (!current.components || current.components.length < 2) break;
+            if (op !== ':') {break;}
+            if (!current.components || current.components.length < 2) {break;}
             result.push(current.components[0]);
             current = current.components[1];
         }
@@ -196,16 +198,16 @@ export class ReductionPipeline {
     }
 
     _replaceAtPath(atom, path, replacement) {
-        if (path.length === 0) return replacement;
+        if (path.length === 0) {return replacement;}
         const newComps = [...atom.components];
         const [first, ...rest] = path;
-        if (rest.length === 0) newComps[first] = replacement;
-        else newComps[first] = this._replaceAtPath(atom.components[first], rest, replacement);
+        if (rest.length === 0) {newComps[first] = replacement;}
+        else {newComps[first] = this._replaceAtPath(atom.components[first], rest, replacement);}
         return exp(atom.operator, newComps);
     }
 
-    *_executeSuperpose(alternatives, context) {
-        for (const alt of alternatives) yield { reduced: alt, applied: true };
+    *_executeSuperpose(alternatives, _context) {
+        for (const alt of alternatives) {yield { reduced: alt, applied: true };}
     }
 
     _recordStageHit(stageName, duration = 0) {
@@ -243,7 +245,7 @@ export class ReductionPipeline {
     static createStandard(config, jitCompiler = null) {
         const pipeline = new ReductionPipeline(config);
         pipeline.use(new CacheStage());
-        if (jitCompiler) pipeline.use(new JITStage(jitCompiler));
+        if (jitCompiler) {pipeline.use(new JITStage(jitCompiler));}
         pipeline.use(new SuperposeStage());
         pipeline.use(new RuleMatchStage());
         pipeline.use(new OperatorReduceStage());
@@ -277,7 +279,7 @@ export class PipelineBuilder {
     withStage(stage) { this.stages.push(stage); return this; }
     build() {
         const pipeline = new ReductionPipeline(this.config);
-        for (const stage of this.stages) pipeline.use(stage);
+        for (const stage of this.stages) {pipeline.use(stage);}
         return pipeline;
     }
 }

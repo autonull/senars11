@@ -70,7 +70,7 @@ export class RLCognitiveArchitecture extends Component {
         let current = input;
         for (const name of PROCESSING_ORDER) {
             const module = this.modules.get(name);
-            if (!module || !module.config.enabled) continue;
+            if (!module || !module.config.enabled) {continue;}
             const result = await module.process(current, { ...context, ...results });
             results[name] = result;
             current = { ...current, ...result };
@@ -82,12 +82,12 @@ export class RLCognitiveArchitecture extends Component {
         const moduleResults = await Promise.all(
             Array.from(this.modules.keys()).map(async name => {
                 const module = this.modules.get(name);
-                if (!module || !module.config.enabled) return [name, null];
+                if (!module || !module.config.enabled) {return [name, null];}
                 const result = await module.process(input, context);
                 return [name, result];
             })
         );
-        moduleResults.forEach(([name, result]) => { if (result) results[name] = result; });
+        moduleResults.forEach(([name, result]) => { if (result) {results[name] = result;} });
         return { ...input, ...results };
     }
 
@@ -95,14 +95,14 @@ export class RLCognitiveArchitecture extends Component {
         let current = input;
         for (const name of HIGH_LEVEL_MODULES) {
             const module = this.modules.get(name);
-            if (!module || !module.config.enabled) continue;
+            if (!module || !module.config.enabled) {continue;}
             const result = await module.process(current, context);
             results[name] = result;
             current = { ...current, ...result };
         }
         for (const name of LOW_LEVEL_MODULES) {
             const module = this.modules.get(name);
-            if (!module || !module.config.enabled) continue;
+            if (!module || !module.config.enabled) {continue;}
             const result = await module.process(current, { ...context, highLevel: results });
             results[name] = result;
             current = { ...current, ...result };
@@ -117,11 +117,11 @@ export class RLCognitiveArchitecture extends Component {
 
     async learn(transition, reward) {
         const memoryModule = this.modules.get('memory');
-        if (memoryModule) memoryModule.process({ experience: { ...transition, reward } }, { store: true });
+        if (memoryModule) {memoryModule.process({ experience: { ...transition, reward } }, { store: true });}
         const skillModule = this.modules.get('skills');
         if (skillModule && Math.random() < 0.01) {
             const episodes = memoryModule?.getExperienceStore()?.getRecentEpisodes(10);
-            if (episodes) skillModule.process({}, { episodes, extractSkills: true });
+            if (episodes) {skillModule.process({}, { episodes, extractSkills: true });}
         }
     }
 

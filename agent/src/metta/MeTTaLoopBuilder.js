@@ -1,17 +1,19 @@
-import { readFile } from 'fs/promises';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { Logger, resolveWithFallback, fallbackAgentDir } from '@senars/core';
-import { isEnabled } from '../config/capabilities.js';
-import { MeTTaOpRegistrar } from './MeTTaOpRegistrar.js';
-import { MeTTaSkillRegistrar } from './MeTTaSkillRegistrar.js';
-import { AgentMessageQueue } from './AgentMessageQueue.js';
-import { existsSync } from 'fs';
+import {readFile} from 'fs/promises';
+import {dirname, resolve} from 'path';
+import {fileURLToPath} from 'url';
+import {fallbackAgentDir, Logger, resolveWithFallback} from '@senars/core';
+import {isEnabled} from '../config/index.js';
+import {MeTTaOpRegistrar} from './MeTTaOpRegistrar.js';
+import {MeTTaSkillRegistrar} from './MeTTaSkillRegistrar.js';
+import {AgentMessageQueue} from './AgentMessageQueue.js';
+import {existsSync} from 'fs';
 
 const __agentDir = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackAgentDir);
 
 const lazyImport = (cache, key, importFn) => async () => {
-    if (!cache[key]) cache[key] = await importFn();
+    if (!cache[key]) {
+        cache[key] = await importFn();
+    }
     return cache[key];
 };
 
@@ -33,8 +35,8 @@ export class MeTTaLoopBuilder {
     }
 
     async build() {
-        const { MeTTaInterpreter } = await import('../../../metta/src/MeTTaInterpreter.js');
-        const { SkillDispatcher } = await import('../skills/SkillDispatcher.js');
+        const {MeTTaInterpreter} = await import('@senars/metta/MeTTaInterpreter.js');
+        const {SkillDispatcher} = await import('../skills/SkillDispatcher.js');
 
         const interp = new MeTTaInterpreter();
         const Term = interp.ground.constructor.prototype.constructor;
@@ -42,7 +44,7 @@ export class MeTTaLoopBuilder {
         const skillsFile = this.#resolveMettaFile('skills.metta');
         this._dispatcher.loadSkillsFromFile(skillsFile);
         const loopState = this.#createLoopState();
-        const budget = { current: this.#budget };
+        const budget = {current: this.#budget};
 
         const msgQueue = new AgentMessageQueue(this.agent.embodimentBus, this.#cap);
         const opRegistrar = new MeTTaOpRegistrar(this.agent, this.agentCfg, this._dispatcher, loopState, budget, Term, this.#cap);
@@ -76,11 +78,15 @@ export class MeTTaLoopBuilder {
     }
 
     async #maybeInitContextBuilder(loopState, dispatcher, interp) {
-        if (!this.#cap('contextBudgets')) return null;
-        const { ContextBuilder } = await loadContextBuilder();
+        if (!this.#cap('contextBudgets')) {
+            return null;
+        }
+        const {ContextBuilder} = await loadContextBuilder();
         const introspectionOps = {
             generateManifest: () => {
-                if (!this.#cap('runtimeIntrospection')) return '(manifest :restricted true)';
+                if (!this.#cap('runtimeIntrospection')) {
+                    return '(manifest :restricted true)';
+                }
                 return JSON.stringify({
                     version: '0.1.0', profile: this.agentCfg.profile ?? 'parity',
                     capabilities: Object.fromEntries(Object.keys(this.agentCfg.capabilities ?? {}).map(k => isEnabled(this.agentCfg, k))),
@@ -89,12 +95,12 @@ export class MeTTaLoopBuilder {
             }
         };
         const cb = new ContextBuilder(this.agentCfg, this.agent.semanticMemory,
-            { getRecent: async n => loopState.historyBuffer.slice(-n) }, dispatcher, introspectionOps, this.agent);
+            {getRecent: async n => loopState.historyBuffer.slice(-n)}, dispatcher, introspectionOps, this.agent);
         cb.registerGroundedOps(interp);
         Logger.info('[MeTTaLoopBuilder] ContextBuilder initialized');
 
         try {
-            const { NarsExtension } = await import('../../../metta/src/extensions/NarsExtension.js');
+            const {NarsExtension} = await import('@senars/metta/extensions/NarsExtension.js');
             new NarsExtension(interp, this.agent).register();
         } catch (err) {
             Logger.warn('[MeTTaLoopBuilder] NarsExtension registration failed:', err.message);
@@ -104,8 +110,10 @@ export class MeTTaLoopBuilder {
     }
 
     async #maybeInitHarnessOptimizer(loopState) {
-        if (!this.#cap('harnessOptimization')) return null;
-        const { HarnessOptimizer } = await loadHarnessOptimizer();
+        if (!this.#cap('harnessOptimization')) {
+            return null;
+        }
+        const {HarnessOptimizer} = await loadHarnessOptimizer();
         await this._dispatcher._ensureSafetyAndAudit();
         const realAuditSpace = this._dispatcher._auditSpace;
         const auditSpaceWrapper = realAuditSpace ? {
@@ -116,7 +124,12 @@ export class MeTTaLoopBuilder {
             emitHarnessModified: async (cycle, score) => Logger.info(`[audit] harness-modified cycle=${cycle} score=${score}`)
         };
         const ho = new HarnessOptimizer(this.agentCfg,
-            { invoke: async ctx => { const r = await this.agent.ai.generate(ctx); return { response: r.text ?? '', model: 'fallback', latency: 0 }; } },
+            {
+                invoke: async ctx => {
+                    const r = await this.agent.ai.generate(ctx);
+                    return {response: r.text ?? '', model: 'fallback', latency: 0};
+                }
+            },
             auditSpaceWrapper);
         Logger.info('[MeTTaLoopBuilder] HarnessOptimizer initialized with real AuditSpace');
         return ho;
@@ -130,25 +143,35 @@ export class MeTTaLoopBuilder {
 
             while (true) {
                 if (budget.current <= 0) {
-                    if (!this.#cap('autonomousLoop')) { Logger.info('[MeTTa loop] Budget exhausted, halting.'); break; }
+                    if (!this.#cap('autonomousLoop')) {
+                        Logger.info('[MeTTa loop] Budget exhausted, halting.');
+                        break;
+                    }
                     budget.current = this.#budget;
                 }
 
                 const msg = await msgQueue.dequeue();
                 const isNew = msg !== null && msg !== loopState.prevmsg;
-                if (isNew) { loopState.prevmsg = msg; budget.current = this.#budget; }
-                else budget.current--;
+                if (isNew) {
+                    loopState.prevmsg = msg;
+                    budget.current = this.#budget;
+                } else {
+                    budget.current--;
+                }
 
-                loopState.wm = (loopState.wm ?? []).map(e => ({ ...e, ttl: e.ttl - 1 })).filter(e => e.ttl > 0);
+                loopState.wm = (loopState.wm ?? []).map(e => ({...e, ttl: e.ttl - 1})).filter(e => e.ttl > 0);
 
                 const ctx = await contextBuilder.build(msg, loopState.cycleCount, loopState.wm);
                 const resp = await this.#invokeLLM(ctx, loopState);
-                const { cmds, error } = this.#parseResponse(resp, loopState);
+                const {cmds, error} = this.#parseResponse(resp, loopState);
 
                 let results = [];
                 if (cmds.length > 0) {
-                    try { results = await this.#executeCommands(cmds, loopState); }
-                    catch (err) { Logger.error('[MeTTa execute-commands]', err.message); }
+                    try {
+                        results = await this.#executeCommands(cmds, loopState);
+                    } catch (err) {
+                        Logger.error('[MeTTa execute-commands]', err.message);
+                    }
                     loopState.lastresults = results;
                 }
 
@@ -185,7 +208,9 @@ export class MeTTaLoopBuilder {
                 let override = 'auto';
                 if (loopState.modelOverride && loopState.modelOverrideCycles > 0) {
                     override = loopState.modelOverride;
-                    if (--loopState.modelOverrideCycles <= 0) loopState.modelOverride = null;
+                    if (--loopState.modelOverrideCycles <= 0) {
+                        loopState.modelOverride = null;
+                    }
                 }
                 const result = await this.agent.modelRouter.invoke(ctx, {}, override);
                 loopState.lastsend = result.text ?? '';
@@ -203,14 +228,18 @@ export class MeTTaLoopBuilder {
 
     #parseResponse(resp, loopState) {
         const respStr = resp?.value ?? (typeof resp === 'string' ? resp : String(resp ?? ''));
-        if (!this._dispatcher) return { cmds: [], error: 'dispatcher-not-available' };
-        const { cmds, error } = this._dispatcher.parseResponse(respStr);
+        if (!this._dispatcher) {
+            return {cmds: [], error: 'dispatcher-not-available'};
+        }
+        const {cmds, error} = this._dispatcher.parseResponse(respStr);
         loopState.error = error;
-        return { cmds, error };
+        return {cmds, error};
     }
 
     async #executeCommands(cmds, loopState) {
-        if (!this._dispatcher) return [];
+        if (!this._dispatcher) {
+            return [];
+        }
         try {
             const results = await this._dispatcher.execute(cmds);
             loopState.lastresults = results;

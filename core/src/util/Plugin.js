@@ -168,24 +168,35 @@ export class PluginManager {
     }
 
     async initializeAll() {
-        this.initialized = await this.#runForAll('initialize', { ...this.context, pluginManager: this });
+        this.initialized = await this.#runForAll('initialize', {...this.context, pluginManager: this});
         return this.initialized;
     }
 
     async startAll() {
-        if (!this.initialized) await this.initializeAll();
+        if (!this.initialized) {
+            await this.initializeAll();
+        }
         return this.#runForAll('start');
     }
 
-    async stopAll() { return this.#runForAll('stop'); }
-    async disposeAll() { await this.#runForAll('dispose'); this.plugins.clear(); return true; }
+    async stopAll() {
+        return this.#runForAll('stop');
+    }
+
+    async disposeAll() {
+        await this.#runForAll('dispose');
+        this.plugins.clear();
+        return true;
+    }
 
     async #runForAll(method, extraContext = {}) {
         let allSuccessful = true;
         await Promise.all([...this.plugins].map(async ([id, plugin]) => {
             try {
-                const result = await plugin[method](method === 'initialize' ? { ...extraContext } : undefined);
-                if (!result) allSuccessful = false;
+                const result = await plugin[method](method === 'initialize' ? {...extraContext} : undefined);
+                if (!result) {
+                    allSuccessful = false;
+                }
             } catch (error) {
                 Logger.error(`Failed to ${method} plugin ${id}:`, error);
                 allSuccessful = false;

@@ -2,27 +2,27 @@
 
 /**
  * Cognitive IRC Bot - Full Cognitive Architecture
- * 
+ *
  * Integrates: Cognitive Architecture, MeTTa Reasoning, LLM, MCP Tools, and IRC
  */
-import { Agent } from '../../src/Agent.js';
-import { Logger } from '@senars/core';
-import { IRCChannel } from '../../src/io/channels/IRCChannel.js';
-import { CognitiveArchitecture } from '../../src/cognitive/CognitiveArchitecture.js';
-import { MeTTaReasoner } from '../../src/cognitive/MeTTaReasoner.js';
-import { CognitiveLLM } from '../../src/cognitive/CognitiveLLM.js';
-import { MCPClient } from '../../src/cognitive/MCPClient.js';
+import {Agent} from '../../src/Agent.js';
+import {Logger} from '@senars/core';
+import {IRCChannel} from '../../src/io/index.js';
+import {CognitiveArchitecture} from '../../src/cognitive/index.js';
+import {MeTTaReasoner} from '../../src/cognitive/index.js';
+import {CognitiveLLM} from '../../src/cognitive/index.js';
+import {MCPClient} from '../../src/cognitive/index.js';
 
 const CONFIG = {
-    irc: { host: 'irc.quakenet.org', port: 6667, nick: 'SeNARchy', channel: '##metta', tls: false },
-    ollama: { baseURL: 'http://localhost:11434', model: 'hf.co/bartowski/Qwen_Qwen3-8B-GGUF:Q6_K' },
+    irc: {host: 'irc.quakenet.org', port: 6667, nick: 'SeNARchy', channel: '##metta', tls: false},
+    ollama: {baseURL: 'http://localhost:11434', model: 'hf.co/bartowski/Qwen_Qwen3-8B-GGUF:Q6_K'},
     cognitive: {
         agentName: 'SeNARchy',
         personality: 'helpful, curious, and concise. You engage genuinely and remember context.',
         workingMemoryCapacity: 7,
         attentionThreshold: 0.3
     },
-    rateLimit: { perChannelMax: 3, perChannelInterval: 8000, globalMax: 10, globalInterval: 10000 }
+    rateLimit: {perChannelMax: 3, perChannelInterval: 8000, globalMax: 10, globalInterval: 10000}
 };
 
 class CognitiveIRCBot {
@@ -42,8 +42,8 @@ class CognitiveIRCBot {
         // Initialize base Agent
         this.agent = new Agent({
             id: `cognitive-${this.config.cognitive.agentName}`,
-            lm: { provider: 'dummy' },
-            inputProcessing: { enableNarseseFallback: true },
+            lm: {provider: 'dummy'},
+            inputProcessing: {enableNarseseFallback: true},
             rateLimit: this.config.rateLimit
         });
         await this.agent.initialize();
@@ -77,7 +77,7 @@ class CognitiveIRCBot {
 
         // Initialize MeTTa Reasoner (if available)
         if (this.agent.metta) {
-            this.reasoner = new MeTTaReasoner(this.agent.metta, { inferenceDepth: 3, maxInferenceTime: 300 });
+            this.reasoner = new MeTTaReasoner(this.agent.metta, {inferenceDepth: 3, maxInferenceTime: 300});
             this.cognitive.setReasoner(this.reasoner);
             Logger.info('✅ MeTTa Reasoner initialized');
         } else {
@@ -85,9 +85,13 @@ class CognitiveIRCBot {
         }
 
         // Initialize MCP Client
-        this.mcpClient = new MCPClient({ servers: [{ name: 'builtin' }], autoConnect: true });
-        this.mcpClient.on('remember', async ({ fact, category }) => {
-            if (this.reasoner) await this.reasoner._storeBelief({ content: fact, metadata: { category }, timestamp: Date.now() });
+        this.mcpClient = new MCPClient({servers: [{name: 'builtin'}], autoConnect: true});
+        this.mcpClient.on('remember', async ({fact, category}) => {
+            if (this.reasoner) await this.reasoner._storeBelief({
+                content: fact,
+                metadata: {category},
+                timestamp: Date.now()
+            });
         });
         this.cognitive.setMCPClient(this.mcpClient);
         Logger.info('✅ MCP Client initialized');
@@ -99,7 +103,10 @@ class CognitiveIRCBot {
 
     _setupHandlers() {
         const ircChannel = this.agent.channelManager?.get('irc');
-        if (!ircChannel) { Logger.warn('IRC channel not available'); return; }
+        if (!ircChannel) {
+            Logger.warn('IRC channel not available');
+            return;
+        }
 
         ircChannel.on('message', async (msg) => {
             if (!msg.from || msg.from === this.config.irc.nick || ['Server', 'AUTH', '*', ''].includes(msg.from)) return;
@@ -117,7 +124,7 @@ class CognitiveIRCBot {
 
         ircChannel.on('disconnected', () => Logger.warn('❌ Disconnected from IRC'));
         ircChannel.on('error', (err) => Logger.error('IRC Error:', err));
-        ircChannel.on('user_joined', ({ nick, channel }) => {
+        ircChannel.on('user_joined', ({nick, channel}) => {
             if (channel === this.config.irc.channel && nick !== this.config.irc.nick) {
                 Logger.info(`[IRC] ${nick} joined ${channel}`);
             }
@@ -128,7 +135,12 @@ class CognitiveIRCBot {
         try {
             const stimulus = {
                 type: 'message', source: 'irc', content: msg.content,
-                metadata: { from: msg.from, channel: msg.metadata?.channel ?? this.config.irc.channel, isPrivate, timestamp: msg.timestamp }
+                metadata: {
+                    from: msg.from,
+                    channel: msg.metadata?.channel ?? this.config.irc.channel,
+                    isPrivate,
+                    timestamp: msg.timestamp
+                }
             };
             const result = await this.cognitive.cognitiveCycle(stimulus);
             Logger.debug(`[Cognitive] Cycle ${this.cognitive.state.cycle}: ${this.cognitive.state.phase}`);
@@ -190,9 +202,14 @@ class CognitiveIRCBot {
 
     _initializeGoals() {
         if (!this.reasoner) return;
-        this.reasoner.addGoal({ description: 'Help users with their questions', topics: ['question', 'help', 'explain'], intent: 'question', action: 'respond' });
-        this.reasoner.addGoal({ description: 'Learn facts about active users', topics: [], action: 'remember' });
-        this.reasoner.addGoal({ description: 'Maintain engaging conversations', topics: [], action: 'engage' });
+        this.reasoner.addGoal({
+            description: 'Help users with their questions',
+            topics: ['question', 'help', 'explain'],
+            intent: 'question',
+            action: 'respond'
+        });
+        this.reasoner.addGoal({description: 'Learn facts about active users', topics: [], action: 'remember'});
+        this.reasoner.addGoal({description: 'Maintain engaging conversations', topics: [], action: 'engage'});
         Logger.info('✅ Cognitive goals initialized');
     }
 
@@ -246,4 +263,4 @@ async function main() {
 }
 
 if (process.argv[1]?.endsWith('run-cognitive-bot.js')) main();
-export { CognitiveIRCBot, CONFIG };
+export {CognitiveIRCBot, CONFIG};

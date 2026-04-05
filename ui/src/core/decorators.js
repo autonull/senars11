@@ -47,14 +47,14 @@ export function inject(...dependencies) {
  * @returns {Function} Modified constructor
  */
 export function autobind(target) {
-    const prototype = target.prototype;
+    const {prototype} = target;
     const propertyNames = Object.getOwnPropertyNames(prototype);
 
     propertyNames.forEach(name => {
-        if (name === 'constructor') return;
+        if (name === 'constructor') {return;}
 
         const descriptor = Object.getOwnPropertyDescriptor(prototype, name);
-        if (!descriptor || typeof descriptor.value !== 'function') return;
+        if (!descriptor || typeof descriptor.value !== 'function') {return;}
 
         const originalMethod = descriptor.value;
 
@@ -71,7 +71,7 @@ export function autobind(target) {
         const instance = new originalConstructor(...args);
 
         propertyNames.forEach(name => {
-            if (name === 'constructor') return;
+            if (name === 'constructor') {return;}
             if (typeof instance[name] === 'function') {
                 instance[name] = instance[name].bind(instance);
             }
@@ -167,7 +167,7 @@ export function mixin(...mixins) {
             const source = typeof mixin === 'function' ? mixin.prototype : mixin;
 
             Object.getOwnPropertyNames(source).forEach(name => {
-                if (name === 'constructor') return;
+                if (name === 'constructor') {return;}
 
                 const descriptor = Object.getOwnPropertyDescriptor(source, name);
                 Object.defineProperty(target.prototype, name, descriptor);

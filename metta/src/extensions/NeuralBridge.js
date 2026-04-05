@@ -2,7 +2,7 @@
  * NeuralBridge.js
  * MORK-parity Phase P3-C: Neural Bridge — MeTTa <-> Tensor Logic
  */
-import { TensorFunctor } from '../../../tensor/src/TensorFunctor.js';
+import { TensorFunctor } from '@senars/tensor/TensorFunctor.js';
 
 export class NeuralBridge {
   static register(ground) {
@@ -22,7 +22,7 @@ export class NeuralBridge {
                 }
                 // Check if it's a list: `(: 500 (: 500 ()))` -> array `[500, 500]`
                 // First check if it's formatted as `[]` representation
-                if (arg.operator && arg.operator.name === '()') return [];
+                if (arg.operator && arg.operator.name === '()') {return [];}
                 if (arg.operator && arg.operator.name === '[]' && arg.components) {
                     return arg.components.map(resolveArg);
                 }

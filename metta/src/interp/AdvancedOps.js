@@ -120,7 +120,7 @@ export function registerAdvancedOps(interpreter) {
         '&match-types': {
             fn: (t1, t2, thenBranch, elseBranch) => {
                 const isWildcard = (t) => t.name === '%Undefined%' || t.name === 'Atom';
-                if (isWildcard(t1) || isWildcard(t2)) return thenBranch;
+                if (isWildcard(t1) || isWildcard(t2)) {return thenBranch;}
                 return Unify.unify(t1, t2) !== null ? thenBranch : elseBranch;
             },
             opts: { lazy: true }
@@ -130,10 +130,10 @@ export function registerAdvancedOps(interpreter) {
                 const s = space || interpreter.space;
                 const actualType = interpreter.ground.execute('&get-type', atom, s);
 
-                if (actualType.name === '%Undefined%') return atom;
+                if (actualType.name === '%Undefined%') {return atom;}
 
                 const bindings = Unify.unify(actualType, expectedType);
-                if (bindings !== null) return atom;
+                if (bindings !== null) {return atom;}
 
                 return exp(sym('Error'), [atom, exp(sym('TypeError'), [expectedType, actualType])]);
             },
@@ -166,7 +166,7 @@ export function registerAdvancedOps(interpreter) {
         // List operations
         '&length': {
             fn: (list) => {
-                if (list?.name === '()') return formatNum(0);
+                if (list?.name === '()') {return formatNum(0);}
                 if (list?.operator?.name === ':' && list?.components) {
                     const flattener = interpreter.ground._flattenExpr ? interpreter.ground : interpreter;
                     const flattened = flattener._flattenExpr ? flattener._flattenExpr(list) : interpreter._flattenToList(list);
@@ -183,8 +183,8 @@ export function registerAdvancedOps(interpreter) {
                 const results = interpreter.evaluate(cond);
                 const condRes = Array.isArray(results) ? (results.length > 0 ? results[0] : null) : results;
 
-                if (condRes?.name === 'True') return thenB;
-                if (condRes?.name === 'False') return elseB;
+                if (condRes?.name === 'True') {return thenB;}
+                if (condRes?.name === 'False') {return elseB;}
                 return exp(sym('if'), [condRes || cond, thenB, elseB]);
             },
             opts: { lazy: true }
@@ -211,7 +211,7 @@ export function registerAdvancedOps(interpreter) {
                 const listToFilter = flattener._flattenExpr ? flattener._flattenExpr(list) : interpreter._flattenToList(list);
 
                 const filtered = listToFilter.filter(el => {
-                    if (!el) return false;
+                    if (!el) {return false;}
                     try {
                         const expr = exp(pred, [el]);
                         const result = interpreter._reduceDeterministic(expr);
@@ -239,7 +239,7 @@ export function registerAdvancedOps(interpreter) {
                 const flattener = interpreter.ground._flattenExpr ? interpreter.ground : interpreter;
                 const elements = flattener._flattenExpr ? flattener._flattenExpr(list) : interpreter._flattenToList(list);
 
-                if (elements.length === 0) return sym('()');
+                if (elements.length === 0) {return sym('()');}
 
                 return elements.slice(1).reduce((result, el) => {
                     const substOp = Unify.subst(op, { [accVar.name]: result, [elVar.name]: el });

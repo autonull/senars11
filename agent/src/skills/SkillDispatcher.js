@@ -1,15 +1,15 @@
 /**
  * SkillDispatcher.js — S-expression parse + dispatch + registry
  */
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
-import { Logger } from '@senars/core';
-import { Parser } from '../../../metta/src/Parser.js';
-import { isExpression } from '../../../metta/src/kernel/Term.js';
-import { isEnabled } from '../config/capabilities.js';
-import { getSafetyLayer } from '../safety/SafetyLayer.js';
-import { AuditSpace } from '../memory/AuditSpace.js';
-import { getHookOrchestrator } from './HookOrchestrator.js';
+import {existsSync, readFileSync} from 'fs';
+import {join} from 'path';
+import {Logger} from '@senars/core';
+import {Parser} from '@senars/metta/Parser.js';
+import {isExpression} from '@senars/metta/kernel/Term.js';
+import {isEnabled} from '../config/index.js';
+import {getSafetyLayer} from '../safety/index.js';
+import {AuditSpace} from '../memory/index.js';
+import {getHookOrchestrator} from './HookOrchestrator.js';
 
 const atomValue = c => c?.name ?? c?.value ?? '';
 
@@ -24,11 +24,15 @@ export class SkillDispatcher {
     }
 
     loadSkillsFromFile(path) {
-        if (!existsSync(path)) return;
+        if (!existsSync(path)) {
+            return;
+        }
         try {
             for (const line of readFileSync(path, 'utf-8').split('\n')) {
                 const trimmed = line.trim();
-                if (!trimmed.startsWith('(skill ')) continue;
+                if (!trimmed.startsWith('(skill ')) {
+                    continue;
+                }
                 for (const decl of this._extractSkillDecls(this._parser.parse(trimmed))) {
                     this._skillDecls.set(decl.name, decl);
                 }
@@ -40,7 +44,9 @@ export class SkillDispatcher {
 
     _extractSkillDecls(atom) {
         const decls = [];
-        if (!isExpression(atom) || atom.operator?.name !== 'skill') return decls;
+        if (!isExpression(atom) || atom.operator?.name !== 'skill') {
+            return decls;
+        }
         const c = atom.components || [];
         if (c.length >= 5) {
             decls.push({
@@ -74,30 +80,42 @@ export class SkillDispatcher {
     register(name, handler, capFlag, tier, description = '') {
         const decl = this._skillDecls.get(name);
         if (decl) {
-            if (decl.capFlag !== capFlag) Logger.warn(`[SkillDispatcher] Capability mismatch for ${name}: .metta says ${decl.capFlag}, JS says ${capFlag}`);
-            if (decl.tier !== tier) Logger.warn(`[SkillDispatcher] Tier mismatch for ${name}: .metta says ${decl.tier}, JS says ${tier}`);
+            if (decl.capFlag !== capFlag) {
+                Logger.warn(`[SkillDispatcher] Capability mismatch for ${name}: .metta says ${decl.capFlag}, JS says ${capFlag}`);
+            }
+            if (decl.tier !== tier) {
+                Logger.warn(`[SkillDispatcher] Tier mismatch for ${name}: .metta says ${decl.tier}, JS says ${tier}`);
+            }
         } else {
-            this._skillDecls.set(name, { name, argTypes: 'any', capFlag, tier, description });
+            this._skillDecls.set(name, {name, argTypes: 'any', capFlag, tier, description});
         }
-        this._handlers.set(name, { handler, capFlag, tier });
+        this._handlers.set(name, {handler, capFlag, tier});
     }
 
     parseResponse(responseStr) {
-        if (!isEnabled(this._config, 'sExprSkillDispatch')) return { cmds: [], error: null };
+        if (!isEnabled(this._config, 'sExprSkillDispatch')) {
+            return {cmds: [], error: null};
+        }
         const str = (responseStr ?? '').trim();
-        if (!str) return { cmds: [], error: null };
+        if (!str) {
+            return {cmds: [], error: null};
+        }
         let atom;
         try {
             atom = this._parser.parse(this._balanceParens(str));
         } catch (err) {
-            return { cmds: [], error: `parse-error: ${err.message}` };
+            return {cmds: [], error: `parse-error: ${err.message}`};
         }
-        if (!atom) return { cmds: [], error: null };
-        return { cmds: this._extractCommands(atom).slice(0, this._config.loop?.maxSkillsPerCycle ?? 3), error: null };
+        if (!atom) {
+            return {cmds: [], error: null};
+        }
+        return {cmds: this._extractCommands(atom).slice(0, this._config.loop?.maxSkillsPerCycle ?? 3), error: null};
     }
 
     async execute(cmds) {
-        if (!Array.isArray(cmds) || cmds.length === 0) return [];
+        if (!Array.isArray(cmds) || cmds.length === 0) {
+            return [];
+        }
         await this._ensureSafetyAndAudit();
         return Promise.all(cmds.map(cmd => this._dispatch(cmd)));
     }
@@ -112,26 +130,38 @@ export class SkillDispatcher {
         return lines.length ? lines.join('\n') : '(no skills available)';
     }
 
-    hasSkill(name) { return this._handlers.has(name); }
+    hasSkill(name) {
+        return this._handlers.has(name);
+    }
 
-    async _dispatch({ name, args }) {
+    async _dispatch({name, args}) {
         const entry = this._handlers.get(name);
-        if (!entry) return { skill: name, result: null, error: `unknown-skill: ${name}` };
-        if (!isEnabled(this._config, entry.capFlag)) return { skill: name, result: null, error: `capability-disabled: ${entry.capFlag}` };
+        if (!entry) {
+            return {skill: name, result: null, error: `unknown-skill: ${name}`};
+        }
+        if (!isEnabled(this._config, entry.capFlag)) {
+            return {skill: name, result: null, error: `capability-disabled: ${entry.capFlag}`};
+        }
 
         let currentArgs = args;
         if (this._config.capabilities?.executionHooks) {
             const orchestrator = getHookOrchestrator(this._config, this._auditSpace);
-            const preHookResult = await orchestrator.runPreHooks({ name, args: currentArgs });
-            if (preHookResult.action === 'deny') return { skill: name, result: null, error: `hook-deny: ${preHookResult.reason}` };
-            if (preHookResult.action === 'rewrite') currentArgs = preHookResult.newArgs || currentArgs;
+            const preHookResult = await orchestrator.runPreHooks({name, args: currentArgs});
+            if (preHookResult.action === 'deny') {
+                return {skill: name, result: null, error: `hook-deny: ${preHookResult.reason}`};
+            }
+            if (preHookResult.action === 'rewrite') {
+                currentArgs = preHookResult.newArgs || currentArgs;
+            }
         }
 
         if (this._safetyLayer && this._config?.capabilities?.safetyLayer) {
             const safety = await this._safetyLayer.check(name, currentArgs, entry.tier);
             if (!safety.cleared) {
-                if (this._auditSpace) await this._auditSpace.emitSkillBlocked(name, currentArgs, safety.reason);
-                return { skill: name, result: null, error: `safety-blocked: ${safety.reason}` };
+                if (this._auditSpace) {
+                    await this._auditSpace.emitSkillBlocked(name, currentArgs, safety.reason);
+                }
+                return {skill: name, result: null, error: `safety-blocked: ${safety.reason}`};
             }
         }
 
@@ -144,50 +174,74 @@ export class SkillDispatcher {
         }
 
         if (this._config.capabilities?.executionHooks) {
-            await getHookOrchestrator(this._config, this._auditSpace).runPostHooks({ name, args: currentArgs }, result ?? error);
+            await getHookOrchestrator(this._config, this._auditSpace).runPostHooks({
+                name,
+                args: currentArgs
+            }, result ?? error);
         }
         if (this._auditSpace && this._config?.capabilities?.auditLog) {
             await this._auditSpace.emitSkillInvoked(name, currentArgs, result ?? error);
         }
 
-        return { skill: name, result, error };
+        return {skill: name, result, error};
     }
 
     _extractCommands(atom) {
         const commands = [];
         if (!isExpression(atom)) {
             const cmd = this._parseCommand(atom);
-            if (cmd) commands.push(cmd);
+            if (cmd) {
+                commands.push(cmd);
+            }
             return commands;
         }
         if (isExpression(atom.operator)) {
             const cmd = this._parseCommand(atom.operator);
-            if (cmd) commands.push(cmd);
+            if (cmd) {
+                commands.push(cmd);
+            }
         } else if (atom.operator?.name && atom.operator.name !== '()') {
             const cmd = this._parseCommand(atom);
-            if (cmd) return [cmd];
+            if (cmd) {
+                return [cmd];
+            }
         }
         for (const comp of atom.components ?? []) {
             if (isExpression(comp)) {
                 const cmd = this._parseCommand(comp);
-                if (cmd) commands.push(cmd);
+                if (cmd) {
+                    commands.push(cmd);
+                }
             }
         }
         return commands;
     }
 
     _parseCommand(atom) {
-        if (!isExpression(atom)) return null;
+        if (!isExpression(atom)) {
+            return null;
+        }
         const name = atom.operator?.name;
-        if (!name || name === '()') return null;
-        return { name, args: (atom.components ?? []).map(c => this._atomToJS(c)) };
+        if (!name || name === '()') {
+            return null;
+        }
+        return {name, args: (atom.components ?? []).map(c => this._atomToJS(c))};
     }
 
     _atomToJS(atom) {
-        if (atom === null || atom === undefined) return '';
-        if (atom.value !== undefined) return atom.value;
-        if (atom.type === 'str' || (atom.name && atom.name.startsWith('"'))) return (atom.name ?? atom.value ?? '').replace(/^"|"$/g, '');
-        if (atom.name !== undefined) { const n = Number(atom.name); return isNaN(n) ? atom.name : n; }
+        if (atom === null || atom === undefined) {
+            return '';
+        }
+        if (atom.value !== undefined) {
+            return atom.value;
+        }
+        if (atom.type === 'str' || (atom.name && atom.name.startsWith('"'))) {
+            return (atom.name ?? atom.value ?? '').replace(/^"|"$/g, '');
+        }
+        if (atom.name !== undefined) {
+            const n = Number(atom.name);
+            return isNaN(n) ? atom.name : n;
+        }
         if (isExpression(atom)) {
             const opStr = atom.operator?.name ?? '';
             const argStr = (atom.components ?? []).map(c => this._atomToJS(c)).join(' ');
@@ -199,12 +253,26 @@ export class SkillDispatcher {
     _balanceParens(str) {
         let depth = 0, inString = false, escaped = false;
         for (const ch of str) {
-            if (escaped) { escaped = false; continue; }
-            if (ch === '\\') { escaped = true; continue; }
-            if (ch === '"') { inString = !inString; continue; }
-            if (inString) continue;
-            if (ch === '(') depth++;
-            else if (ch === ')') depth = Math.max(0, depth - 1);
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            if (ch === '\\') {
+                escaped = true;
+                continue;
+            }
+            if (ch === '"') {
+                inString = !inString;
+                continue;
+            }
+            if (inString) {
+                continue;
+            }
+            if (ch === '(') {
+                depth++;
+            } else if (ch === ')') {
+                depth = Math.max(0, depth - 1);
+            }
         }
         return str + ')'.repeat(depth);
     }

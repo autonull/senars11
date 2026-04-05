@@ -28,7 +28,7 @@ export class NARQueryEngine {
     }
 
     async reconcile(beliefData) {
-        if (!beliefData?.term || !beliefData?.truth) return false;
+        if (!beliefData?.term || !beliefData?.truth) {return false;}
 
         try {
             const term = this.#nar._parser && typeof beliefData.term === 'string'
@@ -46,13 +46,13 @@ export class NARQueryEngine {
     }
 
     async ask(task) {
-        if (!this.#nar._streamReasoner) throw new Error('Stream reasoner is not initialized.');
+        if (!this.#nar._streamReasoner) {throw new Error('Stream reasoner is not initialized.');}
         return this.#nar._streamReasoner.strategy.ask(task);
     }
 
     #resolveTerm(termInput) {
         if (this.#nar._parser && typeof termInput === 'string') {
-            const parsed = this.#nar._parser.parse(termInput.endsWith('.') ? termInput : termInput + '.');
+            const parsed = this.#nar._parser.parse(termInput.endsWith('.') ? termInput : `${termInput  }.`);
             return parsed.term;
         }
         return this.#nar._termFactory.create(termInput);
@@ -66,7 +66,7 @@ export class NARQueryEngine {
             const beliefs = concept.getTasksByType('BELIEF');
             if (beliefs.length > 0) {
                 const revised = Truth.revision(beliefs[0].truth, incomingTruth);
-                if (revised) return revised;
+                if (revised) {return revised;}
             }
         }
         return incomingTruth;

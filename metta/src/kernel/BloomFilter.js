@@ -14,7 +14,7 @@ export class BloomFilter {
     }
 
     add(value) {
-        if (!this.enabled) return;
+        if (!this.enabled) {return;}
 
         const str = typeof value === 'string' ? value : value.toString();
 
@@ -26,7 +26,7 @@ export class BloomFilter {
     }
 
     has(value) {
-        if (!this.enabled) return true; // Assume present if disabled
+        if (!this.enabled) {return true;} // Assume present if disabled
 
         const str = typeof value === 'string' ? value : value.toString();
 

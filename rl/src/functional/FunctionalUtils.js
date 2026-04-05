@@ -10,7 +10,7 @@ export const partial = (fn, ...bound) => (...rest) => fn(...bound, ...rest);
 
 export const memoize = (fn, cache = new Map()) => (...args) => {
     const key = JSON.stringify(args);
-    if (cache.has(key)) return cache.get(key);
+    if (cache.has(key)) {return cache.get(key);}
     const result = fn(...args);
     cache.set(key, result);
     return result;
@@ -111,29 +111,29 @@ export class Stream {
     static empty() { return new Stream((function*() {})()); }
     static of(...values) { return new Stream((function*() { yield* values; })()); }
     static range(start, end) {
-        return new Stream((function*() { for(let i=start; i<end; i++) yield i; })());
+        return new Stream((function*() { for(let i=start; i<end; i++) {yield i;} })());
     }
 
     filter(predicate) {
         const self = this;
-        return new Stream((function*() { for (const v of self._iterator) if (predicate(v)) yield v; })());
+        return new Stream((function*() { for (const v of self._iterator) {if (predicate(v)) {yield v;}} })());
     }
 
     map(fn) {
         const self = this;
-        return new Stream((function*() { for (const v of self._iterator) yield fn(v); })());
+        return new Stream((function*() { for (const v of self._iterator) {yield fn(v);} })());
     }
 
     flatMap(fn) {
         const self = this;
-        return new Stream((function*() { for (const v of self._iterator) yield* fn(v); })());
+        return new Stream((function*() { for (const v of self._iterator) {yield* fn(v);} })());
     }
 
     take(n) {
         const self = this;
         return new Stream((function*() {
             let count = 0;
-            for (const v of self._iterator) { if (count++ >= n) break; yield v; }
+            for (const v of self._iterator) { if (count++ >= n) {break;} yield v; }
         })());
     }
 
@@ -141,14 +141,14 @@ export class Stream {
         const self = this;
         return new Stream((function*() {
             let count = 0;
-            for (const v of self._iterator) { if (count++ >= n) yield v; }
+            for (const v of self._iterator) { if (count++ >= n) {yield v;} }
         })());
     }
 
     takeWhile(predicate) {
         const self = this;
         return new Stream((function*() {
-            for (const v of self._iterator) { if (!predicate(v)) break; yield v; }
+            for (const v of self._iterator) { if (!predicate(v)) {break;} yield v; }
         })());
     }
 
@@ -160,26 +160,26 @@ export class Stream {
 
     reduce(fn, initial) {
         let acc = initial;
-        for (const v of this._iterator) acc = fn(acc, v);
+        for (const v of this._iterator) {acc = fn(acc, v);}
         return acc;
     }
 
-    forEach(fn) { for (const v of this._iterator) fn(v); return this; }
+    forEach(fn) { for (const v of this._iterator) {fn(v);} return this; }
 
     collect() { return Array.from(this._iterator); }
 
     find(predicate) {
-        for (const v of this._iterator) if (predicate(v)) return Maybe.of(v);
+        for (const v of this._iterator) {if (predicate(v)) {return Maybe.of(v);}}
         return Maybe.nothing();
     }
 
     every(predicate) {
-        for (const v of this._iterator) if (!predicate(v)) return false;
+        for (const v of this._iterator) {if (!predicate(v)) {return false;}}
         return true;
     }
 
     some(predicate) {
-        for (const v of this._iterator) if (predicate(v)) return true;
+        for (const v of this._iterator) {if (predicate(v)) {return true;}}
         return false;
     }
 
@@ -272,7 +272,7 @@ export const omit = keys => obj => Object.fromEntries(Object.entries(obj).filter
 
 export const groupBy = (fn, arr) => arr.reduce((acc, v) => {
     const key = fn(v);
-    if (!acc[key]) acc[key] = [];
+    if (!acc[key]) {acc[key] = [];}
     acc[key].push(v);
     return acc;
 }, {});

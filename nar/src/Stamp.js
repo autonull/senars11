@@ -4,7 +4,7 @@ import {STAMP} from './config/constants.js';
 
 export class Stamp {
     constructor() {
-        if (this.constructor === Stamp) throw new Error("Abstract classes can't be instantiated.");
+        if (this.constructor === Stamp) {throw new Error("Abstract classes can't be instantiated.");}
     }
 
     static createInput() {
@@ -38,7 +38,7 @@ export class Stamp {
             depth
         });
 
-        const filter = newStamp.filter;
+        const {filter} = newStamp;
         for (const parent of parentStamps) {
             if (parent instanceof BloomStamp) {
                 filter.merge(parent.filter);
@@ -86,11 +86,11 @@ export class ArrayStamp extends Stamp {
     }
 
     overlaps(other) {
-        if (!other) return false;
-        if (other instanceof BloomStamp) return other.overlaps(this);
-        if (!(other instanceof ArrayStamp)) return false;
+        if (!other) {return false;}
+        if (other instanceof BloomStamp) {return other.overlaps(this);}
+        if (!(other instanceof ArrayStamp)) {return false;}
 
-        if (this._id === other.id || this._derivationsSet.has(other.id) || other._derivationsSet.has(this._id)) return true;
+        if (this._id === other.id || this._derivationsSet.has(other.id) || other._derivationsSet.has(this._id)) {return true;}
 
         const [smaller, larger] = this._derivations.length < other._derivations.length ? [this, other] : [other, this];
         return smaller.derivations.some(d => larger._derivationsSet.has(d));
@@ -136,10 +136,10 @@ export class BloomStamp extends Stamp {
     }
 
     overlaps(other) {
-        if (!other) return false;
-        if (other instanceof BloomStamp) return this._filter.intersects(other.filter);
+        if (!other) {return false;}
+        if (other instanceof BloomStamp) {return this._filter.intersects(other.filter);}
         if (other instanceof ArrayStamp) {
-            if (this._filter.test(other.id)) return true;
+            if (this._filter.test(other.id)) {return true;}
             // Use iterator to avoid array allocation if possible, but ArrayStamp has array.
             // .some() is good.
             return other.derivations.some(d => this._filter.test(d));

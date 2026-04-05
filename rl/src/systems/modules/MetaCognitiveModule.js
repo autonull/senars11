@@ -12,7 +12,7 @@ export class MetaCognitiveModule extends CognitiveModule {
     }
     async process(input, context = {}) {
         this.stepCount++;
-        if (this.stepCount % this.config.reflectionInterval === 0) await this.reflect(input, context);
+        if (this.stepCount % this.config.reflectionInterval === 0) {await this.reflect(input, context);}
         return { selfState: this.monitorSelf(), reflections: this.reflections.slice(-this.config.reflectionsLimit) };
     }
     async reflect(input, context) {
@@ -27,7 +27,7 @@ export class MetaCognitiveModule extends CognitiveModule {
         return reflection;
     }
     summarize(obj) {
-        if (typeof obj !== 'object' || obj === null) return String(obj);
+        if (typeof obj !== 'object' || obj === null) {return String(obj);}
         return JSON.stringify(obj).slice(0, 100);
     }
     async generateInsights(input, context) {
@@ -45,7 +45,7 @@ export class MetaCognitiveModule extends CognitiveModule {
             const key = insight.type;
             const existing = this.selfKnowledge.get(key);
             if (existing) { existing.count++; existing.lastSeen = reflection.timestamp; }
-            else this.selfKnowledge.set(key, { ...insight, count: 1, firstSeen: reflection.timestamp, lastSeen: reflection.timestamp });
+            else {this.selfKnowledge.set(key, { ...insight, count: 1, firstSeen: reflection.timestamp, lastSeen: reflection.timestamp });}
         });
     }
     monitorSelf() {

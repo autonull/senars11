@@ -18,7 +18,7 @@ export class ParallelExecutor {
    * Determine if the operation scale warrants parallelization overhead.
    */
   shouldParallelise(resultCount, exprCount) {
-    if (!this.enabled) return false;
+    if (!this.enabled) {return false;}
     // MORK heuristic: multi-core is only faster if there are many alternatives
     return this.cores > 2 && (resultCount > 200 || exprCount > 50);
   }

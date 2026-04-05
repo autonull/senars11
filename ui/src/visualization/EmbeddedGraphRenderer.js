@@ -9,7 +9,7 @@ import { eventBus } from '../core/EventBus.js';
  */
 export class EmbeddedGraphRenderer {
     static render(container, data) {
-        if (!container) return null;
+        if (!container) {return null;}
 
         const { nodes = [], edges = [] } = data;
 

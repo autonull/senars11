@@ -218,18 +218,19 @@ Critical Path:          Optional (any order after Phase 2):
 
 | Component | File | Phase | Status |
 |---|---|---|---|
-| IntelligentMessageProcessor | `agent/src/ai/IntelligentMessageProcessor.js` | 1, 2 | Active, needs context assembly |
-| SemanticMemory | `agent/src/memory/SemanticMemory.js` | 1 | Implemented, not queried |
-| NARS beliefs | `agent/src/Agent.js` → `nar.getBeliefs()` | 1 | Implemented, not queried |
-| AuditSpace | `agent/src/memory/AuditSpace.js` | 2 | Implemented, not called |
-| SkillDispatcher | `agent/src/skills/SkillDispatcher.js` | 2 | Implemented, not wired |
-| SafetyLayer | `agent/src/safety/SafetyLayer.js` | Branch A | Implemented |
-| HookOrchestrator | `agent/src/skills/HookOrchestrator.js` | Branch A | Implemented |
+| IntelligentMessageProcessor | `agent/src/ai/IntelligentMessageProcessor.js` | 1, 2, 3 | **Complete** — full pipeline wired |
+| SemanticMemory | `agent/src/memory/SemanticMemory.js` | 1 | **Complete** — queried for RECALL, wired to agent in chatbot runner |
+| NARS beliefs | `agent/src/Agent.js` → `nar.getBeliefs()` | 1 | **Complete** — keyword-filtered BELIEFS slot |
+| AuditSpace | `agent/src/memory/AuditSpace.js` | 2 | **Complete** — FEEDBACK slot, audit events on every path |
+| SkillDispatcher | `agent/src/skills/SkillDispatcher.js` | 2 | **Complete** — dual path (S-expr / text), handlers registered |
+| SafetyLayer | `agent/src/safety/SafetyLayer.js` | Branch A | Implemented, gated by capability |
+| HookOrchestrator | `agent/src/skills/HookOrchestrator.js` | Branch A | Implemented, gated by capability |
 | ModelRouter | `agent/src/models/ModelRouter.js` | Branch C | Implemented |
 | HarnessOptimizer | `agent/src/harness/HarnessOptimizer.js` | Branch D | Implemented |
-| MeTTa Interpreter | `metta/src/MeTTaInterpreter.js` | 1, 2 | Implemented |
-| AgentLoop.metta | `agent/src/metta/AgentLoop.metta` | Phase 3 | Spec only |
-| skills.metta | `agent/src/metta/skills.metta` | Phase 2 | Spec only |
+| MeTTa Interpreter | `metta/src/MeTTaInterpreter.js` | 1, 2, 3 | **Complete** — persistent `(conversation ...)` atoms |
+| AgentLoop.metta | `agent/src/metta/AgentLoop.metta` | Phase 3 | Spec only (JS driver implements) |
+| skills.metta | `agent/src/metta/skills.metta` | Phase 2 | **Complete** — loaded by SkillDispatcher |
+| Chatbot Runner | `agent/examples/chatbot/run-intelligent-chatbot.js` | 1, 2, 3 | **Complete** — agentConfig + SemanticMemory wired |
 
 No new files for Phase 1. Only modifications to `IntelligentMessageProcessor.js`.
 

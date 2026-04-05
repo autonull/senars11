@@ -92,7 +92,7 @@ export class CommandRegistry {
 
     handleAddConcept(position = null) {
         const input = prompt("Enter concept name (or type:name):");
-        if (!input) return;
+        if (!input) {return;}
         let term = input.trim();
         let type = 'concept';
         const colonIndex = term.indexOf(':');
@@ -106,7 +106,7 @@ export class CommandRegistry {
     }
 
     handleAddLink() {
-        if (!this.app.graph.cy) return;
+        if (!this.app.graph.cy) {return;}
         const selected = this.app.graph.cy.$(':selected');
         if (selected.length !== 2) { alert("Please select exactly two nodes to link."); return; }
         const source = selected[0].id();
@@ -119,18 +119,18 @@ export class CommandRegistry {
     }
 
     handleDelete() {
-        if (!this.app.graph.cy) return;
+        if (!this.app.graph.cy) {return;}
         const selected = this.app.graph.cy.$(':selected');
-        if (selected.empty()) return;
+        if (selected.empty()) {return;}
         if (confirm(`Delete ${selected.length} items?`)) {
             const nodeIds = [];
             selected.forEach(ele => {
-                if (ele.isNode()) nodeIds.push(ele.id());
-                else if (ele.isEdge()) ele.remove();
+                if (ele.isNode()) {nodeIds.push(ele.id());}
+                else if (ele.isEdge()) {ele.remove();}
             });
             if (nodeIds.length > 0) {
-                if (this.app.graph.removeNodes) this.app.graph.removeNodes(nodeIds);
-                else nodeIds.forEach(id => this.app.graph.removeNode?.(id));
+                if (this.app.graph.removeNodes) {this.app.graph.removeNodes(nodeIds);}
+                else {nodeIds.forEach(id => this.app.graph.removeNode?.(id));}
             }
             this.app.log(`Deleted ${selected.length} items.`, 'user');
         }
@@ -152,8 +152,8 @@ export class CommandRegistry {
         this.app.graph.cy.autoungrabify(mode === 'visualization');
         const toolbar = document.getElementById('control-toolbar');
         const toolbarWidget = document.getElementById('controls-widget');
-        if (toolbar) toolbar.classList.toggle('hidden', mode !== 'control');
-        if (toolbarWidget) toolbarWidget.classList.toggle('hidden', mode !== 'control');
+        if (toolbar) {toolbar.classList.toggle('hidden', mode !== 'control');}
+        if (toolbarWidget) {toolbarWidget.classList.toggle('hidden', mode !== 'control');}
     }
 
     showDemoLibrary() {
@@ -161,6 +161,6 @@ export class CommandRegistry {
     }
 
     _processDecay() {
-        if (this.app.graph.processDecay) this.app.graph.processDecay(0.98, 0.05);
+        if (this.app.graph.processDecay) {this.app.graph.processDecay(0.98, 0.05);}
     }
 }

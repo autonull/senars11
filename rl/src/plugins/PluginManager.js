@@ -53,12 +53,12 @@ export class PluginManager extends Component {
      */
     unregister(name) {
         const plugin = this.plugins.get(name);
-        if (!plugin) return false;
+        if (!plugin) {return false;}
 
         // Remove from hooks
         for (const [hookName, plugins] of this.hooks) {
             const idx = plugins.indexOf(plugin);
-            if (idx >= 0) plugins.splice(idx, 1);
+            if (idx >= 0) {plugins.splice(idx, 1);}
         }
 
         this.plugins.delete(name);
@@ -93,7 +93,7 @@ export class PluginManager extends Component {
         const results = {};
 
         for (const [name, plugin] of this.plugins) {
-            if (!plugin.config.enabled) continue;
+            if (!plugin.config.enabled) {continue;}
 
             try {
                 results[name] = await plugin.install(context);
@@ -140,7 +140,7 @@ export class PluginManager extends Component {
         const results = [];
 
         for (const plugin of plugins) {
-            if (!plugin.config.enabled) continue;
+            if (!plugin.config.enabled) {continue;}
 
             try {
                 const result = await plugin.execute(hookName, ...args);
@@ -169,7 +169,7 @@ export class PluginManager extends Component {
         const sorted = [...plugins].sort((a, b) => b.config.priority - a.config.priority);
 
         for (const plugin of sorted) {
-            if (!plugin.config.enabled) continue;
+            if (!plugin.config.enabled) {continue;}
 
             try {
                 current = await plugin.execute(hookName, current, context);

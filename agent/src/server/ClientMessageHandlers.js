@@ -1,8 +1,8 @@
 /**
  * ClientMessageHandlers - Modular handlers for WebSocket client messages
  */
-import { Logger, sendToClient } from '@senars/core';
-import { SUPPORTED_MESSAGE_TYPES } from '@senars/nar';
+import {Logger, sendToClient} from '@senars/core';
+import {SUPPORTED_MESSAGE_TYPES} from '@senars/nar';
 
 export class ClientMessageHandlers {
     constructor(webSocketMonitor) {
@@ -74,7 +74,9 @@ export class ClientMessageHandlers {
 
     // Private methods
     _handleSubscription(client, message, action) {
-        if (!client.subscriptions) client.subscriptions = new Set();
+        if (!client.subscriptions) {
+            client.subscriptions = new Set();
+        }
 
         const eventTypes = message.eventTypes ?? ['all'];
 
@@ -104,7 +106,7 @@ export class ClientMessageHandlers {
 
     // Handler for requesting client capabilities
     _handleRequestCapabilities(client, message) {
-        const clientId = client.clientId;
+        const {clientId} = client;
         const capabilities = this.monitor.clientCapabilities.get(clientId) || [];
 
         this._sendToClient(client, {

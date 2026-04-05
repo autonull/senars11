@@ -35,7 +35,7 @@ export class TaskManager extends BaseComponent {
     get pendingTasksCount() { return this._pendingTasks.size; }
 
     addTask(task) {
-        if (!(task instanceof Task)) throw new Error('TaskManager.addTask requires a Task instance');
+        if (!(task instanceof Task)) {throw new Error('TaskManager.addTask requires a Task instance');}
 
         this._pendingTasks.set(task.stamp.id, task);
         this._stats.totalTasksCreated++;
@@ -113,10 +113,10 @@ export class TaskManager extends BaseComponent {
 
     updateTaskPriority(task, newPriority) {
         const concept = this._memory.getConcept(task.term);
-        if (!concept) return false;
+        if (!concept) {return false;}
 
         const oldTask = concept.getTask(task.stamp.id);
-        if (!oldTask) return false;
+        if (!oldTask) {return false;}
 
         const newTask = oldTask.clone({budget: {...oldTask.budget, priority: newPriority}});
         return concept.replaceTask(oldTask, newTask);
@@ -124,10 +124,10 @@ export class TaskManager extends BaseComponent {
 
     removeTask(task) {
         const concept = this._memory.getConcept(task.term);
-        if (!concept) return false;
+        if (!concept) {return false;}
 
         const removed = concept.removeTask(task);
-        if (removed) this._stats.totalTasksProcessed++; // Interpreting removal as processing? Or creating separate stat? keeping strictly consistent with old code
+        if (removed) {this._stats.totalTasksProcessed++;} // Interpreting removal as processing? Or creating separate stat? keeping strictly consistent with old code
         return removed;
     }
 
@@ -191,8 +191,8 @@ export class TaskManager extends BaseComponent {
     }
 
     _getPriorityBucket(priority) {
-        if (priority < PRIORITY_BUCKETS.LOW_THRESHOLD) return 'low';
-        if (priority < PRIORITY_BUCKETS.MEDIUM_THRESHOLD) return 'medium';
+        if (priority < PRIORITY_BUCKETS.LOW_THRESHOLD) {return 'low';}
+        if (priority < PRIORITY_BUCKETS.MEDIUM_THRESHOLD) {return 'medium';}
         return 'high';
     }
 
@@ -223,9 +223,9 @@ export class TaskManager extends BaseComponent {
 
     async deserialize(data) {
         try {
-            if (!data) throw new Error('Invalid task manager data for deserialization');
+            if (!data) {throw new Error('Invalid task manager data for deserialization');}
 
-            if (data.config) this.configure(data.config);
+            if (data.config) {this.configure(data.config);}
 
             this._pendingTasks.clear();
             if (data.pendingTasks) {
@@ -236,7 +236,7 @@ export class TaskManager extends BaseComponent {
                 }
             }
 
-            if (data.stats) this._stats = {...data.stats};
+            if (data.stats) {this._stats = {...data.stats};}
 
             return true;
         } catch (error) {

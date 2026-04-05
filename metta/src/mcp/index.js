@@ -101,8 +101,8 @@ export class MeTTaMCPManager {
    * @returns {Promise<void>}
    */
   async disconnect(key) {
-    if (key) await this.manager.disconnect(key);
-    else await this.manager.disconnectAll();
+    if (key) {await this.manager.disconnect(key);}
+    else {await this.manager.disconnectAll();}
   }
 
   /**

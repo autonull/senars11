@@ -80,7 +80,7 @@ export class TensorLogicPolicy extends Component {
     }
 
     _initializeParameters() {
-        if (!this.backend) return;
+        if (!this.backend) {return;}
 
         const { inputDim, hiddenDim, outputDim, numLayers } = this.config;
 
@@ -110,7 +110,7 @@ export class TensorLogicPolicy extends Component {
     }
 
     async _loadPolicyScript() {
-        if (!this.metta || !this.config.policyScript) return;
+        if (!this.metta || !this.config.policyScript) {return;}
 
         try {
             const fs = await import('fs');
@@ -147,7 +147,7 @@ export class TensorLogicPolicy extends Component {
                 { requiresGrad: trackGradient }
             );
 
-        const numLayers = this.config.numLayers;
+        const {numLayers} = this.config;
 
         for (let i = 0; i < numLayers; i++) {
             const w = this.parameters.get(`w${i}`);
@@ -378,7 +378,7 @@ export class TensorLogicPolicy extends Component {
             const result = await this.metta.run(`! (get-action ${stateExpr})`);
             if (result && result.length > 0) {
                 const val = parseFloat(result[0].toString());
-                if (!isNaN(val)) action = Math.floor(val);
+                if (!isNaN(val)) {action = Math.floor(val);}
             }
         } catch (e) {
             Logger.warn('Metta policy execution failed:', e);
@@ -394,7 +394,7 @@ export class TensorLogicPolicy extends Component {
      * @returns {Object} Update result
      */
     async updateMettaPolicy(transition, options = {}) {
-        if (!this.metta) return { success: false };
+        if (!this.metta) {return { success: false };}
 
         const { gamma = this.config.gamma } = options;
         const { state, action, reward, done } = transition;
@@ -421,7 +421,7 @@ export class TensorLogicPolicy extends Component {
         const rules = [];
 
         for (const [name, param] of this.parameters) {
-            if (!name.startsWith('w')) continue;
+            if (!name.startsWith('w')) {continue;}
 
             const maxWeight = Math.max(...param.data.map(Math.abs));
             if (maxWeight > threshold) {
@@ -462,7 +462,7 @@ export class TensorLogicPolicy extends Component {
             const param = this.parameters.get(name);
             if (param) {
                 param.data = [...paramData.data];
-                if (paramData.shape) param.shape = [...paramData.shape];
+                if (paramData.shape) {param.shape = [...paramData.shape];}
             }
         });
     }
@@ -490,9 +490,9 @@ export class TensorLogicPolicy extends Component {
      * @param {Object} state - State to load
      */
     loadState(state) {
-        if (state.parameters) this.setParameters(state.parameters);
-        if (state.metrics) this.metrics.reset();
-        if (state.temperature) this.temperature = state.temperature;
+        if (state.parameters) {this.setParameters(state.parameters);}
+        if (state.metrics) {this.metrics.reset();}
+        if (state.temperature) {this.temperature = state.temperature;}
     }
 
     async onShutdown() {

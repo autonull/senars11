@@ -96,7 +96,7 @@ export class SeNARSBridge extends BaseMeTTaComponent {
         return this.trackOperation('getRelatedConcepts', () => {
             const term = atom?.toString?.() ?? String(atom);
             const c = this.reasoner?.memory?.getConcept?.(term);
-            if (!c?.links) return [];
+            if (!c?.links) {return [];}
             const linked = [...c.links].slice(0, max).map(l => l.target?.term ?? l.target);
             this.emitMeTTaEvent('related-concepts-retrieved', { concept: term, count: linked.length });
             return linked;

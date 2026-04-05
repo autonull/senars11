@@ -4,15 +4,20 @@ export class ToolDiscovery {
         for (const toolClass of toolClasses) {
             try {
                 const metadata = this.#analyze(toolClass);
-                if (metadata) discovered.push(metadata);
-            } catch { /* skip invalid tools */ }
+                if (metadata) {
+                    discovered.push(metadata);
+                }
+            } catch { /* skip invalid tools */
+            }
         }
         return discovered;
     }
 
     static #analyze(toolClass) {
         const instance = typeof toolClass === 'function' ? new toolClass() : toolClass;
-        if (!['execute', 'getDescription'].every(m => typeof instance[m] === 'function')) return null;
+        if (!['execute', 'getDescription'].every(m => typeof instance[m] === 'function')) {
+            return null;
+        }
 
         const className = toolClass.name ?? 'AnonymousTool';
         const toolId = className.replace(/tool$/i, '').replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
@@ -26,7 +31,7 @@ export class ToolDiscovery {
             class: toolClass,
             description: instance.getDescription(),
             category: instance.getCategory?.() ?? 'general',
-            parameters: instance.getParameterSchema?.() ?? { type: 'object', properties: {} },
+            parameters: instance.getParameterSchema?.() ?? {type: 'object', properties: {}},
             capabilities: instance.getCapabilities?.() ?? [],
             parameterSchema: instance.getParameterSchema?.() ?? null,
             supportsStreaming: typeof instance.stream === 'function',

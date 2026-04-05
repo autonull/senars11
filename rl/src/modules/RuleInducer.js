@@ -20,7 +20,7 @@ export class RuleInducer {
     }
 
     async _processEpisode({ obs, action, nextObs, reward }) {
-        if (!this.bridge) return;
+        if (!this.bridge) {return;}
 
         const o = this._formatTerm(obs);
         const n = this._formatTerm(nextObs);

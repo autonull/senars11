@@ -97,8 +97,8 @@ export class TensorLogicBridge {
     }
 
     mergeSymbols(s1, s2, mode) {
-        if (!s1) return s2;
-        if (!s2) return s1;
+        if (!s1) {return s2;}
+        if (!s2) {return s1;}
         return MergeOps[mode]?.(s1, s2) ?? s1;
     }
 
@@ -191,7 +191,7 @@ export class TensorLogicBridge {
 
 export function termToTensor(term, shape, registry = new Map()) {
     const match = term.match(/\((\w+)_([\d x]+):\[(.*?)\]\)/);
-    if (!match) return null;
+    if (!match) {return null;}
 
     const [, _, shapeStr, content] = match;
     const dims = shapeStr.split('x').map(Number);

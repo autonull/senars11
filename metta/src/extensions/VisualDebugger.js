@@ -24,7 +24,7 @@ export class VisualDebugger {
   }
 
   recordStep(from, to, rule, bindings) {
-    if (!this.enabled) return;
+    if (!this.enabled) {return;}
     this.traces.push({
       id: this.nodeId++,
       from: this._serializeTerm(from),
@@ -36,7 +36,7 @@ export class VisualDebugger {
   }
 
   recordTensorActivation(name, tensor, layer = 'unknown') {
-    if (!this.enabled) return;
+    if (!this.enabled) {return;}
     this.tensorActivations.push({
       id: this.nodeId++, name, layer,
       shape: tensor.shape || [],
@@ -46,7 +46,7 @@ export class VisualDebugger {
   }
 
   recordTensorGradient(name, gradient, layer = 'unknown') {
-    if (!this.enabled) return;
+    if (!this.enabled) {return;}
     this.tensorGradients.push({
       id: this.nodeId++, name, layer,
       shape: gradient.shape || [],
@@ -56,9 +56,9 @@ export class VisualDebugger {
   }
 
   _serializeTerm(term) {
-    if (!term) return null;
-    if (typeof term === 'string' || typeof term === 'number') return { type: 'literal', value: term };
-    if (term.name !== undefined && !term.components) return { type: 'symbol', name: term.name };
+    if (!term) {return null;}
+    if (typeof term === 'string' || typeof term === 'number') {return { type: 'literal', value: term };}
+    if (term.name !== undefined && !term.components) {return { type: 'symbol', name: term.name };}
     if (isExpression(term)) {
       return {
         type: 'expression',
@@ -70,12 +70,12 @@ export class VisualDebugger {
   }
 
   _serializeBindings(bindings) {
-    if (!bindings) return null;
+    if (!bindings) {return null;}
     const result = {};
     if (bindings instanceof Map) {
-      for (const [k, v] of bindings.entries()) result[k] = this._serializeTerm(v);
+      for (const [k, v] of bindings.entries()) {result[k] = this._serializeTerm(v);}
     } else {
-      for (const k of Object.keys(bindings)) result[k] = this._serializeTerm(bindings[k]);
+      for (const k of Object.keys(bindings)) {result[k] = this._serializeTerm(bindings[k]);}
     }
     return result;
   }
@@ -173,9 +173,9 @@ export class VisualDebugger {
   }
 
   _termLabel(term) {
-    if (!term) return '()';
-    if (term.type === 'literal') return String(term.value);
-    if (term.type === 'symbol') return term.name;
+    if (!term) {return '()';}
+    if (term.type === 'literal') {return String(term.value);}
+    if (term.type === 'symbol') {return term.name;}
     if (term.type === 'expression') {
       const op = this._termLabel(term.operator);
       return `${op}(${term.components.slice(0, 3).map(c => this._termLabel(c)).join(',')}${term.components.length > 3 ? '...' : ''})`;
@@ -204,7 +204,7 @@ export class VisualDebugger {
   }
 
   hookTensorBackward(tensor) {
-    if (!this.enabled || !tensor) return tensor;
+    if (!this.enabled || !tensor) {return tensor;}
     const originalBackward = tensor.backward;
     if (originalBackward) {
       tensor.backward = (...args) => {

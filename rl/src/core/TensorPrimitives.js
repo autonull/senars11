@@ -14,17 +14,17 @@ const TensorWrapper = {
     },
 
     unwrap(atom) {
-        if (!atom) return null;
-        if (atom.type === 'Value' && atom.value instanceof Tensor) return atom.value;
+        if (!atom) {return null;}
+        if (atom.type === 'Value' && atom.value instanceof Tensor) {return atom.value;}
         if (atom.type === 'Symbol') {
-            const name = atom.name;
+            const {name} = atom;
             if (name.startsWith('(')) {
                 try {
                     return new Tensor(name.slice(1, -1).trim().split(/\s+/).map(Number));
                 } catch { /* Fail silently */ }
             }
             const num = Number(name);
-            if (!isNaN(num)) return num;
+            if (!isNaN(num)) {return num;}
         }
         return atom;
     },
@@ -48,7 +48,7 @@ const TensorWrapper = {
 
 export function registerTensorPrimitives(metta) {
     const functor = new TensorFunctor();
-    const ground = metta.ground;
+    const {ground} = metta;
     const reg = (name, fn) => ground.register(name, fn);
 
     const { wrap, unwrap, createOp, parseShape, createSymbol } = TensorWrapper;
@@ -76,7 +76,7 @@ export function registerTensorPrimitives(metta) {
     const params = new Map();
     reg('&param', (nameAtom, shapeAtom) => {
         const name = nameAtom.toString();
-        if (params.has(name)) return wrap(params.get(name));
+        if (params.has(name)) {return wrap(params.get(name));}
 
         const param = Tensor.randn(parseShape(shapeAtom));
         param.requiresGrad = true;

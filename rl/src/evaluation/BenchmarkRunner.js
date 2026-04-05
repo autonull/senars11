@@ -83,7 +83,7 @@ export class BenchmarkRunner extends Component {
                 return envSpec;
             }
         }
-        if (typeof envSpec === 'function') return new envSpec();
+        if (typeof envSpec === 'function') {return new envSpec();}
         return envSpec;
     }
 
@@ -112,7 +112,7 @@ export class BenchmarkRunner extends Component {
             result.duration = duration;
 
             episodeResults.push(result);
-            if (result.trajectory) trajectories.push(result.trajectory);
+            if (result.trajectory) {trajectories.push(result.trajectory);}
 
             if (ep % this.config.evaluationInterval === 0) {
                 this.emit('evaluationProgress', {
@@ -168,7 +168,7 @@ export class BenchmarkRunner extends Component {
             totalReward += result.reward;
             state = result.observation;
 
-            if (result.terminated || result.truncated) break;
+            if (result.terminated || result.truncated) {break;}
         }
 
         return {

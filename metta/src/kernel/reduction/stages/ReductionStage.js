@@ -4,7 +4,7 @@ export class ReductionStage {
         this.enabled = true;
     }
     execute(atom, context) {
-        if (!this.enabled) return null;
+        if (!this.enabled) {return null;}
         return this.process(atom, context);
     }
     process(atom, context) {

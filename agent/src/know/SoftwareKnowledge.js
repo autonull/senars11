@@ -4,7 +4,9 @@ import {Logger} from '@senars/core';
 
 // Reuse the mock mechanism from DataTableKnowledge
 async function loadDanfojs() {
-    if (globalThis.__mockDanfojs) return globalThis.__mockDanfojs;
+    if (globalThis.__mockDanfojs) {
+        return globalThis.__mockDanfojs;
+    }
     return import('danfojs');
 }
 
@@ -78,7 +80,9 @@ export class FileAnalysisKnowledge extends DataTableKnowledge {
     }
 
     async createRelationships() {
-        if (!this.df) await this.processData();
+        if (!this.df) {
+            await this.processData();
+        }
 
         const rows = this.df?.values || [];
         const cols = this.df?.columns || [];
@@ -163,7 +167,9 @@ export class TestResultKnowledge extends DataTableKnowledge {
     }
 
     async createRelationships() {
-        if (!this.df) await this.processData();
+        if (!this.df) {
+            await this.processData();
+        }
 
         const rows = this.df?.values || [];
         const cols = this.df?.columns || [];
@@ -256,7 +262,9 @@ export class DirectoryStructureKnowledge extends DataTableKnowledge {
     }
 
     async createRelationships() {
-        if (!this.df) await this.processData();
+        if (!this.df) {
+            await this.processData();
+        }
 
         const rows = this.df?.values || [];
         const cols = this.df?.columns || [];
@@ -333,7 +341,9 @@ export class DependencyGraphKnowledge extends DataTableKnowledge {
     }
 
     async createRelationships() {
-        if (!this.df) await this.processData();
+        if (!this.df) {
+            await this.processData();
+        }
 
         const rows = this.df?.values || [];
         const cols = this.df?.columns || [];

@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import {jest} from '@jest/globals';
 
 const mockLogger = {
     info: jest.fn(),
@@ -12,9 +12,9 @@ await jest.unstable_mockModule('@senars/core', () => ({
     generateId: (prefix = 'id') => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
 }));
 
-const { Embodiment } = await import('../../src/io/Embodiment.js');
-const { ChannelManager } = await import('../../src/io/ChannelManager.js');
-const { EmbodimentBus } = await import('../../src/io/EmbodimentBus.js');
+const {Embodiment} = await import('../../src/io/Embodiment.js');
+const {ChannelManager} = await import('../../src/io/ChannelManager.js');
+const {EmbodimentBus} = await import('../../src/io/EmbodimentBus.js');
 
 if (typeof setImmediate === 'undefined') {
     global.setImmediate = (fn) => setTimeout(fn, 0);
@@ -34,8 +34,15 @@ class MockChannel extends Embodiment {
         });
         this.type = 'mock';
     }
-    async connect() { this.setStatus('connected'); }
-    async disconnect() { this.setStatus('disconnected'); }
+
+    async connect() {
+        this.setStatus('connected');
+    }
+
+    async disconnect() {
+        this.setStatus('disconnected');
+    }
+
     async sendMessage(target, content, metadata) {
         return true;
     }
@@ -49,7 +56,7 @@ describe('Channel Infrastructure', () => {
     beforeEach(() => {
         bus = new EmbodimentBus();
         manager = new ChannelManager({}, bus);
-        channel = new MockChannel({ id: 'test-chan' });
+        channel = new MockChannel({id: 'test-chan'});
     });
 
     test('should register and connect channel', async () => {
@@ -66,7 +73,7 @@ describe('Channel Infrastructure', () => {
         const emitSpy = jest.spyOn(bus, 'emit');
         manager.register(channel);
 
-        channel.emitMessage({ from: 'user1', content: 'hello' });
+        channel.emitMessage({from: 'user1', content: 'hello'});
 
         expect(emitSpy).toHaveBeenCalledWith('message', expect.objectContaining({
             content: 'hello',

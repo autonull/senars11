@@ -68,17 +68,17 @@ export class EpisodicMemory extends Component {
 
     _indexItem(item, index) {
         if (item.symbol) {
-            if (!this.symbolicIndex.has(item.symbol)) this.symbolicIndex.set(item.symbol, []);
+            if (!this.symbolicIndex.has(item.symbol)) {this.symbolicIndex.set(item.symbol, []);}
             this.symbolicIndex.get(item.symbol).push(index);
         }
 
         const timeBucket = Math.floor(item.timestamp / 60000);
-        if (!this.temporalIndex.has(timeBucket)) this.temporalIndex.set(timeBucket, []);
+        if (!this.temporalIndex.has(timeBucket)) {this.temporalIndex.set(timeBucket, []);}
         this.temporalIndex.get(timeBucket).push(index);
     }
 
     _updateCausalGraph(item) {
-        if (!this.causalGraph) return;
+        if (!this.causalGraph) {return;}
 
         const stateKey = JSON.stringify(item.state);
         const nextStateKey = JSON.stringify(item.nextState);
@@ -106,7 +106,7 @@ export class EpisodicMemory extends Component {
             const timeBuckets = [];
             for (let t = pattern.startTime; t <= pattern.endTime; t += 60000) {
                 const bucket = Math.floor(t / 60000);
-                if (this.temporalIndex.has(bucket)) timeBuckets.push(...this.temporalIndex.get(bucket));
+                if (this.temporalIndex.has(bucket)) {timeBuckets.push(...this.temporalIndex.get(bucket));}
             }
             const timeResults = timeBuckets.map(i => this.buffer[i]);
             results = results.length > 0 ? results.filter(r => timeResults.includes(r)) : timeResults;
@@ -128,7 +128,7 @@ export class EpisodicMemory extends Component {
 
     retrieveSimilar(current, options = {}) {
         const { limit = this.config.retrievalK, threshold = this.config.similarityThreshold } = options;
-        if (!current.symbol) return this._retrieveBySimilarity(current, limit, threshold);
+        if (!current.symbol) {return this._retrieveBySimilarity(current, limit, threshold);}
         return this.query({ symbol: current.symbol }, { limit });
     }
 
@@ -145,7 +145,7 @@ export class EpisodicMemory extends Component {
     }
 
     _computeSimilarity(a, b) {
-        if (!a.state || !b.state) return 0;
+        if (!a.state || !b.state) {return 0;}
 
         const aState = Array.isArray(a.state) ? a.state : [a.state];
         const bState = Array.isArray(b.state) ? b.state : [b.state];
@@ -163,7 +163,7 @@ export class EpisodicMemory extends Component {
     }
 
     consolidate() {
-        if (this.consolidationBuffer.length === 0) return [];
+        if (this.consolidationBuffer.length === 0) {return [];}
 
         const groups = this._groupSimilarExperiences(this.consolidationBuffer);
         const consolidated = groups.map(group => ({
@@ -209,7 +209,7 @@ export class EpisodicMemory extends Component {
         const toRemove = sorted.slice(-removeCount);
 
         this.buffer = this.buffer.filter(item => !toRemove.includes(item));
-        if (this.config.autoRebuildIndex) this._rebuildIndex();
+        if (this.config.autoRebuildIndex) {this._rebuildIndex();}
     }
 
     _rebuildIndex() {
@@ -226,9 +226,9 @@ export class EpisodicMemory extends Component {
         const episodes = new Map();
         for (const item of this.buffer.slice().reverse()) {
             if (item.episode !== undefined) {
-                if (!episodes.has(item.episode)) episodes.set(item.episode, []);
+                if (!episodes.has(item.episode)) {episodes.set(item.episode, []);}
                 episodes.get(item.episode).push(item);
-                if (episodes.size >= count) break;
+                if (episodes.size >= count) {break;}
             }
         }
 

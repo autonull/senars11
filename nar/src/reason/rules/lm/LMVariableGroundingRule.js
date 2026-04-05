@@ -22,7 +22,7 @@ export const createVariableGroundingRule = (dependencies) => {
         priority: 0.7,
 
         condition: (primaryPremise, secondaryPremise, context) => {
-            if (!primaryPremise) return false;
+            if (!primaryPremise) {return false;}
 
             const termStr = primaryPremise.term?.toString?.() || String(primaryPremise.term || '');
             const priority = primaryPremise.budget?.priority ?? 0.5;
@@ -40,15 +40,15 @@ Provide only the values, one per line.`;
         },
 
         process: (lmResponse) => {
-            if (!lmResponse) return [];
+            if (!lmResponse) {return [];}
             return parseSubGoals(lmResponse);
         },
 
         generate: (processedOutput, primaryPremise, secondaryPremise, context) => {
-            if (!processedOutput || processedOutput.length === 0) return [];
+            if (!processedOutput || processedOutput.length === 0) {return [];}
 
             const termFactory = context?.termFactory || dependencies.termFactory;
-            if (!termFactory) return [];
+            if (!termFactory) {return [];}
 
             const originalTermStr = primaryPremise.term?.toString?.() || String(primaryPremise.term || '');
 

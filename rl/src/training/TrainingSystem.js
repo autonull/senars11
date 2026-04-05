@@ -112,8 +112,8 @@ export class WorkerPool extends Component {
             const handler = (message) => {
                 if (message.id === task.id) {
                     worker.worker.removeListener('message', handler);
-                    if (message.type === 'result') resolve(message.result);
-                    else reject(new Error(message.error));
+                    if (message.type === 'result') {resolve(message.result);}
+                    else {reject(new Error(message.error));}
                 }
             };
             worker.worker.on('message', handler);
@@ -130,7 +130,7 @@ export class WorkerPool extends Component {
 
     _completeTask(taskId, result) {
         const taskInfo = this.activeTasks.get(taskId);
-        if (!taskInfo) return;
+        if (!taskInfo) {return;}
 
         const { worker, startedAt } = taskInfo;
         worker.status = 'idle';
@@ -148,7 +148,7 @@ export class WorkerPool extends Component {
 
     _failTask(taskId, error) {
         const taskInfo = this.activeTasks.get(taskId);
-        if (!taskInfo) return;
+        if (!taskInfo) {return;}
 
         const { worker } = taskInfo;
         worker.status = 'idle';
@@ -167,12 +167,12 @@ export class WorkerPool extends Component {
     }
 
     _handleWorkerError(workerInfo, error) {
-        if (workerInfo.currentTask) this._failTask(workerInfo.currentTask, error);
+        if (workerInfo.currentTask) {this._failTask(workerInfo.currentTask, error);}
     }
 
     _handleWorkerExit(workerInfo, code) {
         const idx = this.workers.indexOf(workerInfo);
-        if (idx >= 0) this.workers.splice(idx, 1);
+        if (idx >= 0) {this.workers.splice(idx, 1);}
         this.emit('workerExited', { id: workerInfo.id, code });
     }
 
@@ -187,7 +187,7 @@ export class WorkerPool extends Component {
         return new Promise((resolve, reject) => {
             const check = () => {
                 const completed = this.completedTasks.find(t => t.taskId === taskId);
-                if (completed) return resolve(completed.result);
+                if (completed) {return resolve(completed.result);}
 
                 const failed = this.activeTasks.get(taskId);
                 if (!failed && !this.taskQueue.find(t => t.id === taskId)) {

@@ -121,7 +121,7 @@ export class UniformReplay extends RetrievalStrategy {
         this.buffer = [];
     }
     store(item) {
-        if (this.buffer.length >= this.capacity) this.buffer.shift();
+        if (this.buffer.length >= this.capacity) {this.buffer.shift();}
         this.buffer.push(item);
     }
     retrieve(query, k) {
@@ -193,7 +193,7 @@ export function withCaching(strategy) {
     return {
         execute: (x) => {
             const key = JSON.stringify(x);
-            if (cache.has(key)) return cache.get(key);
+            if (cache.has(key)) {return cache.get(key);}
             const result = strategy.execute(x);
             cache.set(key, result);
             return result;

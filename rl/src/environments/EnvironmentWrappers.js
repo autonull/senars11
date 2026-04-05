@@ -89,7 +89,7 @@ export class NormalizeObservationWrapper extends EnvironmentWrapper {
     }
 
     normalize(obs) {
-        if (!Array.isArray(obs)) return obs;
+        if (!Array.isArray(obs)) {return obs;}
 
         // Update running statistics
         this.numObs++;
@@ -122,7 +122,7 @@ export class ClipActionWrapper extends EnvironmentWrapper {
 
     _clip(action) {
         const space = this.actionSpace;
-        if (space.type !== 'Box') return action;
+        if (space.type !== 'Box') {return action;}
 
         if (Array.isArray(action)) {
             return action.map((v, i) => Math.max(space.low[i], Math.min(space.high[i], v)));

@@ -62,7 +62,7 @@ export class WorldModel extends Component {
 
     async update(state, action, nextState, reward) {
         this.experienceBuffer.push({ state, action, nextState, reward });
-        if (this.experienceBuffer.length > 10000) this.experienceBuffer.shift();
+        if (this.experienceBuffer.length > 10000) {this.experienceBuffer.shift();}
 
         if (this.experienceBuffer.length >= 32) {
             await this._trainModels();
@@ -122,7 +122,7 @@ export class WorldModel extends Component {
 
     _zeroGrad(params) {
         for (const p of params) {
-            if (p.grad) p.grad = null;
+            if (p.grad) {p.grad = null;}
         }
     }
 
@@ -178,13 +178,13 @@ export class WorldModel extends Component {
         const mean = new Float32Array(this.latentDim);
 
         for (const pred of predictions) {
-            for (let i = 0; i < this.latentDim; i++) mean[i] += pred[i];
+            for (let i = 0; i < this.latentDim; i++) {mean[i] += pred[i];}
         }
-        for (let i = 0; i < this.latentDim; i++) mean[i] /= count;
+        for (let i = 0; i < this.latentDim; i++) {mean[i] /= count;}
 
         const totalVar = predictions.reduce((acc, pred) => {
             let v = 0;
-            for(let i=0; i<this.latentDim; i++) v += Math.pow(pred[i] - mean[i], 2);
+            for(let i=0; i<this.latentDim; i++) {v += Math.pow(pred[i] - mean[i], 2);}
             return acc + v / count;
         }, 0);
 

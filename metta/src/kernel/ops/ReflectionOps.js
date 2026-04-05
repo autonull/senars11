@@ -8,18 +8,18 @@ import { Logger } from '@senars/core';
 
 export function registerReflectionOps(registry) {
     const unwrap = (atom) => {
-        if (!atom) return atom;
-        if (isGrounded(atom)) return atom.value;
+        if (!atom) {return atom;}
+        if (isGrounded(atom)) {return atom.value;}
         if (atom.type === 'atom') {
             const n = OperationHelpers.atomToNum(atom);
-            if (n !== null) return n;
-            if (atom.name === 'True') return true;
-            if (atom.name === 'False') return false;
-            if (atom.name === 'Null') return null;
-            if (atom.name === 'undefined') return undefined;
+            if (n !== null) {return n;}
+            if (atom.name === 'True') {return true;}
+            if (atom.name === 'False') {return false;}
+            if (atom.name === 'Null') {return null;}
+            if (atom.name === 'undefined') {return undefined;}
 
             // Strip quotes if present
-            let name = atom.name;
+            let {name} = atom;
             if (typeof name === 'string' && name.startsWith('"') && name.endsWith('"')) {
                 name = name.slice(1, -1);
             }
@@ -36,13 +36,13 @@ export function registerReflectionOps(registry) {
     };
 
     const wrap = (val) => {
-        if (val === null) return sym('Null');
-        if (val === undefined) return sym('undefined');
-        if (typeof val === 'boolean') return sym(val ? 'True' : 'False');
-        if (typeof val === 'number') return sym(String(val));
+        if (val === null) {return sym('Null');}
+        if (val === undefined) {return sym('undefined');}
+        if (typeof val === 'boolean') {return sym(val ? 'True' : 'False');}
+        if (typeof val === 'number') {return sym(String(val));}
         if (typeof val === 'string') {
             // Optionally add quotes, but returning as symbol is standard MeTTa
-            if (val.includes(' ') || val === '') return sym(`"${val}"`);
+            if (val.includes(' ') || val === '') {return sym(`"${val}"`);}
             return sym(val);
         }
         if (Array.isArray(val)) {
@@ -93,7 +93,7 @@ export function registerReflectionOps(registry) {
             }
         }
 
-        if (target === undefined || target === null) throw new Error(`&js-call: Target object is null/undefined for method '${methodName}'`);
+        if (target === undefined || target === null) {throw new Error(`&js-call: Target object is null/undefined for method '${methodName}'`);}
 
         let fn = target[methodName];
         let ctx = target;
@@ -145,7 +145,7 @@ export function registerReflectionOps(registry) {
     registry.register('&js-set', (obj, prop, val) => {
         const target = unwrap(obj);
         const p = unwrap(prop);
-        if (target === undefined || target === null) throw new Error(`&js-set: Target object is null/undefined`);
+        if (target === undefined || target === null) {throw new Error(`&js-set: Target object is null/undefined`);}
         target[p] = unwrap(val);
         return wrap(target);
     });
@@ -157,9 +157,9 @@ export function registerReflectionOps(registry) {
 
     registry.register('&js-global', (name) => {
         const n = unwrap(name);
-        if (typeof globalThis !== 'undefined' && globalThis[n]) return wrap(globalThis[n]);
-        if (typeof global !== 'undefined' && global[n]) return wrap(global[n]);
-        if (typeof window !== 'undefined' && window[n]) return wrap(window[n]);
+        if (typeof globalThis !== 'undefined' && globalThis[n]) {return wrap(globalThis[n]);}
+        if (typeof global !== 'undefined' && global[n]) {return wrap(global[n]);}
+        if (typeof window !== 'undefined' && window[n]) {return wrap(window[n]);}
         return wrap(null);
     });
 
@@ -207,8 +207,8 @@ export function registerReflectionOps(registry) {
                 // Unwrap the result to pass back to JS
                 // If it's a single result, return that, otherwise an array
                 if (Array.isArray(res)) {
-                    if (res.length === 0) return undefined;
-                    if (res.length === 1) return unwrap(res[0]);
+                    if (res.length === 0) {return undefined;}
+                    if (res.length === 1) {return unwrap(res[0]);}
                     return res.map(unwrap);
                 }
                 return unwrap(res);

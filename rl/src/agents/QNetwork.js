@@ -60,8 +60,8 @@ export const AgentFactoryUtils = {
      * @returns {number} Action dimension
      */
     getActionDim(actionSpace) {
-        if (actionSpace.type === 'Discrete') return actionSpace.n;
-        if (actionSpace.type === 'Box') return actionSpace.shape[0];
+        if (actionSpace.type === 'Discrete') {return actionSpace.n;}
+        if (actionSpace.type === 'Box') {return actionSpace.shape[0];}
         throw new Error('Unknown action space type');
     },
 
@@ -150,7 +150,7 @@ export const AgentFactoryUtils = {
         let cumsum = 0;
         for (let i = 0; i < probs.length; i++) {
             cumsum += probs[i];
-            if (rand < cumsum) return i;
+            if (rand < cumsum) {return i;}
         }
         return probs.length - 1;
     }

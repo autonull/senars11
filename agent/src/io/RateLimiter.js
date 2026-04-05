@@ -8,18 +8,27 @@ export class RateLimiter {
 
     async wait() {
         this._refill();
-        if (this.tokens >= 1) { this.tokens -= 1; return true; }
+        if (this.tokens >= 1) {
+            this.tokens -= 1;
+            return true;
+        }
         const waitTime = this.interval - (Date.now() - this.lastRefill);
         if (waitTime > 0) {
             await new Promise(resolve => setTimeout(resolve, waitTime));
             this._refill();
-            if (this.tokens >= 1) { this.tokens -= 1; return true; }
+            if (this.tokens >= 1) {
+                this.tokens -= 1;
+                return true;
+            }
         }
         return false;
     }
 
     _refill() {
         const elapsed = Date.now() - this.lastRefill;
-        if (elapsed > this.interval) { this.tokens = this.limit; this.lastRefill = Date.now(); }
+        if (elapsed > this.interval) {
+            this.tokens = this.limit;
+            this.lastRefill = Date.now();
+        }
     }
 }

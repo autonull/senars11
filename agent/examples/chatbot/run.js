@@ -5,11 +5,11 @@
  * Starts the SeNARS Agent with the MettaClaw parity script.
  */
 
-import { Agent } from '../../src/Agent.js';
-import { Logger } from '@senars/core';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { promises as fs } from 'fs';
+import {Agent} from '../../src/Agent.js';
+import {Logger} from '@senars/core';
+import {fileURLToPath} from 'url';
+import {dirname, join} from 'path';
+import {promises as fs} from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -34,8 +34,8 @@ async function main() {
     const agent = new Agent({
         id: 'chatbot-demo',
         // channelConfigPath: join(__dirname, '../../config/channels.json'), // Optional
-        lm: { provider: 'dummy' }, // Use dummy LM for demo
-        inputProcessing: { enableNarseseFallback: true }
+        lm: {provider: 'dummy'}, // Use dummy LM for demo
+        inputProcessing: {enableNarseseFallback: true}
     });
 
     await agent.initialize();
@@ -67,12 +67,25 @@ async function main() {
 
         if (agent.channelManager) {
             // Register a mock channel to simulate input
-            const { Channel } = await import('../../src/io/Channel.js');
+            const {Channel} = await import('../../src/io/Channel.js');
+
             class MockLoopback extends Channel {
-                constructor() { super({id: 'irc'}); this.type = 'irc'; this.status='connected'; }
-                async sendMessage(t, c) { Logger.info(`[MockIRC] Sending: ${c} to ${t}`); return true; }
-                async connect() {}
-                async disconnect() {}
+                constructor() {
+                    super({id: 'irc'});
+                    this.type = 'irc';
+                    this.status = 'connected';
+                }
+
+                async sendMessage(t, c) {
+                    Logger.info(`[MockIRC] Sending: ${c} to ${t}`);
+                    return true;
+                }
+
+                async connect() {
+                }
+
+                async disconnect() {
+                }
             }
 
             const mock = new MockLoopback();
@@ -80,14 +93,14 @@ async function main() {
             // Or just use a different ID.
             // The script listens to "irc", so we should try to use that ID.
             try {
-                // If real IRC failed, ID might be free or taken.
-                // ChannelManager checks for duplicates.
                 if (!agent.channelManager.get('irc')) {
                     agent.channelManager.register(mock);
                 } else {
                     Logger.warn('IRC channel already registered (real connection?), skipping mock injection.');
                 }
-            } catch (e) {}
+            } catch (e) {
+                Logger.warn(`Failed to register mock IRC channel: ${e.message}`);
+            }
 
             const irc = agent.channelManager.get('irc');
             if (irc) {

@@ -16,16 +16,16 @@ class SharedTermRule extends NALRule {
     _tryApply(p1, p2, context, isInduction) {
         const {term: t1, truth: tr1} = p1;
         const {term: t2, truth: tr2} = p2;
-        if (!context?.termFactory || !t1?.isCompound || !t2?.isCompound || t1.operator !== '-->' || t2.operator !== '-->') return [];
+        if (!context?.termFactory || !t1?.isCompound || !t2?.isCompound || t1.operator !== '-->' || t2.operator !== '-->') {return [];}
 
         const [shared1, shared2] = isInduction ? [t1.subject, t2.subject] : [t1.predicate, t2.predicate];
         const [other1, other2] = isInduction ? [t1.predicate, t2.predicate] : [t1.subject, t2.subject];
 
         const match = this.unify(shared1, shared2, context);
-        if (!match.success || other1?.equals?.(other2)) return [];
+        if (!match.success || other1?.equals?.(other2)) {return [];}
 
         const newTruth = isInduction ? Truth.induction(tr1, tr2) : Truth.abduction(tr1, tr2);
-        if (!newTruth) return [];
+        if (!newTruth) {return [];}
 
         const subject = this.applySubstitution(other2, match.substitution, context);
         const predicate = this.applySubstitution(other1, match.substitution, context);
@@ -45,7 +45,7 @@ export class InductionRule extends SharedTermRule {
 
     canApply(p1, p2, context) {
         const t1 = p1?.term, t2 = p2?.term;
-        if (!t1?.isCompound || !t2?.isCompound || t1.operator !== '-->' || t2.operator !== '-->') return false;
+        if (!t1?.isCompound || !t2?.isCompound || t1.operator !== '-->' || t2.operator !== '-->') {return false;}
         return this.unify(t1.subject, t2.subject, context).success && !t1.predicate?.equals?.(t2.predicate);
     }
 
@@ -61,7 +61,7 @@ export class AbductionRule extends SharedTermRule {
 
     canApply(p1, p2, context) {
         const t1 = p1?.term, t2 = p2?.term;
-        if (!t1?.isCompound || !t2?.isCompound || t1.operator !== '-->' || t2.operator !== '-->') return false;
+        if (!t1?.isCompound || !t2?.isCompound || t1.operator !== '-->' || t2.operator !== '-->') {return false;}
         return this.unify(t1.predicate, t2.predicate, context).success && !t1.subject?.equals?.(t2.subject);
     }
 

@@ -41,7 +41,7 @@ export class TaskMatchStrategy extends PremiseFormationStrategy {
      * @yields {{term: Term, type: string, priority: number, sourceTask: Task}}
      */
     async* generateCandidates(primaryTask, context) {
-        if (!this.enabled) return;
+        if (!this.enabled) {return;}
 
         const {focus, memory, availableTasks} = context;
         // Use provided tasks (sliced to maxTasks) or fetch from focus/memory
@@ -51,13 +51,13 @@ export class TaskMatchStrategy extends PremiseFormationStrategy {
 
         for (const task of tasks) {
             // Skip self-pairing
-            if (task === primaryTask) continue;
+            if (task === primaryTask) {continue;}
 
             // Skip if same term
-            if (this._termsEqual(task.term, primaryTask.term)) continue;
+            if (this._termsEqual(task.term, primaryTask.term)) {continue;}
 
             const compatibility = this._scoreCompatibility(primaryTask, task);
-            if (compatibility <= 0) continue;
+            if (compatibility <= 0) {continue;}
 
             this._recordCandidate();
             yield {
@@ -97,12 +97,12 @@ export class TaskMatchStrategy extends PremiseFormationStrategy {
         const {term: p} = primary;
         const {term: s} = secondary;
 
-        if (!p?.isCompound || !s?.isCompound) return this.lowCompatibilityScore;
+        if (!p?.isCompound || !s?.isCompound) {return this.lowCompatibilityScore;}
 
         const {subject: pSubj, predicate: pPred} = p;
         const {subject: sSubj, predicate: sPred} = s;
 
-        if (!pSubj || !pPred || !sSubj || !sPred) return this.lowCompatibilityScore;
+        if (!pSubj || !pPred || !sSubj || !sPred) {return this.lowCompatibilityScore;}
 
         // Syllogistic chains: (A→M) + (M→B) or reverse
         if (this._termsEqual(pPred, sSubj) || this._termsEqual(sPred, pSubj)) {
@@ -110,10 +110,10 @@ export class TaskMatchStrategy extends PremiseFormationStrategy {
         }
 
         // Shared subject: enables abduction
-        if (this._termsEqual(pSubj, sSubj)) return this.mediumCompatibilityScore;
+        if (this._termsEqual(pSubj, sSubj)) {return this.mediumCompatibilityScore;}
 
         // Shared predicate: enables induction  
-        if (this._termsEqual(pPred, sPred)) return this.mediumCompatibilityScore;
+        if (this._termsEqual(pPred, sPred)) {return this.mediumCompatibilityScore;}
 
         // Any term overlap
         return (this._termsEqual(pSubj, sPred) || this._termsEqual(pPred, sSubj))
@@ -126,8 +126,8 @@ export class TaskMatchStrategy extends PremiseFormationStrategy {
      * @private
      */
     _termsEqual(t1, t2) {
-        if (t1 === t2) return true;
-        if (t1?.equals) return t1.equals(t2);
+        if (t1 === t2) {return true;}
+        if (t1?.equals) {return t1.equals(t2);}
         return (t1?.name || t1?._name) === (t2?.name || t2?._name);
     }
 

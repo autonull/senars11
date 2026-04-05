@@ -14,7 +14,7 @@ export class TaskConceptMessageHandler extends BaseMessageHandler {
 
         // Handle term being an object or string
         let termStr = '';
-        const term = task.term;
+        const {term} = task;
 
         if (term) {
             if (typeof term === 'string') {

@@ -115,7 +115,7 @@ export class DQNAgent extends NeuralAgent {
 
     async _trainStep() {
         const batch = await this.replayBuffer.sample(this.config.batchSize);
-        if (!batch || batch.length < this.config.batchSize) return;
+        if (!batch || batch.length < this.config.batchSize) {return;}
 
         const { states, nextStates, actions, rewards, dones, obsDim, actionDim, batchSize } =
             this._prepareBatch(batch);
@@ -176,7 +176,7 @@ export class DQNAgent extends NeuralAgent {
 
     _padState(state, dim) {
         const padded = new Float32Array(dim);
-        for (let j = 0; j < Math.min(state.length, dim); j++) padded[j] = state[j];
+        for (let j = 0; j < Math.min(state.length, dim); j++) {padded[j] = state[j];}
         return padded;
     }
 
@@ -187,7 +187,7 @@ export class DQNAgent extends NeuralAgent {
             let maxVal = -Infinity;
             for (let j = 0; j < actionDim; j++) {
                 const val = nextQData[i * actionDim + j];
-                if (val > maxVal) maxVal = val;
+                if (val > maxVal) {maxVal = val;}
             }
             maxQ[i] = maxVal;
         }

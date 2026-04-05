@@ -47,7 +47,7 @@ export class MemorySystem extends Component {
 
     store(experience, options = {}) {
         const { useGrounding = true } = options;
-        if (useGrounding) experience.symbol = this.grounding.lift(experience.state);
+        if (useGrounding) {experience.symbol = this.grounding.lift(experience.state);}
         return this.episodic.store(experience, options);
     }
 

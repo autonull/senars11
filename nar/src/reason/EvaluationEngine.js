@@ -42,8 +42,8 @@ export class EvaluationEngine {
             .map(v => typeof v === 'object' && v.value !== undefined ? v.value : v)
             .map(Number);
 
-        if (!values.length) return identity;
-        if (values.length === 1 && strictOrder) return fn(identity, values[0]);
+        if (!values.length) {return identity;}
+        if (values.length === 1 && strictOrder) {return fn(identity, values[0]);}
 
         return values.reduce((acc, val, i) => i === 0 ? val : fn(acc, val), strictOrder ? values[0] : identity);
     }
@@ -95,8 +95,8 @@ export class EvaluationEngine {
     }
 
     _containsVariable(term, variableName) {
-        if (!term) return false;
-        if (this._isSimpleAssignment(term, variableName)) return true;
+        if (!term) {return false;}
+        if (this._isSimpleAssignment(term, variableName)) {return true;}
         return Array.isArray(term.components) && term.components.some(c => this._containsVariable(c, variableName));
     }
 
@@ -115,7 +115,7 @@ export class EvaluationEngine {
     }
 
     _evaluateTerm(term, bindings) {
-        if (!term) return term;
+        if (!term) {return term;}
 
         if (term.type === 'VARIABLE' || term.name?.startsWith('#')) {
             return bindings[term.name] ?? this.variableBindings.get(term.name) ?? term;
@@ -134,13 +134,13 @@ export class EvaluationEngine {
 
     _evaluateOperation(term, bindings) {
         const {operator, components} = term;
-        if (!operator || !components) return term;
+        if (!operator || !components) {return term;}
 
         const opFunc = this.operationRegistry.get(operator);
         const evalComps = components.map(c => this._evaluateTerm(c, bindings));
 
         // Pass array of components to opFunc
-        if (opFunc) return opFunc(evalComps);
+        if (opFunc) {return opFunc(evalComps);}
 
         return this._executeFunctor(operator, evalComps) ?? term;
     }
@@ -155,7 +155,7 @@ export class EvaluationEngine {
 
     async processOperation(operationTerm, context) {
         try {
-            if (!operationTerm?.operator) return {result: null, success: false, message: 'Invalid operation'};
+            if (!operationTerm?.operator) {return {result: null, success: false, message: 'Invalid operation'};}
 
             const { operator, components = [] } = operationTerm;
             const opFunc = this.operationRegistry.get(operator);
@@ -170,7 +170,7 @@ export class EvaluationEngine {
             const evalArgs = components.map(c => this._evaluateTerm(c, context?.bindings || {}));
             const result = this._executeFunctor(operator, evalArgs);
 
-            if (result !== null) return {result, success: true, message: 'Functor executed'};
+            if (result !== null) {return {result, success: true, message: 'Functor executed'};}
 
             return {result: null, success: false, message: `Unsupported: ${operator}`};
 

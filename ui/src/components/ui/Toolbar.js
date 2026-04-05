@@ -10,7 +10,7 @@ export class Toolbar {
             .style(options.style || 'display: flex; gap: 4px; align-items: center; padding: 4px; background: #2d2d2d; border-radius: 4px;');
 
         this.element = builder.dom;
-        if (this.container) this.container.appendChild(this.element);
+        if (this.container) {this.container.appendChild(this.element);}
     }
 
     addButton(config = {}) {
@@ -67,8 +67,8 @@ export class Toolbar {
                 fontSize: '0.9em'
             });
 
-        if (config.onInput) input.on('input', (e) => config.onInput(e.target.value));
-        if (config.onChange) input.on('change', (e) => config.onChange(e.target.value));
+        if (config.onInput) {input.on('input', (e) => config.onInput(e.target.value));}
+        if (config.onChange) {input.on('change', (e) => config.onChange(e.target.value));}
 
         this.element.appendChild(input.dom);
         return input.dom;

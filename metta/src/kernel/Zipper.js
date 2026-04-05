@@ -37,7 +37,7 @@ export class Zipper {
    * Navigate up to the parent of the current focus.
    */
   up() {
-    if (this.depth === 0) return false;
+    if (this.depth === 0) {return false;}
     this.focus = this._nodeAt(--this.depth);
     return true;
   }
@@ -46,7 +46,7 @@ export class Zipper {
    * Navigate to the right sibling of the current focus.
    */
   right() {
-    if (this.depth === 0) return false;
+    if (this.depth === 0) {return false;}
 
     const parent = this._nodeAt(this.depth - 1);
     const i = this.path[this.depth - 1];
@@ -98,7 +98,7 @@ export class Zipper {
   _nodeAt(d) {
     let curr = this.root;
     for (let i = 0; i < d; i++) {
-      if (!curr || !curr.components) return null;
+      if (!curr || !curr.components) {return null;}
       curr = curr.components[this.path[i]];
     }
     return curr;

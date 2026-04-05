@@ -33,7 +33,7 @@ export function isVariableName(name) {
  * @returns {number} Type tag constant
  */
 export function getTypeTag(term) {
-    if (!term) return 0;
+    if (!term) {return 0;}
 
     // Fast path: pre-computed type tag (Q3: stable shapes)
     if (term._typeTag !== undefined) {

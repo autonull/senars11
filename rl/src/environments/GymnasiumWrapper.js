@@ -69,8 +69,8 @@ print(json.dumps({
 
         const output = await new Promise((resolve, reject) => {
             this._pythonModule.run('', options, (err, results) => {
-                if (err) reject(err);
-                else resolve(results);
+                if (err) {reject(err);}
+                else {resolve(results);}
             });
         });
 

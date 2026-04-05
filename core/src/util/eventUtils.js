@@ -6,7 +6,9 @@
  * Emit event to bus with standardized payload enrichment
  */
 export async function emitEvent(bus, eventName, payload, options = {}) {
-    if (!bus) return;
+    if (!bus) {
+        return;
+    }
 
     const {
         source = null,
@@ -16,9 +18,9 @@ export async function emitEvent(bus, eventName, payload, options = {}) {
     } = options;
 
     const enrichedPayload = {
-        ...(includeTimestamp && { timestamp: Date.now() }),
-        ...(source && { source }),
-        ...(includeUptime && { uptime }),
+        ...(includeTimestamp && {timestamp: Date.now()}),
+        ...(source && {source}),
+        ...(includeUptime && {uptime}),
         ...payload
     };
 

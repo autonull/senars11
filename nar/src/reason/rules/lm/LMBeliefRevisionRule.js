@@ -19,7 +19,7 @@ export const createBeliefRevisionRule = (dependencies) => {
         priority: 0.95,
 
         condition: (primaryPremise, secondaryPremise, context) => {
-            if (!primaryPremise) return false;
+            if (!primaryPremise) {return false;}
 
             const belief = isBelief(primaryPremise);
             const priority = primaryPremise.budget?.priority ?? 0.5;
@@ -41,10 +41,10 @@ The revised belief should be a single, clear statement.`;
         },
 
         generate: (processedOutput, primaryPremise, secondaryPremise, context) => {
-            if (!processedOutput) return [];
+            if (!processedOutput) {return [];}
 
             const termFactory = context?.termFactory ?? dependencies.termFactory;
-            if (!termFactory) return [];
+            if (!termFactory) {return [];}
 
             const term = termFactory.atomic(processedOutput);
 

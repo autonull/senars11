@@ -4,7 +4,7 @@
  * Demo runner script for testing the demo wrapper functionality
  */
 
-import {NAR} from '../../core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 import {DemoWrapper} from './DemoWrapper.js';
 import {WebSocketMonitor} from '../server/WebSocketMonitor.js';
 
@@ -36,7 +36,7 @@ async function main() {
     await demoWrapper.sendDemoList();
 
     // Start periodic metrics updates
-    demoWrapper.runPeriodicMetricsUpdate();
+    await demoWrapper.runPeriodicMetricsUpdate();
 
     // Start the NAR reasoning cycle
     nar.start();

@@ -33,7 +33,7 @@ export class NALRule extends Rule {
      * @protected
      */
     createDerivedTask(term, truth, premises, context, punctuation = '.') {
-        if (!term || !truth) return null;
+        if (!term || !truth) {return null;}
 
         // Create new stamp combining premise stamps
         const stamp = this._deriveStamp(premises);

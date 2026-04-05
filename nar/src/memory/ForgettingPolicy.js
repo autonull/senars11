@@ -57,7 +57,7 @@ export class ForgettingPolicy {
      * Get related concepts from a provided propagation map
      */
     _getRelatedConceptsFromMap(concept, propagationMap) {
-        if (!propagationMap || !concept.term) return [];
+        if (!propagationMap || !concept.term) {return [];}
 
         const termKey = concept.term.id || concept.term.name;
         return propagationMap.get(termKey) || [];
@@ -70,7 +70,7 @@ export class ForgettingPolicy {
      * @returns {number} - Relationship strength between 0 and 1
      */
     _calculateRelationshipStrength(concept1, concept2) {
-        if (!concept1.term || !concept2.term) return 0;
+        if (!concept1.term || !concept2.term) {return 0;}
 
         // Calculate structural similarity
         const structuralSimilarity = this._calculateStructuralSimilarity(concept1.term, concept2.term);
@@ -198,7 +198,7 @@ export class ForgettingPolicy {
      * Calculate average priority of all tasks in a concept
      */
     _calculateAveragePriority(concept) {
-        if (!concept.tasks || concept.tasks.length === 0) return 0;
+        if (!concept.tasks || concept.tasks.length === 0) {return 0;}
 
         const totalPriority = concept.tasks.reduce((sum, task) => sum + task.budget.priority, 0);
         return totalPriority / concept.tasks.length;
@@ -210,7 +210,7 @@ export class ForgettingPolicy {
     _findRelatedConcepts(concept, memory) {
         // Find concepts with similar or related terms
         // This could use various metrics like term overlap, subsumption, etc.
-        if (!concept.term) return [];
+        if (!concept.term) {return [];}
 
         const allConcepts = memory.getAllConcepts();
         return allConcepts.filter(otherConcept =>
@@ -223,7 +223,7 @@ export class ForgettingPolicy {
      */
     _areTermsRelated(term1, term2) {
         // This is a simplified check - a full implementation would have more sophisticated logic
-        if (!term1 || !term2) return false;
+        if (!term1 || !term2) {return false;}
 
         // If terms share components or are structurally similar
         if (term1.components && term2.components) {

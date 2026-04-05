@@ -90,7 +90,7 @@ export class TaskBagPremiseSource extends PremiseSource {
     async* stream(signal = null) {
         // Implement different sampling strategies based on objectives
         while (true) {
-            if (signal?.aborted) break;
+            if (signal?.aborted) {break;}
 
             try {
                 const task = await this._sampleTask();
@@ -100,13 +100,13 @@ export class TaskBagPremiseSource extends PremiseSource {
                         await sleep(this.samplingObjectives.samplingInterval);
                     }
                 } else {
-                    if (signal?.aborted) break;
+                    if (signal?.aborted) {break;}
                     // If no task is available, wait a bit before trying again
                     // We can add a mechanism to detect if the stream should end
                     await this._waitForTask();
                 }
             } catch (error) {
-                if (signal?.aborted) break;
+                if (signal?.aborted) {break;}
                 logError(error, {context: 'premise_source_stream'}, 'warn');
                 // Wait before continuing to avoid tight error loop
                 await this._waitForTask();
@@ -193,11 +193,11 @@ export class TaskBagPremiseSource extends PremiseSource {
             return tasks.length;
         }
 
-        if (this.taskBag?.size !== undefined) return this.taskBag.size;
-        if (typeof this.taskBag?.length === 'number') return this.taskBag.length;
-        if (typeof this.taskBag?.count === 'function') return this.taskBag.count();
-        if (Array.isArray(this.taskBag) || this.taskBag instanceof Set) return this.taskBag.length ?? this.taskBag.size;
-        if (this.taskBag instanceof Map) return this.taskBag.size;
+        if (this.taskBag?.size !== undefined) {return this.taskBag.size;}
+        if (typeof this.taskBag?.length === 'number') {return this.taskBag.length;}
+        if (typeof this.taskBag?.count === 'function') {return this.taskBag.count();}
+        if (Array.isArray(this.taskBag) || this.taskBag instanceof Set) {return this.taskBag.length ?? this.taskBag.size;}
+        if (this.taskBag instanceof Map) {return this.taskBag.size;}
         // If we can't determine size, assume it's not empty and try to get items
         return 0; // Return 0 if no bag or focus is available
     }
@@ -245,8 +245,8 @@ export class TaskBagPremiseSource extends PremiseSource {
         // Get all tasks from focus to enable fair roulette sampling
         const allTasks = this.focusComponent.getTasks(1000); // Get up to 1000 tasks (essentially all)
 
-        if (allTasks.length === 0) return null;
-        if (allTasks.length === 1) return allTasks[0];
+        if (allTasks.length === 0) {return null;}
+        if (allTasks.length === 1) {return allTasks[0];}
 
         // Use fair roulette sampling: each task's selection probability is proportional to its priority
         const totalPriority = allTasks.reduce((sum, task) => sum + (task.budget?.priority || 0), 0);
@@ -297,7 +297,7 @@ export class TaskBagPremiseSource extends PremiseSource {
     _sampleFocusByRecency() {
         // Get all tasks from focus
         const allTasks = this.focusComponent.getTasks(1000); // Get up to 1000 tasks
-        if (allTasks.length === 0) return null;
+        if (allTasks.length === 0) {return null;}
 
         // Use a configurable target time (default to current time if not specified)
         const targetTime = this.samplingObjectives.targetTime ?? Date.now();
@@ -324,7 +324,7 @@ export class TaskBagPremiseSource extends PremiseSource {
      */
     _sampleBagByRecency() {
         const allTasks = this.taskBag.getAll();
-        if (allTasks.length === 0) return null;
+        if (allTasks.length === 0) {return null;}
 
         // Use a configurable target time (default to current time if not specified)
         const targetTime = this.samplingObjectives.targetTime ?? Date.now();
@@ -376,7 +376,7 @@ export class TaskBagPremiseSource extends PremiseSource {
     _sampleFocusByPunctuation() {
         // Get all tasks from focus
         const allTasks = this.focusComponent.getTasks(1000); // Get up to 1000 tasks
-        if (allTasks.length === 0) return null;
+        if (allTasks.length === 0) {return null;}
 
         // Filter for goals and questions
         const goalsAndQuestions = allTasks.filter(task => {
@@ -399,7 +399,7 @@ export class TaskBagPremiseSource extends PremiseSource {
      */
     _sampleBagByPunctuation() {
         const allTasks = this.taskBag.getAll();
-        if (allTasks.length === 0) return null;
+        if (allTasks.length === 0) {return null;}
 
         // Filter for goals and questions
         const goalsAndQuestions = allTasks.filter(task => {
@@ -447,7 +447,7 @@ export class TaskBagPremiseSource extends PremiseSource {
     _sampleFocusByNovelty() {
         // Get all tasks from focus
         const allTasks = this.focusComponent.getTasks(1000); // Get up to 1000 tasks
-        if (allTasks.length === 0) return null;
+        if (allTasks.length === 0) {return null;}
 
         // Calculate novelty as inverse of derivation depth
         const tasksWithNovelty = allTasks.map(task => {
@@ -470,7 +470,7 @@ export class TaskBagPremiseSource extends PremiseSource {
      */
     _sampleBagByNovelty() {
         const allTasks = this.taskBag.getAll();
-        if (allTasks.length === 0) return null;
+        if (allTasks.length === 0) {return null;}
 
         // Calculate novelty as inverse of derivation depth
         const tasksWithNovelty = allTasks.map(task => {

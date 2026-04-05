@@ -11,12 +11,12 @@ export class PlanningModule extends CognitiveModule {
     }
     async process(input, context = {}) {
         const { goal, state } = context;
-        if (!goal) return { plan: null, reason: 'No goal specified' };
+        if (!goal) {return { plan: null, reason: 'No goal specified' };}
         const plan = await this.generatePlan(state, goal);
         if (plan) {
             this.currentPlan = plan;
             this.planHistory.push({ plan, timestamp: Date.now() });
-            if (this.planHistory.length > this.config.planHistoryLimit) this.planHistory.shift();
+            if (this.planHistory.length > this.config.planHistoryLimit) {this.planHistory.shift();}
         }
         return { plan, goal };
     }
@@ -33,7 +33,7 @@ export class PlanningModule extends CognitiveModule {
             const action = await this.selectBestAction(currentState, goal);
             plan.push(action);
             currentState = this.simulateStep(currentState, action);
-            if (this.isGoalAchieved(currentState, goal)) break;
+            if (this.isGoalAchieved(currentState, goal)) {break;}
         }
         return plan.length > 0 ? plan : null;
     }

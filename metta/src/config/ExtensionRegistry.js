@@ -221,7 +221,7 @@ export class ExtensionRegistry {
    */
   info(name) {
     const ext = this.extensions.get(name);
-    if (!ext) return null;
+    if (!ext) {return null;}
 
     return {
       name: ext.name,
@@ -243,9 +243,9 @@ export class ExtensionRegistry {
     let pending = 0;
 
     for (const ext of this.extensions.values()) {
-      if (ext.loaded) loaded++;
-      else if (ext.error) failed++;
-      else pending++;
+      if (ext.loaded) {loaded++;}
+      else if (ext.error) {failed++;}
+      else {pending++;}
     }
 
     return {

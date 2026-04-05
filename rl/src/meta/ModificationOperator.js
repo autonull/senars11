@@ -94,7 +94,7 @@ const ModificationExecutor = {
             return { success: false, error: 'Architecture does not support removal' };
         }
 
-        if (component && component.shutdown) await component.shutdown();
+        if (component && component.shutdown) {await component.shutdown();}
         return { success: true, component };
     },
 
@@ -116,9 +116,9 @@ const ModificationExecutor = {
 
     async modify(architecture, { componentId, config, method, args }) {
         const component = architecture.getComponent?.(componentId) ?? architecture.get?.(componentId);
-        if (!component) return { success: false, error: 'Component not found' };
+        if (!component) {return { success: false, error: 'Component not found' };}
 
-        if (config) Object.assign(component.config, config);
+        if (config) {Object.assign(component.config, config);}
         if (method && typeof component[method] === 'function') {
             const result = await component[method](...(args ?? []));
             return { success: true, result };
@@ -128,12 +128,12 @@ const ModificationExecutor = {
     },
 
     async connect(architecture, { fromId, fromOutput, toId, toInput }) {
-        if (architecture.connect) architecture.connect(fromId, fromOutput ?? 'output', toId, toInput ?? 'input');
+        if (architecture.connect) {architecture.connect(fromId, fromOutput ?? 'output', toId, toInput ?? 'input');}
         return { success: true };
     },
 
     async disconnect(architecture, { fromId, toId }) {
-        if (architecture.disconnect) architecture.disconnect(fromId, toId);
+        if (architecture.disconnect) {architecture.disconnect(fromId, toId);}
         return { success: true };
     }
 };

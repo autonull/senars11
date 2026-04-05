@@ -122,7 +122,7 @@ export class SelfAnalyzer {
     async _applyCorrections(issues) {
         const corrections = { appliedCorrections: [], pendingCorrections: [] };
         for (const [, issueList] of Object.entries(issues)) {
-            if (!Array.isArray(issueList)) continue;
+            if (!Array.isArray(issueList)) {continue;}
             for (const issue of issueList) {
                 const correction = await this._applySpecificCorrection(issue);
                 (correction.applied ? corrections.appliedCorrections : corrections.pendingCorrections).push(correction);

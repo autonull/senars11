@@ -66,9 +66,9 @@ export class Ground extends CoreRegistry {
     lookup(symbol) {
         const name = symbol.name ?? symbol;
         if (this.#fastPathsEnabled) {
-            if (symbol._opId !== undefined) return this.#opsById[symbol._opId]?.op;
+            if (symbol._opId !== undefined) {return this.#opsById[symbol._opId]?.op;}
             const id = this.#nameToId.get(name);
-            if (id !== undefined) return this.#opsById[id]?.op;
+            if (id !== undefined) {return this.#opsById[id]?.op;}
         }
         return this.operations.get(this.#getNormalized(name))?.fn;
     }
@@ -77,20 +77,20 @@ export class Ground extends CoreRegistry {
 
     getOptions(name) {
         const n = typeof name === 'string' ? name : name?.name;
-        if (!n) return {};
+        if (!n) {return {};}
         if (this.#fastPathsEnabled) {
             const id = this.#nameToId.get(n);
-            if (id !== undefined) return this.#opsById[id]?.options ?? {};
+            if (id !== undefined) {return this.#opsById[id]?.options ?? {};}
         }
         return this.operations.get(this._normalize(n))?.options ?? {};
     }
 
     async executeAsync(name, ...args) {
         const n = typeof name === 'string' ? name : name?.name;
-        if (!n) throw new Error(`Invalid operation name: ${name}`);
+        if (!n) {throw new Error(`Invalid operation name: ${name}`);}
         const options = this.getOptions(n);
         const op = this.lookup({ name: n });
-        if (!op) throw new Error(`Operation not found: ${n}`);
+        if (!op) {throw new Error(`Operation not found: ${n}`);}
         return options.async ? await op(...args) : op(...args);
     }
 
@@ -142,7 +142,7 @@ export class Ground extends CoreRegistry {
     }
 
     #getNormalized(name) {
-        if (this.#normalizedCache.has(name)) return this.#normalizedCache.get(name);
+        if (this.#normalizedCache.has(name)) {return this.#normalizedCache.get(name);}
         const normalized = name.startsWith('&') ? name : `&${name}`;
         return this.#normalizedCache.set(name, normalized), normalized;
     }

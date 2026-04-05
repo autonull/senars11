@@ -15,7 +15,7 @@ export class InspectorPanel extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         const root = $(this.container).clear();
 
@@ -41,17 +41,17 @@ export class InspectorPanel extends Component {
 
     show() {
         const panel = $(this.container).dom.querySelector('#inspector-panel');
-        if (panel) panel.classList.remove('hidden');
+        if (panel) {panel.classList.remove('hidden');}
     }
 
     hide() {
         const panel = $(this.container).dom.querySelector('#inspector-panel');
-        if (panel) panel.classList.add('hidden');
+        if (panel) {panel.classList.add('hidden');}
     }
 
     update(data, mode = 'visualization') {
         this.currentData = data;
-        if (!this.contentContainer) return;
+        if (!this.contentContainer) {return;}
 
         this.contentContainer.clear();
         this.show();
@@ -59,7 +59,7 @@ export class InspectorPanel extends Component {
         this._renderActions(data);
         this._renderHeader(data);
         this._renderTruth(data);
-        if (data.derivation) this._renderDerivationWidget(data.derivation, data.term || data.id);
+        if (data.derivation) {this._renderDerivationWidget(data.derivation, data.term || data.id);}
         this._renderRelated(data);
         this._renderProperties(data, mode);
     }
@@ -96,7 +96,7 @@ export class InspectorPanel extends Component {
     }
 
     _renderTruth(data) {
-        if (!data.truth) return;
+        if (!data.truth) {return;}
 
         const { frequency, confidence } = data.truth;
         const section = div().class('inspector-section').mount(this.contentContainer);
@@ -214,29 +214,29 @@ export class InspectorPanel extends Component {
     }
 
     _getEditableFields(data) {
-        let fields = [];
+        const fields = [];
         const priorityKeys = ['term', 'label', 'type'];
 
         priorityKeys.forEach(k => {
-            if (data[k] !== undefined) fields.push({ key: k, value: data[k], type: typeof data[k], path: k });
+            if (data[k] !== undefined) {fields.push({ key: k, value: data[k], type: typeof data[k], path: k });}
         });
 
         if (data.budget) {
             ['priority', 'durability', 'quality'].forEach(k => {
-                if (data.budget[k] !== undefined) fields.push({ key: `budget.${k}`, value: data.budget[k], type: 'number', path: `budget.${k}` });
+                if (data.budget[k] !== undefined) {fields.push({ key: `budget.${k}`, value: data.budget[k], type: 'number', path: `budget.${k}` });}
             });
         }
 
         if (data.truth) {
             ['frequency', 'confidence'].forEach(k => {
-                if (data.truth[k] !== undefined) fields.push({ key: `truth.${k}`, value: data.truth[k], type: 'number', path: `truth.${k}` });
+                if (data.truth[k] !== undefined) {fields.push({ key: `truth.${k}`, value: data.truth[k], type: 'number', path: `truth.${k}` });}
             });
         }
 
         const ignored = new Set(['weight', 'id', 'budget', 'truth', 'fullData', 'tasks', 'links', 'derivation']);
 
         for (const [key, value] of Object.entries(data)) {
-            if (ignored.has(key) || priorityKeys.includes(key)) continue;
+            if (ignored.has(key) || priorityKeys.includes(key)) {continue;}
 
             if (value && typeof value === 'object') {
                 let strVal = '[Object]';
@@ -251,7 +251,7 @@ export class InspectorPanel extends Component {
     }
 
     _handleSave() {
-        if (!this.onSave || !this.currentData) return;
+        if (!this.onSave || !this.currentData) {return;}
 
         const inputs = this.container.querySelectorAll('.prop-input');
         const updates = {};

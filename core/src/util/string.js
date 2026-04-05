@@ -20,10 +20,13 @@ export const capitalize = (str) => str ? str.charAt(0).toUpperCase() + str.slice
  * Truncate string to specified length
  * @param {string} str - String to truncate
  * @param {number} length - Maximum length
+ * @param suffix
  * @returns {string} Truncated string
  */
 export const truncate = (str, length, suffix = '...') => {
-    if (!str) return '';
+    if (!str) {
+        return '';
+    }
     const s = String(str);
     return s.length <= length ? s : s.slice(0, length - suffix.length) + suffix;
 };

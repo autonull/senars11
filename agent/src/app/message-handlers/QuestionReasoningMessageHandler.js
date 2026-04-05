@@ -45,7 +45,9 @@ export class QuestionReasoningMessageHandler extends BaseMessageHandler {
     }
 
     _formatTask(task) {
-        if (!task) return 'Unknown task';
+        if (!task) {
+            return 'Unknown task';
+        }
         // Handle if task is nested or structure varies
         const termObj = task.term;
         const termStr = termObj?._name || termObj || 'Unknown term';
@@ -53,8 +55,11 @@ export class QuestionReasoningMessageHandler extends BaseMessageHandler {
         // Determine punctuation from type if not explicit
         let punctuation = task.punctuation || '.';
         if (!task.punctuation && task.type) {
-            if (task.type === 'QUESTION') punctuation = '?';
-            else if (task.type === 'GOAL') punctuation = '!';
+            if (task.type === 'QUESTION') {
+                punctuation = '?';
+            } else if (task.type === 'GOAL') {
+                punctuation = '!';
+            }
         }
 
         const truth = task.truth ? `%${Number(task.truth.frequency ?? 0).toFixed(2)};${Number(task.truth.confidence ?? 0).toFixed(2)}%` : '';

@@ -64,7 +64,7 @@ export class BagStrategy extends Strategy {
      * @param {Task} task - The task to add to the bag
      */
     updateBag(task) {
-        if (!task?.budget) return;
+        if (!task?.budget) {return;}
 
         this.bag.push(task);
 

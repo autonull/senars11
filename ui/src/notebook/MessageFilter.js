@@ -59,7 +59,7 @@ const CATEGORY_MATCHERS = [
  */
 export function categorizeMessage(message) {
     const type = message.type || 'unknown';
-    if (MESSAGE_CATEGORIES[type]) return type;
+    if (MESSAGE_CATEGORIES[type]) {return type;}
 
     const matched = CATEGORY_MATCHERS.find(m => m.match(type));
     return matched ? matched.id : 'unknown';
@@ -100,7 +100,7 @@ export class MessageFilter {
     }
 
     setCategoryMode(categoryId, mode) {
-        if (!Object.values(VIEW_MODES).includes(mode)) return;
+        if (!Object.values(VIEW_MODES).includes(mode)) {return;}
         this.state.modeMap = { ...this.state.modeMap, [categoryId]: mode };
     }
 
@@ -124,8 +124,8 @@ export class MessageFilter {
             const content = message.content || message.payload?.result || JSON.stringify(message.payload) || '';
             const matches = content.toLowerCase().includes(this.state.searchTerm);
 
-            if (!matches) return VIEW_MODES.HIDDEN;
-            if (mode === VIEW_MODES.HIDDEN) return VIEW_MODES.COMPACT;
+            if (!matches) {return VIEW_MODES.HIDDEN;}
+            if (mode === VIEW_MODES.HIDDEN) {return VIEW_MODES.COMPACT;}
         }
 
         return mode;

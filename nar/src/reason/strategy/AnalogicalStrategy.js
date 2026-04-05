@@ -25,7 +25,7 @@ export class AnalogicalStrategy extends PremiseFormationStrategy {
     }
 
     async* generateCandidates(task, memory, context) {
-        if (!task.term || !memory) return;
+        if (!task.term || !memory) {return;}
 
         const similarityRelations = this._findTasksByPredicate(memory, this._isSimilarityRelation);
         const implications = this._findTasksByPredicate(memory, this._isImplication);
@@ -101,7 +101,7 @@ export class AnalogicalStrategy extends PremiseFormationStrategy {
 
     mapKnowledge(sourcePattern, targetPattern, knowledge) {
         const mapping = this.unifier.unify(sourcePattern, knowledge.term);
-        if (!mapping.success) return null;
+        if (!mapping.success) {return null;}
 
         const transferredTerm = this._applyStructuralMapping(
             knowledge.term,
@@ -109,7 +109,7 @@ export class AnalogicalStrategy extends PremiseFormationStrategy {
             targetPattern,
             mapping.substitution
         );
-        if (!transferredTerm) return null;
+        if (!transferredTerm) {return null;}
 
         const originalConfidence = knowledge.truth?.confidence ?? 0.9;
         const transferredConfidence = originalConfidence * ANALOGICAL_CONFIDENCE_PENALTY;

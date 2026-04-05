@@ -1,23 +1,23 @@
-import { readFile } from 'fs/promises';
-import { resolve, dirname, join } from 'path';
-import { fileURLToPath } from 'url';
-import { Input, NAR } from '@senars/nar';
-import { BaseComponent, FormattingUtils, Logger, resolveWithFallback, fallbackAgentDir, generateId } from '@senars/core';
-import { PersistenceManager } from './io/PersistenceManager.js';
-import { ChannelManager } from './io/ChannelManager.js';
-import { EmbodimentBus } from './io/EmbodimentBus.js';
-import { VirtualEmbodiment } from './io/VirtualEmbodiment.js';
-import { AgentCommand, AgentCommandRegistry } from './commands/Commands.js';
-import { AGENT_EVENTS } from './constants.js';
-import { InputProcessor } from './InputProcessor.js';
-import { AgentStreamer } from './AgentStreamer.js';
-import { AIClient } from './ai/AIClient.js';
-import { ToolAdapter } from './ai/ToolAdapter.js';
-import { isEnabled, validateDeps } from './config/capabilities.js';
-import { validate } from './config/validate.js';
-import { MeTTaLoopBuilder } from './metta/MeTTaLoopBuilder.js';
-import { resolveCommand } from './commands/CommandMappings.js';
+import {readFile} from 'fs/promises';
+import {dirname, resolve} from 'path';
+import {fileURLToPath} from 'url';
+import {Input, NAR} from '@senars/nar';
+import {BaseComponent, fallbackAgentDir, FormattingUtils, generateId, Logger, resolveWithFallback} from '@senars/core';
+import {PersistenceManager} from './io/PersistenceManager.js';
+import {ChannelManager} from './io/index.js';
+import {EmbodimentBus} from './io/index.js';
+import {VirtualEmbodiment} from './io/index.js';
 import * as CommandModules from './commands/Commands.js';
+import {AgentCommand, AgentCommandRegistry} from './commands/Commands.js';
+import {AGENT_EVENTS} from './constants.js';
+import {InputProcessor} from './InputProcessor.js';
+import {AgentStreamer} from './AgentStreamer.js';
+import {AIClient} from './ai/AIClient.js';
+import {ToolAdapter} from './ai/index.js';
+import {isEnabled, validateDeps} from './config/index.js';
+import {validate} from './config/validate.js';
+import {MeTTaLoopBuilder} from './metta/index.js';
+import {resolveCommand} from './commands/CommandMappings.js';
 
 const __agentDir = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackAgentDir);
 
@@ -28,9 +28,9 @@ export class Agent extends BaseComponent {
         this.id = config.id || generateId('agent');
         this.nar = new NAR(config);
         this.inputQueue = new Input();
-        this.sessionState = { history: [], lastResult: null, startTime: Date.now() };
-        this.runState = { isRunning: false, intervalId: null };
-        this.displaySettings = { echo: false, quiet: false };
+        this.sessionState = {history: [], lastResult: null, startTime: Date.now()};
+        this.runState = {isRunning: false, intervalId: null};
+        this.displaySettings = {echo: false, quiet: false};
         this.inputProcessingConfig = {
             enableNarseseFallback: config.inputProcessing?.enableNarseseFallback ?? true,
             checkNarseseSyntax: config.inputProcessing?.checkNarseseSyntax ?? true,
@@ -55,58 +55,159 @@ export class Agent extends BaseComponent {
         this.toolInstances = {};
         this._autoJoinChannels(embodimentConfig);
         this.commandRegistry = this.#initCommandRegistry();
-        this.uiState = { taskGrouping: null, taskSelection: [], taskFilters: {}, viewMode: 'vertical-split' };
+        this.uiState = {taskGrouping: null, taskSelection: [], taskFilters: {}, viewMode: 'vertical-split'};
 
         this.inputProcessor = new InputProcessor(this);
         this.agentStreamer = new AgentStreamer(this);
 
-        if (this.metta) this.#registerMeTTaExtensions();
+        if (this.metta) {
+            this.#registerMeTTaExtensions();
+        }
     }
 
-    get metta() { return this.nar.metta; }
-    set metta(v) { this.nar.metta = v; }
-    get cycleCount() { return this.nar.cycleCount; }
-    get traceEnabled() { return this.nar.traceEnabled; }
-    set traceEnabled(v) { this.nar.traceEnabled = v; }
-    get lm() { return this.nar.lm; }
-    get agentLM() { return this.nar.lm; }
-    get config() { return this.nar.config; }
-    get memory() { return this.nar.memory; }
-    get isRunning() { return this.nar.isRunning; }
-    get tools() { return this.nar.tools; }
-    get evaluator() { return this.nar.evaluator; }
-    get metricsMonitor() { return this.nar.metricsMonitor; }
-    get embeddingLayer() { return this.nar.embeddingLayer; }
-    get termLayer() { return this.nar.termLayer; }
-    get streamReasoner() { return this.nar.streamReasoner; }
-    get explanationService() { return this.nar.explanationService; }
-    get componentManager() { return this.nar.componentManager; }
-    get reasoningAboutReasoning() { return this.nar.reasoningAboutReasoning; }
-    get ruleEngine() { return this.nar.ruleEngine; }
-    get semanticMemory() { return this._semanticMemory; }
-    get modelRouter() { return this._modelRouter; }
-    get virtualEmbodiment() { return this._virtualEmbodiment; }
-    get modelBenchmark() { return this._modelBenchmark; }
+    get metta() {
+        return this.nar.metta;
+    }
 
-    emit(event, ...args) { this.nar._eventBus?.emit(event, ...args); }
-    on(event, handler) { this.nar._eventBus?.on(event, handler); }
-    off(event, handler) { this.nar._eventBus?.off(event, handler); }
+    set metta(v) {
+        this.nar.metta = v;
+    }
 
-    async input(input, options = {}) { return this.nar.input(input, options); }
-    getBeliefs() { return this.nar?.getBeliefs?.() ?? []; }
-    async runCycles(n = 1) { for (let i = 0; i < n; i++) await this.nar.step(); }
-    async start() { return this.nar.start(); }
-    async stop() { return this.nar.stop(); }
+    get cycleCount() {
+        return this.nar.cycleCount;
+    }
+
+    get traceEnabled() {
+        return this.nar.traceEnabled;
+    }
+
+    set traceEnabled(v) {
+        this.nar.traceEnabled = v;
+    }
+
+    get lm() {
+        return this.nar.lm;
+    }
+
+    get agentLM() {
+        return this.nar.lm;
+    }
+
+    get config() {
+        return this.nar.config;
+    }
+
+    get memory() {
+        return this.nar.memory;
+    }
+
+    get isRunning() {
+        return this.nar.isRunning;
+    }
+
+    get tools() {
+        return this.nar.tools;
+    }
+
+    get evaluator() {
+        return this.nar.evaluator;
+    }
+
+    get metricsMonitor() {
+        return this.nar.metricsMonitor;
+    }
+
+    get embeddingLayer() {
+        return this.nar.embeddingLayer;
+    }
+
+    get termLayer() {
+        return this.nar.termLayer;
+    }
+
+    get streamReasoner() {
+        return this.nar.streamReasoner;
+    }
+
+    get explanationService() {
+        return this.nar.explanationService;
+    }
+
+    get componentManager() {
+        return this.nar.componentManager;
+    }
+
+    get reasoningAboutReasoning() {
+        return this.nar.reasoningAboutReasoning;
+    }
+
+    get ruleEngine() {
+        return this.nar.ruleEngine;
+    }
+
+    get semanticMemory() {
+        return this._semanticMemory;
+    }
+
+    get modelRouter() {
+        return this._modelRouter;
+    }
+
+    get virtualEmbodiment() {
+        return this._virtualEmbodiment;
+    }
+
+    get modelBenchmark() {
+        return this._modelBenchmark;
+    }
+
+    emit(event, ...args) {
+        this.nar._eventBus?.emit(event, ...args);
+    }
+
+    on(event, handler) {
+        this.nar._eventBus?.on(event, handler);
+    }
+
+    off(event, handler) {
+        this.nar._eventBus?.off(event, handler);
+    }
+
+    async input(input, options = {}) {
+        return this.nar.input(input, options);
+    }
+
+    getBeliefs() {
+        return this.nar?.getBeliefs?.() ?? [];
+    }
+
+    async runCycles(n = 1) {
+        for (let i = 0; i < n; i++) {
+            await this.nar.step();
+        }
+    }
+
+    async start() {
+        return this.nar.start();
+    }
+
+    async stop() {
+        return this.nar.stop();
+    }
 
     async _autoJoinChannels(config) {
-        if (!config.channels) return;
-        const { IRCChannel, NostrChannel, WebSearchTool, FileTool } = await import('./io/index.js');
+        if (!config.channels) {
+            return;
+        }
+        const {IRCChannel, NostrChannel, WebSearchTool, FileTool} = await import('./io/index.js');
 
         for (const [name, ChannelClass, cfg] of [
             ['irc', IRCChannel, config.channels.irc],
             ['nostr', NostrChannel, config.channels.nostr]
         ]) {
-            if (!cfg) continue;
+            if (!cfg) {
+                continue;
+            }
             try {
                 const channel = new ChannelClass(cfg);
                 this.embodimentBus.register(channel);
@@ -117,11 +218,13 @@ export class Agent extends BaseComponent {
         }
 
         this.toolInstances.websearch = new WebSearchTool(config.tools?.websearch);
-        this.toolInstances.file = new FileTool({ workspace: config.workspace ?? './workspace' });
+        this.toolInstances.file = new FileTool({workspace: config.workspace ?? './workspace'});
     }
 
     #registerMeTTaExtensions() {
-        if (!this.metta || this._channelExtensionRegistered) return;
+        if (!this.metta || this._channelExtensionRegistered) {
+            return;
+        }
         this.#registerExtension('../../../metta/src/extensions/ChannelExtension.js', ext => {
             ext.agent = this;
         });
@@ -129,7 +232,7 @@ export class Agent extends BaseComponent {
     }
 
     #registerExtension(path, configure) {
-        import(path).then(({ default: Extension }) => {
+        import(path).then(({default: Extension}) => {
             const ext = new Extension(this.metta, this.embodimentBus);
             configure?.(ext);
             ext.register();
@@ -141,7 +244,7 @@ export class Agent extends BaseComponent {
         await this.nar.initialize();
 
         if (!this.toolInstances.websearch) {
-            const { WebSearchTool, FileTool } = await import('./io/index.js');
+            const {WebSearchTool, FileTool} = await import('./io/index.js');
             this.toolInstances.websearch = new WebSearchTool();
             this.toolInstances.file = new FileTool();
         }
@@ -156,15 +259,17 @@ export class Agent extends BaseComponent {
 
         const constructorLm = this.config.lm || {};
         if (Object.keys(constructorLm).length > 0) {
-            this.agentCfg.lm = { ...this.agentCfg.lm, ...constructorLm };
+            this.agentCfg.lm = {...this.agentCfg.lm, ...constructorLm};
             for (const key of Object.keys(constructorLm)) {
                 if (typeof constructorLm[key] === 'object' && constructorLm[key] !== null && !Array.isArray(constructorLm[key])) {
-                    this.agentCfg.lm[key] = { ...(this.agentCfg.lm[key] || {}), ...constructorLm[key] };
+                    this.agentCfg.lm[key] = {...(this.agentCfg.lm[key] || {}), ...constructorLm[key]};
                 }
             }
         }
 
-        if (this.agentCfg.lm) this.ai = new AIClient(this.agentCfg.lm);
+        if (this.agentCfg.lm) {
+            this.ai = new AIClient(this.agentCfg.lm);
+        }
 
         const validationErrors = validate(this.agentCfg);
         if (validationErrors.length > 0) {
@@ -185,7 +290,7 @@ export class Agent extends BaseComponent {
             Logger.info('[Agent] MeTTa control plane ready. Call agent.startMeTTaLoop() to begin.');
         }
 
-        this.emit(AGENT_EVENTS.ENGINE_READY, { success: true, message: 'Agent initialized successfully' });
+        this.emit(AGENT_EVENTS.ENGINE_READY, {success: true, message: 'Agent initialized successfully'});
         return true;
     }
 
@@ -202,7 +307,7 @@ export class Agent extends BaseComponent {
             return JSON.parse(await readFile(resolve(__agentDir, '../workspace/agent.json'), 'utf8'));
         } catch {
             Logger.warn('[Agent] Could not load agent.json, using default parity profile.');
-            return { profile: 'parity', capabilities: {} };
+            return {profile: 'parity', capabilities: {}};
         }
     }
 
@@ -210,14 +315,19 @@ export class Agent extends BaseComponent {
         const registry = new AgentCommandRegistry();
         for (const CmdClass of Object.values(CommandModules)) {
             if (typeof CmdClass === 'function' && CmdClass.prototype instanceof AgentCommand && CmdClass !== AgentCommand) {
-                try { registry.register(new CmdClass()); }
-                catch (e) { Logger.warn(`Failed to register command ${CmdClass.name}: ${e.message}`); }
+                try {
+                    registry.register(new CmdClass());
+                } catch (e) {
+                    Logger.warn(`Failed to register command ${CmdClass.name}: ${e.message}`);
+                }
             }
         }
         return registry;
     }
 
-    async processInput(input) { return this.inputProcessor.processInput(input); }
+    async processInput(input) {
+        return this.inputProcessor.processInput(input);
+    }
 
     async executeCommand(cmd, ...args) {
         const command = resolveCommand(cmd);
@@ -225,59 +335,80 @@ export class Agent extends BaseComponent {
             n: () => this._next(),
             go: () => this.startAutoStep(10),
             st: () => this._stopRun(),
-            exit: () => { this.emit(AGENT_EVENTS.ENGINE_QUIT); return 'Goodbye!'; }
+            exit: () => {
+                this.emit(AGENT_EVENTS.ENGINE_QUIT);
+                return 'Goodbye!';
+            }
         };
 
-        if (builtins[command]) return builtins[command]();
+        if (builtins[command]) {
+            return builtins[command]();
+        }
         if (this.commandRegistry.get(command)) {
             const result = await this.commandRegistry.execute(command, this, ...args);
-            this.emit(`command.${command}`, { command, args, result });
+            this.emit(`command.${command}`, {command, args, result});
             return result;
         }
         return `Unknown command: ${command}`;
     }
 
-    async processNarsese(input) { return this.inputProcessor.processNarsese(input); }
-    async* streamExecution(input) { yield* this.agentStreamer.streamExecution(input); }
-    async processInputStreaming(input, onChunk, onStep) { return this.agentStreamer.processInputStreaming(input, onChunk, onStep); }
+    async processNarsese(input) {
+        return this.inputProcessor.processNarsese(input);
+    }
+
+    async* streamExecution(input) {
+        yield* this.agentStreamer.streamExecution(input);
+    }
+
+    async processInputStreaming(input, onChunk, onStep) {
+        return this.agentStreamer.processInputStreaming(input, onChunk, onStep);
+    }
 
     async _next() {
         try {
             await this.nar.step();
-            this.emit(AGENT_EVENTS.NAR_CYCLE_STEP, { cycle: this.cycleCount });
+            this.emit(AGENT_EVENTS.NAR_CYCLE_STEP, {cycle: this.cycleCount});
             return `Single cycle executed. Cycle: ${this.cycleCount}`;
         } catch (error) {
-            this.emit(AGENT_EVENTS.NAR_ERROR, { error: error.message });
+            this.emit(AGENT_EVENTS.NAR_ERROR, {error: error.message});
             return `Error executing single cycle: ${error.message}`;
         }
     }
 
     async startAutoStep(interval = 10) {
-        if (this.runState.isRunning) this._stopRun();
+        if (this.runState.isRunning) {
+            this._stopRun();
+        }
         this.runState.isRunning = true;
-        this.emit(AGENT_EVENTS.NAR_CYCLE_START, { reason: 'auto-step' });
+        this.emit(AGENT_EVENTS.NAR_CYCLE_START, {reason: 'auto-step'});
 
         if (!this.displaySettings.quiet && !this.traceEnabled) {
             this.traceEnabled = true;
-            this.emit(AGENT_EVENTS.NAR_TRACE_ENABLE, { reason: 'auto-step session' });
+            this.emit(AGENT_EVENTS.NAR_TRACE_ENABLE, {reason: 'auto-step session'});
         }
 
         const runLoop = async () => {
-            if (!this.runState.isRunning) return;
+            if (!this.runState.isRunning) {
+                return;
+            }
             try {
                 await this.nar.step();
-                if (this.runState.isRunning) this.runState.intervalId = setTimeout(runLoop, interval);
+                if (this.runState.isRunning) {
+                    this.runState.intervalId = setTimeout(runLoop, interval);
+                }
             } catch (error) {
                 Logger.error(`Error during run: ${error.message}`);
                 this._stopRun();
             }
         };
-        runLoop();
-        this.emit(AGENT_EVENTS.NAR_CYCLE_RUNNING, { interval });
+        await runLoop();
+        this.emit(AGENT_EVENTS.NAR_CYCLE_RUNNING, {interval});
         return `Auto-stepping every ${interval}ms... Use "/stop" or input to stop.`;
     }
 
-    _stop() { return this._stopRun(); }
+    _stop() {
+        return this._stopRun();
+    }
 
     _stopRun() {
         if (this.runState.intervalId) {
@@ -297,7 +428,9 @@ export class Agent extends BaseComponent {
         return 'Agent reset successfully.';
     }
 
-    async save() { return this.persistenceManager.saveToDefault(this.nar.serialize()); }
+    async save() {
+        return this.persistenceManager.saveToDefault(this.nar.serialize());
+    }
 
     async load(filepath = null) {
         const state = filepath
@@ -306,8 +439,13 @@ export class Agent extends BaseComponent {
         return state ? this.nar.deserialize(state) : false;
     }
 
-    getHistory() { return [...this.sessionState.history]; }
-    formatTaskForDisplay(task) { return FormattingUtils.formatTask(task); }
+    getHistory() {
+        return [...this.sessionState.history];
+    }
+
+    formatTaskForDisplay(task) {
+        return FormattingUtils.formatTask(task);
+    }
 
     async shutdown() {
         await this.embodimentBus?.shutdown();

@@ -13,12 +13,12 @@ export class ReductionCache {
     }
 
     get(atom) {
-        if (!this.enabled) return undefined;
+        if (!this.enabled) {return undefined;}
         return this.cache.get(this._key(atom));
     }
 
     set(atom, result) {
-        if (!this.enabled) return;
+        if (!this.enabled) {return;}
         this.cache.put(this._key(atom), result);
     }
 

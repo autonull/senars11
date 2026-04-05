@@ -3,8 +3,8 @@
  * Following AGENTS.md guidelines for elegant, consolidated, consistent, organized, and DRY code
  */
 
-import { Logger } from './Logger.js';
-import { RuntimeError, SerializationError, DeserializationError } from './ErrorUtils.js';
+import {Logger} from './Logger.js';
+import {DeserializationError} from './ErrorUtils.js';
 
 /**
  * Safe serialization utility that handles conditional serialization
@@ -13,20 +13,22 @@ import { RuntimeError, SerializationError, DeserializationError } from './ErrorU
  * @returns {Object} Serialized object or fallback result
  */
 export function safeSerialize(obj, fallback = null) {
-    if (!obj) return null;
-    
+    if (!obj) {
+        return null;
+    }
+
     if (typeof obj.serialize === 'function') {
         return obj.serialize();
     }
-    
+
     if (fallback && typeof fallback === 'function') {
         return fallback(obj);
     }
-    
+
     if (typeof obj.toString === 'function') {
         return obj.toString();
     }
-    
+
     return obj;
 }
 
@@ -38,8 +40,10 @@ export function safeSerialize(obj, fallback = null) {
  * @returns {Object} Deserialized object
  */
 export async function safeDeserialize(data, deserializer, entityType = 'unknown') {
-    if (!data) return null;
-    
+    if (!data) {
+        return null;
+    }
+
     if (typeof deserializer === 'function') {
         try {
             return await deserializer(data);
@@ -53,7 +57,7 @@ export async function safeDeserialize(data, deserializer, entityType = 'unknown'
             return null;
         }
     }
-    
+
     return data;
 }
 
@@ -73,7 +77,7 @@ export class Serializable {
             version
         };
     }
-    
+
     /**
      * Create a standardized serialization wrapper
      * @param {Object} obj - Object to serialize
@@ -84,7 +88,7 @@ export class Serializable {
     static createSerializer(obj, serializer, version = '1.0.0') {
         return this.serializeWithVersion(serializer(obj), version);
     }
-    
+
     /**
      * Standardized deserialization with error handling
      * @param {Object} data - Data to deserialize
@@ -102,17 +106,17 @@ export class Serializable {
                     data
                 );
             }
-            
+
             await deserializer(data);
             return true;
         } catch (error) {
-            const deserializationError = error instanceof DeserializationError 
-                ? error 
+            const deserializationError = error instanceof DeserializationError
+                ? error
                 : new DeserializationError(
                     `Error during ${context} of ${entityType}: ${error.message}`,
                     entityType,
                     data
-                  );
+                );
             Logger.error(`Deserialization failed for ${entityType}:`, deserializationError);
             return false;
         }
@@ -135,7 +139,7 @@ export function SerializableMixin(superclass) {
             // This is just a default implementation
             return Serializable.serializeWithVersion({}, '1.0.0');
         }
-        
+
         /**
          * Default deserialize method with error handling
          * @param {Object} data - Data to deserialize
@@ -144,8 +148,9 @@ export function SerializableMixin(superclass) {
         async deserialize(data) {
             // Subclasses should override this method
             return Serializable.standardDeserialize(
-                data, 
-                async () => {}, 
+                data,
+                async () => {
+                },
                 this.constructor.name,
                 this.constructor.name
             );
@@ -160,29 +165,31 @@ export function SerializableMixin(superclass) {
  * @returns {Object} Serialized object
  */
 export function universalSerialize(obj, options = {}) {
-    const { 
-        includeType = true, 
+    const {
+        includeType = true,
         version = '1.0.0',
         customSerializers = {}
     } = options;
-    
-    if (!obj) return null;
-    
+
+    if (!obj) {
+        return null;
+    }
+
     // Check for custom serializers first
     const objType = obj.constructor?.name;
     if (customSerializers[objType]) {
         return customSerializers[objType](obj);
     }
-    
+
     // Use safe serialization
     const serialized = safeSerialize(obj);
-    
+
     // Add metadata if requested
-    return includeType 
+    return includeType
         ? Serializable.serializeWithVersion(
-            { ...serialized, __type: objType }, 
+            {...serialized, __type: objType},
             version
-          )
+        )
         : Serializable.serializeWithVersion(serialized, version);
 }
 
@@ -193,22 +200,24 @@ export function universalSerialize(obj, options = {}) {
  * @returns {Object} Deserialized object
  */
 export async function universalDeserialize(data, options = {}) {
-    const { 
+    const {
         typeMap = {},
         customDeserializers = {}
     } = options;
-    
-    if (!data) return null;
-    
+
+    if (!data) {
+        return null;
+    }
+
     try {
         // Extract type if present
         const objType = data.__type;
-        
+
         // Check for custom deserializers first
         if (objType && customDeserializers[objType]) {
             return await customDeserializers[objType](data);
         }
-        
+
         // Use type mapping if available
         if (objType && typeMap[objType]) {
             const DeserializerClass = typeMap[objType];
@@ -216,7 +225,7 @@ export async function universalDeserialize(data, options = {}) {
                 return await DeserializerClass.deserialize(data);
             }
         }
-        
+
         // Fallback to safe deserialization
         return data;
     } catch (error) {

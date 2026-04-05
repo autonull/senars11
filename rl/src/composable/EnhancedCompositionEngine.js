@@ -77,7 +77,7 @@ export class EnhancedCompositionEngine extends CompositionEngine {
 
         while (queue.length > 0) {
             const nodeId = queue.shift();
-            if (visited.has(nodeId)) continue;
+            if (visited.has(nodeId)) {continue;}
 
             const node = graph.nodes.get(nodeId);
             const nodeInput = nodeId === Array.from(graph.nodes.keys())[0]
@@ -113,7 +113,7 @@ export class EnhancedCompositionEngine extends CompositionEngine {
     }
 
     async _executeNode(node, input, context) {
-        const component = node.component;
+        const {component} = node;
         const method = node.method ?? 'act';
 
         if (typeof component[method] !== 'function') {

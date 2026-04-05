@@ -89,7 +89,9 @@ export class DemoWrapper {
     async handleDemoControl(data) {
         try {
             // Validate input data using the validator module
-            if (!DemoValidator.validateDemoControl(data)) return;
+            if (!DemoValidator.validateDemoControl(data)) {
+                return;
+            }
 
             const {command, demoId, parameters} = data.payload;
 
@@ -354,7 +356,9 @@ export class DemoWrapper {
     }
 
     async runPeriodicMetricsUpdate() {
-        if (!this.nar || !this.webSocketMonitor) return;
+        if (!this.nar || !this.webSocketMonitor) {
+            return;
+        }
 
         // Track previous concept priorities to detect changes
         let previousPriorities = new Map();
@@ -445,12 +449,12 @@ export class DemoWrapper {
                 metrics.conceptMetrics = conceptMetrics;
 
                 // Send metrics to all connected clients
-                this.sendDemoMetrics('system', metrics);
+                await this.sendDemoMetrics('system', metrics);
             }
 
             setTimeout(updateMetrics, 500); // Update metrics every 500ms for better visualization
         };
 
-        updateMetrics();
+        await updateMetrics();
     }
 }

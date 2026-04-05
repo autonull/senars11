@@ -8,7 +8,7 @@ export class FluentToolbar extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         this.container.innerHTML = '';
         this.container.className = 'fluent-toolbar';
@@ -24,7 +24,7 @@ export class FluentToolbar extends Component {
         switch (item.type) {
             case 'group':
                 const group = FluentUI.create('div').class('toolbar-group');
-                if (item.class) group.addClass(item.class);
+                if (item.class) {group.addClass(item.class);}
                 item.items.forEach(subItem => this._renderItem(group, subItem));
                 parent.child(group);
                 break;
@@ -35,7 +35,7 @@ export class FluentToolbar extends Component {
                     .attr({ title: item.title || '' })
                     .on('click', item.onClick);
 
-                if (item.id) btn.id(item.id);
+                if (item.id) {btn.id(item.id);}
 
                 if (item.icon) {
                     btn.text(item.icon); // Assuming text icon for now, could be SVG
@@ -43,7 +43,7 @@ export class FluentToolbar extends Component {
                     btn.text(item.label);
                 }
 
-                if (item.class) btn.addClass(item.class);
+                if (item.class) {btn.addClass(item.class);}
                 parent.child(btn);
                 break;
 
@@ -52,14 +52,14 @@ export class FluentToolbar extends Component {
                     .class('toolbar-select')
                     .on('change', (e) => item.onChange?.(e.target.value, e));
 
-                if (item.class) select.addClass(item.class);
-                if (item.style) select.style(item.style);
+                if (item.class) {select.addClass(item.class);}
+                if (item.style) {select.style(item.style);}
 
                 (item.options || []).forEach(opt => {
                     const option = FluentUI.create('option')
                         .attr({ value: opt.value })
                         .text(opt.label);
-                    if (opt.selected) option.prop({ selected: true });
+                    if (opt.selected) {option.prop({ selected: true });}
                     select.child(option);
                 });
 
@@ -75,18 +75,18 @@ export class FluentToolbar extends Component {
                     .attr({ type: 'checkbox' })
                     .on('change', (e) => item.onChange?.(e.target.checked, e));
 
-                if (item.checked) checkbox.prop({ checked: true });
-                if (item.inputStyle) checkbox.style(item.inputStyle);
+                if (item.checked) {checkbox.prop({ checked: true });}
+                if (item.inputStyle) {checkbox.style(item.inputStyle);}
 
                 label.child(checkbox);
-                if (item.label) label.child(document.createTextNode(' ' + item.label));
+                if (item.label) {label.child(document.createTextNode(` ${  item.label}`));}
 
                 parent.child(label);
                 break;
 
             case 'slider':
                 const container = FluentUI.create('div').class('toolbar-slider-container');
-                if (item.class) container.addClass(item.class);
+                if (item.class) {container.addClass(item.class);}
 
                 const display = FluentUI.create('span').text(item.value || item.min || '0');
 
@@ -119,7 +119,7 @@ export class FluentToolbar extends Component {
                     parent.child(item.element);
                 } else if (item.renderer) {
                     const el = item.renderer();
-                    if (el) parent.child(el);
+                    if (el) {parent.child(el);}
                 }
                 break;
 

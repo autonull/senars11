@@ -11,12 +11,26 @@ export class PerformanceTracker {
     #trackExecution(toolName, startTime, success, error) {
         const duration = Date.now() - startTime;
         this.totalExecutions++;
-        if (success) { this.successfulExecutions++; } else { this.failedExecutions++; }
+        if (success) {
+            this.successfulExecutions++;
+        } else {
+            this.failedExecutions++;
+        }
         this.averageExecutionTime = (this.averageExecutionTime * (this.successfulExecutions + this.failedExecutions - 1) + duration) / (this.successfulExecutions + this.failedExecutions);
 
-        const stats = this.toolUsageStats.get(toolName) ?? { executions: 0, successes: 0, failures: 0, totalTime: 0, averageTime: 0 };
+        const stats = this.toolUsageStats.get(toolName) ?? {
+            executions: 0,
+            successes: 0,
+            failures: 0,
+            totalTime: 0,
+            averageTime: 0
+        };
         stats.executions++;
-        if (success) stats.successes++; else stats.failures++;
+        if (success) {
+            stats.successes++;
+        } else {
+            stats.failures++;
+        }
         stats.totalTime += duration;
         stats.averageTime = stats.totalTime / stats.executions;
         this.toolUsageStats.set(toolName, stats);
@@ -27,8 +41,13 @@ export class PerformanceTracker {
         }
     }
 
-    trackExecutionSuccess(toolName, startTime) { this.#trackExecution(toolName, startTime, true); }
-    trackExecutionFailure(toolName, startTime, error) { this.#trackExecution(toolName, startTime, false, error); }
+    trackExecutionSuccess(toolName, startTime) {
+        this.#trackExecution(toolName, startTime, true);
+    }
+
+    trackExecutionFailure(toolName, startTime, error) {
+        this.#trackExecution(toolName, startTime, false, error);
+    }
 
     getStats(tools) {
         const toolsByCategory = {};
@@ -45,7 +64,10 @@ export class PerformanceTracker {
             successfulExecutions: this.successfulExecutions,
             failedExecutions: this.failedExecutions,
             averageExecutionTime: this.averageExecutionTime,
-            mostUsedTools: [...toolUsage.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([toolName, count]) => ({ toolName, count }))
+            mostUsedTools: [...toolUsage.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([toolName, count]) => ({
+                toolName,
+                count
+            }))
         };
     }
 }

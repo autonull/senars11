@@ -9,14 +9,14 @@ export class Module {
     }
 
     parameter(name, tensor) {
-        if (!(tensor instanceof Tensor)) throw new Error('parameter requires Tensor');
+        if (!(tensor instanceof Tensor)) {throw new Error('parameter requires Tensor');}
         tensor.requiresGrad = true;
         this._parameters.set(name, tensor);
         return tensor;
     }
 
     module(name, module) {
-        if (!(module instanceof Module)) throw new Error('module requires Module');
+        if (!(module instanceof Module)) {throw new Error('module requires Module');}
         this._modules.set(name, module);
         return module;
     }
@@ -38,7 +38,7 @@ export class Module {
     to(backend) {
         this._parameters.forEach(p => p.backend = backend);
         this._modules.forEach(m => m.to(backend));
-        if (this.backend) this.backend = backend;
+        if (this.backend) {this.backend = backend;}
         return this;
     }
 
@@ -70,7 +70,7 @@ export class Module {
 
     loadStateDict(dict) {
         this._parameters.forEach((v, k) => {
-            if (dict[k]) v.data = dict[k].slice();
+            if (dict[k]) {v.data = dict[k].slice();}
         });
         for (const [k, m] of this._modules) {
             const prefix = `${k}.`;
@@ -131,7 +131,7 @@ export class Sequential extends Module {
 export class MultiHeadAttention extends Module {
     constructor(dModel, numHeads, {backend = T} = {}) {
         super();
-        if (dModel % numHeads) throw new Error('dModel must be divisible by numHeads');
+        if (dModel % numHeads) {throw new Error('dModel must be divisible by numHeads');}
         this.backend = backend;
         Object.assign(this, {dModel, numHeads, headDim: dModel / numHeads});
         ['qProj', 'kProj', 'vProj', 'outProj'].forEach(name =>

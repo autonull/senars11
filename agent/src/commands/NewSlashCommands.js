@@ -372,7 +372,9 @@ export class ConceptsCommand extends AgentCommand {
             const allConcepts = agent.memory.getAllConcepts();
             if (args.length === 0) {
                 // List all concepts
-                if (allConcepts.length === 0) return 'No concepts in the system.';
+                if (allConcepts.length === 0) {
+                    return 'No concepts in the system.';
+                }
                 return `📚 Concepts (${allConcepts.length} total):\n${ReplFormattingUtils.formatConcepts(allConcepts)}`;
             } else {
                 // Show details for specific term
@@ -401,7 +403,9 @@ export class TasksCommand extends AgentCommand {
                 // Combine all tasks
                 const allTasks = [...beliefs, ...goals, ...questions];
 
-                if (allTasks.length === 0) return 'No tasks in the system.';
+                if (allTasks.length === 0) {
+                    return 'No tasks in the system.';
+                }
 
                 const tableData = allTasks.slice(0, 20).map((t, i) => [
                     i + 1,
@@ -429,7 +433,9 @@ export class TasksCommand extends AgentCommand {
                 const filteredTasks = allTasks.filter(t =>
                     t.toString().toLowerCase().includes(term.toLowerCase())
                 );
-                if (filteredTasks.length === 0) return `No tasks found with term: ${term}`;
+                if (filteredTasks.length === 0) {
+                    return `No tasks found with term: ${term}`;
+                }
 
                 const tableData = filteredTasks.slice(0, 20).map((t, i) => [
                     i + 1,
@@ -461,14 +467,18 @@ export class BeliefsCommand extends AgentCommand {
             const focusTasks = agent.focus.getTasks(20);
             const beliefs = focusTasks.filter(t => t.type === 'BELIEF');
 
-            if (beliefs.length === 0) return 'No focus beliefs in the system.';
+            if (beliefs.length === 0) {
+                return 'No focus beliefs in the system.';
+            }
 
             return `💡 Focus Beliefs:\n${ReplFormattingUtils.formatBeliefs(beliefs)}`;
         }
         // Alternative: use task manager
         else if (agent.taskManager && typeof agent.taskManager.findTasksByType === 'function') {
             const beliefs = agent.taskManager.findTasksByType('BELIEF');
-            if (beliefs.length === 0) return 'No beliefs in the system.';
+            if (beliefs.length === 0) {
+                return 'No beliefs in the system.';
+            }
 
             return `💡 Beliefs:\n${ReplFormattingUtils.formatBeliefs(beliefs)}`;
         }
@@ -487,14 +497,18 @@ export class GoalsCommand extends AgentCommand {
             const focusTasks = agent.focus.getTasks(20);
             const goals = focusTasks.filter(t => t.type === 'GOAL');
 
-            if (goals.length === 0) return 'No focus goals in the system.';
+            if (goals.length === 0) {
+                return 'No focus goals in the system.';
+            }
 
             return `🎯 Focus Goals:\n${ReplFormattingUtils.formatGoals(goals)}`;
         }
         // Alternative: use task manager
         else if (agent.taskManager && typeof agent.taskManager.findTasksByType === 'function') {
             const goals = agent.taskManager.findTasksByType('GOAL');
-            if (goals.length === 0) return 'No goals in the system.';
+            if (goals.length === 0) {
+                return 'No goals in the system.';
+            }
 
             return `🎯 Goals:\n${ReplFormattingUtils.formatGoals(goals)}`;
         }
@@ -513,7 +527,9 @@ export class QuestionsCommand extends AgentCommand {
             const focusTasks = agent.focus.getTasks(20);
             const questions = focusTasks.filter(t => t.type === 'QUESTION');
 
-            if (questions.length === 0) return 'No focus questions in the system.';
+            if (questions.length === 0) {
+                return 'No focus questions in the system.';
+            }
 
             const tableData = questions.map((q, i) => [i + 1, q.term?.toString?.() ?? q.term ?? 'Unknown']);
             const headers = ['No.', 'Term'];
@@ -524,7 +540,9 @@ export class QuestionsCommand extends AgentCommand {
         // Alternative: use task manager
         else if (agent.taskManager && typeof agent.taskManager.findTasksByType === 'function') {
             const questions = agent.taskManager.findTasksByType('QUESTION');
-            if (questions.length === 0) return 'No questions in the system.';
+            if (questions.length === 0) {
+                return 'No questions in the system.';
+            }
 
             const tableData = questions.slice(0, 20).map((q, i) => [i + 1, q.term?.toString?.() ?? q.term ?? 'Unknown']);
             const headers = ['No.', 'Term'];
@@ -591,10 +609,12 @@ export class HistoryCommand extends AgentCommand {
     async _executeImpl(agent, ...args) {
         // Using the session state in the agent to track history
         const n = args.length > 0 ? parseInt(args[0]) : 10;
-        if (isNaN(n) || n <= 0) return '❌ Invalid number. Use positive integer.';
+        if (isNaN(n) || n <= 0) {
+            return '❌ Invalid number. Use positive integer.';
+        }
 
         if (agent.sessionState && Array.isArray(agent.sessionState.history)) {
-            const history = agent.sessionState.history;
+            const {history} = agent.sessionState;
             if (!history || history.length === 0) {
                 return 'No input history available.';
             }

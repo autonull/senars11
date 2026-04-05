@@ -27,14 +27,14 @@ export class ImaginationExtension {
     }
 
     _unwrapVal(atom) {
-        if (!atom) return null;
-        if (isGrounded(atom)) return atom.value;
+        if (!atom) {return null;}
+        if (isGrounded(atom)) {return atom.value;}
         if (atom.type === 'atom') {
             const num = Number(atom.name);
-            if (!isNaN(num)) return num;
+            if (!isNaN(num)) {return num;}
 
             // Strip quotes
-            let name = atom.name;
+            const {name} = atom;
             if (typeof name === 'string' && name.startsWith('"') && name.endsWith('"')) {
                 return name.slice(1, -1);
             }
@@ -54,7 +54,7 @@ export class ImaginationExtension {
 
     _canvasToBuffer(canvasAtom) {
         const canvas = this._unwrapVal(canvasAtom);
-        if (!canvas || typeof canvas.toBuffer !== 'function') return sym('False');
+        if (!canvas || typeof canvas.toBuffer !== 'function') {return sym('False');}
 
         // Returns the node buffer
         return grounded(canvas.toBuffer('image/png'));
@@ -108,7 +108,7 @@ export class ImaginationExtension {
     _fsWriteSync(filenameAtom, bufferAtom) {
         const filename = this._unwrapVal(filenameAtom);
         const buffer = this._unwrapVal(bufferAtom);
-        if (!filename || !buffer) return sym('False');
+        if (!filename || !buffer) {return sym('False');}
 
         fs.writeFileSync(filename, buffer);
         Logger.info(`[Imagination] Wrote file to ${filename}`);
@@ -117,7 +117,7 @@ export class ImaginationExtension {
 
     _fsCreateWriteStream(filenameAtom) {
         const filename = this._unwrapVal(filenameAtom);
-        if (!filename) return sym('False');
+        if (!filename) {return sym('False');}
 
         const stream = fs.createWriteStream(filename);
         return grounded(stream);

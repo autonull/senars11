@@ -12,11 +12,11 @@ export class TaskCard extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         // Data normalization
         const term = this.task.term?.toString() ?? 'unknown';
-        const truth = this.task.truth;
+        const {truth} = this.task;
         const punctuation = this.task.punctuation || '.';
         const type = this.task.type || 'BELIEF'; // Fallback for display
 
@@ -40,8 +40,8 @@ export class TaskCard extends Component {
 
         // Determine icon based on punctuation/type
         let icon = '📝';
-        if (punctuation === '!') icon = '🎯'; // Goal
-        if (punctuation === '?') icon = '❓'; // Question
+        if (punctuation === '!') {icon = '🎯';} // Goal
+        if (punctuation === '?') {icon = '❓';} // Question
 
         if (this.compact) {
             // Compact Layout
@@ -136,8 +136,8 @@ export class TaskCard extends Component {
     }
 
     _getPriorityColor(val) {
-        if (val > 0.8) return 'var(--accent-primary, #00ff9d)';
-        if (val > 0.5) return 'var(--accent-warn, #ffcc00)';
+        if (val > 0.8) {return 'var(--accent-primary, #00ff9d)';}
+        if (val > 0.5) {return 'var(--accent-warn, #ffcc00)';}
         return 'var(--text-muted, #666)';
     }
 }

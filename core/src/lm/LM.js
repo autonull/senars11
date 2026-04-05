@@ -22,11 +22,16 @@ export class LM extends BaseComponent {
         this.validator = new LMValidator(config.validation, this.narseseTranslator, eventBus);
     }
 
-    get config() { return { ...this._config }; }
-    get metrics() { return this.lmMetrics; }
+    get config() {
+        return {...this._config};
+    }
+
+    get metrics() {
+        return this.lmMetrics;
+    }
 
     _getCircuitBreakerConfig() {
-        return { failureThreshold: 5, timeout: 60000, resetTimeout: 30000, ...this.config?.circuitBreaker };
+        return {failureThreshold: 5, timeout: 60000, resetTimeout: 30000, ...this.config?.circuitBreaker};
     }
 
     async _initialize() {
@@ -41,9 +46,9 @@ export class LM extends BaseComponent {
 
     registerProvider(id, provider) {
         this.providers.register(id, provider);
-        this.logInfo('Provider registered', { providerId: id, default: id === this.providers.defaultProviderId });
+        this.logInfo('Provider registered', {providerId: id, default: id === this.providers.defaultProviderId});
         provider.on?.('lm:model-dl-progress', (data) => {
-            this.eventBus?.emit('lm:model-dl-progress', { ...data, providerId: id });
+            this.eventBus?.emit('lm:model-dl-progress', {...data, providerId: id});
         });
         return this;
     }
@@ -73,7 +78,9 @@ export class LM extends BaseComponent {
 
     async generateText(prompt, options = {}, providerId = null) {
         const provider = this._getProvider(providerId);
-        if (!provider) throw new Error(`Provider "${providerId ?? this.providers.defaultProviderId}" not found.`);
+        if (!provider) {
+            throw new Error(`Provider "${providerId ?? this.providers.defaultProviderId}" not found.`);
+        }
 
         const startTime = Date.now();
         const result = await this._executeWithCircuitBreaker(ProviderUtils.standardGenerate, provider, prompt, options);
@@ -89,21 +96,27 @@ export class LM extends BaseComponent {
 
     async streamText(prompt, options = {}, providerId = null) {
         const provider = this._getProvider(providerId);
-        if (!provider) throw new Error(`Provider "${providerId ?? this.providers.defaultProviderId}" not found.`);
+        if (!provider) {
+            throw new Error(`Provider "${providerId ?? this.providers.defaultProviderId}" not found.`);
+        }
 
         return await this._executeWithCircuitBreaker(ProviderUtils.standardStream, provider, prompt, options);
     }
 
     async generateEmbedding(text, providerId = null) {
         const provider = this._getProvider(providerId);
-        if (!provider) throw new Error(`Provider "${providerId ?? this.providers.defaultProviderId}" not found.`);
+        if (!provider) {
+            throw new Error(`Provider "${providerId ?? this.providers.defaultProviderId}" not found.`);
+        }
 
         return await this._executeWithCircuitBreaker(provider.generateEmbedding.bind(provider), text);
     }
 
     async process(prompt, options = {}, providerId = null) {
         const provider = this._getProvider(providerId);
-        if (!provider) throw new Error(`Provider "${providerId ?? this.providers.defaultProviderId}" not found.`);
+        if (!provider) {
+            throw new Error(`Provider "${providerId ?? this.providers.defaultProviderId}" not found.`);
+        }
 
         if (typeof provider.process === 'function') {
             return await this._executeWithCircuitBreaker(provider.process.bind(provider), prompt, options);
@@ -156,9 +169,13 @@ export class LM extends BaseComponent {
         this.logInfo('Stopping LM component...');
         for (const [id, provider] of this.providers.getAll()) {
             try {
-                if (typeof provider.destroy === 'function') await provider.destroy();
-                else if (typeof provider.shutdown === 'function') await provider.shutdown();
-                else if (typeof provider.stop === 'function') await provider.stop();
+                if (typeof provider.destroy === 'function') {
+                    await provider.destroy();
+                } else if (typeof provider.shutdown === 'function') {
+                    await provider.shutdown();
+                } else if (typeof provider.stop === 'function') {
+                    await provider.stop();
+                }
             } catch (error) {
                 this.logError(`Error stopping provider ${id}:`, error);
             }

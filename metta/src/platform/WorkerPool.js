@@ -11,7 +11,7 @@ export class WorkerPool {
     }
 
     async _init() {
-        if (this.instance) return;
+        if (this.instance) {return;}
 
         if (ENV.isNode) {
             const mod = await import('./node/WorkerPool.js');

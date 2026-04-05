@@ -23,6 +23,7 @@
     "@langchain/openai": "^1.4.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@senars/core": "workspace:*",
+    "@senars/metta": "workspace:*",
     "@senars/nar": "workspace:*",
     "ai": "^5.0.163",
     "dotenv": "^16.4.7",

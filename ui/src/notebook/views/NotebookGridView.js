@@ -29,7 +29,7 @@ export class NotebookGridView {
         const iconChar = iconMap[cell.type] ?? '📄';
 
         let text = typeof cell.content === 'string' ? cell.content : JSON.stringify(cell.content);
-        if (text.length > 200) text = text.substring(0, 200) + '...';
+        if (text.length > 200) {text = `${text.substring(0, 200)  }...`;}
 
         const wrapper = FluentUI.create('div')
             .class('grid-cell-wrapper')

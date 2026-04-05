@@ -25,7 +25,7 @@ const DEFAULTS = {
 
 const SamplingStrategies = {
     random(allExperiences, k) {
-        if (allExperiences.length === 0) return [];
+        if (allExperiences.length === 0) {return [];}
         const indices = new Set();
         const max = allExperiences.length;
         const limit = Math.min(k, max);
@@ -83,7 +83,7 @@ export class CausalExperience extends Experience {
     }
 
     static createCausalSignature(experience, resolution = 0.1) {
-        if (!experience) return null;
+        if (!experience) {return null;}
         const { state, action, nextState, reward } = experience;
         const discretize = (v) => Math.round(v / resolution) * resolution;
         const stateSig = Array.isArray(state) ? state.map(discretize).join(',') : discretize(state);
@@ -138,10 +138,10 @@ export class ExperienceBuffer extends Component {
 
         if (this.count >= this.capacity) {
             this.experiences[this.pos] = exp;
-            if (this.sumTree) this.sumTree.update(this.pos, 1.0);
+            if (this.sumTree) {this.sumTree.update(this.pos, 1.0);}
         } else {
             this.experiences.push(exp);
-            if (this.sumTree) this.sumTree.add(1.0);
+            if (this.sumTree) {this.sumTree.add(1.0);}
             this.count++;
         }
 
@@ -182,7 +182,7 @@ export class ExperienceBuffer extends Component {
     }
 
     async prioritize(index, priority) {
-        if (!this.sumTree) return;
+        if (!this.sumTree) {return;}
         const oldPriority = this.sumTree.get(index);
         const importance = Math.pow(priority / this.sumTree.max, -this.config.prioritizedBeta);
         this.sumTree.update(index, priority);
@@ -193,8 +193,8 @@ export class ExperienceBuffer extends Component {
         this.experiences = [];
         this.pos = 0;
         this.count = 0;
-        if (this.sumTree) this.sumTree = new SumTree(this.capacity);
-        if (this.causalIndex) this.causalIndex.clear();
+        if (this.sumTree) {this.sumTree = new SumTree(this.capacity);}
+        if (this.causalIndex) {this.causalIndex.clear();}
         this._metricsTracker = { additions: 0, samples: 0, causalLinksDiscovered: 0 };
     }
 

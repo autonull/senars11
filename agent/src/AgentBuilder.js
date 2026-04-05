@@ -1,13 +1,15 @@
 import {Agent} from './Agent.js';
 import {LMConfig, Logger, PluginManager} from '@senars/core';
 import {FunctorProvider} from './FunctorProvider.js';
-import {isEnabled} from './config/capabilities.js';
+import {isEnabled} from './config/index.js';
 
 export class AgentBuilder {
     constructor(initialConfig = {}) {
         this.config = this.constructor.getDefaultConfig();
         this.dependencies = new Map();
-        if (initialConfig) this.withConfig(initialConfig);
+        if (initialConfig) {
+            this.withConfig(initialConfig);
+        }
     }
 
     static getDefaultConfig() {
@@ -86,11 +88,11 @@ export class AgentBuilder {
     }
 
     withFunctors(config) {
-        return this.withSubsystem('functors', Array.isArray(config) ? config : config);
+        return this.withSubsystem('functors', config);
     }
 
     withRules(config) {
-        return this.withSubsystem('rules', Array.isArray(config) ? config : config);
+        return this.withSubsystem('rules', config);
     }
 
     withTools(config = true) {
@@ -187,7 +189,9 @@ export class AgentBuilder {
     }
 
     _setupLM(agent) {
-        if (!agent.lm) return;
+        if (!agent.lm) {
+            return;
+        }
 
         const config = new LMConfig();
         const providerType = this.config.lm.provider || 'ollama';

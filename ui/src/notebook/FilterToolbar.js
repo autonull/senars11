@@ -146,8 +146,8 @@ export class FilterToolbar {
             if (mode) {
                 const isActive = mode === this.currentView;
                 Object.assign(btn.style, this.getViewBtnStyle(mode)); // Re-apply full style object
-                if (isActive) btn.classList.add('active');
-                else btn.classList.remove('active');
+                if (isActive) {btn.classList.add('active');}
+                else {btn.classList.remove('active');}
             }
         });
     }
@@ -175,7 +175,7 @@ export class FilterToolbar {
     }
 
     refresh() {
-        if (!this.element) return;
+        if (!this.element) {return;}
         this.buttons.forEach((btn, id) => {
             this.updateButtonStyle(btn, id, this.messageFilter.getCategoryMode(id));
         });

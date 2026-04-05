@@ -26,7 +26,7 @@ export const createInteractiveClarificationRule = (dependencies) => {
         priority: 0.8,
 
         condition: (primaryPremise, secondaryPremise, context) => {
-            if (!primaryPremise) return false;
+            if (!primaryPremise) {return false;}
 
             const termStr = primaryPremise.term?.toString?.() ?? String(primaryPremise.term ?? '');
             const isGoalOrQuestion = isGoal(primaryPremise) || isQuestion(primaryPremise);
@@ -46,16 +46,16 @@ Frame the questions to elicit concrete information. Provide only the questions.`
         },
 
         process: (lmResponse) => {
-            if (!lmResponse) return [];
+            if (!lmResponse) {return [];}
             const questions = parseSubGoals(lmResponse);
             return questions.filter(q => q.endsWith('?'));
         },
 
         generate: (processedOutput, primaryPremise, secondaryPremise, context) => {
-            if (!processedOutput || processedOutput.length === 0) return [];
+            if (!processedOutput || processedOutput.length === 0) {return [];}
 
             const termFactory = context?.termFactory ?? dependencies.termFactory;
-            if (!termFactory) return [];
+            if (!termFactory) {return [];}
 
             return processedOutput.map(question => {
                 const term = termFactory.atomic(question);

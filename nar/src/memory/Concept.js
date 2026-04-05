@@ -60,13 +60,13 @@ export class Concept extends BaseComponent {
     }
 
     get averagePriority() {
-        if (!this.totalTasks) return 0;
+        if (!this.totalTasks) {return 0;}
         return this._bags.reduce((sum, bag) => sum + (bag.getAveragePriority() * bag.size), 0) / this.totalTasks;
     }
 
     _getStorage(taskType) {
         const storage = this._storage[taskType];
-        if (!storage) throw new Error(`Unknown task type: ${taskType}`);
+        if (!storage) {throw new Error(`Unknown task type: ${taskType}`);}
         return storage;
     }
 
@@ -99,7 +99,7 @@ export class Concept extends BaseComponent {
     getTask(taskId) {
         for (const bag of this._bags) {
             const task = bag.find(t => t.stamp.id === taskId);
-            if (task) return task;
+            if (task) {return task;}
         }
         return null;
     }
@@ -119,7 +119,7 @@ export class Concept extends BaseComponent {
 
     removeTask(task) {
         const removed = this._getStorage(task.type).remove(task);
-        if (removed) this._updateActivity();
+        if (removed) {this._updateActivity();}
         return removed || false;
     }
 
@@ -196,7 +196,7 @@ export class Concept extends BaseComponent {
 
     async deserialize(data) {
         try {
-            if (!data) throw new Error('Invalid concept data');
+            if (!data) {throw new Error('Invalid concept data');}
 
             this._createdAt = data.createdAt || Date.now();
             this._lastAccessed = data.lastAccessed || Date.now();
@@ -204,7 +204,7 @@ export class Concept extends BaseComponent {
             this._useCount = data.useCount || 0;
             this._quality = data.quality || 0;
 
-            if (data.config) this.configure(data.config);
+            if (data.config) {this.configure(data.config);}
 
             const map = {
                 beliefs: this.beliefs,

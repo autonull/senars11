@@ -1,11 +1,15 @@
 import {Knowledge} from './Knowledge.js';
 
 let dfd = null;
+
 async function loadDanfojs() {
     if (!dfd) {
         // Allow test mocks to override
-        if (globalThis.__mockDanfojs) dfd = globalThis.__mockDanfojs;
-        else dfd = await import('danfojs');
+        if (globalThis.__mockDanfojs) {
+            dfd = globalThis.__mockDanfojs;
+        } else {
+            dfd = await import('danfojs');
+        }
     }
     return dfd;
 }
@@ -42,10 +46,16 @@ export class DataTableKnowledge extends Knowledge {
     }
 
     async processData() {
-        if (!this.df) await this.initDataTable(this.data);
+        if (!this.df) {
+            await this.initDataTable(this.data);
+        }
         let processedDf = this.df;
-        if (this.options.handleMissingValues) processedDf = processedDf?.dropna?.();
-        if (this.options.removeDuplicates) processedDf = processedDf?.dropDuplicates?.();
+        if (this.options.handleMissingValues) {
+            processedDf = processedDf?.dropna?.();
+        }
+        if (this.options.removeDuplicates) {
+            processedDf = processedDf?.dropDuplicates?.();
+        }
         this.df = processedDf;
         return this.df;
     }
@@ -57,7 +67,9 @@ export class DataTableKnowledge extends Knowledge {
     }
 
     async toTasks() {
-        if (!this.df) await this.processData();
+        if (!this.df) {
+            await this.processData();
+        }
         const rows = this.df?.values || [];
         const cols = this.df?.columns || [];
 
@@ -80,7 +92,9 @@ export class DataTableKnowledge extends Knowledge {
     }
 
     async getItems() {
-        if (!this.df) await this.processData();
+        if (!this.df) {
+            await this.processData();
+        }
         const rows = this.df?.values || [];
         const cols = this.df?.columns || [];
 
@@ -88,7 +102,9 @@ export class DataTableKnowledge extends Knowledge {
     }
 
     async getSummary() {
-        if (!this.df) await this.processData();
+        if (!this.df) {
+            await this.processData();
+        }
         const shape = this.df?.shape || [0, 0];
         const allCols = this.df?.columns || [];
 
@@ -112,7 +128,9 @@ export class DataTableKnowledge extends Knowledge {
         const statsPromises = numericCols.map(async col => {
             try {
                 const colData = this.df?.column?.(col);
-                if (!colData) return null;
+                if (!colData) {
+                    return null;
+                }
 
                 const [mean, std, min, max] = await Promise.all([
                     colData.mean?.(),
@@ -140,7 +158,9 @@ export class DataTableKnowledge extends Knowledge {
 
         const results = await Promise.all(statsPromises);
         results.forEach(res => {
-            if (res) summary.statistics[res.col] = res.stats;
+            if (res) {
+                summary.statistics[res.col] = res.stats;
+            }
         });
 
         return summary;
@@ -151,7 +171,9 @@ export class DataTableKnowledge extends Knowledge {
     }
 
     async describe() {
-        if (!this.df) await this.processData();
+        if (!this.df) {
+            await this.processData();
+        }
         return await this.df?.describe?.();
     }
 }

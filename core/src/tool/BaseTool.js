@@ -4,7 +4,7 @@
 
 import {ExecutionTracker} from '../util/ExecutionTracker.js';
 import {executeGuarded} from '../util/guard.js';
-import {validateJsonSchema} from '../util/InputValidator.js';
+import {validateJsonSchema} from '../util/index.js';
 
 export class BaseTool {
     constructor(config = {}) {

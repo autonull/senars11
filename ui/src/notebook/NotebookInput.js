@@ -220,14 +220,14 @@ export class NotebookInput {
             if (nextVal !== null) {
                 e.preventDefault();
                 this.inputBox.setValue(nextVal);
-                if (isUp) this.inputBox.setSelectionRange(0, 0);
+                if (isUp) {this.inputBox.setSelectionRange(0, 0);}
             }
         }
     }
 
     execute() {
         const content = this.inputBox.getValue().trim();
-        if (!content) return;
+        if (!content) {return;}
         this.history.add(content);
         this.onExecute(content);
         this.inputBox.setValue('');
@@ -239,7 +239,7 @@ export class NotebookInput {
     }
 
     setValue(value) {
-        if (this.inputBox) this.inputBox.setValue(value);
+        if (this.inputBox) {this.inputBox.setValue(value);}
     }
 
     focus() {

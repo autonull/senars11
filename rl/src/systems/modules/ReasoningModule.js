@@ -24,12 +24,12 @@ export class ReasoningModule extends CognitiveModule {
         symbols.forEach((value, key) => {
             const existing = this.beliefs.get(key);
             if (existing) { existing.confidence = (existing.confidence + value.confidence) / 2; existing.timestamp = now; }
-            else this.beliefs.set(key, { ...value, timestamp: now });
+            else {this.beliefs.set(key, { ...value, timestamp: now });}
         });
         this.beliefs.forEach((belief, key) => {
             const age = now - belief.timestamp;
             belief.confidence *= Math.exp(-age / 3600000);
-            if (belief.confidence < 0.1) this.beliefs.delete(key);
+            if (belief.confidence < 0.1) {this.beliefs.delete(key);}
         });
     }
     async performInference(context) {
@@ -60,11 +60,11 @@ export class ReasoningModule extends CognitiveModule {
     combineBeliefs(b1, b2) { return { confidence: (b1.confidence + b2.confidence) / 2, value: b1.value + b2.value, timestamp: Date.now() }; }
     analyzeCausally(symbols) {
         const graph = this.config.reasoningEngine?.graph;
-        if (!graph) return null;
+        if (!graph) {return null;}
         const analysis = {};
         symbols.forEach((symbol, key) => {
             const effect = graph.computeCausalEffect?.(key, symbol.value);
-            if (effect) analysis[key] = effect;
+            if (effect) {analysis[key] = effect;}
         });
         return analysis;
     }

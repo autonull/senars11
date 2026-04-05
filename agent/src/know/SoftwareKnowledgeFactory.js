@@ -1,9 +1,8 @@
-import { KnowledgeFactory } from './KnowledgeFactory.js';
+import {KnowledgeFactory} from './KnowledgeFactory.js';
 import {
     DependencyGraphKnowledge,
     DirectoryStructureKnowledge,
     FileAnalysisKnowledge,
-    FlexibleDataTableKnowledge,
     TestResultKnowledge
 } from './SoftwareKnowledge.js';
 
@@ -13,7 +12,9 @@ export class SoftwareKnowledgeFactory {
     }
 
     static autoDetectSelfAnalysisKnowledge(data, name = '', options = {}) {
-        if (!data) return null;
+        if (!data) {
+            return null;
+        }
 
         if (data.fileDetails || (data.fileAnalysis && Array.isArray(data.fileAnalysis))) {
             return new FileAnalysisKnowledge(data, options);

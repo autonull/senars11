@@ -26,7 +26,7 @@ export class PathTrie {
     }
 
     *_atomPath(atom, forInsert = true) {
-        if (!atom) return;
+        if (!atom) {return;}
 
         if (isVariable(atom)) {
             yield forInsert ? '$VAR' : atom.name;
@@ -34,32 +34,32 @@ export class PathTrie {
             yield atom.operator?.name ?? atom.operator ?? '()';
             const comps = atom.components ?? [];
             yield comps.length;
-            for (const comp of comps) yield* this._atomPath(comp, forInsert);
+            for (const comp of comps) {yield* this._atomPath(comp, forInsert);}
         } else {
             yield atom.name ?? atom;
         }
     }
 
     _quickMatch(pattern, atom) {
-        if (!pattern || !atom) return false;
+        if (!pattern || !atom) {return false;}
 
         const patternIsVar = isVariable(pattern);
         const atomIsVar = isVariable(atom);
 
-        if (patternIsVar) return true;
-        if (atomIsVar) return false;
+        if (patternIsVar) {return true;}
+        if (atomIsVar) {return false;}
 
         if (isExpression(pattern) && isExpression(atom)) {
             const pOp = pattern.operator?.name ?? pattern.operator;
             const aOp = atom.operator?.name ?? atom.operator;
-            if (pOp !== aOp) return false;
+            if (pOp !== aOp) {return false;}
 
             const pComps = pattern.components ?? [];
             const aComps = atom.components ?? [];
-            if (pComps.length !== aComps.length) return false;
+            if (pComps.length !== aComps.length) {return false;}
 
             for (let i = 0; i < pComps.length; i++) {
-                if (!this._quickMatch(pComps[i], aComps[i])) return false;
+                if (!this._quickMatch(pComps[i], aComps[i])) {return false;}
             }
             return true;
         }
@@ -84,7 +84,7 @@ export class PathTrie {
                 curr.children.set(token, new TrieNode());
             }
             curr = curr.children.get(token);
-            if (token === '$VAR') curr.hasVariableChild = true;
+            if (token === '$VAR') {curr.hasVariableChild = true;}
         }
 
         curr.isLeaf = true;
@@ -101,7 +101,7 @@ export class PathTrie {
         if (this._useLinearScan) {
             return this.rules.filter(rule => {
                 const match = this._quickMatch(rule.pattern, atom);
-                if (match) this.stats.hits++;
+                if (match) {this.stats.hits++;}
                 return match;
             });
         }
@@ -119,12 +119,12 @@ export class PathTrie {
             }
 
             const token = path[depth];
-            if (node.children.has(token)) traverse(node.children.get(token), depth + 1);
-            if (node.children.has('$VAR')) traverse(node.children.get('$VAR'), depth + 1);
+            if (node.children.has(token)) {traverse(node.children.get(token), depth + 1);}
+            if (node.children.has('$VAR')) {traverse(node.children.get('$VAR'), depth + 1);}
 
             if (typeof token === 'string' && token.startsWith('$')) {
                 for (const [key, childNode] of node.children.entries()) {
-                    if (key !== '$VAR') traverse(childNode, depth + 1);
+                    if (key !== '$VAR') {traverse(childNode, depth + 1);}
                 }
             }
         };
@@ -139,7 +139,7 @@ export class PathTrie {
 
         queueMicrotask(() => {
             const compressNode = (node) => {
-                for (const child of node.children.values()) compressNode(child);
+                for (const child of node.children.values()) {compressNode(child);}
             };
             compressNode(this.root);
         });

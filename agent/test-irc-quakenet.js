@@ -4,8 +4,8 @@
  * IRC Test - Connect to irc.quakenet.org ##metta
  */
 
-import { IRCChannel } from './src/io/channels/IRCChannel.js';
-import { Logger } from '@senars/core';
+import {IRCChannel} from './src/io/index.js';
+import {Logger} from '@senars/core';
 
 async function main() {
     Logger.info('🔌 Testing IRC connection to irc.quakenet.org ##metta...');
@@ -87,11 +87,11 @@ async function main() {
     });
 
     try {
-        channel.connect();
-        
+        await channel.connect();
+
         // Wait for connection
         await connectionPromise;
-        
+
         Logger.info('⏳ Waiting for messages (Ctrl+C to exit, or will exit after 30 seconds)...');
 
         // Keep alive for 30 seconds to test and listen for responses

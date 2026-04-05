@@ -17,7 +17,7 @@ export class ActionModule extends CognitiveModule {
         else { action = await this.explore(state); source = 'explore'; }
         this.lastAction = action;
         this.actionHistory.push({ action, timestamp: Date.now() });
-        if (this.actionHistory.length > this.config.actionHistoryLimit) this.actionHistory.shift();
+        if (this.actionHistory.length > this.config.actionHistoryLimit) {this.actionHistory.shift();}
         return { action, source };
     }
     async selectFromPolicy(policy, state) { return typeof policy.act === 'function' ? policy.act(state) : policy(state); }

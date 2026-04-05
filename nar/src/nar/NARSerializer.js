@@ -25,12 +25,12 @@ export class NARSerializer {
 
     async deserialize(state) {
         try {
-            if (this.#nar._isRunning) this.#nar.stop();
-            if (state.config) this.#nar._configManager = new ConfigManager(state.config);
+            if (this.#nar._isRunning) {this.#nar.stop();}
+            if (state.config) {this.#nar._configManager = new ConfigManager(state.config);}
 
             await this._deserializeComponents(state);
 
-            if (state.isRunning !== undefined) this.#nar._isRunning = state.isRunning;
+            if (state.isRunning !== undefined) {this.#nar._isRunning = state.isRunning;}
 
             await this._reinitializeAfterDeserialization(state);
 

@@ -1,4 +1,4 @@
-import { join } from 'path';
+import {join} from 'path';
 
 export const fallbackAgentDir = () =>
     typeof global !== 'undefined' && global.__dirname && global.__dirname.includes('agent')
@@ -16,6 +16,9 @@ export const fallbackSafetyDir = () =>
         : process.cwd();
 
 export const resolveWithFallback = (resolveFn, fallbackFn) => {
-    try { return resolveFn(); }
-    catch { return fallbackFn(); }
+    try {
+        return resolveFn();
+    } catch {
+        return fallbackFn();
+    }
 };

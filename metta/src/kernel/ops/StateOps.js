@@ -8,7 +8,7 @@ const error = (msg, ...args) => exp(sym('Error'), args.length ? args : [sym(msg)
 const getStateId = atom => atom.components?.[0]?.name;
 const isStateAtom = atom => atom.operator?.name === 'State';
 const validateState = atom => {
-    if (!isStateAtom(atom)) return error('NotAState', atom);
+    if (!isStateAtom(atom)) {return error('NotAState', atom);}
     const id = getStateId(atom);
     const state = stateRegistry.get(id);
     return state ? null : error('StateNotFound', atom);
@@ -23,13 +23,13 @@ export function registerStateOps(registry) {
 
     registry.register('get-state', stateAtom => {
         const err = validateState(stateAtom);
-        if (err) return err;
+        if (err) {return err;}
         return stateRegistry.get(getStateId(stateAtom)).value;
     });
 
     registry.register('change-state!', (stateAtom, newValue) => {
         const err = validateState(stateAtom);
-        if (err) return err;
+        if (err) {return err;}
         const state = stateRegistry.get(getStateId(stateAtom));
         state.value = newValue;
         state.version++;
@@ -39,7 +39,7 @@ export function registerStateOps(registry) {
     registry.register('with-transaction', (stateAtom, operation) => {
         const id = getStateId(stateAtom);
         const state = stateRegistry.get(id);
-        if (!state) return error('StateNotFound', stateAtom);
+        if (!state) {return error('StateNotFound', stateAtom);}
 
         const snapshot = { ...state };
         try {
@@ -74,9 +74,9 @@ export function registerConfigOps(registry, configManager) {
     if (value === undefined) {
       return exp(sym('Error'), [sym('ConfigNotFound'), sym(key)]);
     }
-    if (typeof value === 'boolean') return sym(value ? 'True' : 'False');
-    if (typeof value === 'number') return sym(String(value));
-    if (typeof value === 'string') return sym(value);
+    if (typeof value === 'boolean') {return sym(value ? 'True' : 'False');}
+    if (typeof value === 'number') {return sym(String(value));}
+    if (typeof value === 'string') {return sym(value);}
     return sym(String(value));
   });
 
@@ -86,9 +86,9 @@ export function registerConfigOps(registry, configManager) {
     let value = typeof valueAtom === 'string' ? valueAtom.name : valueAtom;
     
     // Convert common patterns
-    if (value === 'True') value = true;
-    else if (value === 'False') value = false;
-    else if (!isNaN(Number(value))) value = Number(value);
+    if (value === 'True') {value = true;}
+    else if (value === 'False') {value = false;}
+    else if (!isNaN(Number(value))) {value = Number(value);}
     
     try {
       configManager.set(key, value);

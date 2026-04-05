@@ -82,7 +82,7 @@ export class MetaController extends Component {
 
     async _proposeModification(currentImprovement) {
         const candidate = this._selectOperator(currentImprovement);
-        if (!candidate) return { success: false, reason: 'No suitable operator' };
+        if (!candidate) {return { success: false, reason: 'No suitable operator' };}
         this.metrics.increment('modificationsProposed');
         const result = await candidate.apply(this.currentArchitecture);
         if (result.success) {
@@ -102,13 +102,13 @@ export class MetaController extends Component {
         const available = this.operatorPool.filter(op =>
             !this.failedOperators.some(f => f.type === op.type && JSON.stringify(f.parameters) === JSON.stringify(op.parameters))
         );
-        if (available.length === 0) return null;
+        if (available.length === 0) {return null;}
         const weights = available.map(op => op.priority * (TypeMultipliers[op.type] ?? 1.0) * (currentImprovement < 0 ? 1.5 : 1.0));
         const totalWeight = weights.reduce((a, b) => a + b, 0);
         let random = Math.random() * totalWeight;
         for (let i = 0; i < available.length; i++) {
             random -= weights[i];
-            if (random <= 0) return available[i];
+            if (random <= 0) {return available[i];}
         }
         return available[available.length - 1];
     }
@@ -123,20 +123,20 @@ export class MetaController extends Component {
                 await this.evaluatePerformance(performance);
             }
             evolutionLog.push({ generation: gen, metrics: this.metrics.getAll() });
-            if (this.noImprovementCount >= this.config.patience * 2) break;
+            if (this.noImprovementCount >= this.config.patience * 2) {break;}
         }
         return { finalMetrics: this.metrics.getAll(), generations: this.generation, log: evolutionLog };
     }
 
     async imagineArchitectures(count = 5) {
-        if (!this.config.useImagination) return { architectures: [], reason: 'Imagination disabled' };
+        if (!this.config.useImagination) {return { architectures: [], reason: 'Imagination disabled' };}
         const imagined = [];
         for (let i = 0; i < count; i++) {
             const numModifications = Math.floor(Math.random() * 3) + 1;
             const modifications = [];
             for (let j = 0; j < numModifications; j++) {
                 const operator = this._selectOperator(0);
-                if (operator) modifications.push(operator);
+                if (operator) {modifications.push(operator);}
             }
             imagined.push({ id: `imagined_${Date.now()}_${i}`, modifications, horizon: this.config.imaginationHorizon });
         }

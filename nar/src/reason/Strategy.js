@@ -96,7 +96,7 @@ export class Strategy {
             // Phase 1: Collect candidates from formation strategies
             if (this.formationStrategies.length > 0) {
                 for (const strategy of this.formationStrategies) {
-                    if (!strategy.enabled) continue;
+                    if (!strategy.enabled) {continue;}
 
                     try {
                         for await (const candidate of strategy.generateCandidates(primaryPremise, context)) {

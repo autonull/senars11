@@ -12,13 +12,13 @@ export class GraphRenderer {
     set cy(val) { this._cy = val; }
 
     setLayout(name) {
-        if (!this._cy) return;
+        if (!this._cy) {return;}
         this.currentLayout = name;
         return Config.getGraphLayout(name);
     }
 
     applyScatterLayout(xAxis = 'priority', yAxis = 'confidence') {
-        if (!this._cy) return;
+        if (!this._cy) {return;}
         this.currentLayout = 'scatter';
         const nodes = this._cy.nodes();
         const width = this._cy.width() * 0.8;
@@ -47,7 +47,7 @@ export class GraphRenderer {
     }
 
     applySortedGridLayout(sortField = 'priority') {
-        if (!this._cy) return;
+        if (!this._cy) {return;}
         this.currentLayout = 'sorted-grid';
         const nodes = this._cy.nodes().sort((a, b) => {
             const d = n => n.data('fullData') || {};
@@ -58,7 +58,7 @@ export class GraphRenderer {
     }
 
     scheduleLayout(runLayoutFn) {
-        if (this._layoutTimeout) clearTimeout(this._layoutTimeout);
+        if (this._layoutTimeout) {clearTimeout(this._layoutTimeout);}
         this._layoutTimeout = setTimeout(() => {
             if (this._cy && this.currentLayout !== 'scatter' && this.currentLayout !== 'sorted-grid') {
                 const baseOpts = Config.getGraphLayout(this.currentLayout || 'fcose');
@@ -80,7 +80,7 @@ export class GraphRenderer {
 
     animateUpdate(nodeId) {
         const node = this._cy?.getElementById(nodeId);
-        if (!node?.length) return;
+        if (!node?.length) {return;}
         node.animation({
             style: { 'border-width': 6, 'border-color': '#00ff9d' },
             duration: 100
@@ -90,7 +90,7 @@ export class GraphRenderer {
     }
 
     animateReasoning(sourceId, targetId, derivedId, ruleType = 'Inference', visSettings) {
-        if (!this._cy || !visSettings.showDerivations) return;
+        if (!this._cy || !visSettings.showDerivations) {return;}
         const duration = 1000 / (visSettings.edgeSpeed || 1);
         const color = visSettings.colorCodeRules
             ? (visSettings.inferenceTypeColors[ruleType] || visSettings.inferenceTypeColors['Inference'])
@@ -143,14 +143,14 @@ export class GraphRenderer {
     }
 
     animateAttention(nodeId) {
-        if (!this._cy) return;
+        if (!this._cy) {return;}
         const node = this._cy.getElementById(nodeId);
-        if (node.nonempty()) node.flashClass('attention-active', 500);
+        if (node.nonempty()) {node.flashClass('attention-active', 500);}
     }
 
     animateFadeIn(nodeId) {
         const node = this._cy?.getElementById(nodeId);
-        if (!node?.length) return;
+        if (!node?.length) {return;}
         node.style('opacity', 0);
         node.animation({ style: { 'opacity': 1 }, duration: 500 });
     }
@@ -172,7 +172,7 @@ export class GraphRenderer {
 
     calculateNodeWeight(priority, term) {
         let weight = (priority * 50) + 20;
-        if (term) weight += this._autoLearner.getConceptModifier(term);
+        if (term) {weight += this._autoLearner.getConceptModifier(term);}
         return Math.min(Math.max(weight, 10), 100);
     }
 }

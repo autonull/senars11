@@ -39,8 +39,8 @@ export class ReasoningSystem extends Component {
 
     async learn(cause, effect, context = {}) {
         const { action, reward } = context;
-        if (!this.graph.nodes.has(cause)) this.graph.addNode(cause);
-        if (!this.graph.nodes.has(effect)) this.graph.addNode(effect);
+        if (!this.graph.nodes.has(cause)) {this.graph.addNode(cause);}
+        if (!this.graph.nodes.has(effect)) {this.graph.addNode(effect);}
 
         const strength = reward > 0 ? 0.8 : 0.3;
         this.graph.addEdge(cause, effect, strength);
@@ -65,7 +65,7 @@ export class ReasoningSystem extends Component {
 
     queryCauses(effect) {
         const effectNode = this.graph.nodes.get(effect);
-        if (!effectNode) return [];
+        if (!effectNode) {return [];}
 
         return Array.from(effectNode.parents).map(parentId => {
             const edge = this.graph.getEdge(parentId, effect);
@@ -76,7 +76,7 @@ export class ReasoningSystem extends Component {
 
     queryEffects(cause) {
         const causeNode = this.graph.nodes.get(cause);
-        if (!causeNode) return [];
+        if (!causeNode) {return [];}
         return Array.from(causeNode.children).map(childId => ({ effect: childId, strength: this.graph.getEdge(cause, childId)?.strength ?? 0 }));
     }
 

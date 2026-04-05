@@ -82,7 +82,7 @@ function createFunctionOp(interpreter) {
                 return reduced.components[0] || sym('()');
             }
 
-            if (!applied || reduced === curr || reduced.equals?.(curr)) break;
+            if (!applied || reduced === curr || reduced.equals?.(curr)) {break;}
             curr = reduced;
         }
 
@@ -148,8 +148,8 @@ function createCollapseOp(interpreter) {
 
 const extractElements = (atom) => {
     const { isList, flattenList, isExpression } = Term;
-    if (isList(atom)) return flattenList(atom).elements;
-    if (isExpression(atom)) return [atom.operator, ...atom.components];
+    if (isList(atom)) {return flattenList(atom).elements;}
+    if (isExpression(atom)) {return [atom.operator, ...atom.components];}
     return [atom];
 };
 
@@ -165,7 +165,7 @@ function createSuperposeOp(interpreter) {
         if (elements.length === 0 || (elements.length === 1 && elements[0].name === '()')) {
             return exp(sym('superpose-internal'), [sym('()')]);
         }
-        if (elements.length === 1) return elements[0];
+        if (elements.length === 1) {return elements[0];}
         return exp(sym('superpose-internal'), elements);
     };
 }
@@ -185,7 +185,7 @@ function createSuperposeWeightedOp(interpreter) {
         let random = Math.random() * totalWeight;
         for (const { weight, value } of weighted) {
             random -= weight;
-            if (random <= 0) return value;
+            if (random <= 0) {return value;}
         }
         return weighted[weighted.length - 1].value;
     };
@@ -201,7 +201,7 @@ function createCollapseNOp(interpreter) {
         const gen = reduceNDGenerator(atom, interpreter.space, interpreter.ground);
         for (let i = 0; i < limit; i++) {
             const { value, done } = gen.next();
-            if (done) break;
+            if (done) {break;}
             results.push(value);
         }
         return interpreter._listify(results);

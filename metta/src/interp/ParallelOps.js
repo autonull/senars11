@@ -15,7 +15,7 @@ export function registerParallelOps(interpreter) {
         let list = listRaw;
         if (listRaw) {
             const evalRes = await interpreter.evaluateAsync(listRaw);
-            if (evalRes && evalRes.length > 0) list = evalRes[0];
+            if (evalRes && evalRes.length > 0) {list = evalRes[0];}
         }
 
         const flattener = interpreter.ground._flattenExpr ? interpreter.ground : interpreter;

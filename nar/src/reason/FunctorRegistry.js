@@ -110,7 +110,7 @@ export class FunctorRegistry {
             description: 'Logical OR',
             category: 'logical'
         });
-        this.registerFunctorDynamic('not', a => !Boolean(a), {
+        this.registerFunctorDynamic('not', a => !a, {
             arity: 1,
             description: 'Logical NOT',
             category: 'logical'
@@ -256,7 +256,7 @@ export class FunctorRegistry {
      */
     getFunctorProperties(name) {
         const functor = this.get(name);
-        if (!functor) return null;
+        if (!functor) {return null;}
 
         return {
             name: functor.name,

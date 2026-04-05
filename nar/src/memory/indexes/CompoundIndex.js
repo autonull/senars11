@@ -83,9 +83,9 @@ export class CompoundIndex extends BaseIndex {
 
     _removeFromIndex(index, key, concept) {
         const concepts = index.get(key);
-        if (!concepts?.size) return;
+        if (!concepts?.size) {return;}
         concepts.delete(concept);
-        if (concepts.size === 0) index.delete(key);
+        if (concepts.size === 0) {index.delete(key);}
     }
 
     find(filters = {}) {
@@ -99,16 +99,16 @@ export class CompoundIndex extends BaseIndex {
         ].filter(Boolean);
 
         for (const matches of filterSets) {
-            if (matches.size === 0) return [];
+            if (matches.size === 0) {return [];}
             candidates = candidates ? this._intersectSets(candidates, matches) : new Set(matches);
-            if (candidates.size === 0) return [];
+            if (candidates.size === 0) {return [];}
         }
 
         if (minComplexity !== undefined || maxComplexity !== undefined) {
             const matches = this._getConceptsByComplexityRange(minComplexity, maxComplexity);
-            if (matches.length === 0) return [];
+            if (matches.length === 0) {return [];}
             candidates = candidates ? this._intersectSetWithArray(candidates, matches) : new Set(matches);
-            if (candidates.size === 0) return [];
+            if (candidates.size === 0) {return [];}
         }
 
         return candidates ? Array.from(candidates) : this.getAll();
@@ -116,14 +116,14 @@ export class CompoundIndex extends BaseIndex {
 
     _intersectSets(a, b) {
         const result = new Set();
-        for (const item of a) if (b.has(item)) result.add(item);
+        for (const item of a) {if (b.has(item)) {result.add(item);}}
         return result;
     }
 
     _intersectSetWithArray(set, arr) {
         const arrSet = new Set(arr);
         const result = new Set();
-        for (const item of set) if (arrSet.has(item)) result.add(item);
+        for (const item of set) {if (arrSet.has(item)) {result.add(item);}}
         return result;
     }
 

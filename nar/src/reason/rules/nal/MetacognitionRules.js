@@ -21,10 +21,10 @@ export class AdjustCacheSizeRule extends Rule {
     }
 
     apply(primaryPremise, secondaryPremise, context = {}) {
-        if (!this.canApply(primaryPremise, secondaryPremise, context)) return [];
+        if (!this.canApply(primaryPremise, secondaryPremise, context)) {return [];}
 
         try {
-            const termFactory = context.termFactory;
+            const {termFactory} = context;
             if (termFactory?.getCacheSize) {
                 const newCacheSize = Math.floor(termFactory.getCacheSize() * 1.2);
 

@@ -2,9 +2,15 @@ import {Logger} from '@senars/core';
 
 export class TruthValueUtils {
     static normalizeMetric(value, min, max) {
-        if (value < min) return 0;
-        if (value > max) return 1;
-        if (max === min) return 0.5;
+        if (value < min) {
+            return 0;
+        }
+        if (value > max) {
+            return 1;
+        }
+        if (max === min) {
+            return 0.5;
+        }
         return (value - min) / (max - min);
     }
 
@@ -78,7 +84,9 @@ const DEFAULT_TEMPLATES = Object.freeze({
 });
 
 function _formatTruthValue(truth) {
-    if (!truth) return '. %1.00;0.90%';
+    if (!truth) {
+        return '. %1.00;0.90%';
+    }
 
     if (typeof truth === 'number') {
         return `. ${TruthValueUtils.createTruthValue(truth, 0.9)}`;

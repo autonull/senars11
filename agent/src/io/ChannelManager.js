@@ -3,8 +3,7 @@
  * Superseded by EmbodimentBus per METTACLAW §15.
  * Registration, message routing, and salience calculation live in EmbodimentBus.
  */
-import { EventEmitter } from 'events';
-import { Logger } from '@senars/core';
+import {EventEmitter} from 'events';
 
 export class ChannelManager extends EventEmitter {
     constructor(config = {}, bus) {
@@ -31,7 +30,9 @@ export class ChannelManager extends EventEmitter {
 
     async sendMessage(channelId, target, content, metadata = {}) {
         const emb = this.bus.get(channelId);
-        if (emb?.status !== 'connected') throw new Error(`Embodiment ${channelId} not connected`);
+        if (emb?.status !== 'connected') {
+            throw new Error(`Embodiment ${channelId} not connected`);
+        }
         return emb.sendMessage(target, content, metadata);
     }
 
@@ -44,6 +45,6 @@ export class ChannelManager extends EventEmitter {
     }
 
     getRateLimitStats() {
-        return this.bus._stats ?? { totalMessages: 0, messagesByEmbodiment: {}, lastMessageTime: null };
+        return this.bus._stats ?? {totalMessages: 0, messagesByEmbodiment: {}, lastMessageTime: null};
     }
 }

@@ -1,4 +1,4 @@
-import { Logger } from '@senars/core';
+import {Logger} from '@senars/core';
 
 export class PerChannelRateLimiter {
     constructor(config = {}) {
@@ -9,27 +9,35 @@ export class PerChannelRateLimiter {
         this.channelBuckets = new Map();
         this.globalTokens = this.globalMax;
         this.globalLastRefill = Date.now();
-        this.stats = { totalMessages: 0, throttledMessages: 0, perChannel: new Map() };
+        this.stats = {totalMessages: 0, throttledMessages: 0, perChannel: new Map()};
     }
 
     _getBucket(channelId) {
         if (!this.channelBuckets.has(channelId)) {
-            this.channelBuckets.set(channelId, { tokens: this.maxTokens, lastRefill: Date.now() });
-            this.stats.perChannel.set(channelId, { messages: 0, throttled: 0 });
+            this.channelBuckets.set(channelId, {tokens: this.maxTokens, lastRefill: Date.now()});
+            this.stats.perChannel.set(channelId, {messages: 0, throttled: 0});
         }
         return this.channelBuckets.get(channelId);
     }
 
     _refillBucket(bucket) {
         const elapsed = Date.now() - bucket.lastRefill;
-        if (elapsed > this.refillInterval) { bucket.tokens = this.maxTokens; bucket.lastRefill = Date.now(); }
-        else bucket.tokens = Math.min(this.maxTokens, bucket.tokens + (elapsed / this.refillInterval) * this.maxTokens);
+        if (elapsed > this.refillInterval) {
+            bucket.tokens = this.maxTokens;
+            bucket.lastRefill = Date.now();
+        } else {
+            bucket.tokens = Math.min(this.maxTokens, bucket.tokens + (elapsed / this.refillInterval) * this.maxTokens);
+        }
     }
 
     _refillGlobal() {
         const elapsed = Date.now() - this.globalLastRefill;
-        if (elapsed > this.globalInterval) { this.globalTokens = this.globalMax; this.globalLastRefill = Date.now(); }
-        else this.globalTokens = Math.min(this.globalMax, this.globalTokens + (elapsed / this.globalInterval) * this.globalMax);
+        if (elapsed > this.globalInterval) {
+            this.globalTokens = this.globalMax;
+            this.globalLastRefill = Date.now();
+        } else {
+            this.globalTokens = Math.min(this.globalMax, this.globalTokens + (elapsed / this.globalInterval) * this.globalMax);
+        }
     }
 
     async acquire(channelId) {
@@ -39,32 +47,46 @@ export class PerChannelRateLimiter {
 
         if (this.globalTokens < 1) {
             this.stats.throttledMessages++;
-            return { allowed: false, waitTime: Math.max(100, this.globalInterval - (Date.now() - this.globalLastRefill)), reason: 'global_rate_limit' };
+            return {
+                allowed: false,
+                waitTime: Math.max(100, this.globalInterval - (Date.now() - this.globalLastRefill)),
+                reason: 'global_rate_limit'
+            };
         }
         if (bucket.tokens < 1) {
             this.stats.throttledMessages++;
             const channelStats = this.stats.perChannel.get(channelId);
-            if (channelStats) channelStats.throttled++;
-            return { allowed: false, waitTime: Math.max(100, this.refillInterval - (Date.now() - bucket.lastRefill)), reason: 'channel_rate_limit' };
+            if (channelStats) {
+                channelStats.throttled++;
+            }
+            return {
+                allowed: false,
+                waitTime: Math.max(100, this.refillInterval - (Date.now() - bucket.lastRefill)),
+                reason: 'channel_rate_limit'
+            };
         }
         this.globalTokens -= 1;
         bucket.tokens -= 1;
         this.stats.totalMessages++;
         const channelStats = this.stats.perChannel.get(channelId);
-        if (channelStats) channelStats.messages++;
-        return { allowed: true, waitTime: 0, remainingTokens: bucket.tokens, globalRemaining: this.globalTokens };
+        if (channelStats) {
+            channelStats.messages++;
+        }
+        return {allowed: true, waitTime: 0, remainingTokens: bucket.tokens, globalRemaining: this.globalTokens};
     }
 
     async wait(channelId) {
         let attempts = 0;
         while (attempts < 10) {
             const result = await this.acquire(channelId);
-            if (result.allowed) return result;
+            if (result.allowed) {
+                return result;
+            }
             await new Promise(resolve => setTimeout(resolve, result.waitTime));
             attempts++;
         }
         Logger.warn(`Rate limiter: ${channelId} waited too long, allowing message`);
-        return { allowed: true, waitTime: 0, forced: true };
+        return {allowed: true, waitTime: 0, forced: true};
     }
 
     getStats() {
@@ -75,9 +97,20 @@ export class PerChannelRateLimiter {
                 currentTokens: this.channelBuckets.get(channelId)?.tokens ?? 0
             };
         }
-        return { totalMessages: this.stats.totalMessages, throttledMessages: this.stats.throttledMessages, globalTokens: this.globalTokens, perChannel: perChannelStats };
+        return {
+            totalMessages: this.stats.totalMessages,
+            throttledMessages: this.stats.throttledMessages,
+            globalTokens: this.globalTokens,
+            perChannel: perChannelStats
+        };
     }
 
-    resetStats() { this.stats = { totalMessages: 0, throttledMessages: 0, perChannel: new Map() }; }
-    clearChannel(channelId) { this.channelBuckets.delete(channelId); this.stats.perChannel.delete(channelId); }
+    resetStats() {
+        this.stats = {totalMessages: 0, throttledMessages: 0, perChannel: new Map()};
+    }
+
+    clearChannel(channelId) {
+        this.channelBuckets.delete(channelId);
+        this.stats.perChannel.delete(channelId);
+    }
 }

@@ -24,7 +24,7 @@ export class RandomAgent extends Agent {
      * @returns {*} Random action from action space
      */
     act(observation) {
-        const actionSpace = this.env.actionSpace;
+        const {actionSpace} = this.env;
         if (actionSpace.type === 'Discrete') {
             return Math.floor(this._random() * actionSpace.n);
         }

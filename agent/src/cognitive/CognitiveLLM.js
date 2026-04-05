@@ -2,8 +2,8 @@
  * CognitiveLLM.js - LLM Interface for Cognitive Architecture
  * Delegates to the agent's AIClient (supports any provider: dummy, ollama, openai, etc.).
  */
-import { Logger } from '@senars/core';
-import { analyzeText, detectResponseType } from './TextAnalysis.js';
+import {Logger} from '@senars/core';
+import {analyzeText, detectResponseType} from './TextAnalysis.js';
 
 export class CognitiveLLM {
     constructor(agent, config = {}) {
@@ -17,13 +17,13 @@ export class CognitiveLLM {
         const prompt = this._buildReasoningPrompt(context);
         try {
             const result = await this.agent.ai.generate([
-                { role: 'system', content: this._getSystemPrompt() },
-                { role: 'user', content: prompt }
+                {role: 'system', content: this._getSystemPrompt()},
+                {role: 'user', content: prompt}
             ]);
-            return { response: result.text.trim(), type: detectResponseType(result.text), confidence: 0.8 };
+            return {response: result.text.trim(), type: detectResponseType(result.text), confidence: 0.8};
         } catch (error) {
             Logger.error('[CognitiveLLM] Reasoning error:', error.message);
-            return { response: "I'm processing that...", type: 'response', confidence: 0.3 };
+            return {response: "I'm processing that...", type: 'response', confidence: 0.3};
         }
     }
 
@@ -31,13 +31,13 @@ export class CognitiveLLM {
         const prompt = this._buildResponsePrompt(input, cognitiveState);
         try {
             const result = await this.agent.ai.generate([
-                { role: 'system', content: this._getSystemPrompt() },
-                { role: 'user', content: prompt }
-            ], { maxTokens: 200, temperature: 0.7 });
-            return { text: result.text.trim(), source: 'cognitive_llm' };
+                {role: 'system', content: this._getSystemPrompt()},
+                {role: 'user', content: prompt}
+            ], {maxTokens: 200, temperature: 0.7});
+            return {text: result.text.trim(), source: 'cognitive_llm'};
         } catch (error) {
             Logger.error('[CognitiveLLM] Generation error:', error.message);
-            return { text: this._fallbackResponse(input), source: 'fallback' };
+            return {text: this._fallbackResponse(input), source: 'fallback'};
         }
     }
 
@@ -45,11 +45,17 @@ export class CognitiveLLM {
         const prompt = `Analyze: "${text}"\nExtract: intent, entities, sentiment, topics.\nRespond as JSON.`;
         try {
             const result = await this.agent.ai.generate([
-                { role: 'system', content: 'You are a natural language understanding assistant. Respond in valid JSON.' },
-                { role: 'user', content: prompt }
+                {role: 'system', content: 'You are a natural language understanding assistant. Respond in valid JSON.'},
+                {role: 'user', content: prompt}
             ]);
-            try { return JSON.parse(result.text.trim()); } catch { return this._heuristicIntent(text); }
-        } catch { return analyzeText(text); }
+            try {
+                return JSON.parse(result.text.trim());
+            } catch {
+                return this._heuristicIntent(text);
+            }
+        } catch {
+            return analyzeText(text);
+        }
     }
 
     _getSystemPrompt() {

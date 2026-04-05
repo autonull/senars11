@@ -14,7 +14,7 @@ export class SkillModule extends CognitiveModule {
     }
     async process(input, context = {}) {
         const { state, extractSkills = false } = context;
-        if (extractSkills && context.episodes) await this.extractSkills(context.episodes);
+        if (extractSkills && context.episodes) {await this.extractSkills(context.episodes);}
         const selectedSkill = this.selectSkill(state);
         if (selectedSkill) {
             this.activeSkill = selectedSkill;
@@ -30,9 +30,9 @@ export class SkillModule extends CognitiveModule {
     }
     selectSkill(state) {
         const lib = this.config.skillLibrary;
-        if (!lib || !(lib instanceof Map)) return null;
+        if (!lib || !(lib instanceof Map)) {return null;}
         const applicable = Array.from(lib.values()).filter(skill => skill.precondition?.(state));
-        if (applicable.length === 0) return null;
+        if (applicable.length === 0) {return null;}
         applicable.sort((a, b) => (this.skillUsage.get(b.name) ?? 0) - (this.skillUsage.get(a.name) ?? 0));
         return applicable[0];
     }

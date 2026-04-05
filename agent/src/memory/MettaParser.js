@@ -18,12 +18,14 @@ export class MettaParser {
 
         for (const line of content.split('\n')) {
             const trimmed = line.trim();
-            if (!trimmed) continue;
+            if (!trimmed) {
+                continue;
+            }
 
             const startMatch = trimmed.match(/^\((\w+)/);
             if (startMatch) {
                 const prefix = startMatch[1];
-                current = { _type: prefix };
+                current = {_type: prefix};
                 currentKey = null;
                 inMultiline = false;
                 multilineBuffer = [];
@@ -42,7 +44,9 @@ export class MettaParser {
                 continue;
             }
 
-            if (!current) continue;
+            if (!current) {
+                continue;
+            }
 
             const match = trimmed.match(/^:(\w+)\s*(.*)$/);
             if (match) {
@@ -74,11 +78,15 @@ export class MettaParser {
         }
         if (key === 'truth') {
             const stvMatch = value.match(/\(stv\s+([\d.]+)\s+([\d.]+)\)/);
-            if (stvMatch) return { frequency: parseFloat(stvMatch[1]), confidence: parseFloat(stvMatch[2]) };
+            if (stvMatch) {
+                return {frequency: parseFloat(stvMatch[1]), confidence: parseFloat(stvMatch[2])};
+            }
         }
         if (['timestamp', 'id', 'cycle'].includes(key)) {
             const num = parseInt(value, 10);
-            if (!isNaN(num)) return num;
+            if (!isNaN(num)) {
+                return num;
+            }
         }
         return value.replace(/^"|"$/g, '').replace(/^:/, '');
     }
@@ -95,7 +103,9 @@ export function escapeQuotes(str) {
 export function toMettaAtom(type, fields) {
     const lines = [`(${type}`];
     for (const [key, value] of Object.entries(fields)) {
-        if (value === undefined || value === null) continue;
+        if (value === undefined || value === null) {
+            continue;
+        }
         let formatted;
         if (typeof value === 'number') {
             formatted = String(value);

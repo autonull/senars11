@@ -7,7 +7,7 @@ export class VariableInspector {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
         this.container.innerHTML = '';
 
         FluentUI.create('div')

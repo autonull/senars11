@@ -117,10 +117,10 @@ export class MetacognitiveMonitor {
 
     _getActiveComponents() {
         const components = {};
-        if (this.nar?.streamReasoner) components.streamReasoner = this.nar.streamReasoner.isRunning;
-        if (this.nar?.taskManager) components.taskManager = true;
-        if (this.nar?.memory) components.memory = true;
-        if (this.nar?.inferenceEngine) components.inferenceEngine = true;
+        if (this.nar?.streamReasoner) {components.streamReasoner = this.nar.streamReasoner.isRunning;}
+        if (this.nar?.taskManager) {components.taskManager = true;}
+        if (this.nar?.memory) {components.memory = true;}
+        if (this.nar?.inferenceEngine) {components.inferenceEngine = true;}
         return components;
     }
 
@@ -176,17 +176,17 @@ export class MetacognitiveMonitor {
     }
 
     _getPerformanceTrend() {
-        if (this.performanceHistory.length < 2) return 'insufficient_data';
+        if (this.performanceHistory.length < 2) {return 'insufficient_data';}
         const recent = this.performanceHistory.slice(-10);
         const avgThroughput = recent.reduce((sum, m) => sum + (m.throughput || 0), 0) / recent.length;
         const earlier = this.performanceHistory.slice(Math.max(0, this.performanceHistory.length - 20), -10);
-        if (earlier.length === 0) return avgThroughput > 0 ? 'improving' : 'declining';
+        if (earlier.length === 0) {return avgThroughput > 0 ? 'improving' : 'declining';}
         const avgEarlierThroughput = earlier.reduce((sum, m) => sum + (m.throughput || 0), 0) / earlier.length;
         return avgThroughput > avgEarlierThroughput ? 'improving' : avgThroughput < avgEarlierThroughput ? 'declining' : 'stable';
     }
 
     _getPerformanceAnalysis() {
-        if (this.performanceHistory.length === 0) return { status: 'no_data' };
+        if (this.performanceHistory.length === 0) {return { status: 'no_data' };}
         return {
             currentMetrics: this.performanceHistory[this.performanceHistory.length - 1],
             monitors: this._getPerformanceMonitors()

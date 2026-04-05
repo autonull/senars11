@@ -14,7 +14,7 @@ export class PathPlanner {
     }
 
     async plan(startState, goal) {
-        if (!this.bridge) return null;
+        if (!this.bridge) {return null;}
 
         const cacheKey = `${startState}_to_${goal}`;
         if (this.config.useCache && this.pathCache.has(cacheKey)) {

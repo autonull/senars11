@@ -15,7 +15,7 @@ export class MemoryModule extends CognitiveModule {
     }
     async process(input, context = {}) {
         const { query, store = true } = context;
-        if (store && input.experience) this.storeExperience(input.experience);
+        if (store && input.experience) {this.storeExperience(input.experience);}
         const retrieved = query ? await this.retrieve(query) : null;
         return { retrieved, workingMemory: new Map(this.workingMemory) };
     }
@@ -25,9 +25,9 @@ export class MemoryModule extends CognitiveModule {
     }
     extractTags(experience) {
         const tags = [];
-        if (experience.reward > 0) tags.push('positive');
-        if (experience.reward < 0) tags.push('negative');
-        if (experience.done) tags.push('terminal');
+        if (experience.reward > 0) {tags.push('positive');}
+        if (experience.reward < 0) {tags.push('negative');}
+        if (experience.done) {tags.push('terminal');}
         return tags;
     }
     async retrieve(query) {

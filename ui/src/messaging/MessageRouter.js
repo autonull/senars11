@@ -30,16 +30,16 @@ export class MessageRouter {
 
     _handleLMActivity(message) {
         const indicator = this.app.lmActivityIndicator;
-        if (!indicator) return;
+        if (!indicator) {return;}
 
-        if (message.type === 'lm:prompt:start') indicator.show();
-        if (message.type === 'lm:prompt:complete') indicator.hide();
-        if (message.type === 'lm:error') indicator.showError(message.payload?.error);
+        if (message.type === 'lm:prompt:start') {indicator.show();}
+        if (message.type === 'lm:prompt:complete') {indicator.hide();}
+        if (message.type === 'lm:error') {indicator.showError(message.payload?.error);}
     }
 
     _handleNotebook(message) {
         const notebook = this.app.getNotebook();
-        if (!notebook) return;
+        if (!notebook) {return;}
 
         switch (message.type) {
             case 'visualization':
@@ -86,7 +86,7 @@ export class MessageRouter {
 
         if (category !== 'unknown' && category !== 'metric') {
             let content = message.content || message.payload;
-            if (message.payload?.answer) content = message.payload.answer;
+            if (message.payload?.answer) {content = message.payload.answer;}
 
             if (content && typeof content === 'object') {
                 content = JSON.stringify(content);
@@ -107,14 +107,14 @@ export class MessageRouter {
 
             const graphComp = this.app.components.get('graph');
             if (graphComp) {
-                if (message.type === 'reasoning:concept') graphComp.graphManager?.updateGraph(message);
-                if (message.type === 'memory:focus:promote') graphComp.graphManager?.animateGlow(message.payload?.id || message.payload?.nodeId, 1.0);
-                if (message.type === 'concept.created') graphComp.graphManager?.animateFadeIn(message.payload?.id);
+                if (message.type === 'reasoning:concept') {graphComp.graphManager?.updateGraph(message);}
+                if (message.type === 'memory:focus:promote') {graphComp.graphManager?.animateGlow(message.payload?.id || message.payload?.nodeId, 1.0);}
+                if (message.type === 'concept.created') {graphComp.graphManager?.animateFadeIn(message.payload?.id);}
                 graphComp.update(message);
             }
 
             const memComp = this.app.components.get('memory');
-            if (message.type === 'memorySnapshot') memComp?.update(message.payload);
+            if (message.type === 'memorySnapshot') {memComp?.update(message.payload);}
 
             const derComp = this.app.components.get('derivation');
             if (message.type === 'reasoning:derivation') {

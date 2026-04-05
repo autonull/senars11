@@ -21,13 +21,13 @@ export class Focus extends BaseComponent {
     }
 
     createFocusSet(name, maxSize) {
-        if (this._focusSets.has(name) || this._focusSets.size >= this._config.maxFocusSets) return false;
+        if (this._focusSets.has(name) || this._focusSets.size >= this._config.maxFocusSets) {return false;}
         this._focusSets.set(name, new FocusSet(name, maxSize || this._config.defaultFocusSetSize));
         return true;
     }
 
     setFocus(name) {
-        if (!this._focusSets.has(name)) return false;
+        if (!this._focusSets.has(name)) {return false;}
         this._currentFocus = name;
         return true;
     }
@@ -47,7 +47,7 @@ export class Focus extends BaseComponent {
     removeTaskFromFocus(taskHash) {
         let removed = false;
         for (const focusSet of this._focusSets.values()) {
-            if (focusSet.removeTask(taskHash)) removed = true;
+            if (focusSet.removeTask(taskHash)) {removed = true;}
         }
         return removed;
     }
@@ -75,7 +75,7 @@ export class Focus extends BaseComponent {
     }
 
     clear() {
-        for (const focusSet of this._focusSets.values()) focusSet.clear();
+        for (const focusSet of this._focusSets.values()) {focusSet.clear();}
         this._focusSets.clear();
         this._currentFocus = null;
     }
@@ -96,9 +96,9 @@ export class Focus extends BaseComponent {
 
     async deserialize(data) {
         try {
-            if (!data) throw new Error('Invalid focus data');
+            if (!data) {throw new Error('Invalid focus data');}
 
-            if (data.config) this._config = { ...this._config, ...data.config };
+            if (data.config) {this._config = { ...this._config, ...data.config };}
             this.clear();
 
             if (data.focusSets) {
@@ -111,7 +111,7 @@ export class Focus extends BaseComponent {
                 }
             }
 
-            if (data.currentFocus) this._currentFocus = data.currentFocus;
+            if (data.currentFocus) {this._currentFocus = data.currentFocus;}
             return true;
         } catch (error) {
             Logger.error('Error during focus deserialization', error);
@@ -140,7 +140,7 @@ class FocusSet {
 
     addTask(task) {
         const taskHash = task.stamp.id;
-        if (this._tasks.has(taskHash)) return false;
+        if (this._tasks.has(taskHash)) {return false;}
 
         if (this._tasks.size >= this._maxSize) {
             this._removeLowestPriorityTask();
@@ -159,7 +159,7 @@ class FocusSet {
 
     removeTask(taskHash) {
         const removed = this._tasks.delete(taskHash);
-        if (removed) this._updateAccess();
+        if (removed) {this._updateAccess();}
         return removed;
     }
 
@@ -249,7 +249,7 @@ class FocusSet {
 
     async deserialize(data) {
         try {
-            if (!data) throw new Error('Invalid focus set data');
+            if (!data) {throw new Error('Invalid focus set data');}
 
             this._name = data.name || this._name;
             this._maxSize = data.maxSize || this._maxSize;
@@ -281,7 +281,7 @@ class FocusSet {
     }
 
     _removeLowestPriorityTask() {
-        if (this._tasks.size === 0) return;
+        if (this._tasks.size === 0) {return;}
 
         let minPriority = Infinity;
         let minKey = null;
@@ -293,7 +293,7 @@ class FocusSet {
             }
         }
 
-        if (minKey !== null) this._tasks.delete(minKey);
+        if (minKey !== null) {this._tasks.delete(minKey);}
     }
 
     _updateAccess() {

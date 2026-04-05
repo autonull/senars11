@@ -4,8 +4,8 @@ export class TermSerializer {
     }
 
     stringify(term, options = {}) {
-        if (!term) return '';
-        if (term.isAtomic) return term.name;
+        if (!term) {return '';}
+        if (term.isAtomic) {return term.name;}
 
         const op = term.operator;
 
@@ -52,7 +52,7 @@ export class TermSerializer {
     }
 
     printCompound(term) {
-        if (!term.operator) return this.printTuple(term);
+        if (!term.operator) {return this.printTuple(term);}
         return `(${term.operator}, ${term.components.map(c => this.stringify(c)).join(', ')})`;
     }
 

@@ -56,10 +56,10 @@ export class DecompositionStrategy extends PremiseFormationStrategy {
      * @yields {{term: Term, type: string, priority: number, decompositionType: string}}
      */
     async* generateCandidates(primaryTask, context) {
-        if (!this.enabled) return;
+        if (!this.enabled) {return;}
 
         const term = primaryTask?.term;
-        if (!term?.isCompound || !this.operators.has(term.operator)) return;
+        if (!term?.isCompound || !this.operators.has(term.operator)) {return;}
 
         yield* STATEMENT_OPERATORS.has(term.operator)
             ? this._decomposeStatement(term)
@@ -101,11 +101,11 @@ export class DecompositionStrategy extends PremiseFormationStrategy {
      * @private
      */
     * _decomposeCompound(term) {
-        const components = term.components;
-        if (!components?.length) return;
+        const {components} = term;
+        if (!components?.length) {return;}
 
         for (const [i, comp] of components.entries()) {
-            if (!comp) continue;
+            if (!comp) {continue;}
 
             this._recordCandidate();
             yield {

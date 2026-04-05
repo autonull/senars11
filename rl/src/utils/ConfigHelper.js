@@ -72,7 +72,7 @@ export function withDefaults(config, defaults) {
 
 export function extractConfig(config, keys) {
     return keys.reduce((acc, key) => {
-        if (key in config) acc[key] = config[key];
+        if (key in config) {acc[key] = config[key];}
         return acc;
     }, {});
 }

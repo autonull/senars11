@@ -9,7 +9,7 @@ export class SimpleOutputPanel extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
         this.fluent().clear().class('simple-output-panel').style({ height: '100%', display: 'flex', flexDirection: 'column' });
 
         // Toolbar
@@ -37,7 +37,7 @@ export class SimpleOutputPanel extends Component {
     }
 
     addLog(content, type = 'info', icon = null) {
-        if (!this.logContainer) return;
+        if (!this.logContainer) {return;}
 
         const entry = FluentUI.create('div')
             .style({
@@ -49,12 +49,12 @@ export class SimpleOutputPanel extends Component {
             });
 
         // Styling based on type
-        if (type === 'error') entry.style({ color: '#f14c4c' });
-        else if (type === 'warning') entry.style({ color: '#cca700' });
-        else if (type === 'success') entry.style({ color: '#89d185' });
-        else if (type === 'input') entry.style({ color: '#569cd6', fontWeight: 'bold' });
-        else if (type === 'result' || type.includes('reasoning')) entry.style({ color: '#d4d4d4' });
-        else entry.style({ color: '#cccccc' });
+        if (type === 'error') {entry.style({ color: '#f14c4c' });}
+        else if (type === 'warning') {entry.style({ color: '#cca700' });}
+        else if (type === 'success') {entry.style({ color: '#89d185' });}
+        else if (type === 'input') {entry.style({ color: '#569cd6', fontWeight: 'bold' });}
+        else if (type === 'result' || type.includes('reasoning')) {entry.style({ color: '#d4d4d4' });}
+        else {entry.style({ color: '#cccccc' });}
 
         const time = new Date().toLocaleTimeString();
         const iconStr = icon || (type === 'input' ? '>' : '');
@@ -80,7 +80,7 @@ export class SimpleOutputPanel extends Component {
     }
 
     logMarkdown(content) {
-        if (!this.logContainer) return;
+        if (!this.logContainer) {return;}
 
         const entry = FluentUI.create('div')
             .class('markdown-content')
@@ -97,7 +97,7 @@ export class SimpleOutputPanel extends Component {
     }
 
     logWidget(type, data) {
-         if (!this.logContainer) return;
+         if (!this.logContainer) {return;}
 
          const entry = FluentUI.create('div')
             .style({ marginBottom: '8px', border: '1px solid #444', padding: '5px', background: '#2d2d2d' });
@@ -130,7 +130,7 @@ export class SimpleOutputPanel extends Component {
         return {
             isEditing: false,
             updateMode: () => {},
-            id: 'mock-cell-' + Date.now()
+            id: `mock-cell-${  Date.now()}`
         };
     }
 

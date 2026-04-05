@@ -48,12 +48,12 @@ export class LearnedGrounding extends Component {
 
     ground(symbols, options = {}) {
         this.metrics.increment('groundingsPerformed');
-        if (this.conceptMap.has(symbols)) return this.conceptMap.get(symbols);
+        if (this.conceptMap.has(symbols)) {return this.conceptMap.get(symbols);}
         return this._parseActionSymbol(symbols);
     }
 
     _parseActionSymbol(symbols) {
-        if (typeof symbols !== 'string') return symbols;
+        if (typeof symbols !== 'string') {return symbols;}
 
         const stripped = symbols.startsWith('^') ? symbols.slice(1)
             : symbols.startsWith('op_') ? symbols.slice(3)
@@ -63,7 +63,7 @@ export class LearnedGrounding extends Component {
             const content = stripped.slice(1, -1).trim();
             if (!/[a-zA-Z>]/.test(content)) {
                 const numbers = content.split(/[\s,]+/).filter(s => s).map(Number);
-                if (numbers.every(n => !isNaN(n))) return numbers;
+                if (numbers.every(n => !isNaN(n))) {return numbers;}
             }
         }
 

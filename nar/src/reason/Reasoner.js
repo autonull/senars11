@@ -54,7 +54,7 @@ export class Reasoner extends EventEmitter {
         const startTime = Date.now();
         const focusTasks = this.premiseSource.focusComponent?.getTasks(1000) ?? [];
 
-        if (focusTasks.length === 0) return results;
+        if (focusTasks.length === 0) {return results;}
 
         const sortedFocusTasks = [...focusTasks];
         this._shuffleArray(focusTasks);
@@ -62,7 +62,7 @@ export class Reasoner extends EventEmitter {
 
         try {
             for (const primaryPremise of focusTasks) {
-                if (this._shouldStopStep(startTime, timeoutMs, results.length)) break;
+                if (this._shouldStopStep(startTime, timeoutMs, results.length)) {break;}
 
                 await this._processSinglePremise(primaryPremise, results, startTime, timeoutMs, suppressEvents);
                 await this._processDualPremises(
@@ -104,9 +104,9 @@ export class Reasoner extends EventEmitter {
             const secondaryPremises = await this.strategy.selectSecondaryPremises(primaryPremise, sortedFocusTasks);
 
             for (const secondaryPremise of secondaryPremises) {
-                if (this._shouldStopStep(startTime, timeoutMs, results.length)) break;
+                if (this._shouldStopStep(startTime, timeoutMs, results.length)) {break;}
 
-                if (this._isProcessedPair(primaryPremise, secondaryPremise, processedPairs)) continue;
+                if (this._isProcessedPair(primaryPremise, secondaryPremise, processedPairs)) {continue;}
 
                 const candidateRules = this.ruleProcessor.ruleExecutor.getCandidateRules(primaryPremise, secondaryPremise);
                 const forwardResults = await this._processRuleBatch(
@@ -125,10 +125,10 @@ export class Reasoner extends EventEmitter {
         const id1 = this._getTermId(p1);
         const id2 = this._getTermId(p2);
 
-        if (id1 === id2) return true;
+        if (id1 === id2) {return true;}
 
         const pairId = id1 < id2 ? `${id1}:${id2}` : `${id2}:${id1}`;
-        if (processedPairs.has(pairId)) return true;
+        if (processedPairs.has(pairId)) {return true;}
 
         processedPairs.add(pairId);
         return false;
@@ -149,7 +149,7 @@ export class Reasoner extends EventEmitter {
         const results = [];
 
         for (const rule of candidateRules) {
-            if (Date.now() - startTime > maxTimeMs) break;
+            if (Date.now() - startTime > maxTimeMs) {break;}
 
             try {
                 const derivedTasks = await this._executeRule(rule, p1, p2);
@@ -157,7 +157,7 @@ export class Reasoner extends EventEmitter {
                 if (derivedTasks?.length > 0) {
                     for (const task of derivedTasks) {
                         const processedResult = this._processDerivation(task, suppressEvents);
-                        if (processedResult) results.push(processedResult);
+                        if (processedResult) {results.push(processedResult);}
                     }
                 }
             } catch (error) {
@@ -181,7 +181,7 @@ export class Reasoner extends EventEmitter {
     }
 
     _processDerivation(derivation, suppressEvents = false) {
-        if (!suppressEvents) this.emit('derivation', derivation);
+        if (!suppressEvents) {this.emit('derivation', derivation);}
         return derivation;
     }
 

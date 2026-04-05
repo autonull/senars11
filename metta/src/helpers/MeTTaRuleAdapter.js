@@ -10,23 +10,23 @@ export class MeTTaRuleAdapter extends Rule {
     }
 
     async applyAsync(primaryPremise, secondaryPremise, context) {
-        if (!this.components || this.components.length < 2) return [];
+        if (!this.components || this.components.length < 2) {return [];}
 
         const [condition, resultTemplate] = this.components;
         const p1Term = primaryPremise?.term;
         const p2Term = secondaryPremise?.term;
-        if (!p1Term) return [];
+        if (!p1Term) {return [];}
 
         const inputTerm = secondaryPremise && p2Term
             ? { operator: 'Pair', components: [p1Term, p2Term], name: 'Pair', isCompound: true }
             : p1Term;
 
         const validBindings = Unify.unify(condition, inputTerm, {});
-        if (!validBindings) return [];
+        if (!validBindings) {return [];}
 
         const unifier = new Unifier(this.interpreter.termFactory);
         const resultTerm = unifier.applySubstitution(resultTemplate, validBindings);
-        if (!resultTerm) return [];
+        if (!resultTerm) {return [];}
 
         const truth = this._deriveTruth(primaryPremise, secondaryPremise);
         return [new Task({ term: resultTerm, truth, stamp: primaryPremise.stamp })];
@@ -35,8 +35,8 @@ export class MeTTaRuleAdapter extends Rule {
     _deriveTruth(primaryPremise, secondaryPremise) {
         const p1 = primaryPremise?.truth;
         const p2 = secondaryPremise?.truth;
-        if (p1 && p2) return Truth.deduction(p1, p2);
-        if (p1) return new Truth(p1.f * 0.9, p1.c * 0.9);
+        if (p1 && p2) {return Truth.deduction(p1, p2);}
+        if (p1) {return new Truth(p1.f * 0.9, p1.c * 0.9);}
         return new Truth(0.9, 0.9);
     }
 }

@@ -34,9 +34,9 @@ export class TypeSystem {
     freshTypeVar() { return TypeConstructors.TypeVar(this.#nextTypeVarId++); }
 
     inferType(term, context = {}) {
-        if (!term) return this.freshTypeVar();
-        if (term.type === 'atom') return this._inferAtomType(term, context);
-        if (term.type === 'compound' && term.operator) return this._inferCompoundType(term, context);
+        if (!term) {return this.freshTypeVar();}
+        if (term.type === 'atom') {return this._inferAtomType(term, context);}
+        if (term.type === 'compound' && term.operator) {return this._inferCompoundType(term, context);}
         return this.freshTypeVar();
     }
 
@@ -45,9 +45,9 @@ export class TypeSystem {
             return context[term.name.substring(1)] ?? this.freshTypeVar();
         }
         if (term.name) {
-            if (!isNaN(parseFloat(term.name))) return TypeConstructors.Number;
-            if (/^(True|False|true|false)$/.test(term.name)) return TypeConstructors.Bool;
-            if (term.name.startsWith('"')) return TypeConstructors.String;
+            if (!isNaN(parseFloat(term.name))) {return TypeConstructors.Number;}
+            if (/^(True|False|true|false)$/.test(term.name)) {return TypeConstructors.Bool;}
+            if (term.name.startsWith('"')) {return TypeConstructors.String;}
             return TypeConstructors.Atom;
         }
         return this.freshTypeVar();
@@ -67,10 +67,10 @@ export class TypeSystem {
     }
 
     unifyTypes(t1, t2) {
-        if (t1 === t2) return true;
-        if (t1.kind === 'TypeVar') return this.bindTypeVar(t1, t2);
-        if (t2.kind === 'TypeVar') return this.bindTypeVar(t2, t1);
-        if (t1.kind !== t2.kind) return false;
+        if (t1 === t2) {return true;}
+        if (t1.kind === 'TypeVar') {return this.bindTypeVar(t1, t2);}
+        if (t2.kind === 'TypeVar') {return this.bindTypeVar(t2, t1);}
+        if (t1.kind !== t2.kind) {return false;}
         return this._unifyByKind(t1, t2);
     }
 
@@ -88,16 +88,16 @@ export class TypeSystem {
     }
 
     bindTypeVar(v, t) {
-        if (this.occursCheck(v, t)) return false;
+        if (this.occursCheck(v, t)) {return false;}
         this.#substitution.set(v.index, t);
         return true;
     }
 
     occursCheck(v, t) {
-        if (t.kind === 'TypeVar') return t.index === v.index;
-        if (t.kind === 'Arrow') return this.occursCheck(v, t.from) || this.occursCheck(v, t.to);
-        if (t.kind === 'List') return this.occursCheck(v, t.element);
-        if (t.kind === 'TypeCtor') return t.params.some(p => this.occursCheck(v, p));
+        if (t.kind === 'TypeVar') {return t.index === v.index;}
+        if (t.kind === 'Arrow') {return this.occursCheck(v, t.from) || this.occursCheck(v, t.to);}
+        if (t.kind === 'List') {return this.occursCheck(v, t.element);}
+        if (t.kind === 'TypeCtor') {return t.params.some(p => this.occursCheck(v, p));}
         return false;
     }
 
@@ -119,7 +119,7 @@ export class TypeSystem {
     }
 
     generateConstraints(term, context = {}) {
-        if (term.type !== 'compound' || !term.operator) return [];
+        if (term.type !== 'compound' || !term.operator) {return [];}
 
         const funcType = this.inferType(term.operator, context);
         const resultType = this.freshTypeVar();
@@ -146,7 +146,7 @@ export class TypeSystem {
     }
 
     typeToString(type) {
-        if (!type) return 'Unknown';
+        if (!type) {return 'Unknown';}
         return this._typeToStringByKind(type);
     }
 
@@ -163,7 +163,7 @@ export class TypeSystem {
             case 'Forall': return `(forall ${type.varName} ${this.typeToString(type.type)})`;
             case 'TypeCtor': {
                 const params = type.params.map(p => this.typeToString(p)).join(' ');
-                return `(${type.name}${params ? ' ' + params : ''})`;
+                return `(${type.name}${params ? ` ${  params}` : ''})`;
             }
             default: return 'Unknown';
         }

@@ -80,7 +80,7 @@ export class BaseApp {
 
     async _initTaskBrowser() {
         const { TaskBrowser: TB } = await loadCrossLayerDeps();
-        if (!this.taskBrowser) this.taskBrowser = new TB();
+        if (!this.taskBrowser) {this.taskBrowser = new TB();}
     }
 
     _setupGraphEvents() {
@@ -94,8 +94,8 @@ export class BaseApp {
         this.graph.on('contextMenu', ({ target, originalEvent }) => {
             const type = target && target !== this.graph.cy ? (target.isNode() ? 'node' : 'edge') : 'background';
             const evt = originalEvent;
-            if (type === 'background') this.contextMenu.show(evt.x, evt.y, null, 'background');
-            else this.contextMenu.show(evt.x, evt.y, target, type);
+            if (type === 'background') {this.contextMenu.show(evt.x, evt.y, null, 'background');}
+            else {this.contextMenu.show(evt.x, evt.y, target, type);}
         });
         this.graph.on('backgroundDoubleClick', ({ position }) => 
             this.inputManager?.handleAddConcept(position)
@@ -185,7 +185,7 @@ export class BaseApp {
     handleDelete() { this.inputManager.handleDelete(); }
 
     _getColorFromHash(str) {
-        if (!str) return { hue: 0, color: '#cccccc' };
+        if (!str) {return { hue: 0, color: '#cccccc' };}
         const hash = [...str].reduce((h, c) => c.charCodeAt(0) + ((h << 5) - h), 0);
         const hue = Math.abs(hash % 360);
         return { hue, color: `hsl(${hue}, 70%, 50%)` };
@@ -217,23 +217,23 @@ export class BaseApp {
         if (this.layoutManager) {
             this.layoutManager.show('inspector');
             const widget = this.layoutManager.getWidget('inspector');
-            if (widget) widget.classList.add('active-widget');
+            if (widget) {widget.classList.add('active-widget');}
         }
     }
 
     saveNodeChanges(id, updates) {
         let existing = {};
-        if (this.graph.bag?.get(id)) existing = this.graph.bag.get(id).data;
+        if (this.graph.bag?.get(id)) {existing = this.graph.bag.get(id).data;}
         else if (this.graph.cy) {
             const node = this.graph.cy.$id(id);
-            if (node.nonempty()) existing = node.data('fullData') || node.data();
+            if (node.nonempty()) {existing = node.data('fullData') || node.data();}
         }
 
         const payload = deepMerge(existing, updates);
         this.graph.updateNode(payload);
         this.log(`Updated node ${id}`, 'success');
         const item = this.graph.bag?.get(id);
-        if (item) this.showInspector({ id, ...item.data, ...updates });
+        if (item) {this.showInspector({ id, ...item.data, ...updates });}
     }
 
     _setupHUD() {
@@ -250,8 +250,8 @@ export class BaseApp {
         if (widget) {
             const isVisible = !widget.classList.contains('hidden');
             this.log(`${widgetId} widget ${isVisible ? 'shown' : 'hidden'}`, 'system');
-            if (isVisible) widget.classList.add('active-widget');
-            else widget.classList.remove('active-widget');
+            if (isVisible) {widget.classList.add('active-widget');}
+            else {widget.classList.remove('active-widget');}
             return isVisible;
         }
         return false;
@@ -276,9 +276,9 @@ export class BaseApp {
     }
 
     log(message, type = 'info') {
-        if (this.logPanel && this.logPanel.addLog) this.logPanel.addLog(message, type);
-        else console.log(`[${type.toUpperCase()}] ${message}`);
-        if (type === 'error' || type === 'warning' || type === 'success') this.toastManager.show(message, type);
+        if (this.logPanel && this.logPanel.addLog) {this.logPanel.addLog(message, type);}
+        else {console.log(`[${type.toUpperCase()}] ${message}`);}
+        if (type === 'error' || type === 'warning' || type === 'success') {this.toastManager.show(message, type);}
     }
 
     loadGraphData(data) {
@@ -298,7 +298,7 @@ export class BaseApp {
     _startStatsLoop() {
         setInterval(() => {
             const nar = this.reasoningManager._getNAR();
-            if (!nar) return;
+            if (!nar) {return;}
 
             const stats = nar.getStats();
             const memoryStats = stats.memoryStats ?? {};
@@ -331,11 +331,11 @@ export class BaseApp {
     }
 
     _updateLLMStatus(text, state) {
-        if (this.statusBar) this.statusBar.setCapability('llm', state, `LLM: ${text}`);
+        if (this.statusBar) {this.statusBar.setCapability('llm', state, `LLM: ${text}`);}
     }
 
     _updateReasonerStatus(text, state) {
-        if (this.statusBar) this.statusBar.setCapability('reasoner', state, `Reasoner: ${text}`);
+        if (this.statusBar) {this.statusBar.setCapability('reasoner', state, `Reasoner: ${text}`);}
     }
 
     _updateStats() {
@@ -351,7 +351,7 @@ export class BaseApp {
     }
 
     _toggleTheme() {
-        const body = document.body;
+        const {body} = document;
         if (body.classList.contains('light-theme')) {
             body.classList.remove('light-theme');
             localStorage.setItem('senars-theme', 'dark');
@@ -365,15 +365,15 @@ export class BaseApp {
 
     _restoreTheme() {
         const theme = localStorage.getItem('senars-theme');
-        if (theme === 'light') document.body.classList.add('light-theme');
+        if (theme === 'light') {document.body.classList.add('light-theme');}
     }
 
     _onDerivation(data) {
         const { task, belief, derivedTask, inferenceRule } = data;
         const derivedId = derivedTask.term.toString();
         const sources = [];
-        if (task?.term) sources.push(task.term.toString());
-        if (belief?.term) sources.push(belief.term.toString());
+        if (task?.term) {sources.push(task.term.toString());}
+        if (belief?.term) {sources.push(belief.term.toString());}
 
         const derivation = { rule: inferenceRule || 'Inference', sources: sources };
         const derivedTaskCopy = { ...derivedTask, derivation };
@@ -383,26 +383,26 @@ export class BaseApp {
 
         if (task && task.term) {
             const sourceId = task.term.toString();
-            if (this.graph.cy.$id(sourceId).empty()) this._onTaskAdded(task);
+            if (this.graph.cy.$id(sourceId).empty()) {this._onTaskAdded(task);}
             this.graph.addEdge({ source: sourceId, target: derivedId, type: 'derivation', label: rule }, false);
         }
 
         if (belief && belief.term) {
             const beliefId = belief.term.toString();
-             if (this.graph.cy.$id(beliefId).empty()) this._onTaskAdded(belief);
+             if (this.graph.cy.$id(beliefId).empty()) {this._onTaskAdded(belief);}
             this.graph.addEdge({ source: beliefId, target: derivedId, type: 'derivation', label: rule }, false);
         }
     }
 
     _onTaskAdded(task) {
-        if (!task || !task.term) return;
-        if (this.taskBrowser) this.taskBrowser.addTask(task);
+        if (!task || !task.term) {return;}
+        if (this.taskBrowser) {this.taskBrowser.addTask(task);}
 
         const term = task.term.toString();
         const budget = task.budget || { priority: 0.5 };
 
         this.graph.addNode({ id: term, term: term, budget: budget, type: 'concept', ...task }, false);
-        if (this.graph.animateAttention) this.graph.animateAttention(term);
+        if (this.graph.animateAttention) {this.graph.animateAttention(term);}
 
         if (term.startsWith('(-->')) {
              const parts = term.replace(/^\(-->\s*,?\s*|\)$/g, '').split(',').map(s => s.trim());
@@ -421,7 +421,7 @@ export class BaseApp {
                  this.graph.addEdge({ source: s, target: t, type: 'inheritance' }, false);
              }
         }
-        if (this.graph.scheduleLayout) this.graph.scheduleLayout();
+        if (this.graph.scheduleLayout) {this.graph.scheduleLayout();}
     }
 
     _initWidgets() {

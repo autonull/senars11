@@ -10,24 +10,24 @@ class DoublyLinkedList {
     }
 
     addToHead(node) {
-        if (this.head === node) return;
-        if (node.prev) node.prev.next = node.next;
-        if (node.next) node.next.prev = node.prev;
+        if (this.head === node) {return;}
+        if (node.prev) {node.prev.next = node.next;}
+        if (node.next) {node.next.prev = node.prev;}
 
-        if (this.tail === node) this.tail = node.prev;
+        if (this.tail === node) {this.tail = node.prev;}
 
         node.prev = null;
         node.next = this.head;
-        if (this.head) this.head.prev = node;
+        if (this.head) {this.head.prev = node;}
         this.head = node;
-        if (!this.tail) this.tail = node;
+        if (!this.tail) {this.tail = node;}
     }
 
     removeTail() {
-        if (!this.tail) return null;
+        if (!this.tail) {return null;}
         const node = this.tail;
-        if (node.prev) node.prev.next = null;
-        else this.head = null;
+        if (node.prev) {node.prev.next = null;}
+        else {this.head = null;}
 
         this.tail = node.prev;
         node.prev = node.next = null;
@@ -55,15 +55,15 @@ export class MemoizationCache {
      * Uses flat structures if term contains interned numeric IDs.
      */
     _hashKey(term) {
-        if (term.id !== undefined) return String(term.id);
-        if (term.name) return term.name;
+        if (term.id !== undefined) {return String(term.id);}
+        if (term.name) {return term.name;}
         // Phase P1-E: If term provides an Int32Array view (e.g. from Flat tensor or intern ID arrays),
         // we can hash via block bytes instead of traversing.
         return term.toString();
     }
 
     get(term) {
-        if (!term) return undefined;
+        if (!term) {return undefined;}
 
         let node;
         if (typeof term === 'object') {
@@ -87,10 +87,10 @@ export class MemoizationCache {
     }
 
     set(term, value) {
-        if (!term) return;
+        if (!term) {return;}
 
         let node;
-        let isObject = typeof term === 'object';
+        const isObject = typeof term === 'object';
         let key = null;
 
         if (isObject) {
@@ -124,7 +124,7 @@ export class MemoizationCache {
             this.size++;
         }
 
-        if (this.size > this.capacity) this.evict();
+        if (this.size > this.capacity) {this.evict();}
     }
 
     evict() {

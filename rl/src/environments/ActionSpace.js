@@ -25,8 +25,8 @@ export class ActionSpace {
     }
 
     _normalizeBound(bound, size, defaultVal) {
-        if (Array.isArray(bound)) return bound;
-        if (typeof bound === 'number') return new Array(size).fill(bound);
+        if (Array.isArray(bound)) {return bound;}
+        if (typeof bound === 'number') {return new Array(size).fill(bound);}
         return new Array(size).fill(defaultVal);
     }
 
@@ -50,7 +50,7 @@ export class ActionSpace {
         if (this.type === 'Discrete') {
             return Number.isInteger(value) && value >= 0 && value < this.n;
         }
-        if (!Array.isArray(value)) return false;
+        if (!Array.isArray(value)) {return false;}
         return value.every((v, i) => v >= this.low[i] && v <= this.high[i]);
     }
 
@@ -60,7 +60,7 @@ export class ActionSpace {
      * @returns {number[]} Normalized action
      */
     normalize(value) {
-        if (this.type !== 'Box') return value;
+        if (this.type !== 'Box') {return value;}
         const range = this.high.map((h, i) => h - this.low[i]);
         return value.map((v, i) => (v - this.low[i]) / range[i]);
     }
@@ -71,7 +71,7 @@ export class ActionSpace {
      * @returns {number[]} Denormalized action
      */
     denormalize(value) {
-        if (this.type !== 'Box') return value;
+        if (this.type !== 'Box') {return value;}
         const range = this.high.map((h, i) => h - this.low[i]);
         return value.map((v, i) => this.low[i] + v * range[i]);
     }

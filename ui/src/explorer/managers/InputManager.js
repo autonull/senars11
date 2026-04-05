@@ -34,34 +34,34 @@ export class InputManager {
     handleMenuAction(action) { this._commandRegistry.handleMenuAction(action); }
 
     async handleReplCommand(command) {
-        if (!command) return;
+        if (!command) {return;}
         this.app.log(`> ${command}`, 'user');
         if (command.startsWith('!')) {
             const code = command.slice(1);
             if (this.app.localToolsBridge) {
                 const res = await this.app.localToolsBridge.executeTool('run_metta', { code });
-                if (res.success) this.app.log(`MeTTa Result: ${res.data}`, 'success');
-                else this.app.log(`MeTTa Error: ${res.error}`, 'error');
-            } else this.app.log('MeTTa bridge not available', 'error');
+                if (res.success) {this.app.log(`MeTTa Result: ${res.data}`, 'success');}
+                else {this.app.log(`MeTTa Error: ${res.error}`, 'error');}
+            } else {this.app.log('MeTTa bridge not available', 'error');}
             return;
         }
         const nar = this.app.reasoningManager._getNAR();
         if (nar) {
             try { nar.input(command); }
             catch (e) { this.app.log(`NAL Error: ${e.message}`, 'error'); }
-        } else this.app.log('Reasoner not available', 'error');
+        } else {this.app.log('Reasoner not available', 'error');}
     }
 
     _bindSearch() {
         const searchInput = document.getElementById('search-input');
-        if (!searchInput) return;
+        if (!searchInput) {return;}
         const clearBtn = document.getElementById('btn-clear-search');
 
         searchInput.oninput = (e) => {
             const term = e.target.value.trim();
-            if (clearBtn) clearBtn.style.display = term ? 'block' : 'none';
-            if (this.app.graph.highlightMatches) this.app.graph.highlightMatches(term);
-            else this._highlightMatches(term);
+            if (clearBtn) {clearBtn.style.display = term ? 'block' : 'none';}
+            if (this.app.graph.highlightMatches) {this.app.graph.highlightMatches(term);}
+            else {this._highlightMatches(term);}
         };
 
         if (clearBtn) {
@@ -81,18 +81,18 @@ export class InputManager {
                         this.app.log(`Found: ${term}`, 'system');
                         this.app.showInspector({ id: foundNode.id(), ...foundNode.data() });
                         foundNode.select();
-                    } else this.app.log(`Not found: ${term}`, 'warning');
+                    } else {this.app.log(`Not found: ${term}`, 'warning');}
                 }
             }
         };
     }
 
     _highlightMatches(term) {
-        if (!this.app.graph?.cy) return;
+        if (!this.app.graph?.cy) {return;}
         this.app.graph.cy.batch(() => {
             const allElements = this.app.graph.cy.elements();
             allElements.removeClass('matched dimmed');
-            if (!term || term.length < 2) return;
+            if (!term || term.length < 2) {return;}
             const termLower = term.toLowerCase();
             const matches = allElements.filter(ele => ele.isNode() && (ele.data('label') || '').toLowerCase().includes(termLower));
             if (matches.nonempty()) {
@@ -104,7 +104,7 @@ export class InputManager {
     }
 
     _findNode(id) {
-        if (!this.app.graph?.cy) return null;
+        if (!this.app.graph?.cy) {return null;}
         const term = id?.toLowerCase();
         let node = this.app.graph.cy.$id(id);
         if (node.empty() && term) {
@@ -132,7 +132,7 @@ export class InputManager {
     _bindLayerToggles() {
         document.querySelectorAll('input[data-layer]').forEach(input => {
             input.onchange = (e) => {
-                const layer = e.target.dataset.layer;
+                const {layer} = e.target.dataset;
                 const visible = e.target.checked;
                 const filters = {
                     'tasks': { showTasks: visible },
@@ -141,7 +141,7 @@ export class InputManager {
                 };
                 if (layer === 'trace') {
                     this.app.graph.cy.elements().classList.toggle('trace-dim', visible);
-                    if (!visible) this.app.graph.cy.elements().removeClass('trace-dim trace-highlight');
+                    if (!visible) {this.app.graph.cy.elements().removeClass('trace-dim trace-highlight');}
                 } else if (filters[layer]) {
                     this.app.graph.applyFilters(filters[layer]);
                 }
@@ -174,9 +174,9 @@ export class InputManager {
         if (layoutSelect) {
             layoutSelect.onchange = (e) => {
                 const layout = e.target.value;
-                if (layout === 'scatter') this.app.graph.applyScatterLayout?.('priority', 'confidence');
-                else if (layout === 'sorted-grid') this.app.graph.applySortedGridLayout?.('priority');
-                else this.app.graph.setLayout?.(layout);
+                if (layout === 'scatter') {this.app.graph.applyScatterLayout?.('priority', 'confidence');}
+                else if (layout === 'sorted-grid') {this.app.graph.applySortedGridLayout?.('priority');}
+                else {this.app.graph.setLayout?.(layout);}
                 this.app.log(`Layout switched to: ${layout}`, 'system');
             };
         }
@@ -192,7 +192,7 @@ export class InputManager {
         if (prioSlider) {
             prioSlider.oninput = (e) => {
                 const val = parseFloat(e.target.value);
-                if (prioVal) prioVal.textContent = val.toFixed(2);
+                if (prioVal) {prioVal.textContent = val.toFixed(2);}
                 this.app.graph.applyFilters({ minPriority: val });
             };
         }

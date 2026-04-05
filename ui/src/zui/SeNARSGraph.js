@@ -44,8 +44,8 @@ export class SeNARSGraph extends GraphSystem {
     _setupGlobalListeners() {
         eventBus.on('visualization.settings', (settings) => { this.visSettings = { ...this.visSettings, ...settings }; });
         eventBus.on(EVENTS.CONCEPT_SELECT, (payload) => {
-            if (payload.concept?.term) this.autoLearner.recordInteraction(payload.concept.term, 1);
-            if (payload.id) this.highlightNode(payload.id);
+            if (payload.concept?.term) {this.autoLearner.recordInteraction(payload.concept.term, 1);}
+            if (payload.id) {this.highlightNode(payload.id);}
         });
         eventBus.on(EVENTS.GRAPH_FILTER, (payload) => this.applyFilters(payload));
         eventBus.on(EVENTS.SETTINGS_UPDATED, () => { this.updateStyle(); this.scheduleLayout(); });
@@ -53,7 +53,7 @@ export class SeNARSGraph extends GraphSystem {
 
     initialize(options = {}) {
         this.options = options;
-        if (options.useBag) this._bagVisualizer.initialize(options.bagCapacity || 50);
+        if (options.useBag) {this._bagVisualizer.initialize(options.bagCapacity || 50);}
 
         const success = super.initialize({
             style: options.style || Config.getGraphStyle(),
@@ -112,7 +112,7 @@ export class SeNARSGraph extends GraphSystem {
     toggleTraceMode(nodeId) { this._interaction.toggleTraceMode(nodeId); }
     traceDerivationPath(nodeId) { this._interaction.traceDerivationPath(nodeId); }
     updateGraphDetails(data) {
-        if (data.fullData) eventBus.emit(EVENTS.CONCEPT_SELECT, { concept: data.fullData, id: data.id });
+        if (data.fullData) {eventBus.emit(EVENTS.CONCEPT_SELECT, { concept: data.fullData, id: data.id });}
     }
 
     setCommandProcessor(commandProcessor) { this._interaction.setCommandProcessor(commandProcessor, this); }
@@ -124,7 +124,7 @@ export class SeNARSGraph extends GraphSystem {
     }
 
     _getNodeData(node) {
-        if (!node || node.empty()) return null;
+        if (!node || node.empty()) {return null;}
         const data = node.data();
         const fullData = data.fullData || {};
         return {
@@ -138,7 +138,7 @@ export class SeNARSGraph extends GraphSystem {
     }
 
     updateFromMessage(message) {
-        if (!this.cy || !this.updatesEnabled) return;
+        if (!this.cy || !this.updatesEnabled) {return;}
         const handlers = {
             'concept.created': () => this.addNode(message.payload, true),
             'concept.added': () => this.addNode(message.payload, true),
@@ -154,33 +154,33 @@ export class SeNARSGraph extends GraphSystem {
 
     removeNode(id) { this.removeNodes([id]); }
     removeNodes(ids) {
-        if (!Array.isArray(ids)) ids = [ids];
-        if (this.bag) this._bagVisualizer.removeNodesFromBag(ids);
+        if (!Array.isArray(ids)) {ids = [ids];}
+        if (this.bag) {this._bagVisualizer.removeNodesFromBag(ids);}
         else if (this.cy) {
             this.cy.batch(() => {
                 ids.forEach(id => {
                     const node = this.cy.getElementById(id);
-                    if (node.nonempty()) this.cy.remove(node);
+                    if (node.nonempty()) {this.cy.remove(node);}
                 });
             });
         }
     }
 
     addNode(data, runLayout = true) {
-        if (!this.cy) return false;
+        if (!this.cy) {return false;}
         const config = this._createNodeConfig(data);
-        const id = config.data.id;
-        if (this.bag) return this._bagVisualizer.addNodeToBag(id, data);
-        if (this.cy.getElementById(id).length) return false;
+        const {id} = config.data;
+        if (this.bag) {return this._bagVisualizer.addNodeToBag(id, data);}
+        if (this.cy.getElementById(id).length) {return false;}
         this.cy.add(config);
         this._updateWidget(id, data);
-        if (runLayout) this.scheduleLayout();
+        if (runLayout) {this.scheduleLayout();}
         return true;
     }
 
     updateNode(data) {
-        if (this.bag) { if (this._bagVisualizer.updateNodeInBag(data.id, data)) return; }
-        if (!this.cy || !data?.id) return;
+        if (this.bag) { if (this._bagVisualizer.updateNodeInBag(data.id, data)) {return;} }
+        if (!this.cy || !data?.id) {return;}
         const node = this.cy.getElementById(data.id);
         if (node.length > 0) {
             const existingFullData = node.data('fullData') || {};
@@ -194,7 +194,7 @@ export class SeNARSGraph extends GraphSystem {
             const taskCount = newFullData.tasks?.length ?? newFullData.taskCount ?? 0;
             const weight = this._calculateNodeWeight(priority, newFullData.term);
             const updates = { weight, taskCount, fullData: newFullData, priority, derivation: newFullData.derivation };
-            if (newFullData.truth) updates.label = this._calculateNodeLabel(newFullData);
+            if (newFullData.truth) {updates.label = this._calculateNodeLabel(newFullData);}
             node.data(updates);
             this._updateWidget(data.id, newFullData);
             this._renderer.animateUpdate(data.id);
@@ -204,27 +204,27 @@ export class SeNARSGraph extends GraphSystem {
     }
 
     addQuestionNode(data) {
-        if (data) this.addNode({
+        if (data) {this.addNode({
             label: data.answer || data.question || 'Answer',
             type: 'question', weight: 40
-        }, true);
+        }, true);}
     }
 
     updateFromSnapshot(data) {
-        if (!this.cy || !data?.concepts) return;
+        if (!this.cy || !data?.concepts) {return;}
         this.clear();
         data.concepts.forEach(c => this.addNode(c, false));
-        if (data.links) data.links.forEach(l => this.addEdge(l, false));
+        if (data.links) {data.links.forEach(l => this.addEdge(l, false));}
         this.scheduleLayout();
     }
 
     addEdge(data, runLayout = true) {
-        if (!this.cy) return false;
+        if (!this.cy) {return false;}
         const config = this._createEdgeConfig(data);
-        if (this.cy.getElementById(config.data.id).length) return false;
-        if (this.cy.getElementById(config.data.source).empty() || this.cy.getElementById(config.data.target).empty()) return false;
+        if (this.cy.getElementById(config.data.id).length) {return false;}
+        if (this.cy.getElementById(config.data.source).empty() || this.cy.getElementById(config.data.target).empty()) {return false;}
         this.cy.add(config);
-        if (runLayout) this.scheduleLayout();
+        if (runLayout) {this.scheduleLayout();}
         return true;
     }
 
@@ -274,25 +274,25 @@ export class SeNARSGraph extends GraphSystem {
     _calculateNodeWeight(priority, term) { return this._renderer.calculateNodeWeight(priority, term); }
 
     _updateWidget(nodeId, data) {
-        if (!this.contextualWidget) return;
+        if (!this.contextualWidget) {return;}
         if (data.widgetContent) {
             this.contextualWidget.attach(nodeId, data.widgetContent, data.widgetOptions);
             return;
         }
         if (data.showWidget) {
             const priority = data.budget?.priority;
-            const truth = data.truth;
+            const {truth} = data;
             let html = '';
-            if (priority !== undefined && typeof priority === 'number') html += `<div>Prio: ${priority.toFixed(2)}</div>`;
+            if (priority !== undefined && typeof priority === 'number') {html += `<div>Prio: ${priority.toFixed(2)}</div>`;}
             if (truth && truth.frequency !== undefined && truth.confidence !== undefined) {
                 html += `<div>{${Number(truth.frequency).toFixed(2)}, ${Number(truth.confidence).toFixed(2)}}</div>`;
             }
-            if (html) this.contextualWidget.attach(nodeId, html);
+            if (html) {this.contextualWidget.attach(nodeId, html);}
         }
     }
 
     setLayout(name) {
-        if (!this.cy) return;
+        if (!this.cy) {return;}
         const layoutOpts = this._renderer.setLayout(name);
         super.layout(layoutOpts);
     }
@@ -301,7 +301,7 @@ export class SeNARSGraph extends GraphSystem {
     applySortedGridLayout(sortField) { this._renderer.applySortedGridLayout(sortField); }
 
     applyFilters(filters) {
-        if (!this.cy) return;
+        if (!this.cy) {return;}
         this.filters = { ...this.filters, ...filters };
         this.cy.batch(() => {
             this.cy.nodes().forEach(node => {

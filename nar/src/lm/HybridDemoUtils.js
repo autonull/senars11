@@ -4,6 +4,7 @@
  */
 
 import {createHypothesisGenerationRule, createConceptElaborationRule, createNarseseTranslationRule} from '@senars/nar';
+import { Logger } from '@senars/core/util/Logger.js';
 
 // Trace capture utility
 export class Trace {
@@ -16,35 +17,35 @@ export class Trace {
         const timestamp = Date.now() - this.startTime;
         const event = {time: timestamp, type: eventType, data, ...details};
         this.events.push(event);
-        console.log(`[TRACE ${timestamp}ms] ${eventType}:`, data, details);
+        Logger.debug(`[TRACE ${timestamp}ms] ${eventType}:`, data, details);
     }
 
     printSummary() {
-        console.log("\n" + "=".repeat(80));
-        console.log("HYBRID REASONING TRACE SUMMARY");
-        console.log("=".repeat(80));
+        Logger.info(`\n${  "=".repeat(80)}`);
+        Logger.info("HYBRID REASONING TRACE SUMMARY");
+        Logger.info("=".repeat(80));
 
         const eventCounts = this.events.reduce((acc, event) => {
             acc[event.type] = (acc[event.type] || 0) + 1;
             return acc;
         }, {});
 
-        console.log("\nEvent Distribution:");
+        Logger.info("\nEvent Distribution:");
         Object.entries(eventCounts).forEach(([type, count]) => {
-            console.log(`  • ${type}: ${count} events`);
+            Logger.info(`  • ${type}: ${count} events`);
         });
 
-        console.log("\nSample Events:");
+        Logger.info("\nSample Events:");
         this.events.slice(0, 10).forEach((event, index) => {
-            console.log(`${index + 1}. [${event.time}ms] ${event.type}:`,
+            Logger.info(`${index + 1}. [${event.time}ms] ${event.type}:`,
                        typeof event.data === 'object' ? JSON.stringify(event.data) : event.data);
         });
 
         if (this.events.length > 10) {
-            console.log(`   ... and ${this.events.length - 10} more events`);
+            Logger.info(`   ... and ${this.events.length - 10} more events`);
         }
 
-        console.log("=".repeat(80));
+        Logger.info("=".repeat(80));
     }
 }
 
@@ -94,12 +95,12 @@ export class ScenarioRunner {
     }
 
     async runScenario(name, inputs, steps, options = {}) {
-        console.log(`📝 Scenario: ${name}`);
+        Logger.info(`Scenario: ${name}`);
         for (const input of inputs) {
             await this.nar.input(input);
         }
-        for (let i = 0; i < steps; i++) await this.nar.step();
-        console.log(`   ✅ ${name} completed\n`);
+        for (let i = 0; i < steps; i++) {await this.nar.step();}
+        Logger.info(`   ${name} completed\n`);
 
         if (options.onComplete) {
             await options.onComplete();
@@ -236,12 +237,11 @@ export class HybridDemoOrchestrator {
 
     async setupRules(ruleFactory = RuleFactory) {
         if (this.config.rules.enabled && this.nar.streamReasoner && this.nar.streamReasoner.ruleProcessor) {
-            const ruleExecutor = this.nar.streamReasoner.ruleProcessor.ruleExecutor;
+            const {ruleExecutor} = this.nar.streamReasoner.ruleProcessor;
 
-            console.log("🎯 Setting up Hybrid Rules:\n");
+            Logger.info("Setting up Hybrid Rules:\n");
 
             if (this.config.rules.autoRegister) {
-                // Prepare dependencies for the rules
                 const dependencies = {
                     parser: this.nar._parser,
                     termFactory: this.nar._termFactory,
@@ -249,17 +249,17 @@ export class HybridDemoOrchestrator {
                     memory: this.nar._memory
                 };
 
-                console.log("📝 Adding Hypothesis Generation Rule");
+                Logger.info("Adding Hypothesis Generation Rule");
                 const hypoRule = ruleFactory.createHypothesisRule(this.provider, dependencies);
-                console.log(`   Rule ID: ${hypoRule.id}, Type: ${typeof hypoRule}, Can Apply: ${typeof hypoRule.canApply}`);
+                Logger.debug(`   Rule ID: ${hypoRule.id}, Type: ${typeof hypoRule}, Can Apply: ${typeof hypoRule.canApply}`);
                 ruleExecutor.register(hypoRule);
-                console.log("   ✅ Hypothesis rule added\n");
+                Logger.info("   Hypothesis rule added\n");
 
-                console.log("📝 Adding Concept Elaboration Rule");
+                Logger.info("Adding Concept Elaboration Rule");
                 const elabRule = ruleFactory.createElaborationRule(this.provider, dependencies);
-                console.log(`   Rule ID: ${elabRule.id}, Type: ${typeof elabRule}, Can Apply: ${typeof elabRule.canApply}`);
+                Logger.debug(`   Rule ID: ${elabRule.id}, Type: ${typeof elabRule}, Can Apply: ${typeof elabRule.canApply}`);
                 ruleExecutor.register(elabRule);
-                console.log("   ✅ Elaboration rule added\n");
+                Logger.info("   Elaboration rule added\n");
             }
         }
         return this;
@@ -280,18 +280,17 @@ export class HybridDemoOrchestrator {
     }
 
     async showFinalState() {
-        console.log("📊 Final System State:");
+        Logger.info("Final System State:");
         const beliefs = this.nar.getBeliefs();
-        console.log(`   - Total beliefs: ${beliefs.length}`);
+        Logger.info(`   - Total beliefs: ${beliefs.length}`);
 
         if (beliefs.length > 0) {
-            console.log("   - Sample beliefs:");
+            Logger.info("   - Sample beliefs:");
             beliefs.forEach((task, i) => {
-                console.log(`     ${i + 1}. ${task.term.toString()} {f:${task.truth?.frequency}, c:${task.truth?.confidence}}`);
+                Logger.info(`     ${i + 1}. ${task.term.toString()} {f:${task.truth?.frequency}, c:${task.truth?.confidence}}`);
             });
         }
 
-        // Print trace summary if available
         if (this.trace) {
             this.trace.printSummary();
         }
@@ -300,24 +299,24 @@ export class HybridDemoOrchestrator {
     }
 
     async printCapabilities() {
-        console.log("\n🎯 HYBRID CAPABILITIES:");
-        console.log("   1. LM Integration: Working with configured model");
-        console.log("   2. NL ↔ Narsese: Bidirectional processing demonstrated");
-        console.log("   3. LM Rules: Active rule-based processing");
-        console.log("   4. NAL Reasoning: Formal logical inference");
-        console.log("   5. Cross-Modal: Neural-symbolic interaction");
-        console.log("   6. Truth Maintenance: Confidence tracking");
-        console.log("   7. Dynamic Inference: Real-time reasoning");
+        Logger.info("\nHYBRID CAPABILITIES:");
+        Logger.info("   1. LM Integration: Working with configured model");
+        Logger.info("   2. NL <-> Narsese: Bidirectional processing demonstrated");
+        Logger.info("   3. LM Rules: Active rule-based processing");
+        Logger.info("   4. NAL Reasoning: Formal logical inference");
+        Logger.info("   5. Cross-Modal: Neural-symbolic interaction");
+        Logger.info("   6. Truth Maintenance: Confidence tracking");
+        Logger.info("   7. Dynamic Inference: Real-time reasoning");
 
         if (this.trace) {
-            console.log("\n💡 SUCCESS METRICS:");
+            Logger.info("\nSUCCESS METRICS:");
             const lmInputs = this.trace.events.filter(e => e.type === 'LM_INPUT').length;
             const lmOutputs = this.trace.events.filter(e => e.type === 'LM_OUTPUT').length;
             const lmErrors = this.trace.events.filter(e => e.type === 'LM_ERROR').length;
 
-            console.log(`   - LM Interactions: ${lmInputs} inputs, ${lmOutputs} outputs`);
-            console.log(`   - Success Rate: ${lmErrors === 0 ? '100%' : `${Math.round((lmOutputs/(lmInputs||1))*100)}%`}`);
-            console.log(`   - System Stability: ${lmErrors === 0 ? '✓' : '✗'}`);
+            Logger.info(`   - LM Interactions: ${lmInputs} inputs, ${lmOutputs} outputs`);
+            Logger.info(`   - Success Rate: ${lmErrors === 0 ? '100%' : `${Math.round((lmOutputs/(lmInputs||1))*100)}%`}`);
+            Logger.info(`   - System Stability: ${lmErrors === 0 ? '✓' : '✗'}`);
         }
 
         return this;
@@ -327,8 +326,8 @@ export class HybridDemoOrchestrator {
         if (typeof this.nar.shutdown === 'function') {
             await this.nar.shutdown();
         }
-        console.log("\n✅ Hybrid Demo Completed Successfully!");
-        console.log("   LM-powered NL ↔ Narsese interaction demonstrated.");
+        Logger.info("\nHybrid Demo Completed Successfully!");
+        Logger.info("   LM-powered NL <-> Narsese interaction demonstrated.");
         return this;
     }
 }

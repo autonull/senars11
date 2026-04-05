@@ -10,8 +10,12 @@ export class AgentMessageQueue {
     }
 
     dequeue() {
-        if (this._msgQueue.length > 0) return Promise.resolve(this._msgQueue.shift());
-        if (!this._cap('autonomousLoop')) return new Promise(res => this._msgWaiters.push(res));
+        if (this._msgQueue.length > 0) {
+            return Promise.resolve(this._msgQueue.shift());
+        }
+        if (!this._cap('autonomousLoop')) {
+            return new Promise(res => this._msgWaiters.push(res));
+        }
         return Promise.resolve(null);
     }
 }

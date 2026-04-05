@@ -40,3 +40,7 @@ preferences.json
 browser-bundle.js
 ui/dist/
 verification/
+
+# Leftover/debug files
+*.bak
+*.debug.js

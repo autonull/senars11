@@ -46,7 +46,7 @@ export class SemanticMemory extends Component {
 
     getConcept(name) {
         const concept = this.concepts.get(name);
-        if (concept) concept.metadata.usageCount++;
+        if (concept) {concept.metadata.usageCount++;}
         return concept;
     }
 
@@ -57,11 +57,11 @@ export class SemanticMemory extends Component {
         for (const [key, rel] of this.relationships) {
             if (rel.from === name && (!type || rel.type === type)) {
                 const target = this.concepts.get(rel.to);
-                if (target) related.push({ concept: target, relationship: rel });
+                if (target) {related.push({ concept: target, relationship: rel });}
             }
             if (rel.to === name && (!type || rel.type === type)) {
                 const source = this.concepts.get(rel.from);
-                if (source) related.push({ concept: source, relationship: rel });
+                if (source) {related.push({ concept: source, relationship: rel });}
             }
         }
 
@@ -74,14 +74,14 @@ export class SemanticMemory extends Component {
 
         for (const [name, concept] of this.concepts) {
             const similarity = this._computeFeatureSimilarity(features, concept.features);
-            if (similarity >= threshold) similarities.push({ name, concept, similarity });
+            if (similarity >= threshold) {similarities.push({ name, concept, similarity });}
         }
 
         return similarities.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
     }
 
     _computeFeatureSimilarity(a, b) {
-        if (!a || !b) return 0;
+        if (!a || !b) {return 0;}
         const aArr = Array.isArray(a) ? a : Object.values(a);
         const bArr = Array.isArray(b) ? b : Object.values(b);
 

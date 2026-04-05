@@ -31,7 +31,9 @@ export class FileSystemDemoSource {
                 if (file.endsWith('.nars') || file.endsWith('.js')) {
                     const filePath = path.join(this.basePath, file);
                     // Skip some common non-demo files if necessary, e.g. utils
-                    if (file.includes('util') || file.includes('test')) continue;
+                    if (file.includes('util') || file.includes('test')) {
+                        continue;
+                    }
 
                     const content = await fs.promises.readFile(filePath, 'utf8');
                     const info = this._parseInfo(content);
@@ -80,7 +82,9 @@ export class FileSystemDemoSource {
 
         for (const line of lines) {
             const trimmed = line.trim();
-            if (!trimmed) continue;
+            if (!trimmed) {
+                continue;
+            }
 
             if (trimmed.startsWith('//')) {
                 const comment = trimmed.replace(/^\/\/\s*/, '');

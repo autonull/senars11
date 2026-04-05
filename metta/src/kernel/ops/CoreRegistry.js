@@ -48,11 +48,11 @@ export class CoreRegistry {
      */
     execute(name, ...args) {
         const n = typeof name === 'string' ? name : name?.name;
-        if (!n) throw new OperationNotFoundError(String(name));
+        if (!n) {throw new OperationNotFoundError(String(name));}
 
         const norm = this._normalize(n);
         const op = this.operations.get(norm);
-        if (!op) throw new OperationNotFoundError(n);
+        if (!op) {throw new OperationNotFoundError(n);}
         return op.fn(...args);
     }
 

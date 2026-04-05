@@ -43,12 +43,12 @@ export class ChannelExtension {
         let EmbodimentClass;
 
         try {
-            const { IRCChannel, NostrChannel, CLIChannel } = await import('../../../agent/src/io/index.js');
+            const { IRCChannel, NostrChannel, CLIChannel } = await import('@senars/agent/io/index.js');
 
-            if (type === 'irc') EmbodimentClass = IRCChannel;
-            else if (type === 'nostr') EmbodimentClass = NostrChannel;
-            else if (type === 'cli') EmbodimentClass = CLIChannel;
-            else return Term.sym('Error:UnknownEmbodimentType');
+            if (type === 'irc') {EmbodimentClass = IRCChannel;}
+            else if (type === 'nostr') {EmbodimentClass = NostrChannel;}
+            else if (type === 'cli') {EmbodimentClass = CLIChannel;}
+            else {return Term.sym('Error:UnknownEmbodimentType');}
 
             const embodiment = new EmbodimentClass(config);
             this.embodimentBus.register(embodiment);
@@ -93,7 +93,7 @@ export class ChannelExtension {
              if (this.agent && this.agent.toolInstances && this.agent.toolInstances.websearch) {
                  tool = this.agent.toolInstances.websearch;
              } else {
-                 const { WebSearchTool } = await import('../../../agent/src/io/index.js');
+                 const { WebSearchTool } = await import('@senars/agent/io/index.js');
                  // Attempt to get config from agent config if possible, otherwise empty
                  const config = this.agent && this.agent.config && this.agent.config.tools && this.agent.config.tools.websearch
                                 ? this.agent.config.tools.websearch
@@ -151,7 +151,7 @@ export class ChannelExtension {
                  fileTool = this.agent.toolInstances.file;
             } else {
                 // Lazy load FileTool
-                const { FileTool } = await import('../../../agent/src/io/tools/FileTool.js');
+                const { FileTool } = await import('@senars/agent/io/tools/FileTool.js');
                 fileTool = new FileTool({ workspace: './workspace' });
             }
 
@@ -170,7 +170,7 @@ export class ChannelExtension {
              if (this.agent && this.agent.toolInstances && this.agent.toolInstances.file) {
                   fileTool = this.agent.toolInstances.file;
              } else {
-                 const { FileTool } = await import('../../../agent/src/io/tools/FileTool.js');
+                 const { FileTool } = await import('@senars/agent/io/tools/FileTool.js');
                  fileTool = new FileTool({ workspace: './workspace' });
              }
 
@@ -201,7 +201,7 @@ export class ChannelExtension {
 
     _handleGlobalMessage(msg) {
         const listeners = this.eventListeners.get(msg.channelId);
-        if (!listeners) return;
+        if (!listeners) {return;}
 
         const type = msg.metadata?.type || 'message';
 

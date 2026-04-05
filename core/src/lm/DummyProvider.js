@@ -36,9 +36,15 @@ export class DummyProvider extends BaseProvider {
 
     _classifyPrompt(prompt) {
         const lower = prompt.toLowerCase();
-        if (/^(hello|hi|hey|greetings|good morning|good afternoon|good evening|yo|sup)/i.test(lower)) return 'greeting';
-        if (/(what|who|when|where|why|how|is|are|do|does|can|could|would|should)\b/i.test(lower) || lower.includes('?')) return 'question';
-        if (/^(\/|!|\.)/.test(lower)) return 'command';
+        if (/^(hello|hi|hey|greetings|good morning|good afternoon|good evening|yo|sup)/i.test(lower)) {
+            return 'greeting';
+        }
+        if (/(what|who|when|where|why|how|is|are|do|does|can|could|would|should)\b/i.test(lower) || lower.includes('?')) {
+            return 'question';
+        }
+        if (/^(\/|!|\.)/.test(lower)) {
+            return 'command';
+        }
         return 'fallback';
     }
 
@@ -56,7 +62,9 @@ export class DummyProvider extends BaseProvider {
 
         // Check mock responses first
         for (const [pattern, response] of Object.entries(this.mockResponses)) {
-            if (prompt.includes(pattern)) return response;
+            if (prompt.includes(pattern)) {
+                return response;
+            }
         }
 
         // Use template if explicitly set
@@ -77,7 +85,9 @@ export class DummyProvider extends BaseProvider {
         const chunkSize = 5;
         for (let i = 0; i < text.length; i += chunkSize) {
             yield text.slice(i, i + chunkSize);
-            if (this.latency > 0) await new Promise(resolve => setTimeout(resolve, 10));
+            if (this.latency > 0) {
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
         }
     }
 

@@ -99,7 +99,7 @@ export const proceduralDemos = {
             };
 
             const generate = (depth, parentId, prefix) => {
-                if (depth === 0) return;
+                if (depth === 0) {return;}
 
                 const count = 3 + Math.floor(Math.random() * 2);
                 for (let i = 0; i < count; i++) {

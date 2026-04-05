@@ -90,10 +90,10 @@ export class Memory extends BaseComponent {
     }
 
     addTask(task, currentTime = Date.now()) {
-        if (!task?.term) return false;
+        if (!task?.term) {return false;}
 
-        const term = task.term;
-        let concept = this.getConcept(term) || this._createConcept(term);
+        const {term} = task;
+        const concept = this.getConcept(term) || this._createConcept(term);
 
         if (concept && concept.totalTasks >= this._config.maxTasksPerConcept) {
             concept.enforceCapacity(this._config.maxTasksPerConcept, this._config.forgetPolicy);
@@ -140,7 +140,7 @@ export class Memory extends BaseComponent {
     }
 
     getConcept(term) {
-        if (!term) return null;
+        if (!term) {return null;}
         const name = this._getTermName(term);
         const concept = this._concepts.get(name);
         if (concept) {
@@ -164,7 +164,7 @@ export class Memory extends BaseComponent {
     removeConcept(term) {
         const name = this._getTermName(term);
         const concept = this._concepts.get(name);
-        if (!concept) return false;
+        if (!concept) {return false;}
 
         if (this._focusConcepts.has(concept)) {
             this._focusConcepts.delete(concept);
@@ -194,7 +194,7 @@ export class Memory extends BaseComponent {
         const tasks = [];
         for (const task of this.getTasksIterator()) {
             tasks.push(task);
-            if (limit > 0 && tasks.length >= limit) break;
+            if (limit > 0 && tasks.length >= limit) {break;}
         }
         return tasks;
     }
@@ -204,10 +204,10 @@ export class Memory extends BaseComponent {
     }
 
     _conceptMatchesCriteria(concept, criteria) {
-        if (criteria.minActivation !== undefined && concept.activation < criteria.minActivation) return false;
-        if (criteria.minTasks !== undefined && concept.totalTasks < criteria.minTasks) return false;
-        if (criteria.taskType && concept.getTasksByType(criteria.taskType).length === 0) return false;
-        if (criteria.onlyFocus === true && !this._focusConcepts.has(concept)) return false;
+        if (criteria.minActivation !== undefined && concept.activation < criteria.minActivation) {return false;}
+        if (criteria.minTasks !== undefined && concept.totalTasks < criteria.minTasks) {return false;}
+        if (criteria.taskType && concept.getTasksByType(criteria.taskType).length === 0) {return false;}
+        if (criteria.onlyFocus === true && !this._focusConcepts.has(concept)) {return false;}
         return true;
     }
 
@@ -235,7 +235,7 @@ export class Memory extends BaseComponent {
     }
 
     consolidate(currentTime = Date.now()) {
-        if (this._cyclesSinceConsolidation++ < this._config.consolidationInterval) return;
+        if (this._cyclesSinceConsolidation++ < this._config.consolidationInterval) {return;}
 
         this._cyclesSinceConsolidation = 0;
         this._stats.lastConsolidation = currentTime;
@@ -449,16 +449,16 @@ export class Memory extends BaseComponent {
 
     async deserialize(data) {
         try {
-            if (!data || !data.concepts) throw new Error('Invalid memory data');
+            if (!data || !data.concepts) {throw new Error('Invalid memory data');}
 
             this.clear();
-            if (data.config) this._config = {...this._config, ...data.config};
+            if (data.config) {this._config = {...this._config, ...data.config};}
 
             for (const conceptData of data.concepts) {
                 if (conceptData.concept) {
                     const term = this._resolveTermForDeserialization(conceptData.term);
                     const concept = new Concept(term, this._config);
-                    if (concept.deserialize) await concept.deserialize(conceptData.concept);
+                    if (concept.deserialize) {await concept.deserialize(conceptData.concept);}
 
                     this._concepts.set(term.name, concept);
                     this._stats.totalConcepts++;
@@ -470,14 +470,14 @@ export class Memory extends BaseComponent {
             if (data.focusConcepts) {
                 for (const termStr of data.focusConcepts) {
                     const concept = this._concepts.get(termStr);
-                    if (concept) this._focusConcepts.add(concept);
+                    if (concept) {this._focusConcepts.add(concept);}
                 }
                 this._updateFocusConceptsCount();
             }
 
-            if (data.index && this._index.deserialize) await this._index.deserialize(data.index);
-            if (data.stats) this._stats = {...data.stats};
-            if (data.resourceTracker) this._resourceManager.setResourceTracker(new Map(Object.entries(data.resourceTracker)));
+            if (data.index && this._index.deserialize) {await this._index.deserialize(data.index);}
+            if (data.stats) {this._stats = {...data.stats};}
+            if (data.resourceTracker) {this._resourceManager.setResourceTracker(new Map(Object.entries(data.resourceTracker)));}
 
             this._cyclesSinceConsolidation = data.cyclesSinceConsolidation || 0;
             this._lastConsolidationTime = data.lastConsolidationTime || Date.now();
@@ -490,7 +490,7 @@ export class Memory extends BaseComponent {
     }
 
     _resolveTermForDeserialization(termData) {
-        if (this._termFactory) return this._termFactory.fromJSON(termData);
+        if (this._termFactory) {return this._termFactory.fromJSON(termData);}
         if (typeof termData === 'string') {
              return {
                 toString: () => termData,

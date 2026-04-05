@@ -1,5 +1,5 @@
-import { Embodiment } from '../Embodiment.js';
-import { Logger } from '@senars/core';
+import {Embodiment} from '../Embodiment.js';
+import {Logger} from '@senars/core';
 import * as readline from 'readline';
 
 export class CLIChannel extends Embodiment {
@@ -30,13 +30,17 @@ export class CLIChannel extends Embodiment {
     }
 
     _colorize(text, color) {
-        if (!this.colors) return text;
+        if (!this.colors) {
+            return text;
+        }
         return `${this.colorScheme[color] || ''}${text}${this.colorScheme.reset}`;
     }
 
     async connect() {
-        if (this.status === 'connected') return;
-        
+        if (this.status === 'connected') {
+            return;
+        }
+
         this.setStatus('connecting');
 
         try {
@@ -68,12 +72,12 @@ export class CLIChannel extends Embodiment {
 
             // Show prompt
             this.rl.prompt();
-            
+
             this.setStatus('connected');
-            this.emit('connected', { type: 'cli' });
-            
+            this.emit('connected', {type: 'cli'});
+
             Logger.info('[CLI] Connected - Interactive terminal ready');
-            
+
         } catch (error) {
             this.setStatus('error');
             throw error;
@@ -118,19 +122,21 @@ export class CLIChannel extends Embodiment {
     _completer(linePartial) {
         const commands = ['help', 'exit', 'quit', 'clear', 'history', 'status'];
         const hits = commands.filter(c => c.startsWith(linePartial.toLowerCase()));
-        
+
         // Return completions
         return [hits.length ? hits : commands, linePartial];
     }
 
     async disconnect() {
-        if (this.status === 'disconnected') return;
-        
+        if (this.status === 'disconnected') {
+            return;
+        }
+
         if (this.rl) {
             this.rl.close();
             this.rl = null;
         }
-        
+
         this.setStatus('disconnected');
         this.emit('disconnected');
     }
@@ -142,7 +148,7 @@ export class CLIChannel extends Embodiment {
 
         // Format output based on metadata
         let output;
-        
+
         if (metadata.error) {
             output = this._colorize(`❌ ${content}`, 'error');
         } else if (metadata.action) {
@@ -171,34 +177,57 @@ export class CLIChannel extends Embodiment {
         return true;
     }
 
-    async sendMessage(target, content, metadata = {}) {
-        if (this.status !== 'connected') throw new Error('CLI not connected');
+    // async sendMessage(target, content, metadata = {}) {
+    //     if (this.status !== 'connected') {
+    //         throw new Error('CLI not connected');
+    //     }
+    //
+    //     let output;
+    //     if (metadata.error) {
+    //         output = this._colorize(`❌ ${content}`, 'error');
+    //     } else if (metadata.action) {
+    //         output = this._colorize(`* ${content} *`, 'info');
+    //     } else if (metadata.from === 'bot' || metadata.isBotResponse) {
+    //         output = this._colorize(`🤖 ${content}`, 'bot');
+    //     } else if (metadata.system) {
+    //         output = this._colorize(`ℹ️  ${content}`, 'info');
+    //     } else {
+    //         output = content;
+    //     }
+    //     if (metadata.prefix) {
+    //         output = `${metadata.prefix} ${output}`;
+    //     }
+    //
+    //     if (this.rl.output) {
+    //         readline.clearLine(this.rl.output, 0);
+    //         readline.cursorTo(this.rl.output, 0);
+    //         console.log(output);
+    //         this.rl.prompt(true);
+    //     }
+    //     return true;
+    // }
 
-        let output;
-        if (metadata.error) output = this._colorize(`❌ ${content}`, 'error');
-        else if (metadata.action) output = this._colorize(`* ${content} *`, 'info');
-        else if (metadata.from === 'bot' || metadata.isBotResponse) output = this._colorize(`🤖 ${content}`, 'bot');
-        else if (metadata.system) output = this._colorize(`ℹ️  ${content}`, 'info');
-        else output = content;
-        if (metadata.prefix) output = `${metadata.prefix} ${output}`;
-
-        if (this.rl.output) {
-            readline.clearLine(this.rl.output, 0);
-            readline.cursorTo(this.rl.output, 0);
-            console.log(output);
-            this.rl.prompt(true);
-        }
-        return true;
+    async display(content, options = {}) {
+        return this.sendMessage('cli', content, {...options, isBotResponse: true});
     }
 
-    async display(content, options = {}) { return this.sendMessage('cli', content, { ...options, isBotResponse: true }); }
-    async displayError(content) { return this.sendMessage('cli', content, { error: true }); }
-    async displayInfo(content) { return this.sendMessage('cli', content, { system: true }); }
+    async displayError(content) {
+        return this.sendMessage('cli', content, {error: true});
+    }
+
+    async displayInfo(content) {
+        return this.sendMessage('cli', content, {system: true});
+    }
 
     async promptInput(question) {
-        if (this.status !== 'connected') throw new Error('CLI not connected');
-        await this.sendMessage('cli', question, { prefix: this._colorize('?', 'info') });
-        return new Promise((resolve) => { this.waitingForInput = true; this.inputResolver = resolve; });
+        if (this.status !== 'connected') {
+            throw new Error('CLI not connected');
+        }
+        await this.sendMessage('cli', question, {prefix: this._colorize('?', 'info')});
+        return new Promise((resolve) => {
+            this.waitingForInput = true;
+            this.inputResolver = resolve;
+        });
     }
 
     async clear() {
@@ -209,8 +238,22 @@ export class CLIChannel extends Embodiment {
         return true;
     }
 
-    getHistory() { return [...this.history]; }
-    clearHistory() { this.history = []; this.historyIndex = -1; }
-    setPrompt(prompt) { if (this.rl) this.rl.setPrompt(this._colorize(`${prompt} `, 'prompt')); }
-    setColors(enabled) { this.colors = enabled; }
+    getHistory() {
+        return [...this.history];
+    }
+
+    clearHistory() {
+        this.history = [];
+        this.historyIndex = -1;
+    }
+
+    setPrompt(prompt) {
+        if (this.rl) {
+            this.rl.setPrompt(this._colorize(`${prompt} `, 'prompt'));
+        }
+    }
+
+    setColors(enabled) {
+        this.colors = enabled;
+    }
 }

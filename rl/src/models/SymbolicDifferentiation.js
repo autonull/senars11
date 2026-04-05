@@ -17,7 +17,7 @@ export class SymbolicDifferentiation {
     gradient(loss, params, context = new Map()) {
         return params.map(param => {
             const grad = this.computeGradient(loss, param, context);
-            if (!(param instanceof SymbolicTensor)) return grad;
+            if (!(param instanceof SymbolicTensor)) {return grad;}
 
             const symbolicGrad = this.annotateGradient(grad, param);
             this.symbolicGradients.set(param, symbolicGrad);
@@ -41,7 +41,7 @@ export class SymbolicDifferentiation {
             }
         }
 
-        if (this.config.trackProvenance) this.trackGradientFlow(param, grad, context);
+        if (this.config.trackProvenance) {this.trackGradientFlow(param, grad, context);}
         return grad;
     }
 
@@ -66,7 +66,7 @@ export class SymbolicDifferentiation {
 
     explainGradient(param) {
         const symbolicGrad = this.symbolicGradients.get(param);
-        if (!symbolicGrad) return { explanation: 'No gradient computed', symbols: [] };
+        if (!symbolicGrad) {return { explanation: 'No gradient computed', symbols: [] };}
 
         const symbols = Array.from(symbolicGrad.symbols.values())
             .map(info => ({ symbol: info.symbol, confidence: info.confidence }));
@@ -79,10 +79,10 @@ export class SymbolicDifferentiation {
 
     analyzeGradientFlow() {
         const nodes = Array.from(this.gradientGraph.values());
-        if (nodes.length === 0) return { totalNodes: 0, avgMagnitude: 0 };
+        if (nodes.length === 0) {return { totalNodes: 0, avgMagnitude: 0 };}
 
         const { totalMag, count } = nodes.reduce((acc, node) => {
-            if (!node.grad) return acc;
+            if (!node.grad) {return acc;}
             const mag = node.grad.reduce((sum, val) => sum + Math.abs(val), 0);
             return { totalMag: acc.totalMag + mag, count: acc.count + node.grad.length };
         }, { totalMag: 0, count: 0 });

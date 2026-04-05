@@ -31,10 +31,10 @@ export class PerceptionModule extends CognitiveModule {
         return filtered.length === 1 ? filtered[0] : filtered;
     }
     async liftToSymbols(features) {
-        if (!Array.isArray(features)) return new Map();
+        if (!Array.isArray(features)) {return new Map();}
         const symbols = new Map();
         features.forEach((f, i) => {
-            if (Math.abs(f) > 0.5) symbols.set(`f${i}`, { feature: i, value: f, salience: Math.abs(f) });
+            if (Math.abs(f) > 0.5) {symbols.set(`f${i}`, { feature: i, value: f, salience: Math.abs(f) });}
         });
         return symbols;
     }

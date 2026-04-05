@@ -37,7 +37,7 @@ export class ActivityGraph {
 
     _handleConceptCreated(payload) {
         const term = payload.term || payload.name || payload.id;
-        if (!term) return;
+        if (!term) {return;}
 
         const priority = payload.priority || 0.5;
         this.addConcept(term, priority, payload);
@@ -124,17 +124,17 @@ export class ActivityGraph {
     }
 
     zoomIn() {
-        if (!this.viewport.cy) return;
+        if (!this.viewport.cy) {return;}
         this.viewport.cy.animate({ zoom: this.viewport.cy.zoom() * 1.2, duration: 200 });
     }
 
     zoomOut() {
-        if (!this.viewport.cy) return;
+        if (!this.viewport.cy) {return;}
         this.viewport.cy.animate({ zoom: this.viewport.cy.zoom() / 1.2, duration: 200 });
     }
 
     relayout() {
-        if (!this.viewport.cy) return;
+        if (!this.viewport.cy) {return;}
         this.viewport.cy.layout({
             name: 'grid',
             padding: 50,

@@ -1,4 +1,4 @@
-import { generateId } from '@senars/core';
+import {generateId} from '@senars/core';
 
 /**
  * ActivityModel manages the state of the activity stream.
@@ -12,8 +12,12 @@ export class ActivityModel {
     }
 
     addActivity(activity) {
-        if (!activity.id) activity.id = generateId('activity');
-        if (!activity.timestamp) activity.timestamp = Date.now();
+        if (!activity.id) {
+            activity.id = generateId('activity');
+        }
+        if (!activity.timestamp) {
+            activity.timestamp = Date.now();
+        }
 
         this.activities.unshift(activity);
 

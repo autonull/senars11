@@ -10,7 +10,7 @@ export const removeFromMapSet = (map, key, item) => {
     const set = map.get(key);
     if (set) {
         set.delete(item);
-        if (set.size === 0) map.delete(key);
+        if (set.size === 0) {map.delete(key);}
     }
 };
 

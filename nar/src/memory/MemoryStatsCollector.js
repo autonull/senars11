@@ -33,7 +33,7 @@ export class MemoryStatsCollector {
         };
 
         for (const concept of allConcepts) {
-            if (!concept.term) continue;
+            if (!concept.term) {continue;}
             if (concept.term.isAtomic) {
                 stats.atomicEntries++;
             } else {
@@ -45,7 +45,7 @@ export class MemoryStatsCollector {
                 }
                 if (concept.term.components) {
                     for (const component of concept.term.components) {
-                        if (component?.operator) stats.operatorEntries++;
+                        if (component?.operator) {stats.operatorEntries++;}
                     }
                 }
             }
@@ -66,21 +66,21 @@ export class MemoryStatsCollector {
         };
 
         for (const concept of getAllConcepts()) {
-            if (!concept.term) continue;
+            if (!concept.term) {continue;}
             this._updateDistributionStats(distribution, concept);
         }
         return distribution;
     }
 
     _updateDistributionStats(distribution, concept) {
-        const term = concept.term;
+        const {term} = concept;
         const category = TermCategorization.getTermCategory(term);
         const complexity = TermCategorization.getTermComplexity(term);
         const activation = concept.activation || 0;
 
         distribution.byCategory[category] = (distribution.byCategory[category] || 0) + 1;
         distribution.byComplexity[Math.floor(complexity)] = (distribution.byComplexity[Math.floor(complexity)] || 0) + 1;
-        if (term.operator) distribution.byOperator[term.operator] = (distribution.byOperator[term.operator] || 0) + 1;
+        if (term.operator) {distribution.byOperator[term.operator] = (distribution.byOperator[term.operator] || 0) + 1;}
         const activationBucket = Math.floor(activation * 10) / 10;
         distribution.byActivation[activationBucket] = (distribution.byActivation[activationBucket] || 0) + 1;
     }

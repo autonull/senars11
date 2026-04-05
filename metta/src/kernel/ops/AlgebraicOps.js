@@ -32,21 +32,21 @@ export const AlgebraicOps = {
   project(space, pred) {
     const resultSpace = new Space();
     for (const atom of space.all()) {
-      if (Unify.unify(pred, atom)) resultSpace.add(atom);
+      if (Unify.unify(pred, atom)) {resultSpace.add(atom);}
     }
     return resultSpace;
   },
 
   join(s1, s2, key) {
     const resultSpace = new Space();
-    if (!isVariable(key)) return resultSpace;
+    if (!isVariable(key)) {return resultSpace;}
     const map1 = new Map();
 
     for (const atom of s1.all()) {
       const bindings = Unify.unify(key, atom);
       if (bindings?.[key.name] !== undefined) {
         const keyStr = this._keyToString(bindings[key.name]);
-        if (!map1.has(keyStr)) map1.set(keyStr, []);
+        if (!map1.has(keyStr)) {map1.set(keyStr, []);}
         map1.get(keyStr).push(atom);
       }
     }
@@ -71,7 +71,7 @@ export const AlgebraicOps = {
     const s2Hashes = new Map();
     for (const atom of s2.all()) {
       const hash = this._structuralHash(atom);
-      if (!s2Hashes.has(hash)) s2Hashes.set(hash, []);
+      if (!s2Hashes.has(hash)) {s2Hashes.set(hash, []);}
       s2Hashes.get(hash).push(atom);
     }
     for (const atom of s1.all()) {
@@ -86,9 +86,9 @@ export const AlgebraicOps = {
   },
 
   composeMany(...spaces) {
-    if (spaces.length === 0) return new Space();
-    if (spaces.length === 1) return spaces[0];
-    if (spaces.length === 2) return this.compose(spaces[0], spaces[1]);
+    if (spaces.length === 0) {return new Space();}
+    if (spaces.length === 1) {return spaces[0];}
+    if (spaces.length === 2) {return this.compose(spaces[0], spaces[1]);}
 
     const resultSpace = new Space();
     const functorIndex = new Map();
@@ -96,15 +96,15 @@ export const AlgebraicOps = {
     for (let i = 1; i < spaces.length; i++) {
       for (const atom of spaces[i].all()) {
         const functor = isExpression(atom) ? (atom.operator?.name || atom.operator) : (atom.name || atom);
-        if (!functorIndex.has(functor)) functorIndex.set(functor, []);
+        if (!functorIndex.has(functor)) {functorIndex.set(functor, []);}
         functorIndex.get(functor).push({ spaceIndex: i, atom });
       }
     }
 
     for (const atom1 of spaces[0].all()) {
-      let conclusion = this._extractConclusion(atom1);
+      const conclusion = this._extractConclusion(atom1);
       let currentMatches = [atom1];
-      let currentBindings = new Map();
+      const currentBindings = new Map();
 
       for (let i = 1; i < spaces.length && currentMatches.length > 0; i++) {
         const nextMatches = [];
@@ -114,12 +114,12 @@ export const AlgebraicOps = {
           const candidates = functorIndex.get(functor) || [];
           
           for (const { atom: candidate } of candidates) {
-            if (candidate.spaceIndex !== i) continue;
+            if (candidate.spaceIndex !== i) {continue;}
             const candidateHead = this._extractHead(candidate);
             const bindings = Unify.unify(matchConclusion, candidateHead);
             if (bindings) {
               nextMatches.push(candidate);
-              for (const [k, v] of bindings.entries()) currentBindings.set(k, v);
+              for (const [k, v] of bindings.entries()) {currentBindings.set(k, v);}
             }
           }
         }
@@ -138,11 +138,11 @@ export const AlgebraicOps = {
   },
 
   tryFusion(expr) {
-    if (!isExpression(expr)) return null;
+    if (!isExpression(expr)) {return null;}
     const op = expr.operator?.name || expr.operator;
-    if (op !== 'compose') return null;
+    if (op !== 'compose') {return null;}
     const comps = expr.components || [];
-    if (comps.length < 2) return null;
+    if (comps.length < 2) {return null;}
     
     for (const comp of comps) {
       if (isExpression(comp) && (comp.operator?.name === 'compose' || comp.operator === 'compose')) {
@@ -167,11 +167,11 @@ export const AlgebraicOps = {
   _keyToString(key) { return key.name || key.toString(); },
 
   _structuralHash(atom) {
-    if (!atom) return 'null';
-    if (typeof atom === 'string') return `s:${atom}`;
-    if (typeof atom === 'number') return `n:${atom}`;
-    if (atom.id !== undefined) return `id:${atom.id}`;
-    if (atom.name !== undefined && !atom.components) return `sym:${atom.name}`;
+    if (!atom) {return 'null';}
+    if (typeof atom === 'string') {return `s:${atom}`;}
+    if (typeof atom === 'number') {return `n:${atom}`;}
+    if (atom.id !== undefined) {return `id:${atom.id}`;}
+    if (atom.name !== undefined && !atom.components) {return `sym:${atom.name}`;}
     if (isExpression(atom)) {
       return `exp:${this._structuralHash(atom.operator)}[${(atom.components || []).map(c => this._structuralHash(c)).join(',')}]`;
     }
@@ -179,14 +179,14 @@ export const AlgebraicOps = {
   },
 
   _structuralEquals(a, b) {
-    if (a === b) return true;
-    if (!a || !b || typeof a !== typeof b) return false;
-    if (typeof a === 'string' || typeof a === 'number') return a === b;
-    if (a.name !== undefined && !a.components) return a.name === b.name;
-    if (a.id !== undefined) return a.id === b.id;
+    if (a === b) {return true;}
+    if (!a || !b || typeof a !== typeof b) {return false;}
+    if (typeof a === 'string' || typeof a === 'number') {return a === b;}
+    if (a.name !== undefined && !a.components) {return a.name === b.name;}
+    if (a.id !== undefined) {return a.id === b.id;}
     if (isExpression(a) && isExpression(b)) {
-      if (!this._structuralEquals(a.operator, b.operator)) return false;
-      if ((a.components?.length || 0) !== (b.components?.length || 0)) return false;
+      if (!this._structuralEquals(a.operator, b.operator)) {return false;}
+      if ((a.components?.length || 0) !== (b.components?.length || 0)) {return false;}
       return (a.components || []).every((c, i) => this._structuralEquals(c, b.components[i]));
     }
     return false;

@@ -21,7 +21,7 @@ export class PerformanceMonitor {
 
         this._performance.metricsInterval = setInterval(() => {
             const metrics = this.collectMetrics();
-            if (callback) callback(metrics);
+            if (callback) {callback(metrics);}
         }, interval);
     }
 

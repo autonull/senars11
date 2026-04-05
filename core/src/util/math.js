@@ -58,7 +58,7 @@ export const isNumber = (value) => typeof value === 'number' && !isNaN(value);
  * @param {number} decimals - Decimal places
  * @returns {number} Rounded value
  */
-export const round = (value, decimals = 2) => Number(Math.round(value + 'e' + decimals) + 'e-' + decimals);
+export const round = (value, decimals = 2) => Number(`${Math.round(`${value}e${decimals}`)}e-${decimals}`);
 
 /**
  * Format a number with decimals
@@ -94,7 +94,9 @@ export const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1
 export const dotProduct = (a, b) => {
     const len = Math.min(a.length, b.length);
     let sum = 0;
-    for (let i = 0; i < len; i++) sum += a[i] * b[i];
+    for (let i = 0; i < len; i++) {
+        sum += a[i] * b[i];
+    }
     return sum;
 };
 
@@ -105,7 +107,9 @@ export const dotProduct = (a, b) => {
  */
 export const euclideanNorm = (v) => {
     let sum = 0;
-    for (let i = 0; i < v.length; i++) sum += v[i] * v[i];
+    for (let i = 0; i < v.length; i++) {
+        sum += v[i] * v[i];
+    }
     return Math.sqrt(sum);
 };
 

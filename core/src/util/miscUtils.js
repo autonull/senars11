@@ -6,17 +6,22 @@
  *   - unique from './collection.js'
  *   - isNodeEnvironment, isBrowserEnvironment from './EnvironmentDetector.js'
  */
-export { generateId, formatTimestamp } from './string.js';
-export { unique } from './collection.js';
-export { envDetector, isNodeEnvironment, isBrowserEnvironment } from './EnvironmentDetector.js';
+export {generateId, formatTimestamp} from './string.js';
+export {unique} from './collection.js';
+export {envDetector, isNodeEnvironment, isBrowserEnvironment} from './EnvironmentDetector.js';
 
 export const safeExecute = (fn, ...args) => {
-    try { return fn(...args); }
-    catch { return null; }
+    try {
+        return fn(...args);
+    } catch {
+        return null;
+    }
 };
 
 export const getMemoryUsage = () => {
-    if (typeof process !== 'undefined' && process.memoryUsage) return process.memoryUsage();
+    if (typeof process !== 'undefined' && process.memoryUsage) {
+        return process.memoryUsage();
+    }
     return null;
 };
 

@@ -1,6 +1,6 @@
-import { fnv1a } from '@senars/core/src/util/HashUtils.js';
+import { fnv1a } from '@senars/core/src/util/hashUtils.js';
 
-const freeze = Object.freeze;
+const {freeze} = Object;
 
 export const TermType = freeze({
     ATOM: 'atom',
@@ -66,7 +66,7 @@ export class Term {
     }
 
     static fromJSON(data) {
-        if (!data) throw new Error('Term.fromJSON requires valid data object');
+        if (!data) {throw new Error('Term.fromJSON requires valid data object');}
         const { type, name, components = [], operator } = data;
         return new Term(type, name, components, operator);
     }
@@ -79,23 +79,23 @@ export class Term {
     predicateEquals(term) { return this.compEquals(1, term); }
 
     _determineSemanticType() {
-        if (this._type !== TermType.ATOM) return SemanticType.NAL_CONCEPT;
+        if (this._type !== TermType.ATOM) {return SemanticType.NAL_CONCEPT;}
 
         const name = this._name;
-        if (['True', 'False', 'Null'].includes(name)) return SemanticType.BOOLEAN;
+        if (['True', 'False', 'Null'].includes(name)) {return SemanticType.BOOLEAN;}
 
         // Variables start with ? (independent) or $ (dependent)
-        if (name?.startsWith('?') || name?.startsWith('$')) return SemanticType.VARIABLE;
+        if (name?.startsWith('?') || name?.startsWith('$')) {return SemanticType.VARIABLE;}
 
         // Numeric check
-        if (name && !isNaN(Number(name)) && name.trim() !== '') return SemanticType.NUMERIC;
+        if (name && !isNaN(Number(name)) && name.trim() !== '') {return SemanticType.NUMERIC;}
 
         return SemanticType.NAL_CONCEPT;
     }
 
     _calculateTypeTag() {
-        if (this._type === TermType.COMPOUND) return TYPE_TAG.COMPOUND;
-        if (this._semanticType === SemanticType.VARIABLE) return TYPE_TAG.VARIABLE;
+        if (this._type === TermType.COMPOUND) {return TYPE_TAG.COMPOUND;}
+        if (this._semanticType === SemanticType.VARIABLE) {return TYPE_TAG.VARIABLE;}
         return TYPE_TAG.ATOM;
     }
 
@@ -106,12 +106,12 @@ export class Term {
     }
 
     equals(other) {
-        if (this === other) return true;
+        if (this === other) {return true;}
         if (!(other instanceof Term) ||
             this._hash !== other._hash ||
             this._type !== other._type ||
             this._operator !== other._operator ||
-            this._name !== other._name) return false;
+            this._name !== other._name) {return false;}
 
         return this._type === TermType.COMPOUND
             ? this._components.length === other._components.length && this._components.every((comp, i) => comp.equals(other._components[i]))
@@ -121,17 +121,17 @@ export class Term {
     toString() { return this._name; }
 
     visit(visitor, order = 'pre-order') {
-        if (order === 'pre-order') visitor(this);
+        if (order === 'pre-order') {visitor(this);}
         for (const c of this._components) {
-            if (c instanceof Term) c.visit(visitor, order);
+            if (c instanceof Term) {c.visit(visitor, order);}
         }
-        if (order === 'post-order') visitor(this);
+        if (order === 'post-order') {visitor(this);}
     }
 
     reduce(fn, acc) {
         let result = fn(acc, this);
         for (const c of this._components) {
-            if (c instanceof Term) result = c.reduce(fn, result);
+            if (c instanceof Term) {result = c.reduce(fn, result);}
         }
         return result;
     }

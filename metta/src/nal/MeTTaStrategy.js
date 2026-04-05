@@ -41,7 +41,7 @@ export class MeTTaStrategy extends Strategy {
     _mettaToTasks(mettaResult) {
         // Convert MeTTa results back to NARS tasks
         // Simplified implementation
-        if (!mettaResult || mettaResult.length === 0) return [];
+        if (!mettaResult || mettaResult.length === 0) {return [];}
 
         // For now, return empty array - full implementation would reconstruct tasks
         // This requires Task and Truth imports which we want to avoid circular deps

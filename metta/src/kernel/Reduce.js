@@ -35,7 +35,7 @@ const pipelineRegistry = new WeakMap();
 const getOrCreatePipeline = (interpreter, customStages = null) => {
     if (customStages) {
         const pipeline = new ReductionPipeline(configManager);
-        for (const stage of customStages) pipeline.use(stage);
+        for (const stage of customStages) {pipeline.use(stage);}
         pipelineRegistry.set(interpreter, pipeline);
         return pipeline;
     }
@@ -95,7 +95,7 @@ export function reduce(atom, space, ground, limit = 10000, cache = null, interpr
         let current = atom;
         while (ctx.steps < limit) {
             const { value, done } = pl.execute(current, ctx).next();
-            if (done || !value?.applied) return current;
+            if (done || !value?.applied) {return current;}
             current = value.reduced;
             ctx.steps++;
         }
@@ -112,7 +112,7 @@ export function reduceND(atom, space, ground, limit = 10000, cache = null, inter
 
         for (const result of pl.execute(atom, ctx)) {
             if (result.applied) {
-                if (result.deadEnd) return [];
+                if (result.deadEnd) {return [];}
                 initialResults.push(result.reduced);
             }
         }
@@ -142,7 +142,7 @@ export function* reduceNDGenerator(atom, space, ground, limit = 10000, cache = n
     const ctx = acquireContext(space, ground, limit, cache, globalReduceND);
     try {
         for (const result of getGlobalPipeline().execute(atom, ctx)) {
-            if (result.applied) yield result.reduced;
+            if (result.applied) {yield result.reduced;}
         }
     } finally { releaseContext(ctx); }
 }
@@ -158,9 +158,9 @@ export async function reduceAsync(atom, space, ground, limit = 10000, cache = nu
         const pl = interpreter ? getOrCreatePipeline(interpreter) : getGlobalPipeline();
         let current = atom;
         while (ctx.steps < limit) {
-            if (ctx.steps % 100 === 0) await Promise.resolve();
+            if (ctx.steps % 100 === 0) {await Promise.resolve();}
             const { value, done } = pl.execute(current, ctx).next();
-            if (done || !value?.applied) return current;
+            if (done || !value?.applied) {return current;}
             current = value.reduced;
             ctx.steps++;
         }
@@ -175,8 +175,8 @@ export async function reduceNDAsync(atom, space, ground, limit = 10000, cache = 
         const pl = getGlobalPipeline();
         let stepCount = 0;
         for (const result of pl.execute(atom, ctx)) {
-            if (++stepCount % 100 === 0) await Promise.resolve();
-            if (result.applied) results.push(result.reduced);
+            if (++stepCount % 100 === 0) {await Promise.resolve();}
+            if (result.applied) {results.push(result.reduced);}
         }
         return results.length > 0 ? results : [atom];
     } finally { releaseContext(ctx); }
@@ -186,16 +186,16 @@ export function match(space, pattern, template) {
     const res = [];
     for (const cand of space.all()) {
         const bind = Unify.unify(pattern, cand);
-        if (bind) res.push(Unify.subst(template, bind));
+        if (bind) {res.push(Unify.subst(template, bind));}
     }
     return res;
 }
 
 export function isGroundedCall(atom, ground) {
-    if (!atom?.type || atom.type !== 'compound') return false;
-    if (atom.operator?.name !== '^') return false;
-    const components = atom.components;
-    if (!components || components.length < 2) return false;
+    if (!atom?.type || atom.type !== 'compound') {return false;}
+    if (atom.operator?.name !== '^') {return false;}
+    const {components} = atom;
+    if (!components || components.length < 2) {return false;}
     const opSymbol = components[0];
     return opSymbol?.name != null && ground.has(opSymbol.name);
 }
@@ -227,7 +227,7 @@ export function createInterpreterBindings(interpreter, customStages = null) {
                 let steps = 0;
                 while (steps < limit) {
                     const { value, done } = pipeline.execute(current, ctx).next();
-                    if (done || !value?.applied) return current;
+                    if (done || !value?.applied) {return current;}
                     current = value.reduced;
                     steps++;
                 }
@@ -240,7 +240,7 @@ export function createInterpreterBindings(interpreter, customStages = null) {
             try {
                 const results = [];
                 for (const result of pipeline.execute(atom, ctx)) {
-                    if (result.applied) results.push(result.reduced);
+                    if (result.applied) {results.push(result.reduced);}
                 }
                 return results.length > 0 ? results : [atom];
             } finally { releaseContext(ctx); }

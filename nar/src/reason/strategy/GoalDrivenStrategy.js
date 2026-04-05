@@ -26,25 +26,25 @@ export class GoalDrivenStrategy extends PrologStrategy {
     }
 
     async synthesizePlan(goal) {
-        if (!goal.isGoal()) throw new Error('synthesizePlan requires a goal task');
+        if (!goal.isGoal()) {throw new Error('synthesizePlan requires a goal task');}
 
         const cacheKey = goal.term.toString();
         const cached = this.planCache.get(cacheKey);
-        if (cached) return cached;
+        if (cached) {return cached;}
 
         const plan = [];
         await this._buildPlan(goal, plan, new Set(), 0);
 
-        if (plan.length > 0) this.planCache.set(cacheKey, plan);
+        if (plan.length > 0) {this.planCache.set(cacheKey, plan);}
         return plan;
     }
 
     async _buildPlan(currentGoal, plan, visited, depth) {
         if (depth >= this.config.maxPlanDepth ||
-            plan.length >= this.config.maxPlanSteps) return;
+            plan.length >= this.config.maxPlanSteps) {return;}
 
         const goalKey = currentGoal.term.toString();
-        if (visited.has(goalKey)) return;
+        if (visited.has(goalKey)) {return;}
         visited.add(goalKey);
 
         const supportingPremises = await this.findGoalSupportingPremises(currentGoal);
@@ -70,7 +70,7 @@ export class GoalDrivenStrategy extends PrologStrategy {
                 }
             }
 
-            if (plan.length >= this.config.maxPlanSteps) break;
+            if (plan.length >= this.config.maxPlanSteps) {break;}
         }
     }
 

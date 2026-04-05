@@ -70,7 +70,7 @@ export class NAR extends BaseComponent {
     async initialize() {
         try {
             const success = await this._componentManager.initializeAll();
-            if (success) await this._setupDefaultRules();
+            if (success) {await this._setupDefaultRules();}
 
             if (!this._streamReasoner) {
                 this._initStreamReasoner();
@@ -110,7 +110,7 @@ export class NAR extends BaseComponent {
     }
 
     async _registerRulesWithStreamReasoner() {
-        if (!this._streamReasoner) return;
+        if (!this._streamReasoner) {return;}
         await this._initializer.registerDefaultRules(this._streamReasoner, {
             parser: this._parser, lm: this._lm, embeddingLayer: this._embeddingLayer,
             memory: this._memory, termFactory: this._termFactory, eventBus: this._eventBus
@@ -129,7 +129,7 @@ export class NAR extends BaseComponent {
 
         try {
             const task = this._inputProcessor.processInput(input, validatedOptions);
-            if (!task) throw new Error('Input processing failed to create task');
+            if (!task) {throw new Error('Input processing failed to create task');}
 
             const parsed = {
                 term: task.term, punctuation: task.punctuation, taskType: task.type,
@@ -212,7 +212,7 @@ export class NAR extends BaseComponent {
     async _startComponentsAsync() {
         try {
             const success = await this._componentManager.startAll();
-            if (!success) this.logError('Failed to start all components');
+            if (!success) {this.logError('Failed to start all components');}
         } catch (error) { this.logError('Error during component start:', error); }
     }
 
@@ -231,7 +231,7 @@ export class NAR extends BaseComponent {
         return true;
     }
 
-    _stopStreamReasoner() { if (this._streamReasoner) this._streamReasoner.stop(); }
+    _stopStreamReasoner() { if (this._streamReasoner) {this._streamReasoner.stop();} }
 
     _cleanupMonitoring() {
         if (this._streamMonitoringInterval) {
@@ -249,7 +249,7 @@ export class NAR extends BaseComponent {
     async _stopComponentsAsync() {
         try {
             const success = await this._componentManager.stopAll();
-            if (!success) this.logError('Failed to stop all components');
+            if (!success) {this.logError('Failed to stop all components');}
         } catch (error) { this.logError('Error during component stop:', error); }
     }
 
@@ -268,7 +268,7 @@ export class NAR extends BaseComponent {
     }
 
     async _processDerivations(results, options) {
-        const traceId = options.traceId;
+        const {traceId} = options;
         const validResults = results.filter(Boolean);
         try {
             const addedResults = await Promise.all(validResults.map(async result => {
@@ -298,8 +298,8 @@ export class NAR extends BaseComponent {
     }
 
     async dispose() {
-        if (this._isRunning) this.stop();
-        if (this._streamReasoner) await this._streamReasoner.cleanup();
+        if (this._isRunning) {this.stop();}
+        if (this._streamReasoner) {await this._streamReasoner.cleanup();}
         this._metricsMonitor?.shutdown?.();
         this._reasoningAboutReasoning?.shutdown?.();
         const success = await this._componentManager.disposeAll();

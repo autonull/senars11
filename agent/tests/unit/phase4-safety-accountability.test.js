@@ -9,25 +9,25 @@
  * - Blocked skills produce audit atoms with zero overhead when safetyLayer: false
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import {afterEach, beforeEach, describe, expect, it, jest} from '@jest/globals';
 
-import { AuditSpace } from '../../src/memory/AuditSpace.js';
-import { ShellGuard, executeValidatedCommand } from '../../src/safety/ShellGuard.js';
-import { SafetyLayer } from '../../src/safety/SafetyLayer.js';
-import { SkillDispatcher } from '../../src/skills/SkillDispatcher.js';
+import {AuditSpace} from '../../src/memory/index.js';
+import {executeValidatedCommand, ShellGuard} from '../../src/safety/index.js';
+import {SafetyLayer} from '../../src/safety/index.js';
+import {SkillDispatcher} from '../../src/skills/index.js';
 
 function createMockInterpreter() {
     return {
-        space: { getAll: () => [] },
+        space: {getAll: () => []},
         async run(code) {
             if (code.includes('shell')) {
-                return [{ $consequence: '(system-state-change :unknown)', $risk: ':high' }];
+                return [{$consequence: '(system-state-change :unknown)', $risk: ':high'}];
             }
             if (code.includes('write-file')) {
-                return [{ $consequence: '(file-modified "test.txt")', $risk: ':medium' }];
+                return [{$consequence: '(file-modified "test.txt")', $risk: ':medium'}];
             }
             if (code.includes('remember')) {
-                return [{ $consequence: '(memory-updated :local)', $risk: ':low' }];
+                return [{$consequence: '(memory-updated :local)', $risk: ':low'}];
             }
             return [];
         }
@@ -41,15 +41,16 @@ describe('Phase 4: Safety & Accountability', () => {
 
         beforeEach(async () => {
             auditDir = `/tmp/audit-test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-            auditSpace = new AuditSpace({ dataDir: auditDir });
+            auditSpace = new AuditSpace({dataDir: auditDir});
             await auditSpace.initialize();
         });
 
         afterEach(async () => {
             try {
-                const { rm } = await import('fs/promises');
-                await rm(auditDir, { recursive: true, force: true });
-            } catch { /* ignore */ }
+                const {rm} = await import('fs/promises');
+                await rm(auditDir, {recursive: true, force: true});
+            } catch { /* ignore */
+            }
         });
 
         it('emits skill-invoked events', async () => {
@@ -82,7 +83,7 @@ describe('Phase 4: Safety & Accountability', () => {
         });
 
         it('emits cycle audit events', async () => {
-            await auditSpace.emitCycleAudit('user input', 'LLM response', [{ skill: 'remember', result: 'ok' }]);
+            await auditSpace.emitCycleAudit('user input', 'LLM response', [{skill: 'remember', result: 'ok'}]);
 
             const events = auditSpace.getRecent(10, 'cycle-audit');
             expect(events[0].input).toContain('user input');
@@ -174,7 +175,7 @@ describe('Phase 4: Safety & Accountability', () => {
         });
 
         it('updates configuration at runtime', () => {
-            guard.configure({ allowlist: ['new-command'], allowedPrefixes: [] });
+            guard.configure({allowlist: ['new-command'], allowedPrefixes: []});
             expect(guard.validate('new-command').valid).toBe(true);
             expect(guard.validate('git status').valid).toBe(false);
         });
@@ -218,7 +219,7 @@ describe('Phase 4: Safety & Accountability', () => {
 
         beforeEach(() => {
             safetyLayer = new SafetyLayer({
-                capabilities: { safetyLayer: true }
+                capabilities: {safetyLayer: true}
             });
             safetyLayer._initialized = true;
             safetyLayer._rulesLoaded = true;
@@ -250,7 +251,7 @@ describe('Phase 4: Safety & Accountability', () => {
 
         it('returns cleared: true when safetyLayer capability is disabled', async () => {
             const disabledLayer = new SafetyLayer({
-                capabilities: { safetyLayer: false }
+                capabilities: {safetyLayer: false}
             });
             const result = await disabledLayer.check('shell', ['test'], ':system');
             expect(result.cleared).toBe(true);
@@ -270,15 +271,15 @@ describe('Phase 4: Safety & Accountability', () => {
                     auditLog: true,
                     fileWriteSkill: true
                 },
-                loop: { maxSkillsPerCycle: 3 }
+                loop: {maxSkillsPerCycle: 3}
             });
 
             dispatcher._safetyLayer = {
                 check: jest.fn().mockImplementation(async (skillName) => {
                     if (skillName === 'write-file') {
-                        return { cleared: true, consequence: '(file-modified "test.txt")', risk: ':medium' };
+                        return {cleared: true, consequence: '(file-modified "test.txt")', risk: ':medium'};
                     }
-                    return { cleared: true };
+                    return {cleared: true};
                 })
             };
 
@@ -286,7 +287,7 @@ describe('Phase 4: Safety & Accountability', () => {
         });
 
         it('executes skills that pass safety check', async () => {
-            const cmds = [{ name: 'write-file', args: ['test.txt', 'content'] }];
+            const cmds = [{name: 'write-file', args: ['test.txt', 'content']}];
             const results = await dispatcher.execute(cmds);
 
             expect(results.length).toBe(1);
@@ -297,10 +298,10 @@ describe('Phase 4: Safety & Accountability', () => {
 
         it('blocks skills that fail safety check', async () => {
             dispatcher._safetyLayer = {
-                check: jest.fn().mockResolvedValue({ cleared: false, reason: 'test-block' })
+                check: jest.fn().mockResolvedValue({cleared: false, reason: 'test-block'})
             };
 
-            const cmds = [{ name: 'write-file', args: ['test.txt', 'content'] }];
+            const cmds = [{name: 'write-file', args: ['test.txt', 'content']}];
             const results = await dispatcher.execute(cmds);
 
             expect(results[0].error).toBe('safety-blocked: test-block');
@@ -314,9 +315,9 @@ describe('Phase 4: Safety & Accountability', () => {
                 emitSkillBlocked: jest.fn()
             };
             dispatcher._auditSpace = mockAudit;
-            dispatcher._safetyLayer = { check: jest.fn().mockResolvedValue({ cleared: true }) };
+            dispatcher._safetyLayer = {check: jest.fn().mockResolvedValue({cleared: true})};
 
-            const cmds = [{ name: 'write-file', args: ['test.txt', 'content'] }];
+            const cmds = [{name: 'write-file', args: ['test.txt', 'content']}];
             await dispatcher.execute(cmds);
 
             expect(mockAudit.emitSkillInvoked).toHaveBeenCalledWith(
@@ -334,10 +335,10 @@ describe('Phase 4: Safety & Accountability', () => {
             };
             dispatcher._auditSpace = mockAudit;
             dispatcher._safetyLayer = {
-                check: jest.fn().mockResolvedValue({ cleared: false, reason: 'blocked' })
+                check: jest.fn().mockResolvedValue({cleared: false, reason: 'blocked'})
             };
 
-            const cmds = [{ name: 'write-file', args: ['test.txt', 'content'] }];
+            const cmds = [{name: 'write-file', args: ['test.txt', 'content']}];
             await dispatcher.execute(cmds);
 
             expect(mockAudit.emitSkillBlocked).toHaveBeenCalledWith(
@@ -357,7 +358,7 @@ describe('Phase 4: Safety & Accountability', () => {
             });
             safeDisabledDispatcher.register('write-file', mockHandler, 'fileWriteSkill', ':local-write');
 
-            const cmds = [{ name: 'write-file', args: ['test.txt', 'content'] }];
+            const cmds = [{name: 'write-file', args: ['test.txt', 'content']}];
             await safeDisabledDispatcher.execute(cmds);
 
             expect(mockHandler).toHaveBeenCalledWith('test.txt', 'content');
@@ -366,8 +367,8 @@ describe('Phase 4: Safety & Accountability', () => {
 
     describe('safety.metta rules', () => {
         it('defines consequence rules for all skill tiers', async () => {
-            const { readFile } = await import('fs/promises');
-            const { join } = await import('path');
+            const {readFile} = await import('fs/promises');
+            const {join} = await import('path');
 
             const rulesPath = join(process.cwd(), 'agent/src/metta/safety.metta');
             const content = await readFile(rulesPath, 'utf8');

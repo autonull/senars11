@@ -26,8 +26,8 @@ export class SeNARS {
     }
 
     async _initialize() {
-        if (this._initialized) return;
-        if (this._initPromise) return this._initPromise;
+        if (this._initialized) {return;}
+        if (this._initPromise) {return this._initPromise;}
 
         this._initPromise = this.nar.initialize()
             .then(() => {
@@ -145,11 +145,11 @@ export class SeNARS {
             const executedOperations = [];
             const opListener = (event) => {
                 // Handle different event structures
-                let task = event.task || event.payload?.task;
+                const task = event.task || event.payload?.task;
 
                 if (task) {
                     // Check if it's an operation
-                    const term = task.term;
+                    const {term} = task;
                     const isOp = term?.isOperation || term?.toString().startsWith('^');
 
                     if (isOp) {

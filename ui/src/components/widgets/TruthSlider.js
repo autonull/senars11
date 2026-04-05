@@ -10,7 +10,7 @@ export class TruthSlider extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         this.fluent().clear().class('truth-slider-widget')
             .style({ padding: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', width: '100%', border: '1px solid var(--border-color)' })
@@ -77,9 +77,9 @@ export class TruthSlider extends Component {
             // Low confidence = Red/Orange
 
             let color = '#555';
-            if (this.confidence > 0.9) color = '#00ff9d';
-            else if (this.confidence > 0.5) color = '#ffcc00';
-            else color = '#ff4444';
+            if (this.confidence > 0.9) {color = '#00ff9d';}
+            else if (this.confidence > 0.5) {color = '#ffcc00';}
+            else {color = '#ff4444';}
 
             this.valueDisplay.style.borderColor = color;
             this.valueDisplay.style.background = `rgba(${this.frequency * 255}, ${this.frequency * 255}, 255, 0.1)`;

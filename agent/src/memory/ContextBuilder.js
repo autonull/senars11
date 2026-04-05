@@ -1,14 +1,18 @@
 /**
  * ContextBuilder.js — JS implementation of MeTTa context builder
  */
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
-import { Logger, truncate } from '@senars/core';
-import { isEnabled } from '../config/capabilities.js';
+import {existsSync, readFileSync} from 'fs';
+import {join} from 'path';
+import {Logger, truncate} from '@senars/core';
+import {isEnabled} from '../config/index.js';
 
 const safeGet = async (fn, fallback = '', warnMsg) => {
-    try { return await fn() ?? fallback; }
-    catch (err) { Logger.warn(`[ContextBuilder] ${warnMsg}`, err.message); return fallback; }
+    try {
+        return await fn() ?? fallback;
+    } catch (err) {
+        Logger.warn(`[ContextBuilder] ${warnMsg}`, err.message);
+        return fallback;
+    }
 };
 
 export class ContextBuilder {
@@ -35,11 +39,11 @@ export class ContextBuilder {
         };
 
         this.harnessPath = join(process.cwd(), 'memory', 'harness', 'prompt.metta');
-        Logger.info('[ContextBuilder] Initialized', { budgets: this.budgets });
+        Logger.info('[ContextBuilder] Initialized', {budgets: this.budgets});
     }
 
     registerGroundedOps(interp) {
-        const reg = (name, fn) => interp.ground.register(name, fn, { lazy: true });
+        const reg = (name, fn) => interp.ground.register(name, fn, {lazy: true});
         reg('context-init', () => 'ok');
         reg('context-concat', sections => this._concat(sections));
         reg('load-harness-prompt', () => this._loadHarnessPrompt());
@@ -115,28 +119,40 @@ export class ContextBuilder {
     }
 
     _getActiveSkills() {
-        if (!isEnabled(this.config, 'sExprSkillDispatch')) return '(skill dispatch disabled — using JSON tool calls)';
+        if (!isEnabled(this.config, 'sExprSkillDispatch')) {
+            return '(skill dispatch disabled — using JSON tool calls)';
+        }
         return this.skillDispatcher?.getActiveSkillDefs() ?? '(no skills registered)';
     }
 
     async _getStartupOrient(cycleCount) {
-        if (cycleCount !== 0 || !this.nar) return '';
+        if (cycleCount !== 0 || !this.nar) {
+            return '';
+        }
         return safeGet(async () => {
             const goals = this.nar.taskManager.findTasksByType('GOAL');
             const parts = [];
             const active = goals.filter(g => g.budget?.priority >= 0.5);
-            if (active.length) parts.push(`Active goals: ${active.map(g => g.term.toString()).join('; ')}`);
-            const needsAttention = this.nar.taskManager.getTasksNeedingAttention?.({ minPriority: 0.3, limit: 5 });
-            if (needsAttention?.length) parts.push(`Needs attention: ${needsAttention.map(t => t.term.toString()).join('; ')}`);
+            if (active.length) {
+                parts.push(`Active goals: ${active.map(g => g.term.toString()).join('; ')}`);
+            }
+            const needsAttention = this.nar.taskManager.getTasksNeedingAttention?.({minPriority: 0.3, limit: 5});
+            if (needsAttention?.length) {
+                parts.push(`Needs attention: ${needsAttention.map(t => t.term.toString()).join('; ')}`);
+            }
             return this._truncate(parts.join('\n'), this.budgets.startupOrientChars);
         }, '', 'Failed to get startup orient');
     }
 
     _getTasks() {
-        if (!this.nar) return '';
+        if (!this.nar) {
+            return '';
+        }
         return safeGet(async () => {
             const goals = this.nar.taskManager.findTasksByType('GOAL');
-            if (!goals.length) return '';
+            if (!goals.length) {
+                return '';
+            }
             return this._truncate(
                 goals.map(g => `[${g.budget?.priority >= 0.5 ? 'active' : 'pending'}] ${g.term.toString()}`).join('\n'),
                 this.budgets.tasksChars
@@ -145,7 +161,9 @@ export class ContextBuilder {
     }
 
     async _getPinnedMemories() {
-        if (!isEnabled(this.config, 'semanticMemory') || !this.semanticMemory) return '';
+        if (!isEnabled(this.config, 'semanticMemory') || !this.semanticMemory) {
+            return '';
+        }
         return safeGet(async () => {
             const pinned = await this.semanticMemory.getPinned(this.budgets.pinnedMaxChars);
             return this._truncate(pinned.map(m => m.content ?? String(m)).join('\n'), this.budgets.pinnedMaxChars);
@@ -154,7 +172,9 @@ export class ContextBuilder {
 
     _getWmEntries() {
         const wmEntries = this._currentWmEntries ?? [];
-        if (!wmEntries.length) return '';
+        if (!wmEntries.length) {
+            return '';
+        }
         return this._truncate(
             wmEntries.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
                 .map(e => `[${e.priority?.toFixed(1) ?? '0.5'}] ${e.content} (TTL: ${e.ttl ?? 0})`)
@@ -164,7 +184,9 @@ export class ContextBuilder {
     }
 
     _generateManifest() {
-        if (!isEnabled(this.config, 'runtimeIntrospection') || !this.introspectionOps) return '';
+        if (!isEnabled(this.config, 'runtimeIntrospection') || !this.introspectionOps) {
+            return '';
+        }
         return safeGet(async () => {
             const manifest = this.introspectionOps.generateManifest();
             return this._truncate(typeof manifest === 'string' ? manifest : JSON.stringify(manifest, null, 2), this.budgets.agentManifestChars);
@@ -172,7 +194,9 @@ export class ContextBuilder {
     }
 
     async _queryMemories(msg, k) {
-        if (!isEnabled(this.config, 'semanticMemory') || !this.semanticMemory) return '';
+        if (!isEnabled(this.config, 'semanticMemory') || !this.semanticMemory) {
+            return '';
+        }
         return safeGet(async () => {
             const memories = await this.semanticMemory.query(msg?.content || msg || 'recent context', k);
             return this._truncate(memories.map(m => m.content ?? String(m)).join('\n'), this.budgets.recallChars);
@@ -180,7 +204,9 @@ export class ContextBuilder {
     }
 
     async _getHistory() {
-        if (!isEnabled(this.config, 'persistentHistory') || !this.historySpace) return '';
+        if (!isEnabled(this.config, 'persistentHistory') || !this.historySpace) {
+            return '';
+        }
         return safeGet(async () => {
             const history = await this.historySpace.getRecent(this.budgets.recallItems);
             return this._truncate(history.map(h => {
@@ -192,26 +218,46 @@ export class ContextBuilder {
 
     _getFeedback() {
         const parts = [];
-        if (this.lastFeedback) parts.push(`Feedback: ${this.lastFeedback}`);
-        if (this.lastError) parts.push(`Error: ${this.lastError}`);
+        if (this.lastFeedback) {
+            parts.push(`Feedback: ${this.lastFeedback}`);
+        }
+        if (this.lastError) {
+            parts.push(`Error: ${this.lastError}`);
+        }
         this.lastFeedback = null;
         this.lastError = null;
         return this._truncate(parts.join('\n'), this.budgets.feedbackChars);
     }
 
     _formatInput(msg) {
-        if (!msg) return isEnabled(this.config, 'autonomousLoop') ? '(autonomous cycle — no external input)' : '(no input)';
-        if (typeof msg === 'string') return `Message: ${msg}`;
-        if (typeof msg !== 'object') return String(msg);
+        if (!msg) {
+            return isEnabled(this.config, 'autonomousLoop') ? '(autonomous cycle — no external input)' : '(no input)';
+        }
+        if (typeof msg === 'string') {
+            return `Message: ${msg}`;
+        }
+        if (typeof msg !== 'object') {
+            return String(msg);
+        }
         const parts = [];
-        if (msg.content) parts.push(`Content: ${msg.content}`);
-        if (msg.source) parts.push(`Source: ${msg.source}`);
-        if (msg.type) parts.push(`Type: ${msg.type}`);
-        if (msg.timestamp) parts.push(`Time: ${new Date(msg.timestamp).toISOString()}`);
+        if (msg.content) {
+            parts.push(`Content: ${msg.content}`);
+        }
+        if (msg.source) {
+            parts.push(`Source: ${msg.source}`);
+        }
+        if (msg.type) {
+            parts.push(`Type: ${msg.type}`);
+        }
+        if (msg.timestamp) {
+            parts.push(`Time: ${new Date(msg.timestamp).toISOString()}`);
+        }
         return parts.join('\n') || '(empty input)';
     }
 
-    _getBudget(key) { return this.budgets[key] ?? 0; }
+    _getBudget(key) {
+        return this.budgets[key] ?? 0;
+    }
 
     _truncate(content, maxChars) {
         return truncate(content, maxChars, '\n... [truncated]');

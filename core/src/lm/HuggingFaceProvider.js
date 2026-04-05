@@ -19,7 +19,9 @@ export class HuggingFaceProvider extends BaseProvider {
     }
 
     async _initializeModel() {
-        if (this.initialized) return;
+        if (this.initialized) {
+            return;
+        }
 
         try {
             const {pipeline, AutoTokenizer, AutoModelForCausalLM} = await import('@huggingface/transformers');

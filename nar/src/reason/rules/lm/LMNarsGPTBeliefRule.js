@@ -23,7 +23,7 @@ export const createNarsGPTBeliefRule = ({lm, narsGPTStrategy, parser, eventBus, 
         singlePremise: true,
 
         condition: (task) => {
-            if (!task?.term || !isBelief(task)) return false;
+            if (!task?.term || !isBelief(task)) {return false;}
             const name = task.term.name ?? task.term.toString?.() ?? '';
             return task.term.isAtomic && (/\s/.test(name) || name.startsWith('"'));
         },
@@ -40,15 +40,15 @@ export const createNarsGPTBeliefRule = ({lm, narsGPTStrategy, parser, eventBus, 
         },
 
         process: (response) => {
-            if (!response) return null;
+            if (!response) {return null;}
             const narseseLine = response.split('\n').map(l => l.trim()).find(l => NARSESE_PATTERN.test(l));
             return narseseLine ?? response.trim();
         },
 
         generate: (output, task) => {
-            if (!output) return [];
+            if (!output) {return [];}
             const parsed = tryParseNarsese(output, parser);
-            if (!parsed?.term) return [];
+            if (!parsed?.term) {return [];}
 
             const match = output.match(TRUTH_PATTERN);
             const truth = parsed.truthValue

@@ -43,7 +43,7 @@ export class MeTTaParser extends BaseParser {
      * @returns {Array<Task>}
      */
     parseMeTTa(mettaInput) {
-        if (!mettaInput?.trim()) return [];
+        if (!mettaInput?.trim()) {return [];}
 
         this._validateInput(mettaInput);
         const tokenizer = new MeTTaTokenizer(mettaInput);
@@ -113,13 +113,13 @@ export class MeTTaParser extends BaseParser {
     }
 
     _parseExpr() {
-        if (this._isAtEnd()) return null;
+        if (this._isAtEnd()) {return null;}
 
         const { type } = this._peek();
 
-        if (type === TokenType.LPAREN) return this._parseList();
-        if (type === TokenType.LBRACKET) return this._parseBracketList();
-        if (type === TokenType.LBRACE) return this._parseBraceSet();
+        if (type === TokenType.LPAREN) {return this._parseList();}
+        if (type === TokenType.LBRACKET) {return this._parseBracketList();}
+        if (type === TokenType.LBRACE) {return this._parseBraceSet();}
 
         if ([TokenType.SYMBOL, TokenType.VARIABLE, TokenType.STRING, TokenType.NUMBER, TokenType.GROUNDED].includes(type)) {
             return this._parseAtom();
@@ -186,7 +186,7 @@ export class MeTTaParser extends BaseParser {
     // ===== Term conversion =====
 
     _toTerm(expr) {
-        if (!expr) return null;
+        if (!expr) {return null;}
 
         const converters = {
             'atom': this._atomToTerm,
@@ -215,8 +215,8 @@ export class MeTTaParser extends BaseParser {
             case TokenType.SYMBOL:
             default:
                 // Check for special atoms
-                if (value === 'True') return this.termFactory.createTrue();
-                if (value === 'False') return this.termFactory.createFalse();
+                if (value === 'True') {return this.termFactory.createTrue();}
+                if (value === 'False') {return this.termFactory.createFalse();}
                 return this.termFactory.atomic(value);
         }
     }

@@ -52,7 +52,7 @@ export class GraphPanel extends Component {
     get scatterAxes() { return this.state.scatterAxes; }
 
     initialize() {
-        if (this.initialized || !this.container) return;
+        if (this.initialized || !this.container) {return;}
 
         if (this.graphOptions.showToolbar !== false) {
             this.createToolbar();

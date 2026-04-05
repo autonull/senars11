@@ -20,7 +20,7 @@ async function main() {
 
     const nar = new NAR(narConfig);
     await nar.initialize();
-    await nar.start();
+    nar.start();
 
     // Initialize and start MCP Server
     const server = new Server({nar});
@@ -30,7 +30,7 @@ async function main() {
     process.on('SIGINT', async () => {
         console.error("Stopping server...");
         await server.stop();
-        await nar.stop();
+        nar.stop();
         process.exit(0);
     });
 }

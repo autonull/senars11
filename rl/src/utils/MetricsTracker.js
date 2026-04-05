@@ -4,7 +4,7 @@ const HISTORY_LIMIT = 1000;
 
 const StatsCalculator = {
     compute(history) {
-        if (!history.length) return null;
+        if (!history.length) {return null;}
 
         const sum = history.reduce((a, b) => a + b, 0);
         const mean = sum / history.length;
@@ -68,6 +68,6 @@ export class MetricsTracker {
         }
         const history = this.history.get(key);
         history.push(value);
-        if (history.length > HISTORY_LIMIT) history.shift();
+        if (history.length > HISTORY_LIMIT) {history.shift();}
     }
 }

@@ -34,10 +34,10 @@ export * from './func.js';
 export * from './guard.js';
 
 // Re-export commonly used items for backward compatibility
-export { Logger } from './Logger.js';
-export { EventBus } from './EventBus.js';
+export {Logger} from './Logger.js';
+export {EventBus} from './EventBus.js';
 
 // Additional utilities
-export * from './PathUtils.js';
-export * from './Singleton.js';
-export * from './WebSocketUtils.js';
+export * from './pathUtils.js';
+export * from './singleton.js';
+export * from './webSocketUtils.js';

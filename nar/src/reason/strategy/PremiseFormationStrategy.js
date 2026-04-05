@@ -60,7 +60,7 @@ export class PremiseFormationStrategy {
      * @returns {number} Ratio of successful pairs to candidates generated
      */
     get effectiveness() {
-        if (this._stats.candidatesGenerated === 0) return 0;
+        if (this._stats.candidatesGenerated === 0) {return 0;}
         return this._stats.successfulPairs / this._stats.candidatesGenerated;
     }
 

@@ -118,7 +118,7 @@ export class AgentToolsBridge {
                 }
 
                 try {
-                    const content = args.content;
+                    const {content} = args;
                     if (!content) {
                         return { success: false, error: 'No content provided' };
                     }
@@ -150,7 +150,7 @@ export class AgentToolsBridge {
                 }
 
                 try {
-                    const content = args.content;
+                    const {content} = args;
                     if (!content) {
                         return { success: false, error: 'No content provided' };
                     }
@@ -182,7 +182,7 @@ export class AgentToolsBridge {
                 }
 
                 try {
-                    const content = args.content;
+                    const {content} = args;
                     if (!content) {
                         return { success: false, error: 'No content provided' };
                     }

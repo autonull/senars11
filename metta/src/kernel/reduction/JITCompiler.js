@@ -17,15 +17,15 @@ export class JITCompiler {
    * Fast structural hash for atoms.
    */
   _termKey(atom) {
-      if (!atom) return '';
-      if (typeof atom.name === 'string') return atom.name;
+      if (!atom) {return '';}
+      if (typeof atom.name === 'string') {return atom.name;}
       // Skip tracking variables as static compilation roots (since they bind dynamically)
-      if (atom.type === 'variable') return '';
+      if (atom.type === 'variable') {return '';}
 
       if (isExpression(atom)) {
-          let key = '(' + (atom.operator ? this._termKey(atom.operator) : '');
+          let key = `(${  atom.operator ? this._termKey(atom.operator) : ''}`;
           if (atom.components && atom.components.length > 0) {
-              key += ' ' + atom.components.map(c => this._termKey(c)).join(' ');
+              key += ` ${  atom.components.map(c => this._termKey(c)).join(' ')}`;
           }
           key += ')';
           return key;
@@ -39,7 +39,7 @@ export class JITCompiler {
   track(atom) {
     this.stats.tracks++;
     const key = this._termKey(atom);
-    if (!key) return null; // Un-trackable
+    if (!key) {return null;} // Un-trackable
 
     // Check if already compiled
     if (this.compiled.has(key)) {
@@ -48,7 +48,7 @@ export class JITCompiler {
     }
 
     // Only JIT expressions (skip bare symbols/numbers which resolve instantly anyway)
-    if (!isExpression(atom)) return null;
+    if (!isExpression(atom)) {return null;}
 
     const n = (this.counts.get(key) || 0) + 1;
     this.counts.set(key, n);
@@ -85,7 +85,7 @@ export class JITCompiler {
    */
   get(atom) {
     const key = this._termKey(atom);
-    if (!key) return null;
+    if (!key) {return null;}
     if (this.compiled.has(key)) {
         this.stats.hits++;
         return this.compiled.get(key);

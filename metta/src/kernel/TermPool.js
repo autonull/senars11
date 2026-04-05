@@ -147,7 +147,7 @@ export class ExpressionPool extends BasePool {
             },
             _computeName() {
                 const opName = this.operator?._name ?? this.operator?.name ?? '?';
-                return `(${opName}${this.components.map(c => ' ' + (c._name ?? c.name ?? '?')).join('')})`;
+                return `(${opName}${this.components.map(c => ` ${  c._name ?? c.name ?? '?'}`).join('')})`;
             }
         };
     }
@@ -177,7 +177,7 @@ export class ExpressionPool extends BasePool {
 
     _computeName(operator, components) {
         const opName = operator?._name ?? operator?.name ?? '?';
-        return `(${opName}${(components ?? []).map(c => ' ' + (c._name ?? c.name ?? '?')).join('')})`;
+        return `(${opName}${(components ?? []).map(c => ` ${  c._name ?? c.name ?? '?'}`).join('')})`;
     }
 }
 

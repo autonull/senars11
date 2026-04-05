@@ -57,7 +57,7 @@ export class GraphViewport {
     }
 
     _setupEvents() {
-        if (!this.cy) return;
+        if (!this.cy) {return;}
 
         // Propagate zoom/pan events
         this.cy.on('zoom pan', () => {
@@ -146,7 +146,7 @@ export class GraphViewport {
     }
 
     findNode(id) {
-        if (!this.cy) return null;
+        if (!this.cy) {return null;}
 
         const term = id?.toLowerCase();
         let node = this.cy.$id(id);
@@ -172,17 +172,17 @@ export class GraphViewport {
     }
 
     highlightMatches(term) {
-        if (!this.cy) return;
+        if (!this.cy) {return;}
 
         this.cy.batch(() => {
             const allElements = this.cy.elements();
             allElements.removeClass('matched dimmed');
 
-            if (!term || term.length < 2) return;
+            if (!term || term.length < 2) {return;}
 
             const termLower = term.toLowerCase();
             const matches = allElements.filter(ele => {
-                if (!ele.isNode()) return false;
+                if (!ele.isNode()) {return false;}
                 const label = (ele.data('label') || '').toLowerCase();
                 return label.includes(termLower);
             });
@@ -196,10 +196,10 @@ export class GraphViewport {
     }
 
     setFocus(nodeId) {
-        if (!this.cy) return;
+        if (!this.cy) {return;}
 
         const node = this.cy.$id(nodeId);
-        if (node.empty()) return;
+        if (node.empty()) {return;}
 
         this.cy.batch(() => {
             // If already focused, clear focus
@@ -224,7 +224,7 @@ export class GraphViewport {
     }
 
     clearFocus() {
-        if (!this.cy) return;
+        if (!this.cy) {return;}
         this.cy.batch(() => {
             this.cy.elements().removeClass('dimmed focused-target focused-context');
         });

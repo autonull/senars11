@@ -1,1 +1,1 @@
-export { MeTTaLoopBuilder } from './MeTTaLoopBuilder.js';
+export {MeTTaLoopBuilder} from './MeTTaLoopBuilder.js';

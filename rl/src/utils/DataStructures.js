@@ -174,7 +174,7 @@ export class Index {
             set.delete(id);
         }
         const idx = this.timeline.indexOf(id);
-        if (idx >= 0) this.timeline.splice(idx, 1);
+        if (idx >= 0) {this.timeline.splice(idx, 1);}
     }
 
     get(key) {
@@ -190,7 +190,7 @@ export class Index {
         const result = new Set(sets[0]);
         for (const set of sets.slice(1)) {
             for (const item of result) {
-                if (!set.has(item)) result.delete(item);
+                if (!set.has(item)) {result.delete(item);}
             }
         }
         return result;
@@ -214,8 +214,8 @@ export function generateId(prefix = 'id') {
 }
 
 export function serializeValue(value) {
-    if (value?.data) return Array.from(value.data);
-    if (Array.isArray(value)) return [...value];
+    if (value?.data) {return Array.from(value.data);}
+    if (Array.isArray(value)) {return [...value];}
     return value;
 }
 

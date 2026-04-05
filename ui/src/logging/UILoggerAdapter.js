@@ -39,7 +39,7 @@ export class UILoggerAdapter {
     }
 
     addLogEntry(content, type = 'info', data = null) {
-        if (this.logViewer?.addLog) return this.logViewer.addLog(content, type, this.icons[type]);
+        if (this.logViewer?.addLog) {return this.logViewer.addLog(content, type, this.icons[type]);}
         this._logToConsole(content, type);
         return null;
     }
@@ -63,8 +63,8 @@ export class UILoggerAdapter {
     }
 
     clearLogs() {
-        if (this.logViewer?.clear) this.logViewer.clear();
-        else if (this.uiElements?.logsContainer) this.uiElements.logsContainer.innerHTML = '';
+        if (this.logViewer?.clear) {this.logViewer.clear();}
+        else if (this.uiElements?.logsContainer) {this.uiElements.logsContainer.innerHTML = '';}
     }
 
     _logToConsole(content, type) {

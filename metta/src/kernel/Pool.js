@@ -15,7 +15,7 @@ export class ObjectPool {
     }
 
     acquire() {
-        if (!this.enabled) return this.factory();
+        if (!this.enabled) {return this.factory();}
 
         if (this.index > 0) {
             return this.pool[--this.index];
@@ -24,7 +24,7 @@ export class ObjectPool {
     }
 
     release(obj) {
-        if (!this.enabled) return;
+        if (!this.enabled) {return;}
 
         this.reset(obj);
         if (this.index < this.pool.length) {
@@ -84,7 +84,7 @@ export class GenerationalPool {
     }
 
     release(obj, isLongLived = false) {
-        if (!this.enabled) return;
+        if (!this.enabled) {return;}
 
         this.reset(obj);
 
@@ -115,7 +115,7 @@ export class GenerationalPool {
     }
 
     collectYoung() {
-        if (!this.enabled) return;
+        if (!this.enabled) {return;}
 
         this.stats.collections++;
 

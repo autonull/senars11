@@ -13,14 +13,14 @@ export function registerExpressionOps(registry) {
             return exp(sym(':'), [head, tail]);
         }
         // Otherwise, for general expression construction
-        if (!isExpression(tail)) return exp(head, [tail]);
+        if (!isExpression(tail)) {return exp(head, [tail]);}
         const components = tail.components ? [tail.operator, ...tail.components] : [tail];
         return exp(head, components);
     });
 
     // === decons-atom: split expression to (head tail) ===
     registry.register('&decons-atom', (expr) => {
-        if (!isExpression(expr)) return exp(sym('Error'), [expr, sym('NotExpression')]);
+        if (!isExpression(expr)) {return exp(sym('Error'), [expr, sym('NotExpression')]);}
         const head = expr.operator;
         const tail = expr.components?.length
             ? (expr.components.length === 1 ? expr.components[0] : exp(expr.components[0], expr.components.slice(1)))
@@ -37,7 +37,7 @@ export function registerExpressionOps(registry) {
 
     // === cdr-atom: tail elements ===
     registry.register('&cdr-atom', (expr) => {
-        if (!isExpression(expr) || !expr.components?.length) return sym('()');
+        if (!isExpression(expr) || !expr.components?.length) {return sym('()');}
         return expr.components.length === 1
             ? expr.components[0]
             : exp(expr.components[0], expr.components.slice(1));
@@ -53,8 +53,8 @@ export function registerExpressionOps(registry) {
     // === index-atom: get element by index ===
     registry.register('&index-atom', (expr, idx) => {
         const i = parseInt(idx.name);
-        if (isNaN(i)) return exp(sym('Error'), [idx, sym('NotANumber')]);
-        if (i === 0) return expr.operator || expr;
+        if (isNaN(i)) {return exp(sym('Error'), [idx, sym('NotANumber')]);}
+        if (i === 0) {return expr.operator || expr;}
         const comp = expr.components?.[i - 1];
         return comp || exp(sym('Error'), [idx, sym('OutOfBounds')]);
     });

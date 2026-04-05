@@ -12,7 +12,7 @@ export class Planner {
     }
 
     async act(obs, goal = 'goal') {
-        if (!this.bridge) return null;
+        if (!this.bridge) {return null;}
 
         const term = (val) => Array.isArray(val) ? `(${val.join(',')})` : String(val);
 

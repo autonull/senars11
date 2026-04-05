@@ -15,7 +15,7 @@ export class NARIntegration {
     }
 
     _withComponentCheck(component, message, operation) {
-        if (!component) throw new Error(message);
+        if (!component) {throw new Error(message);}
         return operation(component);
     }
 

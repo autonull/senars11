@@ -81,7 +81,7 @@ export class PPOAgent extends NeuralAgent {
 
     async _update() {
         const batch = await this.replayBuffer.sample(this.replayBuffer.totalSize);
-        if (!batch.length) return;
+        if (!batch.length) {return;}
 
         const { states, actions, rewards, dones, obsDim, actionDim, batchSize } = this._prepareBatch(batch);
         const values = NetworkBuilder.forward(this.critic, states).data;
@@ -138,7 +138,7 @@ export class PPOAgent extends NeuralAgent {
 
     _padState(state, dim) {
         const padded = new Float32Array(dim);
-        for (let j = 0; j < Math.min(state.length, dim); j++) padded[j] = state[j];
+        for (let j = 0; j < Math.min(state.length, dim); j++) {padded[j] = state[j];}
         return padded;
     }
 

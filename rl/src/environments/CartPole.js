@@ -29,7 +29,7 @@ export class CartPole extends Environment {
     }
 
     step(action) {
-        let [x, xDot, theta, thetaDot] = this.state;
+        const [x, xDot, theta, thetaDot] = this.state;
         const force = action === 1 ? this.forceMag : -this.forceMag;
         const cosTheta = Math.cos(theta);
         const sinTheta = Math.sin(theta);
@@ -65,7 +65,7 @@ export class CartPole extends Environment {
     }
 
     _computeReward(done) {
-        if (!done) return 1.0;
+        if (!done) {return 1.0;}
         if (this.stepsBeyondDone === null) {
             this.stepsBeyondDone = 0;
             return 1.0;

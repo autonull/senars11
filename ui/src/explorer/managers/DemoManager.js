@@ -8,7 +8,7 @@ export class DemoManager {
 
     loadDemo(name) {
         const demo = DEMOS[name];
-        if (!demo) return;
+        if (!demo) {return;}
 
         this.app.graph.clear();
         this.app.log(`Loading demo: ${name}`, 'system');
@@ -61,7 +61,7 @@ export class DemoManager {
 
     bindDemoSelect() {
         const demoSelect = document.getElementById('demo-select');
-        if (!demoSelect) return;
+        if (!demoSelect) {return;}
         const newSelect = demoSelect.cloneNode(false);
         demoSelect.parentNode.replaceChild(newSelect, demoSelect);
         Object.keys(DEMOS).forEach(name => {

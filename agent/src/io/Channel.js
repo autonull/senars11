@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events';
-import { Logger, generateId } from '@senars/core';
+import {EventEmitter} from 'events';
+import {generateId, Logger} from '@senars/core';
 
 export class Channel extends EventEmitter {
     constructor(config = {}) {
@@ -10,9 +10,17 @@ export class Channel extends EventEmitter {
         this.status = 'disconnected';
     }
 
-    async connect() { throw new Error('connect() must be implemented by subclass'); }
-    async disconnect() { throw new Error('disconnect() must be implemented by subclass'); }
-    async sendMessage(target, content, metadata = {}) { throw new Error('sendMessage() must be implemented by subclass'); }
+    async connect() {
+        throw new Error('connect() must be implemented by subclass');
+    }
+
+    async disconnect() {
+        throw new Error('disconnect() must be implemented by subclass');
+    }
+
+    async sendMessage(target, content, metadata = {}) {
+        throw new Error('sendMessage() must be implemented by subclass');
+    }
 
     emitMessage(from, content, metadata = {}) {
         this.emit('message', {
@@ -29,7 +37,7 @@ export class Channel extends EventEmitter {
         if (this.status !== newStatus) {
             const oldStatus = this.status;
             this.status = newStatus;
-            this.emit('status', { old: oldStatus, new: newStatus });
+            this.emit('status', {old: oldStatus, new: newStatus});
             Logger.info(`[${this.type}:${this.id}] Status changed: ${oldStatus} -> ${newStatus}`);
         }
     }

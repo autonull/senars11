@@ -18,7 +18,7 @@ export const createUncertaintyCalibrationRule = (dependencies) => {
         priority: 0.7,
 
         condition: (primaryPremise, secondaryPremise, context) => {
-            if (!primaryPremise) return false;
+            if (!primaryPremise) {return false;}
 
             const belief = isBelief(primaryPremise);
             const priority = primaryPremise.budget?.priority ?? 0.5;
@@ -47,7 +47,7 @@ Statement: "${termStr}"`;
         },
 
         generate: (processedOutput, primaryPremise, secondaryPremise, context) => {
-            if (processedOutput === null) return [];
+            if (processedOutput === null) {return [];}
 
             const newTruth = {
                 frequency: primaryPremise.truth?.f ?? 0.9,

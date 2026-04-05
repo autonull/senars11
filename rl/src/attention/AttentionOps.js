@@ -33,7 +33,7 @@ export const AttentionOps = {
     softmax: (scores) => softmax(scores),
 
     applyDropout(weights, dropout) {
-        if (dropout <= 0) return weights;
+        if (dropout <= 0) {return weights;}
         return weights.map(w => Math.random() < dropout ? 0 : w / (1 - dropout));
     },
 

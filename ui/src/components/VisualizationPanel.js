@@ -53,7 +53,7 @@ export class VisualizationPanel extends Component {
     }
 
     initialize() {
-        if (!this.container) return;
+        if (!this.container) {return;}
         this.render();
         // Emit initial state
         setTimeout(() => this._broadcastAll(), 100);
@@ -323,7 +323,7 @@ export class VisualizationPanel extends Component {
 
         // Persist Physics overrides
         if (['gravity', 'nodeRepulsion', 'idealEdgeLength'].includes(key)) {
-            if (!GraphConfig.OVERRIDES) GraphConfig.OVERRIDES = {};
+            if (!GraphConfig.OVERRIDES) {GraphConfig.OVERRIDES = {};}
             GraphConfig.OVERRIDES[key] = val;
             GraphConfig.save();
         }

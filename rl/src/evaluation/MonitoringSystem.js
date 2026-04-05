@@ -207,7 +207,7 @@ export class MetricsExporter extends Component {
         const filepath = path.join(wandbDir, 'metrics.json');
         await fs.writeFile(filepath, JSON.stringify(data, null, 2));
 
-        return { format: 'wandb', filepath, note: 'Import with: wandb sync ' + wandbDir };
+        return { format: 'wandb', filepath, note: `Import with: wandb sync ${  wandbDir}` };
     }
 
     /**
@@ -217,7 +217,7 @@ export class MetricsExporter extends Component {
         const summary = {};
 
         for (const [key, metric] of this.metrics) {
-            const values = metric.values;
+            const {values} = metric;
             summary[metric.name] = {
                 latest: values[values.length - 1],
                 min: Math.min(...values),
@@ -276,8 +276,8 @@ export class TrainingMonitor extends Component {
         const { reward, loss, epsilon, ...rest } = metrics;
 
         this.exporter.record('episode_reward', reward, { episode });
-        if (loss !== undefined) this.exporter.record('loss', loss, { episode });
-        if (epsilon !== undefined) this.exporter.record('epsilon', epsilon, { episode });
+        if (loss !== undefined) {this.exporter.record('loss', loss, { episode });}
+        if (epsilon !== undefined) {this.exporter.record('epsilon', epsilon, { episode });}
 
         for (const [key, value] of Object.entries(rest)) {
             this.exporter.record(key, value, { episode });
@@ -298,8 +298,8 @@ export class TrainingMonitor extends Component {
         const avgReward = recent.reduce((a, b) => a + b, 0) / recent.length;
 
         let log = `[Episode ${episode}] Reward: ${reward?.toFixed(2)}, Avg(10): ${avgReward?.toFixed(2)}`;
-        if (loss !== undefined) log += `, Loss: ${loss.toFixed(4)}`;
-        if (epsilon !== undefined) log += `, ε: ${epsilon.toFixed(3)}`;
+        if (loss !== undefined) {log += `, Loss: ${loss.toFixed(4)}`;}
+        if (epsilon !== undefined) {log += `, ε: ${epsilon.toFixed(3)}`;}
 
         console.log(log);
     }

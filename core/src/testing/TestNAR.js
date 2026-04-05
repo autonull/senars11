@@ -23,7 +23,9 @@ export class TestNAR {
     }
 
     static _matchesTruth(taskTruth, criteriaTruth) {
-        if (!taskTruth) return false;
+        if (!taskTruth) {
+            return false;
+        }
         return (!criteriaTruth.minFreq || taskTruth.f >= criteriaTruth.minFreq) &&
             (!criteriaTruth.minConf || taskTruth.c >= criteriaTruth.minConf);
     }

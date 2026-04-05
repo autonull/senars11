@@ -21,7 +21,7 @@ export {
 export * from './validate.js';
 export * from './func.js';
 export * from './guard.js';
-export * from './MiscUtils.js';
+export * from './miscUtils.js';
 export * from '../config/ConfigUtils.js';
 export {
     freeze, deepFreeze, isObject, deepClone, safeClone, selectiveDeepClone,

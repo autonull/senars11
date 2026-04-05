@@ -64,7 +64,7 @@ export class PrologParser extends BaseParser {
         const rule = ruleLine.replace(/\.$/, '').trim();
         const parts = rule.split(':-');
 
-        if (parts.length !== 2) throw new Error(`Invalid rule format: ${ruleLine}`);
+        if (parts.length !== 2) {throw new Error(`Invalid rule format: ${ruleLine}`);}
 
         const [headStr, bodyStr] = parts;
 
@@ -169,9 +169,9 @@ export class PrologParser extends BaseParser {
     _isBalanced(str) {
         let depth = 0;
         for (const char of str) {
-            if (char === '(' || char === '[') depth++;
-            else if (char === ')' || char === ']') depth--;
-            if (depth < 0) return false;
+            if (char === '(' || char === '[') {depth++;}
+            else if (char === ')' || char === ']') {depth--;}
+            if (depth < 0) {return false;}
         }
         return depth === 0;
     }
@@ -179,7 +179,7 @@ export class PrologParser extends BaseParser {
     _parseList(str) {
         // [a, b, c] or [H|T]
         const content = str.slice(1, -1).trim(); // remove [ ]
-        if (!content) return this.termFactory.atomic('[]');
+        if (!content) {return this.termFactory.atomic('[]');}
 
         // Check for pipe |
         const pipeSplit = this._splitByDelimiter(content, '|');
@@ -238,8 +238,8 @@ export class PrologParser extends BaseParser {
                 quoteChar = char;
             }
 
-            if (char === '(' || char === '[') depth++;
-            else if (char === ')' || char === ']') depth--;
+            if (char === '(' || char === '[') {depth++;}
+            else if (char === ')' || char === ']') {depth--;}
 
             if (char === delimiter && depth === 0) {
                 parts.push(current.trim());
@@ -248,7 +248,7 @@ export class PrologParser extends BaseParser {
                 current += char;
             }
         }
-        if (current.trim()) parts.push(current.trim());
+        if (current.trim()) {parts.push(current.trim());}
         return parts;
     }
 

@@ -16,14 +16,18 @@ const COLORS = {
 
 export class ReplFormattingUtils {
     static colorize(text, color) {
-        if (process.env.NODE_DISABLE_COLORS === '1') return text;
+        if (process.env.NODE_DISABLE_COLORS === '1') {
+            return text;
+        }
         const [cat, key] = color.split('.');
         const code = key ? COLORS[cat]?.[key] : COLORS[color] || COLORS.fg[color];
         return `${code || ''}${text}${COLORS.reset}`;
     }
 
     static formatTable(data, headers) {
-        if (!data?.length) return 'No data to display';
+        if (!data?.length) {
+            return 'No data to display';
+        }
 
         // Use DisplayUtils.createTable for the base table structure
         const table = DisplayUtils.createTable(headers || [], data);
@@ -50,10 +54,14 @@ export class ReplFormattingUtils {
     }
 
     static _formatList(items, limit, headers, mapper) {
-        if (!items?.length) return 'No data to display';
+        if (!items?.length) {
+            return 'No data to display';
+        }
         const data = items.slice(0, limit).map(mapper);
         let result = this.formatTable(data, headers);
-        if (items.length > limit) result += `\n  ... and ${items.length - limit} more`;
+        if (items.length > limit) {
+            result += `\n  ... and ${items.length - limit} more`;
+        }
         return result;
     }
 
@@ -78,7 +86,9 @@ export class ReplFormattingUtils {
             ? concepts.filter(c => c.term?.toString?.().toLowerCase().includes(term.toLowerCase()))
             : concepts;
 
-        if (!filtered.length) return term ? `No concepts found containing: ${term}` : 'No concepts to display';
+        if (!filtered.length) {
+            return term ? `No concepts found containing: ${term}` : 'No concepts to display';
+        }
 
         return this._formatList(filtered, 20, ['Term', 'Beliefs', 'Goals', 'Questions', 'Activation'], c => [
             c.term?.toString?.() ?? c.term ?? 'Unknown',
@@ -96,7 +106,9 @@ export class ReplFormattingUtils {
             derivation: 'fg.green',
             error: 'fg.red'
         };
-        if (type === 'banner') return this.colorize(output, 'bg.blue') + this.colorize(' ', 'reset') + output;
+        if (type === 'banner') {
+            return this.colorize(output, 'bg.blue') + this.colorize(' ', 'reset') + output;
+        }
         return styles[type] ? this.colorize(output, styles[type]) : output;
     }
 }

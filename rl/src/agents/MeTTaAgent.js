@@ -50,13 +50,13 @@ export class MeTTaAgent extends Agent {
         const result = await this.metta.run(program);
 
         const atom = result?.[0];
-        if (!atom) return 0;
+        if (!atom) {return 0;}
 
         const str = atom.toString();
         const val = parseFloat(str);
 
         // Return number if valid, array if list-like, else string
-        if (!isNaN(val)) return val;
+        if (!isNaN(val)) {return val;}
         return str.startsWith('(')
             ? str.slice(1, -1).trim().split(/\s+/).map(Number)
             : str;

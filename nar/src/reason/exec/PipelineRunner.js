@@ -63,7 +63,7 @@ export class PipelineRunner extends Runner {
     async _runPipeline() {
         try {
             for await (const derivation of this.outputStream) {
-                if (!this.isRunning) break;
+                if (!this.isRunning) {break;}
 
                 const startTime = Date.now();
                 this.reasoner._processDerivation(derivation);

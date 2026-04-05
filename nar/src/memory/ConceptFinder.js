@@ -85,9 +85,9 @@ export class ConceptFinder {
         const normalizedSearch = searchTerm.toLowerCase();
         const results = [];
         for (const concept of getAllConcepts()) {
-            const term = concept.term;
+            const {term} = concept;
             let relevance = 0;
-            if (term.name && term.name.toLowerCase().includes(normalizedSearch)) relevance += 0.5;
+            if (term.name && term.name.toLowerCase().includes(normalizedSearch)) {relevance += 0.5;}
             if (term.components) {
                 for (const component of term.components) {
                     if (component.name && component.name.toLowerCase().includes(normalizedSearch)) {
@@ -96,8 +96,8 @@ export class ConceptFinder {
                     }
                 }
             }
-            if (term.operator && term.operator.toLowerCase().includes(normalizedSearch)) relevance += 0.2;
-            if (relevance > 0) results.push({concept, relevance});
+            if (term.operator && term.operator.toLowerCase().includes(normalizedSearch)) {relevance += 0.2;}
+            if (relevance > 0) {results.push({concept, relevance});}
         }
         return results.sort((a, b) => b.relevance - a.relevance).slice(0, limit).map(item => item.concept);
     }

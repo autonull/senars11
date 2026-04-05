@@ -24,7 +24,9 @@ export class TransformersJSModel extends BaseChatModel {
     }
 
     async _initialize() {
-        if (this.pipeline) return;
+        if (this.pipeline) {
+            return;
+        }
 
         // Suppress ONNX Runtime warnings
         process.env.ORT_LOG_LEVEL ??= '3';
@@ -141,13 +143,19 @@ export class TransformersJSModel extends BaseChatModel {
         return messages
             .filter(msg => !(msg instanceof SystemMessage))
             .map(msg => {
-                if (msg instanceof HumanMessage) return `User: ${msg.content}`;
+                if (msg instanceof HumanMessage) {
+                    return `User: ${msg.content}`;
+                }
                 if (msg instanceof AIMessage) {
                     const toolCalls = msg.tool_calls?.map(tc => `Action: ${tc.name}\nAction Input: ${JSON.stringify(tc.args)}`).join('\n') ?? '';
-                    return `Assistant: ${msg.content}${toolCalls ? '\n' + toolCalls : ''}`;
+                    return `Assistant: ${msg.content}${toolCalls ? `\n${toolCalls}` : ''}`;
                 }
-                if (msg instanceof ToolMessage) return `Tool Result: ${msg.content}`;
-                if (typeof msg === 'string') return `User: ${msg}`;
+                if (msg instanceof ToolMessage) {
+                    return `Tool Result: ${msg.content}`;
+                }
+                if (typeof msg === 'string') {
+                    return `User: ${msg}`;
+                }
                 return '';
             })
             .join('\n');

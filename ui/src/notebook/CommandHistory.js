@@ -8,7 +8,7 @@ export class CommandHistory {
     }
 
     add(command) {
-        if (!command || command.trim() === '') return;
+        if (!command || command.trim() === '') {return;}
 
         // Remove duplicate if it's the most recent one
         if (this.history.length > 0 && this.history[this.history.length - 1] === command) {
@@ -71,7 +71,7 @@ export class CommandHistory {
     _load() {
         try {
             // Check if localStorage is available
-            if (typeof localStorage === 'undefined') return [];
+            if (typeof localStorage === 'undefined') {return [];}
             const saved = localStorage.getItem(this.storageKey);
             return saved ? JSON.parse(saved) : [];
         } catch (e) {

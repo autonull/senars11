@@ -23,7 +23,7 @@ export class DualProcessArchitecture extends Architecture {
         super(agent, mergeConfig(DUAL_PROCESS_DEFAULTS, config));
 
         const senarsConfig = typeof config === 'object' ? { ...config } : {};
-        if (typeof senarsConfig.reasoning !== 'object') delete senarsConfig.reasoning;
+        if (typeof senarsConfig.reasoning !== 'object') {delete senarsConfig.reasoning;}
 
         if (this.config.reasoning === 'metta') {
             this.metta = new MeTTaInterpreter();
@@ -38,7 +38,7 @@ export class DualProcessArchitecture extends Architecture {
     }
 
     async initialize() {
-        if (this.initialized) return;
+        if (this.initialized) {return;}
 
         await this.bridge.initialize();
 
@@ -55,14 +55,14 @@ export class DualProcessArchitecture extends Architecture {
     }
 
     async act(observation, goal) {
-        if (!this.initialized) await this.initialize();
+        if (!this.initialized) {await this.initialize();}
 
         if (this.config.usePolicy && this.metta) {
             const obsStr = `(${observation.join(' ')})`;
             const result = this.metta.run(`! (get-action ${obsStr})`);
             if (result?.length > 0) {
                 const action = Number(result[0].toString());
-                if (!isNaN(action)) return action;
+                if (!isNaN(action)) {return action;}
             }
         }
 
@@ -78,7 +78,7 @@ export class DualProcessArchitecture extends Architecture {
             actionSymbols = await this.planner.act(symbols, goalSymbols);
         }
 
-        if (!actionSymbols) return this._randomAction();
+        if (!actionSymbols) {return this._randomAction();}
 
         const action = this.agent.grounding.ground(actionSymbols);
 
@@ -92,7 +92,7 @@ export class DualProcessArchitecture extends Architecture {
 
     _randomAction() {
         const as = this.agent.env?.actionSpace;
-        if (!as) return 0;
+        if (!as) {return 0;}
 
         if (as.type === 'Discrete') {
             return Math.floor(Math.random() * as.n);
@@ -101,7 +101,7 @@ export class DualProcessArchitecture extends Architecture {
     }
 
     async learn(observation, action, reward, nextObservation, done) {
-        if (!this.initialized) await this.initialize();
+        if (!this.initialized) {await this.initialize();}
 
         const intrinsicReward = this.motivation.calculate({ obs: observation, action, nextObs: nextObservation });
         const totalReward = reward + intrinsicReward;
@@ -137,7 +137,7 @@ export class DualProcessArchitecture extends Architecture {
     }
 
     async close() {
-        if (this.bridge) await this.bridge.close();
+        if (this.bridge) {await this.bridge.close();}
         await super.close();
     }
 }

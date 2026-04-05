@@ -61,7 +61,7 @@ export class NeuroSymbolicBridge extends Component {
     }
 
     async _initializeSeNARS() {
-        if (!this.config.useSeNARS) return;
+        if (!this.config.useSeNARS) {return;}
 
         try {
             const { SeNARS } = await import('@senars/nar');
@@ -83,7 +83,7 @@ export class NeuroSymbolicBridge extends Component {
 
     _initializeMettaIntegration() {
         const { ground } = this.metta ?? {};
-        if (!ground) return;
+        if (!ground) {return;}
 
         const registrations = {
             'senars-input': async (narsese) => {
@@ -180,7 +180,7 @@ export class NeuroSymbolicBridge extends Component {
 
     _fallbackAsk(question) {
         const parsed = this._parseQuestion(question);
-        if (!parsed) return null;
+        if (!parsed) {return null;}
 
         const { subject, predicate } = parsed;
         for (const [key, belief] of this.beliefBase) {
@@ -387,7 +387,7 @@ export class NeuroSymbolicBridge extends Component {
         let reasoningResult = null;
         if (useNARS && this.senars) {
             await this.inputNarsese(narsese);
-            if (goal) await this.inputNarsese(goal);
+            if (goal) {await this.inputNarsese(goal);}
             await this.senars.runCycles(50);
             if (goal) {
                 reasoningResult = await this.askNarsese('<(?action) --> candidate_action>?');
@@ -397,7 +397,7 @@ export class NeuroSymbolicBridge extends Component {
         let policyResult = null;
         if (useMeTTa && this.metta) {
             const result = await this.executeMetta(`(agent-act ${JSON.stringify(symbolic)})`);
-            if (result.success) policyResult = result.result;
+            if (result.success) {policyResult = result.result;}
         }
 
         const action = this._selectAction(reasoningResult, policyResult, exploration);
@@ -411,11 +411,11 @@ export class NeuroSymbolicBridge extends Component {
 
         if (reasoning?.substitution?.['?action']) {
             const match = reasoning.substitution['?action'].toString().match(/op_(\d+)/);
-            if (match) return parseInt(match[1]);
+            if (match) {return parseInt(match[1]);}
         }
 
         if (policy) {
-            if (Array.isArray(policy)) return policy[0] ?? 0;
+            if (Array.isArray(policy)) {return policy[0] ?? 0;}
             const val = parseFloat(policy.toString());
             return isNaN(val) ? 0 : Math.floor(val);
         }

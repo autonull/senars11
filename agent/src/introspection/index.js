@@ -1,1 +1,1 @@
-export { IntrospectionOps } from './IntrospectionOps.js';
+export {IntrospectionOps} from './IntrospectionOps.js';

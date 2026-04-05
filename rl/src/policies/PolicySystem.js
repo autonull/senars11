@@ -57,7 +57,7 @@ class PolicyNetworkModule extends Module {
     }
 
     forward(input, { training = false } = {}) {
-        if (!this.backend) return input;
+        if (!this.backend) {return input;}
 
         let x = input;
         
@@ -128,7 +128,7 @@ export class PolicyNetwork extends Component {
     }
 
     _initializeNetwork() {
-        if (!this.backend) return;
+        if (!this.backend) {return;}
 
         const { inputDim, hiddenDim, outputDim, numLayers, activation } = this.config;
         this.network = new PolicyNetworkModule(inputDim, hiddenDim, outputDim, numLayers, this.backend);
@@ -165,7 +165,7 @@ export class PolicyNetwork extends Component {
     }
 
     _dropout(input, rate) {
-        if (!this.backend) return input;
+        if (!this.backend) {return input;}
         const maskData = Array.from(input.data).map(() => Math.random() > rate ? 1 / (1 - rate) : 0);
         const mask = new Tensor(maskData, { backend: this.backend });
         mask.shape = input.shape;
@@ -173,7 +173,7 @@ export class PolicyNetwork extends Component {
     }
 
     getParameters() {
-        if (!this.network) return {};
+        if (!this.network) {return {};}
         return Object.fromEntries(
             Array.from(this.network.namedParameters()).map(([name, param]) => [
                 name,
@@ -183,12 +183,12 @@ export class PolicyNetwork extends Component {
     }
 
     setParameters(params) {
-        if (!this.network) return;
+        if (!this.network) {return;}
         Object.entries(params).forEach(([name, paramData]) => {
             const param = this.network.namedParameters().get(name);
             if (param) {
                 param.data = [...paramData.data];
-                if (paramData.shape) param.shape = [...paramData.shape];
+                if (paramData.shape) {param.shape = [...paramData.shape];}
             }
         });
     }

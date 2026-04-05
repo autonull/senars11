@@ -6,7 +6,9 @@ export class ModelSelector {
 
     select(task, constraints = {}) {
         const cacheKey = `${task?.type ?? 'unknown'}_${JSON.stringify(constraints)}`;
-        if (this.cache.has(cacheKey)) return this.cache.get(cacheKey);
+        if (this.cache.has(cacheKey)) {
+            return this.cache.get(cacheKey);
+        }
 
         const availableProviders = [...this.providerRegistry.providers.keys()];
         const result = this.#selectByConstraints(availableProviders, constraints);
@@ -16,7 +18,9 @@ export class ModelSelector {
     }
 
     #selectByConstraints(availableProviders, constraints) {
-        if (!availableProviders.length) return null;
+        if (!availableProviders.length) {
+            return null;
+        }
         if (!Object.keys(constraints).length) {
             return this.providerRegistry.defaultProviderId ?? availableProviders[0];
         }
@@ -25,6 +29,11 @@ export class ModelSelector {
             : availableProviders[0];
     }
 
-    getAvailableModels() { return [...this.providerRegistry.providers.keys()]; }
-    clearCache() { this.cache.clear(); }
+    getAvailableModels() {
+        return [...this.providerRegistry.providers.keys()];
+    }
+
+    clearCache() {
+        this.cache.clear();
+    }
 }

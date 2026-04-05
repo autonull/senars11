@@ -89,7 +89,7 @@ export class CrossModalAttention extends Component {
     }
 
     getAttendedSymbols(symbolicInput, threshold = 0.1) {
-        if (!this.attentionWeights) return [];
+        if (!this.attentionWeights) {return [];}
 
         const attended = [];
         symbolicInput.symbols.forEach(({ symbol, confidence }, key) => {

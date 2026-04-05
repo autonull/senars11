@@ -26,7 +26,7 @@ export class KeybindManager {
         }
 
         // Ignore subsequent shortcuts if typing in an input
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {return;}
 
         const keyActions = {
             'Escape': () => this.app.graph.goBack?.(),

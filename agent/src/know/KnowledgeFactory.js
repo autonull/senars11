@@ -1,5 +1,5 @@
-import { Knowledge } from './Knowledge.js';
-import { DataTableKnowledge } from './DataTableKnowledge.js';
+import {Knowledge} from './Knowledge.js';
+import {DataTableKnowledge} from './DataTableKnowledge.js';
 import {
     DependencyGraphKnowledge,
     DirectoryStructureKnowledge,
@@ -19,10 +19,10 @@ const SOFTWARE_TYPES = Object.freeze({
 });
 
 const AUTO_DETECT_RULES = [
-    { test: d => d.fileDetails || d.fileAnalysis?.length > 0, type: 'fileAnalysis' },
-    { test: d => d.individualTestResults, type: 'testResult' },
-    { test: d => d.directoryStats, type: 'directoryStructure' },
-    { test: d => d.dependencyGraph, type: 'dependencyGraph' }
+    {test: d => d.fileDetails || d.fileAnalysis?.length > 0, type: 'fileAnalysis'},
+    {test: d => d.individualTestResults, type: 'testResult'},
+    {test: d => d.directoryStats, type: 'directoryStructure'},
+    {test: d => d.dependencyGraph, type: 'dependencyGraph'}
 ];
 
 export class KnowledgeFactory {
@@ -46,9 +46,13 @@ export class KnowledgeFactory {
     }
 
     static autoDetectKnowledge(data, name = '', options = {}) {
-        if (!data) return null;
-        const detected = AUTO_DETECT_RULES.find(({ test }) => test(data));
-        if (detected) return this.createKnowledge(detected.type, data, options);
+        if (!data) {
+            return null;
+        }
+        const detected = AUTO_DETECT_RULES.find(({test}) => test(data));
+        if (detected) {
+            return this.createKnowledge(detected.type, data, options);
+        }
         return new DataTableKnowledge(data, name || 'auto_detected', options);
     }
 

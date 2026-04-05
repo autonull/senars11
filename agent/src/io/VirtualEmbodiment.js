@@ -1,5 +1,5 @@
-import { Embodiment } from './Embodiment.js';
-import { Logger } from '@senars/core';
+import {Embodiment} from './Embodiment.js';
+import {Logger} from '@senars/core';
 
 export class VirtualEmbodiment extends Embodiment {
     constructor(config = {}) {
@@ -24,15 +24,21 @@ export class VirtualEmbodiment extends Embodiment {
     }
 
     async connect() {
-        if (this.status === 'connected') return;
+        if (this.status === 'connected') {
+            return;
+        }
         this.setStatus('connected');
-        this.emit('connected', { type: 'virtual' });
+        this.emit('connected', {type: 'virtual'});
         Logger.info('[VirtualEmbodiment] Connected - ready for self-directed tasks');
-        if (this.config.autonomousMode) this._startIdleTimer();
+        if (this.config.autonomousMode) {
+            this._startIdleTimer();
+        }
     }
 
     async disconnect() {
-        if (this.status === 'disconnected') return;
+        if (this.status === 'disconnected') {
+            return;
+        }
         this._stopIdleTimer();
         this._taskGenerators = [];
         this.setStatus('disconnected');
@@ -41,18 +47,28 @@ export class VirtualEmbodiment extends Embodiment {
     }
 
     async sendMessage(target, content, metadata = {}) {
-        if (this.status !== 'connected') throw new Error('Virtual embodiment not connected');
-        if (metadata.isMonologue) { this._addMonologue(content); return true; }
-        if (target !== 'self' && this._subAgents.has(target)) return this._sendToSubAgent(target, content, metadata);
-        if (metadata.isTask || target === 'self') { this._queueTask(content, metadata); return true; }
-        this.emitMessage({ from: 'virtual', content, metadata: { ...metadata, type: 'internal' } });
+        if (this.status !== 'connected') {
+            throw new Error('Virtual embodiment not connected');
+        }
+        if (metadata.isMonologue) {
+            this._addMonologue(content);
+            return true;
+        }
+        if (target !== 'self' && this._subAgents.has(target)) {
+            return this._sendToSubAgent(target, content, metadata);
+        }
+        if (metadata.isTask || target === 'self') {
+            this._queueTask(content, metadata);
+            return true;
+        }
+        this.emitMessage({from: 'virtual', content, metadata: {...metadata, type: 'internal'}});
         return true;
     }
 
     generateSelfTask(task, metadata = {}) {
         const taskMessage = {
             from: 'virtual', content: task,
-            metadata: { ...metadata, type: 'self-task', isPrivate: true, generated: Date.now() }
+            metadata: {...metadata, type: 'self-task', isPrivate: true, generated: Date.now()}
         };
         Logger.debug(`[VirtualEmbodiment] Generated self-task: ${task}`);
         this.emitMessage(taskMessage);
@@ -69,10 +85,17 @@ export class VirtualEmbodiment extends Embodiment {
             Logger.warn(`[VirtualEmbodiment] Sub-agent ${subAgentId} already exists`);
             return false;
         }
-        this._subAgents.set(subAgentId, { id: subAgentId, status: 'active', createdAt: Date.now(), cycleBudget, cyclesUsed: 0, task });
+        this._subAgents.set(subAgentId, {
+            id: subAgentId,
+            status: 'active',
+            createdAt: Date.now(),
+            cycleBudget,
+            cyclesUsed: 0,
+            task
+        });
         this._scopedContexts.set(subAgentId, new Map(Object.entries(context)));
         Logger.info(`[VirtualEmbodiment] Sub-agent spawned: ${subAgentId} (budget: ${cycleBudget})`);
-        this.emit('subagent.spawned', { id: subAgentId, task, cycleBudget });
+        this.emit('subagent.spawned', {id: subAgentId, task, cycleBudget});
         return true;
     }
 
@@ -83,7 +106,7 @@ export class VirtualEmbodiment extends Embodiment {
         }
         this.emitMessage({
             from: 'virtual', content,
-            metadata: { ...metadata, type: 'sub-agent-message', subAgentId }
+            metadata: {...metadata, type: 'sub-agent-message', subAgentId}
         });
         Logger.debug(`[VirtualEmbodiment] Message sent to sub-agent ${subAgentId}`);
         return true;
@@ -91,42 +114,65 @@ export class VirtualEmbodiment extends Embodiment {
 
     terminateSubAgent(subAgentId) {
         const subAgent = this._subAgents.get(subAgentId);
-        if (!subAgent) return null;
+        if (!subAgent) {
+            return null;
+        }
         this._subAgents.delete(subAgentId);
         const context = this._scopedContexts.get(subAgentId);
         this._scopedContexts.delete(subAgentId);
         subAgent.status = 'terminated';
         subAgent.terminatedAt = Date.now();
         Logger.info(`[VirtualEmbodiment] Sub-agent terminated: ${subAgentId}`);
-        this.emit('subagent.terminated', { id: subAgentId, ...subAgent });
-        return { ...subAgent, context: context ? Object.fromEntries(context) : {} };
+        this.emit('subagent.terminated', {id: subAgentId, ...subAgent});
+        return {...subAgent, context: context ? Object.fromEntries(context) : {}};
     }
 
-    getSubAgent(subAgentId) { return this._subAgents.get(subAgentId) || null; }
-    getSubAgents() { return Array.from(this._subAgents.values()); }
-    getScopedContext(subAgentId) { return this._scopedContexts.get(subAgentId) || null; }
+    getSubAgent(subAgentId) {
+        return this._subAgents.get(subAgentId) || null;
+    }
+
+    getSubAgents() {
+        return Array.from(this._subAgents.values());
+    }
+
+    getScopedContext(subAgentId) {
+        return this._scopedContexts.get(subAgentId) || null;
+    }
 
     _addMonologue(content) {
-        this._monologue.push({ timestamp: Date.now(), content });
-        while (this._monologue.length > this._maxMonologueLength) this._monologue.shift();
+        this._monologue.push({timestamp: Date.now(), content});
+        while (this._monologue.length > this._maxMonologueLength) {
+            this._monologue.shift();
+        }
         Logger.debug(`[VirtualEmbodiment] Monologue: ${content}`);
     }
 
-    getMonologue(limit = 10) { return this._monologue.slice(-limit); }
-    clearMonologue() { this._monologue = []; }
+    getMonologue(limit = 10) {
+        return this._monologue.slice(-limit);
+    }
+
+    clearMonologue() {
+        this._monologue = [];
+    }
 
     _queueTask(content, metadata = {}) {
-        if (this._taskQueue.length >= this._maxQueueSize) this._taskQueue.shift();
-        this._taskQueue.push({ content, metadata, queuedAt: Date.now() });
+        if (this._taskQueue.length >= this._maxQueueSize) {
+            this._taskQueue.shift();
+        }
+        this._taskQueue.push({content, metadata, queuedAt: Date.now()});
         Logger.debug(`[VirtualEmbodiment] Task queued: ${content}`);
     }
 
     async _generateTaskFromGenerators() {
-        if (this._taskGenerators.length === 0) return null;
+        if (this._taskGenerators.length === 0) {
+            return null;
+        }
         const generator = this._taskGenerators[Math.floor(Math.random() * this._taskGenerators.length)];
         try {
             const result = await generator();
-            if (result?.task) return result;
+            if (result?.task) {
+                return result;
+            }
         } catch (error) {
             Logger.error('[VirtualEmbodiment] Task generator error:', error);
         }
@@ -139,23 +185,39 @@ export class VirtualEmbodiment extends Embodiment {
     }
 
     _stopIdleTimer() {
-        if (this._idleTimer) { clearTimeout(this._idleTimer); this._idleTimer = null; }
+        if (this._idleTimer) {
+            clearTimeout(this._idleTimer);
+            this._idleTimer = null;
+        }
     }
 
-    _resetIdleTimer() { if (this.config.autonomousMode) this._startIdleTimer(); }
+    _resetIdleTimer() {
+        if (this.config.autonomousMode) {
+            this._startIdleTimer();
+        }
+    }
 
     async _onIdle() {
         Logger.debug('[VirtualEmbodiment] Idle - generating self-task');
         const generated = await this._generateTaskFromGenerators();
         if (generated) {
-            this.generateSelfTask(generated.task, { ...generated.metadata, reason: 'idle-generated' });
+            this.generateSelfTask(generated.task, {...generated.metadata, reason: 'idle-generated'});
         } else {
-            this.generateSelfTask('Reflect on recent activity and identify improvements.', { reason: 'idle-default', type: 'reflection' });
+            this.generateSelfTask('Reflect on recent activity and identify improvements.', {
+                reason: 'idle-default',
+                type: 'reflection'
+            });
         }
     }
 
     getStats() {
         const base = super.getStats();
-        return { ...base, subAgents: this._subAgents.size, taskQueueLength: this._taskQueue.length, monologueLength: this._monologue.length, taskGenerators: this._taskGenerators.length };
+        return {
+            ...base,
+            subAgents: this._subAgents.size,
+            taskQueueLength: this._taskQueue.length,
+            monologueLength: this._monologue.length,
+            taskGenerators: this._taskGenerators.length
+        };
     }
 }

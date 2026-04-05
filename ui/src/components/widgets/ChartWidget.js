@@ -10,7 +10,7 @@ export class ChartWidget extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
         this.container.innerHTML = '';
         this.container.style.cssText = 'position: relative; height: 250px; width: 100%; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 4px;';
 
@@ -61,9 +61,9 @@ export class ChartWidget extends Component {
     }
 
     updateData(label, value, datasetIndex = 0) {
-        if (!this.chart) return;
+        if (!this.chart) {return;}
 
-        const data = this.chart.data;
+        const {data} = this.chart;
 
         // Add new label
         data.labels.push(label);

@@ -8,16 +8,16 @@ import { OperationHelpers } from './OperationHelpers.js';
 export function registerTypeOps(registry) {
     // Get metatype of an atom
     registry.register('&get-metatype', (atom) => {
-        if (!atom) return sym('%Undefined%');
-        if (atom.name?.startsWith('$')) return sym('Variable');
-        if (isExpression(atom)) return sym('Expression');
-        if (typeof atom.execute === 'function') return sym('Grounded');
+        if (!atom) {return sym('%Undefined%');}
+        if (atom.name?.startsWith('$')) {return sym('Variable');}
+        if (isExpression(atom)) {return sym('Expression');}
+        if (typeof atom.execute === 'function') {return sym('Grounded');}
         return sym('Symbol');
     }, { lazy: true }); // Prevent reduction to check actual metatype
 
     // Check if type is a function type (has -> arrow)
     registry.register('&is-function', (type) => {
-        if (!isExpression(type)) return sym('False');
+        if (!isExpression(type)) {return sym('False');}
         return OperationHelpers.bool(type.operator?.name === '->');
     });
 

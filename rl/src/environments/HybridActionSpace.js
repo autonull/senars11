@@ -76,16 +76,16 @@ export class HybridActionSpace {
     }
 
     contains(action) {
-        if (!action || typeof action !== 'object') return false;
+        if (!action || typeof action !== 'object') {return false;}
 
         for (const [name, spec] of Object.entries(this.discrete)) {
-            if (!(name in action)) return false;
+            if (!(name in action)) {return false;}
             const value = action[name];
-            if (!Number.isInteger(value) || value < 0 || value >= spec.n) return false;
+            if (!Number.isInteger(value) || value < 0 || value >= spec.n) {return false;}
         }
 
         for (const [name, spec] of Object.entries(this.continuous)) {
-            if (!(name in action)) return false;
+            if (!(name in action)) {return false;}
             const value = action[name];
             const low = spec.low ?? -1;
             const high = spec.high ?? 1;
@@ -94,10 +94,10 @@ export class HybridActionSpace {
                 for (let i = 0; i < value.length; i++) {
                     const l = Array.isArray(low) ? low[i] : low;
                     const h = Array.isArray(high) ? high[i] : high;
-                    if (value[i] < l || value[i] > h) return false;
+                    if (value[i] < l || value[i] > h) {return false;}
                 }
             } else {
-                if (value < low || value > high) return false;
+                if (value < low || value > high) {return false;}
             }
         }
 
@@ -189,7 +189,7 @@ export class StructuredAction {
 
     getContinuous(name) {
         const comp = this.components[name];
-        if (comp?.type !== 'continuous') return null;
+        if (comp?.type !== 'continuous') {return null;}
         return comp.value.length === 1 ? comp.value[0] : comp.value;
     }
 
@@ -491,7 +491,7 @@ export class HybridActionSelector {
         let cumsum = 0;
         for (let i = 0; i < probs.length; i++) {
             cumsum += probs[i];
-            if (r <= cumsum) return i;
+            if (r <= cumsum) {return i;}
         }
         return probs.length - 1;
     }

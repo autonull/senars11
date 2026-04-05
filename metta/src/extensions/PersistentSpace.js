@@ -24,18 +24,18 @@ export class PersistentSpace extends Space {
   }
 
   _initStorage() {
-    if (typeof window !== 'undefined' && window.indexedDB) return new IndexedDBStorage(this.dbName);
-    if (typeof process !== 'undefined' && process.versions?.node) return new NodeFSStorage(this.dbName);
+    if (typeof window !== 'undefined' && window.indexedDB) {return new IndexedDBStorage(this.dbName);}
+    if (typeof process !== 'undefined' && process.versions?.node) {return new NodeFSStorage(this.dbName);}
     return new MemoryStorage();
   }
 
   _getAtomId(atom) {
-    if (!this._atomIds.has(atom)) this._atomIds.set(atom, this._nextAtomId++);
+    if (!this._atomIds.has(atom)) {this._atomIds.set(atom, this._nextAtomId++);}
     return this._atomIds.get(atom);
   }
 
   _getAtomById(id) {
-    for (const [atom, atomId] of this._atomIds.entries()) if (atomId === id) return atom;
+    for (const [atom, atomId] of this._atomIds.entries()) {if (atomId === id) {return atom;}}
     return null;
   }
 
@@ -43,9 +43,9 @@ export class PersistentSpace extends Space {
     super.add(atom);
     this._pendingWrites++;
     const atomId = this._getAtomId(atom);
-    if (!this._vectorClocks.has(atomId)) this._vectorClocks.set(atomId, new Int32Array(32));
+    if (!this._vectorClocks.has(atomId)) {this._vectorClocks.set(atomId, new Int32Array(32));}
     this._vectorClocks.get(atomId)[0]++;
-    if (this._pendingWrites >= this.checkpointThreshold) this._scheduleCheckpoint();
+    if (this._pendingWrites >= this.checkpointThreshold) {this._scheduleCheckpoint();}
     return this;
   }
 
@@ -55,7 +55,7 @@ export class PersistentSpace extends Space {
   }
 
   async _checkpoint() {
-    if (this._checkpointInProgress) return;
+    if (this._checkpointInProgress) {return;}
     this._checkpointInProgress = true;
     try {
       const serialized = this._serialize();
@@ -130,16 +130,16 @@ export class PersistentSpace extends Space {
   }
 
   _deserializeAtom(data) {
-    if (data.length === 0) return null;
+    if (data.length === 0) {return null;}
     const first = data[0];
     
-    if (first === 0xf6) return null;
-    if (first === 0xf8) return sym('unknown');
+    if (first === 0xf6) {return null;}
+    if (first === 0xf8) {return sym('unknown');}
     
     if (first === 0x7f) {
       const bytes = [];
       let i = 1;
-      while (i < data.length && data[i] !== 0xff) bytes.push(data[i++]);
+      while (i < data.length && data[i] !== 0xff) {bytes.push(data[i++]);}
       const str = new TextDecoder().decode(new Uint8Array(bytes));
       return sym(str.startsWith('SYM:') ? str.slice(4) : str);
     }
@@ -151,7 +151,7 @@ export class PersistentSpace extends Space {
     
     if (first === 0x9f) {
       let i = 1;
-      let opEnd = this._findAtomEnd(data, i);
+      const opEnd = this._findAtomEnd(data, i);
       const op = this._deserializeAtom(data.slice(i, opEnd));
       i = opEnd;
       const components = [];
@@ -167,16 +167,16 @@ export class PersistentSpace extends Space {
 
   _findAtomEnd(data, start) {
     const first = data[start];
-    if (first === 0xf6 || first === 0xf8) return start + 1;
-    if (first === 0xfb) return start + 9;
-    if (first === 0x7f) { for (let i = start + 1; i < data.length; i++) if (data[i] === 0xff) return i + 1; return data.length; }
+    if (first === 0xf6 || first === 0xf8) {return start + 1;}
+    if (first === 0xfb) {return start + 9;}
+    if (first === 0x7f) { for (let i = start + 1; i < data.length; i++) {if (data[i] === 0xff) {return i + 1;}} return data.length; }
     if (first === 0x9f) {
       let depth = 1, i = start + 1;
       while (i < data.length && depth > 0) {
-        if (data[i] === 0x9f) depth++;
-        else if (data[i] === 0xff) depth--;
-        else if (data[i] === 0x7f) i = this._findAtomEnd(data, i);
-        else if (data[i] === 0xfb) i += 8;
+        if (data[i] === 0x9f) {depth++;}
+        else if (data[i] === 0xff) {depth--;}
+        else if (data[i] === 0x7f) {i = this._findAtomEnd(data, i);}
+        else if (data[i] === 0xfb) {i += 8;}
         i++;
       }
       return i;
@@ -204,20 +204,20 @@ export class PersistentSpace extends Space {
       return hash.digest('hex');
     }
     let checksum = 0;
-    for (const byte of data) checksum = ((checksum << 5) - checksum + byte) | 0;
+    for (const byte of data) {checksum = ((checksum << 5) - checksum + byte) | 0;}
     return checksum.toString(16);
   }
 
   async restore(dbName) {
     try {
       const data = await this._storage.read();
-      if (!data?.atoms) return false;
+      if (!data?.atoms) {return false;}
       const computedHash = await this._computeMerkleHash(data.atoms);
-      if (computedHash !== data.merkleHash) Logger.warn('Merkle hash mismatch');
+      if (computedHash !== data.merkleHash) {Logger.warn('Merkle hash mismatch');}
       const atoms = this._deserialize(data.atoms);
       this.clear();
       atoms.forEach(atom => this.atoms.add(atom));
-      if (data.vectorClocks) this._deserializeVectorClocks(data.vectorClocks);
+      if (data.vectorClocks) {this._deserializeVectorClocks(data.vectorClocks);}
       this._pendingWrites = 0;
       return true;
     } catch (e) { Logger.error('Restore failed:', e); return false; }
@@ -245,16 +245,16 @@ export class PersistentSpace extends Space {
   _compareVectorClocks(a, b) {
     let aGreater = false, bGreater = false;
     const len = Math.max(a.length, b.length);
-    for (let i = 0; i < len; i++) { const av = a[i] || 0, bv = b[i] || 0; if (av > bv) aGreater = true; if (bv > av) bGreater = true; }
-    if (aGreater && !bGreater) return 'local';
-    if (bGreater && !aGreater) return 'other';
-    if (!aGreater && !bGreater) return 'equal';
+    for (let i = 0; i < len; i++) { const av = a[i] || 0, bv = b[i] || 0; if (av > bv) {aGreater = true;} if (bv > av) {bGreater = true;} }
+    if (aGreater && !bGreater) {return 'local';}
+    if (bGreater && !aGreater) {return 'other';}
+    if (!aGreater && !bGreater) {return 'equal';}
     return 'concurrent';
   }
 
   _mergeVectorClocks(a, b) {
     const result = new Int32Array(Math.max(a.length, b.length));
-    for (let i = 0; i < result.length; i++) result[i] = Math.max(a[i] || 0, b[i] || 0);
+    for (let i = 0; i < result.length; i++) {result[i] = Math.max(a[i] || 0, b[i] || 0);}
     return result;
   }
 
@@ -272,10 +272,10 @@ class IndexedDBStorage {
   constructor(dbName) { this.dbName = dbName; this.db = null; }
 
   async _open() {
-    if (this.db) return this.db;
+    if (this.db) {return this.db;}
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.dbName, 1);
-      request.onupgradeneeded = e => { const db = e.target.result; if (!db.objectStoreNames.contains('space')) db.createObjectStore('space', { keyPath: 'id' }); };
+      request.onupgradeneeded = e => { const db = e.target.result; if (!db.objectStoreNames.contains('space')) {db.createObjectStore('space', { keyPath: 'id' });} };
       request.onsuccess = e => { this.db = e.target.result; resolve(this.db); };
       request.onerror = () => reject(request.error);
     });

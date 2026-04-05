@@ -68,7 +68,7 @@ export class RuleCompiler {
             if (!this.termFactory) {
                 throw new Error('TermFactory required for pattern hydration');
             }
-            if (patternObj.startsWith('$')) return this.termFactory.variable(patternObj);
+            if (patternObj.startsWith('$')) {return this.termFactory.variable(patternObj);}
             return this.termFactory.atomic(patternObj);
         }
 
@@ -94,8 +94,8 @@ export class RuleCompiler {
     }
 
     insert(root, rule) {
-        const p = rule.pattern.p;
-        const s = rule.pattern.s;
+        const {p} = rule.pattern;
+        const {s} = rule.pattern;
         let node = root;
 
         for (const discriminator of this.discriminators) {

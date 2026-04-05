@@ -10,7 +10,7 @@ export class Knowing {
     constructor(options = {}) {
         this.knowledgeItems = [];
         this.options = options;
-        this.stats = { ...INITIAL_STATS };
+        this.stats = {...INITIAL_STATS};
     }
 
     async addKnowledge(knowledge) {
@@ -46,7 +46,9 @@ export class Knowing {
         const allTasks = [];
         for (const knowledge of this.knowledgeItems) {
             const tasks = await knowledge.toTasks?.();
-            if (Array.isArray(tasks)) allTasks.push(...tasks);
+            if (Array.isArray(tasks)) {
+                allTasks.push(...tasks);
+            }
         }
         return allTasks;
     }
@@ -55,7 +57,9 @@ export class Knowing {
         const allRelationships = [];
         for (const knowledge of this.knowledgeItems) {
             const relationships = await knowledge.createRelationships?.();
-            if (Array.isArray(relationships)) allRelationships.push(...relationships);
+            if (Array.isArray(relationships)) {
+                allRelationships.push(...relationships);
+            }
         }
         return allRelationships;
     }
@@ -65,7 +69,7 @@ export class Knowing {
     }
 
     getStats() {
-        return { ...this.stats };
+        return {...this.stats};
     }
 
     async _updateStats() {
@@ -79,7 +83,7 @@ export class Knowing {
             const typeName = knowledge.constructor.name;
 
             if (!this.stats.knowledgeByType[typeName]) {
-                this.stats.knowledgeByType[typeName] = { count: 0, tasks: 0, relationships: 0 };
+                this.stats.knowledgeByType[typeName] = {count: 0, tasks: 0, relationships: 0};
             }
 
             this.stats.knowledgeByType[typeName].count++;
@@ -113,7 +117,7 @@ export class Knowing {
 
     clear() {
         this.knowledgeItems = [];
-        this.stats = { ...INITIAL_STATS };
+        this.stats = {...INITIAL_STATS};
     }
 
     async export() {

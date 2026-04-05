@@ -3,12 +3,6 @@ import {TraceId} from './TraceId.js';
 import {Logger} from './Logger.js';
 
 export class EventBus {
-    static _instance = null;
-    static get instance() {
-        if (!EventBus._instance) EventBus._instance = new EventBus();
-        return EventBus._instance;
-    }
-
     constructor() {
         this._emitter = mitt();
         this._middleware = [];
@@ -26,6 +20,15 @@ export class EventBus {
         this._debugMode = false;
     }
 
+    static _instance = null;
+
+    static get instance() {
+        if (!EventBus._instance) {
+            EventBus._instance = new EventBus();
+        }
+        return EventBus._instance;
+    }
+
     on(eventName, callback) {
         const currentCount = this.listenerCount(eventName);
         if (currentCount >= this._maxListeners) {
@@ -40,36 +43,50 @@ export class EventBus {
 
     once(eventName, callback) {
         let unsub;
-        const onceWrapper = (...args) => { unsub(); callback(...args); };
+        const onceWrapper = (...args) => {
+            unsub();
+            callback(...args);
+        };
         unsub = this.on(eventName, onceWrapper);
         return unsub;
     }
 
     off(eventName, callback) {
-        if (eventName.includes('*')) { this._removeWildcard(eventName, callback); return this; }
+        if (eventName.includes('*')) {
+            this._removeWildcard(eventName, callback);
+            return this;
+        }
         this._emitter.off(eventName, callback);
         return this;
     }
 
     use(middleware) {
-        if (typeof middleware !== 'function') throw new Error('Middleware must be a function');
+        if (typeof middleware !== 'function') {
+            throw new Error('Middleware must be a function');
+        }
         this._middleware.push(middleware);
         return this;
     }
 
     removeMiddleware(middleware) {
         const index = this._middleware.indexOf(middleware);
-        if (index !== -1) this._middleware.splice(index, 1);
+        if (index !== -1) {
+            this._middleware.splice(index, 1);
+        }
         return this;
     }
 
     onError(handler) {
-        if (typeof handler === 'function') this._errorHandlers.add(handler);
+        if (typeof handler === 'function') {
+            this._errorHandlers.add(handler);
+        }
         return this;
     }
 
     async emit(eventName, data = {}, options = {}) {
-        if (!this._enabled) return;
+        if (!this._enabled) {
+            return;
+        }
         if (this._concurrency >= this._maxConcurrency) {
             if (this._queue.length >= this._maxQueueSize) {
                 Logger.warn(`EventBus queue full (${this._maxQueueSize}), dropping event "${eventName}"`);
@@ -81,17 +98,21 @@ export class EventBus {
         try {
             this._stats.eventsEmitted++;
             const traceId = options.traceId ?? TraceId.generate();
-            let processedData = { ...data, eventName, traceId };
+            let processedData = {...data, eventName, traceId};
 
-            if (this._debugMode) this._addToHistory(eventName, processedData);
+            if (this._debugMode) {
+                this._addToHistory(eventName, processedData);
+            }
 
             for (const middleware of this._middleware) {
                 try {
                     const result = await middleware(processedData);
-                    if (result === null) return;
+                    if (result === null) {
+                        return;
+                    }
                     processedData = result;
                 } catch (error) {
-                    return this._handleError('middleware', error, { eventName, data, traceId });
+                    return this._handleError('middleware', error, {eventName, data, traceId});
                 }
             }
 
@@ -101,18 +122,24 @@ export class EventBus {
                 this._stats.eventsHandled++;
             } catch (error) {
                 this._stats.errors++;
-                this._handleError('listener', error, { eventName, data, traceId });
+                this._handleError('listener', error, {eventName, data, traceId});
             }
         } finally {
             this._concurrency--;
             const next = this._queue.shift();
-            if (next) next();
+            if (next) {
+                next();
+            }
         }
     }
 
     emitSync(event, payload) {
-        if (!this._enabled) return;
-        if (this._debugMode) this._addToHistory(event, payload);
+        if (!this._enabled) {
+            return;
+        }
+        if (this._debugMode) {
+            this._addToHistory(event, payload);
+        }
         this._runMiddlewareSync(event, payload, () => {
             this._emitter.emit(event, payload);
             this._notifyWildcards(event, payload);
@@ -124,9 +151,15 @@ export class EventBus {
         const next = () => {
             if (index < this._middleware.length) {
                 const middleware = this._middleware[index++];
-                try { middleware(event, payload, next); }
-                catch (error) { console.error('Error in event middleware:', error); next(); }
-            } else { finalCallback(); }
+                try {
+                    middleware(event, payload, next);
+                } catch (error) {
+                    console.error('Error in event middleware:', error);
+                    next();
+                }
+            } else {
+                finalCallback();
+            }
         };
         next();
     }
@@ -134,14 +167,24 @@ export class EventBus {
     _handleError(type, error, context) {
         const errorHandlers = [...this._errorHandlers];
         for (const handler of errorHandlers) {
-            try { handler(error, type, context); }
-            catch (handlerError) { Logger.error('EventBus error handler error:', handlerError); }
+            try {
+                handler(error, type, context);
+            } catch (handlerError) {
+                Logger.error('EventBus error handler error:', handlerError);
+            }
         }
-        if (errorHandlers.length === 0) Logger.error(`EventBus error in ${type}:`, error, context);
+        if (errorHandlers.length === 0) {
+            Logger.error(`EventBus error in ${type}:`, error, context);
+        }
     }
 
-    hasErrorHandlers() { return this._errorHandlers.size > 0; }
-    getStats() { return {...this._stats}; }
+    hasErrorHandlers() {
+        return this._errorHandlers.size > 0;
+    }
+
+    getStats() {
+        return {...this._stats};
+    }
 
     clear() {
         this._emitter.all.clear();
@@ -151,9 +194,17 @@ export class EventBus {
         this._wildcards.clear();
     }
 
-    enable() { this._enabled = true; }
-    disable() { this._enabled = false; }
-    isEnabled() { return this._enabled; }
+    enable() {
+        this._enabled = true;
+    }
+
+    disable() {
+        this._enabled = false;
+    }
+
+    isEnabled() {
+        return this._enabled;
+    }
 
     hasListeners(eventName) {
         const handlers = this._emitter.all.get(eventName);
@@ -167,42 +218,76 @@ export class EventBus {
     listenerCount(eventName) {
         const handlers = this._emitter.all.get(eventName);
         let count = handlers?.length || handlers?.size || 0;
-        for (const [pattern] of this._wildcards) { if (this._matchesPattern(eventName, pattern)) count += this._wildcards.get(pattern).length; }
+        for (const [pattern] of this._wildcards) {
+            if (this._matchesPattern(eventName, pattern)) {
+                count += this._wildcards.get(pattern).length;
+            }
+        }
         return count;
     }
 
     setMaxListeners(maxListeners) {
-        if (typeof maxListeners === 'number' && maxListeners > 0) this._maxListeners = maxListeners;
+        if (typeof maxListeners === 'number' && maxListeners > 0) {
+            this._maxListeners = maxListeners;
+        }
         return this;
     }
 
-    getMaxListeners() { return this._maxListeners; }
+    getMaxListeners() {
+        return this._maxListeners;
+    }
 
     removeAllListeners(eventName) {
-        if (eventName) { this._emitter.all.delete(eventName); this._wildcards.delete(eventName); }
-        else { this._emitter.all.clear(); this._wildcards.clear(); }
+        if (eventName) {
+            this._emitter.all.delete(eventName);
+            this._wildcards.delete(eventName);
+        } else {
+            this._emitter.all.clear();
+            this._wildcards.clear();
+        }
         return this;
     }
 
-    debug(enabled = true) { this._debugMode = enabled; }
-    getHistory() { return [...this._history]; }
-    clearHistory() { this._history = []; }
+    debug(enabled = true) {
+        this._debugMode = enabled;
+    }
+
+    getHistory() {
+        return [...this._history];
+    }
+
+    clearHistory() {
+        this._history = [];
+    }
 
     _addWildcardListener(pattern, callback) {
-        if (!this._wildcards.has(pattern)) this._wildcards.set(pattern, []);
+        if (!this._wildcards.has(pattern)) {
+            this._wildcards.set(pattern, []);
+        }
         this._wildcards.get(pattern).push(callback);
         return () => this._removeWildcard(pattern, callback);
     }
 
     _removeWildcard(pattern, callback) {
         const callbacks = this._wildcards.get(pattern);
-        if (callbacks) { const index = callbacks.indexOf(callback); if (index > -1) callbacks.splice(index, 1); }
+        if (callbacks) {
+            const index = callbacks.indexOf(callback);
+            if (index > -1) {
+                callbacks.splice(index, 1);
+            }
+        }
     }
 
     _notifyWildcards(event, payload) {
         for (const [pattern, callbacks] of this._wildcards.entries()) {
             if (this._matchesPattern(event, pattern)) {
-                for (const cb of callbacks) { try { cb(payload, event); } catch (error) { Logger.error(`Error in wildcard handler for "${pattern}":`, error); } }
+                for (const cb of callbacks) {
+                    try {
+                        cb(payload, event);
+                    } catch (error) {
+                        Logger.error(`Error in wildcard handler for "${pattern}":`, error);
+                    }
+                }
             }
         }
     }
@@ -213,7 +298,9 @@ export class EventBus {
     }
 
     _addToHistory(event, payload) {
-        this._history.push({ event, payload, timestamp: Date.now() });
-        if (this._history.length > this._maxHistory) this._history.shift();
+        this._history.push({event, payload, timestamp: Date.now()});
+        if (this._history.length > this._maxHistory) {
+            this._history.shift();
+        }
     }
 }

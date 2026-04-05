@@ -21,7 +21,7 @@ export class RuleExecutor {
      * @returns {Array<Task>} Derived tasks
      */
     execute(p, s, context) {
-        if (!this.tree) return [];
+        if (!this.tree) {return [];}
 
         // 1. Fast Traversal (Guards)
         const candidates = this.query(p.term, s.term);
@@ -32,10 +32,10 @@ export class RuleExecutor {
             // Match pattern against concrete terms
             // Pattern has variables ($S, $P), terms have constants (or variables treated as constants)
             const matchP = this.unifier.match(rule.pattern.p, p.term);
-            if (!matchP.success) continue;
+            if (!matchP.success) {continue;}
 
             const matchS = this.unifier.match(rule.pattern.s, s.term, matchP.substitution);
-            if (!matchS.success) continue;
+            if (!matchS.success) {continue;}
 
             // 3. Execute Conclusion
             try {

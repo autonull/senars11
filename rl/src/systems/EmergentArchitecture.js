@@ -35,7 +35,7 @@ export class CognitivePrimitive extends Component {
     }
 
     connect(outputName, target, inputName) {
-        if (!this.connections.has(outputName)) this.connections.set(outputName, []);
+        if (!this.connections.has(outputName)) {this.connections.set(outputName, []);}
         this.connections.get(outputName).push({ target, inputName });
         return this;
     }
@@ -72,7 +72,7 @@ export class PerceptionPrimitive extends CognitivePrimitive {
     }
 
     async _extractFeatures(observation) {
-        if (this.featureExtractors.length === 0) return observation;
+        if (this.featureExtractors.length === 0) {return observation;}
         const results = await Promise.all(this.featureExtractors.map(fn => fn(observation)));
         return results.filter(r => r !== null);
     }
@@ -150,7 +150,7 @@ export class PlanningPrimitive extends CognitivePrimitive {
 
     async process(input, context = {}) {
         const { state, goal } = input;
-        if (!goal) return { plan: null, reason: 'No goal' };
+        if (!goal) {return { plan: null, reason: 'No goal' };}
         const plan = await this._generatePlan(state, goal);
         return { plan, goal };
     }
@@ -162,7 +162,7 @@ export class PlanningPrimitive extends CognitivePrimitive {
             const action = await this._selectBestAction(current, goal);
             plan.push(action);
             current = this._simulateStep(current, action);
-            if (this._isGoalAchieved(current, goal)) break;
+            if (this._isGoalAchieved(current, goal)) {break;}
         }
         return plan.length > 0 ? plan : null;
     }
@@ -239,7 +239,7 @@ export class EmergentArchitecture extends Component {
         this.connections.push({ from, to, transform });
         const fromPrim = this.primitives.get(from);
         const toPrim = this.primitives.get(to);
-        if (fromPrim && toPrim) fromPrim.connect('output', toPrim, 'input');
+        if (fromPrim && toPrim) {fromPrim.connect('output', toPrim, 'input');}
         return this;
     }
 
@@ -250,7 +250,7 @@ export class EmergentArchitecture extends Component {
         const order = ['perception', 'reasoning', 'planning', 'action'];
         for (const name of order) {
             const prim = this.primitives.get(name);
-            if (!prim || !prim.config.enabled) continue;
+            if (!prim || !prim.config.enabled) {continue;}
 
             const result = await prim.process(current, { ...context, ...results });
             results[name] = result;
@@ -270,7 +270,7 @@ export class EmergentArchitecture extends Component {
 
     async learn(transition, reward) {
         this.primitives.forEach(prim => {
-            if (prim.learn) prim.learn({ transition, reward });
+            if (prim.learn) {prim.learn({ transition, reward });}
         });
     }
 
