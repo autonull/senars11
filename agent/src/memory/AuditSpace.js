@@ -37,7 +37,7 @@ export class AuditSpace {
         try {
             const content = await readFile(eventsPath, 'utf8');
             this._parseEvents(content);
-            Logger.info(`[AuditSpace] Restored ${this._events.length} events`);
+            Logger.debug(`[AuditSpace] Restored ${this._events.length} events`);
         } catch {
             Logger.debug('[AuditSpace] No existing events, starting fresh');
         }

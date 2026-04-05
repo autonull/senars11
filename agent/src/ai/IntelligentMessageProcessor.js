@@ -301,7 +301,7 @@ export class IntelligentMessageProcessor {
                 { role: 'user', content: contextStr ? `${contextStr}\n\n${inputContent}` : inputContent }
             ]);
         } catch (error) {
-            Logger.error('LLM invocation failed:', error.message);
+            Logger.debug('LLM invocation failed:', error.message);
             return null;
         }
 
@@ -314,7 +314,14 @@ export class IntelligentMessageProcessor {
         }
 
         const { cmds, error } = this._skillDispatcher.parseResponse(text);
-        if (!cmds?.length || error) {return { response: text, skillResults: null };}
+        if (!cmds?.length || error) {
+            // Extract plain text from failed S-expression: (respond "text") → text
+            const extractText = (t) => {
+                const m = t.match(/^\(\s*respond\s+"([^"]*)"/i);
+                return m ? m[1] : t;
+            };
+            return { response: extractText(text), skillResults: null };
+        }
 
         const results = await this._skillDispatcher.execute(cmds);
         const respondResult = results.find(r => r.skill === 'respond' && !r.error);
@@ -424,7 +431,10 @@ export class IntelligentMessageProcessor {
         const structuredContext = await this._buildContext(content, context);
         const contextStr = this._formatContext(structuredContext);
         const result = await this._invokeLLM(contextStr, `Question: ${content}`);
-        return { response: result?.response ?? "Not sure about that one.", action: 'answer', skillResults: result?.skillResults ?? null };
+        const fallback = result === null
+            ? `I can't process that right now — my language model may not be loaded correctly.`
+            : null;
+        return { response: result?.response ?? fallback, action: 'answer', skillResults: result?.skillResults ?? null };
     }
 
     async _handleStatement(content, context) {
@@ -511,11 +521,13 @@ export class IntelligentMessageProcessor {
         if (!this.agent.ai) {return this._heuristicClassify(content);}
         try {
             const result = await this.agent.ai.generate(`Classify this message into one of: command, question, greeting, farewell, statement.\nMessage: "${content}"\nRespond with just the type name.`);
-            return { type: result.text?.toLowerCase().trim() || 'statement', confidence: 0.7 };
-        } catch {
-            Logger.debug('LLM classification failed, using heuristics');
-            return this._heuristicClassify(content);
-        }
+            const type = result.text?.toLowerCase().trim() || '';
+            const validTypes = new Set(['command', 'question', 'greeting', 'farewell', 'statement']);
+            if (validTypes.has(type)) {
+                return { type, confidence: 0.7 };
+            }
+        } catch { /* fall through to heuristics */ }
+        return this._heuristicClassify(content);
     }
 
     _shouldRespond(classification, isMentioned, isPrivate) {

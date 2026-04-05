@@ -9,18 +9,27 @@ module.exports = {
         '<rootDir>/ui/'
     ],
     moduleNameMapper: {
+        // Handles paths that already start with src/ (e.g. @senars/core/src/...)
+        '^@senars/metta/src/(.*)$': '<rootDir>/metta/src/$1',
+        '^@senars/tensor/src/(.*)$': '<rootDir>/tensor/src/$1',
+        '^@senars/core/src/(.*)$': '<rootDir>/core/src/$1',
+        '^@senars/nar/src/(.*)$': '<rootDir>/nar/src/$1',
+        '^@senars/agent/src/(.*)$': '<rootDir>/agent/src/$1',
+        '^@senars/rl/src/(.*)$': '<rootDir>/rl/src/$1',
+        // Handles paths without src/ prefix (e.g. @senars/metta/kernel/...)
+        '^@senars/metta/(.*)$': '<rootDir>/metta/src/$1',
+        '^@senars/tensor/(.*)$': '<rootDir>/tensor/src/$1',
+        '^@senars/core/(.*)$': '<rootDir>/core/src/$1',
+        '^@senars/nar/(.*)$': '<rootDir>/nar/src/$1',
+        '^@senars/agent/(.*)$': '<rootDir>/agent/src/$1',
+        '^@senars/rl/(.*)$': '<rootDir>/rl/src/$1',
+        // Package entry points
         '^@senars/metta$': '<rootDir>/metta/src/index.js',
-        '^@senars/metta/(.*)$': '<rootDir>/metta/$1',
         '^@senars/tensor$': '<rootDir>/tensor/src/index.js',
-        '^@senars/tensor/(.*)$': '<rootDir>/tensor/$1',
         '^@senars/core$': '<rootDir>/core/src/index.js',
-        '^@senars/core/(.*)$': '<rootDir>/core/$1',
         '^@senars/nar$': '<rootDir>/nar/src/index.js',
-        '^@senars/nar/(.*)$': '<rootDir>/nar/$1',
         '^@senars/agent$': '<rootDir>/agent/src/index.js',
-        '^@senars/agent/(.*)$': '<rootDir>/agent/$1',
         '^@senars/rl$': '<rootDir>/rl/src/index.js',
-        '^@senars/rl/(.*)$': '<rootDir>/rl/$1',
         '^@modelcontextprotocol/sdk/server/mcp\\.js$': '<rootDir>/tests/mocks/mcp-sdk-mcp.js',
         '^@modelcontextprotocol/sdk/server/stdio\\.js$': '<rootDir>/tests/mocks/mcp-sdk-stdio.js',
         '^danfojs': '<rootDir>/tests/mocks/danfojs.js',

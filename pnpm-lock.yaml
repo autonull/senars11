@@ -151,6 +151,15 @@ importers:
         specifier: ^3.25.76
         version: 3.25.76
 
+  bot:
+    dependencies:
+      '@senars/agent':
+        specifier: workspace:*
+        version: link:../agent
+      '@senars/core':
+        specifier: workspace:*
+        version: link:../core
+
   core:
     dependencies:
       '@huggingface/transformers':

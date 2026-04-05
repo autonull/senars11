@@ -12,7 +12,7 @@ const importPipeline = () => {
 export class TransformersJSProvider extends BaseProvider {
     constructor(config = {}) {
         super(config);
-        this.modelName = config.modelName ?? 'onnx-community/Qwen2.5-0.5B-Instruct';
+        this.modelName = config.modelName ?? 'HuggingFaceTB/SmolLM2-1.7B-Instruct';
         this.task = config.task ?? this._inferTask(this.modelName);
         this.device = config.device ?? 'cpu';
         this.pipeline = null;
@@ -50,19 +50,26 @@ export class TransformersJSProvider extends BaseProvider {
         this._emitEvent('lm:model-load-start', {modelName: this.modelName, task: this.task});
         try {
             const pipeline = await importPipeline();
-            const loadModelPromise = pipeline(this.task, this.modelName, {
-                device: this.device,
-                progress_callback: (progress) => {
-                    if (progress && typeof progress === 'object' && progress.status === 'progress') {
-                        this._emitEvent('lm:model-dl-progress', {
-                            modelName: this.modelName,
-                            fileName: progress.file,
-                            progress: Math.round(progress.progress)
-                        });
+            // Suppress transformers.js dtype warning (fp32 default is fine)
+            const origWarn = console.warn;
+            console.warn = () => {};
+            try {
+                const loadModelPromise = pipeline(this.task, this.modelName, {
+                    device: this.device,
+                    progress_callback: (progress) => {
+                        if (progress && typeof progress === 'object' && progress.status === 'progress') {
+                            this._emitEvent('lm:model-dl-progress', {
+                                modelName: this.modelName,
+                                fileName: progress.file,
+                                progress: Math.round(progress.progress)
+                            });
+                        }
                     }
-                }
-            });
-            this.pipeline = await withTimeout(loadModelPromise, this.loadTimeout, `Model loading (${this.modelName})`);
+                });
+                this.pipeline = await withTimeout(loadModelPromise, this.loadTimeout, `Model loading (${this.modelName})`);
+            } finally {
+                console.warn = origWarn;
+            }
             const elapsed = Date.now() - startTime;
             this._emitEvent('lm:model-load-complete', { modelName: this.modelName, task: this.task, elapsedMs: elapsed });
             this._emitDebug('Model loaded successfully', {modelName: this.modelName, elapsedMs: elapsed});

@@ -27,7 +27,7 @@ class VectorIndex {
             this._hnsw = new NodeHNSW(this._dimensions, 'cosine');
             Logger.info(`[VectorIndex] HNSW initialized (${this._dimensions} dims)`);
         } catch {
-            Logger.warn('[VectorIndex] HNSW not available, using brute-force');
+            Logger.debug('[VectorIndex] HNSW not available, using brute-force');
             this._hnsw = null;
         }
     }

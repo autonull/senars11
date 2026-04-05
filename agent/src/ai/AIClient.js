@@ -11,7 +11,7 @@ export class AIClient {
         this.modelInstances = new Map();
         const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
         this.defaultProvider = config.provider || config.lm?.provider || (isBrowser ? 'webllm' : 'transformers');
-        this.defaultModel = config.model || config.modelName || config.lm?.modelName;
+        this.defaultModel = config.model || config.modelName || config.lm?.modelName || 'HuggingFaceTB/SmolLM2-1.7B-Instruct';
         this._initializeProviders(config);
     }
 

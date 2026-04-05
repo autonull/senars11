@@ -3,6 +3,19 @@
   "version": "1.0.0",
   "type": "module",
   "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./io/index.js": "./src/io/index.js",
+    "./ai/index.js": "./src/ai/index.js",
+    "./cognitive/index.js": "./src/cognitive/index.js",
+    "./config/capabilities.js": "./src/config/capabilities.js",
+    "./memory/index.js": "./src/memory/index.js",
+    "./ai/*.js": "./src/ai/*.js",
+    "./io/*.js": "./src/io/*.js",
+    "./cognitive/*.js": "./src/cognitive/*.js",
+    "./memory/*.js": "./src/memory/*.js",
+    "./src/*.js": "./src/*.js"
+  },
   "bin": {
     "senars-agent": "./src/bin/cli.js",
     "senars-chat": "./examples/chatbot/run.js"
