@@ -267,6 +267,7 @@ class IntelligentChatBot {
         this._registerChatbotMeTTaPrimitives();
 
         Logger.info('✅ ChatBot initialization complete');
+        Logger.info(`   MeTTa control plane: ${this.agent.agentCfg?.capabilities?.mettaControlPlane !== false ? 'ready' : 'disabled'}`);
     }
 
     _setupChannelHandlers() {
@@ -276,6 +277,8 @@ class IntelligentChatBot {
             Logger.warn('IRC channel not available');
             return;
         }
+
+        const useMeTTaLoop = this.agent.agentCfg?.capabilities?.mettaControlPlane !== false;
 
         // Handle ALL messages (channel and PM) through single handler
         // The isPrivate flag in metadata tells us which it is
@@ -297,7 +300,12 @@ class IntelligentChatBot {
                 Logger.debug(`[IRC Channel ${channel}] ${msg.from}: ${msg.content}`);
             }
 
-            await this._handleMessage(msg, isPrivate);
+            // When MeTTa control plane is active, the MeTTa loop reads messages
+            // from the EmbodimentBus and processes them through the full cognitive cycle.
+            // When it's disabled, fall back to direct IMP processing.
+            if (!useMeTTaLoop) {
+                await this._handleMessage(msg, isPrivate);
+            }
         });
 
         // Handle user joins
@@ -518,12 +526,12 @@ class IntelligentChatBot {
 
     async start() {
         if (this.isRunning) return;
-        
+
         this.isRunning = true;
         this.startTime = Date.now();
-        
+
         Logger.info('🚀 Starting ChatBot...');
-        
+
         // Connect IRC channel
         const ircChannel = this.agent.channelManager?.get('irc');
         if (ircChannel) {
@@ -535,13 +543,23 @@ class IntelligentChatBot {
             }
         }
 
+        // Start MeTTa control plane — reads from EmbodimentBus, runs full cognitive cycle
+        if (this.agent.agentCfg?.capabilities?.mettaControlPlane !== false) {
+            try {
+                Logger.info('🧠 Starting MeTTa control plane...');
+                this.agent.startMeTTaLoop();
+            } catch (e) {
+                Logger.warn('[ChatBot] MeTTa loop start failed, falling back to IMP:', e.message);
+            }
+        }
+
         // Set up graceful shutdown
         process.on('SIGINT', () => this.shutdown());
         process.on('SIGTERM', () => this.shutdown());
 
         // Keep alive
         Logger.info('👂 Bot is running. Press Ctrl+C to stop.');
-        
+
         // Periodic status report
         this.statusInterval = setInterval(() => {
             this._reportStatus();
