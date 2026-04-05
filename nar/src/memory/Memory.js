@@ -3,9 +3,8 @@ import {Term} from '../term/Term.js';
 import {MemoryIndex} from './MemoryIndex.js';
 import {MemoryConsolidation} from './MemoryConsolidation.js';
 import {Bag} from './Bag.js';
-import {BaseComponent} from '@senars/core';
+import {BaseComponent, IntrospectionEvents} from '@senars/core';
 import {MemoryValidator} from '@senars/core/src/util/MemoryValidator.js';
-import {IntrospectionEvents} from '@senars/core';
 import {MemoryStatistics} from './MemoryStatistics.js';
 import {MemoryScorer} from './MemoryScorer.js';
 import {MemoryResourceManager} from './MemoryResourceManager.js';
@@ -35,7 +34,10 @@ export class Memory extends BaseComponent {
     });
 
     constructor(config = {}, eventBus = null, termFactory = null) {
-        const mergedConfig = {...Memory.DEFAULT_CONFIG, ...config, enableMemoryValidation: config.enableMemoryValidation !== false};
+        const mergedConfig = {
+            ...Memory.DEFAULT_CONFIG, ...config,
+            enableMemoryValidation: config.enableMemoryValidation !== false
+        };
         super(mergedConfig, 'Memory', eventBus);
 
         this._termFactory = termFactory;
@@ -43,15 +45,37 @@ export class Memory extends BaseComponent {
         this._initStats();
     }
 
-    static get SCORING_WEIGHTS() { return MemoryScorer.SCORING_WEIGHTS; }
-    static get NORMALIZATION_LIMITS() { return MemoryScorer.NORMALIZATION_LIMITS; }
+    static get SCORING_WEIGHTS() {
+        return MemoryScorer.SCORING_WEIGHTS;
+    }
 
-    get config() { return {...this._config}; }
-    get concepts() { return new Map(this._concepts); }
-    get focusConcepts() { return new Set(this._focusConcepts); }
-    get index() { return this._index; }
-    get archive() { return this._archive; }
-    get stats() { return {...this._stats}; }
+    static get NORMALIZATION_LIMITS() {
+        return MemoryScorer.NORMALIZATION_LIMITS;
+    }
+
+    get config() {
+        return {...this._config};
+    }
+
+    get concepts() {
+        return new Map(this._concepts);
+    }
+
+    get focusConcepts() {
+        return new Set(this._focusConcepts);
+    }
+
+    get index() {
+        return this._index;
+    }
+
+    get archive() {
+        return this._archive;
+    }
+
+    get stats() {
+        return {...this._stats};
+    }
 
     _initComponents() {
         this._concepts = new Map();
@@ -65,7 +89,7 @@ export class Memory extends BaseComponent {
         this._forgettingStrategy = ForgettingStrategyFactory.create(this._config.forgetPolicy);
 
         this._memoryValidator = this._config.enableMemoryValidation
-            ? new MemoryValidator({ enableChecksums: true, validationInterval: this._config.memoryValidationInterval })
+            ? new MemoryValidator({enableChecksums: true, validationInterval: this._config.memoryValidationInterval})
             : null;
     }
 
@@ -90,7 +114,9 @@ export class Memory extends BaseComponent {
     }
 
     addTask(task, currentTime = Date.now()) {
-        if (!task?.term) {return false;}
+        if (!task?.term) {
+            return false;
+        }
 
         const {term} = task;
         const concept = this.getConcept(term) || this._createConcept(term);
@@ -140,7 +166,9 @@ export class Memory extends BaseComponent {
     }
 
     getConcept(term) {
-        if (!term) {return null;}
+        if (!term) {
+            return null;
+        }
         const name = this._getTermName(term);
         const concept = this._concepts.get(name);
         if (concept) {
@@ -164,7 +192,9 @@ export class Memory extends BaseComponent {
     removeConcept(term) {
         const name = this._getTermName(term);
         const concept = this._concepts.get(name);
-        if (!concept) {return false;}
+        if (!concept) {
+            return false;
+        }
 
         if (this._focusConcepts.has(concept)) {
             this._focusConcepts.delete(concept);
@@ -182,7 +212,7 @@ export class Memory extends BaseComponent {
         return Array.from(this._concepts.values());
     }
 
-    *getTasksIterator() {
+    * getTasksIterator() {
         for (const concept of this._concepts.values()) {
             if (concept.getAllTasks) {
                 yield* concept.getAllTasks();
@@ -194,7 +224,9 @@ export class Memory extends BaseComponent {
         const tasks = [];
         for (const task of this.getTasksIterator()) {
             tasks.push(task);
-            if (limit > 0 && tasks.length >= limit) {break;}
+            if (limit > 0 && tasks.length >= limit) {
+                break;
+            }
         }
         return tasks;
     }
@@ -204,10 +236,18 @@ export class Memory extends BaseComponent {
     }
 
     _conceptMatchesCriteria(concept, criteria) {
-        if (criteria.minActivation !== undefined && concept.activation < criteria.minActivation) {return false;}
-        if (criteria.minTasks !== undefined && concept.totalTasks < criteria.minTasks) {return false;}
-        if (criteria.taskType && concept.getTasksByType(criteria.taskType).length === 0) {return false;}
-        if (criteria.onlyFocus === true && !this._focusConcepts.has(concept)) {return false;}
+        if (criteria.minActivation !== undefined && concept.activation < criteria.minActivation) {
+            return false;
+        }
+        if (criteria.minTasks !== undefined && concept.totalTasks < criteria.minTasks) {
+            return false;
+        }
+        if (criteria.taskType && concept.getTasksByType(criteria.taskType).length === 0) {
+            return false;
+        }
+        if (criteria.onlyFocus === true && !this._focusConcepts.has(concept)) {
+            return false;
+        }
         return true;
     }
 
@@ -217,15 +257,18 @@ export class Memory extends BaseComponent {
                 activationWeight: 0.3, useCountWeight: 0.2, taskCountWeight: 0.2,
                 qualityWeight: 0.15, complexityWeight: 0.15, diversityWeight: 0.1
             }
-        } : { weights: Memory.SCORING_WEIGHTS };
+        } : {weights: Memory.SCORING_WEIGHTS};
 
-        return this.getConceptsByCompositeScoring({ limit, scoringOptions, sortBy: 'composite' });
+        return this.getConceptsByCompositeScoring({limit, scoringOptions, sortBy: 'composite'});
     }
 
     getConceptsByCompositeScoring({limit = 10, minScore = 0, scoringOptions = {}, sortBy = 'composite'} = {}) {
         const concepts = this.getAllConcepts();
         const scoredConcepts = concepts
-            .map(concept => ({concept, score: MemoryScorer.calculateDetailedConceptScore(concept, scoringOptions.weights || {})}))
+            .map(concept => ({
+                concept,
+                score: MemoryScorer.calculateDetailedConceptScore(concept, scoringOptions.weights || {})
+            }))
             .filter(item => item.score.compositeScore >= minScore);
 
         return scoredConcepts
@@ -235,7 +278,9 @@ export class Memory extends BaseComponent {
     }
 
     consolidate(currentTime = Date.now()) {
-        if (this._cyclesSinceConsolidation++ < this._config.consolidationInterval) {return;}
+        if (this._cyclesSinceConsolidation++ < this._config.consolidationInterval) {
+            return;
+        }
 
         this._cyclesSinceConsolidation = 0;
         this._stats.lastConsolidation = currentTime;
@@ -296,7 +341,9 @@ export class Memory extends BaseComponent {
         return this._concepts.has(name);
     }
 
-    getTotalTaskCount() { return this._stats.totalTasks; }
+    getTotalTaskCount() {
+        return this._stats.totalTasks;
+    }
 
     getConceptsWithBeliefs(pattern) {
         return this.getAllConcepts().filter(concept =>
@@ -449,16 +496,22 @@ export class Memory extends BaseComponent {
 
     async deserialize(data) {
         try {
-            if (!data || !data.concepts) {throw new Error('Invalid memory data');}
+            if (!data || !data.concepts) {
+                throw new Error('Invalid memory data');
+            }
 
             this.clear();
-            if (data.config) {this._config = {...this._config, ...data.config};}
+            if (data.config) {
+                this._config = {...this._config, ...data.config};
+            }
 
             for (const conceptData of data.concepts) {
                 if (conceptData.concept) {
                     const term = this._resolveTermForDeserialization(conceptData.term);
                     const concept = new Concept(term, this._config);
-                    if (concept.deserialize) {await concept.deserialize(conceptData.concept);}
+                    if (concept.deserialize) {
+                        await concept.deserialize(conceptData.concept);
+                    }
 
                     this._concepts.set(term.name, concept);
                     this._stats.totalConcepts++;
@@ -470,14 +523,22 @@ export class Memory extends BaseComponent {
             if (data.focusConcepts) {
                 for (const termStr of data.focusConcepts) {
                     const concept = this._concepts.get(termStr);
-                    if (concept) {this._focusConcepts.add(concept);}
+                    if (concept) {
+                        this._focusConcepts.add(concept);
+                    }
                 }
                 this._updateFocusConceptsCount();
             }
 
-            if (data.index && this._index.deserialize) {await this._index.deserialize(data.index);}
-            if (data.stats) {this._stats = {...data.stats};}
-            if (data.resourceTracker) {this._resourceManager.setResourceTracker(new Map(Object.entries(data.resourceTracker)));}
+            if (data.index && this._index.deserialize) {
+                await this._index.deserialize(data.index);
+            }
+            if (data.stats) {
+                this._stats = {...data.stats};
+            }
+            if (data.resourceTracker) {
+                this._resourceManager.setResourceTracker(new Map(Object.entries(data.resourceTracker)));
+            }
 
             this._cyclesSinceConsolidation = data.cyclesSinceConsolidation || 0;
             this._lastConsolidationTime = data.lastConsolidationTime || Date.now();
@@ -490,9 +551,11 @@ export class Memory extends BaseComponent {
     }
 
     _resolveTermForDeserialization(termData) {
-        if (this._termFactory) {return this._termFactory.fromJSON(termData);}
+        if (this._termFactory) {
+            return this._termFactory.fromJSON(termData);
+        }
         if (typeof termData === 'string') {
-             return {
+            return {
                 toString: () => termData,
                 equals: (other) => other.toString && other.toString() === termData,
                 name: termData,

@@ -1,5 +1,5 @@
 import { Component } from './Component.js';
-import { FluentUI, div, button, span } from '../utils/FluentUI.js';
+import { div, button } from '../utils/FluentUI.js';
 
 /**
  * Standardized HUD Widget Container

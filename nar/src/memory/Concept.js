@@ -1,9 +1,8 @@
 import {Bag} from './Bag.js';
 import {clamp} from '@senars/core/src/util/common.js';
-import {BaseComponent} from '@senars/core';
+import {BaseComponent, Logger} from '@senars/core';
 import {Task} from '../task/Task.js';
-import {Logger} from '@senars/core';
-import { CONCEPT_CAPACITY, CONCEPT_ACTIVATION, CONCEPT_DECAY } from '../config/ConceptConstants.js';
+import {CONCEPT_ACTIVATION, CONCEPT_CAPACITY, CONCEPT_DECAY} from '../config/ConceptConstants.js';
 
 const TASK_TYPES = Object.freeze({BELIEF: 'BELIEF', GOAL: 'GOAL', QUESTION: 'QUESTION'});
 
@@ -38,18 +37,49 @@ export class Concept extends BaseComponent {
         this._quality = 0;
     }
 
-    get term() { return this._term; }
-    get createdAt() { return this._createdAt; }
-    get lastAccessed() { return this._lastAccessed; }
-    get lastModified() { return this._lastModified; }
-    get activation() { return this._activation; }
-    get useCount() { return this._useCount; }
-    get quality() { return this._quality; }
-    get priority() { return this._activation; }
+    get term() {
+        return this._term;
+    }
 
-    get beliefs() { return this._storage[TASK_TYPES.BELIEF]; }
-    get goals() { return this._storage[TASK_TYPES.GOAL]; }
-    get questions() { return this._storage[TASK_TYPES.QUESTION]; }
+    get createdAt() {
+        return this._createdAt;
+    }
+
+    get lastAccessed() {
+        return this._lastAccessed;
+    }
+
+    get lastModified() {
+        return this._lastModified;
+    }
+
+    get activation() {
+        return this._activation;
+    }
+
+    get useCount() {
+        return this._useCount;
+    }
+
+    get quality() {
+        return this._quality;
+    }
+
+    get priority() {
+        return this._activation;
+    }
+
+    get beliefs() {
+        return this._storage[TASK_TYPES.BELIEF];
+    }
+
+    get goals() {
+        return this._storage[TASK_TYPES.GOAL];
+    }
+
+    get questions() {
+        return this._storage[TASK_TYPES.QUESTION];
+    }
 
     get totalTasks() {
         return this.beliefs.size + this.goals.size + this.questions.size;
@@ -60,13 +90,17 @@ export class Concept extends BaseComponent {
     }
 
     get averagePriority() {
-        if (!this.totalTasks) {return 0;}
+        if (!this.totalTasks) {
+            return 0;
+        }
         return this._bags.reduce((sum, bag) => sum + (bag.getAveragePriority() * bag.size), 0) / this.totalTasks;
     }
 
     _getStorage(taskType) {
         const storage = this._storage[taskType];
-        if (!storage) {throw new Error(`Unknown task type: ${taskType}`);}
+        if (!storage) {
+            throw new Error(`Unknown task type: ${taskType}`);
+        }
         return storage;
     }
 
@@ -99,7 +133,9 @@ export class Concept extends BaseComponent {
     getTask(taskId) {
         for (const bag of this._bags) {
             const task = bag.find(t => t.stamp.id === taskId);
-            if (task) {return task;}
+            if (task) {
+                return task;
+            }
         }
         return null;
     }
@@ -119,7 +155,9 @@ export class Concept extends BaseComponent {
 
     removeTask(task) {
         const removed = this._getStorage(task.type).remove(task);
-        if (removed) {this._updateActivity();}
+        if (removed) {
+            this._updateActivity();
+        }
         return removed || false;
     }
 
@@ -196,7 +234,9 @@ export class Concept extends BaseComponent {
 
     async deserialize(data) {
         try {
-            if (!data) {throw new Error('Invalid concept data');}
+            if (!data) {
+                throw new Error('Invalid concept data');
+            }
 
             this._createdAt = data.createdAt || Date.now();
             this._lastAccessed = data.lastAccessed || Date.now();
@@ -204,7 +244,9 @@ export class Concept extends BaseComponent {
             this._useCount = data.useCount || 0;
             this._quality = data.quality || 0;
 
-            if (data.config) {this.configure(data.config);}
+            if (data.config) {
+                this.configure(data.config);
+            }
 
             const map = {
                 beliefs: this.beliefs,

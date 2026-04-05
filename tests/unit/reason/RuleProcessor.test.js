@@ -1,6 +1,6 @@
 import {jest} from '@jest/globals';
-import {RuleProcessor, SimpleRuleExecutor, Rule} from '@senars/nar';
-import {createTestTask} from '../../support/baseTestUtils.js';
+import {Rule, RuleProcessor, SimpleRuleExecutor} from '@senars/nar';
+import {createTestTask} from '../../support/index.js';
 
 class TestRule extends Rule {
     constructor(id, type) {

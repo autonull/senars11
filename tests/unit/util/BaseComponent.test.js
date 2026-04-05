@@ -1,5 +1,4 @@
-import {BaseComponent} from '../../../core/src/util/BaseComponent.js';
-import {EventBus} from '../../../core/src/util/EventBus.js';
+import {BaseComponent, EventBus} from '@senars/core';
 
 class TestComponent extends BaseComponent {
     constructor(config = {}) {
@@ -86,10 +85,10 @@ describe('BaseComponent', () => {
             eventData = d;
         });
 
-        await c.emitEvent('test', { val: 1 });
+        await c.emitEvent('test', {val: 1});
 
         expect(eventReceived).toBe(true);
-        expect(eventData).toMatchObject({ val: 1, source: 'TestComponent' });
+        expect(eventData).toMatchObject({val: 1, source: 'TestComponent'});
     });
 
     test('uptime', async () => {

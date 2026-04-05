@@ -1,14 +1,12 @@
-import { Component } from '../composable/Component.js';
-import { ConfigManager } from '../config/ConfigManager.js';
-import { PluginManager } from '../plugins/PluginSystem.js';
-import { ArchitectureFactory } from '../architectures/NeuroSymbolicArchitecture.js';
-import { WorldModel } from '../models/WorldModel.js';
-import { SkillDiscovery } from '../skills/SkillDiscovery.js';
-import { CausalReasoner, CausalGraph } from '../systems/CognitiveSystem.js';
-import { ExperienceBuffer } from '../experience/ExperienceBuffer.js';
-import { MetaController } from '../meta/MetaController.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { NarseseUtils } from '../utils/NarseseUtils.js';
+import {Component} from '../composable/Component.js';
+import {ConfigManager} from '../config/ConfigManager.js';
+import {PluginManager} from '../plugins/PluginSystem.js';
+import {WorldModel} from '../models/WorldModel.js';
+import {SkillDiscovery} from '../skills/SkillDiscovery.js';
+import {CausalGraph, CausalReasoner} from '../systems/CognitiveSystem.js';
+import {ExperienceBuffer} from '../experience/ExperienceBuffer.js';
+import {MetaController} from '../meta/MetaController.js';
+import {mergeConfig, NarseseUtils} from '../utils/index.js';
 
 const DEFAULTS = {
     episodes: 1000,
@@ -59,7 +57,9 @@ export class EpisodeResult {
         this.timestamp = Date.now();
     }
 
-    toJSON() { return { ...this }; }
+    toJSON() {
+        return {...this};
+    }
 }
 
 export class TrainingLoop extends Component {
@@ -69,12 +69,17 @@ export class TrainingLoop extends Component {
         this.env = env;
         this.config = config;
 
-        this.configManager = new ConfigManager({ learningRate: 0.001, explorationRate: 0.1, discountFactor: 0.99 });
+        this.configManager = new ConfigManager({learningRate: 0.001, explorationRate: 0.1, discountFactor: 0.99});
         this.pluginManager = new PluginManager();
-        this.experienceBuffer = new ExperienceBuffer({ capacity: 50000, batchSize: config.batchSize, sampleStrategy: 'prioritized', useCausalIndexing: config.causal });
+        this.experienceBuffer = new ExperienceBuffer({
+            capacity: 50000,
+            batchSize: config.batchSize,
+            sampleStrategy: 'prioritized',
+            useCausalIndexing: config.causal
+        });
         this.worldModel = config.useWorldModel ? new WorldModel() : null;
         this.skillDiscovery = config.useSkillDiscovery || config.hierarchical ? new SkillDiscovery() : null;
-        this.causalReasoner = config.useCausalReasoning || config.causal ? new CausalReasoner({ graph: new CausalGraph() }) : null;
+        this.causalReasoner = config.useCausalReasoning || config.causal ? new CausalReasoner({graph: new CausalGraph()}) : null;
         this.metaController = config.meta ? new MetaController() : null;
 
         this.episodeHistory = [];
@@ -83,35 +88,37 @@ export class TrainingLoop extends Component {
     }
 
     async onInitialize() {
-        await this.pluginManager.installAll({ agent: this.agent, env: this.env });
+        await this.pluginManager.installAll({agent: this.agent, env: this.env});
         await this.experienceBuffer.initialize();
         await this.worldModel?.initialize();
         await this.skillDiscovery?.initialize();
         await this.causalReasoner?.initialize();
         await this.metaController?.initialize();
 
-        this.emit('initialized', { config: this.config });
+        this.emit('initialized', {config: this.config});
     }
 
     async run() {
-        this.emit('trainingStarted', { episodes: this.config.episodes });
+        this.emit('trainingStarted', {episodes: this.config.episodes});
 
         for (let ep = 0; ep < this.config.episodes; ep++) {
             this.currentEpisode = ep;
             const result = await this.runEpisode();
 
             this.episodeHistory.push(result);
-            if (result.reward > this.bestReward) {this.bestReward = result.reward;}
+            if (result.reward > this.bestReward) {
+                this.bestReward = result.reward;
+            }
 
             await this.learn(result);
 
             if (ep % this.config.evalFrequency === 0) {
                 const evalResult = await this.evaluate();
-                this.emit('evaluation', { episode: ep, ...evalResult });
+                this.emit('evaluation', {episode: ep, ...evalResult});
             }
 
             if (ep % this.config.saveFrequency === 0) {
-                this.emit('checkpoint', { episode: ep, state: this.getState() });
+                this.emit('checkpoint', {episode: ep, state: this.getState()});
             }
 
             if (ep % 10 === 0) {
@@ -124,24 +131,26 @@ export class TrainingLoop extends Component {
             }
         }
 
-        this.emit('trainingCompleted', { bestReward: this.bestReward, history: this.episodeHistory });
-        return { bestReward: this.bestReward, history: this.episodeHistory };
+        this.emit('trainingCompleted', {bestReward: this.bestReward, history: this.episodeHistory});
+        return {bestReward: this.bestReward, history: this.episodeHistory};
     }
 
     async runEpisode() {
-        const { observation } = this.env.reset();
+        const {observation} = this.env.reset();
         let state = observation;
         let totalReward = 0;
         let steps = 0;
 
         for (let step = 0; step < this.config.maxSteps; step++) {
             const result = await this._runEpisodeStep(state, step);
-            
+
             totalReward += result.reward;
             state = result.nextState;
             steps++;
 
-            if (result.done) {break;}
+            if (result.done) {
+                break;
+            }
         }
 
         return new EpisodeResult(this.currentEpisode, totalReward, steps, totalReward > 0);
@@ -154,18 +163,18 @@ export class TrainingLoop extends Component {
         });
 
         const result = this.env.step(action);
-        const { observation: nextState, reward, terminated, truncated } = result;
+        const {observation: nextState, reward, terminated, truncated} = result;
         const done = terminated || truncated;
 
-        await this.agent.learn({ state, action, reward, nextState, done }, reward);
-        await this.experienceBuffer.store({ state, action, reward, nextState, done });
+        await this.agent.learn({state, action, reward, nextState, done}, reward);
+        await this.experienceBuffer.store({state, action, reward, nextState, done});
 
         await Promise.all([
             this._updateWorldModel(state, action, nextState, reward),
-            this._updateCausalReasoner(state, nextState, { action, reward })
+            this._updateCausalReasoner(state, nextState, {action, reward})
         ]);
 
-        return { nextState, reward, done };
+        return {nextState, reward, done};
     }
 
     async _updateWorldModel(state, action, nextState, reward) {
@@ -185,10 +194,14 @@ export class TrainingLoop extends Component {
     }
 
     async learn(episodeResult) {
-        if (this.currentEpisode % this.config.updateFrequency !== 0) {return;}
+        if (this.currentEpisode % this.config.updateFrequency !== 0) {
+            return;
+        }
 
         const batch = await this.experienceBuffer.sample(this.config.batchSize);
-        if (batch.length === 0) {return;}
+        if (batch.length === 0) {
+            return;
+        }
 
         for (const experience of batch) {
             await this.agent.learn(experience, experience.reward);
@@ -202,7 +215,12 @@ export class TrainingLoop extends Component {
         }
 
         if (this.skillDiscovery) {
-            const experiences = batch.map(e => ({ state: e.state, action: e.action, reward: e.reward, nextState: e.nextState }));
+            const experiences = batch.map(e => ({
+                state: e.state,
+                action: e.action,
+                reward: e.reward,
+                nextState: e.nextState
+            }));
             await this.skillDiscovery.discoverSkills(experiences);
         }
 
@@ -215,16 +233,18 @@ export class TrainingLoop extends Component {
         const evalEpisodes = [];
 
         for (let ep = 0; ep < 5; ep++) {
-            const { observation } = this.env.reset();
+            const {observation} = this.env.reset();
             let state = observation;
             let totalReward = 0;
 
             for (let step = 0; step < this.config.maxSteps; step++) {
-                const action = await this.agent.act(state, { explorationRate: 0 });
+                const action = await this.agent.act(state, {explorationRate: 0});
                 const result = this.env.step(action);
                 totalReward += result.reward;
                 state = result.observation;
-                if (result.terminated || result.truncated) {break;}
+                if (result.terminated || result.truncated) {
+                    break;
+                }
             }
 
             evalEpisodes.push(totalReward);
@@ -233,7 +253,7 @@ export class TrainingLoop extends Component {
         const mean = evalEpisodes.reduce((a, b) => a + b, 0) / evalEpisodes.length;
         const std = Math.sqrt(evalEpisodes.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / evalEpisodes.length);
 
-        return { meanReward: mean, stdReward: std, episodes: evalEpisodes };
+        return {meanReward: mean, stdReward: std, episodes: evalEpisodes};
     }
 
     _runningAvg(window = 100) {

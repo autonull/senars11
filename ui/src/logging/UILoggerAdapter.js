@@ -1,4 +1,3 @@
-import { Logger as CoreLogger, ConsoleLoggerAdapter } from '@senars/core';
 import { UI_CONSTANTS } from '@senars/core';
 
 const DEFAULT_ICONS = {

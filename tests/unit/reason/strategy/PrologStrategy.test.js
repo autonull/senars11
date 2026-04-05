@@ -2,7 +2,7 @@
  * Unit tests for PrologStrategy
  */
 
-import {PrologStrategy, Task, Truth, TermFactory} from '@senars/nar';
+import {PrologStrategy, Task, TermFactory, Truth} from '@senars/nar';
 
 describe('PrologStrategy', () => {
     let strategy;

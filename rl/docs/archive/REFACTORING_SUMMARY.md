@@ -1,16 +1,18 @@
 # RL Module Refactoring Summary
 
 **Date**: February 24, 2026  
-**Purpose**: Enable extensible general-purpose Reinforcement Learning leveraging SeNARS `core/`, MeTTa `metta/`, and Tensor Logic `tensor/`
+**Purpose**: Enable extensible general-purpose Reinforcement Learning leveraging SeNARS `core/`, MeTTa `metta/`, and
+Tensor Logic `tensor/`
 
 ---
 
 ## Overview
 
-The RL module has been refactored to provide a clean, consolidated API for neuro-symbolic reinforcement learning that properly integrates with:
+The RL module has been refactored to provide a clean, consolidated API for neuro-symbolic reinforcement learning that
+properly integrates with:
 
 - **SeNARS `core/`**: Uncertainty-aware reasoning, belief revision, goal management
-- **MeTTa `metta/`**: Self-modifying symbolic programs, grounded operations  
+- **MeTTa `metta/`**: Self-modifying symbolic programs, grounded operations
 - **Tensor Logic `tensor/`**: Differentiable learning, automatic differentiation
 
 ---
@@ -31,6 +33,7 @@ The RL module has been refactored to provide a clean, consolidated API for neuro
 - `LearnedGrounding`: Learned grounding with concept mapping
 
 **Design Principles**:
+
 - Extends `Component` for composability
 - Built-in metrics tracking via `MetricsTracker`
 - Clean separation of concerns
@@ -43,6 +46,7 @@ The RL module has been refactored to provide a clean, consolidated API for neuro
 **Refactored** to properly leverage SeNARS and MeTTa:
 
 **Key Improvements**:
+
 - Direct integration with `@senars/core` SeNARS
 - Proper MeTTa interpreter integration via `@senars/metta`
 - Tensor Logic integration via `@senars/tensor`
@@ -51,6 +55,7 @@ The RL module has been refactored to provide a clean, consolidated API for neuro
 - Better caching strategies
 
 **Core Methods**:
+
 ```javascript
 // SeNARS integration
 async inputNarsese(narsese, options)
@@ -77,6 +82,7 @@ async perceiveReasonAct(observation, options)
 **Refactored** to use `@senars/tensor` Module and Optimizer:
 
 **Key Features**:
+
 - Direct use of `SymbolicTensor` and `Tensor` from `@senars/tensor`
 - Integration with `TensorLogicBridge` for symbolic operations
 - Support for both discrete and continuous action spaces
@@ -85,6 +91,7 @@ async perceiveReasonAct(observation, options)
 - Rule extraction from trained policies
 
 **Factory Methods**:
+
 ```javascript
 TensorLogicPolicy.createDiscrete(inputDim, outputDim, config)
 TensorLogicPolicy.createContinuous(inputDim, actionDim, config)
@@ -120,14 +127,17 @@ export { SymbolicTensor, TensorLogicBridge, symbolicTensor } from '@senars/tenso
 ### 5. Supporting Improvements
 
 #### Jest Configuration
+
 - Added `@senars/rl` to moduleNameMapper
 - Updated testMatch patterns to include RL tests
 
 #### Skill System
+
 - Added re-exports to `HierarchicalSkillSystem.js` for convenience
 - Re-exported `Skill` and `SkillDiscovery`
 
 #### Experience System
+
 - Added re-export of `CausalExperience` from `ExperienceBuffer.js`
 
 ---
@@ -264,21 +274,25 @@ node rl/tests/test_agent.js
 Following AGENTS.md guidelines:
 
 ### ✅ Elegant & Consolidated
+
 - Removed duplication across core modules
 - Unified export structure
 - Consistent patterns throughout
 
 ### ✅ Modular & Composable
+
 - All components extend `Component` base class
 - Fine-grained, freely composable modules
 - Clear separation of concerns
 
 ### ✅ Leverages Core Dependencies
+
 - **SeNARS `core/`**: Direct integration via `SeNARS` class
 - **MeTTa `metta/`**: Integration via `MeTTaInterpreter` and `SeNARSBridge`
 - **Tensor `tensor/`**: Full use of `SymbolicTensor`, `Tensor`, `TensorLogicBridge`
 
 ### ✅ Self-Documenting Code
+
 - Minimal comments, clear method names
 - JSDoc preserved for type information
 - Consistent naming conventions
@@ -308,11 +322,13 @@ import { NeuroSymbolicBridge } from '@senars/rl';
 ## Next Steps
 
 ### Immediate
+
 1. Fix Jest worker_threads compatibility for RL tests
 2. Add more comprehensive integration tests
 3. Document advanced usage patterns
 
 ### Future Enhancements
+
 1. Implement NarseseWorldModel
 2. Complete HierarchicalSkillSystem
 3. Add DistributedExperienceBuffer
@@ -324,12 +340,14 @@ import { NeuroSymbolicBridge } from '@senars/rl';
 ## Files Modified
 
 ### Core Files
+
 - `rl/src/core/RL.js` - NEW
 - `rl/src/bridges/NeuroSymbolicBridge.js` - REFACTORED
 - `rl/src/policies/TensorLogicPolicy.js` - REFACTORED
 - `rl/src/index.js` - CONSOLIDATED
 
 ### Supporting Files
+
 - `rl/README.md` - UPDATED
 - `tests/config/base.config.js` - Added RL moduleNameMapper
 - `jest.unit.config.js` - Added RL test paths
@@ -348,4 +366,5 @@ The RL module refactoring successfully achieves:
 4. ✅ **Maintainability**: Reduced duplication, clear patterns
 5. ✅ **Documentation**: Updated README and inline documentation
 
-The framework is now positioned for **breakthrough general-purpose performant neuro-symbolic Reinforcement Learning** with seamless integration of reasoning, symbolic programming, and differentiable learning.
+The framework is now positioned for **breakthrough general-purpose performant neuro-symbolic Reinforcement Learning**
+with seamless integration of reasoning, symbolic programming, and differentiable learning.

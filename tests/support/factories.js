@@ -1,4 +1,4 @@
-import {ArrayStamp, TermFactory, Task, Truth, TaskManager, Memory, Focus} from '@senars/nar';
+import {ArrayStamp, Focus, Memory, Task, TaskManager, TermFactory, Truth} from '@senars/nar';
 
 const termFactory = new TermFactory();
 

@@ -1,4 +1,4 @@
-import {FocusSetSelector, Task, TermFactory, ArrayStamp} from '@senars/nar';
+import {ArrayStamp, FocusSetSelector, Task, TermFactory} from '@senars/nar';
 
 describe('FocusSetSelector', () => {
     let selector, tf, now;

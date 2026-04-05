@@ -1,7 +1,7 @@
 import {describe, test} from '@jest/globals';
-import {TestNAR} from '../../../../core/src/testing/TestNAR.js';
-import {TestNARRemote} from '../../../../core/src/testing/TestNARRemote.js';
-import {TaskMatch} from '../../../../core/src/testing/TaskMatch.js';
+import {TestNAR} from '@senars/core/src/testing/TestNAR';
+import {TestNARRemote} from '@senars/core/src/testing/TestNARRemote';
+import {TaskMatch} from '@senars/core/src/testing/TaskMatch';
 
 // Skip: Redundant - Direct Pathway Tests below cover same logic and pass
 describe.skip('WebSocket Pathway Tests', () => {

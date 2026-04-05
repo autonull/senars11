@@ -1,16 +1,16 @@
 /**
  * PPO Agent - Proximal Policy Optimization
- * 
+ *
  * Implements PPO with clipped surrogate objective.
- * 
+ *
  * @implements {import('../interfaces/IAgent.js').IAgent}
  */
-import { NeuralAgent } from './NeuralAgent.js';
-import { Tensor, AdamOptimizer } from '@senars/tensor';
-import { ExperienceBuffer, CausalExperience } from '../experience/ExperienceBuffer.js';
-import { deepMergeConfig } from '../utils/ConfigHelper.js';
-import { AgentFactoryUtils, buildNetwork } from './QNetwork.js';
-import { NetworkBuilder } from '../utils/index.js';
+import {NeuralAgent} from './NeuralAgent.js';
+import {AdamOptimizer, Tensor} from '@senars/tensor';
+import {CausalExperience, ExperienceBuffer} from '../experience/ExperienceBuffer.js';
+import {deepMergeConfig} from '../utils/ConfigHelper.js';
+import {AgentFactoryUtils, buildNetwork} from './QNetwork.js';
+import {NetworkBuilder} from '../utils/index.js';
 
 const PPO_DEFAULTS = {
     gamma: 0.99,
@@ -73,7 +73,7 @@ export class PPOAgent extends NeuralAgent {
      * @param {boolean} done - Whether episode terminated
      */
     async learn(obs, action, reward, nextObs, done) {
-        await this.replayBuffer.store(new CausalExperience({ state: obs, action, reward, nextState: nextObs, done }));
+        await this.replayBuffer.store(new CausalExperience({state: obs, action, reward, nextState: nextObs, done}));
         if (this.replayBuffer.totalSize >= this.config.updateSteps) {
             await this._update();
         }
@@ -81,13 +81,15 @@ export class PPOAgent extends NeuralAgent {
 
     async _update() {
         const batch = await this.replayBuffer.sample(this.replayBuffer.totalSize);
-        if (!batch.length) {return;}
+        if (!batch.length) {
+            return;
+        }
 
-        const { states, actions, rewards, dones, obsDim, actionDim, batchSize } = this._prepareBatch(batch);
+        const {states, actions, rewards, dones, obsDim, actionDim, batchSize} = this._prepareBatch(batch);
         const values = NetworkBuilder.forward(this.critic, states).data;
 
         const lastNextVal = NetworkBuilder.forward(this.critic, new Tensor(batch[batch.length - 1].nextState)).data[0] ?? 0;
-        const { advantages, returns } = NetworkBuilder.computeGAE(
+        const {advantages, returns} = NetworkBuilder.computeGAE(
             values, rewards, dones, this.config.gamma, this.config.lambda, lastNextVal
         );
 
@@ -138,7 +140,9 @@ export class PPOAgent extends NeuralAgent {
 
     _padState(state, dim) {
         const padded = new Float32Array(dim);
-        for (let j = 0; j < Math.min(state.length, dim); j++) {padded[j] = state[j];}
+        for (let j = 0; j < Math.min(state.length, dim); j++) {
+            padded[j] = state[j];
+        }
         return padded;
     }
 

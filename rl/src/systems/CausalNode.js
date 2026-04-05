@@ -9,10 +9,21 @@ export class CausalNode {
         this.intervention = null;
     }
 
-    addParent(parentId) { this.parents.add(parentId); }
-    addChild(childId) { this.children.add(childId); }
-    intervene(value) { this.intervention = value; }
-    reset() { this.intervention = null; }
+    addParent(parentId) {
+        this.parents.add(parentId);
+    }
+
+    addChild(childId) {
+        this.children.add(childId);
+    }
+
+    intervene(value) {
+        this.intervention = value;
+    }
+
+    reset() {
+        this.intervention = null;
+    }
 
     toJSON() {
         return {

@@ -1,7 +1,7 @@
 /**
  * FunctorRegistry for managing functors in the evaluation system
  */
-import {logError, ReasonerError} from './utils/error.js';
+import {logError, ReasonerError} from '@senars/core';
 
 export class FunctorRegistry {
     constructor() {
@@ -256,7 +256,9 @@ export class FunctorRegistry {
      */
     getFunctorProperties(name) {
         const functor = this.get(name);
-        if (!functor) {return null;}
+        if (!functor) {
+            return null;
+        }
 
         return {
             name: functor.name,

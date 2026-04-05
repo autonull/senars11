@@ -2,8 +2,8 @@
  * ArithmeticOps.js - Arithmetic operations
  */
 
-import { sym, exp } from '../../kernel/Term.js';
-import { OperationHelpers } from './OperationHelpers.js';
+import {exp, sym} from '../Term.js';
+import {OperationHelpers} from './OperationHelpers.js';
 
 export function registerArithmeticOps(registry) {
     // Register basic arithmetic operations
@@ -21,7 +21,9 @@ export function registerArithmeticOps(registry) {
  */
 function createReduceOp(fn, init) {
     return (...args) => {
-        if (args.length === 0) {return sym(String(init));}
+        if (args.length === 0) {
+            return sym(String(init));
+        }
         try {
             const nums = OperationHelpers.requireNums(args);
             return sym(String(nums.reduce(fn, init === undefined ? nums.shift() : init)));
@@ -38,7 +40,9 @@ function createBinaryOp(fn, checkZero = false) {
     return (...args) => {
         try {
             const [a, b] = OperationHelpers.requireNums(args, 2);
-            if (checkZero && b === 0) {return OperationHelpers.error(exp(sym('^'), [sym('args'), ...args]), "Division by zero");}
+            if (checkZero && b === 0) {
+                return OperationHelpers.error(exp(sym('^'), [sym('args'), ...args]), "Division by zero");
+            }
             return sym(String(fn(a, b)));
         } catch (e) {
             return OperationHelpers.error(exp(sym('^'), [sym('args'), ...args]), e.message);
@@ -53,9 +57,13 @@ function createUnaryBinaryOp(unaryFn, binaryFn, checkZero = false) {
     return (...args) => {
         try {
             const nums = OperationHelpers.requireNums(args);
-            if (nums.length === 1) {return sym(String(unaryFn(nums[0])));}
+            if (nums.length === 1) {
+                return sym(String(unaryFn(nums[0])));
+            }
             if (nums.length === 2) {
-                if (checkZero && nums[1] === 0) {return OperationHelpers.error(exp(sym('^'), [sym('args'), ...args]), "Division by zero");}
+                if (checkZero && nums[1] === 0) {
+                    return OperationHelpers.error(exp(sym('^'), [sym('args'), ...args]), "Division by zero");
+                }
                 return sym(String(binaryFn(nums[0], nums[1])));
             }
             return OperationHelpers.error(exp(sym('^'), [sym('args'), ...args]), "Operation requires 1 or 2 args");

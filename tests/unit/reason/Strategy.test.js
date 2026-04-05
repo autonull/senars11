@@ -1,6 +1,6 @@
 import {jest} from '@jest/globals';
 import {Strategy} from '@senars/nar';
-import {createTestTask} from '../../support/baseTestUtils.js';
+import {createTestTask} from '../../support/index.js';
 
 describe('Strategy', () => {
     let strategy;

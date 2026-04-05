@@ -9,7 +9,9 @@ const MathUtils = {
     },
 
     median(arr) {
-        if (arr.length === 0) {return 0;}
+        if (arr.length === 0) {
+            return 0;
+        }
         const sorted = [...arr].sort((a, b) => a - b);
         const mid = Math.floor(sorted.length / 2);
         return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
@@ -29,11 +31,13 @@ const MathUtils = {
     },
 
     confidenceInterval(arr, confidence = 0.95) {
-        if (arr.length < 2) {return { lower: 0, upper: 0, margin: 0 };}
+        if (arr.length < 2) {
+            return {lower: 0, upper: 0, margin: 0};
+        }
 
         const mean = this.mean(arr);
         const sem = this.sem(arr);
-        const zScores = { 0.90: 1.645, 0.95: 1.96, 0.99: 2.576 };
+        const zScores = {0.90: 1.645, 0.95: 1.96, 0.99: 2.576};
         const z = zScores[confidence] ?? 1.96;
         const margin = z * sem;
 
@@ -54,7 +58,9 @@ const MathUtils = {
     },
 
     percentile(arr, p) {
-        if (arr.length === 0) {return 0;}
+        if (arr.length === 0) {
+            return 0;
+        }
         const sorted = [...arr].sort((a, b) => a - b);
         const idx = Math.ceil((p / 100) * sorted.length) - 1;
         return sorted[Math.max(0, idx)];
@@ -82,7 +88,7 @@ export class StatisticalTests {
         const n2 = sample2.length;
 
         if (n1 < 2 || n2 < 2) {
-            return { significant: false, pValue: 1.0, error: 'Sample sizes too small' };
+            return {significant: false, pValue: 1.0, error: 'Sample sizes too small'};
         }
 
         const mean1 = MathUtils.mean(sample1);
@@ -91,7 +97,9 @@ export class StatisticalTests {
         const var2 = MathUtils.variance(sample2, mean2);
 
         const se = Math.sqrt(var1 / n1 + var2 / n2);
-        if (se === 0) {return { significant: false, pValue: 1.0, tStatistic: 0 };}
+        if (se === 0) {
+            return {significant: false, pValue: 1.0, tStatistic: 0};
+        }
 
         const t = (mean1 - mean2) / se;
         const df = n1 + n2 - 2;
@@ -121,7 +129,7 @@ export class StatisticalTests {
         const n2 = sample2.length;
 
         if (n1 < 2 || n2 < 2) {
-            return { significant: false, pValue: 1.0, error: 'Sample sizes too small' };
+            return {significant: false, pValue: 1.0, error: 'Sample sizes too small'};
         }
 
         const mean1 = MathUtils.mean(sample1);
@@ -130,7 +138,9 @@ export class StatisticalTests {
         const var2 = MathUtils.variance(sample2, mean2);
 
         const se = Math.sqrt(var1 / n1 + var2 / n2);
-        if (se === 0) {return { significant: false, pValue: 1.0, tStatistic: 0 };}
+        if (se === 0) {
+            return {significant: false, pValue: 1.0, tStatistic: 0};
+        }
 
         const t = (mean1 - mean2) / se;
 
@@ -160,27 +170,31 @@ export class StatisticalTests {
      */
     static wilcoxonTest(sample1, sample2, alpha = 0.05) {
         if (sample1.length !== sample2.length) {
-            return { significant: false, pValue: 1.0, error: 'Samples must be paired' };
+            return {significant: false, pValue: 1.0, error: 'Samples must be paired'};
         }
 
         const n = sample1.length;
-        if (n < 5) {return { significant: false, pValue: 1.0, error: 'Sample size too small' };}
+        if (n < 5) {
+            return {significant: false, pValue: 1.0, error: 'Sample size too small'};
+        }
 
         const differences = sample1
-            .map((v, i) => ({ diff: v - sample2[i], absDiff: Math.abs(v - sample2[i]) }))
+            .map((v, i) => ({diff: v - sample2[i], absDiff: Math.abs(v - sample2[i])}))
             .filter(d => d.diff !== 0);
 
-        if (differences.length === 0) {return { significant: false, pValue: 1.0 };}
+        if (differences.length === 0) {
+            return {significant: false, pValue: 1.0};
+        }
 
         differences.sort((a, b) => a.absDiff - b.absDiff);
         differences.forEach((d, i) => d.rank = i + 1);
 
-        const { wPlus, wMinus } = differences.reduce(
+        const {wPlus, wMinus} = differences.reduce(
             (acc, d) => ({
                 wPlus: acc.wPlus + (d.diff > 0 ? d.rank : 0),
                 wMinus: acc.wMinus + (d.diff <= 0 ? d.rank : 0)
             }),
-            { wPlus: 0, wMinus: 0 }
+            {wPlus: 0, wMinus: 0}
         );
 
         const w = Math.min(wPlus, wMinus);
@@ -190,7 +204,7 @@ export class StatisticalTests {
         const z = (w - mu) / sigma;
         const pValue = 2 * (1 - MathUtils.normalCDF(Math.abs(z)));
 
-        return { significant: pValue < alpha, pValue, wStatistic: w, zScore: z };
+        return {significant: pValue < alpha, pValue, wStatistic: w, zScore: z};
     }
 
     /**
@@ -211,11 +225,13 @@ export class StatisticalTests {
         for (let p = 0; p < permutations; p++) {
             const shuffled = [...combined].sort(() => Math.random() - 0.5);
             const permDiff = MathUtils.mean(shuffled.slice(0, n1)) - MathUtils.mean(shuffled.slice(n1));
-            if (Math.abs(permDiff) >= Math.abs(obsDiff)) {extreme++;}
+            if (Math.abs(permDiff) >= Math.abs(obsDiff)) {
+                extreme++;
+            }
         }
 
         const pValue = extreme / permutations;
-        return { significant: pValue < alpha, pValue, obsDiff, permutations };
+        return {significant: pValue < alpha, pValue, obsDiff, permutations};
     }
 
     /**
@@ -224,7 +240,9 @@ export class StatisticalTests {
      * @returns {object} Test results
      */
     static anova(...samples) {
-        if (samples.length < 2) {return { significant: false, error: 'Need at least 2 samples' };}
+        if (samples.length < 2) {
+            return {significant: false, error: 'Need at least 2 samples'};
+        }
 
         const k = samples.length;
         const allData = samples.flat();
@@ -255,7 +273,7 @@ export class StatisticalTests {
             significant: pValue < 0.05,
             pValue,
             fStatistic: f,
-            degreesOfFreedom: { between: dfBetween, within: dfWithin },
+            degreesOfFreedom: {between: dfBetween, within: dfWithin},
             ssBetween,
             ssWithin
         };
@@ -274,7 +292,7 @@ export class StatisticalTests {
         const stats = [];
 
         for (let i = 0; i < iterations; i++) {
-            const resample = Array.from({ length: n }, () => sample[Math.floor(Math.random() * n)]);
+            const resample = Array.from({length: n}, () => sample[Math.floor(Math.random() * n)]);
             if (statistic === 'mean') {
                 stats.push(MathUtils.mean(resample));
             } else if (statistic === 'median') {
@@ -309,7 +327,7 @@ export const DescriptiveStats = {
      */
     summarize(arr) {
         if (arr.length === 0) {
-            return { count: 0, mean: 0, median: 0, std: 0, min: 0, max: 0 };
+            return {count: 0, mean: 0, median: 0, std: 0, min: 0, max: 0};
         }
 
         const sorted = [...arr].sort((a, b) => a - b);
@@ -356,4 +374,4 @@ export const DescriptiveStats = {
     }
 };
 
-export { MathUtils };
+export {MathUtils};

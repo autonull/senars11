@@ -7,7 +7,7 @@ import { WidgetCell } from './cells/WidgetCell.js';
 import { Config } from '../config/Config.js';
 import { NotebookGraphView } from './views/NotebookGraphView.js';
 import { NotebookGridView } from './views/NotebookGridView.js';
-import { ReactiveState } from '../core/ReactiveState.js';
+import { ReactiveState } from '../core/index.js';
 import { eventBus } from '../core/EventBus.js';
 import { EVENTS, STORAGE_KEYS } from '../config/constants.js';
 

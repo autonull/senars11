@@ -2,7 +2,7 @@
  * IOOps.js - I/O operations
  */
 
-import { sym } from '../../kernel/Term.js';
+import {sym} from '../Term.js';
 
 export function registerIOOps(registry) {
     const formatArgs = args => args.map(a => a?.name ?? String(a));

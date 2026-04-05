@@ -3,15 +3,15 @@
  * Add detailed logging to understand why lambda rules don't match
  */
 
-import { MeTTaTestUtils } from '../../helpers/MeTTaTestUtils.js';
-import { Parser } from '../../../metta/src/Parser.js';
-import { Unify } from '../../../metta/src/kernel/Unify.js';
+import {MeTTaTestUtils} from '../../helpers/MeTTaTestUtils.js';
+import {Parser} from '../../../metta/src/Parser.js';
+import {Unify} from '../../../metta/src/index.js';
 
 describe('Lambda Rule Matching Debug', () => {
     let interpreter;
 
     beforeEach(() => {
-        interpreter = MeTTaTestUtils.createInterpreter({ loadStdlib: true });
+        interpreter = MeTTaTestUtils.createInterpreter({loadStdlib: true});
     });
 
     test('trace lambda rule matching step by step', async () => {

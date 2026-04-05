@@ -3,7 +3,6 @@ import { EVENTS } from '../config/constants.js';
 import { BaseApp } from '../components/BaseApp.js';
 import { HUDContextMenu } from './HUDContextMenu.js';
 import { ExplorerToolbar } from './ExplorerToolbar.js';
-import { LMConfigDialog } from '../agent/LMConfigDialog.js';
 import { SystemMetricsPanel } from '../components/SystemMetricsPanel.js';
 import { ExplorerInfoPanel } from './ExplorerInfoPanel.js';
 

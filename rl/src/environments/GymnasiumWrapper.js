@@ -2,9 +2,7 @@
  * Gymnasium Compatibility Layer
  * Wrapper for using Gymnasium (Python) environments with SeNARS RL
  */
-import { Component } from '../composable/Component.js';
-import { Environment, DiscreteEnvironment, ContinuousEnvironment } from '../core/RLCore.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {Component} from '../composable/Component.js';
 
 const GYM_DEFAULTS = {
     pythonPath: 'python3',
@@ -15,13 +13,13 @@ const GYM_DEFAULTS = {
 /**
  * Gymnasium environment wrapper
  * Allows using any Gymnasium environment with SeNARS RL agents
- * 
+ *
  * Note: Requires gymnasium Python package installed
  * Install: pip install gymnasium[classic-control]
  */
 export class GymWrapper extends Component {
     constructor(envName, config = {}) {
-        const merged = { ...GYM_DEFAULTS, ...config, envName };
+        const merged = {...GYM_DEFAULTS, ...config, envName};
         super(merged);
         this.envName = envName;
         this.env = null;
@@ -30,10 +28,26 @@ export class GymWrapper extends Component {
         this._pythonModule = null;
     }
 
+    /**
+     * Get observation space
+     * @returns {object} Observation space
+     */
+    get observationSpace() {
+        return this._observationSpace;
+    }
+
+    /**
+     * Get action space
+     * @returns {object} Action space
+     */
+    get actionSpace() {
+        return this._actionSpace;
+    }
+
     async onInitialize() {
         try {
             // Dynamic import for Python bridge
-            const { PythonShell } = await import('python-shell');
+            const {PythonShell} = await import('python-shell');
             this._pythonModule = PythonShell;
         } catch {
             // Fallback: use child_process for Python communication
@@ -42,7 +56,7 @@ export class GymWrapper extends Component {
 
         this.env = await this._createEnv();
         await this._setupSpaces();
-        this.emit('initialized', { env: this.envName });
+        this.emit('initialized', {env: this.envName});
     }
 
     async _createEnv() {
@@ -69,16 +83,19 @@ print(json.dumps({
 
         const output = await new Promise((resolve, reject) => {
             this._pythonModule.run('', options, (err, results) => {
-                if (err) {reject(err);}
-                else {resolve(results);}
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(results);
+                }
             });
         });
 
-        return { created: true };
+        return {created: true};
     }
 
     async _createWithChildProcess() {
-        const { exec } = await import('child_process');
+        const {exec} = await import('child_process');
         const util = await import('util');
         const execPromise = util.promisify(exec);
 
@@ -93,14 +110,14 @@ print(json.dumps({
 }))
 `;
 
-        const { stdout } = await execPromise(`${this.config.pythonPath} -c '${script}'`);
+        const {stdout} = await execPromise(`${this.config.pythonPath} -c '${script}'`);
         return JSON.parse(stdout);
     }
 
     async _setupSpaces() {
         // Parse Gymnasium space strings to RL space objects
         const obsMatch = this.config.envName.match(/(\w+)-v(\d+)/);
-        
+
         // Default spaces based on common envs
         this._observationSpace = this._inferObservationSpace();
         this._actionSpace = this._inferActionSpace();
@@ -108,36 +125,36 @@ print(json.dumps({
 
     _inferObservationSpace() {
         const name = this.envName.toLowerCase();
-        
+
         if (name.includes('cartpole')) {
-            return { shape: [4], low: -Infinity, high: Infinity, dtype: 'float32' };
+            return {shape: [4], low: -Infinity, high: Infinity, dtype: 'float32'};
         } else if (name.includes('mountaincar')) {
-            return { shape: [2], low: [-1.2, -0.07], high: [0.6, 0.07], dtype: 'float32' };
+            return {shape: [2], low: [-1.2, -0.07], high: [0.6, 0.07], dtype: 'float32'};
         } else if (name.includes('pendulum')) {
-            return { shape: [3], low: [-1, -8, -8], high: [1, 8, 8], dtype: 'float32' };
+            return {shape: [3], low: [-1, -8, -8], high: [1, 8, 8], dtype: 'float32'};
         } else if (name.includes('lunarlander')) {
-            return { shape: [8], low: -Infinity, high: Infinity, dtype: 'float32' };
+            return {shape: [8], low: -Infinity, high: Infinity, dtype: 'float32'};
         }
-        
+
         // Default
-        return { shape: [4], low: -Infinity, high: Infinity, dtype: 'float32' };
+        return {shape: [4], low: -Infinity, high: Infinity, dtype: 'float32'};
     }
 
     _inferActionSpace() {
         const name = this.envName.toLowerCase();
-        
+
         if (name.includes('cartpole')) {
-            return { type: 'discrete', n: 2 };
+            return {type: 'discrete', n: 2};
         } else if (name.includes('mountaincar')) {
-            return { type: 'discrete', n: 3 };
+            return {type: 'discrete', n: 3};
         } else if (name.includes('pendulum')) {
-            return { type: 'continuous', shape: [1], low: -2, high: 2 };
+            return {type: 'continuous', shape: [1], low: -2, high: 2};
         } else if (name.includes('lunarlander')) {
-            return { type: 'discrete', n: 4 };
+            return {type: 'discrete', n: 4};
         }
-        
+
         // Default
-        return { type: 'discrete', n: 2 };
+        return {type: 'discrete', n: 2};
     }
 
     /**
@@ -146,8 +163,8 @@ print(json.dumps({
      * @returns {Promise<{observation: any, info: object}>} Initial observation
      */
     async reset(options = {}) {
-        const { seed = null } = options;
-        
+        const {seed = null} = options;
+
         const script = `
 import gymnasium as gym
 import json
@@ -163,7 +180,7 @@ env.close()
 `;
 
         const obs = await this._runPython(script);
-        return { observation: obs.observation, info: obs.info };
+        return {observation: obs.observation, info: obs.info};
     }
 
     /**
@@ -193,14 +210,14 @@ env.close()
     }
 
     async _runPython(script) {
-        const { exec } = await import('child_process');
+        const {exec} = await import('child_process');
         const util = await import('util');
         const execPromise = util.promisify(exec);
 
         try {
-            const { stdout } = await execPromise(
+            const {stdout} = await execPromise(
                 `${this.config.pythonPath} -c '${script.replace(/\n/g, ';')}'`,
-                { timeout: this.config.timeout }
+                {timeout: this.config.timeout}
             );
             return JSON.parse(stdout);
         } catch (error) {
@@ -226,7 +243,7 @@ env.close()
 `;
 
         await this._runPython(script);
-        return mode === 'human' ? null : null; // Simplified
+        return null; // Simplified
     }
 
     /**
@@ -235,32 +252,16 @@ env.close()
      */
     sampleAction() {
         const space = this._actionSpace;
-        
+
         if (space.type === 'discrete') {
             return Math.floor(Math.random() * space.n);
         } else if (space.type === 'continuous') {
-            return Array.from({ length: space.shape[0] }, () => 
+            return Array.from({length: space.shape[0]}, () =>
                 space.low + Math.random() * (space.high - space.low)
             );
         }
-        
+
         return 0;
-    }
-
-    /**
-     * Get observation space
-     * @returns {object} Observation space
-     */
-    get observationSpace() {
-        return this._observationSpace;
-    }
-
-    /**
-     * Get action space
-     * @returns {object} Action space
-     */
-    get actionSpace() {
-        return this._actionSpace;
     }
 
     /**
@@ -298,7 +299,7 @@ export async function gym(envName, config = {}) {
  */
 export async function isGymnasiumAvailable() {
     try {
-        const { exec } = await import('child_process');
+        const {exec} = await import('child_process');
         const util = await import('util');
         const execPromise = util.promisify(exec);
 

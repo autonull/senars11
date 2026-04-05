@@ -1,4 +1,4 @@
-import {AgentBuilder} from '../../../agent/src/AgentBuilder.js';
+import {AgentBuilder} from '../../../agent/src/index.js';
 import {Agent} from '../../../agent/src/Agent.js';
 import {NAR} from '@senars/nar';
 

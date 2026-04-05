@@ -1,4 +1,4 @@
-import {Decompose1, TermFactory, Task, Truth, Stamp} from '@senars/nar';
+import {Decompose1, Stamp, Task, TermFactory, Truth} from '@senars/nar';
 
 describe('Decompose1 Rule', () => {
     let rule;

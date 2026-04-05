@@ -2,7 +2,7 @@
  * Unit tests for VirtualFS (Browser adapter)
  */
 
-import { VirtualFS } from '../../../../metta/src/platform/browser/VirtualFS.js';
+import {VirtualFS} from '../../../../metta/src/platform/browser/VirtualFS.js';
 
 describe('VirtualFS', () => {
     let vfs;

@@ -1,5 +1,5 @@
 import {jest} from '@jest/globals';
-import {WebLLMProvider} from '../../../../core/src/lm/WebLLMProvider.js';
+import {WebLLMProvider} from '@senars/core';
 
 // Mock dynamic import of @mlc-ai/web-llm
 jest.unstable_mockModule('@mlc-ai/web-llm', () => ({

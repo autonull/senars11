@@ -1,7 +1,7 @@
 /**
  * Shared data structures for RL components
  */
-import { generateId as _genId } from '@senars/core';
+import {generateId as _genId} from '@senars/core';
 
 export class SumTree {
     constructor(capacity) {
@@ -10,12 +10,16 @@ export class SumTree {
         this.size = 0;
     }
 
+    get total() {
+        return this.tree[1];
+    }
+
     update(idx, priority) {
         let currentIdx = idx + this.capacity;
         this.tree[currentIdx] = Math.pow(priority + 1e-6, 0.6);
 
         while (currentIdx > 1) {
-            currentIdx = currentIdx >> 1;
+            currentIdx >>= 1;
             this.tree[currentIdx] = this.tree[2 * currentIdx] + this.tree[2 * currentIdx + 1];
         }
 
@@ -50,10 +54,6 @@ export class SumTree {
         return indices;
     }
 
-    get total() {
-        return this.tree[1];
-    }
-
     clear() {
         this.tree.fill(0);
         this.size = 0;
@@ -67,6 +67,10 @@ export class PrioritizedBuffer {
         this.data = new Array(capacity).fill(null);
         this.writeIdx = 0;
         this.size = 0;
+    }
+
+    get length() {
+        return this.size;
     }
 
     add(item, priority = 1.0) {
@@ -85,10 +89,6 @@ export class PrioritizedBuffer {
         this.sumTree.update(idx, priority);
     }
 
-    get length() {
-        return this.size;
-    }
-
     clear() {
         this.data.fill(null);
         this.sumTree.clear();
@@ -101,6 +101,10 @@ export class CircularBuffer {
     constructor(capacity) {
         this.capacity = capacity;
         this.buffer = [];
+    }
+
+    get length() {
+        return this.buffer.length;
     }
 
     push(item) {
@@ -116,10 +120,6 @@ export class CircularBuffer {
 
     at(idx) {
         return this.buffer.at(idx);
-    }
-
-    get length() {
-        return this.buffer.length;
     }
 
     clear() {
@@ -161,6 +161,13 @@ export class Index {
         this.timeline = [];
     }
 
+    get stats() {
+        return {
+            total: this.timeline.length,
+            keys: this.byKey.size
+        };
+    }
+
     add(key, id) {
         if (!this.byKey.has(key)) {
             this.byKey.set(key, new Set());
@@ -174,7 +181,9 @@ export class Index {
             set.delete(id);
         }
         const idx = this.timeline.indexOf(id);
-        if (idx >= 0) {this.timeline.splice(idx, 1);}
+        if (idx >= 0) {
+            this.timeline.splice(idx, 1);
+        }
     }
 
     get(key) {
@@ -190,17 +199,12 @@ export class Index {
         const result = new Set(sets[0]);
         for (const set of sets.slice(1)) {
             for (const item of result) {
-                if (!set.has(item)) {result.delete(item);}
+                if (!set.has(item)) {
+                    result.delete(item);
+                }
             }
         }
         return result;
-    }
-
-    get stats() {
-        return {
-            total: this.timeline.length,
-            keys: this.byKey.size
-        };
     }
 
     clear() {
@@ -214,8 +218,12 @@ export function generateId(prefix = 'id') {
 }
 
 export function serializeValue(value) {
-    if (value?.data) {return Array.from(value.data);}
-    if (Array.isArray(value)) {return [...value];}
+    if (value?.data) {
+        return Array.from(value.data);
+    }
+    if (Array.isArray(value)) {
+        return [...value];
+    }
     return value;
 }
 

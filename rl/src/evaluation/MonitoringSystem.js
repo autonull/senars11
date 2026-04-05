@@ -2,11 +2,11 @@
  * Monitoring and Metrics Export System
  * Export training metrics to Prometheus, TensorBoard, Weights & Biases, and JSON
  */
-import { Component } from '../composable/Component.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {Component} from '../composable/Component.js';
+import {mergeConfig} from '../utils/index.js';
 import fs from 'fs/promises';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import {fileURLToPath} from 'url';
 
 // Workaround for Jest VM environment where import.meta.url might not be available
 let __dirname_fixed;
@@ -14,8 +14,8 @@ try {
     __dirname_fixed = path.dirname(fileURLToPath(import.meta.url));
 } catch (e) {
     // Jest VM environment - use global.__dirname or fallback
-    __dirname_fixed = typeof global !== 'undefined' && global.__dirname 
-        ? global.__dirname 
+    __dirname_fixed = typeof global !== 'undefined' && global.__dirname
+        ? global.__dirname
         : process.cwd();
 }
 
@@ -89,7 +89,7 @@ export class MetricsExporter extends Component {
         metric.values.push(value);
         metric.timestamps.push(timestamp);
 
-        this.history.push({ name, value, labels, timestamp, wallTime: Date.now() });
+        this.history.push({name, value, labels, timestamp, wallTime: Date.now()});
     }
 
     _makeKey(name, labels) {
@@ -131,13 +131,13 @@ export class MetricsExporter extends Component {
         };
 
         const filepath = path.join(this.config.exportDirectory, this.config.json.filename);
-        await fs.mkdir(path.dirname(filepath), { recursive: true });
+        await fs.mkdir(path.dirname(filepath), {recursive: true});
         await fs.writeFile(
             filepath,
             JSON.stringify(data, null, this.config.json.pretty ? 2 : 0)
         );
 
-        return { format: 'json', filepath };
+        return {format: 'json', filepath};
     }
 
     async _exportPrometheus() {
@@ -151,7 +151,7 @@ export class MetricsExporter extends Component {
                 .map(([k, v]) => `${k}="${v}"`)
                 .join(',');
             const fullName = `senars_rl_${metric.name.replace(/[^a-zA-Z0-9_]/g, '_')}`;
-            
+
             if (labelStr) {
                 output += `${fullName}{${labelStr}} ${latestValue}\n`;
             } else {
@@ -160,16 +160,16 @@ export class MetricsExporter extends Component {
         }
 
         const filepath = path.join(this.config.exportDirectory, 'prometheus_metrics.txt');
-        await fs.mkdir(path.dirname(filepath), { recursive: true });
+        await fs.mkdir(path.dirname(filepath), {recursive: true});
         await fs.writeFile(filepath, output);
 
-        return { format: 'prometheus', filepath };
+        return {format: 'prometheus', filepath};
     }
 
     async _exportTensorBoard() {
         // Simple TensorBoard event format (summary)
         const logDir = path.join(this.config.exportDirectory, this.config.tensorboard.logDir);
-        await fs.mkdir(logDir, { recursive: true });
+        await fs.mkdir(logDir, {recursive: true});
 
         // Write events file (simplified format)
         const eventsFile = path.join(logDir, 'events.out.tfevents.json');
@@ -182,13 +182,13 @@ export class MetricsExporter extends Component {
 
         await fs.writeFile(eventsFile, events.map(e => JSON.stringify(e)).join('\n'));
 
-        return { format: 'tensorboard', logDir };
+        return {format: 'tensorboard', logDir};
     }
 
     async _exportWandB() {
         // WandB requires their SDK, so we export to a format they can import
         const wandbDir = path.join(this.config.exportDirectory, 'wandb_export');
-        await fs.mkdir(wandbDir, { recursive: true });
+        await fs.mkdir(wandbDir, {recursive: true});
 
         const data = {
             config: {
@@ -207,7 +207,7 @@ export class MetricsExporter extends Component {
         const filepath = path.join(wandbDir, 'metrics.json');
         await fs.writeFile(filepath, JSON.stringify(data, null, 2));
 
-        return { format: 'wandb', filepath, note: `Import with: wandb sync ${  wandbDir}` };
+        return {format: 'wandb', filepath, note: `Import with: wandb sync ${wandbDir}`};
     }
 
     /**
@@ -264,7 +264,7 @@ export class MetricsExporter extends Component {
  */
 export class TrainingMonitor extends Component {
     constructor(exporter, config = {}) {
-        super(mergeConfig({ logToConsole: true, logLevel: 'info' }, config));
+        super(mergeConfig({logToConsole: true, logLevel: 'info'}, config));
         this.exporter = exporter;
         this.episodeMetrics = new Map();
     }
@@ -273,17 +273,21 @@ export class TrainingMonitor extends Component {
      * Log episode completion
      */
     logEpisode(episode, metrics) {
-        const { reward, loss, epsilon, ...rest } = metrics;
+        const {reward, loss, epsilon, ...rest} = metrics;
 
-        this.exporter.record('episode_reward', reward, { episode });
-        if (loss !== undefined) {this.exporter.record('loss', loss, { episode });}
-        if (epsilon !== undefined) {this.exporter.record('epsilon', epsilon, { episode });}
-
-        for (const [key, value] of Object.entries(rest)) {
-            this.exporter.record(key, value, { episode });
+        this.exporter.record('episode_reward', reward, {episode});
+        if (loss !== undefined) {
+            this.exporter.record('loss', loss, {episode});
+        }
+        if (epsilon !== undefined) {
+            this.exporter.record('epsilon', epsilon, {episode});
         }
 
-        this.episodeMetrics.set(episode, { reward, loss, epsilon, ...rest });
+        for (const [key, value] of Object.entries(rest)) {
+            this.exporter.record(key, value, {episode});
+        }
+
+        this.episodeMetrics.set(episode, {reward, loss, epsilon, ...rest});
 
         if (this.config.logToConsole && episode % this.config.logInterval === 0) {
             this._logToConsole(episode, metrics);
@@ -291,15 +295,19 @@ export class TrainingMonitor extends Component {
     }
 
     _logToConsole(episode, metrics) {
-        const { reward, loss, epsilon } = metrics;
+        const {reward, loss, epsilon} = metrics;
         const recent = Array.from(this.episodeMetrics.values())
             .slice(-10)
             .map(m => m.reward);
         const avgReward = recent.reduce((a, b) => a + b, 0) / recent.length;
 
         let log = `[Episode ${episode}] Reward: ${reward?.toFixed(2)}, Avg(10): ${avgReward?.toFixed(2)}`;
-        if (loss !== undefined) {log += `, Loss: ${loss.toFixed(4)}`;}
-        if (epsilon !== undefined) {log += `, ε: ${epsilon.toFixed(3)}`;}
+        if (loss !== undefined) {
+            log += `, Loss: ${loss.toFixed(4)}`;
+        }
+        if (epsilon !== undefined) {
+            log += `, ε: ${epsilon.toFixed(3)}`;
+        }
 
         console.log(log);
     }
@@ -334,7 +342,7 @@ export class TrainingMonitor extends Component {
 export function createMonitor(config = {}) {
     const exporter = new MetricsExporter(config);
     const monitor = new TrainingMonitor(exporter, config);
-    return { exporter, monitor };
+    return {exporter, monitor};
 }
 
 /**

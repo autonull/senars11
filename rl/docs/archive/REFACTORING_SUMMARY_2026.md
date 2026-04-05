@@ -2,7 +2,9 @@
 
 ## Overview
 
-Comprehensive refactoring of the `rl/` module following **AGENTS.md** principles to create a more **extensible, maintainable, and general-purpose Reinforcement Learning system** that leverages SeNARS `core/`, MeTTa `metta/`, and Tensor Logic `tensor/`.
+Comprehensive refactoring of the `rl/` module following **AGENTS.md** principles to create a more **extensible,
+maintainable, and general-purpose Reinforcement Learning system** that leverages SeNARS `core/`, MeTTa `metta/`, and
+Tensor Logic `tensor/`.
 
 ---
 
@@ -11,46 +13,50 @@ Comprehensive refactoring of the `rl/` module following **AGENTS.md** principles
 ### 1. **Deduplication (DRY Principle)**
 
 #### Duplicate Skill Classes Consolidated
+
 - **Before**: 3 separate `Skill` class definitions across:
-  - `skills/Skill.js` (basic skill)
-  - `skills/SkillDiscovery.js` (extended skill with Narsese grounding)
-  - `skills/HierarchicalSkillSystem.js` (hierarchical skill with Component base)
-  
+    - `skills/Skill.js` (basic skill)
+    - `skills/SkillDiscovery.js` (extended skill with Narsese grounding)
+    - `skills/HierarchicalSkillSystem.js` (hierarchical skill with Component base)
+
 - **After**: Single unified `Skill` class in `skills/Skill.js` that:
-  - Extends `Component` for consistent lifecycle management
-  - Supports hierarchical composition via `children` Map
-  - Includes both basic and advanced features (preconditions, termination, policies)
-  - Maintains backward compatibility with all existing usage patterns
+    - Extends `Component` for consistent lifecycle management
+    - Supports hierarchical composition via `children` Map
+    - Includes both basic and advanced features (preconditions, termination, policies)
+    - Maintains backward compatibility with all existing usage patterns
 
 #### Duplicate SumTree Implementation Removed
+
 - **Before**: SumTree implemented in 3 locations:
-  - `experience/ExperienceBuffer.js` (prioritized replay)
-  - `experience/ExperienceSystem.js` (priority buffer)
-  - Both implementations had slight variations
-  
+    - `experience/ExperienceBuffer.js` (prioritized replay)
+    - `experience/ExperienceSystem.js` (priority buffer)
+    - Both implementations had slight variations
+
 - **After**: Single `SumTree` class in `utils/DataStructures.js`:
-  - Shared across all modules via import
-  - Additional `PrioritizedBuffer` wrapper for common use cases
-  - Consistent behavior throughout the codebase
+    - Shared across all modules via import
+    - Additional `PrioritizedBuffer` wrapper for common use cases
+    - Consistent behavior throughout the codebase
 
 #### Duplicate Utility Functions Consolidated
+
 - **Before**: Utility functions duplicated across files:
-  - `generateId()` in multiple files
-  - `serializeValue()` in multiple files  
-  - `hashState()` in multiple files
-  
+    - `generateId()` in multiple files
+    - `serializeValue()` in multiple files
+    - `hashState()` in multiple files
+
 - **After**: Centralized in `utils/DataStructures.js`:
-  - `generateId(prefix)` - unique ID generation
-  - `serializeValue(value)` - tensor/array serialization
-  - `hashState(state, decimals)` - state discretization
-  - `Index` - reusable indexing structure
-  - `CircularBuffer` - fixed-size buffer with array methods
+    - `generateId(prefix)` - unique ID generation
+    - `serializeValue(value)` - tensor/array serialization
+    - `hashState(state, decimals)` - state discretization
+    - `Index` - reusable indexing structure
+    - `CircularBuffer` - fixed-size buffer with array methods
 
 ---
 
 ### 2. **Consolidation**
 
 #### New Shared Data Structures Module
+
 **File**: `utils/DataStructures.js`
 
 ```javascript
@@ -64,6 +70,7 @@ export function hashState()    // State hashing
 ```
 
 #### Unified Skill System
+
 **File**: `skills/Skill.js` (enhanced)
 
 ```javascript
@@ -90,6 +97,7 @@ export class Skill extends Component {
 ```
 
 #### Enhanced Utilities Export
+
 **File**: `utils/index.js`
 
 ```javascript
@@ -107,7 +115,9 @@ export * from './DataStructures.js'  // NEW
 ### 3. **Abstraction Improvements**
 
 #### Component-Based Architecture
+
 All major components now extend `Component` base class:
+
 - Consistent lifecycle: `initialize()`, `onInitialize()`, `shutdown()`, `onShutdown()`
 - Built-in state management: `setState()`, `getState()`, `getAllState()`
 - Event system: `subscribe()`, `unsubscribe()`, `emit()`
@@ -115,6 +125,7 @@ All major components now extend `Component` base class:
 - Metrics tracking: `getMetrics()`
 
 #### Configuration Pattern Standardization
+
 All modules now use consistent configuration:
 
 ```javascript
@@ -206,16 +217,18 @@ rl/src/
 ✅ **Deduplicated** - DRY with shared utilities  
 ✅ **Terse Syntax** - Modern JavaScript (`??`, `?.`, arrow functions, destructuring)  
 ✅ **Few Comments** - Self-documenting through naming  
-✅ **Professional** - Production-ready quality  
+✅ **Professional** - Production-ready quality
 
 ---
 
 ## Files Changed
 
 ### New Files
+
 - `utils/DataStructures.js` - Shared data structures (180 lines)
 
 ### Modified Files
+
 - `utils/index.js` - Added DataStructures export
 - `skills/Skill.js` - Unified Skill class (65 → 146 lines, enhanced)
 - `skills/HierarchicalSkillSystem.js` - Removed duplicate Skill/SkillLibrary (523 → 362 lines, **31% reduction**)
@@ -223,6 +236,7 @@ rl/src/
 - `experience/ExperienceBuffer.js` - Use shared SumTree (486 → 444 lines, **9% reduction**)
 
 ### Total Impact
+
 - **Lines Removed**: ~270 lines of duplicate code
 - **New Utility Code**: ~180 lines (reusable)
 - **Net Reduction**: ~90 lines
@@ -329,26 +343,31 @@ const validated = createConfig(schema, overrides);
 ## Benefits for Future Development
 
 ### 1. **Extensibility**
+
 - New skills easily extend unified `Skill` base class
 - Shared data structures available for new components
 - Clear patterns for adding new modules
 
 ### 2. **Maintainability**
+
 - Single source of truth for common functionality
 - Easier to fix bugs (no duplicate code)
 - Consistent patterns reduce cognitive load
 
 ### 3. **Testability**
+
 - Shared utilities can be tested once
 - Component lifecycle enables consistent testing patterns
 - Clear module boundaries simplify unit tests
 
 ### 4. **Performance**
+
 - Optimized shared implementations (e.g., SumTree with TypedArrays)
 - Reduced memory footprint (no duplicate class definitions)
 - Efficient data structures (CircularBuffer, Index)
 
 ### 5. **Integration with SeNARS/Metta/Tensor**
+
 - Unified Skill system supports Narsese grounding
 - Component architecture aligns with SeNARS patterns
 - Tensor primitives consistently applied
@@ -358,20 +377,20 @@ const validated = createConfig(schema, overrides);
 ## Next Steps (Optional Enhancements)
 
 1. **Planning Module Consolidation**
-   - Unify `Planner`, `HierarchicalPlanner`, `PathPlanner` interfaces
-   - Shared planning abstractions
+    - Unify `Planner`, `HierarchicalPlanner`, `PathPlanner` interfaces
+    - Shared planning abstractions
 
 2. **Training Loop Standardization**
-   - Unified training loop interface
-   - Consistent callback/hook system
+    - Unified training loop interface
+    - Consistent callback/hook system
 
 3. **Enhanced Type Documentation**
-   - JSDoc type annotations for all public APIs
-   - TypeScript declaration files (optional)
+    - JSDoc type annotations for all public APIs
+    - TypeScript declaration files (optional)
 
 4. **Performance Benchmarks**
-   - Benchmark suite for core operations
-   - Performance regression testing
+    - Benchmark suite for core operations
+    - Performance regression testing
 
 ---
 
@@ -386,4 +405,5 @@ This refactoring creates a **cleaner, more maintainable, and more extensible** R
 - ✅ Maintains full backward compatibility
 - ✅ Enables easier future development
 
-The codebase is now better positioned as a **general-purpose Reinforcement Learning system** that effectively leverages SeNARS, MeTTa, and Tensor Logic capabilities.
+The codebase is now better positioned as a **general-purpose Reinforcement Learning system** that effectively leverages
+SeNARS, MeTTa, and Tensor Logic capabilities.

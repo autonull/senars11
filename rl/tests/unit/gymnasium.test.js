@@ -1,7 +1,7 @@
 /**
  * GymnasiumWrapper Tests
  */
-import { GymWrapper, gym, isGymnasiumAvailable } from '../../src/environments/GymnasiumWrapper.js';
+import {gym, GymWrapper, isGymnasiumAvailable} from '../../src/index.js';
 
 describe('GymnasiumWrapper', () => {
     describe('isGymnasiumAvailable', () => {
@@ -17,7 +17,8 @@ describe('GymnasiumWrapper', () => {
 
         afterEach(async () => {
             if (wrapper) {
-                await wrapper.shutdown().catch(() => {});
+                await wrapper.shutdown().catch(() => {
+                });
             }
         });
 

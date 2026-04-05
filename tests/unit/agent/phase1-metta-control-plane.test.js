@@ -1,6 +1,6 @@
 /**
  * Phase 1 Unit Tests — MeTTa Control Plane
- * 
+ *
  * Tests for:
  * - capabilities.js flag resolution and dependency validation
  * - SkillDispatcher S-expression parsing and dispatch
@@ -9,9 +9,9 @@
  * - Graceful malformed-output recovery
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { isEnabled, validateDeps } from '../../../agent/src/config/capabilities.js';
-import { SkillDispatcher } from '../../../agent/src/skills/SkillDispatcher.js';
+import {beforeEach, describe, expect, it, jest} from '@jest/globals';
+import {isEnabled, validateDeps} from '../../../agent/src/config/index.js';
+import {SkillDispatcher} from '../../../agent/src/skills/index.js';
 
 describe('Phase 1: MeTTa Control Plane', () => {
     describe('capabilities.js', () => {
@@ -19,13 +19,13 @@ describe('Phase 1: MeTTa Control Plane', () => {
             it('resolves explicit override in config.capabilities', () => {
                 const config = {
                     profile: 'parity',
-                    capabilities: { fileWriteSkill: true }
+                    capabilities: {fileWriteSkill: true}
                 };
                 expect(isEnabled(config, 'fileWriteSkill')).toBe(true);
             });
 
             it('resolves profile default when no explicit override', () => {
-                const config = { profile: 'parity' };
+                const config = {profile: 'parity'};
                 expect(isEnabled(config, 'mettaControlPlane')).toBe(true);
                 expect(isEnabled(config, 'shellSkill')).toBe(false);
             });
@@ -36,18 +36,18 @@ describe('Phase 1: MeTTa Control Plane', () => {
             });
 
             it('returns false for unknown flags', () => {
-                const config = { profile: 'parity' };
+                const config = {profile: 'parity'};
                 expect(isEnabled(config, 'unknown-flag')).toBe(false);
             });
 
             it('handles minimal profile correctly', () => {
-                const config = { profile: 'minimal' };
+                const config = {profile: 'minimal'};
                 expect(isEnabled(config, 'mettaControlPlane')).toBe(false);
                 expect(isEnabled(config, 'webSearchSkill')).toBe(true);
             });
 
             it('handles full profile with all tiers', () => {
-                const config = { profile: 'full' };
+                const config = {profile: 'full'};
                 expect(isEnabled(config, 'selfModifyingSkills')).toBe(true);
                 expect(isEnabled(config, 'dynamicSkillDiscovery')).toBe(true);
                 expect(isEnabled(config, 'runtimeIntrospection')).toBe(true);
@@ -110,7 +110,7 @@ describe('Phase 1: MeTTa Control Plane', () => {
         beforeEach(() => {
             const config = {
                 profile: 'parity',
-                loop: { maxSkillsPerCycle: 3 }
+                loop: {maxSkillsPerCycle: 3}
             };
             dispatcher = new SkillDispatcher(config);
             mockHandler = jest.fn().mockResolvedValue('mock-result');
@@ -119,7 +119,7 @@ describe('Phase 1: MeTTa Control Plane', () => {
         describe('register() and execute()', () => {
             it('registers and dispatches a skill', async () => {
                 dispatcher.register('test-skill', mockHandler, 'mettaControlPlane', ':reflect');
-                const results = await dispatcher.execute([{ name: 'test-skill', args: ['arg1'] }]);
+                const results = await dispatcher.execute([{name: 'test-skill', args: ['arg1']}]);
                 expect(results).toHaveLength(1);
                 expect(results[0].skill).toBe('test-skill');
                 expect(results[0].result).toBe('mock-result');
@@ -127,20 +127,20 @@ describe('Phase 1: MeTTa Control Plane', () => {
             });
 
             it('returns error for unknown skill', async () => {
-                const results = await dispatcher.execute([{ name: 'unknown', args: [] }]);
+                const results = await dispatcher.execute([{name: 'unknown', args: []}]);
                 expect(results[0].error).toMatch(/unknown-skill/);
             });
 
             it('returns error when capability disabled', async () => {
                 dispatcher.register('disabled-skill', mockHandler, 'shellSkill', ':system');
-                const results = await dispatcher.execute([{ name: 'disabled-skill', args: [] }]);
+                const results = await dispatcher.execute([{name: 'disabled-skill', args: []}]);
                 expect(results[0].error).toMatch(/capability-disabled/);
             });
 
             it('handles handler errors gracefully', async () => {
                 const erroringHandler = jest.fn().mockRejectedValue(new Error('boom'));
                 dispatcher.register('error-skill', erroringHandler, 'mettaControlPlane', ':reflect');
-                const results = await dispatcher.execute([{ name: 'error-skill', args: [] }]);
+                const results = await dispatcher.execute([{name: 'error-skill', args: []}]);
                 expect(results[0].error).toBe('boom');
             });
         });
@@ -154,36 +154,36 @@ describe('Phase 1: MeTTa Control Plane', () => {
 
             it('parses well-formed multi-command response', () => {
                 const response = '((skill1 "arg1") (skill2 "arg2" "arg3"))';
-                const { cmds, error } = dispatcher.parseResponse(response);
+                const {cmds, error} = dispatcher.parseResponse(response);
                 expect(error).toBeNull();
                 expect(cmds).toHaveLength(2);
-                expect(cmds[0]).toEqual({ name: 'skill1', args: ['arg1'] });
-                expect(cmds[1]).toEqual({ name: 'skill2', args: ['arg2', 'arg3'] });
+                expect(cmds[0]).toEqual({name: 'skill1', args: ['arg1']});
+                expect(cmds[1]).toEqual({name: 'skill2', args: ['arg2', 'arg3']});
             });
 
             it('parses single command without outer wrapper', () => {
                 const response = '(skill1 "alone")';
-                const { cmds, error } = dispatcher.parseResponse(response);
+                const {cmds, error} = dispatcher.parseResponse(response);
                 expect(error).toBeNull();
                 expect(cmds).toHaveLength(1);
-                expect(cmds[0]).toEqual({ name: 'skill1', args: ['alone'] });
+                expect(cmds[0]).toEqual({name: 'skill1', args: ['alone']});
             });
 
             it('balances missing closing parentheses', () => {
                 const response = '((skill1 "arg1" (skill2 "arg2")';
-                const { cmds, error } = dispatcher.parseResponse(response);
+                const {cmds, error} = dispatcher.parseResponse(response);
                 expect(error).toBeNull();
                 expect(cmds.length).toBeGreaterThan(0);
             });
 
             it('handles empty response', () => {
-                const { cmds, error } = dispatcher.parseResponse('');
+                const {cmds, error} = dispatcher.parseResponse('');
                 expect(error).toBeNull();
                 expect(cmds).toHaveLength(0);
             });
 
             it('handles null response', () => {
-                const { cmds, error } = dispatcher.parseResponse(null);
+                const {cmds, error} = dispatcher.parseResponse(null);
                 expect(error).toBeNull();
                 expect(cmds).toHaveLength(0);
             });
@@ -191,14 +191,14 @@ describe('Phase 1: MeTTa Control Plane', () => {
             it('returns empty on unparseable input', () => {
                 // Parser doesn't fail on non-s-expression text, just returns empty
                 const response = 'not an s-expression at all';
-                const { cmds, error } = dispatcher.parseResponse(response);
+                const {cmds, error} = dispatcher.parseResponse(response);
                 expect(cmds).toHaveLength(0);
                 expect(error).toBeNull();
             });
 
             it('respects maxSkillsPerCycle limit', () => {
                 const response = '((skill1 "a") (skill2 "b") (skill3 "c") (skill4 "d"))';
-                const { cmds, error } = dispatcher.parseResponse(response);
+                const {cmds, error} = dispatcher.parseResponse(response);
                 expect(error).toBeNull();
                 expect(cmds).toHaveLength(3); // maxSkillsPerCycle = 3
             });
@@ -206,10 +206,10 @@ describe('Phase 1: MeTTa Control Plane', () => {
             it('returns disabled skills when sExprSkillDispatch is false', () => {
                 const config = {
                     profile: 'parity',
-                    capabilities: { sExprSkillDispatch: false }
+                    capabilities: {sExprSkillDispatch: false}
                 };
                 const disabledDispatcher = new SkillDispatcher(config);
-                const { cmds, error } = disabledDispatcher.parseResponse('((skill1 "arg"))');
+                const {cmds, error} = disabledDispatcher.parseResponse('((skill1 "arg"))');
                 expect(cmds).toHaveLength(0);
                 expect(error).toBeNull();
             });
@@ -225,7 +225,7 @@ describe('Phase 1: MeTTa Control Plane', () => {
             });
 
             it('returns "(no skills available)" when none enabled', () => {
-                const config = { profile: 'minimal' };
+                const config = {profile: 'minimal'};
                 const minimalDispatcher = new SkillDispatcher(config);
                 minimalDispatcher.register('any-skill', mockHandler, 'shellSkill', ':system');
                 const defs = minimalDispatcher.getActiveSkillDefs();
@@ -237,9 +237,9 @@ describe('Phase 1: MeTTa Control Plane', () => {
     describe('Working Memory semantics (via Agent._registerMeTTaSkills)', () => {
         it('attend adds item to WM with priority and TTL', async () => {
             // This test verifies the attend skill handler logic
-            const loopState = { wm: [], cycleCount: 0 };
+            const loopState = {wm: [], cycleCount: 0};
             const agentCfg = {
-                workingMemory: { defaultTtl: 10, maxEntries: 20 }
+                workingMemory: {defaultTtl: 10, maxEntries: 20}
             };
 
             // Simulate the attend handler
@@ -266,9 +266,9 @@ describe('Phase 1: MeTTa Control Plane', () => {
         it('dismiss removes matching items from WM', async () => {
             const loopState = {
                 wm: [
-                    { content: 'item 1', priority: 0.5, ttl: 5 },
-                    { content: 'item 2', priority: 0.8, ttl: 5 },
-                    { content: 'item 3', priority: 0.3, ttl: 5 }
+                    {content: 'item 1', priority: 0.5, ttl: 5},
+                    {content: 'item 2', priority: 0.8, ttl: 5},
+                    {content: 'item 3', priority: 0.3, ttl: 5}
                 ]
             };
 
@@ -283,15 +283,15 @@ describe('Phase 1: MeTTa Control Plane', () => {
         it('tick-wm decrements TTLs and removes expired', async () => {
             const loopState = {
                 wm: [
-                    { content: 'item 1', priority: 0.5, ttl: 1 },
-                    { content: 'item 2', priority: 0.8, ttl: 3 },
-                    { content: 'item 3', priority: 0.3, ttl: 0 }
+                    {content: 'item 1', priority: 0.5, ttl: 1},
+                    {content: 'item 2', priority: 0.8, ttl: 3},
+                    {content: 'item 3', priority: 0.3, ttl: 0}
                 ]
             };
 
             // Simulate tick-wm
             loopState.wm = loopState.wm
-                .map(e => ({ ...e, ttl: e.ttl - 1 }))
+                .map(e => ({...e, ttl: e.ttl - 1}))
                 .filter(e => e.ttl > 0);
 
             expect(loopState.wm).toHaveLength(1);
@@ -300,7 +300,7 @@ describe('Phase 1: MeTTa Control Plane', () => {
         });
 
         it('WM respects maxEntries cap', async () => {
-            const loopState = { wm: [], cycleCount: 0 };
+            const loopState = {wm: [], cycleCount: 0};
             const maxEntries = 3;
 
             // Add 5 items
@@ -325,13 +325,13 @@ describe('Phase 1: MeTTa Control Plane', () => {
         it('gates skill execution on capability flag', async () => {
             const config = {
                 profile: 'parity',
-                capabilities: { fileWriteSkill: false }
+                capabilities: {fileWriteSkill: false}
             };
             const dispatcher = new SkillDispatcher(config);
             const writeHandler = jest.fn().mockResolvedValue('written');
             dispatcher.register('write-file', writeHandler, 'fileWriteSkill', ':local-write');
 
-            const results = await dispatcher.execute([{ name: 'write-file', args: ['path', 'content'] }]);
+            const results = await dispatcher.execute([{name: 'write-file', args: ['path', 'content']}]);
             expect(results[0].error).toMatch(/capability-disabled/);
             expect(writeHandler).not.toHaveBeenCalled();
         });
@@ -339,13 +339,13 @@ describe('Phase 1: MeTTa Control Plane', () => {
         it('allows skill execution when capability enabled', async () => {
             const config = {
                 profile: 'parity',
-                capabilities: { fileWriteSkill: true }
+                capabilities: {fileWriteSkill: true}
             };
             const dispatcher = new SkillDispatcher(config);
             const writeHandler = jest.fn().mockResolvedValue('written: path');
             dispatcher.register('write-file', writeHandler, 'fileWriteSkill', ':local-write');
 
-            const results = await dispatcher.execute([{ name: 'write-file', args: ['path', 'content'] }]);
+            const results = await dispatcher.execute([{name: 'write-file', args: ['path', 'content']}]);
             expect(results[0].error).toBeNull();
             expect(results[0].result).toBe('written: path');
             expect(writeHandler).toHaveBeenCalledWith('path', 'content');

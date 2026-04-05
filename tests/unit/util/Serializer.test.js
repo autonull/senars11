@@ -1,6 +1,6 @@
 import {beforeEach, describe, expect, test} from '@jest/globals';
 import {Serializer} from '@senars/nar/src/util/Serializer.js';
-import {Punctuation, Task, Truth, TermFactory} from '@senars/nar';
+import {Punctuation, Task, TermFactory, Truth} from '@senars/nar';
 
 describe('Serializer', () => {
     let termFactory;

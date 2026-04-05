@@ -1,4 +1,3 @@
-
 export const ParameterInitializer = {
     xavier(fanIn, fanOut) {
         const limit = Math.sqrt(6 / (fanIn + fanOut));
@@ -8,7 +7,9 @@ export const ParameterInitializer = {
 
 export const PolicyUtils = {
     argmax(array) {
-        if (!array || array.length === 0) {return -1;}
+        if (!array || array.length === 0) {
+            return -1;
+        }
         let maxIdx = 0;
         let maxVal = array[0];
         for (let i = 1; i < array.length; i++) {
@@ -25,7 +26,9 @@ export const PolicyUtils = {
         let cumsum = 0;
         for (let i = 0; i < probs.length; i++) {
             cumsum += probs[i];
-            if (rand < cumsum) {return i;}
+            if (rand < cumsum) {
+                return i;
+            }
         }
         return probs.length - 1;
     },
@@ -48,14 +51,14 @@ export const PolicyUtils = {
     findStateActionPatterns(pairs) {
         const correlations = new Map();
 
-        for (const { state, action } of pairs) {
+        for (const {state, action} of pairs) {
             if (Array.isArray(state) || ArrayBuffer.isView(state)) {
                 for (let i = 0; i < state.length; i++) {
                     const key = `feature_${i}_action_${action}`;
                     const prev = correlations.get(key);
                     const count = prev ? prev.count + 1 : 1;
                     const sum = prev ? prev.sum + state[i] : state[i];
-                    correlations.set(key, { count, sum });
+                    correlations.set(key, {count, sum});
                 }
             }
         }

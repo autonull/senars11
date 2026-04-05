@@ -1,30 +1,39 @@
 // Unit Test Setup
 // This file sets up the environment for unit tests with real objects and minimal dependencies
 
-import { TextEncoder, TextDecoder } from 'util';
+import {TextDecoder, TextEncoder} from 'util';
+import {setupCustomMatchers} from '../support/test-matchers.js';
+import {commonTestCleanup, commonTestSetup} from '../support/commonTestSetup.js';
+
 globalThis.TextEncoder = TextEncoder;
 globalThis.TextDecoder = TextDecoder;
-
-import {setupCustomMatchers} from '../support/test-matchers.js';
-import {commonTestSetup, commonTestCleanup} from '../support/commonTestSetup.js';
 
 // Mock browser APIs for tests that depend on them
 const setupBrowserMocks = () => {
     if (typeof window !== 'undefined') {
         window.URL = window.URL || {};
-        window.URL.createObjectURL = window.URL.createObjectURL || function() { return 'mock-url'; };
-        window.URL.revokeObjectURL = window.URL.revokeObjectURL || function() {};
+        window.URL.createObjectURL = window.URL.createObjectURL || function () {
+            return 'mock-url';
+        };
+        window.URL.revokeObjectURL = window.URL.revokeObjectURL || function () {
+        };
     }
     if (typeof global !== 'undefined') {
         global.window = global.window || {
             URL: {
-                createObjectURL: function() { return 'mock-url'; },
-                revokeObjectURL: function() {}
+                createObjectURL: function () {
+                    return 'mock-url';
+                },
+                revokeObjectURL: function () {
+                }
             }
         };
         global.URL = global.URL || {
-            createObjectURL: function() { return 'mock-url'; },
-            revokeObjectURL: function() {}
+            createObjectURL: function () {
+                return 'mock-url';
+            },
+            revokeObjectURL: function () {
+            }
         };
     }
 };
@@ -38,13 +47,15 @@ commonTestSetup({
     customGlobals: {}
 });
 
-afterEach(() => {});
+afterEach(() => {
+});
 
 afterAll(() => {
     commonTestCleanup(['createTestInstance']);
 });
 
-afterEach(() => {});
+afterEach(() => {
+});
 
 afterAll(() => {
     commonTestCleanup(['createTestInstance']);

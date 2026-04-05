@@ -1,6 +1,5 @@
-import { MeTTaInterpreter } from './MeTTaInterpreter.js';
-import { configManager } from './config/config.js';
-import { Space } from './kernel/Space.js';
+import {MeTTaInterpreter} from './MeTTaInterpreter.js';
+import {Space} from './kernel/Space.js';
 
 export function createMeTTa(options = {}) {
     return new MeTTaInterpreter(options);
@@ -21,12 +20,29 @@ export class MeTTaBuilder {
         return this;
     }
 
-    withTensor() { this.#options.tensor = true; return this; }
-    withSMT() { this.#options.smt = true; return this; }
-    withDebugging() { this.#options.debugging = true; return this; }
-    withMaxSteps(steps = 1000) { this.#options.maxReductionSteps = steps; return this; }
+    withTensor() {
+        this.#options.tensor = true;
+        return this;
+    }
 
-    build() { return new MeTTaInterpreter(this.#options); }
+    withSMT() {
+        this.#options.smt = true;
+        return this;
+    }
+
+    withDebugging() {
+        this.#options.debugging = true;
+        return this;
+    }
+
+    withMaxSteps(steps = 1000) {
+        this.#options.maxReductionSteps = steps;
+        return this;
+    }
+
+    build() {
+        return new MeTTaInterpreter(this.#options);
+    }
 }
 
 export function evaluate(code, options = {}) {
@@ -51,7 +67,7 @@ export class MeTTaSession {
 
     run(code) {
         const result = this.#interpreter.run(code);
-        this.#history.push({ code, result, timestamp: Date.now() });
+        this.#history.push({code, result, timestamp: Date.now()});
         return result;
     }
 
@@ -65,9 +81,18 @@ export class MeTTaSession {
         return space;
     }
 
-    getSpace(name) { return this.#spaces.get(name); }
-    getHistory() { return [...this.#history]; }
-    clearHistory() { this.#history = []; return this; }
+    getSpace(name) {
+        return this.#spaces.get(name);
+    }
+
+    getHistory() {
+        return [...this.#history];
+    }
+
+    clearHistory() {
+        this.#history = [];
+        return this;
+    }
 
     export() {
         return {
@@ -79,12 +104,12 @@ export class MeTTaSession {
 }
 
 export const Presets = {
-    fast: { jit: true, jitThreshold: 30, caching: true, cacheCapacity: 2000 },
-    debug: { debugging: true, tracing: true, maxReductionSteps: 10000 },
-    reasoning: { smt: true, tensor: true, maxReductionSteps: 5000 },
-    minimal: { jit: false, caching: false, tensor: false, smt: false }
+    fast: {jit: true, jitThreshold: 30, caching: true, cacheCapacity: 2000},
+    debug: {debugging: true, tracing: true, maxReductionSteps: 10000},
+    reasoning: {smt: true, tensor: true, maxReductionSteps: 5000},
+    minimal: {jit: false, caching: false, tensor: false, smt: false}
 };
 
 export function createWithPreset(preset, overrides = {}) {
-    return new MeTTaInterpreter({ ...Presets[preset], ...overrides });
+    return new MeTTaInterpreter({...Presets[preset], ...overrides});
 }

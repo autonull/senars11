@@ -1,4 +1,4 @@
-import {Memory, Task, TermFactory, Truth, Stamp} from '@senars/nar';
+import {Memory, Stamp, Task, TermFactory, Truth} from '@senars/nar';
 
 describe('Archive and Compilation', () => {
     let memory;

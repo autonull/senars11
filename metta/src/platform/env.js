@@ -20,9 +20,15 @@ export const ENV = {
  * Get current environment name
  */
 export function getEnvironment() {
-    if (ENV.isNode) {return 'node';}
-    if (ENV.isWorker) {return 'worker';}
-    if (ENV.isBrowser) {return 'browser';}
+    if (ENV.isNode) {
+        return 'node';
+    }
+    if (ENV.isWorker) {
+        return 'worker';
+    }
+    if (ENV.isBrowser) {
+        return 'browser';
+    }
     return 'unknown';
 }
 

@@ -1,13 +1,12 @@
-
-import { NeuroSymbolicAgent } from '../../rl/src/agents/NeuroSymbolicAgent.js';
-import { GridWorld } from '../../rl/src/environments/GridWorld.js';
+import {NeuroSymbolicAgent} from '../../rl/src/agents/NeuroSymbolicAgent.js';
+import {GridWorld} from '../../rl/src/environments/GridWorld.js';
 
 describe('RL End-to-End Planning Tests', () => {
 
     test('Agent uses injected rule to achieve goal', async () => {
         const env = new GridWorld();
         // Planning enabled
-        const agent = new NeuroSymbolicAgent(env, { reasoning: 'metta', planning: true });
+        const agent = new NeuroSymbolicAgent(env, {reasoning: 'metta', planning: true});
 
         // Initialize bridge
         await agent.initialize();

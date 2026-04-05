@@ -29,30 +29,32 @@ export class MeTTaTokenizer {
     tokenize() {
         while (this.pos < this.input.length) {
             this._skipWhitespaceAndComments();
-            if (this.pos >= this.input.length) {break;}
+            if (this.pos >= this.input.length) {
+                break;
+            }
 
             const char = this.input[this.pos];
 
             if (char === '(') {
-                this.tokens.push({ type: TokenType.LPAREN, value: '(' });
+                this.tokens.push({type: TokenType.LPAREN, value: '('});
                 this.pos++;
             } else if (char === ')') {
-                this.tokens.push({ type: TokenType.RPAREN, value: ')' });
+                this.tokens.push({type: TokenType.RPAREN, value: ')'});
                 this.pos++;
             } else if (char === '[') {
-                this.tokens.push({ type: TokenType.LBRACKET, value: '[' });
+                this.tokens.push({type: TokenType.LBRACKET, value: '['});
                 this.pos++;
             } else if (char === ']') {
-                this.tokens.push({ type: TokenType.RBRACKET, value: ']' });
+                this.tokens.push({type: TokenType.RBRACKET, value: ']'});
                 this.pos++;
             } else if (char === '{') {
-                this.tokens.push({ type: TokenType.LBRACE, value: '{' });
+                this.tokens.push({type: TokenType.LBRACE, value: '{'});
                 this.pos++;
             } else if (char === '}') {
-                this.tokens.push({ type: TokenType.RBRACE, value: '}' });
+                this.tokens.push({type: TokenType.RBRACE, value: '}'});
                 this.pos++;
             } else if (char === '!') {
-                this.tokens.push({ type: TokenType.BANG, value: '!' });
+                this.tokens.push({type: TokenType.BANG, value: '!'});
                 this.pos++;
             } else if (char === '"') {
                 this.tokens.push(this._readString());
@@ -67,7 +69,7 @@ export class MeTTaTokenizer {
             }
         }
 
-        this.tokens.push({ type: TokenType.EOF, value: null });
+        this.tokens.push({type: TokenType.EOF, value: null});
         return this.tokens;
     }
 
@@ -101,7 +103,7 @@ export class MeTTaTokenizer {
             this.pos++;
         }
         this.pos++; // Skip closing quote
-        return { type: TokenType.STRING, value };
+        return {type: TokenType.STRING, value};
     }
 
     _readVariable() {
@@ -110,7 +112,7 @@ export class MeTTaTokenizer {
         while (this.pos < this.input.length && this._isSymbolChar(this.input[this.pos])) {
             value += this.input[this.pos++];
         }
-        return { type: TokenType.VARIABLE, value };
+        return {type: TokenType.VARIABLE, value};
     }
 
     _readGrounded() {
@@ -119,7 +121,7 @@ export class MeTTaTokenizer {
         while (this.pos < this.input.length && this._isSymbolChar(this.input[this.pos])) {
             value += this.input[this.pos++];
         }
-        return { type: TokenType.GROUNDED, value };
+        return {type: TokenType.GROUNDED, value};
     }
 
     _isNumberStart(char) {
@@ -134,7 +136,7 @@ export class MeTTaTokenizer {
         while (this.pos < this.input.length && /[0-9.]/.test(this.input[this.pos])) {
             value += this.input[this.pos++];
         }
-        return { type: TokenType.NUMBER, value };
+        return {type: TokenType.NUMBER, value};
     }
 
     _readSymbol() {
@@ -142,7 +144,7 @@ export class MeTTaTokenizer {
         while (this.pos < this.input.length && this._isSymbolChar(this.input[this.pos])) {
             value += this.input[this.pos++];
         }
-        return { type: TokenType.SYMBOL, value };
+        return {type: TokenType.SYMBOL, value};
     }
 
     _isSymbolChar(char) {

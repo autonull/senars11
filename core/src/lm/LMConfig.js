@@ -1,7 +1,7 @@
-import {TransformersJSProvider} from './TransformersJSProvider.js';
-import {DummyProvider} from './DummyProvider.js';
-import {LangChainProvider} from './LangChainProvider.js';
-import {HuggingFaceProvider} from './HuggingFaceProvider.js';
+import { TransformersJSProvider } from '@senars/core';
+import { DummyProvider } from '@senars/core';
+import { LangChainProvider } from './LangChainProvider.js';
+import { HuggingFaceProvider } from './HuggingFaceProvider.js';
 
 export class LMConfig {
     static PROVIDERS = Object.freeze({
@@ -16,17 +16,17 @@ export class LMConfig {
         ollama: {
             name: 'Ollama (OpenAI-compatible)',
             type: 'ollama',
-            defaultConfig: {modelName: 'llama2', baseURL: 'http://localhost:11434'}
+            defaultConfig: { modelName: 'llama2', baseURL: 'http://localhost:11434' }
         },
         openai: {
             name: 'OpenAI',
             type: 'openai',
-            defaultConfig: {modelName: 'gpt-3.5-turbo'}
+            defaultConfig: { modelName: 'gpt-3.5-turbo' }
         },
         huggingface: {
             name: 'Hugging Face Transformers',
             type: 'huggingface',
-            defaultConfig: {modelName: 'HuggingFaceTB/SmolLM-135M-Instruct', device: 'cpu'},
+            defaultConfig: { modelName: 'HuggingFaceTB/SmolLM-135M-Instruct', device: 'cpu' },
             presets: {
                 'SmolLM': ['HuggingFaceTB/SmolLM-135M-Instruct', 'HuggingFaceTB/SmolLM-360M-Instruct', 'HuggingFaceTB/SmolLM-1.7B-Instruct'],
                 'Granite': ['ibm-granite/granite-3.0-8b-instruct', 'ibm-granite/granite-3.0-2b-instruct'],
@@ -36,17 +36,17 @@ export class LMConfig {
         anthropic: {
             name: 'Anthropic (via LangChain)',
             type: 'anthropic',
-            defaultConfig: {modelName: 'claude-3-haiku'}
+            defaultConfig: { modelName: 'claude-3-haiku' }
         },
         transformers: {
             name: 'Transformers.js (local)',
             type: 'transformers',
-            defaultConfig: {model: 'Xenova/all-MiniLM-L6-v2'}
+            defaultConfig: { model: 'Xenova/all-MiniLM-L6-v2' }
         },
         dummy: {
             name: 'Dummy/Null Provider',
             type: 'dummy',
-            defaultConfig: {id: 'dummy'}
+            defaultConfig: { id: 'dummy' }
         }
     };
 
@@ -55,13 +55,13 @@ export class LMConfig {
         this.active = null;
         this.persistPath = options.persistPath ?? '.senars-lm-config.json';
 
-        this.setProvider(LMConfig.PROVIDERS.TRANSFORMERS, {model: 'Xenova/all-MiniLM-L6-v2', type: 'transformers'});
-        this.setProvider(LMConfig.PROVIDERS.DUMMY, {type: 'dummy'});
+        this.setProvider(LMConfig.PROVIDERS.TRANSFORMERS, { model: 'Xenova/all-MiniLM-L6-v2', type: 'transformers' });
+        this.setProvider(LMConfig.PROVIDERS.DUMMY, { type: 'dummy' });
         this.setActive(LMConfig.PROVIDERS.TRANSFORMERS);
     }
 
     static fromJSON(json) {
-        const config = new LMConfig({persistPath: json.persistPath});
+        const config = new LMConfig({ persistPath: json.persistPath });
         config.active = json.active;
         config.configs = new Map(Object.entries(json.providers ?? {}));
         return config;
@@ -87,13 +87,11 @@ export class LMConfig {
         }));
 
         provider.tools = tools;
-        if (typeof provider.bindTools === 'function') {
-            provider.bindTools(tools);
-        }
+        if (typeof provider.bindTools === 'function') {provider.bindTools(tools);}
     }
 
     setProvider(name, config) {
-        this.configs.set(name, {name, ...config, enabled: config.enabled ?? true});
+        this.configs.set(name, { name, ...config, enabled: config.enabled ?? true });
     }
 
     getProvider(name) {
@@ -101,16 +99,12 @@ export class LMConfig {
     }
 
     setActive(name) {
-        if (!this.configs.has(name)) {
-            throw new Error(`Provider ${name} not configured`);
-        }
+        if (!this.configs.has(name)) {throw new Error(`Provider ${name} not configured`);}
         this.active = name;
     }
 
     getActive() {
-        if (!this.active) {
-            throw new Error('No active provider set');
-        }
+        if (!this.active) {throw new Error('No active provider set');}
         return this.configs.get(this.active);
     }
 
@@ -119,25 +113,18 @@ export class LMConfig {
     }
 
     async test(name = this.active) {
-        if (!name) {
-            return {success: false, message: 'No provider specified'};
-        }
+        if (!name) {return { success: false, message: 'No provider specified' };}
 
         const config = this.getProvider(name);
-        if (!config) {
-            return {success: false, message: `Provider ${name} not found`};
-        }
+        if (!config) {return { success: false, message: `Provider ${name} not found` };}
 
         try {
             const provider = this._createProvider(config);
-            if (provider.embed) {
-                await provider.embed('test');
-            } else if (provider.complete) {
-                await provider.complete('test');
-            }
-            return {success: true, message: 'Connection successful'};
+            if (provider.embed) {await provider.embed('test');}
+            else if (provider.complete) {await provider.complete('test');}
+            return { success: true, message: 'Connection successful' };
         } catch (e) {
-            return {success: false, message: e.message};
+            return { success: false, message: e.message };
         }
     }
 
@@ -160,22 +147,16 @@ export class LMConfig {
     }
 
     _createProvider(config) {
-        if (!config) {
-            throw new Error('Cannot create provider from null config');
-        }
+        if (!config) {throw new Error('Cannot create provider from null config');}
 
         const type = config.type ?? config.name;
-        const {TRANSFORMERS, DUMMY, OLLAMA, OPENAI, HUGGINGFACE, ANTHROPIC} = LMConfig.PROVIDERS;
+        const { TRANSFORMERS, DUMMY, OLLAMA, OPENAI, HUGGINGFACE, ANTHROPIC } = LMConfig.PROVIDERS;
 
-        if (type === 'transformers' || type === TRANSFORMERS) {
-            return new TransformersJSProvider(config);
-        }
-        if (type === 'dummy' || type === DUMMY) {
-            return new DummyProvider(config);
-        }
+        if (type === 'transformers' || type === TRANSFORMERS) {return new TransformersJSProvider(config);}
+        if (type === 'dummy' || type === DUMMY) {return new DummyProvider(config);}
 
         if (type === 'ollama' || type === OLLAMA || type === 'openai' || type === OPENAI || type === 'anthropic' || type === ANTHROPIC) {
-            return new LangChainProvider({...config, provider: type});
+            return new LangChainProvider({ ...config, provider: type });
         }
 
         if (type === 'huggingface' || type === HUGGINGFACE) {

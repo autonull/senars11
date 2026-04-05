@@ -1,14 +1,14 @@
 /**
  * Symbol Interning Module
  * Q1: Wraps SeNARS TermFactory for high-performance symbol interning
- * 
+ *
  * Key optimization: Referential equality first, structural equality fallback
  * (since cache has limited size, we can't assume all terms are interned)
  */
 
-import { TermFactory } from '@senars/nar/src/term/TermFactory.js';
-import { configManager } from '../config/config.js';
-import { SymbolAtom } from './AtomTypes.js';
+import {TermFactory} from '@senars/nar/src/term/TermFactory.js';
+import {configManager} from '../config/config.js';
+import {SymbolAtom} from './AtomTypes.js';
 
 // Shared term factory for all MeTTa symbols
 const termFactory = new TermFactory({
@@ -54,7 +54,7 @@ export function intern(name) {
  * Symbol equality check
  * Fast path: referential equality (O(1))
  * Fallback: structural equality (O(n) for string comparison)
- * 
+ *
  * @param {object} a - First symbol
  * @param {object} b - Second symbol
  * @returns {boolean} True if symbols are equal

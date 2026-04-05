@@ -2,11 +2,10 @@
  * Benchmark Runner Module
  * Comprehensive benchmarking framework for RL evaluation
  */
-import { Component } from '../composable/Component.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { MetricsTracker } from '../utils/MetricsTracker.js';
-import { StatisticalTests, MathUtils, DescriptiveStats } from './StatisticalTests.js';
-import { MetricsCollector, PerformanceAnalyzer } from './MetricsCollector.js';
+import {Component} from '../composable/Component.js';
+import {mergeConfig, MetricsTracker} from '../utils/index.js';
+import {MathUtils, StatisticalTests} from './StatisticalTests.js';
+import {MetricsCollector, PerformanceAnalyzer} from './MetricsCollector.js';
 
 const BENCHMARK_DEFAULTS = {
     numEpisodes: 100,
@@ -83,7 +82,9 @@ export class BenchmarkRunner extends Component {
                 return envSpec;
             }
         }
-        if (typeof envSpec === 'function') {return new envSpec();}
+        if (typeof envSpec === 'function') {
+            return new envSpec();
+        }
         return envSpec;
     }
 
@@ -95,7 +96,7 @@ export class BenchmarkRunner extends Component {
      * @returns {object} Environment results
      */
     async runOnEnvironment(agent, env, options) {
-        const { numEpisodes, maxSteps, saveTrajectories } = options;
+        const {numEpisodes, maxSteps, saveTrajectories} = options;
         const episodeResults = [];
         const trajectories = [];
 
@@ -112,7 +113,9 @@ export class BenchmarkRunner extends Component {
             result.duration = duration;
 
             episodeResults.push(result);
-            if (result.trajectory) {trajectories.push(result.trajectory);}
+            if (result.trajectory) {
+                trajectories.push(result.trajectory);
+            }
 
             if (ep % this.config.evaluationInterval === 0) {
                 this.emit('evaluationProgress', {
@@ -138,8 +141,8 @@ export class BenchmarkRunner extends Component {
      * @returns {object} Episode result
      */
     async runEpisode(agent, env, options) {
-        const { maxSteps, saveTrajectory } = options;
-        const { observation } = env.reset();
+        const {maxSteps, saveTrajectory} = options;
+        const {observation} = env.reset();
 
         let state = observation;
         let totalReward = 0;
@@ -168,7 +171,9 @@ export class BenchmarkRunner extends Component {
             totalReward += result.reward;
             state = result.observation;
 
-            if (result.terminated || result.truncated) {break;}
+            if (result.terminated || result.truncated) {
+                break;
+            }
         }
 
         return {
@@ -254,7 +259,7 @@ export class BenchmarkRunner extends Component {
      * @returns {object} Comparison results
      */
     compareAgents(agentResults, options = {}) {
-        const { statisticalTests = this.config.statisticalTests } = options;
+        const {statisticalTests = this.config.statisticalTests} = options;
         const comparison = {
             agents: Object.keys(agentResults),
             metrics: {},

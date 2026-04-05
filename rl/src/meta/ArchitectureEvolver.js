@@ -1,4 +1,4 @@
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {mergeConfig} from '../utils/index.js';
 
 const META_DEFAULTS = {
     metaLearningRate: 0.1,
@@ -33,7 +33,7 @@ export class ArchitectureEvolver {
     }
 
     async evolve(fitnessFn, options = {}) {
-        const { generations = 10, elitismRate = 0.2, mutationRate = 0.3, crossoverRate = 0.5 } = options;
+        const {generations = 10, elitismRate = 0.2, mutationRate = 0.3, crossoverRate = 0.5} = options;
         const evolutionHistory = [];
 
         for (let gen = 0; gen < generations; gen++) {
@@ -66,7 +66,7 @@ export class ArchitectureEvolver {
 
     _selectElites(fitnessScores, elitismRate) {
         const eliteCount = Math.floor(this.population.length * elitismRate);
-        const indexed = fitnessScores.map((f, i) => ({ fitness: f, index: i }));
+        const indexed = fitnessScores.map((f, i) => ({fitness: f, index: i}));
         indexed.sort((a, b) => b.fitness - a.fitness);
         return indexed.slice(0, eliteCount).map(e => this.population[e.index]);
     }
@@ -93,7 +93,7 @@ export class ArchitectureEvolver {
     }
 
     _mutate(individual, mutationRate) {
-        return Math.random() < mutationRate ? individual : individual;
+        return individual;
     }
 
     _getBestIndex(fitnessScores) {
@@ -101,4 +101,4 @@ export class ArchitectureEvolver {
     }
 }
 
-export { ArchitectureEvolver as Evolver };
+export {ArchitectureEvolver as Evolver};

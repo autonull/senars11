@@ -1,12 +1,12 @@
 /**
  * SemanticMemory.js — Embedding-backed persistent memory
  */
-import {mkdir, readFile, writeFile} from 'fs/promises';
-import {dirname, join} from 'path';
-import {fileURLToPath} from 'url';
-import {cosineSimilarity, fallbackMemoryDir, generateId, Logger, resolveWithFallback} from '@senars/core';
-import {Embedder} from './Embedder.js';
-import {MettaParser, toMettaAtom} from './MettaParser.js';
+import { writeFile, readFile, mkdir } from 'fs/promises';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+import { Logger, resolveWithFallback, fallbackMemoryDir, cosineSimilarity, generateId } from '@senars/core';
+import { Embedder } from './Embedder.js';
+import { MettaParser, toMettaAtom } from './MettaParser.js';
 
 const __dataDir = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackMemoryDir);
 
@@ -21,9 +21,7 @@ class VectorIndex {
     }
 
     async _ensureHNSW() {
-        if (this._hnsw) {
-            return;
-        }
+        if (this._hnsw) {return;}
         try {
             const NodeHNSW = (await import('hnswlib-node')).default;
             this._hnsw = new NodeHNSW(this._dimensions, 'cosine');
@@ -39,44 +37,33 @@ class VectorIndex {
         const label = this._labelCounter++;
         this._itemMap.set(id, label);
         this._vectors.set(id, vector);
-        if (this._hnsw) {
-            this._hnsw.addPoint(vector, label);
-        }
+        if (this._hnsw) {this._hnsw.addPoint(vector, label);}
     }
 
     async search(queryVector, k = 10) {
         await this._ensureHNSW();
-        if (!this._hnsw || this._itemMap.size < 1000) {
-            return this._bruteForceSearch(queryVector, k);
-        }
+        if (!this._hnsw || this._itemMap.size < 1000) {return this._bruteForceSearch(queryVector, k);}
         const results = this._hnsw.searchKnn(queryVector, k);
-        return results.map(({label, distance}) => {
+        return results.map(({ label, distance }) => {
             const id = [...this._itemMap].find(([, l]) => l === label)?.[0];
-            return {id, score: 1 - distance};
+            return { id, score: 1 - distance };
         }).filter(r => r.id !== undefined);
     }
 
     _bruteForceSearch(queryVector, k) {
         const scores = [];
         for (const [id, vector] of this._vectors?.entries() ?? []) {
-            scores.push({id, score: cosineSimilarity(queryVector, vector)});
+            scores.push({ id, score: cosineSimilarity(queryVector, vector) });
         }
         return scores.sort((a, b) => b.score - a.score).slice(0, k);
     }
 
-    setVectors(vectors) {
-        this._vectors = vectors;
-    }
-
-    async save() {
-        if (this._hnsw) {
-            Logger.debug('[VectorIndex] Index rebuild on restore (HNSW limitation)');
-        }
-    }
+    setVectors(vectors) { this._vectors = vectors; }
+    async save() { if (this._hnsw) {Logger.debug('[VectorIndex] Index rebuild on restore (HNSW limitation)');} }
 }
 
 export class SemanticMemory {
-    constructor({dataDir = join(__dataDir, '../../workspace/semantic')} = {}) {
+    constructor({ dataDir = join(__dataDir, '../../workspace/semantic') } = {}) {
         this._dataDir = dataDir;
         this._atoms = new Map();
         this._vectors = new Map();
@@ -85,25 +72,11 @@ export class SemanticMemory {
         this._restored = false;
     }
 
-    get _index() {
-        return this._vectorIndex;
-    }
-
-    get stats() {
-        const byType = {semantic: 0, episodic: 0, procedural: 0, pinned: 0};
-        for (const {type} of this._atoms.values()) {
-            if (type in byType) {
-                byType[type]++;
-            }
-        }
-        return {totalAtoms: this._atoms.size, totalVectors: this._vectors.size, byType};
-    }
+    get _index() { return this._vectorIndex; }
 
     async initialize() {
-        if (this._restored) {
-            return;
-        }
-        await mkdir(this._dataDir, {recursive: true});
+        if (this._restored) {return;}
+        await mkdir(this._dataDir, { recursive: true });
         try {
             const atomsContent = await readFile(join(this._dataDir, 'atoms.metta'), 'utf8');
             this._parseAtoms(atomsContent);
@@ -127,43 +100,23 @@ export class SemanticMemory {
         parser.registerHandler('memory-atom', (atom) => atom);
         const parsed = parser.parse(content);
         for (const atom of parsed) {
-            if (atom.id) {
-                this._atoms.set(atom.id, atom);
-            }
+            if (atom.id) {this._atoms.set(atom.id, atom);}
         }
     }
 
     _parseVectors(content) {
         for (const line of content.split('\n')) {
-            if (!line.trim()) {
-                continue;
-            }
+            if (!line.trim()) {continue;}
             const [id, ...vecParts] = line.split('|');
-            if (id && vecParts.length > 0) {
-                this._vectors.set(id.trim(), vecParts.join('').split(',').map(parseFloat));
-            }
+            if (id && vecParts.length > 0) {this._vectors.set(id.trim(), vecParts.join('').split(',').map(parseFloat));}
         }
     }
 
-    async remember({
-                       content,
-                       type = 'semantic',
-                       source = 'local',
-                       tags = [],
-                       truth = {frequency: 0.9, confidence: 0.8}
-                   }) {
+    async remember({ content, type = 'semantic', source = 'local', tags = [], truth = { frequency: 0.9, confidence: 0.8 } }) {
         await this.initialize();
         const id = generateId('mem');
         const vector = await this._embedder.embed(content);
-        this._atoms.set(id, {
-            id,
-            timestamp: Date.now(),
-            content,
-            source,
-            type,
-            truth,
-            tags: Array.isArray(tags) ? tags : (tags.split?.(',') ?? [])
-        });
+        this._atoms.set(id, { id, timestamp: Date.now(), content, source, type, truth, tags: Array.isArray(tags) ? tags : (tags.split?.(',') ?? []) });
         this._vectors.set(id, vector);
         await this._index.add(id, vector);
         await this._persist();
@@ -176,10 +129,7 @@ export class SemanticMemory {
         const queryVector = await this._embedder.embed(queryText);
         const results = await this._index.search(queryVector, k * 2);
         return results
-            .map(({id, score}) => {
-                const atom = this._atoms.get(id);
-                return atom ? {...atom, score} : null;
-            })
+            .map(({ id, score }) => { const atom = this._atoms.get(id); return atom ? { ...atom, score } : null; })
             .filter(atom => atom && (!options.type || atom.type === options.type) && atom.score >= (options.minScore ?? 0.0))
             .slice(0, k);
     }
@@ -187,9 +137,7 @@ export class SemanticMemory {
     async pin(memoryId) {
         await this.initialize();
         const atom = this._atoms.get(memoryId);
-        if (!atom) {
-            return false;
-        }
+        if (!atom) {return false;}
         atom.type = 'pinned';
         await this._persist();
         return true;
@@ -197,17 +145,10 @@ export class SemanticMemory {
 
     async forget(queryText, k = 10) {
         await this.initialize();
-        const results = await this.query(queryText, k, {minScore: 0.5});
+        const results = await this.query(queryText, k, { minScore: 0.5 });
         let removed = 0;
-        for (const {id} of results) {
-            if (this._atoms.delete(id)) {
-                this._vectors.delete(id);
-                removed++;
-            }
-        }
-        if (removed > 0) {
-            await this._persist();
-        }
+        for (const { id } of results) { if (this._atoms.delete(id)) { this._vectors.delete(id); removed++; } }
+        if (removed > 0) {await this._persist();}
         return removed;
     }
 
@@ -225,9 +166,7 @@ export class SemanticMemory {
         const result = [];
         let chars = 0;
         for (const atom of [...this._atoms.values()].filter(a => typeSet.has(a.type)).sort((a, b) => b.timestamp - a.timestamp).slice(0, maxItems)) {
-            if (chars + atom.content.length > maxChars) {
-                break;
-            }
+            if (chars + atom.content.length > maxChars) {break;}
             result.push(atom);
             chars += atom.content.length;
         }
@@ -235,7 +174,7 @@ export class SemanticMemory {
     }
 
     async _persist() {
-        await mkdir(this._dataDir, {recursive: true});
+        await mkdir(this._dataDir, { recursive: true });
         const atomsContent = [...this._atoms.values()].map(a => toMettaAtom('memory-atom', {
             id: a.id,
             timestamp: String(a.timestamp),
@@ -248,5 +187,11 @@ export class SemanticMemory {
         await writeFile(join(this._dataDir, 'atoms.metta'), atomsContent);
         await writeFile(join(this._dataDir, 'atoms.vec'), [...this._vectors.entries()].map(([id, vec]) => `${id}|${vec.join(',')}`).join('\n'));
         await this._index.save();
+    }
+
+    get stats() {
+        const byType = { semantic: 0, episodic: 0, procedural: 0, pinned: 0 };
+        for (const { type } of this._atoms.values()) { if (type in byType) {byType[type]++;} }
+        return { totalAtoms: this._atoms.size, totalVectors: this._vectors.size, byType };
     }
 }

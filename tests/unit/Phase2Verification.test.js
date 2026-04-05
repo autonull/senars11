@@ -6,7 +6,15 @@
  */
 
 import {beforeEach, describe, expect, it} from '@jest/globals';
-import {TermFactory, Unifier, ResolutionStrategy, GoalDrivenStrategy, AnalogicalStrategy, Task, Truth} from '@senars/nar';
+import {
+    AnalogicalStrategy,
+    GoalDrivenStrategy,
+    ResolutionStrategy,
+    Task,
+    TermFactory,
+    Truth,
+    Unifier
+} from '@senars/nar';
 
 describe('Phase 2: Variables & Goals', () => {
     let tf;

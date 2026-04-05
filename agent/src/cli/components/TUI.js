@@ -8,7 +8,7 @@ import {useCommandHistory} from '../hooks/useCommandHistory.js';
 import {useAgentLogs} from '../hooks/useAgentLogs.js';
 import {useAgentMetrics} from '../hooks/useAgentMetrics.js';
 import {LogEntry} from './LogEntry.js';
-import {ActionRegistry} from '../../app/model/ActionRegistry.js';
+import {ActionRegistry} from '@senars/agent';
 
 export const TUI = ({engine, app}) => {
     const {logs, status, addLog, setLogs, updateLog} = useAgentLogs(engine, app);
@@ -131,12 +131,8 @@ export const TUI = ({engine, app}) => {
         }
 
 
-        if (key.upArrow) {
-            navigateHistory('up', setInputValue);
-        }
-        if (key.downArrow) {
-            navigateHistory('down', setInputValue);
-        }
+        if (key.upArrow) {navigateHistory('up', setInputValue);}
+        if (key.downArrow) {navigateHistory('down', setInputValue);}
     });
 
     const handleSubmit = async () => {

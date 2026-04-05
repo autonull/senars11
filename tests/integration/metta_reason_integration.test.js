@@ -1,6 +1,5 @@
-import {Reasoner, TermFactory, Unifier} from '@senars/nar';
+import {TermFactory, Unifier} from '@senars/nar';
 import {MeTTaInterpreter} from '@senars/metta/src/MeTTaInterpreter.js';
-import {SeNARSBridge} from '@senars/metta/src/SeNARSBridge.js';
 
 
 describe('MeTTa-Reason Integration', () => {

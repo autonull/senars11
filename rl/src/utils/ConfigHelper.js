@@ -1,17 +1,17 @@
-import { deepMerge } from '@senars/core';
+import {deepMerge} from '@senars/core';
 
 export function mergeConfig(defaults, overrides = {}) {
     return deepMerge(defaults, overrides);
 }
 
 export function mergeMutableConfig(defaults, overrides = {}) {
-    return { ...defaults, ...overrides };
+    return {...defaults, ...overrides};
 }
 
 export function createConfig(schema, overrides = {}) {
     const config = {};
 
-    for (const [key, { default: defaultValue, validate }] of Object.entries(schema)) {
+    for (const [key, {default: defaultValue, validate}] of Object.entries(schema)) {
         const value = overrides[key] ?? defaultValue;
 
         if (validate && !validate(value)) {
@@ -65,14 +65,16 @@ export const ConfigSchema = {
 
 export function withDefaults(config, defaults) {
     return Object.entries(defaults).reduce(
-        (acc, [key, value]) => ({ ...acc, [key]: acc[key] ?? value }),
+        (acc, [key, value]) => ({...acc, [key]: acc[key] ?? value}),
         config
     );
 }
 
 export function extractConfig(config, keys) {
     return keys.reduce((acc, key) => {
-        if (key in config) {acc[key] = config[key];}
+        if (key in config) {
+            acc[key] = config[key];
+        }
         return acc;
     }, {});
 }
@@ -80,13 +82,13 @@ export function extractConfig(config, keys) {
 export function validateConfig(config, schema) {
     const errors = [];
 
-    for (const [key, { validate }] of Object.entries(schema)) {
+    for (const [key, {validate}] of Object.entries(schema)) {
         if (key in config && validate && !validate(config[key])) {
             errors.push(`Invalid value for ${key}: ${config[key]}`);
         }
     }
 
-    return { valid: errors.length === 0, errors };
+    return {valid: errors.length === 0, errors};
 }
 
 export function createConfiguredClass(defaults, schema = {}) {
@@ -95,7 +97,7 @@ export function createConfiguredClass(defaults, schema = {}) {
             const merged = mergeConfig(defaults, overrides);
 
             if (schema) {
-                const { valid, errors } = validateConfig(merged, schema);
+                const {valid, errors} = validateConfig(merged, schema);
                 if (!valid) {
                     throw new Error(`Config validation failed: ${errors.join(', ')}`);
                 }
@@ -106,7 +108,7 @@ export function createConfiguredClass(defaults, schema = {}) {
     };
 }
 
-export { deepMerge as deepMergeConfig } from '@senars/core';
+export {deepMerge as deepMergeConfig} from '@senars/core';
 
 export class ConfigValidator {
     constructor(schema) {
@@ -118,7 +120,7 @@ export class ConfigValidator {
     }
 
     createConfig(overrides = {}) {
-        const { valid, errors } = this.validate(overrides);
+        const {valid, errors} = this.validate(overrides);
         if (!valid) {
             throw new Error(`Config validation failed: ${errors.join(', ')}`);
         }

@@ -23,8 +23,12 @@ export const createNarsGPTGoalRule = ({lm, narsGPTStrategy, parser, eventBus, me
         singlePremise: true,
 
         condition: async (task) => {
-            if (!task?.term || !isGoal(task)) {return false;}
-            if (!narsGPTStrategy?.checkGrounding) {return true;}
+            if (!task?.term || !isGoal(task)) {
+                return false;
+            }
+            if (!narsGPTStrategy?.checkGrounding) {
+                return true;
+            }
             const result = await narsGPTStrategy.checkGrounding(task.term?.toString?.() ?? '');
             return result.grounded;
         },
@@ -41,14 +45,18 @@ export const createNarsGPTGoalRule = ({lm, narsGPTStrategy, parser, eventBus, me
         },
 
         process: (response) => {
-            if (!response) {return null;}
+            if (!response) {
+                return null;
+            }
             const lines = response.split('\n').map(l => l.trim()).filter(Boolean);
             const goals = lines.filter(l => GOAL_PATTERN.test(l));
             return goals.length ? goals : [response.trim()];
         },
 
         generate: (output, task, _, ctx) => {
-            if (!output?.length) {return [];}
+            if (!output?.length) {
+                return [];
+            }
             const outputs = (Array.isArray(output) ? output : [output]).slice(0, MAX_SUBGOALS);
             const parentTruth = task.truth ?? {f: 0.9, c: 0.9};
             const parentPriority = task.budget?.priority ?? 0.8;

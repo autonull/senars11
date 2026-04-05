@@ -2,4 +2,4 @@
  * @deprecated Import from '@senars/core' or '../../../core/src/errors/index.js' instead
  * Re-exports for backward compatibility
  */
-export { NeuroSymbolicError, handleError, validateConfig as validateNeuroConfig } from '@senars/core';
+export {NeuroSymbolicError, handleError, validateConfig as validateNeuroConfig} from '@senars/core';

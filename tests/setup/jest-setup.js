@@ -1,8 +1,9 @@
-import { TextEncoder, TextDecoder } from 'util';
+import {TextDecoder, TextEncoder} from 'util';
+import {ReadableStream, TransformStream, WritableStream} from 'stream/web';
+
 globalThis.TextEncoder = TextEncoder;
 globalThis.TextDecoder = TextDecoder;
 
-import { ReadableStream, WritableStream, TransformStream } from 'stream/web';
 globalThis.ReadableStream = globalThis.ReadableStream || ReadableStream;
 globalThis.WritableStream = globalThis.WritableStream || WritableStream;
 globalThis.TransformStream = globalThis.TransformStream || TransformStream;

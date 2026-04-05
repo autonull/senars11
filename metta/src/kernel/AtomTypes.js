@@ -3,7 +3,7 @@
  * Ensures Stable Object Shapes (Tier 1 Optimization)
  */
 
-import { TYPE_SYMBOL, TYPE_VARIABLE, TYPE_EXPRESSION, TYPE_GROUNDED } from './FastPaths.js';
+import {TYPE_EXPRESSION, TYPE_GROUNDED, TYPE_SYMBOL, TYPE_VARIABLE} from './FastPaths.js';
 
 export class SymbolAtom {
     constructor(name) {
@@ -16,10 +16,14 @@ export class SymbolAtom {
         this._metadata = null;
     }
 
-    toString() { return this.name; }
+    toString() {
+        return this.name;
+    }
 
     equals(o) {
-        if (this === o) {return true;}
+        if (this === o) {
+            return true;
+        }
         return o?._typeTag === TYPE_SYMBOL && o.name === this.name;
     }
 }
@@ -35,7 +39,9 @@ export class VariableAtom {
         this._metadata = null;
     }
 
-    toString() { return this.name; }
+    toString() {
+        return this.name;
+    }
 
     equals(o) {
         // Variables are usually equal by name in MeTTa
@@ -83,10 +89,14 @@ export class ExpressionAtom {
         this._metadata = null;
     }
 
-    toString() { return this.name; }
+    toString() {
+        return this.name;
+    }
 
     equals(other) {
-        if (other?.type !== 'compound' || other.components.length !== this.components.length) {return false;}
+        if (other?.type !== 'compound' || other.components.length !== this.components.length) {
+            return false;
+        }
         const opEq = this.operator.equals ? this.operator.equals(other.operator) : this.operator === other.operator;
         return opEq && this.components.every((c, i) => c && c.equals ? c.equals(other.components[i]) : c === other.components[i]);
     }

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { MeTTaInterpreter } from '../src/MeTTaInterpreter.js';
+import {afterEach, beforeEach, describe, expect, it} from '@jest/globals';
+import {MeTTaInterpreter} from '../src/index.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -10,13 +10,13 @@ describe.skip('ImaginationExtension (Mind Eye)', () => {
     beforeEach(() => {
         interp = new MeTTaInterpreter();
         if (!fs.existsSync(testDir)) {
-            fs.mkdirSync(testDir, { recursive: true });
+            fs.mkdirSync(testDir, {recursive: true});
         }
     });
 
     afterEach(() => {
         if (fs.existsSync(testDir)) {
-            fs.rmSync(testDir, { recursive: true, force: true });
+            fs.rmSync(testDir, {recursive: true, force: true});
         }
     });
 

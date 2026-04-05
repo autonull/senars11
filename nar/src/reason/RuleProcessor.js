@@ -1,15 +1,13 @@
 import {deepMergeConfig as mergeConfig, processDerivation, sleep} from './utils/common.js';
-import {Logger} from '@senars/core';
-import {logError, ReasonerError} from './utils/error.js';
+import {logError, Logger, ReasonerError} from '@senars/core';
 import {Queue} from '@senars/core/src/util/Queue.js';
-import {Stamp, ArrayStamp} from '../Stamp.js';
+import {ArrayStamp, Stamp} from '../Stamp.js';
 import {isSynchronousRule} from './RuleHelpers.js';
 import {RuleCompiler} from './exec/RuleCompiler.js';
 import {RuleExecutor as PatternRuleExecutor} from './exec/RuleExecutor.js';
 import {Unifier} from '../term/Unifier.js';
 import {StandardDiscriminators} from './exec/Discriminators.js';
-import {NAL4} from './rules/nal/definitions/NAL4.js';
-import {NAL5} from './rules/nal/definitions/NAL5.js';
+import {NAL4, NAL5} from './rules/nal/index.js';
 
 /**
  * RuleProcessor consumes premise pairs and processes them through rules.
@@ -37,7 +35,9 @@ export class RuleProcessor {
 
     _initPatternEngine() {
         const {termFactory} = this.config;
-        if (!termFactory) {return;}
+        if (!termFactory) {
+            return;
+        }
 
         this.unifier = new Unifier(termFactory);
         this.ruleCompiler = new RuleCompiler(termFactory, StandardDiscriminators);
@@ -52,7 +52,9 @@ export class RuleProcessor {
 
         try {
             for await (const [primaryPremise, secondaryPremise] of premisePairStream) {
-                if (signal?.aborted || this._isTimeout(startTime, timeoutMs)) {break;}
+                if (signal?.aborted || this._isTimeout(startTime, timeoutMs)) {
+                    break;
+                }
 
                 await this._checkAndApplyBackpressure();
                 yield* this._processPair(primaryPremise, secondaryPremise, signal, startTime, timeoutMs);
@@ -80,18 +82,22 @@ export class RuleProcessor {
         // 1. Legacy Rules
         const candidateRules = this.ruleExecutor.getCandidateRules(p1, p2, context);
         for (const rule of candidateRules) {
-            if (signal?.aborted || this._isTimeout(startTime, timeoutMs)) {break;}
+            if (signal?.aborted || this._isTimeout(startTime, timeoutMs)) {
+                break;
+            }
 
             try {
                 if (isSynchronousRule(rule)) {
                     // Execute sync rule
                     const results = this.processSyncRule(rule, p1, p2);
-                    for (const res of results) {yield res;}
+                    for (const res of results) {
+                        yield res;
+                    }
                 } else {
                     this._dispatchAsyncRule(rule, p1, p2);
                 }
             } catch (error) {
-                logError(error, { ruleId: rule.id ?? rule.name, context: 'rule_processing' }, 'warn');
+                logError(error, {ruleId: rule.id ?? rule.name, context: 'rule_processing'}, 'warn');
             }
         }
 
@@ -113,7 +119,9 @@ export class RuleProcessor {
             const results = this.patternExecutor.execute(p1, p2, this._createContext());
             for (const result of results) {
                 const task = this._createDerivedTask(result, p1, p2, 'PatternRule');
-                if (task) {yield this._processDerivation(task);}
+                if (task) {
+                    yield this._processDerivation(task);
+                }
             }
         } catch (error) {
             logError(error, {context: 'pattern_rule_processing'}, 'warn');
@@ -137,10 +145,12 @@ export class RuleProcessor {
     }
 
     _createDerivedTask(result, p1, p2, ruleName) {
-        if (!result?.term) {return null;}
+        if (!result?.term) {
+            return null;
+        }
 
         const TaskClass = p1.constructor;
-        const newStamp = Stamp.derive([p1.stamp, p2.stamp], { source: `DERIVED:${ruleName}` });
+        const newStamp = Stamp.derive([p1.stamp, p2.stamp], {source: `DERIVED:${ruleName}`});
 
         return new TaskClass({
             term: result.term,
@@ -152,15 +162,17 @@ export class RuleProcessor {
     }
 
     _enrichResult(result, rule) {
-        if (!result?.stamp) {return result;}
+        if (!result?.stamp) {
+            return result;
+        }
         const ruleName = rule.id || rule.name || 'UnknownRule';
         const s = result.stamp;
 
         const newStamp = typeof s.clone === 'function'
-            ? s.clone({ source: `DERIVED:${ruleName}` })
-            : new ArrayStamp({ ...s, source: `DERIVED:${ruleName}` }); // Fallback
+            ? s.clone({source: `DERIVED:${ruleName}`})
+            : new ArrayStamp({...s, source: `DERIVED:${ruleName}`}); // Fallback
 
-        return result.clone({ stamp: newStamp });
+        return result.clone({stamp: newStamp});
     }
 
     _createContext() {
@@ -181,7 +193,9 @@ export class RuleProcessor {
         while (this.asyncResultsQueue.size > 0) {
             await this._checkAndApplyBackpressure();
             const result = this.asyncResultsQueue.dequeue();
-            if (result !== undefined) {yield result;}
+            if (result !== undefined) {
+                yield result;
+            }
         }
     }
 
@@ -200,7 +214,9 @@ export class RuleProcessor {
         const hasTimeLimit = timeoutMs > 0;
 
         while (checkCount < this.config.maxChecks) {
-            if (signal?.aborted || (hasTimeLimit && this._isTimeout(startTime, timeoutMs))) {break;}
+            if (signal?.aborted || (hasTimeLimit && this._isTimeout(startTime, timeoutMs))) {
+                break;
+            }
 
             checkCount++;
             await sleep(this.config.asyncWaitInterval);

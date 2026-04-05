@@ -14,9 +14,9 @@
  *   • Skills — S-expr detection, dispatch, fallback
  */
 import { AIClient } from '../agent/src/ai/AIClient.js';
-import { IntelligentMessageProcessor } from '../agent/src/ai/IntelligentMessageProcessor.js';
-import { SemanticMemory } from '../agent/src/memory/SemanticMemory.js';
-import { AuditSpace } from '../agent/src/memory/AuditSpace.js';
+import { IntelligentMessageProcessor } from '../agent/src/ai/index.js';
+import { SemanticMemory } from '../agent/src/memory/index.js';
+import { AuditSpace } from '../agent/src/memory/index.js';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { mkdir, rm } from 'fs/promises';

@@ -1,33 +1,36 @@
-import { TermFactory } from '@senars/nar';
-import { Logger } from '@senars/core/util/Logger.js';
+import {TermFactory} from '@senars/nar';
+import {Logger} from '@senars/core/util/Logger.js';
 
-import { ModuleLoader } from './kernel/ModuleLoader.js';
-import { BaseMeTTaComponent } from './helpers/BaseMeTTaComponent.js';
-import { Parser } from './Parser.js';
-import { TypeChecker, TypeSystem } from './TypeSystem.js';
-import { objToBindingsAtom, bindingsAtomToObj } from './kernel/Bindings.js';
-import { Ground } from './kernel/Ground.js';
-import { MemoizationCache } from './kernel/MemoizationCache.js';
-import { ReductionCache } from './kernel/ReductionCache.js';
-import { reduceND, reduceNDAsync, setReduceNDInternalReference, setReduceConfig, reduce, step, match } from './kernel/Reduce.js';
-import { Space } from './kernel/Space.js';
-import { Term, isList, flattenList, isExpression } from './kernel/Term.js';
-import { Unify } from './kernel/Unify.js';
-import { Formatter } from './kernel/Formatter.js';
-import { configManager, ExtensionRegistry, registerMeTTaExtensions } from './config/index.js';
-import { registerConfigOps } from './kernel/ops/StateOps.js';
-import { ReactiveSpace } from './extensions/ReactiveSpace.js';
-import { ChannelExtension } from './extensions/ChannelExtension.js';
-import { NeuralBridge } from './extensions/NeuralBridge.js';
-import { loadStdlib } from './stdlib/StdlibLoader.js';
-import { WorkerPool } from './platform/WorkerPool.js';
-import { ENV } from './platform/env.js';
-import { OperationHelpers } from './kernel/ops/OperationHelpers.js';
-import { registerAdvancedOps } from './interp/AdvancedOps.js';
-import { registerReactiveOps } from './interp/ReactiveOps.js';
-import { registerParallelOps } from './interp/ParallelOps.js';
-import { registerHofOps } from './interp/HOFInterpreterOps.js';
-import { registerMinimalOps } from './interp/MinimalOps.js';
+import {ModuleLoader} from './kernel/ModuleLoader.js';
+import {BaseMeTTaComponent} from './helpers/BaseMeTTaComponent.js';
+import {Parser} from './Parser.js';
+import {TypeChecker, TypeSystem} from './TypeSystem.js';
+import {Ground} from './kernel/Ground.js';
+import {MemoizationCache} from './kernel/MemoizationCache.js';
+import {ReductionCache} from './kernel/ReductionCache.js';
+import {
+    match,
+    reduce,
+    reduceND,
+    reduceNDAsync,
+    setReduceConfig,
+    setReduceNDInternalReference,
+    step
+} from './kernel/Reduce.js';
+import {flattenList, isExpression, isList, Term} from './kernel/Term.js';
+import {Formatter} from './kernel/Formatter.js';
+import {configManager, ExtensionRegistry, registerMeTTaExtensions} from './config/index.js';
+import {registerConfigOps} from './kernel/ops/StateOps.js';
+import {ChannelExtension, NeuralBridge, ReactiveSpace} from './extensions/index.js';
+import {loadStdlib} from './stdlib/StdlibLoader.js';
+import {OperationHelpers} from './kernel/ops/index.js';
+import {
+    registerAdvancedOps,
+    registerHofOps,
+    registerMinimalOps,
+    registerParallelOps,
+    registerReactiveOps
+} from './interp/index.js';
 
 let ImaginationExtension = null;
 
@@ -38,7 +41,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
             reasoner = null;
         }
 
-        const opts = { maxReductionSteps: 1000, ...options };
+        const opts = {maxReductionSteps: 1000, ...options};
         opts.termFactory ??= new TermFactory();
 
         super(opts, 'MeTTaInterpreter', opts.eventBus, opts.termFactory);
@@ -85,11 +88,13 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
 
         extensionsToLoad.length && await this.extensionRegistry.loadAll(extensionsToLoad);
 
-        (async () => {
+        await (async () => {
             if (!ImaginationExtension) {
                 try {
                     ImaginationExtension = (await import('./extensions/ImaginationExtension.js')).ImaginationExtension;
-                } catch { ImaginationExtension = null; }
+                } catch {
+                    ImaginationExtension = null;
+                }
             }
             if (ImaginationExtension) {
                 new ImaginationExtension(this, this.reasoner).register();
@@ -108,36 +113,53 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
 
     _loadStandardLibrary() {
         if (configManager.get('loadStdlib') !== false) {
-            try { loadStdlib(this, this.config); }
-            catch (e) { Logger.warn('Stdlib load failed:', e.message); }
+            try {
+                loadStdlib(this, this.config);
+            } catch (e) {
+                Logger.warn('Stdlib load failed:', e.message);
+            }
         }
     }
 
     _listify(arr) {
         let list = Term.sym('()');
-        for (let i = arr.length - 1; i >= 0; i--) {list = Term.exp(':', [arr[i], list]);}
+        for (let i = arr.length - 1; i >= 0; i--) {
+            list = Term.exp(':', [arr[i], list]);
+        }
         return list;
     }
 
     _handleLetStar(bindings, body) {
-        const { flattenList, sym, exp } = Term;
+        const {flattenList, sym, exp} = Term;
         const pairs = this._extractLetStarPairs(bindings);
-        if (!pairs.length) {return reduce(body, this.space, this.ground);}
+        if (!pairs.length) {
+            return reduce(body, this.space, this.ground);
+        }
 
         const [first, ...rest] = pairs;
-        if (!first?.components?.length) {return body;}
+        if (!first?.components?.length) {
+            return body;
+        }
 
         const [v, val] = this._extractVarAndValue(first);
-        if (!v || !val) {return body;}
+        if (!v || !val) {
+            return body;
+        }
 
         const inner = rest.length ? exp(sym('let*'), [exp(rest[0], rest.slice(1)), body]) : body;
         return reduce(exp(sym('let'), [v, val, inner]), this.space, this.ground);
     }
 
     _extractLetStarPairs(bindings) {
-        if (bindings.operator?.name === ':') {return flattenList(bindings).elements;}
-        if (bindings.type === 'compound') {return [bindings.operator, ...bindings.components];}
-        if (bindings.name !== '()') {Logger.error('Invalid &let* bindings', bindings);}
+        if (bindings.operator?.name === ':') {
+            return flattenList(bindings).elements;
+        }
+        if (bindings.type === 'compound') {
+            return [bindings.operator, ...bindings.components];
+        }
+        if (bindings.name !== '()') {
+            Logger.error('Invalid &let* bindings', bindings);
+        }
         return [];
     }
 
@@ -146,17 +168,29 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
     }
 
     _flattenToList(atom) {
-        if (!atom || atom.name === '()') {return [];}
-        if (isList(atom)) {return flattenList(atom).elements;}
-        if (isExpression(atom)) {return [atom.operator, ...atom.components];}
+        if (!atom || atom.name === '()') {
+            return [];
+        }
+        if (isList(atom)) {
+            return flattenList(atom).elements;
+        }
+        if (isExpression(atom)) {
+            return [atom.operator, ...atom.components];
+        }
         return [atom];
     }
 
-    _truthy(atom) { return OperationHelpers.truthy(atom); }
+    _truthy(atom) {
+        return OperationHelpers.truthy(atom);
+    }
 
-    run(code) { return this.trackOperation('run', () => this.#processProgramSync(code)); }
+    run(code) {
+        return this.trackOperation('run', () => this.#processProgramSync(code));
+    }
 
-    async runAsync(code) { return this.trackOperation('run', async () => this.#processProgramAsync(code)); }
+    async runAsync(code) {
+        return this.trackOperation('run', async () => this.#processProgramAsync(code));
+    }
 
     #processExpressions(exprs) {
         const res = [];
@@ -164,8 +198,11 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
             const e = exprs[i];
             if (e.name === '!' && i + 1 < exprs.length) {
                 const evalRes = this.evaluate(exprs[++i]);
-                if (Array.isArray(evalRes)) {res.push(...evalRes);}
-                else if (evalRes != null) {res.push(evalRes);}
+                if (Array.isArray(evalRes)) {
+                    res.push(...evalRes);
+                } else if (evalRes != null) {
+                    res.push(evalRes);
+                }
                 continue;
             }
             this._processExpression(e, res);
@@ -180,8 +217,11 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
             const e = exprs[i];
             if (e.name === '!' && i + 1 < exprs.length) {
                 const evalRes = await this.evaluateAsync(exprs[++i]);
-                if (Array.isArray(evalRes)) {res.push(...evalRes);}
-                else if (evalRes != null) {res.push(evalRes);}
+                if (Array.isArray(evalRes)) {
+                    res.push(...evalRes);
+                } else if (evalRes != null) {
+                    res.push(evalRes);
+                }
                 continue;
             }
             this._processExpression(e, res);
@@ -199,7 +239,10 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
     }
 
     load(code) {
-        return this.parser.parseProgram(code).map(e => { this._processExpression(e, null); return { term: e }; });
+        return this.parser.parseProgram(code).map(e => {
+            this._processExpression(e, null);
+            return {term: e};
+        });
     }
 
     _processExpression(expr, results) {
@@ -264,8 +307,8 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
     getStats() {
         return {
             space: this.space.getStats(),
-            groundedAtoms: { count: this.ground.getOperations().length },
-            reductionEngine: { maxSteps: configManager.get('maxReductionSteps') || 10000 },
+            groundedAtoms: {count: this.ground.getOperations().length},
+            reductionEngine: {maxSteps: configManager.get('maxReductionSteps') || 10000},
             typeSystem: {
                 count: this.typeSystem ? 1 : 0,
                 typeVariables: this.typeSystem?.nextTypeVarId ?? 0

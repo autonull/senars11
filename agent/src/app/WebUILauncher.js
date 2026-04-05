@@ -8,10 +8,10 @@
 import {spawn} from 'child_process';
 import {fileURLToPath} from 'url';
 import {dirname, join} from 'path';
-import {WebSocketMonitor} from '../server/WebSocketMonitor.js';
+import {WebSocketMonitor} from '@senars/agent';
 import {NAR} from '@senars/nar';
-import {DemoWrapper} from '../demo/DemoWrapper.js';
-import {Logger} from '@senars/core';
+import {DemoWrapper} from '@senars/agent';
+import { Logger } from '@senars/core';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -142,12 +142,8 @@ const shutdownServices = async (webSocketServer) => {
         Logger.error('Error saving state on shutdown:', saveError.message);
     }
 
-    if (webSocketServer.monitor) {
-        await webSocketServer.monitor.stop();
-    }
-    if (webSocketServer.nar) {
-        webSocketServer.nar.stop();
-    }
+    if (webSocketServer.monitor) {await webSocketServer.monitor.stop();}
+    if (webSocketServer.nar) {webSocketServer.nar.stop();}
 };
 
 // Set up graceful shutdown

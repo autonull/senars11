@@ -14,7 +14,9 @@ export class RelationshipTraversal {
         const visitedTerms = new Set();
 
         const traverseRelationships = (currentTerm, depth) => {
-            if (depth > maxDepth || visitedTerms.has(currentTerm.toString())) {return;}
+            if (depth > maxDepth || visitedTerms.has(currentTerm.toString())) {
+                return;
+            }
             visitedTerms.add(currentTerm.toString());
 
             for (const relType of relationshipTypes) {
@@ -25,7 +27,9 @@ export class RelationshipTraversal {
 
             if (includeIndirect && depth < maxDepth) {
                 for (const concept of relatedConcepts) {
-                    if (concept.term) {traverseRelationships(concept.term, depth + 1);}
+                    if (concept.term) {
+                        traverseRelationships(concept.term, depth + 1);
+                    }
                 }
             }
         };

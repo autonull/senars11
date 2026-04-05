@@ -7,7 +7,7 @@
 // (none in this file)
 
 // Local imports
-import {Truth, NAR} from '@senars/nar';
+import {NAR, Truth} from '@senars/nar';
 
 // Test helper imports
 // (none in this file - would be added if we used test helpers)

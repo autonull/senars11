@@ -3,8 +3,8 @@
  * Provides ergonomic APIs for creating hybrid reasoning demonstrations
  */
 
-import {createHypothesisGenerationRule, createConceptElaborationRule, createNarseseTranslationRule} from '@senars/nar';
-import { Logger } from '@senars/core/util/Logger.js';
+import {createConceptElaborationRule, createHypothesisGenerationRule, createNarseseTranslationRule} from '@senars/nar';
+import {Logger} from '@senars/core/util/Logger.js';
 
 // Trace capture utility
 export class Trace {
@@ -21,7 +21,7 @@ export class Trace {
     }
 
     printSummary() {
-        Logger.info(`\n${  "=".repeat(80)}`);
+        Logger.info(`\n${"=".repeat(80)}`);
         Logger.info("HYBRID REASONING TRACE SUMMARY");
         Logger.info("=".repeat(80));
 
@@ -38,7 +38,7 @@ export class Trace {
         Logger.info("\nSample Events:");
         this.events.slice(0, 10).forEach((event, index) => {
             Logger.info(`${index + 1}. [${event.time}ms] ${event.type}:`,
-                       typeof event.data === 'object' ? JSON.stringify(event.data) : event.data);
+                typeof event.data === 'object' ? JSON.stringify(event.data) : event.data);
         });
 
         if (this.events.length > 10) {
@@ -99,7 +99,9 @@ export class ScenarioRunner {
         for (const input of inputs) {
             await this.nar.input(input);
         }
-        for (let i = 0; i < steps; i++) {await this.nar.step();}
+        for (let i = 0; i < steps; i++) {
+            await this.nar.step();
+        }
         Logger.info(`   ${name} completed\n`);
 
         if (options.onComplete) {
@@ -137,7 +139,7 @@ export class HybridDemoConfig {
     }
 
     withModel(modelName, options = {}) {
-        this.config.model = { ...this.config.model, modelName, ...options };
+        this.config.model = {...this.config.model, modelName, ...options};
         return this;
     }
 
@@ -152,17 +154,17 @@ export class HybridDemoConfig {
     }
 
     withRules(enabled = true, autoRegister = true) {
-        this.config.rules = { enabled, autoRegister };
+        this.config.rules = {enabled, autoRegister};
         return this;
     }
 
     withTracing(enabled = true) {
-        this.config.tracing = { enabled };
+        this.config.tracing = {enabled};
         return this;
     }
 
     build() {
-        return { ...this.config };
+        return {...this.config};
     }
 }
 
@@ -267,11 +269,15 @@ export class HybridDemoOrchestrator {
 
     async runScenarios(scenarios = null) {
         const defaultScenarios = [
-            { name: 'Cat input (triggers hypothesis rule)', inputs: ["<cat --> mammal>. %1.0;0.9%"], steps: 5 },
-            { name: 'Animal input (triggers elaboration rule)', inputs: ["<animal --> [living]>. %1.0;0.9%"], steps: 5 },
-            { name: 'Cross-concept reasoning', inputs: ["<mammal --> warm_blooded>. %1.0;0.9%", "<cat --> mammal>. %1.0;0.9%"], steps: 5 },
-            { name: 'Question processing', inputs: ["<cat --> ?property>?"], steps: 5 },
-            { name: 'Goal processing', inputs: ["<happy --> desirable>!"], steps: 5 }
+            {name: 'Cat input (triggers hypothesis rule)', inputs: ["<cat --> mammal>. %1.0;0.9%"], steps: 5},
+            {name: 'Animal input (triggers elaboration rule)', inputs: ["<animal --> [living]>. %1.0;0.9%"], steps: 5},
+            {
+                name: 'Cross-concept reasoning',
+                inputs: ["<mammal --> warm_blooded>. %1.0;0.9%", "<cat --> mammal>. %1.0;0.9%"],
+                steps: 5
+            },
+            {name: 'Question processing', inputs: ["<cat --> ?property>?"], steps: 5},
+            {name: 'Goal processing', inputs: ["<happy --> desirable>!"], steps: 5}
         ];
 
         const runner = new ScenarioRunner(this.nar, this.trace);
@@ -315,7 +321,7 @@ export class HybridDemoOrchestrator {
             const lmErrors = this.trace.events.filter(e => e.type === 'LM_ERROR').length;
 
             Logger.info(`   - LM Interactions: ${lmInputs} inputs, ${lmOutputs} outputs`);
-            Logger.info(`   - Success Rate: ${lmErrors === 0 ? '100%' : `${Math.round((lmOutputs/(lmInputs||1))*100)}%`}`);
+            Logger.info(`   - Success Rate: ${lmErrors === 0 ? '100%' : `${Math.round((lmOutputs / (lmInputs || 1)) * 100)}%`}`);
             Logger.info(`   - System Stability: ${lmErrors === 0 ? '✓' : '✗'}`);
         }
 

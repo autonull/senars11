@@ -2,7 +2,7 @@
 
 /**
  * Intelligent IRC ChatBot Runner
- *
+ * 
  * Full-featured chatbot with:
  * - Ollama LLM integration (Qwen3-8B or configurable)
  * - MeTTa cognitive architecture
@@ -10,10 +10,10 @@
  * - Per-channel rate limiting
  * - Multi-channel support (IRC, Matrix, CLI)
  * - Intelligent message processing
- *
+ * 
  * Usage:
  *   node run-intelligent-chatbot.js [options]
- *
+ * 
  * Options:
  *   --host, -h     IRC server host (default: irc.quakenet.org)
  *   --port, -p     IRC server port (default: 6667)
@@ -24,13 +24,13 @@
  *   --debug        Enable debug logging
  */
 
-import {Agent} from '../../src/Agent.js';
-import {Logger} from '@senars/core';
-import {IRCChannel} from '../../src/io/index.js';
-import {IntelligentMessageProcessor} from '../../src/ai/index.js';
-import {isEnabled} from '../../src/config/index.js';
-import {fileURLToPath} from 'url';
-import {dirname, join} from 'path';
+import { Agent } from '@senars/agent';
+import { Logger } from '@senars/core';
+import { IRCChannel } from '@senars/agent/io/index.js';
+import { IntelligentMessageProcessor } from '@senars/agent/ai/index.js';
+import { isEnabled } from '../../src/config/capabilities.js';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -228,9 +228,9 @@ class IntelligentChatBot {
             realname: 'SeNARS Intelligent Bot',
             tls: this.config.tls,
             channels: [this.config.channel],
-            rateLimit: {interval: 4000}
+            rateLimit: { interval: 4000 }
         });
-
+        
         this.agent.channelManager.register(ircChannel);
         Logger.info('✅ IRC Channel registered');
 
@@ -250,7 +250,7 @@ class IntelligentChatBot {
 
         // Wire SemanticMemory to agent if enabled by capabilities
         if (isEnabled(this.agent.agentCfg, 'semanticMemory') && !this.agent._semanticMemory) {
-            const {SemanticMemory} = await import('../../src/memory/SemanticMemory.js');
+            const { SemanticMemory } = await import('../../src/memory/SemanticMemory.js');
             this.agent._semanticMemory = new SemanticMemory({
                 dataDir: join(this.agent.agentCfg.workspace?.memoryDir ?? 'agent/memory', 'semantic'),
                 embedderConfig: this.agent.agentCfg.embedder ?? {}
@@ -308,7 +308,7 @@ class IntelligentChatBot {
         });
 
         // Handle user joins
-        ircChannel.on('user_joined', ({nick, channel}) => {
+        ircChannel.on('user_joined', ({ nick, channel }) => {
             Logger.debug(`[IRC] ${nick} joined ${channel}`);
             // Greet new users (with rate limiting consideration)
             if (channel === this.config.channel && nick !== this.config.nick) {
@@ -321,7 +321,7 @@ class IntelligentChatBot {
         });
 
         // Handle CTCP queries
-        ircChannel.on('ctcp', ({from, command, data}) => {
+        ircChannel.on('ctcp', ({ from, command, data }) => {
             Logger.debug(`[IRC CTCP] ${from} queried ${command}: ${data}`);
         });
 
@@ -569,10 +569,10 @@ class IntelligentChatBot {
         const uptime = Math.floor((Date.now() - this.startTime) / 1000);
         const mins = Math.floor(uptime / 60);
         const hours = Math.floor(mins / 60);
-
+        
         const stats = this.messageProcessor?.getStats() || {};
         const rateStats = this.agent.channelManager?.getRateLimitStats?.() || {};
-
+        
         Logger.info(`📊 Status Report:
    Uptime: ${hours}h ${mins % 60}m
    Messages processed: ${stats.messagesProcessed || 0}
@@ -585,11 +585,11 @@ class IntelligentChatBot {
 
     async shutdown() {
         if (!this.isRunning) return;
-
+        
         Logger.info('👋 Shutting down ChatBot...');
-
+        
         this.isRunning = false;
-
+        
         // Clear status interval
         if (this.statusInterval) {
             clearInterval(this.statusInterval);
@@ -597,7 +597,7 @@ class IntelligentChatBot {
 
         // Send goodbye message
         try {
-            await this._sendWithRateLimit(this.config.channel,
+            await this._sendWithRateLimit(this.config.channel, 
                 `Bot shutting down. Goodbye!`
             );
         } catch (e) {
@@ -606,10 +606,10 @@ class IntelligentChatBot {
 
         // Disconnect channels
         await this.agent.channelManager?.shutdown();
-
+        
         // Shutdown agent
         await this.agent.shutdown();
-
+        
         Logger.info('✅ ChatBot shutdown complete');
         process.exit(0);
     }
@@ -618,7 +618,7 @@ class IntelligentChatBot {
 // Main entry point
 async function main() {
     const config = parseArgs();
-
+    
     try {
         const bot = new IntelligentChatBot(config);
         await bot.initialize();
@@ -634,4 +634,4 @@ if (process.argv[1]?.endsWith('run-intelligent-chatbot.js')) {
     main();
 }
 
-export {IntelligentChatBot};
+export { IntelligentChatBot };

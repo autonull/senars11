@@ -3,10 +3,10 @@
  * Tests observer pattern, event emission, and pattern matching
  */
 
-import { ReactiveSpace } from '../../../../metta/src/extensions/ReactiveSpace.js';
-import { sym, exp, var_ } from '../../../../metta/src/kernel/Term.js';
-import { Logger } from '@senars/core';
-import { jest } from '@jest/globals';
+import {ReactiveSpace} from '../../../../metta/src/extensions/index.js';
+import {exp, sym, var_} from '../../../../metta/src/index.js';
+import {Logger} from '@senars/core';
+import {jest} from '@jest/globals';
 
 
 describe('ReactiveSpace', () => {

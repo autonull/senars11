@@ -1,6 +1,6 @@
-import { Agent } from '../core/RLCore.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { AgentFactoryUtils } from './QNetwork.js';
+import {Agent} from '../core/RLCore.js';
+import {mergeConfig} from '../utils/index.js';
+import {AgentFactoryUtils} from './QNetwork.js';
 
 const AGENT_DEFAULTS = {
     learningRate: 0.001,

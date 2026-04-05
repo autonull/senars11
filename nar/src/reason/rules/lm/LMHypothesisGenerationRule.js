@@ -18,7 +18,9 @@ export const createHypothesisGenerationRule = (dependencies) => {
         priority: 0.6,
 
         condition: (primaryPremise) => {
-            if (!primaryPremise) {return false;}
+            if (!primaryPremise) {
+                return false;
+            }
 
             const priority = primaryPremise.budget?.priority ?? 0.5;
             const confidence = primaryPremise.truth?.c ?? 0;
@@ -41,10 +43,14 @@ State the hypothesis as a clear, single statement.`;
         },
 
         generate: (processedOutput, primaryPremise, secondaryPremise, context) => {
-            if (!processedOutput) {return [];}
+            if (!processedOutput) {
+                return [];
+            }
 
             const termFactory = context?.termFactory ?? dependencies.termFactory;
-            if (!termFactory) {return [];}
+            if (!termFactory) {
+                return [];
+            }
 
             const term = termFactory.atomic(processedOutput);
 

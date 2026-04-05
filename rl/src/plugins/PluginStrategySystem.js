@@ -4,10 +4,10 @@
  */
 
 // Plugin
-export { Plugin } from './Plugin.js';
+export {Plugin} from './Plugin.js';
 
 // Plugin Manager
-export { PluginManager } from './PluginManager.js';
+export {PluginManager} from './PluginManager.js';
 
 // Strategies
 export {

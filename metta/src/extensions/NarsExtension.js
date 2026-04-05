@@ -2,10 +2,10 @@
  * NarsExtension.js — Neuro-Symbolic Bridge
  * Exposes NARS cognition through MeTTa grounded operations.
  */
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
-import { resolve } from 'path';
-import { Logger } from '@senars/core';
-import { Term } from '../kernel/Term.js';
+import {existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync} from 'fs';
+import {resolve} from 'path';
+import {Logger} from '@senars/core';
+import {Term} from '../kernel/Term.js';
 
 export class NarsExtension {
     constructor(interp, agent) {
@@ -79,7 +79,9 @@ export class NarsExtension {
         this.ground.add('nar-goal-status', termAtom => {
             const term = termAtom?.value ?? termAtom?.name ?? String(termAtom ?? '');
             const match = findGoal(term);
-            if (!match) {return Term.grounded(`(goal-status :not-found "${term}")`);}
+            if (!match) {
+                return Term.grounded(`(goal-status :not-found "${term}")`);
+            }
             return Term.grounded(`(goal-status :${match.budget?.priority >= 0.5 ? 'active' : 'pending'} "${term}" :priority ${match.budget?.priority?.toFixed(2) ?? '?'})`);
         });
     }
@@ -97,7 +99,11 @@ export class NarsExtension {
     }
 
     _registerStateOps() {
-        const ensureDir = dir => { if (!existsSync(dir)) {mkdirSync(dir, { recursive: true });} };
+        const ensureDir = dir => {
+            if (!existsSync(dir)) {
+                mkdirSync(dir, {recursive: true});
+            }
+        };
 
         this.ground.add('nar-serialize', () => {
             try {
@@ -116,7 +122,9 @@ export class NarsExtension {
         this.ground.add('nar-deserialize', pathAtom => {
             try {
                 const path = pathAtom?.value ?? pathAtom?.name;
-                if (!path || !existsSync(path)) {return Term.grounded('(deserialize-error "file-not-found")');}
+                if (!path || !existsSync(path)) {
+                    return Term.grounded('(deserialize-error "file-not-found")');
+                }
                 this.nar.deserialize(JSON.parse(readFileSync(path, 'utf8')));
                 return Term.grounded('(deserialized ok)');
             } catch (err) {
@@ -127,7 +135,9 @@ export class NarsExtension {
 
         this.ground.add('nar-latest-session', () => {
             const dir = resolve(process.cwd(), 'memory/sessions');
-            if (!existsSync(dir)) {return Term.sym('()');}
+            if (!existsSync(dir)) {
+                return Term.sym('()');
+            }
             const files = readdirSync(dir).filter(f => f.endsWith('.json')).sort();
             return files.length > 0 ? Term.grounded(files.at(-1)) : Term.sym('()');
         });
@@ -137,8 +147,8 @@ export class NarsExtension {
             try {
                 const data = {
                     label, timestamp: Date.now(),
-                    beliefs: this.nar.getBeliefs().map(b => ({ term: b.term?.toString?.(), truth: b.truth })),
-                    goals: this.nar.getGoals().map(g => ({ term: g.term?.toString?.(), priority: g.budget?.priority }))
+                    beliefs: this.nar.getBeliefs().map(b => ({term: b.term?.toString?.(), truth: b.truth})),
+                    goals: this.nar.getGoals().map(g => ({term: g.term?.toString?.(), priority: g.budget?.priority}))
                 };
                 const dir = resolve(process.cwd(), 'memory/snapshots');
                 ensureDir(dir);
@@ -160,7 +170,9 @@ export class NarsExtension {
                 const aMap = new Map(a.beliefs.map(b => [b.term, b.truth]));
                 const shifts = b.beliefs.map(belief => {
                     const prev = aMap.get(belief.term);
-                    if (!prev) {return null;}
+                    if (!prev) {
+                        return null;
+                    }
                     const fShift = Math.abs(belief.truth.frequency - prev.frequency);
                     const cShift = Math.abs(belief.truth.confidence - prev.confidence);
                     return (fShift > threshold || cShift > threshold)
@@ -199,7 +211,9 @@ export class NarsExtension {
         this.ground.add('nar-stamps', termAtom => {
             const term = termAtom?.value ?? termAtom?.name ?? String(termAtom ?? '');
             const tasks = this.nar.taskManager.findTasksByTerm(term);
-            if (!tasks.length) {return Term.grounded(`(no-tasks-for "${term}")`);}
+            if (!tasks.length) {
+                return Term.grounded(`(no-tasks-for "${term}")`);
+            }
             return Term.grounded(tasks.map(t => {
                 const s = t.stamp;
                 return `id:${s.id} depth:${s.depth} source:${s.source} derivations:[${(s.derivations || []).slice(0, 5).join(',')}]`;

@@ -1,9 +1,9 @@
 /**
  * ReasoningAboutReasoning - Meta-cognitive reasoning orchestrator
  */
-import { logError } from '../reason/utils/error.js';
-import { MetacognitiveMonitor } from './MetacognitiveMonitor.js';
-import { SelfAnalyzer } from './SelfAnalyzer.js';
+import {logError} from '@senars/core';
+import {MetacognitiveMonitor} from './MetacognitiveMonitor.js';
+import {SelfAnalyzer} from './SelfAnalyzer.js';
 
 export class ReasoningAboutReasoning {
     constructor(nar, config = {}) {
@@ -26,8 +26,11 @@ export class ReasoningAboutReasoning {
     _startPeriodicSelfAnalysis() {
         if (this.config.reasoningInterval > 0) {
             this._periodicAnalysisInterval = setInterval(async () => {
-                try { await this.performMetaCognitiveReasoning(); }
-                catch (error) { logError(error, { context: 'periodic_meta_cognition' }, 'warn'); }
+                try {
+                    await this.performMetaCognitiveReasoning();
+                } catch (error) {
+                    logError(error, {context: 'periodic_meta_cognition'}, 'warn');
+                }
             }, this.config.reasoningInterval);
         }
     }
@@ -54,7 +57,9 @@ export class ReasoningAboutReasoning {
         };
     }
 
-    getReasoningTrace() { return this.monitor.getReasoningTrace(); }
+    getReasoningTrace() {
+        return this.monitor.getReasoningTrace();
+    }
 
     getReasoningState() {
         const monitorState = this.monitor.getMonitorState();
@@ -70,7 +75,7 @@ export class ReasoningAboutReasoning {
     }
 
     updateConfig(newConfig) {
-        this.config = { ...this.config, ...newConfig };
+        this.config = {...this.config, ...newConfig};
     }
 
     async getSystemAnalysis() {

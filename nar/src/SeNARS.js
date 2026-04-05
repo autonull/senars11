@@ -1,7 +1,6 @@
-import { NAR } from './nar/NAR.js';
-import { Logger } from '@senars/core';
-import { Unifier } from './term/Unifier.js';
-import { IntrospectionEvents } from '@senars/core';
+import {NAR} from './nar/NAR.js';
+import {IntrospectionEvents, Logger} from '@senars/core';
+import {Unifier} from './term/Unifier.js';
 
 /**
  * SeNARS Facade - A simplified API for SeNARS reasoning system
@@ -26,8 +25,12 @@ export class SeNARS {
     }
 
     async _initialize() {
-        if (this._initialized) {return;}
-        if (this._initPromise) {return this._initPromise;}
+        if (this._initialized) {
+            return;
+        }
+        if (this._initPromise) {
+            return this._initPromise;
+        }
 
         this._initPromise = this.nar.initialize()
             .then(() => {
@@ -98,10 +101,10 @@ export class SeNARS {
 
                     // Get the substitution for the best answer if using unification
                     if (questionTerm && this._unifier) {
-                         const matchResult = this._unifier.match(questionTerm, bestBelief.term);
-                         if (matchResult.success) {
-                             bestSubstitution = matchResult.substitution;
-                         }
+                        const matchResult = this._unifier.match(questionTerm, bestBelief.term);
+                        if (matchResult.success) {
+                            bestSubstitution = matchResult.substitution;
+                        }
                     }
                 }
             }
@@ -177,15 +180,15 @@ export class SeNARS {
             const matchingBeliefs = this._findMatchingBeliefs(goalTerm, goalInput);
 
             let achieved = false;
-            let bestTruth = { f: 0, c: 0 };
+            let bestTruth = {f: 0, c: 0};
             let bestTerm = null;
 
             if (matchingBeliefs.length > 0) {
                 const bestBelief = matchingBeliefs.reduce((best, current) => {
-                     // Using expectation: e = c * (f - 0.5) + 0.5
-                     const expCurrent = (current.truth?.c ?? 0) * ((current.truth?.f ?? 0) - 0.5) + 0.5;
-                     const expBest = (best.truth?.c ?? 0) * ((best.truth?.f ?? 0) - 0.5) + 0.5;
-                     return expCurrent > expBest ? current : best;
+                    // Using expectation: e = c * (f - 0.5) + 0.5
+                    const expCurrent = (current.truth?.c ?? 0) * ((current.truth?.f ?? 0) - 0.5) + 0.5;
+                    const expBest = (best.truth?.c ?? 0) * ((best.truth?.f ?? 0) - 0.5) + 0.5;
+                    return expCurrent > expBest ? current : best;
                 }, matchingBeliefs[0]);
 
                 if (bestBelief) {
@@ -209,7 +212,7 @@ export class SeNARS {
 
         } catch (error) {
             Logger.error('Achieve failed:', error);
-             return {
+            return {
                 achieved: false,
                 error: error.message
             };
@@ -267,22 +270,32 @@ export class SeNARS {
             return derivations.slice(-10).map(d => ({
                 term: d.term?.toString() || 'unknown',
                 rule: d.rule || 'unknown',
-                truth: d.truth || { f: 0, c: 0 }
+                truth: d.truth || {f: 0, c: 0}
             }));
         }
         return [];
     }
 
-    query(term) { return this.nar.getBeliefs(term); }
-    getBeliefs() { return this.nar.getBeliefs(); }
-    reset() { this.nar.reset(); }
+    query(term) {
+        return this.nar.getBeliefs(term);
+    }
+
+    getBeliefs() {
+        return this.nar.getBeliefs();
+    }
+
+    reset() {
+        this.nar.reset();
+    }
 
     async start() {
         await this._ensureInitialized();
         return this.nar.start();
     }
 
-    stop() { return this.nar.stop(); }
+    stop() {
+        return this.nar.stop();
+    }
 
     async step() {
         await this._ensureInitialized();
@@ -294,8 +307,13 @@ export class SeNARS {
         return this.nar.runCycles(count);
     }
 
-    getStats() { return this.nar.getStats(); }
-    getNAR() { return this.nar; }
+    getStats() {
+        return this.nar.getStats();
+    }
+
+    getNAR() {
+        return this.nar;
+    }
 
     async dispose() {
         if (this.nar) {

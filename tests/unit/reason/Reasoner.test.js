@@ -1,7 +1,7 @@
 import {jest} from '@jest/globals';
-import {Reasoner, Focus} from '@senars/nar';
+import {Focus} from '@senars/nar';
 import {Logger} from '@senars/core';
-import {createTestMemory, createTestReasoner} from '../../support/baseTestUtils.js';
+import {createTestMemory, createTestReasoner} from '../../support/index.js';
 
 describe('Reasoner', () => {
     let reasoner;

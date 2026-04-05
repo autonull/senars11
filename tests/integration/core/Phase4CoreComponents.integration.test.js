@@ -10,7 +10,7 @@
  * - TermFactory validation
  */
 
-import {TermFactory, Task, Memory, Focus, NAR, Truth} from '@senars/nar';
+import {Focus, Memory, NAR, Task, TermFactory, Truth} from '@senars/nar';
 
 describe('Phase 4 Core Components Integration', () => {
     let termFactory;

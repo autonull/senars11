@@ -1,8 +1,6 @@
 import {describe, expect, test} from '@jest/globals';
-import {DummyProvider} from '../../../core/src/lm/DummyProvider.js';
-import {HuggingFaceProvider} from '../../../core/src/lm/HuggingFaceProvider.js';
-import {LangChainProvider} from '../../../core/src/lm/LangChainProvider.js';
-import {TransformersJSModel} from '../../../core/src/lm/TransformersJSModel.js';
+import {DummyProvider} from '@senars/core';
+import {HuggingFaceProvider, LangChainProvider, TransformersJSModel} from '@senars/core/src/lm/index';
 import {HumanMessage} from '@langchain/core/messages';
 
 describe('LM Provider Interface', () => {

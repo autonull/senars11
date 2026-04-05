@@ -27,16 +27,20 @@ export class SyllogisticRule extends NALRule {
      * @returns {boolean} - Whether the rule can be applied
      */
     canApply(primaryPremise, secondaryPremise, context) {
-        if (!primaryPremise?.term?.isCompound || !secondaryPremise?.term?.isCompound) {return false;}
+        if (!primaryPremise?.term?.isCompound || !secondaryPremise?.term?.isCompound) {
+            return false;
+        }
 
         const term1 = primaryPremise.term;
         const term2 = secondaryPremise.term;
 
         if ((term1.operator !== this.operator && term2.operator !== this.operator) ||
-            term1.components.length !== 2 || term2.components.length !== 2) {return false;}
+            term1.components.length !== 2 || term2.components.length !== 2) {
+            return false;
+        }
 
         return this.unify(term1.predicate, term2.subject, context).success ||
-               this.unify(term2.predicate, term1.subject, context).success;
+            this.unify(term2.predicate, term1.subject, context).success;
     }
 
     apply(primaryPremise, secondaryPremise, context) {
@@ -70,10 +74,14 @@ export class SyllogisticRule extends NALRule {
         const truth1 = primaryPremise.truth;
         const truth2 = secondaryPremise.truth;
 
-        if (!truth1 || !truth2) {return [];}
+        if (!truth1 || !truth2) {
+            return [];
+        }
 
         const derivedTruth = Truth.deduction(truth1, truth2);
-        if (!derivedTruth) {return [];}
+        if (!derivedTruth) {
+            return [];
+        }
 
         if (!termFactory) {
             // TermFactory is required for proper term creation and caching

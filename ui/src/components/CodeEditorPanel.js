@@ -1,7 +1,7 @@
 import { Component } from './Component.js';
 import { SmartTextarea } from '../notebook/SmartTextarea.js';
-import { FluentUI, $ } from '../utils/FluentUI.js';
-import { ReactiveState } from '../core/ReactiveState.js';
+import { $ } from '../utils/FluentUI.js';
+import { ReactiveState } from '../core/index.js';
 
 export class CodeEditorPanel extends Component {
     constructor(container) {

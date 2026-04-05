@@ -23,7 +23,9 @@ export class SemanticStrategy extends PremiseFormationStrategy {
      * @yields {Task} Semantically similar tasks
      */
     async* generateCandidates(primaryTask, context) {
-        if (!this.embeddings || !context.memory) {return;}
+        if (!this.embeddings || !context.memory) {
+            return;
+        }
 
         const {term} = primaryTask;
         const termString = term.toString();
@@ -40,7 +42,9 @@ export class SemanticStrategy extends PremiseFormationStrategy {
             const similarTerms = await this.embeddings.findSimilar(termString, this.maxCandidates);
 
             for (const match of similarTerms) {
-                if (match.similarity < this.threshold) {continue;}
+                if (match.similarity < this.threshold) {
+                    continue;
+                }
 
                 // Find tasks in memory related to this term
                 const concept = context.memory.concepts.get(match.term);

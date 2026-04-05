@@ -1,4 +1,4 @@
-import {MemoryIndex, Concept} from '@senars/nar';
+import {Concept, MemoryIndex} from '@senars/nar';
 import {createConcept, tf} from './testUtils.js';
 
 describe('MemoryIndex', () => {

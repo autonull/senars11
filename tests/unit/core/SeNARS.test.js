@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import {jest} from '@jest/globals';
 
 jest.unstable_mockModule('@senars/nar/src/nar/NAR.js', () => ({
     NAR: jest.fn(() => ({
@@ -18,7 +18,7 @@ jest.unstable_mockModule('@senars/nar/src/nar/NAR.js', () => ({
             }
         },
         _termFactory: {},
-        _parser: { parse: jest.fn() }
+        _parser: {parse: jest.fn()}
     }))
 }));
 

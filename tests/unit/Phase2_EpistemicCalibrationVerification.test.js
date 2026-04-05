@@ -1,6 +1,6 @@
-import { describe, expect, test, beforeEach, jest } from '@jest/globals';
+import {beforeEach, describe, expect, jest, test} from '@jest/globals';
 import {LMStats} from '@senars/core/src/lm/LMStats.js';
-import {LMNarseseTranslationRule, createAnalogicalReasoningRule, TermFactory, Task, Truth} from '@senars/nar';
+import {createAnalogicalReasoningRule, LMNarseseTranslationRule, Task, TermFactory, Truth} from '@senars/nar';
 
 describe('Phase 2.2: Epistemic Calibration Verification', () => {
     let lmStats;
@@ -45,7 +45,7 @@ describe('Phase 2.2: Epistemic Calibration Verification', () => {
 
     describe('LMNarseseTranslationRule', () => {
         test('Applies calibrated confidence to generated Tasks', () => {
-            const mockLM = { providerId: 'test-provider' };
+            const mockLM = {providerId: 'test-provider'};
             const rule = new LMNarseseTranslationRule('test-rule', mockLM);
 
             // Mock context with LMStats and Parser
@@ -62,8 +62,8 @@ describe('Phase 2.2: Epistemic Calibration Verification', () => {
             // If the output is an object, it expects `text` property to contain the Narsese.
             const response = {
                 text: '(robin --> bird).', // Add punctuation to make it strictly valid Narsese if checked by regex?
-                                          // Rule impl says: response.match(/\([^\)]+\)/)
-                metadata: { score: -0.2 }
+                // Rule impl says: response.match(/\([^\)]+\)/)
+                metadata: {score: -0.2}
             };
 
             // LMRule uses generateTasks method which delegates to config.generate
@@ -130,12 +130,12 @@ describe('Phase 2.2: Epistemic Calibration Verification', () => {
 
             // For now, I'll temporarily disable the expectation to prove this is the cause.
             if (tasks.length === 0) {
-                 // console.warn("Task generation failed, likely due to string vs Term mismatch in Task constructor.");
+                // console.warn("Task generation failed, likely due to string vs Term mismatch in Task constructor.");
             } else {
-                 expect(tasks.length).toBeGreaterThan(0);
-                 const task = tasks[0];
-                 expect(task.truth.confidence).toBeGreaterThan(0.5);
-                 expect(task.truth.confidence).toBeLessThan(0.9);
+                expect(tasks.length).toBeGreaterThan(0);
+                const task = tasks[0];
+                expect(task.truth.confidence).toBeGreaterThan(0.5);
+                expect(task.truth.confidence).toBeLessThan(0.9);
             }
             const task = tasks[0];
 
@@ -160,11 +160,11 @@ describe('Phase 2.2: Epistemic Calibration Verification', () => {
             };
 
             const mockEmbeddingLayer = {
-                findSimilar: jest.fn().mockResolvedValue([{ item: 'similar_concept', similarity: 0.9 }])
+                findSimilar: jest.fn().mockResolvedValue([{item: 'similar_concept', similarity: 0.9}])
             };
 
             const mockMemory = {
-                getAllConcepts: () => [{ term: { toString: () => 'similar_concept' } }]
+                getAllConcepts: () => [{term: {toString: () => 'similar_concept'}}]
             };
 
             const rule = createAnalogicalReasoningRule({
@@ -172,7 +172,7 @@ describe('Phase 2.2: Epistemic Calibration Verification', () => {
                 memory: mockMemory,
                 embeddingLayer: mockEmbeddingLayer,
                 termFactory,
-                eventBus: { emit: jest.fn() } // Mock EventBus
+                eventBus: {emit: jest.fn()} // Mock EventBus
             });
 
             const primary = new Task({

@@ -1,8 +1,8 @@
-import { Component } from '../composable/Component.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { CausalEdge } from './CausalEdge.js';
-import { CausalNode } from './CausalNode.js';
-import { extractVariables } from '../utils/extractVariables.js';
+import {Component} from '../composable/Component.js';
+import {mergeConfig} from '../utils/index.js';
+import {CausalEdge} from './CausalEdge.js';
+import {CausalNode} from './CausalNode.js';
+import {extractVariables} from '../utils/extractVariables.js';
 
 const REASONING_DEFAULTS = {
     maxNodes: 100,
@@ -19,26 +19,37 @@ export class CausalGraph extends Component {
         this.observations = [];
     }
 
+    static fromJSON(json) {
+        const graph = new CausalGraph();
+        json.nodes.forEach(n => graph.addNode(n.id, n));
+        json.edges.forEach(e => graph.addEdge(e.from, e.to, e.strength));
+        return graph;
+    }
+
     addNode(id, config = {}) {
-        if (this.nodes.size >= this.config.maxNodes) {this.prune();}
+        if (this.nodes.size >= this.config.maxNodes) {
+            this.prune();
+        }
         const node = new CausalNode(id, config);
         this.nodes.set(id, node);
-        this.emit('nodeAdded', { id, node });
+        this.emit('nodeAdded', {id, node});
         return node;
     }
 
     addEdge(from, to, strength = 1.0) {
         const fromNode = this.nodes.get(from);
         const toNode = this.nodes.get(to);
-        if (!fromNode || !toNode) {throw new Error(`Invalid edge: ${from} -> ${to}`);}
+        if (!fromNode || !toNode) {
+            throw new Error(`Invalid edge: ${from} -> ${to}`);
+        }
 
         const edgeKey = `${from}->${to}`;
         if (!this.edges.has(edgeKey)) {
-            const edge = new CausalEdge(from, to, { strength });
+            const edge = new CausalEdge(from, to, {strength});
             this.edges.set(edgeKey, edge);
             fromNode.addChild(to);
             toNode.addParent(from);
-            this.emit('edgeAdded', { from, to, edge });
+            this.emit('edgeAdded', {from, to, edge});
         } else {
             this.edges.get(edgeKey).update(strength);
         }
@@ -47,46 +58,77 @@ export class CausalGraph extends Component {
 
     removeNode(id) {
         const node = this.nodes.get(id);
-        if (!node) {return false;}
+        if (!node) {
+            return false;
+        }
 
         node.parents.forEach(p => this.nodes.get(p)?.children.delete(id));
         node.children.forEach(c => this.nodes.get(c)?.parents.delete(id));
-        this.edges.forEach((edge, key) => { if (edge.from === id || edge.to === id) {this.edges.delete(key);} });
+        this.edges.forEach((edge, key) => {
+            if (edge.from === id || edge.to === id) {
+                this.edges.delete(key);
+            }
+        });
 
         this.nodes.delete(id);
-        this.emit('nodeRemoved', { id });
+        this.emit('nodeRemoved', {id});
         return true;
     }
 
     removeEdge(from, to) {
         const edgeKey = `${from}->${to}`;
         const edge = this.edges.get(edgeKey);
-        if (!edge) {return false;}
+        if (!edge) {
+            return false;
+        }
 
         this.nodes.get(from)?.children.delete(to);
         this.nodes.get(to)?.parents.delete(from);
         this.edges.delete(edgeKey);
-        this.emit('edgeRemoved', { from, to });
+        this.emit('edgeRemoved', {from, to});
         return true;
     }
 
-    getNode(id) { return this.nodes.get(id); }
-    getEdge(from, to) { return this.edges.get(`${from}->${to}`); }
-    getParents(id) { return Array.from(this.nodes.get(id)?.parents ?? []); }
-    getChildren(id) { return Array.from(this.nodes.get(id)?.children ?? []); }
-    getRoots() { return Array.from(this.nodes.values()).filter(n => n.parents.size === 0).map(n => n.id); }
-    getLeaves() { return Array.from(this.nodes.values()).filter(n => n.children.size === 0).map(n => n.id); }
+    getNode(id) {
+        return this.nodes.get(id);
+    }
+
+    getEdge(from, to) {
+        return this.edges.get(`${from}->${to}`);
+    }
+
+    getParents(id) {
+        return Array.from(this.nodes.get(id)?.parents ?? []);
+    }
+
+    getChildren(id) {
+        return Array.from(this.nodes.get(id)?.children ?? []);
+    }
+
+    getRoots() {
+        return Array.from(this.nodes.values()).filter(n => n.parents.size === 0).map(n => n.id);
+    }
+
+    getLeaves() {
+        return Array.from(this.nodes.values()).filter(n => n.children.size === 0).map(n => n.id);
+    }
 
     hasPath(from, to, visited = new Set()) {
-        if (from === to) {return true;}
-        if (visited.has(from)) {return false;}
+        if (from === to) {
+            return true;
+        }
+        if (visited.has(from)) {
+            return false;
+        }
         visited.add(from);
         return this.getChildren(from).some(child => this.hasPath(child, to, visited));
     }
 
     computeCausalEffect(nodeId, intervention) {
         const node = this.nodes.get(nodeId);
-        if (!node) {return null;}
+        if (!node) {
+            return null;
+        }
         node.intervene(intervention);
         const effects = this._propagateEffect(nodeId, intervention);
         node.reset();
@@ -105,20 +147,28 @@ export class CausalGraph extends Component {
     }
 
     observe(nodeId, value) {
-        this.observations.push({ nodeId, value, timestamp: Date.now() });
-        if (this.observations.length > 1000) {this.observations.shift();}
+        this.observations.push({nodeId, value, timestamp: Date.now()});
+        if (this.observations.length > 1000) {
+            this.observations.shift();
+        }
         const node = this.nodes.get(nodeId);
-        if (node) {node.probability = 0.9 * node.probability + 0.1 * value;}
+        if (node) {
+            node.probability = 0.9 * node.probability + 0.1 * value;
+        }
     }
 
     learnStructure(trajectories, options = {}) {
-        const { minStrength = this.config.minStrength } = options;
+        const {minStrength = this.config.minStrength} = options;
         const correlations = this._computeCorrelations(trajectories);
 
-        correlations.forEach(({ from, to, strength }) => {
+        correlations.forEach(({from, to, strength}) => {
             if (strength >= minStrength) {
-                if (!this.nodes.has(from)) {this.addNode(from);}
-                if (!this.nodes.has(to)) {this.addNode(to);}
+                if (!this.nodes.has(from)) {
+                    this.addNode(from);
+                }
+                if (!this.nodes.has(to)) {
+                    this.addNode(to);
+                }
                 this.addEdge(from, to, strength);
             }
         });
@@ -134,14 +184,16 @@ export class CausalGraph extends Component {
                 Object.entries(vars1).forEach(([v1, val1]) => {
                     Object.entries(vars2).forEach(([v2, val2]) => {
                         const key = `${v1}->${v2}`;
-                        if (!correlations.has(key)) {correlations.set(key, { from: v1, to: v2, values: [] });}
+                        if (!correlations.has(key)) {
+                            correlations.set(key, {from: v1, to: v2, values: []});
+                        }
                         correlations.get(key).values.push([val1, val2]);
                     });
                 });
             }
         });
 
-        return Array.from(correlations.values()).map(({ from, to, values }) => ({
+        return Array.from(correlations.values()).map(({from, to, values}) => ({
             from, to, strength: this._pearsonCorrelation(values)
         }));
     }
@@ -151,7 +203,9 @@ export class CausalGraph extends Component {
     }
 
     _pearsonCorrelation(pairs) {
-        if (pairs.length < 2) {return 0;}
+        if (pairs.length < 2) {
+            return 0;
+        }
         const n = pairs.length;
         const x = pairs.map(p => p[0]);
         const y = pairs.map(p => p[1]);
@@ -171,7 +225,9 @@ export class CausalGraph extends Component {
 
     prune() {
         const leaves = this.getLeaves();
-        if (leaves.length > 0) {this.removeNode(leaves[0]);}
+        if (leaves.length > 0) {
+            this.removeNode(leaves[0]);
+        }
     }
 
     toJSON() {
@@ -180,14 +236,7 @@ export class CausalGraph extends Component {
             edges: Array.from(this.edges.values()).map(e => e.toJSON())
         };
     }
-
-    static fromJSON(json) {
-        const graph = new CausalGraph();
-        json.nodes.forEach(n => graph.addNode(n.id, n));
-        json.edges.forEach(e => graph.addEdge(e.from, e.to, e.strength));
-        return graph;
-    }
 }
 
-export { CausalEdge } from './CausalEdge.js';
-export { CausalNode } from './CausalNode.js';
+export {CausalEdge} from './CausalEdge.js';
+export {CausalNode} from './CausalNode.js';

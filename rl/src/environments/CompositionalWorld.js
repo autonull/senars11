@@ -1,5 +1,5 @@
-import { Environment } from '../core/RLCore.js';
-import { deepMergeConfig } from '../utils/ConfigHelper.js';
+import {Environment} from '../core/RLCore.js';
+import {deepMergeConfig} from '../utils/ConfigHelper.js';
 
 const DEFAULTS = {
     size: 10,
@@ -23,9 +23,22 @@ export class CompositionalWorld extends Environment {
         this.reset();
     }
 
+    get observationSpace() {
+        return {
+            type: 'Box',
+            shape: [2 + 2 * this.objects.length],
+            low: [0],
+            high: [this.config.size]
+        };
+    }
+
+    get actionSpace() {
+        return {type: 'Discrete', n: 4};
+    }
+
     reset() {
         this.agentPos = [0, 0];
-        this.objects = Array.from({ length: this.config.numObjects }, (_, i) => ({
+        this.objects = Array.from({length: this.config.numObjects}, (_, i) => ({
             id: i,
             pos: [
                 Math.floor(Math.random() * this.config.size),
@@ -34,7 +47,7 @@ export class CompositionalWorld extends Environment {
             type: 'target'
         }));
         this.steps = 0;
-        return { observation: this._getObs(), info: {} };
+        return {observation: this._getObs(), info: {}};
     }
 
     _getObs() {
@@ -72,18 +85,5 @@ export class CompositionalWorld extends Environment {
         const [x, y] = this.agentPos;
         const hitIndex = this.objects.findIndex(o => o.pos[0] === x && o.pos[1] === y);
         return [hitIndex, hitIndex >= 0 ? 1.0 : 0.0, false];
-    }
-
-    get observationSpace() {
-        return {
-            type: 'Box',
-            shape: [2 + 2 * this.objects.length],
-            low: [0],
-            high: [this.config.size]
-        };
-    }
-
-    get actionSpace() {
-        return { type: 'Discrete', n: 4 };
     }
 }

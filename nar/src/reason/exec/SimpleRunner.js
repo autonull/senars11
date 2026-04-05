@@ -20,7 +20,9 @@ export class SimpleRunner extends Runner {
     }
 
     start() {
-        if (this.isRunning) {return;}
+        if (this.isRunning) {
+            return;
+        }
         this.isRunning = true;
         this.loopPromise = this._loop();
     }

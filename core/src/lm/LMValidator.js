@@ -1,4 +1,4 @@
-import {EmptyOutputError} from './EmptyOutputError.js';
+import {EmptyOutputError} from '@senars/core';
 
 export class LMValidator {
     constructor(config = {}, translator = null, eventBus = null) {
@@ -13,9 +13,7 @@ export class LMValidator {
 
         if (typeof result === 'string' && result.trim().length === 0) {
             const error = new EmptyOutputError('LM returned empty output', providerId);
-            if (emptyOutputMode === 'error') {
-                throw error;
-            }
+            if (emptyOutputMode === 'error') {throw error;}
             if (emptyOutputMode === 'warn' && this.eventBus) {
                 this.eventBus.emit('lm:empty-output', {providerId, timestamp: Date.now()});
             }

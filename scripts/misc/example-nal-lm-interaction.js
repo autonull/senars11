@@ -4,7 +4,7 @@
  * Example demonstrating NAL and LM interaction with the new model configuration
  */
 
-import {NAR, Task, Truth, TermFactory} from '@senars/nar';
+import {NAR} from '@senars/nar';
 
 async function demonstrateNALandLM() {
     console.log("🚀 Starting SeNARS with NAL and LM integration...\n");

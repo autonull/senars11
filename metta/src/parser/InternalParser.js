@@ -2,7 +2,7 @@
  * InternalParser.js - Internal parser logic
  */
 
-import { sym, variable, exp } from '../kernel/Term.js';
+import {exp, sym, variable} from '../kernel/Term.js';
 import {Logger} from '@senars/core';
 
 export class InternalParser {
@@ -36,10 +36,14 @@ export class InternalParser {
      * Parse a single atom or expression
      */
     parse() {
-        if (this.finished) {throw new Error("Unexpected end of input");}
+        if (this.finished) {
+            throw new Error("Unexpected end of input");
+        }
 
         const token = this.peek();
-        if (token === '(') {return this.parseExpression();}
+        if (token === '(') {
+            return this.parseExpression();
+        }
 
         this.consume();
         // Support both $ and ? variables
@@ -50,7 +54,9 @@ export class InternalParser {
      * Parse an expression (list of atoms enclosed in parentheses)
      */
     parseExpression() {
-        if (this.consume() !== '(') {throw new Error("Expected '(' at start of expression");}
+        if (this.consume() !== '(') {
+            throw new Error("Expected '(' at start of expression");
+        }
 
         if (!this.finished && this.peek() === ')') {
             this.consume();
@@ -66,7 +72,9 @@ export class InternalParser {
             }
         }
 
-        if (this.finished) {throw new Error("Unexpected end of input, expected ')'");}
+        if (this.finished) {
+            throw new Error("Unexpected end of input, expected ')'");
+        }
 
         this.consume(); // Skip ')'
 

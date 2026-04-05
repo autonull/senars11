@@ -1,5 +1,4 @@
-import {BaseComponent} from '@senars/core';
-import {IntrospectionEvents} from '@senars/core';
+import {BaseComponent, IntrospectionEvents} from '@senars/core';
 
 class PerformanceAnalyzer {
     constructor(config = {}) {

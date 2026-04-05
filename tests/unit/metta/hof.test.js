@@ -3,14 +3,14 @@
  * Coverage: atom-subst, filter-atom, map-atom, foldl-atom, reduce-atom
  */
 
-import { MeTTaTestUtils } from '../../helpers/MeTTaTestUtils.js';
-import { Formatter } from '../../../metta/src/kernel/Formatter.js';
+import {MeTTaTestUtils} from '../../helpers/MeTTaTestUtils.js';
+import {Formatter} from '../../../metta/src/kernel/Formatter.js';
 
 describe('MeTTa HOF Module Tests', () => {
     let interpreter;
 
     beforeEach(() => {
-        interpreter = MeTTaTestUtils.createInterpreter({ loadStdlib: true });
+        interpreter = MeTTaTestUtils.createInterpreter({loadStdlib: true});
     });
 
     describe('atom-subst', () => {

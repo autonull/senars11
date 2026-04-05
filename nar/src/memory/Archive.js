@@ -18,7 +18,9 @@ export class Archive extends BaseComponent {
      * @returns {string} - The hash (content address) of the stored expression
      */
     put(expression) {
-        if (!expression) {return null;}
+        if (!expression) {
+            return null;
+        }
 
         const hash = this._hash(expression);
         if (!this._storage.has(hash)) {

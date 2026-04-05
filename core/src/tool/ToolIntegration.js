@@ -1,6 +1,6 @@
-import {ToolEngine} from './ToolEngine.js';
-import {ToolRegistry} from './ToolRegistry.js';
-import {BaseComponent} from '../util/BaseComponent.js';
+import { ToolEngine } from './ToolEngine.js';
+import { ToolRegistry } from './ToolRegistry.js';
+import { BaseComponent } from '@senars/core';
 
 /**
  * Integration layer that connects tools to the reasoning core
@@ -44,9 +44,7 @@ export class ToolIntegration extends BaseComponent {
      * Register all tools for the NAR system
      */
     async initializeTools() {
-        if (!this.registry) {
-            throw new Error('Tool registry not enabled');
-        }
+        if (!this.registry) {throw new Error('Tool registry not enabled');}
 
         try {
             // Register explicitly provided tools
@@ -124,17 +122,17 @@ export class ToolIntegration extends BaseComponent {
     async executeTool(toolId, params, context = {}) {
         const startTime = Date.now();
         try {
-            const result = await this.engine.executeTool(toolId, params, {reasoningContext: context});
+            const result = await this.engine.executeTool(toolId, params, { reasoningContext: context });
             const executionTime = this._logToolUsage(toolId, params, result, startTime, context);
-            return {...result, executionTime};
+            return { ...result, executionTime };
         } catch (error) {
             this.logError(`Tool execution failed: ${toolId}`, {
                 error: error.message,
                 params: JSON.stringify(params).substring(0, 200)
             });
-            const errorResult = {success: false, error: error.message, toolId};
+            const errorResult = { success: false, error: error.message, toolId };
             const executionTime = this._logToolUsage(toolId, params, errorResult, startTime, context);
-            return {...errorResult, executionTime};
+            return { ...errorResult, executionTime };
         }
     }
 
@@ -163,9 +161,7 @@ export class ToolIntegration extends BaseComponent {
             for (const call of toolCalls) {
                 const result = await this.executeTool(call.toolId, call.params, context);
                 results.push(result);
-                if (!result.success && !call.continueOnError) {
-                    break;
-                }
+                if (!result.success && !call.continueOnError) {break;}
             }
             return results;
         }
@@ -190,12 +186,12 @@ export class ToolIntegration extends BaseComponent {
      * Get tool usage statistics
      */
     getUsageStats() {
-        const {totalCalls, successfulCalls} = this.toolUsageHistory.reduce(
+        const { totalCalls, successfulCalls } = this.toolUsageHistory.reduce(
             (acc, item) => ({
                 totalCalls: acc.totalCalls + 1,
                 successfulCalls: acc.successfulCalls + (item.result.success ? 1 : 0),
             }),
-            {totalCalls: 0, successfulCalls: 0}
+            { totalCalls: 0, successfulCalls: 0 }
         );
 
         return {
@@ -219,9 +215,7 @@ export class ToolIntegration extends BaseComponent {
             };
 
             acc[usage.toolId].totalCalls++;
-            if (usage.result.success) {
-                acc[usage.toolId].successfulCalls++;
-            }
+            if (usage.result.success) {acc[usage.toolId].successfulCalls++;}
             acc[usage.toolId].totalExecutionTime += usage.executionTime;
 
             return acc;

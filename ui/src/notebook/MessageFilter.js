@@ -65,7 +65,7 @@ export function categorizeMessage(message) {
     return matched ? matched.id : 'unknown';
 }
 
-import { ReactiveState } from '../core/ReactiveState.js';
+import { ReactiveState } from '../core/index.js';
 import { STORAGE_KEYS } from '../config/constants.js';
 
 /**

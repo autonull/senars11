@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach } from '@jest/globals';
-import { MeTTaInterpreter } from '../src/MeTTaInterpreter.js';
+import {beforeEach, describe, expect, it} from '@jest/globals';
+import {MeTTaInterpreter} from '../src/index.js';
 
 describe('JS Interoperability Enhancements', () => {
     let interp;
 
     beforeEach(() => {
-        interp = new MeTTaInterpreter({ loadStdlib: true });
+        interp = new MeTTaInterpreter({loadStdlib: true});
     });
 
     it('should access global objects and call methods', async () => {

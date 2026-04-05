@@ -1,11 +1,10 @@
-import { Architecture } from '../core/RLCore.js';
-import { SeNARSBridge } from '../bridges/SeNARSBridge.js';
-import { PlanningSystem } from '../modules/PlanningSystem.js';
-import { HierarchicalPlanner } from '../modules/HierarchicalPlanner.js';
-import { IntrinsicMotivation } from '../modules/IntrinsicMotivation.js';
-import { MeTTaInterpreter } from '@senars/metta';
-import { registerTensorPrimitives } from '../core/TensorPrimitives.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {Architecture} from '../core/RLCore.js';
+import {SeNARSBridge} from '../bridges/SeNARSBridge.js';
+import {IntrinsicMotivation, PlanningSystem} from '../modules/PlanningSystem.js';
+import {HierarchicalPlanner} from '../modules/HierarchicalPlanner.js';
+import {MeTTaInterpreter} from '@senars/metta';
+import {registerTensorPrimitives} from '../core/TensorPrimitives.js';
+import {mergeConfig} from '../utils/index.js';
 import fs from 'fs';
 import {Logger} from '@senars/core';
 
@@ -22,8 +21,10 @@ export class DualProcessArchitecture extends Architecture {
     constructor(agent, config = {}) {
         super(agent, mergeConfig(DUAL_PROCESS_DEFAULTS, config));
 
-        const senarsConfig = typeof config === 'object' ? { ...config } : {};
-        if (typeof senarsConfig.reasoning !== 'object') {delete senarsConfig.reasoning;}
+        const senarsConfig = {...config};
+        if (typeof senarsConfig.reasoning !== 'object') {
+            delete senarsConfig.reasoning;
+        }
 
         if (this.config.reasoning === 'metta') {
             this.metta = new MeTTaInterpreter();
@@ -38,7 +39,9 @@ export class DualProcessArchitecture extends Architecture {
     }
 
     async initialize() {
-        if (this.initialized) {return;}
+        if (this.initialized) {
+            return;
+        }
 
         await this.bridge.initialize();
 
@@ -55,14 +58,18 @@ export class DualProcessArchitecture extends Architecture {
     }
 
     async act(observation, goal) {
-        if (!this.initialized) {await this.initialize();}
+        if (!this.initialized) {
+            await this.initialize();
+        }
 
         if (this.config.usePolicy && this.metta) {
             const obsStr = `(${observation.join(' ')})`;
             const result = this.metta.run(`! (get-action ${obsStr})`);
             if (result?.length > 0) {
                 const action = Number(result[0].toString());
-                if (!isNaN(action)) {return action;}
+                if (!isNaN(action)) {
+                    return action;
+                }
             }
         }
 
@@ -78,7 +85,9 @@ export class DualProcessArchitecture extends Architecture {
             actionSymbols = await this.planner.act(symbols, goalSymbols);
         }
 
-        if (!actionSymbols) {return this._randomAction();}
+        if (!actionSymbols) {
+            return this._randomAction();
+        }
 
         const action = this.agent.grounding.ground(actionSymbols);
 
@@ -92,7 +101,9 @@ export class DualProcessArchitecture extends Architecture {
 
     _randomAction() {
         const as = this.agent.env?.actionSpace;
-        if (!as) {return 0;}
+        if (!as) {
+            return 0;
+        }
 
         if (as.type === 'Discrete') {
             return Math.floor(Math.random() * as.n);
@@ -101,9 +112,11 @@ export class DualProcessArchitecture extends Architecture {
     }
 
     async learn(observation, action, reward, nextObservation, done) {
-        if (!this.initialized) {await this.initialize();}
+        if (!this.initialized) {
+            await this.initialize();
+        }
 
-        const intrinsicReward = this.motivation.calculate({ obs: observation, action, nextObs: nextObservation });
+        const intrinsicReward = this.motivation.calculate({obs: observation, action, nextObs: nextObservation});
         const totalReward = reward + intrinsicReward;
 
         if (this.config.usePolicy && this.metta) {
@@ -122,14 +135,14 @@ export class DualProcessArchitecture extends Architecture {
             ? `action_${action}`
             : `action_${action[0]}`;
 
-        const episode = { obs: obsSym, action: actionSym, reward, nextObs: nextObsSym, done, symbol: obsSym };
+        const episode = {obs: obsSym, action: actionSym, reward, nextObs: nextObsSym, done, symbol: obsSym};
         this.agent.memory.store(episode);
 
         if (this.config.grounding === 'learned') {
             this.agent.grounding.update(observation, obsSym);
         }
 
-        this.inducer.induce([episode]);
+        await this.inducer.induce([episode]);
 
         if (this.config.skillDiscovery && done) {
             this.agent.memory.consolidate();
@@ -137,7 +150,9 @@ export class DualProcessArchitecture extends Architecture {
     }
 
     async close() {
-        if (this.bridge) {await this.bridge.close();}
+        if (this.bridge) {
+            await this.bridge.close();
+        }
         await super.close();
     }
 }

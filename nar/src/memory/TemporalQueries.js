@@ -1,5 +1,6 @@
 export class TemporalQueries {
-    constructor() {}
+    constructor() {
+    }
 
     getConceptsByTimePeriod(period, getAllConcepts) {
         const now = Date.now();
@@ -26,7 +27,9 @@ export class TemporalQueries {
 
         for (const concept of getAllConcepts()) {
             const createdAt = concept.createdAt || 0;
-            if (createdAt <= 0) {continue;}
+            if (createdAt <= 0) {
+                continue;
+            }
             const periodIndex = Math.floor((now - createdAt) / periodMs);
             if (periodIndex >= 0 && periodIndex < periodCount) {
                 const p = periods[periodIndex];

@@ -2,7 +2,7 @@
  * ComparisonOps.js - Comparison operations
  */
 
-import { OperationHelpers } from './OperationHelpers.js';
+import {OperationHelpers} from './OperationHelpers.js';
 
 export function registerComparisonOps(registry) {
     // Register numeric comparison operations

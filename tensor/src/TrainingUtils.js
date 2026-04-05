@@ -35,7 +35,9 @@ export class LRScheduler {
             exponential: () => this.baseLR * Math.exp(-0.1 * epoch),
             cosine: () => this.baseLR * 0.5 * (1 + Math.cos(Math.PI * epoch / this.maxEpochs))
         };
-        if (!schedules[this.mode]) {throw new Error(`Unknown LR scheduler mode: ${this.mode}`);}
+        if (!schedules[this.mode]) {
+            throw new Error(`Unknown LR scheduler mode: ${this.mode}`);
+        }
         this.optimizer.lr = schedules[this.mode]();
     }
 }

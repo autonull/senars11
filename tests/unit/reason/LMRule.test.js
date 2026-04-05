@@ -1,5 +1,12 @@
-import {LMRule, Punctuation, Task, Truth, TermFactory} from '@senars/nar';
-import {createGoalDecompositionRule, createHypothesisGenerationRule} from '@senars/nar';
+import {
+    createGoalDecompositionRule,
+    createHypothesisGenerationRule,
+    LMRule,
+    Punctuation,
+    Task,
+    TermFactory,
+    Truth
+} from '@senars/nar';
 import {jest} from '@jest/globals';
 
 class MockLM {

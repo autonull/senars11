@@ -2,7 +2,7 @@
  * Comprehensive tests for PrologStrategy with actual reasoning scenarios
  */
 
-import {PrologStrategy, Task, Truth, TermFactory} from '@senars/nar';
+import {PrologStrategy, Task, TermFactory, Truth} from '@senars/nar';
 
 describe('PrologStrategy - Comprehensive Tests', () => {
     let strategy;

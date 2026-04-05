@@ -1,6 +1,5 @@
-import {Task, Stamp, TermFactory, Truth} from '@senars/nar';
-import {createTask, createTruth, TEST_CONSTANTS} from '../../support/factories.js';
-import {taskAssertions, testImmutability} from '../../support/testOrganizer.js';
+import {Stamp, Task, TermFactory, Truth} from '@senars/nar';
+import {createTask, createTruth, taskAssertions, TEST_CONSTANTS, testImmutability} from '../../support/index.js';
 
 describe('Task', () => {
     let term;

@@ -1,4 +1,4 @@
-import {TermFactory, Term} from '@senars/nar';
+import {TermFactory} from '@senars/nar';
 import * as TermUtils from '@senars/nar/src/term/TermUtils.js';
 
 describe('TermFactory', () => {

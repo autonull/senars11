@@ -18,16 +18,20 @@ export class ComparisonRule extends NALRule {
         const t1 = primaryPremise?.term;
         const t2 = secondaryPremise?.term;
 
-        if (!t1?.isCompound || !t2?.isCompound || t1.operator !== '-->' || t2.operator !== '-->') {return false;}
+        if (!t1?.isCompound || !t2?.isCompound || t1.operator !== '-->' || t2.operator !== '-->') {
+            return false;
+        }
 
         return this.unify(t1.subject, t2.subject, context).success ||
-               this.unify(t1.predicate, t2.predicate, context).success;
+            this.unify(t1.predicate, t2.predicate, context).success;
     }
 
     apply(primaryPremise, secondaryPremise, context) {
         const t1 = primaryPremise.term;
         const t2 = secondaryPremise.term;
-        if (!context?.termFactory) {return [];}
+        if (!context?.termFactory) {
+            return [];
+        }
 
         const matchS = this.unify(t1.subject, t2.subject, context);
         const matchP = this.unify(t1.predicate, t2.predicate, context);
@@ -36,10 +40,14 @@ export class ComparisonRule extends NALRule {
             ? {sub: matchS.substitution, a: t2.predicate, b: t1.predicate}
             : (matchP.success ? {sub: matchP.substitution, a: t2.subject, b: t1.subject} : null);
 
-        if (!config || this.unify(config.a, config.b, context).success) {return [];}
+        if (!config || this.unify(config.a, config.b, context).success) {
+            return [];
+        }
 
         const newTruth = Truth.comparison(primaryPremise.truth, secondaryPremise.truth);
-        if (!newTruth) {return [];}
+        if (!newTruth) {
+            return [];
+        }
 
         const termA = this.applySubstitution(config.a, config.sub, context);
         const termB = this.applySubstitution(config.b, config.sub, context);

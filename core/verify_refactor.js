@@ -1,6 +1,6 @@
 import {TestNAR} from './src/testing/TestNAR.js';
 import {TermFactory} from './src/term/TermFactory.js';
-import {EventBus} from './src/index.js';
+import {EventBus} from '@senars/core';
 
 async function verify() {
     console.log('Starting verification...');
@@ -33,9 +33,9 @@ async function verify() {
         // Fallback check using create until fromJSON is implemented
         // TermFactory.create should handle object structure if consistent
         try {
-            const deserializedTerm = termFactory.create(serializedTerm);
-            if (deserializedTerm !== term3) console.warn('Term deserialization via create: Reference check failed (expected if create() doesnt handle JSON fully yet)');
-            else console.log('Term deserialization via create: OK');
+             const deserializedTerm = termFactory.create(serializedTerm);
+             if (deserializedTerm !== term3) console.warn('Term deserialization via create: Reference check failed (expected if create() doesnt handle JSON fully yet)');
+             else console.log('Term deserialization via create: OK');
         } catch (e) {
             console.log('TermFactory.create does not support JSON input yet fully or failed: ' + e.message);
         }

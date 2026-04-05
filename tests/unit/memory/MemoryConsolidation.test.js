@@ -1,4 +1,4 @@
-import {MemoryConsolidation, Memory, Concept, Task, TermFactory} from '@senars/nar';
+import {Concept, Memory, MemoryConsolidation, Task, TermFactory} from '@senars/nar';
 
 describe('MemoryConsolidation', () => {
     let consolidation, memory, tf;

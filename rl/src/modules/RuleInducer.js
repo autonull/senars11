@@ -1,4 +1,4 @@
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {mergeConfig} from '../utils/index.js';
 
 const DEFAULTS = {
     cyclesAfterInduction: 100
@@ -19,8 +19,10 @@ export class RuleInducer {
         }
     }
 
-    async _processEpisode({ obs, action, nextObs, reward }) {
-        if (!this.bridge) {return;}
+    async _processEpisode({obs, action, nextObs, reward}) {
+        if (!this.bridge) {
+            return;
+        }
 
         const o = this._formatTerm(obs);
         const n = this._formatTerm(nextObs);
@@ -38,7 +40,7 @@ export class RuleInducer {
     _formatTerm(val) {
         return Array.isArray(val) ? `(${val.join(',')})`
             : typeof val === 'object' ? JSON.stringify(val)
-            : String(val);
+                : String(val);
     }
 
     _formatAction(action) {

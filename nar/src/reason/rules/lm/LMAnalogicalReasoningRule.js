@@ -27,7 +27,9 @@ export const createAnalogicalReasoningRule = (dependencies) => {
         priority: 0.7,
 
         condition: (primaryPremise, secondaryPremise, context) => {
-            if (!primaryPremise) {return false;}
+            if (!primaryPremise) {
+                return false;
+            }
 
             const termStr = primaryPremise.term?.toString?.() ?? String(primaryPremise.term ?? '');
             const isGoalOrQuestion = isGoal(primaryPremise) || isQuestion(primaryPremise);
@@ -69,7 +71,9 @@ Based on that analogy, describe a step-by-step solution for the original problem
         },
 
         generate: (processedOutput, primaryPremise, secondaryPremise, context) => {
-            if (!processedOutput) {return [];}
+            if (!processedOutput) {
+                return [];
+            }
 
             const termFactory = context?.termFactory ?? dependencies.termFactory;
             if (!termFactory) {

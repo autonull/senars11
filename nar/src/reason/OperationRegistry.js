@@ -3,7 +3,7 @@
  * Provides validated operation registration and execution
  */
 
-import { logError } from './utils/error.js';
+import {logError} from '@senars/core';
 
 /**
  * Registry for mathematical and comparison operations
@@ -25,7 +25,7 @@ export class OperationRegistry {
      * @param {*} options.identity - Identity element for the operation
      */
     register(symbol, implementation, options = {}) {
-        const { arity = -1, category = 'custom', identity = null } = options;
+        const {arity = -1, category = 'custom', identity = null} = options;
 
         if (typeof implementation !== 'function') {
             throw new Error(`Operation '${symbol}' must be a function`);

@@ -1,8 +1,7 @@
-import { Component } from '../composable/Component.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { MetricsTracker } from '../utils/MetricsTracker.js';
-import { SymbolicDifferentiation } from './SymbolicDifferentiation.js';
-import { Tensor } from '@senars/tensor';
+import {Component} from '../composable/Component.js';
+import {mergeConfig, MetricsTracker} from '../utils/index.js';
+import {SymbolicDifferentiation} from './SymbolicDifferentiation.js';
+import {Tensor} from '@senars/tensor';
 
 const DEFAULTS = {
     trackProvenance: true,
@@ -36,9 +35,21 @@ export class WorldModel extends Component {
         }) : null;
     }
 
+    static create(config = {}) {
+        return new WorldModel(config);
+    }
+
+    static createImaginationFocused(config = {}) {
+        return new WorldModel({...config, imaginationHorizon: 20, ensembleSize: 3});
+    }
+
+    static createUncertaintyAware(config = {}) {
+        return new WorldModel({...config, ensembleSize: 10, uncertaintyThreshold: 0.3});
+    }
+
     async onInitialize() {
         this._initializeModels();
-        this.emit('initialized', { latentDim: this.latentDim, ensembleSize: this.ensembleSize });
+        this.emit('initialized', {latentDim: this.latentDim, ensembleSize: this.ensembleSize});
     }
 
     _initializeModels() {
@@ -47,7 +58,7 @@ export class WorldModel extends Component {
         // decoder: latent inputs -> 64 outputs
         this.decoder = this._createModel(this.latentDim, 64);
         // transition: latent inputs -> latent outputs
-        this.transitionModels = Array.from({ length: this.ensembleSize }, () => this._createModel(this.latentDim, this.latentDim));
+        this.transitionModels = Array.from({length: this.ensembleSize}, () => this._createModel(this.latentDim, this.latentDim));
         // reward: latent inputs -> 1 output
         this.rewardModel = this._createModel(this.latentDim, 1);
     }
@@ -57,18 +68,20 @@ export class WorldModel extends Component {
         const b = Tensor.zeros([outDim]);
         w.requiresGrad = true;
         b.requiresGrad = true;
-        return { w, b };
+        return {w, b};
     }
 
     async update(state, action, nextState, reward) {
-        this.experienceBuffer.push({ state, action, nextState, reward });
-        if (this.experienceBuffer.length > 10000) {this.experienceBuffer.shift();}
+        this.experienceBuffer.push({state, action, nextState, reward});
+        if (this.experienceBuffer.length > 10000) {
+            this.experienceBuffer.shift();
+        }
 
         if (this.experienceBuffer.length >= 32) {
             await this._trainModels();
         }
         this.metrics?.increment('updatesPerformed');
-        return { updated: true };
+        return {updated: true};
     }
 
     async _trainModels() {
@@ -113,7 +126,7 @@ export class WorldModel extends Component {
     _step(params, lr) {
         for (const p of params) {
             if (p.grad) {
-                for(let i = 0; i < p.data.length; i++) {
+                for (let i = 0; i < p.data.length; i++) {
                     p.data[i] -= lr * p.grad.data[i];
                 }
             }
@@ -122,7 +135,9 @@ export class WorldModel extends Component {
 
     _zeroGrad(params) {
         for (const p of params) {
-            if (p.grad) {p.grad = null;}
+            if (p.grad) {
+                p.grad = null;
+            }
         }
     }
 
@@ -146,7 +161,7 @@ export class WorldModel extends Component {
         const input = new Tensor(latent).reshape([1, this.latentDim]);
 
         const sum = this.transitionModels.reduce((acc, model) =>
-            acc.add(this._forwardLinear(input, model).tanh()),
+                acc.add(this._forwardLinear(input, model).tanh()),
             Tensor.zeros([1, this.latentDim])
         );
 
@@ -178,13 +193,19 @@ export class WorldModel extends Component {
         const mean = new Float32Array(this.latentDim);
 
         for (const pred of predictions) {
-            for (let i = 0; i < this.latentDim; i++) {mean[i] += pred[i];}
+            for (let i = 0; i < this.latentDim; i++) {
+                mean[i] += pred[i];
+            }
         }
-        for (let i = 0; i < this.latentDim; i++) {mean[i] /= count;}
+        for (let i = 0; i < this.latentDim; i++) {
+            mean[i] /= count;
+        }
 
         const totalVar = predictions.reduce((acc, pred) => {
             let v = 0;
-            for(let i=0; i<this.latentDim; i++) {v += Math.pow(pred[i] - mean[i], 2);}
+            for (let i = 0; i < this.latentDim; i++) {
+                v += Math.pow(pred[i] - mean[i], 2);
+            }
             return acc + v / count;
         }, 0);
 
@@ -192,7 +213,7 @@ export class WorldModel extends Component {
     }
 
     async generateImaginedExperiences(count, options = {}) {
-        const { horizon = this.config.imaginationHorizon, startState = null } = options;
+        const {horizon = this.config.imaginationHorizon, startState = null} = options;
         const experiences = [];
 
         for (let i = 0; i < count; i++) {
@@ -203,7 +224,7 @@ export class WorldModel extends Component {
                 const nextState = this.predictNext(state, action);
                 const reward = this.predictReward(state, action);
 
-                experiences.push({ state, action, nextState, reward, imagined: true });
+                experiences.push({state, action, nextState, reward, imagined: true});
                 state = nextState;
             }
         }
@@ -212,7 +233,7 @@ export class WorldModel extends Component {
     }
 
     _sampleInitialState() {
-        return Array.from({ length: 8 }, () => Math.random() * 2 - 1);
+        return Array.from({length: 8}, () => Math.random() * 2 - 1);
     }
 
     planWithModel(state, goal, horizon = 10) {
@@ -220,7 +241,7 @@ export class WorldModel extends Component {
         let bestValue = -Infinity;
 
         for (let i = 0; i < 100; i++) {
-            const plan = Array.from({ length: horizon }, () => Math.floor(Math.random() * 4));
+            const plan = Array.from({length: horizon}, () => Math.floor(Math.random() * 4));
             let currentState = state;
             let totalValue = 0;
 
@@ -249,7 +270,7 @@ export class WorldModel extends Component {
         const latent = this.encode(state);
 
         const importantFeatures = Array.from(latent)
-            .map((value, i) => ({ dimension: i, value, influence: Math.abs(value) }))
+            .map((value, i) => ({dimension: i, value, influence: Math.abs(value)}))
             .filter(f => f.influence > this.config.symbolicThreshold)
             .sort((a, b) => b.influence - a.influence)
             .slice(0, 5);
@@ -278,17 +299,5 @@ export class WorldModel extends Component {
     async onShutdown() {
         this.experienceBuffer = [];
         this.symbolicDiff.clear();
-    }
-
-    static create(config = {}) {
-        return new WorldModel(config);
-    }
-
-    static createImaginationFocused(config = {}) {
-        return new WorldModel({ ...config, imaginationHorizon: 20, ensembleSize: 3 });
-    }
-
-    static createUncertaintyAware(config = {}) {
-        return new WorldModel({ ...config, ensembleSize: 10, uncertaintyThreshold: 0.3 });
     }
 }

@@ -1,1 +1,2 @@
-export class StdioServerTransport {}
+export class StdioServerTransport {
+}

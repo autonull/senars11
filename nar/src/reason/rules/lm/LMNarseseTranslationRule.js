@@ -1,8 +1,8 @@
-import { LMRule } from '../../LMRule.js';
-import { NarseseTranslator } from '@senars/core/src/lm/NarseseTranslator.js';
-import { NarseseParser } from '../../../parser/NarseseParser.js';
-import { Task } from '../../../task/Task.js';
-import { Truth } from '../../../Truth.js';
+import {LMRule} from '../../LMRule.js';
+import {NarseseTranslator} from '@senars/core/src/lm/NarseseTranslator.js';
+import {NarseseParser} from '../../../parser/NarseseParser.js';
+import {Task} from '../../../task/Task.js';
+import {Truth} from '../../../Truth.js';
 
 export class LMNarseseTranslationRule extends LMRule {
     constructor(id, lm, config = {}) {
@@ -19,7 +19,9 @@ export class LMNarseseTranslationRule extends LMRule {
                 !primary.term.includes('==>'),
             process: (response, primary, secondary, context) => response,
             generate: (response, primary, secondary, context) => {
-                if (!response) {return [];}
+                if (!response) {
+                    return [];
+                }
 
                 const translator = new NarseseTranslator();
                 const {lmStats} = context;
@@ -58,7 +60,7 @@ export class LMNarseseTranslationRule extends LMRule {
                                 }
                             }
                         }
-                        return new Task({ term: termObj, truth, punctuation });
+                        return new Task({term: termObj, truth, punctuation});
                     };
 
                     if (response.includes('-->') || response.includes('==>')) {
@@ -78,7 +80,7 @@ export class LMNarseseTranslationRule extends LMRule {
 }
 
 export const createNarseseTranslationRule = (dependencies, config = {}) => {
-    const { lm } = dependencies;
+    const {lm} = dependencies;
     const id = config.id || 'lm-narsede-translation';
     return new LMNarseseTranslationRule(id, lm, config);
 };

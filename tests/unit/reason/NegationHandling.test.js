@@ -1,4 +1,4 @@
-import {TermFactory, InputProcessor, NarseseParser, Task} from '@senars/nar';
+import {InputProcessor, NarseseParser, Task, TermFactory} from '@senars/nar';
 
 describe('Negation Handling', () => {
     let termFactory;

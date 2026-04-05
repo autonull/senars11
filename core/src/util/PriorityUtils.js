@@ -3,8 +3,8 @@
  * Following AGENTS.md guidelines for elegant, consolidated, consistent, organized, and DRY code
  */
 
-import {clamp} from './common.js';
-import {RuntimeError} from './ErrorUtils.js';
+import { clamp } from './common.js';
+import { RuntimeError } from './ErrorUtils.js';
 
 /**
  * Priority calculator class for configurable priority calculations
@@ -27,12 +27,12 @@ export class PriorityCalculator {
             qualityWeight = 0.2,
             maxPriority = 1.0
         } = weights;
-
+        
         const {
             normalize = true,
             minPriority = 0
         } = options;
-
+        
         const {
             activation = 0,
             confidence = 0,
@@ -41,22 +41,22 @@ export class PriorityCalculator {
             taskTypeFactor = 1, // Factor based on task type (goal vs belief vs question)
             quality = 0
         } = factors;
-
-        let priority =
+        
+        let priority = 
             (activation * activationWeight) +
             (confidence * confidenceWeight) +
             (complexity * complexityWeight) +
             (recency * recencyWeight) +
             (taskTypeFactor * taskTypeWeight) +
             (quality * qualityWeight);
-
+        
         if (normalize) {
             priority = clamp(priority, minPriority, maxPriority);
         }
-
+        
         return priority;
     }
-
+    
     /**
      * Calculate priority for an input task
      * @param {Object} inputFactors - Factors specific to input processing
@@ -71,35 +71,35 @@ export class PriorityCalculator {
             questionBoost = 0.1,
             maxPriority = 1.0
         } = config;
-
+        
         const {
             truthValue = null,
             taskType = 'BELIEF',
             complexity = 1
         } = inputFactors;
-
+        
         let priority = basePriority;
-
+        
         if (truthValue) {
             const confidenceBoost = (truthValue.confidence ?? 0) * confidenceMultiplier;
             priority += confidenceBoost;
         }
-
+        
         // Apply type-specific boosts
         if (taskType === 'GOAL') {
             priority += goalBoost;
         } else if (taskType === 'QUESTION') {
             priority += questionBoost;
         }
-
+        
         // Apply complexity penalty if needed
         if (complexity > 1) {
             priority /= complexity;
         }
-
+        
         return Math.min(maxPriority, priority);
     }
-
+    
     /**
      * Calculate composite priority score for concepts
      * @param {Object} conceptFactors - Factors for concept priority
@@ -116,7 +116,7 @@ export class PriorityCalculator {
             recencyWeight = 0,
             diversityWeight = 0
         } = weights;
-
+        
         const {
             activation = 0,
             useCount = 0,
@@ -125,14 +125,14 @@ export class PriorityCalculator {
             complexity = 0,
             lastAccessed = Date.now(),
             diversityScore = 0,
-            normalizationLimits = {useCount: 100, taskCount: 50}
+            normalizationLimits = { useCount: 100, taskCount: 50 }
         } = conceptFactors;
-
+        
         const normalizedUseCount = clamp(useCount / normalizationLimits.useCount, 0, 1);
         const normalizedTaskCount = clamp(totalTasks / normalizationLimits.taskCount, 0, 1);
         const recencyScore = this.calculateRecencyScore(lastAccessed);
-
-        const compositeScore =
+        
+        const compositeScore = 
             (activation * activationWeight) +
             (normalizedUseCount * useCountWeight) +
             (normalizedTaskCount * taskCountWeight) +
@@ -140,7 +140,7 @@ export class PriorityCalculator {
             (complexity * complexityWeight) +
             (recencyScore * recencyWeight) +
             (diversityScore * diversityWeight);
-
+        
         return {
             compositeScore: clamp(compositeScore, 0, 1),
             activationScore: activation,
@@ -152,7 +152,7 @@ export class PriorityCalculator {
             diversityScore: diversityScore
         };
     }
-
+    
     /**
      * Calculate recency score based on time since last access
      * @param {number} lastAccessed - Timestamp of last access
@@ -165,7 +165,7 @@ export class PriorityCalculator {
         // Recency score decreases with time (more recent = higher score)
         return Math.exp(-timeDiff / decayConstant);
     }
-
+    
     /**
      * Normalize a priority score to a specific range
      * @param {number} score - Raw score to normalize
@@ -176,7 +176,7 @@ export class PriorityCalculator {
     static normalize(score, min = 0, max = 1) {
         return clamp((score - min) / (max - min), 0, 1);
     }
-
+    
     /**
      * Create a priority calculator with specific configuration
      * @param {Object} config - Configuration for the calculator
@@ -185,7 +185,7 @@ export class PriorityCalculator {
     static createCalculator(config = {}) {
         return (factors) => this.calculate(factors, config.weights, config.options);
     }
-
+    
     /**
      * Calculates priority with validation
      * @param {Object} factors - Priority factors
@@ -199,10 +199,10 @@ export class PriorityCalculator {
             throw new RuntimeError(
                 'Priority calculation requires valid factor, weight, and option objects',
                 'calculateWithValidation',
-                {factors, weights, options}
+                { factors, weights, options }
             );
         }
-
+        
         // Validate numerical values
         const numericFields = ['activation', 'confidence', 'complexity', 'recency', 'quality'];
         for (const field of numericFields) {
@@ -210,11 +210,11 @@ export class PriorityCalculator {
                 throw new RuntimeError(
                     `Priority factor '${field}' must be a number`,
                     'calculateWithValidation',
-                    {field, value: factors[field]}
+                    { field, value: factors[field] }
                 );
             }
         }
-
+        
         return this.calculate(factors, weights, options);
     }
 }
@@ -227,10 +227,8 @@ export const PriorityStrategies = {
      * Standard priority calculation for tasks
      */
     standardTask: (task) => {
-        if (!task?.budget) {
-            return 0.5;
-        }
-
+        if (!task?.budget) {return 0.5;}
+        
         return PriorityCalculator.calculateWithValidation({
             activation: task.budget.priority || 0,
             confidence: task.truth?.c || 0,
@@ -238,7 +236,7 @@ export const PriorityStrategies = {
             taskTypeFactor: task.type === 'GOAL' ? 1.2 : task.type === 'QUESTION' ? 1.1 : 1.0
         });
     },
-
+    
     /**
      * Priority calculation for concepts
      */
@@ -247,10 +245,10 @@ export const PriorityStrategies = {
             throw new RuntimeError(
                 'Concept is required for priority calculation',
                 'concept',
-                {weights}
+                { weights }
             );
         }
-
+        
         return PriorityCalculator.calculateCompositeScore({
             activation: concept.activation || 0,
             useCount: concept.useCount || 0,
@@ -260,7 +258,7 @@ export const PriorityStrategies = {
             lastAccessed: concept.lastAccessed || Date.now()
         }, weights);
     },
-
+    
     /**
      * Priority calculation for input tasks
      */
@@ -269,21 +267,19 @@ export const PriorityStrategies = {
             throw new RuntimeError(
                 'Input data is required for priority calculation',
                 'input',
-                {config}
+                { config }
             );
         }
-
+        
         return PriorityCalculator.calculateInputPriority(inputData, config);
     },
-
+    
     /**
      * Dynamic priority calculation based on context
      */
     dynamic: (entity, context = {}) => {
-        if (!entity) {
-            return 0;
-        }
-
+        if (!entity) {return 0;}
+        
         // Determine entity type and apply appropriate strategy
         if (entity.budget) {
             // Likely a task
@@ -295,7 +291,7 @@ export const PriorityStrategies = {
             // Likely input data
             return PriorityStrategies.input(entity, context.config);
         }
-
+        
         // Default fallback
         return 0.5;
     }
@@ -306,11 +302,11 @@ export const PriorityStrategies = {
  */
 export class PriorityScorer {
     constructor(config = {}) {
-        this.strategies = {...PriorityStrategies, ...config.customStrategies};
+        this.strategies = { ...PriorityStrategies, ...config.customStrategies };
         this.weights = config.weights || {};
         this.defaults = config.defaults || {};
     }
-
+    
     /**
      * Score an entity using the appropriate strategy
      * @param {Object} entity - Entity to score
@@ -320,30 +316,30 @@ export class PriorityScorer {
      */
     score(entity, strategy = 'dynamic', options = {}) {
         const strategyFn = this.strategies[strategy];
-
+        
         if (!strategyFn) {
             throw new RuntimeError(
                 `Unknown priority scoring strategy: ${strategy}`,
                 'score',
-                {strategy, available: Object.keys(this.strategies)}
+                { strategy, available: Object.keys(this.strategies) }
             );
         }
-
+        
         try {
-            return strategyFn(entity, {...this.weights, ...options});
+            return strategyFn(entity, { ...this.weights, ...options });
         } catch (error) {
             if (error instanceof RuntimeError) {
                 throw error;
             }
-
+            
             throw new RuntimeError(
                 `Error in priority scoring: ${error.message}`,
                 'score',
-                {strategy, entity: entity?.constructor?.name, error: error.message}
+                { strategy, entity: entity?.constructor?.name, error: error.message }
             );
         }
     }
-
+    
     /**
      * Batch score multiple entities
      * @param {Array} entities - Entities to score
@@ -356,17 +352,17 @@ export class PriorityScorer {
             throw new RuntimeError(
                 'Entities must be an array',
                 'batchScore',
-                {entities, strategy}
+                { entities, strategy }
             );
         }
-
+        
         return entities.map(entity => ({
             entity,
             score: this.score(entity, strategy, options),
             timestamp: Date.now()
         }));
     }
-
+    
     /**
      * Rank entities by priority score
      * @param {Array} entities - Entities to rank

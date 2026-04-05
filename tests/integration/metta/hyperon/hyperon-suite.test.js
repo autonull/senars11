@@ -3,13 +3,13 @@
  * Runs official MeTTa test files and validates results
  */
 
-import { HyperonTestRunner } from './HyperonTestRunner.js';
+import {HyperonTestRunner} from './HyperonTestRunner.js';
 
 describe('Hyperon Test Suite', () => {
     let runner;
 
     beforeEach(() => {
-        runner = new HyperonTestRunner({ verbose: false });
+        runner = new HyperonTestRunner({verbose: false});
     });
 
     afterEach(() => {

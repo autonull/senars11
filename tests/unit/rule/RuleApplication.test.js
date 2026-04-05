@@ -1,4 +1,4 @@
-import {ImplicationSyllogisticRule, ModusPonensRule, Task, Truth, TermFactory} from '@senars/nar';
+import {ImplicationSyllogisticRule, ModusPonensRule, Task, TermFactory, Truth} from '@senars/nar';
 
 describe('Rule Application', () => {
     let tf, tA, tB, tC;

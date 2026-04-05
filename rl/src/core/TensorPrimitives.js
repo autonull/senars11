@@ -1,5 +1,5 @@
-import { Tensor, TensorFunctor } from '@senars/tensor';
-import { PolicyUtils } from '../utils/PolicyUtils.js';
+import {Tensor, TensorFunctor} from '@senars/tensor';
+import {PolicyUtils} from '../utils/index.js';
 
 const TensorWrapper = {
     wrap(t) {
@@ -14,17 +14,24 @@ const TensorWrapper = {
     },
 
     unwrap(atom) {
-        if (!atom) {return null;}
-        if (atom.type === 'Value' && atom.value instanceof Tensor) {return atom.value;}
+        if (!atom) {
+            return null;
+        }
+        if (atom.type === 'Value' && atom.value instanceof Tensor) {
+            return atom.value;
+        }
         if (atom.type === 'Symbol') {
             const {name} = atom;
             if (name.startsWith('(')) {
                 try {
                     return new Tensor(name.slice(1, -1).trim().split(/\s+/).map(Number));
-                } catch { /* Fail silently */ }
+                } catch { /* Fail silently */
+                }
             }
             const num = Number(name);
-            if (!isNaN(num)) {return num;}
+            if (!isNaN(num)) {
+                return num;
+            }
         }
         return atom;
     },
@@ -32,7 +39,7 @@ const TensorWrapper = {
     createOp(name, functor) {
         return (...args) => {
             const unwrappedArgs = args.map(a => TensorWrapper.unwrap(a));
-            const term = { operator: name, components: unwrappedArgs };
+            const term = {operator: name, components: unwrappedArgs};
             return TensorWrapper.wrap(functor.evaluate(term, new Map()));
         };
     },
@@ -42,7 +49,7 @@ const TensorWrapper = {
     },
 
     createSymbol(name) {
-        return { type: 'Symbol', name, toString: () => name };
+        return {type: 'Symbol', name, toString: () => name};
     }
 };
 
@@ -51,7 +58,7 @@ export function registerTensorPrimitives(metta) {
     const {ground} = metta;
     const reg = (name, fn) => ground.register(name, fn);
 
-    const { wrap, unwrap, createOp, parseShape, createSymbol } = TensorWrapper;
+    const {wrap, unwrap, createOp, parseShape, createSymbol} = TensorWrapper;
 
     const ops = [
         'matmul', 'add', 'sub', 'mul', 'div',
@@ -76,7 +83,9 @@ export function registerTensorPrimitives(metta) {
     const params = new Map();
     reg('&param', (nameAtom, shapeAtom) => {
         const name = nameAtom.toString();
-        if (params.has(name)) {return wrap(params.get(name));}
+        if (params.has(name)) {
+            return wrap(params.get(name));
+        }
 
         const param = Tensor.randn(parseShape(shapeAtom));
         param.requiresGrad = true;

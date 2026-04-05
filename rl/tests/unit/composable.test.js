@@ -1,22 +1,23 @@
 /**
  * Unit Tests for Composable Module System
  */
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import {describe, expect, it} from '@jest/globals';
 import {
+    ArchitectureEvolver,
     Component,
-    functionalComponent,
     ComponentRegistry,
     CompositionEngine,
+    functionalComponent,
+    MetaController,
     PipelineBuilder
-} from '../../src/composable/ComposableSystem.js';
-import { MetaController, ArchitectureEvolver } from '../../src/meta/MetaControlSystem.js';
+} from '../../src/index.js';
 
 // ========== Component Tests ==========
 describe('Component', () => {
 
     class TestComponent extends Component {
         constructor(config = {}) {
-            super({ value: 0, ...config });
+            super({value: 0, ...config});
         }
 
         async onInitialize() {
@@ -30,7 +31,7 @@ describe('Component', () => {
 
     describe('Lifecycle', () => {
         it('should initialize and shutdown', async () => {
-            const comp = new TestComponent({ value: 10 });
+            const comp = new TestComponent({value: 10});
             expect(comp.initialized).toBe(false);
 
             await comp.initialize();
@@ -44,9 +45,9 @@ describe('Component', () => {
 
     describe('Composition', () => {
         it('should add, get, and remove children', async () => {
-            const parent = new TestComponent({ value: 1 });
-            const child1 = new TestComponent({ value: 2 });
-            const child2 = new TestComponent({ value: 3 });
+            const parent = new TestComponent({value: 1});
+            const child1 = new TestComponent({value: 2});
+            const child2 = new TestComponent({value: 3});
 
             parent.add('child1', child1);
             parent.add('child2', child2);
@@ -71,7 +72,7 @@ describe('Component', () => {
                 eventData = data;
             });
 
-            comp.emit('testEvent', { message: 'hello' });
+            comp.emit('testEvent', {message: 'hello'});
 
             expect(eventReceived).toBe(true);
             expect(eventData.message).toBe('hello');
@@ -80,7 +81,7 @@ describe('Component', () => {
 
     describe('Serialization', () => {
         it('should serialize component', async () => {
-            const comp = new TestComponent({ value: 42 });
+            const comp = new TestComponent({value: 42});
             await comp.initialize();
             comp.setState('customState', 'test');
 
@@ -93,7 +94,7 @@ describe('Component', () => {
     describe('Functional Component', () => {
         it('should execute function', async () => {
             const fn = async (input, component) => input * 2;
-            const FuncComp = functionalComponent(fn, { multiplier: 2 });
+            const FuncComp = functionalComponent(fn, {multiplier: 2});
             const comp = new FuncComp();
 
             await comp.initialize();
@@ -109,7 +110,7 @@ describe('ComponentRegistry', () => {
 
     class TestComponent extends Component {
         constructor(config = {}) {
-            super({ value: 0, ...config });
+            super({value: 0, ...config});
         }
     }
 
@@ -127,7 +128,7 @@ describe('ComponentRegistry', () => {
             expect(registry.has('tc')).toBe(true);
             expect(registry.get('tc')).toBe(TestComponent);
 
-            const instance = registry.create('testComp', { value: 5 });
+            const instance = registry.create('testComp', {value: 5});
             expect(instance.config.value).toBe(5);
 
             registry.unregister('testComp');
@@ -140,7 +141,7 @@ describe('ComponentRegistry', () => {
             const registry = new ComponentRegistry();
 
             registry.register('dep1', TestComponent);
-            registry.register('dep2', TestComponent, { dependencies: ['dep1'] });
+            registry.register('dep2', TestComponent, {dependencies: ['dep1']});
 
             const deps = registry.resolveDependencies('dep2');
             expect(deps.includes('dep1')).toBe(true);
@@ -151,8 +152,8 @@ describe('ComponentRegistry', () => {
     describe('List', () => {
         it('should list all components', () => {
             const registry = new ComponentRegistry();
-            registry.register('comp1', TestComponent, { version: '1.0.0' });
-            registry.register('comp2', TestComponent, { version: '2.0.0' });
+            registry.register('comp1', TestComponent, {version: '1.0.0'});
+            registry.register('comp2', TestComponent, {version: '2.0.0'});
 
             const list = registry.list();
             expect(list.length).toBe(2);
@@ -165,7 +166,7 @@ describe('CompositionEngine', () => {
 
     class TestComponent extends Component {
         constructor(config = {}) {
-            super({ value: 0, ...config });
+            super({value: 0, ...config});
         }
 
         async process(input) {
@@ -177,12 +178,12 @@ describe('CompositionEngine', () => {
         it('should create pipeline', async () => {
             const engine = new CompositionEngine();
 
-            const comp1 = new TestComponent({ value: 1 });
-            const comp2 = new TestComponent({ value: 2 });
+            const comp1 = new TestComponent({value: 1});
+            const comp2 = new TestComponent({value: 2});
 
             engine.createPipeline('test', [
-                { id: 'stage1', component: comp1 },
-                { id: 'stage2', component: comp2 }
+                {id: 'stage1', component: comp1},
+                {id: 'stage2', component: comp2}
             ]);
 
             const pipeline = engine.getPipeline('test');
@@ -193,10 +194,10 @@ describe('CompositionEngine', () => {
     describe('Pipeline Execution', () => {
         it('should execute pipeline', async () => {
             const engine = new CompositionEngine();
-            const comp = new TestComponent({ value: 10 });
+            const comp = new TestComponent({value: 10});
 
             engine.createPipeline('add', [
-                { id: 'add10', component: comp, config: { method: 'process' } }
+                {id: 'add10', component: comp, config: {method: 'process'}}
             ]);
 
             const result = await engine.execute('add', 5);
@@ -208,11 +209,11 @@ describe('CompositionEngine', () => {
     describe('Pipeline Builder', () => {
         it('should build and run pipeline', async () => {
             const engine = new CompositionEngine();
-            const comp = new TestComponent({ value: 5 });
+            const comp = new TestComponent({value: 5});
 
             const result = await new PipelineBuilder(engine)
                 .named('builder_test')
-                .add(comp, { method: 'process' })
+                .add(comp, {method: 'process'})
                 .run(10);
 
             expect(result.success).toBe(true);
@@ -223,14 +224,14 @@ describe('CompositionEngine', () => {
     describe('Conditional Stage', () => {
         it('should execute conditionally', async () => {
             const engine = new CompositionEngine();
-            const comp = new TestComponent({ value: 100 });
+            const comp = new TestComponent({value: 100});
 
             engine.createPipeline('conditional', [
                 {
                     id: 'maybe',
                     component: comp,
                     condition: (input) => input > 50,
-                    config: { method: 'process' }
+                    config: {method: 'process'}
                 }
             ]);
 
@@ -269,8 +270,8 @@ describe('MetaController', () => {
 
             const arch = {
                 stages: [
-                    { id: 's1', component: {} },
-                    { id: 's2', component: {} }
+                    {id: 's1', component: {}},
+                    {id: 's2', component: {}}
                 ]
             };
 
@@ -284,7 +285,7 @@ describe('MetaController', () => {
 
     describe('Evaluation', () => {
         it('should track metrics', async () => {
-            const meta = new MetaController({ evaluationWindow: 5 });
+            const meta = new MetaController({evaluationWindow: 5});
             await meta.initialize();
 
             const state = meta.getState();
@@ -297,7 +298,7 @@ describe('MetaController', () => {
 
     describe('Modification', () => {
         it('should track modification metrics', async () => {
-            const meta = new MetaController({ explorationRate: 1.0 });
+            const meta = new MetaController({explorationRate: 1.0});
             await meta.initialize();
 
             const state = meta.getState();
@@ -326,7 +327,7 @@ describe('ArchitectureEvolver', () => {
 
     describe('Configuration', () => {
         it('should store configuration', async () => {
-            const evolver = new ArchitectureEvolver({ 
+            const evolver = new ArchitectureEvolver({
                 populationSize: 3,
                 elitismRate: 0.25
             });

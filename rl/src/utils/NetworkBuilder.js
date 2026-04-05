@@ -1,5 +1,5 @@
-import { Tensor } from '@senars/tensor';
-import { PolicyUtils } from './PolicyUtils.js';
+import {Tensor} from '@senars/tensor';
+import {PolicyUtils} from './PolicyUtils.js';
 
 export const NetworkBuilder = {
     /**
@@ -18,9 +18,11 @@ export const NetworkBuilder = {
         const b2 = Tensor.zeros([outputDim]);
 
         const params = [w1, b1, w2, b2];
-        for (const p of params) {p.requiresGrad = true;}
+        for (const p of params) {
+            p.requiresGrad = true;
+        }
 
-        return { w1, b1, w2, b2, params };
+        return {w1, b1, w2, b2, params};
     },
 
     /**
@@ -95,6 +97,6 @@ export const NetworkBuilder = {
             returns[t] = advantages[t] + values[t];
         }
 
-        return { advantages, returns };
+        return {advantages, returns};
     }
 };

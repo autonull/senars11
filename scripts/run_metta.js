@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 import fs from 'fs';
 import path from 'path';
-import {fileURLToPath} from 'url';
 
 // Adjust path to point to core
-import {MeTTaInterpreter, TermFactory, StdlibLoader} from '@senars/nar';
+import {MeTTaInterpreter, TermFactory} from '@senars/nar';
 
 const run = async () => {
     const args = process.argv.slice(2);

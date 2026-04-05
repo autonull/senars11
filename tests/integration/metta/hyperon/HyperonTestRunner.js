@@ -3,12 +3,12 @@
  * Runs official MeTTa test files and compares results
  */
 
-import { MeTTaInterpreter } from '../../../../metta/src/MeTTaInterpreter.js';
-import { Formatter } from '../../../../metta/src/kernel/Formatter.js';
-import { dirname, join, resolve, basename } from 'path';
-import { fileURLToPath } from 'url';
-import { readdir, readFile } from 'fs/promises';
-import { existsSync, readFileSync } from 'fs';
+import {MeTTaInterpreter} from '../../../../metta/src/index.js';
+import {Formatter} from '../../../../metta/src/kernel/Formatter.js';
+import {basename, dirname, join, resolve} from 'path';
+import {fileURLToPath} from 'url';
+import {readdir} from 'fs/promises';
+import {existsSync, readFileSync} from 'fs';
 
 let __dirname;
 try {

@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals';
 import { NotebookManager } from '../../src/notebook/NotebookManager.js';
 import { eventBus } from '../../src/core/EventBus.js';
 import { EVENTS } from '../../src/config/constants.js';

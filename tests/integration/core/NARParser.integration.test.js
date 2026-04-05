@@ -1,6 +1,5 @@
-import {Truth, IntrospectionEvents} from '@senars/nar';
-import {createNARIntegrationTestSuite} from '../../support/narTestSetup.js';
-import {flexibleAssertions, runPerformanceTest} from '../../support/baseTestUtils.js';
+import {IntrospectionEvents, Truth} from '@senars/nar';
+import {createNARIntegrationTestSuite, flexibleAssertions, runPerformanceTest} from '../../support/index.js';
 
 // Make available as globals for the test patterns
 globalThis.flexibleAssertions = flexibleAssertions;

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import {TransformersJSProvider} from '../../core/src/lm/TransformersJSProvider.js';
+import {TransformersJSProvider} from '@senars/core';
 
 const main = async () => {
     console.log('=== Minimal LM Inference ===\n');

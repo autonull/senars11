@@ -4,10 +4,20 @@
  */
 
 // RL-specific utilities (re-export core utilities where applicable)
-export { mergeConfig, createConfig, ConfigSchema, withDefaults, extractConfig, validateConfig, createConfiguredClass, deepMergeConfig, ConfigValidator } from './ConfigHelper.js';
+export {
+    mergeConfig,
+    createConfig,
+    ConfigSchema,
+    withDefaults,
+    extractConfig,
+    validateConfig,
+    createConfiguredClass,
+    deepMergeConfig,
+    ConfigValidator
+} from './ConfigHelper.js';
 
 // Error handling - RL-specific neuro-symbolic errors
-export { NeuroSymbolicError, handleError } from './ErrorHandler.js';
+export {NeuroSymbolicError, handleError} from './ErrorHandler.js';
 
 // Enhanced error classes with helpful messages
 export {
@@ -24,7 +34,7 @@ export {
 } from './EnhancedErrors.js';
 
 // Metrics tracking for RL components
-export { MetricsTracker } from './MetricsTracker.js';
+export {MetricsTracker} from './MetricsTracker.js';
 
 // Narsese conversion utilities (RL-specific)
 export * from './NarseseUtils.js';
@@ -37,6 +47,6 @@ export * from './NetworkBuilder.js';
 export * from './DataStructures.js';
 
 // Re-export commonly used core utilities
-export { mergeConfig as coreMergeConfig, validateConfig as coreValidateConfig } from '@senars/core';
-export { Metrics } from '@senars/core/src/util/Metrics.js';
-export { Logger } from '@senars/core';
+export {mergeConfig as coreMergeConfig, validateConfig as coreValidateConfig} from '@senars/core';
+export {Metrics} from '@senars/core/src/util/Metrics.js';
+export {Logger} from '@senars/core';

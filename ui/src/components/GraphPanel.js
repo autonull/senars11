@@ -2,7 +2,7 @@ import { Component } from './Component.js';
 import { SeNARSGraph } from '../zui/SeNARSGraph.js';
 import { FluentToolbar } from './ui/FluentToolbar.js';
 import { FluentUI } from '../utils/FluentUI.js';
-import { ReactiveState } from '../core/ReactiveState.js';
+import { ReactiveState } from '../core/index.js';
 import { eventBus } from '../core/EventBus.js';
 import { EVENTS } from '../config/constants.js';
 

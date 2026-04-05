@@ -3,7 +3,7 @@
  */
 
 import {Reasoner, TaskBagPremiseSource, Strategy, RuleProcessor, Rule} from '@senars/nar';
-import {createTestMemory, createTestTask} from '../../tests/support/baseTestUtils.js';
+import {createTestMemory, createTestTask} from '../../tests/support/index.js';
 
 // Test rule for the comprehensive test
 class TestRule extends Rule {

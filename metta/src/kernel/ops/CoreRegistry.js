@@ -2,9 +2,7 @@
  * CoreRegistry.js - Core operation registry
  */
 
-import { sym, exp } from '../../kernel/Term.js';
-import { Unify } from '../../kernel/Unify.js';
-import { OperationNotFoundError } from '../../errors/MeTTaErrors.js';
+import {OperationNotFoundError} from '@senars/core';
 
 export class CoreRegistry {
     constructor() {
@@ -15,7 +13,7 @@ export class CoreRegistry {
      * Register a new operation
      */
     register(name, fn, options = {}) {
-        this.operations.set(this._normalize(name), { fn, options });
+        this.operations.set(this._normalize(name), {fn, options});
         return this;
     }
 
@@ -48,11 +46,15 @@ export class CoreRegistry {
      */
     execute(name, ...args) {
         const n = typeof name === 'string' ? name : name?.name;
-        if (!n) {throw new OperationNotFoundError(String(name));}
+        if (!n) {
+            throw new OperationNotFoundError(String(name));
+        }
 
         const norm = this._normalize(n);
         const op = this.operations.get(norm);
-        if (!op) {throw new OperationNotFoundError(n);}
+        if (!op) {
+            throw new OperationNotFoundError(n);
+        }
         return op.fn(...args);
     }
 

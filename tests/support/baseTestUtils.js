@@ -1,4 +1,4 @@
-import {NAR, Task, Truth, TermFactory, ReasonerBuilder} from '@senars/nar';
+import {NAR, ReasonerBuilder, Task, TermFactory, Truth} from '@senars/nar';
 import {createTask, createTerm, createTruth, TEST_CONSTANTS} from './factories.js';
 import {ComponentTestSetup, NARTestSetup} from './setup.js';
 import {truthAssertions} from './assertions.js';

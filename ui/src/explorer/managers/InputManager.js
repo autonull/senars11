@@ -137,7 +137,7 @@ export class InputManager {
                 const filters = {
                     'tasks': { showTasks: visible },
                     'concepts': { showConcepts: visible },
-                    'trace': visible ? {} : {}
+                    'trace': {}
                 };
                 if (layer === 'trace') {
                     this.app.graph.cy.elements().classList.toggle('trace-dim', visible);

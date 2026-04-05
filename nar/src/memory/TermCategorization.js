@@ -4,7 +4,9 @@ export class TermCategorization {
      */
     static getTermComplexity(term) {
         // Base complexity on number of components and nesting
-        if (!term || !term.components) {return 1;}
+        if (!term || !term.components) {
+            return 1;
+        }
 
         let complexity = 1; // Base complexity
 
@@ -36,9 +38,13 @@ export class TermCategorization {
      * Get the category of a term based on its structure
      */
     static getTermCategory(term) {
-        if (!term) {return 'unknown';}
+        if (!term) {
+            return 'unknown';
+        }
 
-        if (term.isAtomic) {return 'atomic';}
+        if (term.isAtomic) {
+            return 'atomic';
+        }
 
         // Categorize based on operator using object lookup for better performance
         const categoryMap = {
@@ -58,7 +64,9 @@ export class TermCategorization {
      * Get the activation bucket for a given activation value
      */
     static getActivationBucket(activation, config) {
-        if (activation === undefined) {activation = 0;}
+        if (activation === undefined) {
+            activation = 0;
+        }
 
         const bucket = config.activationBuckets.find(threshold => activation <= threshold);
         return bucket !== undefined

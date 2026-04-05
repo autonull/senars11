@@ -2,8 +2,8 @@
  *  Quick test to understand lambda structure
  */
 
-import { Parser } from '../../../metta/src/Parser.js';
-import { MeTTaTestUtils } from '../../helpers/MeTTaTestUtils.js';
+import {Parser} from '../../../metta/src/Parser.js';
+import {MeTTaTestUtils} from '../../helpers/MeTTaTestUtils.js';
 
 describe('Lambda Structure Analysis', () => {
     test('analyze lambda application structure', () => {
@@ -41,7 +41,7 @@ describe('Lambda Structure Analysis', () => {
     });
 
     test('check rule indexing in space', () => {
-        const interp = MeTTaTestUtils.createInterpreter({ loadStdlib: true });
+        const interp = MeTTaTestUtils.createInterpreter({loadStdlib: true});
         const parser = new Parser();
 
         // Get lambda application

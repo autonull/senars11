@@ -1,49 +1,33 @@
-import {envDetector} from './EnvironmentDetector.js';
+import { envDetector } from '@senars/core';
 
-const LEVELS = {ERROR: 0, WARN: 1, INFO: 2, DEBUG: 3};
+const LEVELS = { ERROR: 0, WARN: 1, INFO: 2, DEBUG: 3 };
 
 class LoggerClass {
     #adapters = new Set();
 
-    constructor({silent = null, level = 'INFO'} = {}) {
+    constructor({ silent = null, level = 'INFO' } = {}) {
         this.isTestEnv = envDetector.isTest();
         this.silent = silent ?? this.isTestEnv;
         this.currentLevel = LEVELS[level.toUpperCase()] ?? LEVELS.INFO;
     }
 
-    addAdapter(adapter) {
-        this.#adapters.add(adapter);
-        return this;
-    }
-
-    removeAdapter(adapter) {
-        this.#adapters.delete(adapter);
-        return this;
-    }
+    addAdapter(adapter) { this.#adapters.add(adapter); return this; }
+    removeAdapter(adapter) { this.#adapters.delete(adapter); return this; }
 
     shouldLog(level) {
-        if (this.silent) {
-            return false;
-        }
-        if (level === 'debug' && !envDetector.isDebug()) {
-            return false;
-        }
+        if (this.silent) {return false;}
+        if (level === 'debug' && !envDetector.isDebug()) {return false;}
         return (LEVELS[level.toUpperCase()] ?? LEVELS.INFO) <= this.currentLevel;
     }
 
     log(level, msg, data) {
-        if (!this.shouldLog(level)) {
-            return;
-        }
+        if (!this.shouldLog(level)) {return;}
 
         const message = typeof msg === 'function' ? msg() : msg;
         const logData = typeof data === 'function' ? data() : data;
 
         for (const adapter of this.#adapters) {
-            try {
-                adapter.log?.(level, message, logData);
-            } catch { /* skip broken adapters */
-            }
+            try { adapter.log?.(level, message, logData); } catch { /* skip broken adapters */ }
         }
 
         if (this.#adapters.size === 0) {
@@ -53,36 +37,14 @@ class LoggerClass {
         }
     }
 
-    debug(msg, data) {
-        this.log('debug', msg, data);
-    }
+    debug(msg, data) { this.log('debug', msg, data); }
+    info(msg, data) { this.log('info', msg, data); }
+    warn(msg, data) { this.log('warn', msg, data); }
+    error(msg, data) { this.log('error', msg, data); }
 
-    info(msg, data) {
-        this.log('info', msg, data);
-    }
-
-    warn(msg, data) {
-        this.log('warn', msg, data);
-    }
-
-    error(msg, data) {
-        this.log('error', msg, data);
-    }
-
-    setSilent(silent) {
-        this.silent = silent;
-    }
-
-    setLevel(level) {
-        const v = LEVELS[level.toUpperCase()];
-        if (v !== undefined) {
-            this.currentLevel = v;
-        }
-    }
-
-    getLevel() {
-        return Object.keys(LEVELS).find(k => LEVELS[k] === this.currentLevel);
-    }
+    setSilent(silent) { this.silent = silent; }
+    setLevel(level) { const v = LEVELS[level.toUpperCase()]; if (v !== undefined) {this.currentLevel = v;} }
+    getLevel() { return Object.keys(LEVELS).find(k => LEVELS[k] === this.currentLevel); }
 }
 
 export class ConsoleLoggerAdapter {
@@ -94,4 +56,4 @@ export class ConsoleLoggerAdapter {
 }
 
 const logger = new LoggerClass();
-export {logger as Logger};
+export { logger as Logger };

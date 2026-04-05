@@ -1,4 +1,4 @@
-import { Logger } from '@senars/core';
+import {Logger} from '@senars/core';
 
 export const asyncGeneratorFromArray = async function* (array, processor = null) {
     for (const item of array) {
@@ -141,8 +141,10 @@ export const filterAsyncGenerator = async function* (asyncGen, asyncFilter) {
 
 export const takeAsyncGenerator = async function* (asyncGen, limit) {
     for (let count = 0; count < limit; count++) {
-        const { value, done } = await asyncGen.next();
-        if (done) {break;}
+        const {value, done} = await asyncGen.next();
+        if (done) {
+            break;
+        }
         yield value;
     }
 };
@@ -152,11 +154,15 @@ export const bufferedAsyncGenerator = async function* (asyncGen, bufferSize = 5)
     let generatorDone = false;
 
     const preload = async () => {
-        if (generatorDone || buffer.length >= bufferSize) {return;}
+        if (generatorDone || buffer.length >= bufferSize) {
+            return;
+        }
         try {
             for await (const item of asyncGen) {
                 buffer.push(item);
-                if (buffer.length >= bufferSize) {break;}
+                if (buffer.length >= bufferSize) {
+                    break;
+                }
             }
         } catch (error) {
             Logger.error('Error during preloading', error);

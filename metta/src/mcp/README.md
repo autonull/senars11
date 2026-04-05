@@ -6,9 +6,9 @@ Complete implementation of the [MeTTa MCP Integration Plan](../../metta/MCP.md).
 
 This implementation supports **two distinct use cases**:
 
-| Use Case | Direction | Description |
-|----------|-----------|-------------|
-| **MeTTa consumes MCPs** | External tools → MeTTa | MeTTa's reduction rules decide which tools to invoke |
+| Use Case                | Direction                       | Description                                                |
+|-------------------------|---------------------------------|------------------------------------------------------------|
+| **MeTTa consumes MCPs** | External tools → MeTTa          | MeTTa's reduction rules decide which tools to invoke       |
 | **SeNARS provides MCP** | MeTTa/NAR → external AI clients | Claude, Cursor, and any MCP host can call SeNARS reasoning |
 
 ## Files
@@ -113,6 +113,7 @@ const resilientCall = withCircuitBreaker(cachedCall, {
 The standard library provides these operations:
 
 #### Connection Management
+
 - `(mcp-manager)` - Get the JS McpClientManager instance
 - `(mcp-connect $server $cmd $args)` - Connect to an MCP server via stdio
 - `(mcp-connect-sse $server $url)` - Connect via SSE
@@ -120,15 +121,18 @@ The standard library provides these operations:
 - `(mcp-disconnect-all)` - Disconnect from all servers
 
 #### Tool Discovery
+
 - `(mcp-discover $server)` - Discover tools and assert them into the space
 - `(populate-tools $server $toolsArray)` - Internal: populate tool facts
 
 #### Tool Invocation
+
 - `(mcp-call $server $toolName $params)` - Call a tool with parameters
 - `(parse-mcp-result $result)` - Parse MCP result structure
 - `(safe-mcp-call $server $toolName $params $fallback)` - Call with fallback on error
 
 #### Tool Reasoning
+
 - `(tool-available? $name)` - Check if a tool is available
 - `(get-tool-description $name)` - Get tool description
 - `(get-tool-server $name)` - Get tool's server
@@ -137,11 +141,13 @@ The standard library provides these operations:
 - `(query-all-tools)` - Get all available tools
 
 #### Reliability Tracking
+
 - `(record-tool-success $toolName)` - Record successful call
 - `(record-tool-failure $toolName)` - Record failed call
 - `(tool-reliability $toolName)` - Get reliability score
 
 #### High-Level Orchestration
+
 - `(when-tool-available $toolName $then $else)` - Conditional execution
 - `(try-tool $server $toolName $params $default)` - Try tool or use default
 
@@ -188,16 +194,16 @@ node agent/src/mcp/start-server.js
 
 ### Available Tools
 
-| Tool | Description |
-|------|-------------|
-| `ping` | Health check |
-| `reason` | Feed premises into NAL, run N cycles, return derived beliefs |
-| `memory-query` | Query the concept memory by term string |
-| `get-focus` | Return top-N tasks from the attention focus buffer |
-| `execute-tool` | Invoke a registered NAR tool |
-| `evaluate_js` | Sandboxed JS execution (1s timeout, vm context) |
-| `sync-beliefs` | Bidirectional belief delta reconciliation |
-| `metta-eval` | **NEW!** Evaluate MeTTa expressions |
+| Tool           | Description                                                  |
+|----------------|--------------------------------------------------------------|
+| `ping`         | Health check                                                 |
+| `reason`       | Feed premises into NAL, run N cycles, return derived beliefs |
+| `memory-query` | Query the concept memory by term string                      |
+| `get-focus`    | Return top-N tasks from the attention focus buffer           |
+| `execute-tool` | Invoke a registered NAR tool                                 |
+| `evaluate_js`  | Sandboxed JS execution (1s timeout, vm context)              |
+| `sync-beliefs` | Bidirectional belief delta reconciliation                    |
+| `metta-eval`   | **NEW!** Evaluate MeTTa expressions                          |
 
 ### Using with MeTTa Interpreter
 
@@ -243,6 +249,7 @@ The `metta-eval` tool allows AI clients to evaluate MeTTa expressions:
 ```
 
 Modes:
+
 - `run` (default) - Evaluate and return results
 - `load` - Load code into space without evaluating
 - `query` - Query the space for patterns (use `pattern` and `template` params)
@@ -392,12 +399,14 @@ class ToolContext {
 ## Safety
 
 ### Consumer Mode (MeTTa calling tools)
+
 - Timeout enforcement on external tool requests (default: 30s, configurable)
 - Automatic retry with exponential backoff
 - Circuit breaker pattern to prevent cascade failures
 - Connection status tracking for reactive programming
 
 ### Provider Mode (SeNARS as server)
+
 - PII scrubbing is opt-in (disabled by default)
 - `<` and `>` are never HTML-escaped — Narsese syntax survives unchanged
 - Sandboxed JS: `evaluate_js` runs in a `vm.createContext` with 1s timeout
@@ -405,12 +414,12 @@ class ToolContext {
 
 ## Transport Reference
 
-| Transport | Status | When to Use |
-|-----------|--------|-------------|
-| Stdio | ✅ Working | Local servers; Claude Desktop; subprocesses |
-| SSE/HTTP | ✅ Working | Multi-client web servers; remote services |
-| WebSocket | 🔧 SDK-dependent | Real-time streaming (future) |
-| REST APIs | ✅ Via `fetch` | Arbitrary REST APIs via `&js-global` in MeTTa |
+| Transport | Status           | When to Use                                   |
+|-----------|------------------|-----------------------------------------------|
+| Stdio     | ✅ Working        | Local servers; Claude Desktop; subprocesses   |
+| SSE/HTTP  | ✅ Working        | Multi-client web servers; remote services     |
+| WebSocket | 🔧 SDK-dependent | Real-time streaming (future)                  |
+| REST APIs | ✅ Via `fetch`    | Arbitrary REST APIs via `&js-global` in MeTTa |
 
 ## TypeScript Support
 

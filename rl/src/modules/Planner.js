@@ -1,4 +1,4 @@
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {mergeConfig} from '../utils/index.js';
 
 const DEFAULTS = {
     planningHorizon: 3,
@@ -12,12 +12,14 @@ export class Planner {
     }
 
     async act(obs, goal = 'goal') {
-        if (!this.bridge) {return null;}
+        if (!this.bridge) {
+            return null;
+        }
 
         const term = (val) => Array.isArray(val) ? `(${val.join(',')})` : String(val);
 
         await this.bridge.input(`<(*, ${term(obs)}) --> obs>.`);
-        const result = await this.bridge.achieve(`<(*, ${term(goal)}) --> obs>!`, { cycles: this.config.cycles });
+        const result = await this.bridge.achieve(`<(*, ${term(goal)}) --> obs>!`, {cycles: this.config.cycles});
 
         return result?.executedOperations?.[0] ?? null;
     }

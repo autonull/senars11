@@ -2,12 +2,12 @@
  * Unified Cognitive System
  * Leverages core/reason/Reasoner and core/nar/NAR for reasoning
  */
-import { Component } from '../composable/Component.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { NAR, TermFactory } from '@senars/nar';
-import { AttentionSystem } from './AttentionSystem.js';
-import { CausalGraph } from './CausalGraph.js';
-import { NeuroSymbolicFusion } from '../attention/NeuroSymbolicFusion.js';
+import {Component} from '../composable/Component.js';
+import {mergeConfig} from '../utils/index.js';
+import {NAR, TermFactory} from '@senars/nar';
+import {AttentionSystem} from './AttentionSystem.js';
+import {CausalGraph} from './CausalGraph.js';
+import {NeuroSymbolicFusion} from '../attention/NeuroSymbolicFusion.js';
 
 const REASONING_DEFAULTS = {
     maxNodes: 100,
@@ -38,46 +38,64 @@ export class ReasoningSystem extends Component {
     }
 
     async learn(cause, effect, context = {}) {
-        const { action, reward } = context;
-        if (!this.graph.nodes.has(cause)) {this.graph.addNode(cause);}
-        if (!this.graph.nodes.has(effect)) {this.graph.addNode(effect);}
+        const {action, reward} = context;
+        if (!this.graph.nodes.has(cause)) {
+            this.graph.addNode(cause);
+        }
+        if (!this.graph.nodes.has(effect)) {
+            this.graph.addNode(effect);
+        }
 
         const strength = reward > 0 ? 0.8 : 0.3;
         this.graph.addEdge(cause, effect, strength);
         this.graph.observe(cause, 1);
         this.graph.observe(effect, reward);
 
-        this.beliefs.set(`${cause}->${effect}`, { cause, effect, action, reward, confidence: 0.5, timestamp: Date.now() });
+        this.beliefs.set(`${cause}->${effect}`, {
+            cause,
+            effect,
+            action,
+            reward,
+            confidence: 0.5,
+            timestamp: Date.now()
+        });
 
         if (this.nar) {
-            this.nar.input(`<${cause} --> ${effect}>.`);
+            await this.nar.input(`<${cause} --> ${effect}>.`);
         }
     }
 
     async reason(question, options = {}) {
-        const { cycles = 50 } = options;
+        const {cycles = 50} = options;
         if (this.nar) {
-            const result = await this.nar.ask(question, { cycles });
-            return { answer: result, source: 'NAR', confidence: result?.truth?.confidence ?? 0 };
+            const result = await this.nar.ask(question, {cycles});
+            return {answer: result, source: 'NAR', confidence: result?.truth?.confidence ?? 0};
         }
         return this.queryCauses(question);
     }
 
     queryCauses(effect) {
         const effectNode = this.graph.nodes.get(effect);
-        if (!effectNode) {return [];}
+        if (!effectNode) {
+            return [];
+        }
 
         return Array.from(effectNode.parents).map(parentId => {
             const edge = this.graph.getEdge(parentId, effect);
             const belief = this.beliefs.get(`${parentId}->${effect}`);
-            return { cause: parentId, strength: edge?.strength ?? 0, confidence: belief?.confidence ?? 0.5 };
+            return {cause: parentId, strength: edge?.strength ?? 0, confidence: belief?.confidence ?? 0.5};
         });
     }
 
     queryEffects(cause) {
         const causeNode = this.graph.nodes.get(cause);
-        if (!causeNode) {return [];}
-        return Array.from(causeNode.children).map(childId => ({ effect: childId, strength: this.graph.getEdge(cause, childId)?.strength ?? 0 }));
+        if (!causeNode) {
+            return [];
+        }
+        return Array.from(causeNode.children).map(childId => ({
+            effect: childId,
+            strength: this.graph.getEdge(cause, childId)?.strength ?? 0
+        }));
     }
 
     intervene(cause, value) {
@@ -86,14 +104,22 @@ export class ReasoningSystem extends Component {
 
     explain(effect, options = {}) {
         const causes = this.queryCauses(effect);
-        const { minConfidence = 0.3 } = options;
+        const {minConfidence = 0.3} = options;
         return causes
             .filter(c => c.confidence >= minConfidence)
             .sort((a, b) => b.strength - a.strength)
-            .map(c => ({ explanation: `${c.cause} causes ${effect} (strength: ${c.strength.toFixed(2)}, confidence: ${c.confidence.toFixed(2)})`, cause: c.cause, strength: c.strength, confidence: c.confidence }));
+            .map(c => ({
+                explanation: `${c.cause} causes ${effect} (strength: ${c.strength.toFixed(2)}, confidence: ${c.confidence.toFixed(2)})`,
+                cause: c.cause,
+                strength: c.strength,
+                confidence: c.confidence
+            }));
     }
 
-    getGraph() { return this.graph; }
+    getGraph() {
+        return this.graph;
+    }
+
     getState() {
         return {
             nodes: this.graph.nodes.size,
@@ -110,7 +136,7 @@ export class ReasoningSystem extends Component {
     }
 }
 
-export { ReasoningSystem as CausalReasoner };
+export {ReasoningSystem as CausalReasoner};
 
 export class CognitiveSystem extends Component {
     constructor(config = {}) {
@@ -124,16 +150,16 @@ export class CognitiveSystem extends Component {
     async initialize() {
         await this.attention.initialize();
         await this.reasoning.initialize();
-        this.emit('initialized', { attention: true, reasoning: true });
+        this.emit('initialized', {attention: true, reasoning: true});
     }
 
     process(neuralInput, symbolicInput, context = {}) {
         const attended = this.attention.attend(neuralInput, symbolicInput, context);
-        return { attended, symbolic: symbolicInput, neural: neuralInput };
+        return {attended, symbolic: symbolicInput, neural: neuralInput};
     }
 
     fuse(neural, symbolic, context = {}) {
-        const fusionContext = { ...NeuroSymbolicFusion, gate: this.gate };
+        const fusionContext = {...NeuroSymbolicFusion, gate: this.gate};
         const methods = {
             gated: () => {
                 const result = fusionContext.gatedFusion(neural, symbolic);
@@ -147,13 +173,16 @@ export class CognitiveSystem extends Component {
         return (methods[this.fusionMode] ?? methods.gated)();
     }
 
-    getGate() { return this.gate; }
+    getGate() {
+        return this.gate;
+    }
+
     async shutdown() {
         await this.attention.shutdown();
         await this.reasoning.shutdown();
     }
 }
 
-export { CausalEdge } from './CausalEdge.js';
-export { CausalGraph } from './CausalGraph.js';
-export { CausalNode } from './CausalNode.js';
+export {CausalEdge} from './CausalEdge.js';
+export {CausalGraph} from './CausalGraph.js';
+export {CausalNode} from './CausalNode.js';

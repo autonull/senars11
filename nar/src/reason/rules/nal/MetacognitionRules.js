@@ -4,7 +4,7 @@
  */
 
 import {Rule} from '../../Rule.js';
-import {logError} from '../../utils/error.js';
+import {logError} from '@senars/core';
 
 /**
  * A rule that adjusts system parameters based on performance feedback
@@ -21,7 +21,9 @@ export class AdjustCacheSizeRule extends Rule {
     }
 
     apply(primaryPremise, secondaryPremise, context = {}) {
-        if (!this.canApply(primaryPremise, secondaryPremise, context)) {return [];}
+        if (!this.canApply(primaryPremise, secondaryPremise, context)) {
+            return [];
+        }
 
         try {
             const {termFactory} = context;

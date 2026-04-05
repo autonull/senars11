@@ -1,5 +1,5 @@
 import {deepMergeConfig as mergeConfig} from './utils/common.js';
-import {logError} from './utils/error.js';
+import {logError} from '@senars/core';
 
 /**
  * Base Rule class for the new reasoner design

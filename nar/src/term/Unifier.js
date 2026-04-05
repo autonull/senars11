@@ -1,7 +1,7 @@
-import { getComponents, getOperator, getVariableName, isCompound, isVariable, termsEqual } from './TermUtils.js';
+import {getComponents, getOperator, getVariableName, isCompound, isVariable, termsEqual} from './TermUtils.js';
 import * as UnifyCore from './UnifyCore.js';
 
-const FAILURE = { success: false, substitution: {} };
+const FAILURE = {success: false, substitution: {}};
 
 export class Unifier {
     constructor(termFactory) {
@@ -25,12 +25,12 @@ export class Unifier {
 
     unify(term1, term2, substitution = {}) {
         const result = UnifyCore.unify(term1, term2, substitution, this.adapter);
-        return result ? { success: true, substitution: result } : { success: false, substitution: {} };
+        return result ? {success: true, substitution: result} : {success: false, substitution: {}};
     }
 
     match(pattern, term, substitution = {}) {
         const result = UnifyCore.match(pattern, term, substitution, this.adapter);
-        return result ? { success: true, substitution: result } : { success: false, substitution: {} };
+        return result ? {success: true, substitution: result} : {success: false, substitution: {}};
     }
 
     applySubstitution(term, substitution) {

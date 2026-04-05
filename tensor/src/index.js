@@ -1,6 +1,5 @@
-
-import { Tensor } from './Tensor.js';
-import { T } from './backends/NativeBackend.js';
+import {Tensor} from './Tensor.js';
+import {T} from './backends/NativeBackend.js';
 
 // --- Static Methods ---
 Tensor.zeros = (shape) => T.zeros(shape);
@@ -24,7 +23,7 @@ const OPS = [
 const VALID_OPS = OPS.filter(op => typeof T[op] === 'function');
 
 VALID_OPS.forEach(op => {
-    Tensor.prototype[op] = function(...args) {
+    Tensor.prototype[op] = function (...args) {
         return (this.backend || T)[op](this, ...args);
     };
 });
@@ -37,4 +36,4 @@ export * from './TruthTensorBridge.js';
 export * from './TensorFunctor.js';
 export * from './SymbolicTensor.js';
 export * from './TensorLogicBridge.js';
-export { T as torch };
+export {T as torch};

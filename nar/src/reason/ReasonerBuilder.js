@@ -3,9 +3,7 @@ import {Strategy} from './Strategy.js';
 import {SimpleRuleExecutor} from './exec/SimpleRuleExecutor.js';
 import {RuleProcessor} from './RuleProcessor.js';
 import {Reasoner as StreamReasoner} from './Reasoner.js';
-import {DecompositionStrategy} from './strategy/DecompositionStrategy.js';
-import {TermLinkStrategy} from './strategy/TermLinkStrategy.js';
-import {TaskMatchStrategy} from './strategy/TaskMatchStrategy.js';
+import {DecompositionStrategy, TaskMatchStrategy, TermLinkStrategy} from './strategy/index.js';
 
 export class ReasonerBuilder {
     constructor(context = {}) {

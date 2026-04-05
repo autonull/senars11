@@ -1,12 +1,11 @@
 /**
  * Unified Memory System - Facade combining episodic, semantic, and grounding subsystems
  */
-import { Component } from '../composable/Component.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { MetricsTracker } from '../utils/MetricsTracker.js';
-import { EpisodicMemory } from './EpisodicMemory.js';
-import { SemanticMemory } from './SemanticMemory.js';
-import { LearnedGrounding } from './LearnedGrounding.js';
+import {Component} from '../composable/Component.js';
+import {mergeConfig, MetricsTracker} from '../utils/index.js';
+import {EpisodicMemory} from './EpisodicMemory.js';
+import {SemanticMemory} from './SemanticMemory.js';
+import {LearnedGrounding} from './LearnedGrounding.js';
 
 const MEMORY_DEFAULTS = {
     capacity: 10000,
@@ -28,10 +27,12 @@ export class MemorySystem extends Component {
         this.episodic = new EpisodicMemory(config);
         this.semantic = new SemanticMemory(config);
         this.grounding = new LearnedGrounding(config);
-        this._metricsTracker = new MetricsTracker({ queriesPerformed: 0 });
+        this._metricsTracker = new MetricsTracker({queriesPerformed: 0});
     }
 
-    get metrics() { return this._metricsTracker; }
+    get metrics() {
+        return this._metricsTracker;
+    }
 
     async onInitialize() {
         await Promise.all([
@@ -46,8 +47,10 @@ export class MemorySystem extends Component {
     }
 
     store(experience, options = {}) {
-        const { useGrounding = true } = options;
-        if (useGrounding) {experience.symbol = this.grounding.lift(experience.state);}
+        const {useGrounding = true} = options;
+        if (useGrounding) {
+            experience.symbol = this.grounding.lift(experience.state);
+        }
         return this.episodic.store(experience, options);
     }
 
@@ -82,7 +85,7 @@ export class MemorySystem extends Component {
     }
 }
 
-export { EpisodicMemory as Memory };
-export { SemanticMemory as Knowledge };
-export { LearnedGrounding as Grounding, LearnedGrounding };
-export { MemorySystem as UnifiedMemory };
+export {EpisodicMemory as Memory};
+export {SemanticMemory as Knowledge};
+export {LearnedGrounding as Grounding, LearnedGrounding};
+export {MemorySystem as UnifiedMemory};

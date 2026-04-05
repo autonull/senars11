@@ -1,4 +1,4 @@
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {mergeConfig} from '../utils/index.js';
 
 const DEFAULTS = {
     parallel: true,
@@ -13,16 +13,16 @@ const PipelineExecutor = {
 
         for (const stage of stages) {
             if (stage.condition && !(await engine.evaluateCondition(stage.condition, current, context))) {
-                results.push({ stage: stage.id, skipped: true });
+                results.push({stage: stage.id, skipped: true});
                 continue;
             }
 
             const result = await engine.executeStage(stage, current, context);
             current = engine.transformResult(result, stage, current);
-            results.push({ stage: stage.id, result: current });
+            results.push({stage: stage.id, result: current});
         }
 
-        return { results, output: current };
+        return {results, output: current};
     },
 
     executeParallel(components, input, context, engine) {
@@ -77,13 +77,13 @@ export class CompositionEngine {
         const startTime = performance.now();
 
         try {
-            const { results, output } = await PipelineExecutor.executeSequential(
+            const {results, output} = await PipelineExecutor.executeSequential(
                 pipeline.stages, input, context, this
             );
 
-            return { success: true, output, results, duration: performance.now() - startTime };
+            return {success: true, output, results, duration: performance.now() - startTime};
         } catch (error) {
-            return { success: false, error: error.message, results: [], duration: performance.now() - startTime };
+            return {success: false, error: error.message, results: [], duration: performance.now() - startTime};
         } finally {
             this.executing.delete(name);
         }
@@ -127,8 +127,12 @@ export class CompositionEngine {
     }
 
     evaluateCondition(condition, input, context) {
-        if (typeof condition === 'function') {return condition(input, context);}
-        if (typeof condition === 'boolean') {return condition;}
+        if (typeof condition === 'function') {
+            return condition(input, context);
+        }
+        if (typeof condition === 'boolean') {
+            return condition;
+        }
         return true;
     }
 
@@ -158,7 +162,7 @@ export class CompositionEngine {
             if (!pipeline) {
                 throw new Error(`Pipeline not found: ${pipelineName}`);
             }
-            return pipeline.stages.map(s => ({ ...s, sourcePipeline: pipelineName }));
+            return pipeline.stages.map(s => ({...s, sourcePipeline: pipelineName}));
         });
 
         return this.createPipeline(name, stages);
@@ -166,8 +170,13 @@ export class CompositionEngine {
 
     branch(condition, trueStages, falseStages = []) {
         return [
-            { id: 'branch_true', component: trueStages, condition, parallel: false },
-            { id: 'branch_false', component: falseStages, condition: (input, ctx) => !condition(input, ctx), parallel: false }
+            {id: 'branch_true', component: trueStages, condition, parallel: false},
+            {
+                id: 'branch_false',
+                component: falseStages,
+                condition: (input, ctx) => !condition(input, ctx),
+                parallel: false
+            }
         ];
     }
 
@@ -192,13 +201,15 @@ export class CompositionEngine {
                     return current;
                 }
             },
-            config: { method: 'act' }
+            config: {method: 'act'}
         };
     }
 
     serialize(name) {
         const pipeline = this.pipelines.get(name);
-        if (!pipeline) {return null;}
+        if (!pipeline) {
+            return null;
+        }
 
         return {
             name: pipeline.name,
@@ -229,22 +240,22 @@ export class PipelineBuilder {
     }
 
     add(component, config = {}) {
-        this.stages.push({ component, config });
+        this.stages.push({component, config});
         return this;
     }
 
     parallel(components) {
-        this.stages.push({ component: components, parallel: true });
+        this.stages.push({component: components, parallel: true});
         return this;
     }
 
     when(condition, component, config = {}) {
-        this.stages.push({ component, config, condition });
+        this.stages.push({component, config, condition});
         return this;
     }
 
     transform(fn) {
-        this.stages.push({ transform: fn });
+        this.stages.push({transform: fn});
         return this;
     }
 

@@ -1,17 +1,17 @@
 /**
  * Random Agent
- * 
+ *
  * Takes random actions. Useful for baseline comparison and data collection.
- * 
+ *
  * @implements {import('../interfaces/IAgent.js').IAgent}
  */
-import { Agent } from '../core/RLCore.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { AgentFactoryUtils } from './QNetwork.js';
+import {Agent} from '../core/RLCore.js';
+import {mergeConfig} from '../utils/index.js';
+import {AgentFactoryUtils} from './QNetwork.js';
 
 export class RandomAgent extends Agent {
     constructor(env, config = {}) {
-        const mergedConfig = mergeConfig({ seed: null }, config);
+        const mergedConfig = mergeConfig({seed: null}, config);
         super(env, mergedConfig);
         if (this.config.seed !== null) {
             this._random = AgentFactoryUtils.createSeededRandom(this.config.seed);
@@ -29,8 +29,8 @@ export class RandomAgent extends Agent {
             return Math.floor(this._random() * actionSpace.n);
         }
         if (actionSpace.type === 'Box') {
-            const { shape, low, high } = actionSpace;
-            return Array.from({ length: shape[0] }, (_, i) => {
+            const {shape, low, high} = actionSpace;
+            return Array.from({length: shape[0]}, (_, i) => {
                 const l = Array.isArray(low) ? low[i] : low;
                 const h = Array.isArray(high) ? high[i] : high;
                 return this._random() * (h - l) + l;

@@ -35,19 +35,27 @@ export class TermLinkStrategy extends PremiseFormationStrategy {
      * @yields {{term: Term, type: string, priority: number, linkData: object}}
      */
     async* generateCandidates(primaryTask, context) {
-        if (!this.enabled) {return;}
+        if (!this.enabled) {
+            return;
+        }
 
         const {termLayer} = context;
         const term = primaryTask?.term;
-        if (!termLayer || !term) {return;}
+        if (!termLayer || !term) {
+            return;
+        }
 
         // Get direct links from the primary term
         yield* this._getLinksForTerm(term, termLayer);
 
         // Also get links from subject/predicate if compound
         if (term.isCompound) {
-            if (term.subject) {yield* this._getLinksForTerm(term.subject, termLayer);}
-            if (term.predicate) {yield* this._getLinksForTerm(term.predicate, termLayer);}
+            if (term.subject) {
+                yield* this._getLinksForTerm(term.subject, termLayer);
+            }
+            if (term.predicate) {
+                yield* this._getLinksForTerm(term.predicate, termLayer);
+            }
         }
     }
 
@@ -57,14 +65,20 @@ export class TermLinkStrategy extends PremiseFormationStrategy {
      */
     * _getLinksForTerm(sourceTerm, termLayer) {
         const links = termLayer.get(sourceTerm);
-        if (!links || links.length === 0) {return;}
+        if (!links || links.length === 0) {
+            return;
+        }
 
         let count = 0;
         for (const link of links) {
-            if (count >= this.maxLinks) {break;}
+            if (count >= this.maxLinks) {
+                break;
+            }
 
             const linkPriority = link.data?.priority ?? 0.5;
-            if (linkPriority < this.minLinkPriority) {continue;}
+            if (linkPriority < this.minLinkPriority) {
+                continue;
+            }
 
             this._recordCandidate();
             yield {

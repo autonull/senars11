@@ -1,11 +1,23 @@
 // Mock for @langchain/core/messages
 class AIMessage {
-    constructor(content) { this.content = content; this._getType = () => 'ai'; }
+    constructor(content) {
+        this.content = content;
+        this._getType = () => 'ai';
+    }
 }
+
 class HumanMessage {
-    constructor(content) { this.content = content; this._getType = () => 'human'; }
+    constructor(content) {
+        this.content = content;
+        this._getType = () => 'human';
+    }
 }
+
 class SystemMessage {
-    constructor(content) { this.content = content; this._getType = () => 'system'; }
+    constructor(content) {
+        this.content = content;
+        this._getType = () => 'system';
+    }
 }
-module.exports = { AIMessage, HumanMessage, SystemMessage };
+
+module.exports = {AIMessage, HumanMessage, SystemMessage};

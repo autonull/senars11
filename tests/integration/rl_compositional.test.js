@@ -1,6 +1,5 @@
-
-import { NeuroSymbolicAgent } from '../../rl/src/agents/NeuroSymbolicAgent.js';
-import { CompositionalWorld } from '../../rl/src/environments/CompositionalWorld.js';
+import {NeuroSymbolicAgent} from '../../rl/src/agents/NeuroSymbolicAgent.js';
+import {CompositionalWorld} from '../../rl/src/environments/CompositionalWorld.js';
 
 describe('RL Compositional World Integration Tests', () => {
 
@@ -9,8 +8,8 @@ describe('RL Compositional World Integration Tests', () => {
         // Note: CompositionalWorld constructor takes `config` object, not `size, numObjects` directly.
         // It defaults to size=10, numObjects=3 if not provided correctly.
         // Let's force smaller size to ensure movement changes state predictably.
-        const env = new CompositionalWorld({ size: 5, numObjects: 1 });
-        const agent = new NeuroSymbolicAgent(env, { reasoning: 'metta' });
+        const env = new CompositionalWorld({size: 5, numObjects: 1});
+        const agent = new NeuroSymbolicAgent(env, {reasoning: 'metta'});
 
         await agent.initialize();
 

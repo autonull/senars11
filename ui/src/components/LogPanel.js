@@ -1,5 +1,5 @@
 import { Component } from './Component.js';
-import { FluentUI, div, input, button, span } from '../utils/FluentUI.js';
+import { div, input, button, span } from '../utils/FluentUI.js';
 import { SyntaxHighlighter } from '../utils/SyntaxHighlighter.js';
 
 export class LogPanel extends Component {

@@ -2,11 +2,11 @@
  * Neuro-Symbolic Layer
  * Layer of neuro-symbolic units with aggregation
  */
-import { Component } from '../composable/Component.js';
-import { SymbolicTensor } from '@senars/tensor';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { NeuroSymbolicUnit } from './NeuroSymbolicUnit.js';
-import { LAYER_CONFIG_DEFAULTS } from './ArchitectureConfig.js';
+import {Component} from '../composable/Component.js';
+import {SymbolicTensor} from '@senars/tensor';
+import {mergeConfig} from '../utils/index.js';
+import {NeuroSymbolicUnit} from './NeuroSymbolicUnit.js';
+import {LAYER_CONFIG_DEFAULTS} from './ArchitectureConfig.js';
 
 /**
  * Layer of neuro-symbolic units with output aggregation
@@ -19,7 +19,7 @@ export class NeuroSymbolicLayer extends Component {
     }
 
     async onInitialize() {
-        this.units = Array.from({ length: this.config.units }, (_, i) => {
+        this.units = Array.from({length: this.config.units}, (_, i) => {
             const unit = new NeuroSymbolicUnit({
                 ...this.config,
                 id: `unit_${i}`

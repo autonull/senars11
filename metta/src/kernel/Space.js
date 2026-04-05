@@ -1,23 +1,33 @@
-import { isExpression, exp, sym } from './Term.js';
-import { RuleIndex } from './RuleIndex.js';
-import { PathTrie } from './PathTrie.js';
-import { configManager } from '../config/config.js';
+import {exp, sym} from './Term.js';
+import {RuleIndex} from './RuleIndex.js';
+import {PathTrie} from './PathTrie.js';
+import {configManager} from '../config/config.js';
 
 export class Space {
     #atoms = new Set();
     #ruleIndex = new RuleIndex();
     #pathTrie = configManager.get('pathTrie') ? new PathTrie() : null;
-    #stats = { adds: 0, removes: 0, queries: 0 };
+    #stats = {adds: 0, removes: 0, queries: 0};
 
-    get ruleIndex() { return this.#ruleIndex; }
-    get pathTrie() { return this.#pathTrie; }
-    get atoms() { return this.#atoms; }
+    get ruleIndex() {
+        return this.#ruleIndex;
+    }
+
+    get pathTrie() {
+        return this.#pathTrie;
+    }
+
+    get atoms() {
+        return this.#atoms;
+    }
 
     add(atom) {
-        if (!atom) {throw new Error('Cannot add null/undefined atom');}
+        if (!atom) {
+            throw new Error('Cannot add null/undefined atom');
+        }
         if (!this.#atoms.has(atom)) {
             this.#atoms.add(atom);
-            const rule = { pattern: atom };
+            const rule = {pattern: atom};
             this.#ruleIndex.addRule(rule);
             this.#pathTrie?.insert(atom, rule);
             this.#stats.adds++;
@@ -35,8 +45,13 @@ export class Space {
         return false;
     }
 
-    has(atom) { return this.#atoms.has(atom); }
-    all() { return [...this.#atoms, ...this.#getRulesAsAtoms()]; }
+    has(atom) {
+        return this.#atoms.has(atom);
+    }
+
+    all() {
+        return [...this.#atoms, ...this.#getRulesAsAtoms()];
+    }
 
     #getRulesAsAtoms() {
         return this.#ruleIndex.allRules
@@ -45,8 +60,10 @@ export class Space {
     }
 
     addRule(pattern, result) {
-        if (!pattern) {throw new Error('Pattern cannot be null');}
-        const rule = { pattern, result };
+        if (!pattern) {
+            throw new Error('Pattern cannot be null');
+        }
+        const rule = {pattern, result};
         this.#ruleIndex.addRule(rule);
         this.#pathTrie?.insert(pattern, rule);
         return this;
@@ -57,16 +74,25 @@ export class Space {
     }
 
     rulesFor(term) {
-        if (typeof term === 'string') {term = sym(term);}
+        if (typeof term === 'string') {
+            term = sym(term);
+        }
         if (this.#pathTrie) {
             const trieRules = this.#pathTrie.query(term);
-            if (trieRules.length > 0) {return trieRules;}
+            if (trieRules.length > 0) {
+                return trieRules;
+            }
         }
         return this.#ruleIndex.rulesFor(term);
     }
 
-    size() { return this.#atoms.size; }
-    getAtomCount() { return this.#atoms.size; }
+    size() {
+        return this.#atoms.size;
+    }
+
+    getAtomCount() {
+        return this.#atoms.size;
+    }
 
     getStats() {
         return {
@@ -78,7 +104,9 @@ export class Space {
         };
     }
 
-    stats() { return this.getStats(); }
+    stats() {
+        return this.getStats();
+    }
 
     query(pattern) {
         this.#stats.queries++;
@@ -88,6 +116,6 @@ export class Space {
     clear() {
         this.#atoms.clear();
         this.#ruleIndex.clear();
-        this.#stats = { adds: 0, removes: 0, queries: 0 };
+        this.#stats = {adds: 0, removes: 0, queries: 0};
     }
 }

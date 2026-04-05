@@ -4,9 +4,9 @@
  * Following AGENTS.md: Elegant, Consolidated, Consistent, Organized
  */
 
-import { Space } from '../kernel/Space.js';
-import { Unify } from '../kernel/Unify.js';
-import { Logger } from '@senars/core';
+import {Space} from '../kernel/Space.js';
+import {Unify} from '../kernel/Unify.js';
+import {Logger} from '@senars/core';
 
 export class ReactiveSpace extends Space {
     constructor() {
@@ -40,7 +40,7 @@ export class ReactiveSpace extends Space {
      */
     addRule(pattern, result) {
         super.addRule(pattern, result);
-        this._emit('addRule', { pattern, result });
+        this._emit('addRule', {pattern, result});
         return this;
     }
 
@@ -69,7 +69,7 @@ export class ReactiveSpace extends Space {
             this.observers.set(key, []);
         }
 
-        this.observers.get(key).push({ id, pattern, callback });
+        this.observers.get(key).push({id, pattern, callback});
 
         // Return unsubscribe function
         return () => this._unobserve(key, id);
@@ -126,7 +126,7 @@ export class ReactiveSpace extends Space {
 
         // Notify observers
         for (const [_, observers] of this.observers) {
-            for (const { pattern, callback } of observers) {
+            for (const {pattern, callback} of observers) {
                 if (this._matchesPattern(pattern, data)) {
                     try {
                         callback(entry);

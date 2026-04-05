@@ -5,7 +5,7 @@
  * to build and traverse the decision tree.
  */
 
-import {getComponents, getOperator} from '../../term/TermUtils.js';
+import {getComponents, getOperator} from '../../term/index.js';
 
 /**
  * @typedef {Object} Discriminator

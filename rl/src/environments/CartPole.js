@@ -1,4 +1,4 @@
-import { Environment } from '../core/RLCore.js';
+import {Environment} from '../core/RLCore.js';
 
 const PHYSICS = {
     gravity: 9.8,
@@ -21,11 +21,25 @@ export class CartPole extends Environment {
         this.reset();
     }
 
+    get observationSpace() {
+        const high = [4.8, Infinity, 24 * 2 * Math.PI / 360, Infinity];
+        return {
+            type: 'Box',
+            shape: [4],
+            low: high.map(v => -v),
+            high
+        };
+    }
+
+    get actionSpace() {
+        return {type: 'Discrete', n: 2};
+    }
+
     reset() {
-        this.state = Array.from({ length: 4 }, () => Math.random() * 0.1 - 0.05);
+        this.state = Array.from({length: 4}, () => Math.random() * 0.1 - 0.05);
         this.stepsBeyondDone = null;
         this.currentSteps = 0;
-        return { observation: [...this.state], info: {} };
+        return {observation: [...this.state], info: {}};
     }
 
     step(action) {
@@ -35,7 +49,7 @@ export class CartPole extends Environment {
         const sinTheta = Math.sin(theta);
 
         const temp = (force + this.polemassLength * thetaDot * thetaDot * sinTheta) / this.totalMass;
-        const thetaAcc = (this.gravity * sinTheta - cosTheta * temp) / 
+        const thetaAcc = (this.gravity * sinTheta - cosTheta * temp) /
             (this.length * (4.0 / 3.0 - this.masspole * cosTheta * cosTheta / this.totalMass));
         const xAcc = temp - this.polemassLength * thetaAcc * cosTheta / this.totalMass;
 
@@ -61,30 +75,18 @@ export class CartPole extends Environment {
 
     _isDone([x, , theta]) {
         return x < -this.xThreshold || x > this.xThreshold ||
-               theta < -this.thetaThresholdRadians || theta > this.thetaThresholdRadians;
+            theta < -this.thetaThresholdRadians || theta > this.thetaThresholdRadians;
     }
 
     _computeReward(done) {
-        if (!done) {return 1.0;}
+        if (!done) {
+            return 1.0;
+        }
         if (this.stepsBeyondDone === null) {
             this.stepsBeyondDone = 0;
             return 1.0;
         }
         this.stepsBeyondDone += 1;
         return 0.0;
-    }
-
-    get observationSpace() {
-        const high = [4.8, Infinity, 24 * 2 * Math.PI / 360, Infinity];
-        return {
-            type: 'Box',
-            shape: [4],
-            low: high.map(v => -v),
-            high
-        };
-    }
-
-    get actionSpace() {
-        return { type: 'Discrete', n: 2 };
     }
 }

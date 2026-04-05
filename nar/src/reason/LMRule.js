@@ -1,6 +1,5 @@
 import {Rule} from './Rule.js';
-import {Logger} from '@senars/core';
-import {logError, RuleExecutionError} from './utils/error.js';
+import {logError, Logger, RuleExecutionError} from '@senars/core';
 import {CircuitBreaker} from '@senars/core/src/util/CircuitBreaker.js';
 import {emitEvent} from '@senars/core/src/util/eventUtils.js';
 import {LMExecutionTracker} from '@senars/core/src/util/ExecutionTracker.js';
@@ -208,14 +207,22 @@ export class LMRule extends Rule {
     }
 
     _getProcessFunction(config) {
-        if (typeof config.process === 'function') {return config.process;}
-        if (typeof config.responseProcessor === 'function') {return config.responseProcessor;}
+        if (typeof config.process === 'function') {
+            return config.process;
+        }
+        if (typeof config.responseProcessor === 'function') {
+            return config.responseProcessor;
+        }
         return (r) => r ?? '';
     }
 
     _getGenerateFunction(config) {
-        if (typeof config.generate === 'function') {return config.generate;}
-        if (typeof config.responseProcessor === 'function') {return config.responseProcessor;}
+        if (typeof config.generate === 'function') {
+            return config.generate;
+        }
+        if (typeof config.responseProcessor === 'function') {
+            return config.responseProcessor;
+        }
         return () => [];
     }
 

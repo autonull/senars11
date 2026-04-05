@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals';
 import { NotebookManager } from '../../src/notebook/NotebookManager.js';
 import { MarkdownCell } from '../../src/notebook/cells/MarkdownCell.js';
 import { WidgetCell } from '../../src/notebook/cells/WidgetCell.js';

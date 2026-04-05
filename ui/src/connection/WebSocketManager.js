@@ -1,6 +1,6 @@
 import { Config } from '../config/Config.js';
 import { Logger } from '../logging/Logger.js';
-import { WebSocketConnectionError } from '../errors/CustomErrors.js';
+import { WebSocketConnectionError } from '@senars/core';
 import { ConnectionInterface } from './ConnectionInterface.js';
 
 export class WebSocketManager extends ConnectionInterface {

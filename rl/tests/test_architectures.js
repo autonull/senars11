@@ -1,7 +1,6 @@
-
-import { NeuroSymbolicAgent } from '../src/agents/NeuroSymbolicAgent.js';
-import { Environment } from '../src/core/RLCore.js';
-import { strict as assert } from 'assert';
+import {NeuroSymbolicAgent} from '../src/agents/NeuroSymbolicAgent.js';
+import {Environment} from '../src/index.js';
+import {strict as assert} from 'assert';
 import path from 'path';
 
 console.log("Testing Architecture modularity & Exploration...");
@@ -11,15 +10,18 @@ class MockEnv extends Environment {
         super();
         this.reset();
     }
+
+    get actionSpace() {
+        return {type: 'Discrete', n: 2};
+    }
+
     reset() {
         this.state = [0.1, 0.2, 0.3, 0.4];
-        return { observation: this.state, info: {} };
+        return {observation: this.state, info: {}};
     }
+
     step(action) {
-        return { observation: [0.5, 0.6, 0.7, 0.8], reward: 1, terminated: true, truncated: false, info: {} };
-    }
-    get actionSpace() {
-        return { type: 'Discrete', n: 2 };
+        return {observation: [0.5, 0.6, 0.7, 0.8], reward: 1, terminated: true, truncated: false, info: {}};
     }
 }
 

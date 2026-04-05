@@ -1,5 +1,5 @@
-import { Tokenizer } from './parser/Tokenizer.js';
-import { InternalParser } from './parser/InternalParser.js';
+import {Tokenizer} from './parser/Tokenizer.js';
+import {InternalParser} from './parser/InternalParser.js';
 
 export class Parser {
     #tokenizer = new Tokenizer();
@@ -14,5 +14,7 @@ export class Parser {
         return new InternalParser(tokens).parseProgram();
     }
 
-    parseExpression(str) { return this.parse(str); }
+    parseExpression(str) {
+        return this.parse(str);
+    }
 }

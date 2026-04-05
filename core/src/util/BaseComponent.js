@@ -1,6 +1,6 @@
 import {Logger} from '../util/Logger.js';
-import {EventBus} from './EventBus.js';
-import {createEventPayload} from './introspectionEvents.js';
+import {EventBus} from '@senars/core';
+import {createEventPayload} from '@senars/core';
 import {validateWithSchema} from './object.js';
 import {emitComponentEvent} from './eventUtils.js';
 
@@ -119,9 +119,7 @@ export class BaseComponent {
         }
 
         try {
-            if (operation === 'start') {
-                this._startTime = Date.now();
-            }
+            if (operation === 'start') {this._startTime = Date.now();}
 
             await action();
 
@@ -319,9 +317,7 @@ export class BaseComponent {
     }
 
     _emitIntrospectionEvent(eventName, payloadOrFn) {
-        if (!this._config.introspection?.enabled) {
-            return;
-        }
+        if (!this._config.introspection?.enabled) {return;}
         const payload = typeof payloadOrFn === 'function' ? payloadOrFn() : payloadOrFn;
         this._eventBus.emit(eventName, createEventPayload(this._name, payload));
     }

@@ -1,4 +1,4 @@
-import {TermLayer, TermFactory} from '@senars/nar';
+import {TermFactory, TermLayer} from '@senars/nar';
 
 describe('TermLayer', () => {
     let layer, tf;

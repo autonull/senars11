@@ -2,10 +2,10 @@
  * Neuro-Symbolic System
  * Unified framework combining World Model and Symbolic Differentiation
  */
-import { Component } from '../composable/Component.js';
-import { TensorLogicBridge } from '@senars/tensor';
-import { WorldModel } from '../models/WorldModel.js';
-import { SymbolicDifferentiation } from '../models/SymbolicDifferentiation.js';
+import {Component} from '../composable/Component.js';
+import {TensorLogicBridge} from '@senars/tensor';
+import {WorldModel} from '../models/WorldModel.js';
+import {SymbolicDifferentiation} from '../models/SymbolicDifferentiation.js';
 
 /**
  * Unified Neuro-Symbolic System
@@ -19,6 +19,24 @@ export class NeuroSymbolicSystem extends Component {
         this.bridge = new TensorLogicBridge();
     }
 
+    static create(config = {}) {
+        return new NeuroSymbolicSystem(config);
+    }
+
+    static createWithWorldModel(config = {}) {
+        return new NeuroSymbolicSystem({
+            ...config,
+            worldModel: {...config.worldModel, ensembleSize: 10, uncertaintyThreshold: 0.3}
+        });
+    }
+
+    static createWithExplanation(config = {}) {
+        return new NeuroSymbolicSystem({
+            ...config,
+            symbolicDiff: {...config.symbolicDiff, trackProvenance: true}
+        });
+    }
+
     async onInitialize() {
         await this.worldModel.initialize();
         this.emit('initialized', {
@@ -29,7 +47,7 @@ export class NeuroSymbolicSystem extends Component {
 
     async update(state, action, nextState, reward) {
         await this.worldModel.update(state, action, nextState, reward);
-        return { updated: true };
+        return {updated: true};
     }
 
     async imagine(initialState, horizon = 10) {
@@ -55,29 +73,11 @@ export class NeuroSymbolicSystem extends Component {
         await this.worldModel.shutdown();
         this.symbolicDiff.clear();
     }
-
-    static create(config = {}) {
-        return new NeuroSymbolicSystem(config);
-    }
-
-    static createWithWorldModel(config = {}) {
-        return new NeuroSymbolicSystem({
-            ...config,
-            worldModel: { ...config.worldModel, ensembleSize: 10, uncertaintyThreshold: 0.3 }
-        });
-    }
-
-    static createWithExplanation(config = {}) {
-        return new NeuroSymbolicSystem({
-            ...config,
-            symbolicDiff: { ...config.symbolicDiff, trackProvenance: true }
-        });
-    }
 }
 
 // Re-exports for backward compatibility
-export { WorldModel };
-export { WorldModel as Model };
-export { SymbolicDifferentiation };
-export { SymbolicDifferentiation as SymbolicGrad };
-export { NeuroSymbolicSystem as NeuroSymbolic };
+export {WorldModel};
+export {WorldModel as Model};
+export {SymbolicDifferentiation};
+export {SymbolicDifferentiation as SymbolicGrad};
+export {NeuroSymbolicSystem as NeuroSymbolic};

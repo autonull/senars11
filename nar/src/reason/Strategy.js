@@ -1,11 +1,11 @@
 import {Bag} from '../memory/Bag.js';
 import {Logger} from '@senars/core';
 import {StrategyHelper} from './strategy/StrategyHelper.js';
-import {DefaultFormationStrategy} from './strategy/DefaultFormationStrategy.js';
+import {DefaultFormationStrategy} from './strategy/index.js';
 
 /**
  * Strategy component handles premise pairing and budget management.
- * 
+ *
  * Uses a formation strategy framework with candidateBag for collecting and selecting
  * secondary premises. Subclasses may override this behavior:
  * - BagStrategy: Uses a simpler priority-sampled bag approach (bypasses formation strategies)
@@ -96,7 +96,9 @@ export class Strategy {
             // Phase 1: Collect candidates from formation strategies
             if (this.formationStrategies.length > 0) {
                 for (const strategy of this.formationStrategies) {
-                    if (!strategy.enabled) {continue;}
+                    if (!strategy.enabled) {
+                        continue;
+                    }
 
                     try {
                         for await (const candidate of strategy.generateCandidates(primaryPremise, context)) {

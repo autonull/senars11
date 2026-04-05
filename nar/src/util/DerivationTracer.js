@@ -43,15 +43,21 @@ export class DerivationTracer {
 
     endTrace(traceId = this.activeTrace) {
         const trace = this.traces.get(traceId);
-        if (!trace) {throw new Error(`Trace ${traceId} not found`);}
+        if (!trace) {
+            throw new Error(`Trace ${traceId} not found`);
+        }
         trace.endTime = Date.now();
         trace.metrics = this._computeMetrics(trace);
-        if (traceId === this.activeTrace) {this.activeTrace = null;}
+        if (traceId === this.activeTrace) {
+            this.activeTrace = null;
+        }
         return trace;
     }
 
     _ensureSubscribed() {
-        if (this._subscribed) {return;}
+        if (this._subscribed) {
+            return;
+        }
         this.eventBus.on(IntrospectionEvents.RULE_FIRED, this._onRuleFired.bind(this));
         this.eventBus.on(IntrospectionEvents.RULE_NOT_FIRED, this._onRuleSkipped.bind(this));
         this.eventBus.on(IntrospectionEvents.REASONING_DERIVATION, this._onDerivation.bind(this));
@@ -59,9 +65,13 @@ export class DerivationTracer {
     }
 
     _onRuleFired(event) {
-        if (!this.activeTrace) {return;}
+        if (!this.activeTrace) {
+            return;
+        }
         const trace = this.traces.get(this.activeTrace);
-        if (!trace) {return;}
+        if (!trace) {
+            return;
+        }
 
         trace.steps.push({
             timestamp: Date.now(),
@@ -72,13 +82,19 @@ export class DerivationTracer {
             depth: event.depth ?? 0
         });
 
-        if (trace.steps.length > this.options.maxSteps) {trace.steps.shift();}
+        if (trace.steps.length > this.options.maxSteps) {
+            trace.steps.shift();
+        }
     }
 
     _onRuleSkipped(event) {
-        if (!this.activeTrace || !this.options.recordSkips) {return;}
+        if (!this.activeTrace || !this.options.recordSkips) {
+            return;
+        }
         const trace = this.traces.get(this.activeTrace);
-        if (!trace) {return;}
+        if (!trace) {
+            return;
+        }
 
         trace.skips.push({
             timestamp: Date.now(),
@@ -88,9 +104,13 @@ export class DerivationTracer {
     }
 
     _onDerivation(event) {
-        if (!this.activeTrace) {return;}
+        if (!this.activeTrace) {
+            return;
+        }
         const trace = this.traces.get(this.activeTrace);
-        if (!trace) {return;}
+        if (!trace) {
+            return;
+        }
 
         trace.derivations.push(event.task?.serialize?.() ?? event);
     }
@@ -113,7 +133,9 @@ export class DerivationTracer {
 
     findPath(traceId, fromTerm, toTerm) {
         const trace = this.traces.get(traceId);
-        if (!trace) {return [];}
+        if (!trace) {
+            return [];
+        }
 
         const queue = [{term: fromTerm, path: []}];
         const visited = new Set();
@@ -123,9 +145,13 @@ export class DerivationTracer {
             const {term, path} = queue.shift();
             const termStr = this._toTermString(term);
 
-            if (visited.has(termStr)) {continue;}
+            if (visited.has(termStr)) {
+                continue;
+            }
             visited.add(termStr);
-            if (termStr === targetStr) {return path;}
+            if (termStr === targetStr) {
+                return path;
+            }
 
             for (const step of trace.steps) {
                 if (step.premises.some(p => this._toTermString(p) === termStr)) {
@@ -139,7 +165,9 @@ export class DerivationTracer {
 
     whyNot(traceId, term) {
         const trace = this.traces.get(traceId);
-        if (!trace) {return [];}
+        if (!trace) {
+            return [];
+        }
 
         const termStr = this._toTermString(term).toLowerCase();
         return trace.skips.filter(skip =>
@@ -149,7 +177,9 @@ export class DerivationTracer {
 
     hotRules(traceId) {
         const trace = this.traces.get(traceId);
-        if (!trace) {return new Map();}
+        if (!trace) {
+            return new Map();
+        }
 
         return trace.steps.reduce((counts, step) => {
             counts.set(step.rule, (counts.get(step.rule) ?? 0) + 1);
@@ -159,7 +189,9 @@ export class DerivationTracer {
 
     export(traceId, format = 'json') {
         const trace = this.traces.get(traceId);
-        if (!trace) {throw new Error(`Trace ${traceId} not found`);}
+        if (!trace) {
+            throw new Error(`Trace ${traceId} not found`);
+        }
 
         switch (format) {
             case 'json':
@@ -187,7 +219,9 @@ export class DerivationTracer {
     _toDot(trace) {
         const nodes = new Set();
         const addNode = (id, label) => {
-            if (nodes.has(id)) {return '';}
+            if (nodes.has(id)) {
+                return '';
+            }
             nodes.add(id);
             return `  ${id} [label="${label}"];\n`;
         };
@@ -195,7 +229,7 @@ export class DerivationTracer {
         const lines = trace.steps.map((step, i) => {
             const from = step.premises.map(p => this._toTermString(p.term ?? p)).join(', ');
             const to = this._toTermString(step.conclusion.term ?? step.conclusion);
-            return `${addNode(`p${i}`, from) + addNode(`c${i}`, to)  }  p${i} -> c${i} [label="${step.rule}"];\n`;
+            return `${addNode(`p${i}`, from) + addNode(`c${i}`, to)}  p${i} -> c${i} [label="${step.rule}"];\n`;
         });
 
         return `digraph Trace {\n  rankdir=LR;\n  node [shape=box];\n\n${lines.join('')}}\n`;
@@ -253,7 +287,9 @@ export class DerivationTracer {
 
     async save(traceId, path) {
         const trace = this.traces.get(traceId);
-        if (!trace) {throw new Error(`Trace ${traceId} not found`);}
+        if (!trace) {
+            throw new Error(`Trace ${traceId} not found`);
+        }
 
         await this.platform.fs.promises.writeFile(path, JSON.stringify(trace, null, 2), 'utf-8');
     }

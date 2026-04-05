@@ -1,11 +1,10 @@
 /**
  * CheckpointManager Tests
  */
-import { CheckpointManager, createCheckpointCallback } from '../../src/training/CheckpointManager.js';
-import { Component } from '../../src/composable/Component.js';
+import {CheckpointManager, Component, createCheckpointCallback} from '../../src/index.js';
 import fs from 'fs/promises';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import {fileURLToPath} from 'url';
 
 // Workaround for Jest VM environment where import.meta.url might not be available
 let __dirname_fixed;
@@ -13,8 +12,8 @@ try {
     __dirname_fixed = path.dirname(fileURLToPath(import.meta.url));
 } catch (e) {
     // Jest VM environment - use global.__dirname or fallback
-    __dirname_fixed = typeof global !== 'undefined' && global.__dirname 
-        ? global.__dirname 
+    __dirname_fixed = typeof global !== 'undefined' && global.__dirname
+        ? global.__dirname
         : process.cwd();
 }
 const TEST_DIR = path.join(__dirname_fixed, 'test_checkpoints');
@@ -23,12 +22,12 @@ const TEST_DIR = path.join(__dirname_fixed, 'test_checkpoints');
 class MockAgent extends Component {
     constructor(config = {}) {
         super(config);
-        this.weights = { layer1: [0.1, 0.2, 0.3], layer2: [0.4, 0.5] };
-        this._metrics = { episodes: 0, reward: 0 };
+        this.weights = {layer1: [0.1, 0.2, 0.3], layer2: [0.4, 0.5]};
+        this._metrics = {episodes: 0, reward: 0};
     }
 
     stateDict() {
-        return { weights: this.weights, metrics: this._metrics };
+        return {weights: this.weights, metrics: this._metrics};
     }
 
     loadStateDict(stateDict) {
@@ -52,8 +51,8 @@ describe('CheckpointManager', () => {
 
     beforeEach(async () => {
         testDir = path.join(__dirname_fixed, `test_checkpoints_${Date.now()}_${++testCounter}`);
-        await fs.mkdir(testDir, { recursive: true });
-        manager = new CheckpointManager({ directory: testDir, interval: 10, maxKeep: 3 });
+        await fs.mkdir(testDir, {recursive: true});
+        manager = new CheckpointManager({directory: testDir, interval: 10, maxKeep: 3});
         await manager.initialize();
     });
 
@@ -64,7 +63,7 @@ describe('CheckpointManager', () => {
             // Ignore shutdown errors
         }
         try {
-            await fs.rm(testDir, { recursive: true, force: true });
+            await fs.rm(testDir, {recursive: true, force: true});
         } catch {
             // Ignore cleanup errors
         }
@@ -77,7 +76,7 @@ describe('CheckpointManager', () => {
             // Ignore shutdown errors
         }
         try {
-            await fs.rm(testDir, { recursive: true, force: true });
+            await fs.rm(testDir, {recursive: true, force: true});
         } catch {
             // Ignore cleanup errors
         }
@@ -108,7 +107,7 @@ describe('CheckpointManager', () => {
             const agent = new MockAgent();
             // First save to establish baseline
             await manager.save(agent, 10, 50);
-            
+
             // Try to save at non-interval episode with lower reward
             const filepath = await manager.save(agent, 5, 30);
 
@@ -151,7 +150,7 @@ describe('CheckpointManager', () => {
     describe('load', () => {
         it('should load latest checkpoint', async () => {
             const agent1 = new MockAgent();
-            agent1.weights = { layer1: [1, 2, 3], layer2: [4, 5] };
+            agent1.weights = {layer1: [1, 2, 3], layer2: [4, 5]};
 
             await manager.save(agent1, 10, 50);
             await new Promise(r => setTimeout(r, 10)); // Ensure different timestamps
@@ -166,7 +165,7 @@ describe('CheckpointManager', () => {
 
         it('should load best checkpoint', async () => {
             const agent1 = new MockAgent();
-            agent1.weights = { layer1: [1, 2, 3], layer2: [4, 5] };
+            agent1.weights = {layer1: [1, 2, 3], layer2: [4, 5]};
 
             await manager.save(agent1, 10, 50);
             await manager.save(agent1, 15, 100); // Best
@@ -187,7 +186,7 @@ describe('CheckpointManager', () => {
 
         it('should restore agent state', async () => {
             const agent1 = new MockAgent();
-            agent1._metrics = { episodes: 100, reward: 250 };
+            agent1._metrics = {episodes: 100, reward: 250};
 
             await manager.save(agent1, 100, 250);
 
@@ -227,7 +226,7 @@ describe('CheckpointManager', () => {
             const bestExists = manager.checkpoints.some(cp => cp.isBest);
             expect(bestExists).toBe(true);
             expect(manager.bestReward).toBe(100);
-            
+
             // Verify best checkpoint is in the list
             const bestCheckpoint = manager.checkpoints.find(cp => cp.episode === 15);
             expect(bestCheckpoint).toBeDefined();
@@ -306,16 +305,16 @@ describe('CheckpointManager', () => {
             const callback = createCheckpointCallback(manager);
 
             const agent = new MockAgent();
-            const result = await callback(agent, 10, { reward: 50 });
+            const result = await callback(agent, 10, {reward: 50});
 
             expect(result).toContain('checkpoint_ep10');
         });
 
         it('should respect threshold option', async () => {
-            const callback = createCheckpointCallback(manager, { threshold: 100 });
+            const callback = createCheckpointCallback(manager, {threshold: 100});
 
             const agent = new MockAgent();
-            const result = await callback(agent, 10, { reward: 50 });
+            const result = await callback(agent, 10, {reward: 50});
 
             expect(result).toBeNull(); // Below threshold
         });

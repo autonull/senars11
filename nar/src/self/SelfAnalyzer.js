@@ -1,10 +1,10 @@
-import { logError } from '../reason/utils/error.js';
+import {logError} from '@senars/core';
 
 export class SelfAnalyzer {
     constructor(nar, monitor, config = {}) {
         this.nar = nar;
         this.monitor = monitor;
-        this.config = { selfCorrectionEnabled: true, ...config };
+        this.config = {selfCorrectionEnabled: true, ...config};
         this.metaCognitiveTasks = [];
     }
 
@@ -14,10 +14,16 @@ export class SelfAnalyzer {
             const optimizations = await this._identifyOptimizations(patterns);
             await this._applyOptimizations(optimizations);
             await this._processMetaCognitiveTasks();
-            return { success: true, patterns, optimizations, tasksProcessed: this.metaCognitiveTasks.length, timestamp: Date.now() };
+            return {
+                success: true,
+                patterns,
+                optimizations,
+                tasksProcessed: this.metaCognitiveTasks.length,
+                timestamp: Date.now()
+            };
         } catch (error) {
-            logError(error, { context: 'meta_cognitive_reasoning' }, 'error');
-            return { success: false, error: error.message, timestamp: Date.now() };
+            logError(error, {context: 'meta_cognitive_reasoning'}, 'error');
+            return {success: false, error: error.message, timestamp: Date.now()};
         }
     }
 
@@ -43,17 +49,29 @@ export class SelfAnalyzer {
         };
     }
 
-    _identifyRulePriorityAdjustments() { return []; }
-    _identifyStrategyAdjustments() { return []; }
-    _identifyResourceAllocations() { return []; }
+    _identifyRulePriorityAdjustments() {
+        return [];
+    }
+
+    _identifyStrategyAdjustments() {
+        return [];
+    }
+
+    _identifyResourceAllocations() {
+        return [];
+    }
 
     _identifyPerformanceImprovements(patterns) {
         const improvements = [];
         if (patterns.resourceUsage.memoryTrend === 'increasing_fast') {
-            improvements.push({ type: 'memory_cleanup', priority: 'high', reason: 'Memory usage increasing rapidly' });
+            improvements.push({type: 'memory_cleanup', priority: 'high', reason: 'Memory usage increasing rapidly'});
         }
         if (patterns.performancePatterns.throughput?.isImproving === false) {
-            improvements.push({ type: 'performance_optimization', priority: 'medium', reason: 'Throughput not improving' });
+            improvements.push({
+                type: 'performance_optimization',
+                priority: 'medium',
+                reason: 'Throughput not improving'
+            });
         }
         return improvements;
     }
@@ -61,20 +79,28 @@ export class SelfAnalyzer {
     async _applyOptimizations(optimizations) {
         for (const improvement of optimizations.performanceImprovements) {
             switch (improvement.type) {
-                case 'memory_cleanup': await this._performMemoryCleanup(); break;
-                case 'performance_optimization': await this._applyPerformanceOptimizations(); break;
+                case 'memory_cleanup':
+                    await this._performMemoryCleanup();
+                    break;
+                case 'performance_optimization':
+                    await this._applyPerformanceOptimizations();
+                    break;
             }
         }
     }
 
     async _performMemoryCleanup() {
         if (this.nar?.memory?.cleanup) {
-            try { await this.nar.memory.cleanup(); }
-            catch (error) { logError(error, { context: 'memory_cleanup' }, 'warn'); }
+            try {
+                await this.nar.memory.cleanup();
+            } catch (error) {
+                logError(error, {context: 'memory_cleanup'}, 'warn');
+            }
         }
     }
 
-    async _applyPerformanceOptimizations() {}
+    async _applyPerformanceOptimizations() {
+    }
 
     async _processMetaCognitiveTasks() {
         const tasksToProcess = [...this.metaCognitiveTasks];
@@ -86,8 +112,10 @@ export class SelfAnalyzer {
 
     async _executeMetaCognitiveTask(task) {
         switch (task.type) {
-            case 'self_correction': return await this.performSelfCorrection(task.issues);
-            case 'optimization': return await this._applyOptimizations(task.optimizations);
+            case 'self_correction':
+                return await this.performSelfCorrection(task.issues);
+            case 'optimization':
+                return await this._applyOptimizations(task.optimizations);
             default:
                 logError(new Error(`Unknown meta-cognitive task type: ${task.type}`), {
                     taskType: task.type, context: 'meta-cognitive-reasoning'
@@ -99,10 +127,10 @@ export class SelfAnalyzer {
         try {
             const detectedIssues = issues || this._identifyIssues();
             const corrections = await this._applyCorrections(detectedIssues);
-            return { success: true, issues: detectedIssues, corrections, timestamp: Date.now() };
+            return {success: true, issues: detectedIssues, corrections, timestamp: Date.now()};
         } catch (error) {
-            logError(error, { context: 'self_correction' }, 'error');
-            return { success: false, error: error.message, timestamp: Date.now() };
+            logError(error, {context: 'self_correction'}, 'error');
+            return {success: false, error: error.message, timestamp: Date.now()};
         }
     }
 
@@ -115,14 +143,24 @@ export class SelfAnalyzer {
         };
     }
 
-    _findContradictions() { return []; }
-    _findInefficiencies() { return []; }
-    _findResourceIssues() { return []; }
+    _findContradictions() {
+        return [];
+    }
+
+    _findInefficiencies() {
+        return [];
+    }
+
+    _findResourceIssues() {
+        return [];
+    }
 
     async _applyCorrections(issues) {
-        const corrections = { appliedCorrections: [], pendingCorrections: [] };
+        const corrections = {appliedCorrections: [], pendingCorrections: []};
         for (const [, issueList] of Object.entries(issues)) {
-            if (!Array.isArray(issueList)) {continue;}
+            if (!Array.isArray(issueList)) {
+                continue;
+            }
             for (const issue of issueList) {
                 const correction = await this._applySpecificCorrection(issue);
                 (correction.applied ? corrections.appliedCorrections : corrections.pendingCorrections).push(correction);
@@ -132,7 +170,7 @@ export class SelfAnalyzer {
     }
 
     async _applySpecificCorrection(issue) {
-        return { issue, applied: false, result: null };
+        return {issue, applied: false, result: null};
     }
 
     async _generateRecommendations() {

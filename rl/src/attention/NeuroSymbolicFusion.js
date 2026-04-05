@@ -1,9 +1,11 @@
-import { SymbolicTensor } from '@senars/tensor';
+import {SymbolicTensor} from '@senars/tensor';
 
 let _lastGate = null;
 
 export const NeuroSymbolicFusion = {
-    get _lastGate() { return _lastGate; },
+    get _lastGate() {
+        return _lastGate;
+    },
 
     gatedFusion(neural, symbolic) {
         const nStrength = this.signalStrength(neural);
@@ -31,7 +33,9 @@ export const NeuroSymbolicFusion = {
         const sData = symbolic.data ?? symbolic;
         const len = Math.min(nData.length, sData.length);
         const added = new Float32Array(len);
-        for (let i = 0; i < len; i++) {added[i] = nData[i] + sData[i];}
+        for (let i = 0; i < len; i++) {
+            added[i] = nData[i] + sData[i];
+        }
         return new SymbolicTensor(added, [len]);
     },
 
@@ -56,7 +60,9 @@ export const NeuroSymbolicFusion = {
         const d2 = t2.data ?? t2;
         const len = Math.min(d1.length, d2.length);
         const added = new Float32Array(len);
-        for (let i = 0; i < len; i++) {added[i] = d1[i] + d2[i];}
+        for (let i = 0; i < len; i++) {
+            added[i] = d1[i] + d2[i];
+        }
         return new SymbolicTensor(added, [len]);
     }
 };

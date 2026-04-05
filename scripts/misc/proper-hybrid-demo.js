@@ -6,7 +6,7 @@
  * not direct LM calls.
  */
 
-import {NAR, LMRule, TransformersJSProvider, LMRuleFactory} from '@senars/nar';
+import {NAR, LMRule, TransformersJSProvider} from '@senars/nar';
 
 // Custom trace capture for logging all system activity
 class ReasoningTrace {

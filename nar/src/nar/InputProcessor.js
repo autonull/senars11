@@ -23,7 +23,9 @@ export class InputProcessor extends BaseComponent {
      * @returns {Task|null} Created task or null if processing failed
      */
     processInput(input, options = {}) {
-        if (!input) {return null;}
+        if (!input) {
+            return null;
+        }
 
         try {
             // If already a Task instance, return it

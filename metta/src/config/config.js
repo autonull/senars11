@@ -1,4 +1,4 @@
-import { ConfigManager, Validators } from './ConfigManager.js';
+import {ConfigManager, Validators} from '@senars/core';
 
 export const configManager = new ConfigManager();
 
@@ -33,4 +33,6 @@ configManager
     .define('bloomFilter', false, Validators.boolean, 'Fast negative lookups')
     .freeze();
 
-export function getConfig() { return configManager.getAll(); }
+export function getConfig() {
+    return configManager.getAll();
+}

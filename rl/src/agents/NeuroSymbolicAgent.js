@@ -1,12 +1,12 @@
-import { Agent } from '../core/RLCore.js';
-import { LearnedGrounding } from '../memory/MemorySystem.js';
-import { EpisodicMemory } from '../memory/EpisodicMemory.js';
-import { SkillManager } from '../skills/SkillManager.js';
-import { SkillDiscovery } from '../skills/SkillDiscovery.js';
-import { DualProcessArchitecture } from '../architectures/DualProcessArchitecture.js';
-import { MeTTaPolicyArchitecture } from '../architectures/MeTTaPolicyArchitecture.js';
-import { EvolutionaryArchitecture } from '../architectures/EvolutionaryArchitecture.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {Agent} from '../core/RLCore.js';
+import {LearnedGrounding} from '../memory/MemorySystem.js';
+import {EpisodicMemory} from '../memory/EpisodicMemory.js';
+import {SkillManager} from '../skills/SkillManager.js';
+import {SkillDiscovery} from '../skills/SkillDiscovery.js';
+import {DualProcessArchitecture} from '../architectures/DualProcessArchitecture.js';
+import {MeTTaPolicyArchitecture} from '../architectures/MeTTaPolicyArchitecture.js';
+import {EvolutionaryArchitecture} from '../architectures/EvolutionaryArchitecture.js';
+import {mergeConfig} from '../utils/index.js';
 
 const NEUROSYMBOLIC_DEFAULTS = {
     encoder: 'mlp',
@@ -43,8 +43,8 @@ export class NeuroSymbolicAgent extends Agent {
 
     _setupBridgeAliases() {
         if (this.architecture instanceof DualProcessArchitecture) {
-            const { bridge, planner, hierarchical, inducer, metta } = this.architecture;
-            Object.assign(this, { bridge, planner, hierarchical, inducer, metta });
+            const {bridge, planner, hierarchical, inducer, metta} = this.architecture;
+            Object.assign(this, {bridge, planner, hierarchical, inducer, metta});
         } else if (this.architecture instanceof MeTTaPolicyArchitecture) {
             this.metta = this.architecture.metta;
         }
@@ -64,7 +64,7 @@ export class NeuroSymbolicAgent extends Agent {
     }
 
     async plan(goal) {
-        return this.architecture.planner?.act(null, goal) ?? null;
+        return await this.architecture.planner?.act(null, goal) ?? null;
     }
 
     async explain(decision) {
@@ -85,7 +85,7 @@ export class NeuroSymbolicAgent extends Agent {
     }
 
     async discoverSkills(experiences, options = {}) {
-        return this.skillDiscovery?.discoverSkills(experiences, options) ?? [];
+        return await this.skillDiscovery?.discoverSkills(experiences, options) ?? [];
     }
 
     getSkills() {
@@ -93,7 +93,7 @@ export class NeuroSymbolicAgent extends Agent {
     }
 
     async composeSkills(goal) {
-        return this.skillDiscovery?.composeSkills(goal) ?? null;
+        return await this.skillDiscovery?.composeSkills(goal) ?? null;
     }
 
     async close() {

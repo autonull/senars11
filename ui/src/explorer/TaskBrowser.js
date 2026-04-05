@@ -1,6 +1,6 @@
 import { Component } from '../components/Component.js';
 import { TaskCard } from '../components/TaskCard.js';
-import { FluentUI, $ } from '../utils/FluentUI.js';
+import { $ } from '../utils/FluentUI.js';
 import { eventBus } from '../core/EventBus.js';
 import { EVENTS } from '../config/constants.js';
 import { SyntaxHighlighter } from '../utils/SyntaxHighlighter.js';

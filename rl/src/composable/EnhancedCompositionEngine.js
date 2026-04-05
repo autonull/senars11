@@ -2,8 +2,8 @@
  * Enhanced Composition Engine
  * Pipeline and graph-based composition with advanced execution
  */
-import { CompositionEngine } from './CompositionEngine.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {CompositionEngine} from './CompositionEngine.js';
+import {mergeConfig} from '../utils/index.js';
 
 const ENHANCED_COMPOSITION_DEFAULTS = {
     parallel: true,
@@ -77,7 +77,9 @@ export class EnhancedCompositionEngine extends CompositionEngine {
 
         while (queue.length > 0) {
             const nodeId = queue.shift();
-            if (visited.has(nodeId)) {continue;}
+            if (visited.has(nodeId)) {
+                continue;
+            }
 
             const node = graph.nodes.get(nodeId);
             const nodeInput = nodeId === Array.from(graph.nodes.keys())[0]

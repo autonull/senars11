@@ -1,4 +1,4 @@
-import {ImplicationSyllogisticRule, Task, Truth, ArrayStamp, TermFactory} from '@senars/nar';
+import {ArrayStamp, ImplicationSyllogisticRule, Task, TermFactory, Truth} from '@senars/nar';
 
 describe('ImplicationSyllogisticRule', () => {
     let termFactory;

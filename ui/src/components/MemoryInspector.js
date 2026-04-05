@@ -4,7 +4,7 @@ import { TaskCard } from './TaskCard.js';
 import { FluentUI } from '../utils/FluentUI.js';
 import { FluentToolbar } from './ui/FluentToolbar.js';
 import { EVENTS } from '../config/constants.js';
-import { ReactiveState } from '../core/ReactiveState.js';
+import { ReactiveState } from '../core/index.js';
 import { eventBus } from '../core/EventBus.js';
 
 export class MemoryInspector extends Component {

@@ -1,4 +1,4 @@
-import {NarseseTranslator} from '../../../core/src/lm/NarseseTranslator.js';
+import {NarseseTranslator} from '@senars/core/src/lm/index';
 
 describe('NarseseTranslator', () => {
     let translator;

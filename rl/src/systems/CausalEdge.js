@@ -15,6 +15,12 @@ export class CausalEdge {
     }
 
     toJSON() {
-        return { from: this.from, to: this.to, strength: this.strength, confidence: this.confidence, observations: this.observations };
+        return {
+            from: this.from,
+            to: this.to,
+            strength: this.strength,
+            confidence: this.confidence,
+            observations: this.observations
+        };
     }
 }

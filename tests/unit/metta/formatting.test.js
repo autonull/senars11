@@ -1,7 +1,5 @@
-
-import { MeTTaInterpreter } from '../../../metta/src/MeTTaInterpreter.js';
-import { Formatter } from '../../../metta/src/kernel/Formatter.js';
-import { Term } from '../../../metta/src/kernel/Term.js';
+import {MeTTaInterpreter, Term} from '../../../metta/src/index.js';
+import {Formatter} from '../../../metta/src/kernel/Formatter.js';
 
 describe('Output Formatting Parity', () => {
     let interpreter;
@@ -40,7 +38,9 @@ describe('Output Formatting Parity', () => {
     test('&println uses Formatter', () => {
         const originalLog = console.log;
         let logged = '';
-        console.log = (msg) => { logged = msg; };
+        console.log = (msg) => {
+            logged = msg;
+        };
 
         try {
             interpreter.run('!(&println (: Hello (: World ())))');

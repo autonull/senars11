@@ -189,7 +189,7 @@ export class SettingsPanel extends Component {
                 await Modal.alert('Workspace loaded. Page will reload to apply layout changes.');
                 location.reload();
             } else {
-                Modal.alert('Workspace loaded (Notebook and Settings).');
+                await Modal.alert('Workspace loaded (Notebook and Settings).');
             }
         }
     }

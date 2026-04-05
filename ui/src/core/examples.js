@@ -10,8 +10,7 @@ import {
     ReactiveState,
     ServiceContainer,
     EventBus,
-    $, button, div, h2, p,
-    ComponentGenerator
+    $, button, div, h2, ComponentGenerator
 } from './index.js';
 
 // ============================================

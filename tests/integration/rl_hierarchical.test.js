@@ -1,14 +1,13 @@
-
-import { NeuroSymbolicAgent } from '../../rl/src/agents/NeuroSymbolicAgent.js';
-import { GridWorld } from '../../rl/src/environments/GridWorld.js';
-import { Skill } from '../../rl/src/skills/SkillDiscovery.js';
+import {NeuroSymbolicAgent} from '../../rl/src/agents/NeuroSymbolicAgent.js';
+import {GridWorld} from '../../rl/src/environments/GridWorld.js';
+import {Skill} from '../../rl/src/index.js';
 
 describe('RL Hierarchical Integration Tests', () => {
 
     test('Agent selects and uses a registered skill', async () => {
         const env = new GridWorld();
         // Hierarchical enabled, reasoning with 'metta'
-        const agent = new NeuroSymbolicAgent(env, { reasoning: 'metta', planning: true });
+        const agent = new NeuroSymbolicAgent(env, {reasoning: 'metta', planning: true});
 
         await agent.initialize();
 
@@ -65,7 +64,7 @@ describe('RL Hierarchical Integration Tests', () => {
 
     test('Agent falls back if no skill found', async () => {
         const env = new GridWorld();
-        const agent = new NeuroSymbolicAgent(env, { reasoning: 'metta', planning: true });
+        const agent = new NeuroSymbolicAgent(env, {reasoning: 'metta', planning: true});
         await agent.initialize();
 
         const goal = "impossible_goal";

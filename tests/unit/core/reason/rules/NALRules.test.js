@@ -1,5 +1,12 @@
-
-import {InductionRule, AbductionRule, InheritanceSyllogisticRule, ConversionRule, Truth, TermFactory, Task} from '@senars/nar';
+import {
+    AbductionRule,
+    ConversionRule,
+    InductionRule,
+    InheritanceSyllogisticRule,
+    Task,
+    TermFactory,
+    Truth
+} from '@senars/nar';
 
 describe('NAL Inference Rules', () => {
     let factory;
@@ -7,15 +14,15 @@ describe('NAL Inference Rules', () => {
 
     beforeEach(() => {
         factory = new TermFactory();
-        context = { termFactory: factory };
+        context = {termFactory: factory};
     });
 
     function createTask(term, f, c) {
         return new Task({
             term,
             truth: new Truth(f, c),
-            stamp: { id: 'test', derivations: [] },
-            budget: { priority: 0.8 }
+            stamp: {id: 'test', derivations: []},
+            budget: {priority: 0.8}
         });
     }
 

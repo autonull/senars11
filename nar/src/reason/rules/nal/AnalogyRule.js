@@ -19,12 +19,16 @@ export class AnalogyRule extends NALRule {
     canApply(primaryPremise, secondaryPremise, context) {
         const t1 = primaryPremise?.term;
         const t2 = secondaryPremise?.term;
-        if (!t1?.isCompound || !t2?.isCompound) {return false;}
+        if (!t1?.isCompound || !t2?.isCompound) {
+            return false;
+        }
 
         const isSim = t => t.operator === '<->';
         const isInh = t => t.operator === '-->';
 
-        if (!((isSim(t1) && isInh(t2)) || (isSim(t2) && isInh(t1)))) {return false;}
+        if (!((isSim(t1) && isInh(t2)) || (isSim(t2) && isInh(t1)))) {
+            return false;
+        }
 
         const sim = isSim(t1) ? t1 : t2;
         const inh = isSim(t1) ? t2 : t1;
@@ -37,7 +41,9 @@ export class AnalogyRule extends NALRule {
     apply(primaryPremise, secondaryPremise, context) {
         const t1 = primaryPremise.term;
         const t2 = secondaryPremise.term;
-        if (!context?.termFactory) {return [];}
+        if (!context?.termFactory) {
+            return [];
+        }
 
         const isSim = t1.operator === '<->';
         const sim = isSim ? t1 : t2;
@@ -47,7 +53,9 @@ export class AnalogyRule extends NALRule {
         const i1 = inh.subject, i2 = inh.predicate;
 
         const newTruth = Truth.analogy(primaryPremise.truth, secondaryPremise.truth);
-        if (!newTruth) {return [];}
+        if (!newTruth) {
+            return [];
+        }
 
         const results = [];
         const matches = [
@@ -65,7 +73,9 @@ export class AnalogyRule extends NALRule {
                     context.termFactory.inheritance(termS, termP),
                     newTruth, [primaryPremise, secondaryPremise], context
                 );
-                if (task) {results.push(task);}
+                if (task) {
+                    results.push(task);
+                }
             }
         }
         return results;

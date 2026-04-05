@@ -7,10 +7,10 @@ import {Term} from '@senars/metta/src/kernel/Term.js';
 import {Unify} from '@senars/metta/src/kernel/Unify.js';
 import {Space} from '@senars/metta/src/kernel/Space.js';
 import {Ground} from '@senars/metta/src/kernel/Ground.js';
-import {reduce, match} from '@senars/metta/src/kernel/Reduce.js';
+import {reduce} from '@senars/metta/src/kernel/Reduce.js';
 import {Parser} from '@senars/metta/src/Parser.js';
 import {MeTTaInterpreter} from '@senars/metta/src/MeTTaInterpreter.js';
-import {TypeChecker, TypeSystem, TypeConstructors} from '@senars/metta/src/TypeSystem.js';
+import {TypeChecker, TypeConstructors, TypeSystem} from '@senars/metta/src/TypeSystem.js';
 
 // Test suite for Term.js
 describe('Term.js - Core Data Structures', () => {

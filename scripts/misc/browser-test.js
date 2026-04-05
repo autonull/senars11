@@ -1,4 +1,3 @@
-import { Tensor } from '@senars/tensor';
 import { T } from '@senars/tensor/src/backends/NativeBackend.js';
 import { MeTTaInterpreter } from '@senars/metta';
 import { Term } from '@senars/nar';

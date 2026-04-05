@@ -1,5 +1,5 @@
-import { parentPort, workerData } from 'worker_threads';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {parentPort, workerData} from 'worker_threads';
+import {mergeConfig} from '../utils/index.js';
 
 const WORKER_DEFAULTS = {
     maxSteps: 500,
@@ -40,10 +40,12 @@ const TaskExecutors = {
             totalReward += result.reward;
             state = result;
 
-            if (result.terminated) {break;}
+            if (result.terminated) {
+                break;
+            }
         }
 
-        return { trajectory, totalReward, steps: trajectory.length };
+        return {trajectory, totalReward, steps: trajectory.length};
     },
 
     async train(model, batch, config) {
@@ -112,7 +114,7 @@ class Worker {
     }
 
     async runTask(task) {
-        const mergedTask = { ...TASK_DEFAULTS, ...task };
+        const mergedTask = {...TASK_DEFAULTS, ...task};
         const executors = {
             rollout: () => TaskExecutors.rollout(
                 mergedTask.env, mergedTask.policy, mergedTask.steps, mergedTask.envConfig, mergedTask
@@ -135,7 +137,7 @@ class Worker {
 
 const worker = new Worker(workerData.id, workerData.config);
 
-parentPort.postMessage({ type: 'ready', workerId: worker.id });
+parentPort.postMessage({type: 'ready', workerId: worker.id});
 
 parentPort.on('message', async (message) => {
     if (message.type === 'task') {
@@ -155,6 +157,6 @@ parentPort.on('message', async (message) => {
             });
         }
 
-        parentPort.postMessage({ type: 'ready' });
+        parentPort.postMessage({type: 'ready'});
     }
 });

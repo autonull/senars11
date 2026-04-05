@@ -10,10 +10,10 @@
  * Core SemanticMemory logic is tested here with mock embeddings.
  */
 
-import { describe, it, expect, beforeEach, afterEach, beforeAll } from '@jest/globals';
-import { mkdir, rm, writeFile } from 'fs/promises';
-import { join } from 'path';
-import { tmpdir } from 'os';
+import {afterEach, beforeAll, beforeEach, describe, expect, it} from '@jest/globals';
+import {mkdir, rm, writeFile} from 'fs/promises';
+import {join} from 'path';
+import {tmpdir} from 'os';
 
 // Mock @huggingface/transformers for Jest environment
 beforeAll(() => {
@@ -26,17 +26,17 @@ describe('Phase 2: Semantic Memory', () => {
 
     beforeEach(async () => {
         testDir = join(tmpdir(), `semantic-memory-test-${Date.now()}`);
-        await mkdir(testDir, { recursive: true });
+        await mkdir(testDir, {recursive: true});
     });
 
     afterEach(async () => {
-        await rm(testDir, { recursive: true, force: true });
+        await rm(testDir, {recursive: true, force: true});
     });
 
     describe('SemanticMemory core operations', () => {
         it('parses atoms from file correctly', async () => {
-            const { SemanticMemory } = await import('../../../agent/src/memory/SemanticMemory.js');
-            
+            const {SemanticMemory} = await import('../../../agent/src/memory/SemanticMemory.js');
+
             // Create atoms file
             const atomsContent = `(memory-atom
   :id        "mem_001"
@@ -49,7 +49,7 @@ describe('Phase 2: Semantic Memory', () => {
 )`;
             await writeFile(join(testDir, 'atoms.metta'), atomsContent);
 
-            const memory = new SemanticMemory({ dataDir: testDir });
+            const memory = new SemanticMemory({dataDir: testDir});
             await memory.initialize();
 
             expect(memory.stats.totalAtoms).toBe(1);
@@ -60,13 +60,13 @@ describe('Phase 2: Semantic Memory', () => {
         });
 
         it('parses vectors from file correctly', async () => {
-            const { SemanticMemory } = await import('../../../agent/src/memory/SemanticMemory.js');
-            
+            const {SemanticMemory} = await import('../../../agent/src/memory/SemanticMemory.js');
+
             // Create vectors file
             const vecContent = 'mem_001|0.1,0.2,0.3,0.4,0.5';
             await writeFile(join(testDir, 'atoms.vec'), vecContent);
 
-            const memory = new SemanticMemory({ dataDir: testDir, vectorDimensions: 5 });
+            const memory = new SemanticMemory({dataDir: testDir, vectorDimensions: 5});
             await memory.initialize();
 
             expect(memory._vectors.size).toBe(1);
@@ -75,9 +75,9 @@ describe('Phase 2: Semantic Memory', () => {
         });
 
         it('getPinned returns pinned memories within char budget', async () => {
-            const { SemanticMemory } = await import('../../../agent/src/memory/SemanticMemory.js');
-            
-            const memory = new SemanticMemory({ dataDir: testDir });
+            const {SemanticMemory} = await import('../../../agent/src/memory/SemanticMemory.js');
+
+            const memory = new SemanticMemory({dataDir: testDir});
             await memory.initialize();
 
             // Manually add atoms (simulating remember + pin)
@@ -99,9 +99,9 @@ describe('Phase 2: Semantic Memory', () => {
         });
 
         it('getRecent returns episodic memories sorted by timestamp', async () => {
-            const { SemanticMemory } = await import('../../../agent/src/memory/SemanticMemory.js');
-            
-            const memory = new SemanticMemory({ dataDir: testDir });
+            const {SemanticMemory} = await import('../../../agent/src/memory/SemanticMemory.js');
+
+            const memory = new SemanticMemory({dataDir: testDir});
             await memory.initialize();
 
             memory._atoms.set('mem_1', {
@@ -129,9 +129,9 @@ describe('Phase 2: Semantic Memory', () => {
         });
 
         it('query filters by type', async () => {
-            const { SemanticMemory } = await import('../../../agent/src/memory/SemanticMemory.js');
+            const {SemanticMemory} = await import('../../../agent/src/memory/SemanticMemory.js');
 
-            const memory = new SemanticMemory({ dataDir: testDir });
+            const memory = new SemanticMemory({dataDir: testDir});
             await memory.initialize();
 
             // Add mock vectors for brute-force search
@@ -156,7 +156,7 @@ describe('Phase 2: Semantic Memory', () => {
             };
 
             // Query with type filter
-            const results = await memory.query('test', 5, { type: 'episodic' });
+            const results = await memory.query('test', 5, {type: 'episodic'});
             // Should only return episodic type (or empty if no match)
             results.forEach(r => {
                 expect(r.type).toBe('episodic');
@@ -164,15 +164,15 @@ describe('Phase 2: Semantic Memory', () => {
         });
 
         it('stats returns correct counts by type', async () => {
-            const { SemanticMemory } = await import('../../../agent/src/memory/SemanticMemory.js');
-            
-            const memory = new SemanticMemory({ dataDir: testDir });
+            const {SemanticMemory} = await import('../../../agent/src/memory/SemanticMemory.js');
+
+            const memory = new SemanticMemory({dataDir: testDir});
             await memory.initialize();
 
-            memory._atoms.set('mem_1', { id: 'mem_1', type: 'semantic' });
-            memory._atoms.set('mem_2', { id: 'mem_2', type: 'episodic' });
-            memory._atoms.set('mem_3', { id: 'mem_3', type: 'pinned' });
-            memory._atoms.set('mem_4', { id: 'mem_4', type: 'pinned' });
+            memory._atoms.set('mem_1', {id: 'mem_1', type: 'semantic'});
+            memory._atoms.set('mem_2', {id: 'mem_2', type: 'episodic'});
+            memory._atoms.set('mem_3', {id: 'mem_3', type: 'pinned'});
+            memory._atoms.set('mem_4', {id: 'mem_4', type: 'pinned'});
 
             const stats = memory.stats;
             expect(stats.totalAtoms).toBe(4);
@@ -203,9 +203,9 @@ describe('Phase 2: Semantic Memory', () => {
 
     describe('Persistence', () => {
         it('persists atoms to atoms.metta', async () => {
-            const { SemanticMemory } = await import('../../../agent/src/memory/SemanticMemory.js');
-            
-            const memory = new SemanticMemory({ dataDir: testDir });
+            const {SemanticMemory} = await import('../../../agent/src/memory/SemanticMemory.js');
+
+            const memory = new SemanticMemory({dataDir: testDir});
             await memory.initialize();
 
             memory._atoms.set('mem_test', {
@@ -214,29 +214,29 @@ describe('Phase 2: Semantic Memory', () => {
                 type: 'semantic',
                 timestamp: 12345,
                 source: 'test',
-                truth: { frequency: 0.9, confidence: 0.8 },
+                truth: {frequency: 0.9, confidence: 0.8},
                 tags: ['test']
             });
             memory._vectors.set('mem_test', [0.1, 0.2, 0.3]);
 
             await memory._persist();
 
-            const { readFile } = await import('fs/promises');
+            const {readFile} = await import('fs/promises');
             const content = await readFile(join(testDir, 'atoms.metta'), 'utf8');
             expect(content).toContain('mem_test');
             expect(content).toContain('Test persistence');
         });
 
         it('persists vectors to atoms.vec', async () => {
-            const { SemanticMemory } = await import('../../../agent/src/memory/SemanticMemory.js');
-            
-            const memory = new SemanticMemory({ dataDir: testDir });
+            const {SemanticMemory} = await import('../../../agent/src/memory/SemanticMemory.js');
+
+            const memory = new SemanticMemory({dataDir: testDir});
             await memory.initialize();
 
             memory._vectors.set('mem_vec', [1, 2, 3, 4]);
             await memory._persist();
 
-            const { readFile } = await import('fs/promises');
+            const {readFile} = await import('fs/promises');
             const content = await readFile(join(testDir, 'atoms.vec'), 'utf8');
             expect(content).toContain('mem_vec');
             expect(content).toContain('1,2,3,4');

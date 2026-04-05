@@ -1,7 +1,6 @@
-import { Parser } from '../Parser.js';
-import { Space } from './Space.js';
-import { ENV } from '../platform/env.js';
-import { Term } from './Term.js';
+import {Parser} from '../Parser.js';
+import {Space} from './Space.js';
+import {ENV} from '../platform/env.js';
 
 export class ModuleLoader {
     constructor(interpreter, basePath = '.') {
@@ -72,13 +71,13 @@ export class ModuleLoader {
 
         if (ENV.isNode) {
             try {
-                const { FileLoader } = await import('../platform/node/FileLoader.js');
+                const {FileLoader} = await import('../platform/node/FileLoader.js');
                 return FileLoader.load(`${this.basePath}/${fileName}`);
             } catch (e) {
-                 throw e;
+                throw e;
             }
         } else {
-            const { VirtualFS } = await import('../platform/browser/VirtualFS.js');
+            const {VirtualFS} = await import('../platform/browser/VirtualFS.js');
             return VirtualFS.load(`${fileName}`);
         }
     }

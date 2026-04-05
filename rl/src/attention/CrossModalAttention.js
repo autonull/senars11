@@ -1,8 +1,8 @@
-import { Component } from '../composable/Component.js';
-import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { AttentionOps } from './AttentionOps.js';
-import { NeuroSymbolicFusion as FusionOps } from './NeuroSymbolicFusion.js';
+import {Component} from '../composable/Component.js';
+import {SymbolicTensor, TensorLogicBridge} from '@senars/tensor';
+import {mergeConfig} from '../utils/index.js';
+import {AttentionOps} from './AttentionOps.js';
+import {NeuroSymbolicFusion as FusionOps} from './NeuroSymbolicFusion.js';
 
 const DEFAULTS = {
     neuralDim: 64,
@@ -20,7 +20,7 @@ export class CrossModalAttention extends Component {
     }
 
     attend(neuralInput, symbolicInput, context = {}) {
-        const { returnWeights = false, mask = null } = context;
+        const {returnWeights = false, mask = null} = context;
 
         const neuralProj = this.projectNeural(neuralInput);
         const symbolProj = this.projectSymbolic(symbolicInput);
@@ -61,7 +61,7 @@ export class CrossModalAttention extends Component {
         for (let h = 0; h < this.config.heads; h++) {
             const neuralSlice = neuralInput.data?.slice(h * headDim, (h + 1) * headDim) ?? neuralInput;
             const symbolSlice = symbolicInput.data?.slice(h * headDim, (h + 1) * headDim) ?? symbolicInput;
-            outputs.push(this.attend(neuralSlice, symbolSlice, { ...context, head: h }));
+            outputs.push(this.attend(neuralSlice, symbolSlice, {...context, head: h}));
         }
 
         return this.concatHeads(outputs);
@@ -89,15 +89,17 @@ export class CrossModalAttention extends Component {
     }
 
     getAttendedSymbols(symbolicInput, threshold = 0.1) {
-        if (!this.attentionWeights) {return [];}
+        if (!this.attentionWeights) {
+            return [];
+        }
 
         const attended = [];
-        symbolicInput.symbols.forEach(({ symbol, confidence }, key) => {
+        symbolicInput.symbols.forEach(({symbol, confidence}, key) => {
             const idx = parseInt(key);
             const weight = this.attentionWeights[idx % this.attentionWeights.length];
 
             if (weight >= threshold) {
-                attended.push({ symbol, weight, confidence });
+                attended.push({symbol, weight, confidence});
             }
         });
 
@@ -116,7 +118,7 @@ export class SymbolicAttention extends Component {
     }
 
     attend(query, concepts, context = {}) {
-        const { temperature = this.config.temperature } = context;
+        const {temperature = this.config.temperature} = context;
 
         const similarities = concepts.map(concept =>
             AttentionOps.cosineSimilarity(query.data ?? query, concept.data ?? concept)
@@ -143,7 +145,7 @@ export class SymbolicAttention extends Component {
             return new SymbolicTensor(combined, [dim]);
         }
 
-        return concepts.map((c, i) => ({ concept: c, weight: weights[i] }));
+        return concepts.map((c, i) => ({concept: c, weight: weights[i]}));
     }
 
     sparseAttend(query, concepts, k = 5) {

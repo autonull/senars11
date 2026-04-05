@@ -1,12 +1,10 @@
-import {Embodiment} from '../Embodiment.js';
-import {finalizeEvent, getPublicKey, SimplePool} from 'nostr-tools';
-import {WebSocket} from 'ws';
-import {Logger} from '@senars/core';
-import {randomBytes} from 'crypto';
+import { Embodiment } from '../Embodiment.js';
+import { SimplePool, getPublicKey, finalizeEvent } from 'nostr-tools';
+import { WebSocket } from 'ws';
+import { Logger } from '@senars/core';
+import { randomBytes } from 'crypto';
 
-if (typeof global.WebSocket === 'undefined') {
-    global.WebSocket = WebSocket;
-}
+if (typeof global.WebSocket === 'undefined') {global.WebSocket = WebSocket;}
 
 export class NostrChannel extends Embodiment {
     constructor(config = {}) {
@@ -15,12 +13,12 @@ export class NostrChannel extends Embodiment {
             name: config.name || 'Nostr',
             description: config.description || 'Nostr decentralized channel',
             capabilities: config.capabilities || ['private-messages', 'encryption', 'multi-relay'],
-            constraints: {maxMessageLength: 65536},
+            constraints: { maxMessageLength: 65536 },
             isPublic: config.isPublic ?? true,
             isInternal: false,
             defaultSalience: config.defaultSalience ?? 0.6
         });
-
+        
         this.type = 'nostr';
         this.pool = new SimplePool();
         this.relays = config.relays || ['wss://relay.damus.io', 'wss://relay.nostr.band'];
@@ -52,9 +50,7 @@ export class NostrChannel extends Embodiment {
     }
 
     async connect() {
-        if (this.status === 'connected') {
-            return;
-        }
+        if (this.status === 'connected') {return;}
         this.setStatus('connecting');
         try {
             this.setStatus('connected');
@@ -62,8 +58,8 @@ export class NostrChannel extends Embodiment {
             if (this.config.filters) {
                 this.subscribe('main', this.config.filters);
             } else {
-                this.subscribe('dms', [{kinds: [4], '#p': [this.pk]}]);
-                this.subscribe('mentions', [{kinds: [1], '#p': [this.pk]}]);
+                this.subscribe('dms', [{ kinds: [4], '#p': [this.pk] }]);
+                this.subscribe('mentions', [{ kinds: [1], '#p': [this.pk] }]);
             }
         } catch (error) {
             this.setStatus('error');
@@ -109,8 +105,8 @@ export class NostrChannel extends Embodiment {
         if (event.kind === 4) {
             try {
                 if (this.config.decrypt !== false) {
-                    const {nip04} = await import('nostr-tools');
-                    content = nip04.decrypt(this.sk, event.pubkey, event.content);
+                     const { nip04 } = await import('nostr-tools');
+                     content = nip04.decrypt(this.sk, event.pubkey, event.content);
                 }
             } catch (e) {
                 Logger.warn(`[Nostr:${this.id}] Failed to decrypt DM:`, e);
@@ -131,9 +127,7 @@ export class NostrChannel extends Embodiment {
     }
 
     async sendMessage(target, content, metadata = {}) {
-        if (this.status !== 'connected') {
-            throw new Error('Not connected to Nostr');
-        }
+        if (this.status !== 'connected') {throw new Error('Not connected to Nostr');}
 
         const eventTemplate = {
             kind: metadata.kind || 1,
@@ -145,9 +139,9 @@ export class NostrChannel extends Embodiment {
         // If target is a public key, we might be sending a DM (kind 4) or a reply
         if (metadata.kind === 4) {
             // Encrypt content
-            const {nip04} = await import('nostr-tools');
-            eventTemplate.content = nip04.encrypt(this.sk, target, content);
-            eventTemplate.tags.push(['p', target]);
+             const { nip04 } = await import('nostr-tools');
+             eventTemplate.content = nip04.encrypt(this.sk, target, content);
+             eventTemplate.tags.push(['p', target]);
         }
 
         // Sign event

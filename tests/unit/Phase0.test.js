@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, it} from '@jest/globals';
-import {TermFactory, Unifier, NarseseParser} from '@senars/nar';
+import {NarseseParser, TermFactory, Unifier} from '@senars/nar';
 import * as TermUtils from '@senars/nar/src/term/TermUtils.js';
 
 describe('Phase 0 Implementation', () => {

@@ -1,5 +1,5 @@
-import { describe, expect, test, beforeEach } from '@jest/globals';
-import {TermFactory, Truth, Stamp, ArrayStamp, BloomStamp} from '@senars/nar';
+import {beforeEach, describe, expect, test} from '@jest/globals';
+import {ArrayStamp, BloomStamp, Stamp, TermFactory, Truth} from '@senars/nar';
 
 describe('Phase 1: Immutable Core Verification', () => {
     let termFactory;
@@ -22,7 +22,9 @@ describe('Phase 1: Immutable Core Verification', () => {
         test('Terms must be immutable', () => {
             const t = termFactory.create('dog');
             expect(Object.isFrozen(t)).toBe(true);
-            expect(() => { t.name = 'cat'; }).toThrow();
+            expect(() => {
+                t.name = 'cat';
+            }).toThrow();
             expect(Object.isFrozen(t.components)).toBe(true);
         });
     });
@@ -42,7 +44,7 @@ describe('Phase 1: Immutable Core Verification', () => {
             const res = Truth.revision(t1, t2);
 
             expect(res.frequency).toBeCloseTo(0.86);
-            expect(res.confidence).toBeCloseTo(10/11);
+            expect(res.confidence).toBeCloseTo(10 / 11);
         });
 
         test('Truth choice must follow expectation', () => {
@@ -81,19 +83,19 @@ describe('Phase 1: Immutable Core Verification', () => {
             const s = Stamp.createInput();
             expect(Object.isFrozen(s)).toBe(true);
             if (s instanceof ArrayStamp) {
-                 expect(Object.isFrozen(s.derivations)).toBe(true);
+                expect(Object.isFrozen(s.derivations)).toBe(true);
             }
         });
 
         test('Stamp should transition to BloomStamp when depth exceeds threshold', () => {
-             // Threshold is 20 in Stamp.js
-             let stamps = [Stamp.createInput()];
-             for(let i=0; i<25; i++) {
-                 stamps = [Stamp.derive(stamps)];
-             }
-             const deepStamp = stamps[0];
-             expect(deepStamp instanceof BloomStamp).toBe(true);
-             expect(deepStamp.depth).toBeGreaterThan(20);
+            // Threshold is 20 in Stamp.js
+            let stamps = [Stamp.createInput()];
+            for (let i = 0; i < 25; i++) {
+                stamps = [Stamp.derive(stamps)];
+            }
+            const deepStamp = stamps[0];
+            expect(deepStamp instanceof BloomStamp).toBe(true);
+            expect(deepStamp.depth).toBeGreaterThan(20);
         });
     });
 });

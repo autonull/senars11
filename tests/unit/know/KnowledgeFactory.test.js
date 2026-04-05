@@ -4,8 +4,11 @@
 // Mock browser APIs before any imports
 if (typeof window !== 'undefined') {
     window.URL = window.URL || {};
-    window.URL.createObjectURL = window.URL.createObjectURL || function() { return 'mock-url'; };
-    window.URL.revokeObjectURL = window.URL.revokeObjectURL || function() {};
+    window.URL.createObjectURL = window.URL.createObjectURL || function () {
+        return 'mock-url';
+    };
+    window.URL.revokeObjectURL = window.URL.revokeObjectURL || function () {
+    };
 }
 
 import {Knowledge, KnowledgeFactory} from '../../../agent/src/know/index.js';

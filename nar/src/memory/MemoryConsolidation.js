@@ -128,7 +128,9 @@ export class MemoryConsolidation extends ConfigurableComponent {
             });
 
             for (const candidate of candidates) {
-                if (candidate === concept) {continue;}
+                if (candidate === concept) {
+                    continue;
+                }
 
                 // Verify with rigorous similarity check
                 const similarity = this._calculateTermSimilarity(term, candidate.term);
@@ -141,7 +143,9 @@ export class MemoryConsolidation extends ConfigurableComponent {
 
         // Fallback to O(N) scan if index is not available
         for (const otherConcept of memory.getAllConcepts()) {
-            if (otherConcept === concept) {continue;}
+            if (otherConcept === concept) {
+                continue;
+            }
 
             const similarity = this._calculateTermSimilarity(term, otherConcept.term);
             if (similarity > 0.3) { // Threshold for relatedness
@@ -154,7 +158,9 @@ export class MemoryConsolidation extends ConfigurableComponent {
         if (relatedConcepts.length === 0) {
             // Add concepts that share common subterms or have been recently accessed together
             for (const otherConcept of memory.getAllConcepts()) {
-                if (otherConcept === concept) {continue;}
+                if (otherConcept === concept) {
+                    continue;
+                }
 
                 // Check if the terms share any common substructure (e.g., same components)
                 if (this._hasCommonSubstructure(term, otherConcept.term)) {
@@ -327,8 +333,12 @@ export class MemoryConsolidation extends ConfigurableComponent {
             long: 1
         });
 
-        if (taskAge < recencyThresholds.short) {return recencyFactors.short;}
-        if (taskAge < recencyThresholds.medium) {return recencyFactors.medium;}
+        if (taskAge < recencyThresholds.short) {
+            return recencyFactors.short;
+        }
+        if (taskAge < recencyThresholds.medium) {
+            return recencyFactors.medium;
+        }
         return recencyFactors.long;
     }
 
@@ -343,15 +353,23 @@ export class MemoryConsolidation extends ConfigurableComponent {
 
     _getPriorityDecayFactor(task) {
         const priority = task.budget?.priority ?? 0.5;
-        if (priority > 0.8) {return 0.5;}
-        if (priority < 0.2) {return 1.5;}
+        if (priority > 0.8) {
+            return 0.5;
+        }
+        if (priority < 0.2) {
+            return 1.5;
+        }
         return 1.0;
     }
 
     _getContextDecayFactor(concept) {
         const activation = concept.activation ?? 0.5;
-        if (activation > 0.7) {return 0.6;}
-        if (activation < 0.2) {return 1.3;}
+        if (activation > 0.7) {
+            return 0.6;
+        }
+        if (activation < 0.2) {
+            return 1.3;
+        }
         return 1.0;
     }
 
@@ -483,7 +501,9 @@ export class MemoryConsolidation extends ConfigurableComponent {
      */
     _getAverageUseCount(memory) {
         const concepts = memory.getAllConcepts();
-        if (concepts.length === 0) {return 0;}
+        if (concepts.length === 0) {
+            return 0;
+        }
 
         let total = 0;
         for (const concept of concepts) {
@@ -498,7 +518,9 @@ export class MemoryConsolidation extends ConfigurableComponent {
      */
     _getAverageActivation(memory) {
         const concepts = memory.getAllConcepts();
-        if (concepts.length === 0) {return 0;}
+        if (concepts.length === 0) {
+            return 0;
+        }
 
         let total = 0;
         for (const concept of concepts) {

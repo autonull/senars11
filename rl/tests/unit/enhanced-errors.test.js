@@ -2,17 +2,17 @@
  * EnhancedErrors Tests
  */
 import {
-    EnhancedError,
-    LifecycleError,
-    EnvironmentError,
     AgentError,
     ConfigError,
+    EnhancedError,
+    EnvironmentError,
+    Errors,
+    LifecycleError,
+    NeuroSymbolicError,
     TensorError,
     TrainingError,
-    NeuroSymbolicError,
-    Errors,
     validateConfig
-} from '../../src/utils/EnhancedErrors.js';
+} from '@senars/core';
 
 describe('EnhancedError', () => {
     describe('base class', () => {
@@ -66,7 +66,7 @@ describe('EnhancedError', () => {
 
     describe('EnvironmentError', () => {
         it('should create error for not reset environment', () => {
-            const error = new EnvironmentError('not_reset', { env: 'CartPole' });
+            const error = new EnvironmentError('not_reset', {env: 'CartPole'});
 
             expect(error.message).toContain('not reset');
             expect(error.suggestions).toContainEqual(expect.stringContaining('reset()'));
@@ -85,7 +85,7 @@ describe('EnhancedError', () => {
 
     describe('AgentError', () => {
         it('should create error for untrained agent', () => {
-            const error = new AgentError('not_trained', { agent: 'DQNAgent' });
+            const error = new AgentError('not_trained', {agent: 'DQNAgent'});
 
             expect(error.message).toContain('without training');
             expect(error.suggestions).toContainEqual(expect.stringContaining('train'));
@@ -94,7 +94,7 @@ describe('EnhancedError', () => {
         it('should create error for observation mismatch', () => {
             const error = new AgentError('observation_shape_mismatch', {
                 agent: 'PPOAgent',
-                observation: { expected: '[4]' }
+                observation: {expected: '[4]'}
             });
 
             expect(error.message).toContain('shape mismatch');
@@ -149,7 +149,7 @@ describe('EnhancedError', () => {
 
     describe('TrainingError', () => {
         it('should create error for NaN loss', () => {
-            const error = new TrainingError('nan_loss', { episode: 42 });
+            const error = new TrainingError('nan_loss', {episode: 42});
 
             expect(error.message).toContain('NaN loss');
             expect(error.suggestions).toContainEqual(expect.stringContaining('learning rate'));
@@ -183,32 +183,32 @@ describe('EnhancedError', () => {
 
     describe('Errors factory', () => {
         it('should create lifecycle error', () => {
-            const error = Errors.lifecycle('not_initialized', { component: 'Test' });
+            const error = Errors.lifecycle('not_initialized', {component: 'Test'});
             expect(error).toBeInstanceOf(LifecycleError);
         });
 
         it('should create environment error', () => {
-            const error = Errors.environment('not_reset', { env: 'Test' });
+            const error = Errors.environment('not_reset', {env: 'Test'});
             expect(error).toBeInstanceOf(EnvironmentError);
         });
 
         it('should create agent error', () => {
-            const error = Errors.agent('not_trained', { agent: 'Test' });
+            const error = Errors.agent('not_trained', {agent: 'Test'});
             expect(error).toBeInstanceOf(AgentError);
         });
 
         it('should create config error', () => {
-            const error = Errors.config('missing_required', { key: 'test' });
+            const error = Errors.config('missing_required', {key: 'test'});
             expect(error).toBeInstanceOf(ConfigError);
         });
 
         it('should create tensor error', () => {
-            const error = Errors.tensor('shape_mismatch', { operation: 'test' });
+            const error = Errors.tensor('shape_mismatch', {operation: 'test'});
             expect(error).toBeInstanceOf(TensorError);
         });
 
         it('should create training error', () => {
-            const error = Errors.training('nan_loss', { episode: 1 });
+            const error = Errors.training('nan_loss', {episode: 1});
             expect(error).toBeInstanceOf(TrainingError);
         });
 
@@ -221,7 +221,7 @@ describe('EnhancedError', () => {
     describe('validateConfig', () => {
         it('should throw for missing required field', () => {
             const schema = {
-                learningRate: { required: true, type: 'number', default: 0.001 }
+                learningRate: {required: true, type: 'number', default: 0.001}
             };
 
             expect(() => validateConfig({}, schema)).toThrow(ConfigError);
@@ -229,26 +229,26 @@ describe('EnhancedError', () => {
 
         it('should throw for invalid type', () => {
             const schema = {
-                episodes: { required: true, type: 'number' }
+                episodes: {required: true, type: 'number'}
             };
 
-            expect(() => validateConfig({ episodes: '100' }, schema)).toThrow(ConfigError);
+            expect(() => validateConfig({episodes: '100'}, schema)).toThrow(ConfigError);
         });
 
         it('should throw for out of range value', () => {
             const schema = {
-                epsilon: { required: true, type: 'number', range: [0, 1] }
+                epsilon: {required: true, type: 'number', range: [0, 1]}
             };
 
-            expect(() => validateConfig({ epsilon: 1.5 }, schema)).toThrow(ConfigError);
+            expect(() => validateConfig({epsilon: 1.5}, schema)).toThrow(ConfigError);
         });
 
         it('should pass valid config', () => {
             const schema = {
-                learningRate: { required: true, type: 'number', range: [0, 1] }
+                learningRate: {required: true, type: 'number', range: [0, 1]}
             };
 
-            expect(() => validateConfig({ learningRate: 0.01 }, schema)).not.toThrow();
+            expect(() => validateConfig({learningRate: 0.01}, schema)).not.toThrow();
         });
     });
 });

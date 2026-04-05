@@ -1,7 +1,6 @@
-import { Component } from '../composable/Component.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { MetricsTracker } from '../utils/MetricsTracker.js';
-import { ModificationOperator, META_DEFAULTS, DEFAULT_OPERATORS, TypeMultipliers } from './ModificationOperator.js';
+import {Component} from '../composable/Component.js';
+import {mergeConfig, MetricsTracker} from '../utils/index.js';
+import {DEFAULT_OPERATORS, META_DEFAULTS, ModificationOperator, TypeMultipliers} from './ModificationOperator.js';
 
 export class MetaController extends Component {
     constructor(config = {}) {
@@ -26,6 +25,22 @@ export class MetaController extends Component {
         this.noImprovementCount = 0;
     }
 
+    static createArchitectureSearch(config = {}) {
+        return new MetaController({...config, explorationRate: 0.5, mutationRate: 0.4});
+    }
+
+    static createHyperparameterTuner(config = {}) {
+        return new MetaController({...config, modificationThreshold: 0.3, evaluationWindow: 50});
+    }
+
+    static createComponentSelector(config = {}) {
+        return new MetaController({...config, useImagination: true, imaginationHorizon: 20});
+    }
+
+    static createMinimal(config = {}) {
+        return new MetaController({...config, maxGenerations: 20, populationSize: 5});
+    }
+
     async onInitialize() {
         this._initializeOperatorPool();
         this.emit('initialized', {
@@ -38,10 +53,16 @@ export class MetaController extends Component {
     _initializeOperatorPool() {
         this.operatorPool = DEFAULT_OPERATORS.map(op => new ModificationOperator(op));
         this.operatorPool.push(
-            new ModificationOperator({ type: 'modify', parameters: { componentId: 'policy', config: { learningRate: 0.0001 } } }),
-            new ModificationOperator({ type: 'modify', parameters: { componentId: 'policy', config: { learningRate: 0.01 } } }),
-            new ModificationOperator({ type: 'modify', parameters: { componentId: 'policy', config: { hiddenDim: 64 } } }),
-            new ModificationOperator({ type: 'modify', parameters: { componentId: 'policy', config: { hiddenDim: 256 } } })
+            new ModificationOperator({
+                type: 'modify',
+                parameters: {componentId: 'policy', config: {learningRate: 0.0001}}
+            }),
+            new ModificationOperator({
+                type: 'modify',
+                parameters: {componentId: 'policy', config: {learningRate: 0.01}}
+            }),
+            new ModificationOperator({type: 'modify', parameters: {componentId: 'policy', config: {hiddenDim: 64}}}),
+            new ModificationOperator({type: 'modify', parameters: {componentId: 'policy', config: {hiddenDim: 256}}})
         );
     }
 
@@ -82,39 +103,45 @@ export class MetaController extends Component {
 
     async _proposeModification(currentImprovement) {
         const candidate = this._selectOperator(currentImprovement);
-        if (!candidate) {return { success: false, reason: 'No suitable operator' };}
+        if (!candidate) {
+            return {success: false, reason: 'No suitable operator'};
+        }
         this.metrics.increment('modificationsProposed');
         const result = await candidate.apply(this.currentArchitecture);
         if (result.success) {
             this.metrics.increment('modificationsApplied');
             this.metrics.increment('modificationsSuccessful');
             this.successfulOperators.push(candidate);
-            this.architectureHistory.push({ generation: this.generation, operator: candidate, timestamp: Date.now() });
+            this.architectureHistory.push({generation: this.generation, operator: candidate, timestamp: Date.now()});
             this.generation++;
             this.metrics.increment('architectureGenerations');
         } else {
             this.failedOperators.push(candidate);
         }
-        return { success: result.success, operator: candidate, result };
+        return {success: result.success, operator: candidate, result};
     }
 
     _selectOperator(currentImprovement) {
         const available = this.operatorPool.filter(op =>
             !this.failedOperators.some(f => f.type === op.type && JSON.stringify(f.parameters) === JSON.stringify(op.parameters))
         );
-        if (available.length === 0) {return null;}
+        if (available.length === 0) {
+            return null;
+        }
         const weights = available.map(op => op.priority * (TypeMultipliers[op.type] ?? 1.0) * (currentImprovement < 0 ? 1.5 : 1.0));
         const totalWeight = weights.reduce((a, b) => a + b, 0);
         let random = Math.random() * totalWeight;
         for (let i = 0; i < available.length; i++) {
             random -= weights[i];
-            if (random <= 0) {return available[i];}
+            if (random <= 0) {
+                return available[i];
+            }
         }
         return available[available.length - 1];
     }
 
     async evolveArchitecture(options = {}) {
-        const { generations = this.config.maxGenerations, evaluateFn } = options;
+        const {generations = this.config.maxGenerations, evaluateFn} = options;
         const evolutionLog = [];
         for (let gen = 0; gen < generations; gen++) {
             this.generation = gen;
@@ -122,39 +149,48 @@ export class MetaController extends Component {
                 const performance = await evaluateFn(this.currentArchitecture);
                 await this.evaluatePerformance(performance);
             }
-            evolutionLog.push({ generation: gen, metrics: this.metrics.getAll() });
-            if (this.noImprovementCount >= this.config.patience * 2) {break;}
+            evolutionLog.push({generation: gen, metrics: this.metrics.getAll()});
+            if (this.noImprovementCount >= this.config.patience * 2) {
+                break;
+            }
         }
-        return { finalMetrics: this.metrics.getAll(), generations: this.generation, log: evolutionLog };
+        return {finalMetrics: this.metrics.getAll(), generations: this.generation, log: evolutionLog};
     }
 
     async imagineArchitectures(count = 5) {
-        if (!this.config.useImagination) {return { architectures: [], reason: 'Imagination disabled' };}
+        if (!this.config.useImagination) {
+            return {architectures: [], reason: 'Imagination disabled'};
+        }
         const imagined = [];
         for (let i = 0; i < count; i++) {
             const numModifications = Math.floor(Math.random() * 3) + 1;
             const modifications = [];
             for (let j = 0; j < numModifications; j++) {
                 const operator = this._selectOperator(0);
-                if (operator) {modifications.push(operator);}
+                if (operator) {
+                    modifications.push(operator);
+                }
             }
-            imagined.push({ id: `imagined_${Date.now()}_${i}`, modifications, horizon: this.config.imaginationHorizon });
+            imagined.push({id: `imagined_${Date.now()}_${i}`, modifications, horizon: this.config.imaginationHorizon});
         }
-        return { architectures: imagined };
+        return {architectures: imagined};
     }
 
     async tuneHyperparameters(paramRanges, evaluateFn, options = {}) {
-        const { iterations = 50, strategy = 'bayesian' } = options;
+        const {iterations = 50, strategy = 'bayesian'} = options;
         const bestConfig = {};
         let bestScore = -Infinity;
         const history = [];
         for (let i = 0; i < iterations; i++) {
             const config = this._sampleHyperparameters(paramRanges, strategy, history);
             const score = await evaluateFn(config);
-            history.push({ config, score });
-            if (score > bestScore) { bestScore = score; Object.assign(bestConfig, config); }
+            history.push({config, score});
+            if (score > bestScore) {
+                bestScore = score;
+                Object.assign(bestConfig, config);
+            }
         }
-        return { bestConfig, bestScore, history };
+        return {bestConfig, bestScore, history};
     }
 
     _sampleHyperparameters(paramRanges, strategy, history) {
@@ -162,11 +198,14 @@ export class MetaController extends Component {
         for (const [key, range] of Object.entries(paramRanges)) {
             if (strategy === 'bayesian' && history.length > 5) {
                 const best = history.reduce((a, b) => a.score > b.score ? a : b);
-                if (Math.random() < 0.3 && best.config[key]) { config[key] = best.config[key]; continue; }
+                if (Math.random() < 0.3 && best.config[key]) {
+                    config[key] = best.config[key];
+                    continue;
+                }
             }
             config[key] = Array.isArray(range) ? range[Math.floor(Math.random() * range.length)]
                 : typeof range === 'object' && range.min !== undefined ? range.min + Math.random() * (range.max - range.min)
-                : range;
+                    : range;
         }
         return config;
     }
@@ -197,21 +236,5 @@ export class MetaController extends Component {
         this.operatorPool = [];
         this.successfulOperators = [];
         this.failedOperators = [];
-    }
-
-    static createArchitectureSearch(config = {}) {
-        return new MetaController({ ...config, explorationRate: 0.5, mutationRate: 0.4 });
-    }
-
-    static createHyperparameterTuner(config = {}) {
-        return new MetaController({ ...config, modificationThreshold: 0.3, evaluationWindow: 50 });
-    }
-
-    static createComponentSelector(config = {}) {
-        return new MetaController({ ...config, useImagination: true, imaginationHorizon: 20 });
-    }
-
-    static createMinimal(config = {}) {
-        return new MetaController({ ...config, maxGenerations: 20, populationSize: 5 });
     }
 }

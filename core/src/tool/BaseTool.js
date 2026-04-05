@@ -3,8 +3,8 @@
  */
 
 import {ExecutionTracker} from '../util/ExecutionTracker.js';
-import {executeGuarded} from '../util/guard.js';
-import {validateJsonSchema} from '../util/index.js';
+import {executeGuarded} from '@senars/core';
+import {validateJsonSchema} from '@senars/core';
 
 export class BaseTool {
     constructor(config = {}) {

@@ -5,8 +5,8 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { ENV, requireEnvironment } from '../env.js';
+import {fileURLToPath} from 'url';
+import {requireEnvironment} from '../env.js';
 
 export class FileLoader {
     constructor(options = {}) {
@@ -14,7 +14,7 @@ export class FileLoader {
 
         this.fs = fs;
         this.path = path;
-        this.url = { fileURLToPath };
+        this.url = {fileURLToPath};
 
         this.searchPaths = options.searchPaths || [];
         this.baseDir = options.baseDir || this._getDefaultBaseDir();
@@ -22,6 +22,16 @@ export class FileLoader {
         if (!this.searchPaths.includes(this.baseDir)) {
             this.searchPaths.unshift(this.baseDir);
         }
+    }
+
+    /**
+     * Static helper to load a file directly
+     */
+    static load(filePath) {
+        if (fs.existsSync(filePath)) {
+            return fs.readFileSync(filePath, 'utf-8');
+        }
+        throw new Error(`File not found: ${filePath}`);
     }
 
     _getDefaultBaseDir() {
@@ -82,15 +92,5 @@ export class FileLoader {
         if (!this.searchPaths.includes(path)) {
             this.searchPaths.push(path);
         }
-    }
-
-    /**
-     * Static helper to load a file directly
-     */
-    static load(filePath) {
-        if (fs.existsSync(filePath)) {
-             return fs.readFileSync(filePath, 'utf-8');
-        }
-        throw new Error(`File not found: ${filePath}`);
     }
 }

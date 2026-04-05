@@ -5,7 +5,7 @@
  * via JS reflection and the mcp-std.metta standard library.
  */
 
-import { MeTTaInterpreter } from '../metta/src/MeTTaInterpreter.js';
+import { MeTTaInterpreter } from '../metta/src/index.js';
 import { MeTTaMCPManager } from '../metta/src/mcp/index.js';
 
 async function exampleMeTTaConsumesMCP() {

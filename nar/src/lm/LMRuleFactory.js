@@ -1,5 +1,4 @@
 import {LMRule} from '../reason/LMRule.js';
-import {Logger} from '@senars/core';
 
 const trimResponse = (r) => r?.trim() ?? '';
 const emptyGenerate = () => [];
@@ -98,7 +97,7 @@ export class LMRuleFactory {
         const baseConfig = {
             id: config.id ?? `${type}`,
             lm,
-            name: config.name ?? `${this._getTitleCase(type.replace('-', ' '))  } Rule`,
+            name: config.name ?? `${this._getTitleCase(type.replace('-', ' '))} Rule`,
             description: config.description ?? this._getDescription(type),
             priority: config.priority ?? this._getDefaultPriority(type),
             ...config

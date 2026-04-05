@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, it} from '@jest/globals';
-import {TermFactory, Unifier, RuleCompiler, RuleExecutor, StandardDiscriminators, Truth} from '@senars/nar';
+import {RuleCompiler, RuleExecutor, StandardDiscriminators, TermFactory, Truth, Unifier} from '@senars/nar';
 import {NAL4, NAL5} from '@senars/nar/src/reason/rules/nal/index.js';
 
 describe('Phase 1: Rule Engine', () => {

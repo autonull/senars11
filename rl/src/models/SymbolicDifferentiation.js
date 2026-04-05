@@ -1,5 +1,5 @@
-import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {SymbolicTensor, TensorLogicBridge} from '@senars/tensor';
+import {mergeConfig} from '../utils/index.js';
 
 const DEFAULT_CONFIG = {
     trackProvenance: true,
@@ -17,7 +17,9 @@ export class SymbolicDifferentiation {
     gradient(loss, params, context = new Map()) {
         return params.map(param => {
             const grad = this.computeGradient(loss, param, context);
-            if (!(param instanceof SymbolicTensor)) {return grad;}
+            if (!(param instanceof SymbolicTensor)) {
+                return grad;
+            }
 
             const symbolicGrad = this.annotateGradient(grad, param);
             this.symbolicGradients.set(param, symbolicGrad);
@@ -41,7 +43,9 @@ export class SymbolicDifferentiation {
             }
         }
 
-        if (this.config.trackProvenance) {this.trackGradientFlow(param, grad, context);}
+        if (this.config.trackProvenance) {
+            this.trackGradientFlow(param, grad, context);
+        }
         return grad;
     }
 
@@ -53,23 +57,30 @@ export class SymbolicDifferentiation {
                 symbolicGrad.annotate(idx, `∂${symbolInfo.symbol}`, symbolInfo.confidence * Math.abs(grad[idx]));
             }
         }
-        symbolicGrad.addProvenance('SymbolicDifferentiation', 'annotateGradient', { paramSymbols: param.symbols.size });
+        symbolicGrad.addProvenance('SymbolicDifferentiation', 'annotateGradient', {paramSymbols: param.symbols.size});
         return symbolicGrad;
     }
 
     trackGradientFlow(param, grad, context) {
-        this.gradientGraph.set(param, { grad, context: new Map(context), timestamp: Date.now() });
+        this.gradientGraph.set(param, {grad, context: new Map(context), timestamp: Date.now()});
     }
 
-    getSymbolicGradient(param) { return this.symbolicGradients.get(param); }
-    getGradientGraph() { return new Map(this.gradientGraph); }
+    getSymbolicGradient(param) {
+        return this.symbolicGradients.get(param);
+    }
+
+    getGradientGraph() {
+        return new Map(this.gradientGraph);
+    }
 
     explainGradient(param) {
         const symbolicGrad = this.symbolicGradients.get(param);
-        if (!symbolicGrad) {return { explanation: 'No gradient computed', symbols: [] };}
+        if (!symbolicGrad) {
+            return {explanation: 'No gradient computed', symbols: []};
+        }
 
         const symbols = Array.from(symbolicGrad.symbols.values())
-            .map(info => ({ symbol: info.symbol, confidence: info.confidence }));
+            .map(info => ({symbol: info.symbol, confidence: info.confidence}));
 
         return {
             explanation: `Gradient influenced by ${symbols.length} symbolic features`,
@@ -79,13 +90,17 @@ export class SymbolicDifferentiation {
 
     analyzeGradientFlow() {
         const nodes = Array.from(this.gradientGraph.values());
-        if (nodes.length === 0) {return { totalNodes: 0, avgMagnitude: 0 };}
+        if (nodes.length === 0) {
+            return {totalNodes: 0, avgMagnitude: 0};
+        }
 
-        const { totalMag, count } = nodes.reduce((acc, node) => {
-            if (!node.grad) {return acc;}
+        const {totalMag, count} = nodes.reduce((acc, node) => {
+            if (!node.grad) {
+                return acc;
+            }
             const mag = node.grad.reduce((sum, val) => sum + Math.abs(val), 0);
-            return { totalMag: acc.totalMag + mag, count: acc.count + node.grad.length };
-        }, { totalMag: 0, count: 0 });
+            return {totalMag: acc.totalMag + mag, count: acc.count + node.grad.length};
+        }, {totalMag: 0, count: 0});
 
         return {
             totalNodes: this.gradientGraph.size,
@@ -100,5 +115,8 @@ export class SymbolicDifferentiation {
         };
     }
 
-    clear() { this.gradientGraph.clear(); this.symbolicGradients.clear(); }
+    clear() {
+        this.gradientGraph.clear();
+        this.symbolicGradients.clear();
+    }
 }

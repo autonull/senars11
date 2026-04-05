@@ -15,7 +15,9 @@ export class NARIntegration {
     }
 
     _withComponentCheck(component, message, operation) {
-        if (!component) {throw new Error(message);}
+        if (!component) {
+            throw new Error(message);
+        }
         return operation(component);
     }
 
@@ -61,7 +63,7 @@ export class NARIntegration {
         try {
             if (this.#nar._reasoningAboutReasoning?.getReasoningState) {
                 const state = this.#nar._reasoningAboutReasoning.getReasoningState();
-                this.#nar._eventBus.emit('reasoningState', state, { source: 'periodic' });
+                this.#nar._eventBus.emit('reasoningState', state, {source: 'periodic'});
             }
         } catch (error) {
             this.#nar.logError('Error in reasoning state update:', error);
@@ -93,10 +95,10 @@ export class NARIntegration {
         if (this.#nar._evaluator) {
             return await this.#nar._evaluator.solveEquation(
                 leftTerm, rightTerm, variableName,
-                context || { memory: this.#nar._memory, termFactory: this.#nar._termFactory }
+                context || {memory: this.#nar._memory, termFactory: this.#nar._termFactory}
             );
         }
-        return { result: null, success: false, message: 'No operation evaluation engine available' };
+        return {result: null, success: false, message: 'No operation evaluation engine available'};
     }
 
     async performMetaCognitiveReasoning() {
@@ -185,8 +187,16 @@ export class NARIntegration {
         try {
             return await this.#nar._processNewTask(task, 'derived', null, null, options);
         } catch (error) {
-            this.#nar._eventBus.emit('input.error', { error: error.message, input: 'derived-task' }, { traceId: options.traceId });
-            this.#nar.logError('_inputTask failed:', { error: error.message, stack: error.stack, input: 'derived-task', traceId: options.traceId });
+            this.#nar._eventBus.emit('input.error', {
+                error: error.message,
+                input: 'derived-task'
+            }, {traceId: options.traceId});
+            this.#nar.logError('_inputTask failed:', {
+                error: error.message,
+                stack: error.stack,
+                input: 'derived-task',
+                traceId: options.traceId
+            });
             throw error;
         }
     }

@@ -1,7 +1,13 @@
-import { describe, expect, test, beforeEach } from '@jest/globals';
-import {TermFactory, Truth, Task, SimpleRuleExecutor} from '@senars/nar';
-import {InductionRule, AbductionRule} from '@senars/nar';
-import {InheritanceSyllogisticRule} from '@senars/nar';
+import {beforeEach, describe, expect, test} from '@jest/globals';
+import {
+    AbductionRule,
+    InductionRule,
+    InheritanceSyllogisticRule,
+    SimpleRuleExecutor,
+    Task,
+    TermFactory,
+    Truth
+} from '@senars/nar';
 
 describe('Phase 1.2: Stream Reasoning Verification', () => {
     let termFactory;
@@ -41,7 +47,7 @@ describe('Phase 1.2: Stream Reasoning Verification', () => {
             const t2 = createBelief(termFactory.inheritance(bird, animal), 1.0, 0.9);
 
             // Context requires termFactory for term creation
-            const context = { termFactory };
+            const context = {termFactory};
 
             // Deduction typically works via shared term.
             // SyllogisticRule likely handles: (S-->M, M-->P) |- (S-->P)
@@ -80,7 +86,7 @@ describe('Phase 1.2: Stream Reasoning Verification', () => {
             const t1 = createBelief(termFactory.inheritance(swan, bird), 1.0, 0.9);
             const t2 = createBelief(termFactory.inheritance(swan, swimmer), 1.0, 0.9);
 
-            const context = { termFactory };
+            const context = {termFactory};
 
             // InductionRule expects shared subject.
             // t1: M-->P (swan-->bird)
@@ -121,7 +127,7 @@ describe('Phase 1.2: Stream Reasoning Verification', () => {
             const t1 = createBelief(termFactory.inheritance(sport, competition), 1.0, 0.9);
             const t2 = createBelief(termFactory.inheritance(chess, competition), 1.0, 0.9);
 
-            const context = { termFactory };
+            const context = {termFactory};
 
             // AbductionRule expects shared predicate.
             // t1: P-->M (sport-->competition)

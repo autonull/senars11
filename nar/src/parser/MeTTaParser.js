@@ -5,10 +5,10 @@
  * Uses configurable mapper for flexible MeTTa→SeNARS translation.
  */
 
-import { BaseParser } from './BaseParser.js';
-import { MeTTaTokenizer, TokenType } from './MeTTaTokenizer.js';
+import {BaseParser} from './BaseParser.js';
+import {MeTTaTokenizer, TokenType} from './MeTTaTokenizer.js';
 import {Task, Truth} from '@senars/nar';
-import { DEFAULT_MAPPINGS } from './MeTTaMappings.js';
+import {DEFAULT_MAPPINGS} from './MeTTaMappings.js';
 
 /**
  * MeTTa Parser - Recursive descent parser for S-expressions
@@ -22,8 +22,8 @@ export class MeTTaParser extends BaseParser {
      */
     constructor(termFactory = null, options = {}) {
         super(termFactory, options);
-        this.mappings = { ...DEFAULT_MAPPINGS, ...options.mappings };
-        this.defaultTruth = options.defaultTruth ?? { frequency: 1.0, confidence: 0.9 };
+        this.mappings = {...DEFAULT_MAPPINGS, ...options.mappings};
+        this.defaultTruth = options.defaultTruth ?? {frequency: 1.0, confidence: 0.9};
         this.tokens = [];
         this.pos = 0;
     }
@@ -43,7 +43,9 @@ export class MeTTaParser extends BaseParser {
      * @returns {Array<Task>}
      */
     parseMeTTa(mettaInput) {
-        if (!mettaInput?.trim()) {return [];}
+        if (!mettaInput?.trim()) {
+            return [];
+        }
 
         this._validateInput(mettaInput);
         const tokenizer = new MeTTaTokenizer(mettaInput);
@@ -53,7 +55,7 @@ export class MeTTaParser extends BaseParser {
         const tasks = [];
 
         while (!this._isAtEnd()) {
-            const { expr, isImmediate } = this._parseTopLevel();
+            const {expr, isImmediate} = this._parseTopLevel();
             if (expr) {
                 const term = this._toTerm(expr);
                 if (term) {
@@ -94,7 +96,7 @@ export class MeTTaParser extends BaseParser {
      * @returns {Object} - Current mappings
      */
     getMappings() {
-        return { ...this.mappings };
+        return {...this.mappings};
     }
 
     // ===== Parser internals =====
@@ -109,17 +111,25 @@ export class MeTTaParser extends BaseParser {
         }
 
         const expr = this._parseExpr();
-        return { expr, isImmediate };
+        return {expr, isImmediate};
     }
 
     _parseExpr() {
-        if (this._isAtEnd()) {return null;}
+        if (this._isAtEnd()) {
+            return null;
+        }
 
-        const { type } = this._peek();
+        const {type} = this._peek();
 
-        if (type === TokenType.LPAREN) {return this._parseList();}
-        if (type === TokenType.LBRACKET) {return this._parseBracketList();}
-        if (type === TokenType.LBRACE) {return this._parseBraceSet();}
+        if (type === TokenType.LPAREN) {
+            return this._parseList();
+        }
+        if (type === TokenType.LBRACKET) {
+            return this._parseBracketList();
+        }
+        if (type === TokenType.LBRACE) {
+            return this._parseBraceSet();
+        }
 
         if ([TokenType.SYMBOL, TokenType.VARIABLE, TokenType.STRING, TokenType.NUMBER, TokenType.GROUNDED].includes(type)) {
             return this._parseAtom();
@@ -141,7 +151,7 @@ export class MeTTaParser extends BaseParser {
         }
 
         this._expect(TokenType.RPAREN);
-        return { type: 'list', elements };
+        return {type: 'list', elements};
     }
 
     _parseBracketList() {
@@ -156,7 +166,7 @@ export class MeTTaParser extends BaseParser {
         }
 
         this._expect(TokenType.RBRACKET);
-        return { type: 'bracket-list', elements };
+        return {type: 'bracket-list', elements};
     }
 
     _parseBraceSet() {
@@ -171,7 +181,7 @@ export class MeTTaParser extends BaseParser {
         }
 
         this._expect(TokenType.RBRACE);
-        return { type: 'set', elements };
+        return {type: 'set', elements};
     }
 
     _parseAtom() {
@@ -186,7 +196,9 @@ export class MeTTaParser extends BaseParser {
     // ===== Term conversion =====
 
     _toTerm(expr) {
-        if (!expr) {return null;}
+        if (!expr) {
+            return null;
+        }
 
         const converters = {
             'atom': this._atomToTerm,
@@ -200,7 +212,7 @@ export class MeTTaParser extends BaseParser {
     }
 
     _atomToTerm(atom) {
-        const { tokenType, value } = atom;
+        const {tokenType, value} = atom;
 
         switch (tokenType) {
             case TokenType.VARIABLE:
@@ -215,8 +227,12 @@ export class MeTTaParser extends BaseParser {
             case TokenType.SYMBOL:
             default:
                 // Check for special atoms
-                if (value === 'True') {return this.termFactory.createTrue();}
-                if (value === 'False') {return this.termFactory.createFalse();}
+                if (value === 'True') {
+                    return this.termFactory.createTrue();
+                }
+                if (value === 'False') {
+                    return this.termFactory.createFalse();
+                }
                 return this.termFactory.atomic(value);
         }
     }
@@ -270,7 +286,7 @@ export class MeTTaParser extends BaseParser {
             term,
             punctuation: isImmediate ? '!' : '.',
             truth: new Truth(this.defaultTruth.frequency, this.defaultTruth.confidence),
-            budget: { priority: 0.8, durability: 0.7, quality: 0.8 }
+            budget: {priority: 0.8, durability: 0.7, quality: 0.8}
         });
     }
 

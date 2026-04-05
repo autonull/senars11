@@ -2,7 +2,8 @@
 
 ## Vision
 
-Achieve **breakthrough general-purpose performant neuro-symbolic Reinforcement Learning** by deeply synergizing three complementary cognitive paradigms:
+Achieve **breakthrough general-purpose performant neuro-symbolic Reinforcement Learning** by deeply synergizing three
+complementary cognitive paradigms:
 
 1. **NARS (Non-Axiomatic Reasoning System)**: Uncertainty-aware logical inference, belief revision, goal management
 2. **MeTTa (Meta Type Talk)**: Self-modifying symbolic programs, grounded operations, metareasoning
@@ -12,10 +13,10 @@ Achieve **breakthrough general-purpose performant neuro-symbolic Reinforcement L
 
 Each paradigm excels at different aspects of intelligence:
 
-| Paradigm | Strengths | RL Role |
-|----------|-----------|---------|
-| **NARS** | Uncertain reasoning, belief revision, goal stacks | World model, causal inference, goal management |
-| **MeTTa** | Symbolic manipulation, self-modification, reflection | Policy representation, skill composition, meta-learning |
+| Paradigm   | Strengths                                                        | RL Role                                                   |
+|------------|------------------------------------------------------------------|-----------------------------------------------------------|
+| **NARS**   | Uncertain reasoning, belief revision, goal stacks                | World model, causal inference, goal management            |
+| **MeTTa**  | Symbolic manipulation, self-modification, reflection             | Policy representation, skill composition, meta-learning   |
 | **Tensor** | Gradient-based learning, pattern recognition, continuous control | Policy networks, value functions, representation learning |
 
 **Synergy**: By integrating all three, we achieve capabilities none could reach alone.
@@ -86,6 +87,7 @@ class NeuroSymbolicBridge {
 ```
 
 **Key Innovations**:
+
 - Symbolic operations with gradient tracking
 - Narsese truth values as tensor annotations
 - MeTTa grounded ops as differentiable functions
@@ -122,6 +124,7 @@ class TensorLogicPolicy {
 ```
 
 **Key Innovations**:
+
 - Policies as interpretable MeTTa programs
 - Tensor operations with autodiff inside MeTTa
 - Rule extraction from trained networks
@@ -158,6 +161,7 @@ class NarseseWorldModel {
 ```
 
 **Key Innovations**:
+
 - Causal graphs as Narsese implication structures
 - Uncertainty-aware predictions (frequency, confidence)
 - Imagination via NARS planning
@@ -201,6 +205,7 @@ class HierarchicalSkillSystem {
 ```
 
 **Key Innovations**:
+
 - Skills grounded in Narsese pre/post conditions
 - Policies as tensor-logic programs
 - Automatic discovery from experience
@@ -232,6 +237,7 @@ class DistributedExperienceBuffer {
 ```
 
 **Key Innovations**:
+
 - Causal indexing for efficient retrieval
 - Prioritized sampling by learning potential
 - Distributed aggregation across workers
@@ -269,6 +275,7 @@ class MetaController {
 ```
 
 **Key Innovations**:
+
 - Architectures as modifiable MeTTa programs
 - Evaluation in imagined scenarios
 - Evolutionary search with NARS guidance
@@ -409,14 +416,14 @@ const batched = batchOperations(tensorOps, batchSize: 32)
 
 ### Metrics
 
-| Category | Metrics |
-|----------|---------|
-| **RL Performance** | Sample efficiency, asymptotic performance, final reward |
-| **Reasoning** | Inference depth, belief accuracy, planning horizon |
-| **Learning Speed** | Time to threshold, episodes to convergence |
-| **Generalization** | Transfer performance, zero-shot capability |
-| **Interpretability** | Rule count, symbolic accuracy, explanation quality |
-| **Efficiency** | Steps/sec, memory usage, GPU utilization |
+| Category             | Metrics                                                 |
+|----------------------|---------------------------------------------------------|
+| **RL Performance**   | Sample efficiency, asymptotic performance, final reward |
+| **Reasoning**        | Inference depth, belief accuracy, planning horizon      |
+| **Learning Speed**   | Time to threshold, episodes to convergence              |
+| **Generalization**   | Transfer performance, zero-shot capability              |
+| **Interpretability** | Rule count, symbolic accuracy, explanation quality      |
+| **Efficiency**       | Steps/sec, memory usage, GPU utilization                |
 
 ### Environments
 
@@ -430,6 +437,7 @@ const batched = batchOperations(tensorOps, batchSize: 32)
 ## Implementation Roadmap
 
 ### Phase 1: Core Integration (Current)
+
 - [x] Tensor-Logic Bridge
 - [x] Enhanced SeNARS Bridge
 - [x] MeTTa Policy Networks
@@ -437,18 +445,21 @@ const batched = batchOperations(tensorOps, batchSize: 32)
 - [ ] NeuroSymbolicBridge (unified)
 
 ### Phase 2: Advanced Capabilities
+
 - [ ] NarseseWorldModel
 - [ ] HierarchicalSkillSystem
 - [ ] DistributedExperienceBuffer
 - [ ] MetaController
 
 ### Phase 3: Self-Improvement
+
 - [ ] Architecture evolution
 - [ ] Automatic skill discovery
 - [ ] Rule extraction and consolidation
 - [ ] Meta-learning loops
 
 ### Phase 4: Scaling
+
 - [ ] Distributed training
 - [ ] Multi-agent coordination
 - [ ] Large-scale benchmarks
@@ -477,4 +488,5 @@ This architecture represents a **qualitative leap** in RL capability by:
 - The **uncertainty awareness** of NARS
 - The **self-modifying flexibility** of MeTTa
 
-The result is a **general-purpose, self-improving, neuro-symbolic RL system** capable of human-like learning and reasoning.
+The result is a **general-purpose, self-improving, neuro-symbolic RL system** capable of human-like learning and
+reasoning.

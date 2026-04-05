@@ -3,7 +3,7 @@
  * In-memory file system for browser environments
  */
 
-import { ENV } from '../env.js';
+import {ENV} from '../env.js';
 
 export class VirtualFS {
     constructor(options = {}) {
@@ -59,7 +59,9 @@ export class VirtualFS {
         const prefix = dirName === '.' ? '' : `${dirName}/`;
         return Array.from(this.files.keys())
             .filter(name => {
-                if (dirName === '.') {return !name.includes('/');}
+                if (dirName === '.') {
+                    return !name.includes('/');
+                }
                 return name.startsWith(prefix) &&
                     !name.substring(prefix.length).includes('/');
             })

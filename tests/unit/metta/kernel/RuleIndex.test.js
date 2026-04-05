@@ -1,5 +1,5 @@
-import { RuleIndex } from '../../../../metta/src/kernel/RuleIndex.js';
-import { exp, sym } from '../../../../metta/src/kernel/Term.js';
+import {RuleIndex} from '../../../../metta/src/kernel/RuleIndex.js';
+import {exp, sym} from '../../../../metta/src/index.js';
 
 describe('RuleIndex', () => {
     let index;
@@ -10,14 +10,14 @@ describe('RuleIndex', () => {
     });
 
     test('indexes by functor', () => {
-        const rule = { pattern: exp(sym('f'), [sym('x')]) };
+        const rule = {pattern: exp(sym('f'), [sym('x')])};
         index.addRule(rule);
         const matches = index.rulesFor(exp(sym('f'), [sym('a')]));
         expect(matches).toContain(rule);
     });
 
     test('indexes by signature (const args)', () => {
-        const rule = { pattern: exp(sym('add'), [sym('1'), sym('2')]) };
+        const rule = {pattern: exp(sym('add'), [sym('1'), sym('2')])};
         index.addRule(rule);
 
         // Exact match
@@ -31,7 +31,7 @@ describe('RuleIndex', () => {
     });
 
     test('bloom filter prevents lookup for absent functor', () => {
-        const rule = { pattern: exp(sym('f'), [sym('x')]) };
+        const rule = {pattern: exp(sym('f'), [sym('x')])};
         index.addRule(rule);
 
         const matches = index.rulesFor(exp(sym('g'), [sym('x')]));
@@ -40,7 +40,7 @@ describe('RuleIndex', () => {
     });
 
     test('returns all rules for unindexed terms (full scan fallback)', () => {
-        const rule = { pattern: exp(sym('f'), [sym('x')]) };
+        const rule = {pattern: exp(sym('f'), [sym('x')])};
         index.addRule(rule);
 
         // If we query for 'a', it should NOT return 'f'.
@@ -50,7 +50,7 @@ describe('RuleIndex', () => {
     });
 
     test('clears index', () => {
-        const rule = { pattern: exp(sym('f'), [sym('x')]) };
+        const rule = {pattern: exp(sym('f'), [sym('x')])};
         index.addRule(rule);
         index.clear();
         expect(index.allRules).toEqual([]);

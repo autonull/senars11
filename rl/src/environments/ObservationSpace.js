@@ -23,9 +23,21 @@ export class ObservationSpace {
         }
     }
 
+    static discrete(n) {
+        return new ObservationSpace({type: 'Discrete', n});
+    }
+
+    static box(shape, low = -Infinity, high = Infinity) {
+        return new ObservationSpace({type: 'Box', shape, low, high});
+    }
+
     _normalizeBound(bound, size, defaultVal) {
-        if (Array.isArray(bound)) {return bound;}
-        if (typeof bound === 'number') {return new Array(size).fill(bound);}
+        if (Array.isArray(bound)) {
+            return bound;
+        }
+        if (typeof bound === 'number') {
+            return new Array(size).fill(bound);
+        }
         return new Array(size).fill(defaultVal);
     }
 
@@ -52,7 +64,9 @@ export class ObservationSpace {
         if (this.type === 'Discrete') {
             return Number.isInteger(value) && value >= 0 && value < this.n;
         }
-        if (!Array.isArray(value)) {return false;}
+        if (!Array.isArray(value)) {
+            return false;
+        }
         return value.every((v, i) => v >= this.low[i] && v <= this.high[i]);
     }
 
@@ -62,10 +76,14 @@ export class ObservationSpace {
      * @returns {number[]} Normalized observation
      */
     normalize(value) {
-        if (this.type !== 'Box') {return value;}
+        if (this.type !== 'Box') {
+            return value;
+        }
         const range = this.high.map((h, i) => h - this.low[i]);
         return value.map((v, i) => {
-            if (range[i] === 0) {return 0.5;}
+            if (range[i] === 0) {
+                return 0.5;
+            }
             return (v - this.low[i]) / range[i];
         });
     }
@@ -76,7 +94,9 @@ export class ObservationSpace {
      * @returns {number[]} Denormalized observation
      */
     denormalize(value) {
-        if (this.type !== 'Box') {return value;}
+        if (this.type !== 'Box') {
+            return value;
+        }
         const range = this.high.map((h, i) => h - this.low[i]);
         return value.map((v, i) => this.low[i] + v * range[i]);
     }
@@ -87,24 +107,18 @@ export class ObservationSpace {
      * @returns {number[]} Clipped observation
      */
     clip(value) {
-        if (this.type !== 'Box') {return value;}
+        if (this.type !== 'Box') {
+            return value;
+        }
         return value.map((v, i) => Math.max(this.low[i], Math.min(this.high[i], v)));
     }
 
     toJSON() {
         return {
             type: this.type,
-            ...(this.type === 'Discrete' ? { n: this.n } : {
+            ...(this.type === 'Discrete' ? {n: this.n} : {
                 shape: this.shape, low: this.low, high: this.high, dtype: this.dtype
             })
         };
-    }
-
-    static discrete(n) {
-        return new ObservationSpace({ type: 'Discrete', n });
-    }
-
-    static box(shape, low = -Infinity, high = Infinity) {
-        return new ObservationSpace({ type: 'Box', shape, low, high });
     }
 }

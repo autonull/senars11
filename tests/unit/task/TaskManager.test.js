@@ -1,4 +1,4 @@
-import {TaskManager, Memory, Focus, Task, TermFactory, Truth} from '@senars/nar';
+import {Focus, Memory, Task, TaskManager, TermFactory, Truth} from '@senars/nar';
 
 describe('TaskManager', () => {
     let mgr, memory, term;

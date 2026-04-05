@@ -23,7 +23,9 @@ export class ValidationRepair {
             }
         } catch (error) {
             results.errors.push(`Repair failed with exception: ${error.message}`);
-            if (logger) {logger.error('Repair failed with exception:', error);}
+            if (logger) {
+                logger.error('Repair failed with exception:', error);
+            }
         }
 
         results.duration = Date.now() - repairStartTime;
@@ -208,12 +210,16 @@ export class ValidationRepair {
             if (validationResults.details.invalidReferences &&
                 validationResults.details.invalidReferences.errors.length > 0) {
                 for (const error of validationResults.details.invalidReferences.errors) {
-                    if (logger) {logger.warn(`Invalid reference detected: ${error}`);}
+                    if (logger) {
+                        logger.warn(`Invalid reference detected: ${error}`);
+                    }
                 }
                 repairedCount = validationResults.details.invalidReferences.errors.length;
             }
         } catch (error) {
-            if (logger) {logger.warn('Failed to repair invalid references:', error);}
+            if (logger) {
+                logger.warn('Failed to repair invalid references:', error);
+            }
         }
 
         return repairedCount;

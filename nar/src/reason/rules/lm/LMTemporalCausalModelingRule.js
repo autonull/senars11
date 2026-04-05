@@ -17,7 +17,9 @@ export const createTemporalCausalModelingRule = (dependencies) => {
         priority: 0.75,
 
         condition: (primaryPremise) => {
-            if (!primaryPremise) {return false;}
+            if (!primaryPremise) {
+                return false;
+            }
 
             const priority = primaryPremise.budget?.priority ?? 0.5;
 
@@ -39,10 +41,14 @@ If there is a time sequence, describe it.`;
         },
 
         generate: (processedOutput, primaryPremise, secondaryPremise, context) => {
-            if (!processedOutput) {return [];}
+            if (!processedOutput) {
+                return [];
+            }
 
             const termFactory = context?.termFactory || dependencies.termFactory;
-            if (!termFactory) {return [];}
+            if (!termFactory) {
+                return [];
+            }
 
             const term = termFactory.atomic(processedOutput);
 

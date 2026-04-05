@@ -2,13 +2,13 @@
  * Configuration utilities for SeNARS
  */
 
-import {mergeConfig, safeGet, setNestedProperty} from '../util/object.js';
-import {ConfigurationError, ValidationError} from '../errors/index.js';
-import {validateSchema} from '../util/validate.js';
-import {ConfigManager as BaseConfigManager} from './ConfigManager.js';
+import { safeGet, setNestedProperty, mergeConfig } from '@senars/core';
+import { ConfigurationError, ValidationError } from '@senars/core';
+import { validateSchema } from '@senars/core';
+import { ConfigManager as BaseConfigManager } from './ConfigManager.js';
 
 // Re-export for backward compatibility
-export {mergeConfig};
+export { mergeConfig };
 
 /**
  * Validate config using a schema validator function
@@ -18,12 +18,12 @@ export {mergeConfig};
  */
 export function validateConfigWith(config, schemaValidator) {
     if (typeof schemaValidator !== 'function') {
-        throw new ConfigurationError('Schema validator must be a function', {key: 'validator'});
+        throw new ConfigurationError('Schema validator must be a function', { key: 'validator' });
     }
     try {
         return schemaValidator(config);
     } catch (error) {
-        throw new ConfigurationError(`Configuration validation failed: ${error.message}`, {key: 'config'});
+        throw new ConfigurationError(`Configuration validation failed: ${error.message}`, { key: 'config' });
     }
 }
 
@@ -33,7 +33,7 @@ export function getConfigValue(config, path, defaultValue = undefined) {
 
 export function setConfigValue(config, path, value) {
     if (!config || typeof config !== 'object') {
-        throw new ConfigurationError('Configuration must be a valid object', {key: 'config'});
+        throw new ConfigurationError('Configuration must be a valid object', { key: 'config' });
     }
     setNestedProperty(config, path, value);
     return config;
@@ -41,12 +41,12 @@ export function setConfigValue(config, path, value) {
 
 export function createTypedConfig(config, types = {}) {
     const typedConfig = {};
-    for (const [key, {type, default: defaultValue, validator: valFn, required = false}] of Object.entries(types)) {
+    for (const [key, { type, default: defaultValue, validator: valFn, required = false }] of Object.entries(types)) {
         Object.defineProperty(typedConfig, key, {
             get: () => {
                 let value = getConfigValue(config, key, defaultValue);
                 if (required && (value == null)) {
-                    throw new ValidationError(`Required configuration field '${key}' is missing`, {field: key, value});
+                    throw new ValidationError(`Required configuration field '${key}' is missing`, { field: key, value });
                 }
                 if (type && value != null && typeof value !== type) {
                     Logger.warn(`Config type mismatch for ${key}: expected ${type}, got ${typeof value}`);
@@ -69,7 +69,7 @@ export function validateAgainstSchema(config, schema) {
     return validateSchema(config, schema, 'Configuration');
 }
 
-export {BaseConfigManager as ConfigManager};
+export { BaseConfigManager as ConfigManager };
 
 export const Validators = {
     positive: (v) => typeof v === 'number' && v > 0,

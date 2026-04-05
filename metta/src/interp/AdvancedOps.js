@@ -3,16 +3,16 @@
  */
 
 // Kernel imports
-import { Term, grounded } from '../kernel/Term.js';
-import { Unify } from '../kernel/Unify.js';
-import { objToBindingsAtom, bindingsAtomToObj } from '../kernel/Bindings.js';
-import { Formatter } from '../kernel/Formatter.js';
-import { match, reduce } from '../kernel/Reduce.js';
+import {grounded, Term} from '../kernel/Term.js';
+import {Unify} from '../kernel/Unify.js';
+import {bindingsAtomToObj, objToBindingsAtom} from '../kernel/Bindings.js';
+import {Formatter} from '../kernel/Formatter.js';
+import {match} from '../kernel/Reduce.js';
 
 export function registerAdvancedOps(interpreter) {
-    const { sym, exp, var: v } = Term;
+    const {sym, exp, var: v} = Term;
     const register = (ops) => {
-        for (const [name, { fn, opts }] of Object.entries(ops)) {
+        for (const [name, {fn, opts}] of Object.entries(ops)) {
             interpreter.ground.register(name, fn, opts);
         }
     };
@@ -24,16 +24,16 @@ export function registerAdvancedOps(interpreter) {
         '&subst': {
             fn: (a, b, c) => {
                 if (c) {
-                    const bindings = a.name ? { [a.name]: b } : {};
-                    return Unify.subst(c, bindings, { recursive: false });
+                    const bindings = a.name ? {[a.name]: b} : {};
+                    return Unify.subst(c, bindings, {recursive: false});
                 }
-                return Unify.subst(a, bindingsAtomToObj(b), { recursive: false });
+                return Unify.subst(a, bindingsAtomToObj(b), {recursive: false});
             },
-            opts: { lazy: true }
+            opts: {lazy: true}
         },
         '&let': {
-            fn: (vari, val, body) => Unify.subst(body, vari?.name ? { [vari.name]: val } : {}, { recursive: false }),
-            opts: { lazy: true }
+            fn: (vari, val, body) => Unify.subst(body, vari?.name ? {[vari.name]: val} : {}, {recursive: false}),
+            opts: {lazy: true}
         },
 
         // Unification operations
@@ -48,7 +48,7 @@ export function registerAdvancedOps(interpreter) {
         // Matching operations
         '&match': {
             fn: (s, p, t) => interpreter._listify(match(interpreter.space, p, t)),
-            opts: { lazy: true }
+            opts: {lazy: true}
         },
         '&query': {
             fn: (p, t) => interpreter._listify(match(interpreter.space, p, t)),
@@ -73,7 +73,8 @@ export function registerAdvancedOps(interpreter) {
                         const typeName = interpreter.typeChecker.typeToString(inferredType);
                         return grounded(typeName);
                     }
-                } catch {}
+                } catch {
+                }
                 return grounded('Atom');
             },
             opts: {}
@@ -120,24 +121,30 @@ export function registerAdvancedOps(interpreter) {
         '&match-types': {
             fn: (t1, t2, thenBranch, elseBranch) => {
                 const isWildcard = (t) => t.name === '%Undefined%' || t.name === 'Atom';
-                if (isWildcard(t1) || isWildcard(t2)) {return thenBranch;}
+                if (isWildcard(t1) || isWildcard(t2)) {
+                    return thenBranch;
+                }
                 return Unify.unify(t1, t2) !== null ? thenBranch : elseBranch;
             },
-            opts: { lazy: true }
+            opts: {lazy: true}
         },
         '&assert-type': {
             fn: (atom, expectedType, space) => {
                 const s = space || interpreter.space;
                 const actualType = interpreter.ground.execute('&get-type', atom, s);
 
-                if (actualType.name === '%Undefined%') {return atom;}
+                if (actualType.name === '%Undefined%') {
+                    return atom;
+                }
 
                 const bindings = Unify.unify(actualType, expectedType);
-                if (bindings !== null) {return atom;}
+                if (bindings !== null) {
+                    return atom;
+                }
 
                 return exp(sym('Error'), [atom, exp(sym('TypeError'), [expectedType, actualType])]);
             },
-            opts: { lazy: true }
+            opts: {lazy: true}
         },
 
         // Space operations
@@ -146,11 +153,17 @@ export function registerAdvancedOps(interpreter) {
             opts: {}
         },
         '&add-atom': {
-            fn: (atom) => { interpreter.space.add(atom); return atom; },
+            fn: (atom) => {
+                interpreter.space.add(atom);
+                return atom;
+            },
             opts: {}
         },
         '&rm-atom': {
-            fn: (atom) => { interpreter.space.remove(atom); return atom; },
+            fn: (atom) => {
+                interpreter.space.remove(atom);
+                return atom;
+            },
             opts: {}
         },
 
@@ -160,13 +173,15 @@ export function registerAdvancedOps(interpreter) {
                 console.log(...args.map(a => Formatter.toHyperonString(a)));
                 return sym('()');
             },
-            opts: { lazy: true }
+            opts: {lazy: true}
         },
 
         // List operations
         '&length': {
             fn: (list) => {
-                if (list?.name === '()') {return formatNum(0);}
+                if (list?.name === '()') {
+                    return formatNum(0);
+                }
                 if (list?.operator?.name === ':' && list?.components) {
                     const flattener = interpreter.ground._flattenExpr ? interpreter.ground : interpreter;
                     const flattened = flattener._flattenExpr ? flattener._flattenExpr(list) : interpreter._flattenToList(list);
@@ -183,15 +198,19 @@ export function registerAdvancedOps(interpreter) {
                 const results = interpreter.evaluate(cond);
                 const condRes = Array.isArray(results) ? (results.length > 0 ? results[0] : null) : results;
 
-                if (condRes?.name === 'True') {return thenB;}
-                if (condRes?.name === 'False') {return elseB;}
+                if (condRes?.name === 'True') {
+                    return thenB;
+                }
+                if (condRes?.name === 'False') {
+                    return elseB;
+                }
                 return exp(sym('if'), [condRes || cond, thenB, elseB]);
             },
-            opts: { lazy: true }
+            opts: {lazy: true}
         },
         '&let*': {
             fn: (binds, body) => interpreter._handleLetStar(binds, body),
-            opts: { lazy: true }
+            opts: {lazy: true}
         },
 
         // Higher-order function operations
@@ -203,7 +222,7 @@ export function registerAdvancedOps(interpreter) {
                     interpreter._reduceDeterministic(exp(fn, [el]))
                 ));
             },
-            opts: { lazy: true }
+            opts: {lazy: true}
         },
         '&filter-fast': {
             fn: (pred, list) => {
@@ -211,7 +230,9 @@ export function registerAdvancedOps(interpreter) {
                 const listToFilter = flattener._flattenExpr ? flattener._flattenExpr(list) : interpreter._flattenToList(list);
 
                 const filtered = listToFilter.filter(el => {
-                    if (!el) {return false;}
+                    if (!el) {
+                        return false;
+                    }
                     try {
                         const expr = exp(pred, [el]);
                         const result = interpreter._reduceDeterministic(expr);
@@ -222,7 +243,7 @@ export function registerAdvancedOps(interpreter) {
                 });
                 return interpreter._listify(filtered);
             },
-            opts: { lazy: true }
+            opts: {lazy: true}
         },
         '&foldl-fast': {
             fn: (fn, init, list) => {
@@ -232,21 +253,23 @@ export function registerAdvancedOps(interpreter) {
                 return listToFold.reduce((acc, el) =>
                     interpreter._reduceDeterministic(exp(fn, [acc, el])), init);
             },
-            opts: { lazy: true }
+            opts: {lazy: true}
         },
         'reduce-atom': {
             fn: (list, accVar, elVar, op) => {
                 const flattener = interpreter.ground._flattenExpr ? interpreter.ground : interpreter;
                 const elements = flattener._flattenExpr ? flattener._flattenExpr(list) : interpreter._flattenToList(list);
 
-                if (elements.length === 0) {return sym('()');}
+                if (elements.length === 0) {
+                    return sym('()');
+                }
 
                 return elements.slice(1).reduce((result, el) => {
-                    const substOp = Unify.subst(op, { [accVar.name]: result, [elVar.name]: el });
+                    const substOp = Unify.subst(op, {[accVar.name]: result, [elVar.name]: el});
                     return interpreter._reduceDeterministic(substOp);
                 }, elements[0]);
             },
-            opts: { lazy: true }
+            opts: {lazy: true}
         }
     });
 }

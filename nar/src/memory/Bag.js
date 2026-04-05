@@ -8,7 +8,9 @@ class ForgetPolicy {
     }
 
     _findMinValueItem(dataMap) {
-        if (dataMap.size === 0) {return null;}
+        if (dataMap.size === 0) {
+            return null;
+        }
         const [minItem, minValue] = Array.from(dataMap.entries()).reduce(
             ([minItem, minValue], [item, value]) => value < minValue ? [item, value] : [minItem, minValue],
             [null, Infinity]
@@ -18,7 +20,9 @@ class ForgetPolicy {
 
     _sortByValueDesc(dataMap, items = null) {
         let entries = Array.from(dataMap.entries());
-        if (items) {entries = entries.filter(([item]) => items.has(item));}
+        if (items) {
+            entries = entries.filter(([item]) => items.has(item));
+        }
         return entries.sort((a, b) => b[1] - a[1]).map(([item]) => item);
     }
 }
@@ -27,6 +31,7 @@ class PriorityForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData) {
         return this._findMinValueItem(itemData);
     }
+
     orderItems(items, itemData) {
         return this._sortByValueDesc(itemData);
     }
@@ -36,6 +41,7 @@ class LRUForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData, insertionOrder, accessTimes) {
         return this._findMinValueItem(accessTimes);
     }
+
     orderItems(items, itemData, insertionOrder, accessTimes) {
         return this._sortByValueDesc(accessTimes, items);
     }
@@ -45,6 +51,7 @@ class FIFOForgetPolicy extends ForgetPolicy {
     selectForRemoval(items, itemData, insertionOrder) {
         return insertionOrder.find(item => items.has(item)) || null;
     }
+
     orderItems(items, itemData, insertionOrder) {
         return insertionOrder.filter(item => items.has(item));
     }
@@ -55,6 +62,7 @@ class RandomForgetPolicy extends ForgetPolicy {
         const arr = Array.from(items.keys());
         return arr.length ? arr[Math.floor(Math.random() * arr.length)] : null;
     }
+
     orderItems(items) {
         const arr = Array.from(items.keys());
         for (let i = arr.length - 1; i > 0; i--) {
@@ -117,7 +125,9 @@ export class Bag {
 
     add(item) {
         const key = this._getKey(item);
-        if (this._itemKeys.has(key)) {return false;}
+        if (this._itemKeys.has(key)) {
+            return false;
+        }
 
         if (this.size >= this.maxSize) {
             this._removeItemByPolicy();
@@ -164,13 +174,17 @@ export class Bag {
 
     find(predicate) {
         for (const item of this._items.keys()) {
-            if (predicate(item)) {return item;}
+            if (predicate(item)) {
+                return item;
+            }
         }
         return null;
     }
 
     peek() {
-        if (this.size === 0) {return null;}
+        if (this.size === 0) {
+            return null;
+        }
 
         const orderedItems = this.getItemsInPriorityOrder();
         return orderedItems[0] || null;
@@ -184,7 +198,9 @@ export class Bag {
     }
 
     getAveragePriority() {
-        if (this.size === 0) {return 0;}
+        if (this.size === 0) {
+            return 0;
+        }
 
         let sum = 0;
         for (const priority of this._items.values()) {

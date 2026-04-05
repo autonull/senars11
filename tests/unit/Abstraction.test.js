@@ -5,7 +5,7 @@
  */
 
 import {beforeEach, describe, expect, it} from '@jest/globals';
-import {RuleCompiler, RuleExecutor, Unifier, TermFactory, StandardDiscriminators} from '@senars/nar';
+import {RuleCompiler, RuleExecutor, StandardDiscriminators, TermFactory, Unifier} from '@senars/nar';
 
 describe('Rule Engine Abstraction', () => {
     let termFactory;

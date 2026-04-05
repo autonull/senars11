@@ -2,9 +2,8 @@
  * Enhanced Component
  * Extended component with middleware and validation support
  */
-import { Component } from './Component.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { MetricsTracker } from '../utils/MetricsTracker.js';
+import {Component} from './Component.js';
+import {mergeConfig, MetricsTracker} from '../utils/index.js';
 
 const COMPOSABLE_DEFAULTS = {
     autoInitialize: true,
@@ -29,7 +28,9 @@ export class EnhancedComponent extends Component {
     }
 
     async initialize() {
-        if (this.initialized) {return;}
+        if (this.initialized) {
+            return;
+        }
 
         // Run validators
         for (const validator of this._validators) {
@@ -114,7 +115,7 @@ export class EnhancedComponent extends Component {
     setState(key, value) {
         const prev = this._state.get(key);
         this._state.set(key, value);
-        this.emit('stateChange', { key, value, prev });
+        this.emit('stateChange', {key, value, prev});
         return this;
     }
 

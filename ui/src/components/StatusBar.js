@@ -1,6 +1,6 @@
 import { Component } from './Component.js';
-import { FluentUI, $, div, button, span, input } from '../utils/FluentUI.js';
-import { ReactiveState } from '../core/ReactiveState.js';
+import { $, div, button, span, input } from '../utils/FluentUI.js';
+import { ReactiveState } from '../core/index.js';
 import { eventBus } from '../core/EventBus.js';
 import { MODES } from '../config/constants.js';
 

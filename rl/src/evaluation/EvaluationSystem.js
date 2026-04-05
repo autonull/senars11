@@ -4,13 +4,13 @@
  */
 
 // Statistical tests
-export { StatisticalTests, DescriptiveStats, MathUtils } from './StatisticalTests.js';
+export {StatisticalTests, DescriptiveStats, MathUtils} from './StatisticalTests.js';
 
 // Metrics collection
-export { MetricsCollector, PerformanceAnalyzer } from './MetricsCollector.js';
+export {MetricsCollector, PerformanceAnalyzer} from './MetricsCollector.js';
 
 // Benchmark runner
-export { BenchmarkRunner } from './BenchmarkRunner.js';
+export {BenchmarkRunner} from './BenchmarkRunner.js';
 
 // Convenience re-exports
 export const Evaluator = BenchmarkRunner;

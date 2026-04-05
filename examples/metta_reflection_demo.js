@@ -1,6 +1,5 @@
 
 import { MeTTaInterpreter } from '@senars/metta/src/MeTTaInterpreter.js';
-import { grounded, sym, exp } from '@senars/metta/src/kernel/Term.js';
 
 async function runDemo() {
     console.log('🔮 MeTTa Reflection Playground 🔮\n');

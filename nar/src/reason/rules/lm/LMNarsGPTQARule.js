@@ -33,13 +33,17 @@ export const createNarsGPTQARule = ({lm, narsGPTStrategy, parser, eventBus, memo
         },
 
         process: (response) => {
-            if (!response) {return null;}
+            if (!response) {
+                return null;
+            }
             const firstLine = response.split('\n').map(l => l.trim()).find(Boolean);
             return firstLine ?? response.trim();
         },
 
         generate: (output, task, _, ctx) => {
-            if (!output || !ctx?.termFactory) {return [];}
+            if (!output || !ctx?.termFactory) {
+                return [];
+            }
             const answer = output.replace(/^["']|["']$/g, '').trim();
             return [new Task({
                 term: ctx.termFactory.atomic(`"${answer}"`),

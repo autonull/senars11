@@ -1,6 +1,6 @@
-import { Logger } from '@senars/core';
-import { Punctuation } from '../task/Task.js';
-import { cleanText as cleanTextCommon, isValidLength } from '@senars/core/src/util/common.js';
+import {Logger} from '@senars/core';
+import {Punctuation} from '../task/Task.js';
+import {cleanText as cleanTextCommon, isValidLength} from '@senars/core/src/util/common.js';
 
 export const cleanText = cleanTextCommon;
 
@@ -11,8 +11,10 @@ export const extractTaskFromContext = extractPrimaryTask;
 export const isSynchronousRule = (rule) => rule?.type?.toLowerCase()?.includes('nal') ?? false;
 export const isAsyncRule = (rule) => rule?.type?.toLowerCase()?.includes('lm') ?? false;
 
-export const parseListFromResponse = (lmResponse, { removeEmpty = true } = {}) => {
-    if (!lmResponse) {return [];}
+export const parseListFromResponse = (lmResponse, {removeEmpty = true} = {}) => {
+    if (!lmResponse) {
+        return [];
+    }
 
     const lines = lmResponse
         .split('\n')
@@ -22,7 +24,7 @@ export const parseListFromResponse = (lmResponse, { removeEmpty = true } = {}) =
     return removeEmpty ? lines.filter(item => item.length > 0) : lines;
 };
 
-export const parseSubGoals = (lmResponse) => parseListFromResponse(lmResponse, { removeEmpty: false });
+export const parseSubGoals = (lmResponse) => parseListFromResponse(lmResponse, {removeEmpty: false});
 
 const INVALID_PATTERNS = ['sorry', 'cannot', 'unable'];
 const INVALID_TEXT_PATTERNS = [...INVALID_PATTERNS, 'no information'];
@@ -37,7 +39,9 @@ export const isValidText = (text, minLength = 1, maxLength = 1000) =>
     isValidLength(text, minLength, maxLength) && !hasInvalidPattern(text, INVALID_TEXT_PATTERNS);
 
 export const processDerivation = (result, maxDerivationDepth, budgetManager = null) => {
-    if (!result?.stamp) {return result;}
+    if (!result?.stamp) {
+        return result;
+    }
 
     try {
         const depth = result.stamp.depth ?? 0;
@@ -45,7 +49,9 @@ export const processDerivation = (result, maxDerivationDepth, budgetManager = nu
             ? budgetManager.checkDerivationDepth(depth, maxDerivationDepth)
             : depth <= maxDerivationDepth;
 
-        if (!withinBudget) {return null;}
+        if (!withinBudget) {
+            return null;
+        }
 
         if (budgetManager?.calculateComplexityPenalty && result.term?.complexity && result.budget) {
             const penalty = budgetManager.calculateComplexityPenalty(result.term.complexity);
@@ -54,7 +60,7 @@ export const processDerivation = (result, maxDerivationDepth, budgetManager = nu
                 priority: result.budget.priority / penalty,
                 durability: result.budget.durability / penalty
             };
-            return result.clone?.({ budget: newBudget }) ?? Object.assign(result, { budget: newBudget });
+            return result.clone?.({budget: newBudget}) ?? Object.assign(result, {budget: newBudget});
         }
 
         return result;
@@ -97,7 +103,9 @@ export const isQuestion = (task) => task?.punctuation === Punctuation.QUESTION;
 export const isBelief = (task) => task?.punctuation === Punctuation.BELIEF;
 
 export const tryParseNarsese = (text, parser) => {
-    if (!text || !parser) {return null;}
+    if (!text || !parser) {
+        return null;
+    }
 
     const match = text.match(/([<(])[^>)]+([>)])/);
     const toParse = match ? match[0] : text;
@@ -105,23 +113,27 @@ export const tryParseNarsese = (text, parser) => {
     try {
         return parser.parse(toParse);
     } catch (error) {
-        Logger.debug('Failed to parse Narsese text', { text: toParse, error: error.message });
+        Logger.debug('Failed to parse Narsese text', {text: toParse, error: error.message});
         return null;
     }
 };
 
 export const createFallbackTerm = (text, termFactory) => {
-    if (!text) {return null;}
+    if (!text) {
+        return null;
+    }
 
     const cleanContent = text.replace(/"/g, '').trim();
-    if (!cleanContent) {return null;}
+    if (!cleanContent) {
+        return null;
+    }
 
     const termStr = `"${cleanContent}"`;
 
     try {
         return termFactory?.atomic?.(termStr) ?? termStr;
     } catch (error) {
-        Logger.debug('Failed to create atomic term', { termStr, error: error.message });
+        Logger.debug('Failed to create atomic term', {termStr, error: error.message});
         return termStr;
     }
 };

@@ -3,12 +3,15 @@
  */
 if (typeof window !== 'undefined') {
     window.URL = window.URL || {};
-    window.URL.createObjectURL = window.URL.createObjectURL || function() { return 'mock-url'; };
-    window.URL.revokeObjectURL = window.URL.revokeObjectURL || function() {};
+    window.URL.createObjectURL = window.URL.createObjectURL || function () {
+        return 'mock-url';
+    };
+    window.URL.revokeObjectURL = window.URL.revokeObjectURL || function () {
+    };
 }
 
-import { describe, test, expect, afterEach, afterAll } from '@jest/globals';
-import {Knowledge, TruthValueUtils} from '../../../agent/src/know/Knowledge.js';
+import {describe, expect, test} from '@jest/globals';
+import {Knowledge, TruthValueUtils} from '../../../agent/src/know/index.js';
 // Skip DataTableKnowledge tests due to danfojs ESM compatibility issues with Jest
 // import {DataTableKnowledge} from '../../../agent/src/know/DataTableKnowledge.js';
 

@@ -1,4 +1,11 @@
-import {DependentVariableIntroductionRule, VariableIntroductionRule, TermFactory, Task, Truth, Stamp} from '@senars/nar';
+import {
+    DependentVariableIntroductionRule,
+    Stamp,
+    Task,
+    TermFactory,
+    Truth,
+    VariableIntroductionRule
+} from '@senars/nar';
 
 
 describe('VariableIntroduction Rules', () => {

@@ -1,5 +1,3 @@
-import { logError } from '../reason/utils/error.js';
-
 export class MetacognitiveMonitor {
     constructor(nar, config = {}) {
         this.nar = nar;
@@ -33,26 +31,36 @@ export class MetacognitiveMonitor {
     }
 
     _recordReasoningStep(stepData) {
-        this.reasoningTrace.push({ timestamp: Date.now(), stepData, context: this._getCurrentContext() });
+        this.reasoningTrace.push({timestamp: Date.now(), stepData, context: this._getCurrentContext()});
         if (this.reasoningTrace.length > this.config.maxTraceSize) {
             this.reasoningTrace = this.reasoningTrace.slice(-Math.floor(this.config.maxTraceSize / 2));
         }
     }
 
     _recordError(errorData) {
-        this.reasoningTrace.push({ timestamp: Date.now(), type: 'error', errorData, context: this._getCurrentContext() });
+        this.reasoningTrace.push({timestamp: Date.now(), type: 'error', errorData, context: this._getCurrentContext()});
     }
 
     _recordTaskProcessing(taskData) {
-        this.reasoningTrace.push({ timestamp: Date.now(), type: 'task_processing', taskData, context: this._getCurrentContext() });
+        this.reasoningTrace.push({
+            timestamp: Date.now(),
+            type: 'task_processing',
+            taskData,
+            context: this._getCurrentContext()
+        });
     }
 
     _recordMemoryChange(memoryData) {
-        this.reasoningTrace.push({ timestamp: Date.now(), type: 'memory_change', memoryData, context: this._getCurrentContext() });
+        this.reasoningTrace.push({
+            timestamp: Date.now(),
+            type: 'memory_change',
+            memoryData,
+            context: this._getCurrentContext()
+        });
     }
 
     _analyzePerformance(metrics) {
-        const performanceRecord = { ...metrics, timestamp: Date.now(), systemContext: this._getCurrentContext() };
+        const performanceRecord = {...metrics, timestamp: Date.now(), systemContext: this._getCurrentContext()};
         this.performanceHistory.push(performanceRecord);
         if (this.performanceHistory.length > this.config.maxPerformanceHistory) {
             this.performanceHistory = this.performanceHistory.slice(-Math.floor(this.config.maxPerformanceHistory / 2));
@@ -69,7 +77,7 @@ export class MetacognitiveMonitor {
                 const currentMonitor = this.performanceMonitors.get(metricName) || {
                     currentValue: 0, trend: 0, stability: 0, history: [], alerts: []
                 };
-                currentMonitor.history.push({ value: metrics[metricName], timestamp: Date.now() });
+                currentMonitor.history.push({value: metrics[metricName], timestamp: Date.now()});
                 if (currentMonitor.history.length > 50) {
                     currentMonitor.history = currentMonitor.history.slice(-25);
                 }
@@ -93,13 +101,28 @@ export class MetacognitiveMonitor {
     _detectPerformanceIssues(currentMetrics) {
         const issues = [];
         if (currentMetrics.throughput != null && currentMetrics.throughput < this.config.minThroughput) {
-            issues.push({ type: 'low_throughput', severity: 'medium', value: currentMetrics.throughput, threshold: this.config.minThroughput });
+            issues.push({
+                type: 'low_throughput',
+                severity: 'medium',
+                value: currentMetrics.throughput,
+                threshold: this.config.minThroughput
+            });
         }
         if (currentMetrics.avgProcessingTime != null && currentMetrics.avgProcessingTime > this.config.maxAvgProcessingTime) {
-            issues.push({ type: 'high_processing_time', severity: 'high', value: currentMetrics.avgProcessingTime, threshold: this.config.maxAvgProcessingTime });
+            issues.push({
+                type: 'high_processing_time',
+                severity: 'high',
+                value: currentMetrics.avgProcessingTime,
+                threshold: this.config.maxAvgProcessingTime
+            });
         }
         if (currentMetrics.memoryUsage != null && currentMetrics.memoryUsage > this.config.maxMemoryUsage) {
-            issues.push({ type: 'memory_pressure', severity: 'high', value: currentMetrics.memoryUsage, threshold: this.config.maxMemoryUsage });
+            issues.push({
+                type: 'memory_pressure',
+                severity: 'high',
+                value: currentMetrics.memoryUsage,
+                threshold: this.config.maxMemoryUsage
+            });
         }
         return issues;
     }
@@ -117,15 +140,23 @@ export class MetacognitiveMonitor {
 
     _getActiveComponents() {
         const components = {};
-        if (this.nar?.streamReasoner) {components.streamReasoner = this.nar.streamReasoner.isRunning;}
-        if (this.nar?.taskManager) {components.taskManager = true;}
-        if (this.nar?.memory) {components.memory = true;}
-        if (this.nar?.inferenceEngine) {components.inferenceEngine = true;}
+        if (this.nar?.streamReasoner) {
+            components.streamReasoner = this.nar.streamReasoner.isRunning;
+        }
+        if (this.nar?.taskManager) {
+            components.taskManager = true;
+        }
+        if (this.nar?.memory) {
+            components.memory = true;
+        }
+        if (this.nar?.inferenceEngine) {
+            components.inferenceEngine = true;
+        }
         return components;
     }
 
     _analyzeResourceUsage() {
-        const resourceUsage = { memoryTrend: 'stable', cpuUsage: 'normal', taskProcessingRate: 'normal' };
+        const resourceUsage = {memoryTrend: 'stable', cpuUsage: 'normal', taskProcessingRate: 'normal'};
         if (this.performanceHistory.length >= 5) {
             const recent = this.performanceHistory.slice(-5);
             const memoryValues = recent.map(m => m.memoryUsage).filter(v => v != null);
@@ -141,7 +172,7 @@ export class MetacognitiveMonitor {
 
     _analyzeTaskPatterns() {
         const taskSteps = this.reasoningTrace.filter(step => step.type === 'task_processing');
-        const patternAnalysis = { processingRate: 0, commonTaskTypes: {}, bottlenecks: [] };
+        const patternAnalysis = {processingRate: 0, commonTaskTypes: {}, bottlenecks: []};
         if (taskSteps.length > 0) {
             const timeWindow = 60000;
             const recentTasks = taskSteps.filter(step => Date.now() - step.timestamp < timeWindow);
@@ -176,17 +207,23 @@ export class MetacognitiveMonitor {
     }
 
     _getPerformanceTrend() {
-        if (this.performanceHistory.length < 2) {return 'insufficient_data';}
+        if (this.performanceHistory.length < 2) {
+            return 'insufficient_data';
+        }
         const recent = this.performanceHistory.slice(-10);
         const avgThroughput = recent.reduce((sum, m) => sum + (m.throughput || 0), 0) / recent.length;
         const earlier = this.performanceHistory.slice(Math.max(0, this.performanceHistory.length - 20), -10);
-        if (earlier.length === 0) {return avgThroughput > 0 ? 'improving' : 'declining';}
+        if (earlier.length === 0) {
+            return avgThroughput > 0 ? 'improving' : 'declining';
+        }
         const avgEarlierThroughput = earlier.reduce((sum, m) => sum + (m.throughput || 0), 0) / earlier.length;
         return avgThroughput > avgEarlierThroughput ? 'improving' : avgThroughput < avgEarlierThroughput ? 'declining' : 'stable';
     }
 
     _getPerformanceAnalysis() {
-        if (this.performanceHistory.length === 0) {return { status: 'no_data' };}
+        if (this.performanceHistory.length === 0) {
+            return {status: 'no_data'};
+        }
         return {
             currentMetrics: this.performanceHistory[this.performanceHistory.length - 1],
             monitors: this._getPerformanceMonitors()
@@ -200,7 +237,9 @@ export class MetacognitiveMonitor {
         };
     }
 
-    getReasoningTrace() { return [...this.reasoningTrace]; }
+    getReasoningTrace() {
+        return [...this.reasoningTrace];
+    }
 
     getMonitorState() {
         return {

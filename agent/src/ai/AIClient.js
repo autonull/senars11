@@ -2,7 +2,7 @@ import {generateObject, generateText, streamText} from 'ai';
 import {createOpenAI} from '@ai-sdk/openai';
 import {createAnthropic} from '@ai-sdk/anthropic';
 import {createOllama} from 'ollama-ai-provider';
-import {DummyProvider, TransformersJSProvider, WebLLMProvider} from '@senars/core';
+import {TransformersJSProvider, WebLLMProvider, DummyProvider} from '@senars/core';
 
 export class AIClient {
     constructor(config = {}) {
@@ -18,59 +18,33 @@ export class AIClient {
     static _extractPrompt(options) {
         if (options.messages && Array.isArray(options.messages)) {
             return options.messages.map(msg => {
-                if (typeof msg === 'string') {
-                    return msg;
-                }
+                if (typeof msg === 'string') {return msg;}
                 if (msg.content) {
-                    if (typeof msg.content === 'string') {
-                        return msg.content;
-                    }
-                    if (Array.isArray(msg.content)) {
-                        return msg.content.map(c => c.text || '').join('');
-                    }
+                    if (typeof msg.content === 'string') {return msg.content;}
+                    if (Array.isArray(msg.content)) {return msg.content.map(c => c.text || '').join('');}
                 }
-                if (msg.text) {
-                    return msg.text;
-                }
+                if (msg.text) {return msg.text;}
                 return JSON.stringify(msg);
             }).join('\n');
         }
-        if (typeof options.prompt === 'string') {
-            return options.prompt;
-        }
+        if (typeof options.prompt === 'string') {return options.prompt;}
         if (Array.isArray(options.prompt)) {
             if (options.prompt.length > 0 && options.prompt[0].role) {
                 return options.prompt.map(msg => {
-                    if (typeof msg === 'string') {
-                        return msg;
-                    }
+                    if (typeof msg === 'string') {return msg;}
                     if (msg.content) {
-                        if (typeof msg.content === 'string') {
-                            return msg.content;
-                        }
-                        if (Array.isArray(msg.content)) {
-                            return msg.content.map(c => c.text || '').join('');
-                        }
+                        if (typeof msg.content === 'string') {return msg.content;}
+                        if (Array.isArray(msg.content)) {return msg.content.map(c => c.text || '').join('');}
                     }
-                    if (msg.text) {
-                        return msg.text;
-                    }
+                    if (msg.text) {return msg.text;}
                     return JSON.stringify(msg);
                 }).join('\n');
             }
             return options.prompt.map(msg => {
-                if (typeof msg === 'string') {
-                    return msg;
-                }
-                if (msg.content) {
-                    return msg.content;
-                }
-                if (msg.text) {
-                    return msg.text;
-                }
-                if (Array.isArray(msg.content)) {
-                    return msg.content.map(c => c.text || '').join('');
-                }
+                if (typeof msg === 'string') {return msg;}
+                if (msg.content) {return msg.content;}
+                if (msg.text) {return msg.text;}
+                if (Array.isArray(msg.content)) {return msg.content.map(c => c.text || '').join('');}
                 return JSON.stringify(msg);
             }).join('\n');
         }
@@ -79,21 +53,13 @@ export class AIClient {
 
     #resolveArgs(prompt, options = {}) {
         const model = this.getModel(options.provider || prompt?.provider, options.model || prompt?.model);
-        const args = {model, ...options};
-        if (Array.isArray(prompt)) {
-            args.messages = prompt;
-        } else if (typeof prompt === 'string') {
-            args.prompt = prompt;
-        } else if (prompt?.messages) {
-            args.messages = prompt.messages;
-        } else if (prompt?.prompt && Array.isArray(prompt.prompt)) {
-            args.messages = prompt.prompt;
-        } else if (prompt?.prompt) {
-            args.prompt = prompt.prompt;
-        }
-        if (args.tools && Object.keys(args.tools).length === 0) {
-            delete args.tools;
-        }
+        const args = { model, ...options };
+        if (Array.isArray(prompt)) {args.messages = prompt;}
+        else if (typeof prompt === 'string') {args.prompt = prompt;}
+        else if (prompt?.messages) {args.messages = prompt.messages;}
+        else if (prompt?.prompt && Array.isArray(prompt.prompt)) {args.messages = prompt.prompt;}
+        else if (prompt?.prompt) {args.prompt = prompt.prompt;}
+        if (args.tools && Object.keys(args.tools).length === 0) {delete args.tools;}
         return args;
     }
 
@@ -133,7 +99,7 @@ export class AIClient {
     }
 
     _createOllamaModel(baseURL, modelName) {
-        const ollama = createOllama({baseURL});
+        const ollama = createOllama({ baseURL });
         return ollama(modelName);
     }
 
@@ -162,7 +128,7 @@ export class AIClient {
                         temperature: options.temperature ?? 0.7,
                         maxTokens: options.maxTokens ?? 256
                     });
-                    result = {text};
+                    result = { text };
                 }
 
                 const responseText = result.text || '';
@@ -194,7 +160,7 @@ export class AIClient {
                         inputTokens: promptText.length,
                         outputTokens: responseText.length
                     },
-                    rawResponse: {headers: {}},
+                    rawResponse: { headers: {} },
                     toolCalls,
                     warnings: [],
                 };
@@ -274,46 +240,46 @@ export class AIClient {
             defaultObjectGenerationMode: undefined,
 
             async doGenerate(options) {
-                const prompt = AIClient._extractPrompt(options);
-                const text = await provider.generateText(prompt);
+                 const prompt = AIClient._extractPrompt(options);
+                 const text = await provider.generateText(prompt);
 
-                return {
+                 return {
                     text,
-                    content: [{type: 'text', text}], // Required content array
+                    content: [{ type: 'text', text }], // Required content array
                     finishReason: 'stop',
                     usage: {
                         promptTokens: prompt.length,
                         completionTokens: text.length
                     },
-                    rawResponse: {headers: {}} // Required for v2
-                };
+                    rawResponse: { headers: {} } // Required for v2
+                 };
             },
 
-            async doStream(options) {
-                const prompt = AIClient._extractPrompt(options);
-                const controller = new TransformableStream();
+             async doStream(options) {
+                 const prompt = AIClient._extractPrompt(options);
+                 const controller = new TransformableStream();
 
-                await (async () => {
-                    try {
-                        const stream = provider.streamText(prompt);
-                        for await (const chunk of stream) {
-                            controller.enqueue({type: 'text-delta', textDelta: chunk});
-                        }
-                        controller.enqueue({
-                            type: 'finish',
-                            finishReason: 'stop',
-                            usage: {promptTokens: 0, completionTokens: 0}
-                        });
-                        controller.close();
-                    } catch (e) {
-                        controller.error(e);
-                    }
-                })();
+                 await (async () => {
+                     try {
+                         const stream = provider.streamText(prompt);
+                         for await (const chunk of stream) {
+                             controller.enqueue({type: 'text-delta', textDelta: chunk});
+                         }
+                         controller.enqueue({
+                             type: 'finish',
+                             finishReason: 'stop',
+                             usage: {promptTokens: 0, completionTokens: 0}
+                         });
+                         controller.close();
+                     } catch (e) {
+                         controller.error(e);
+                     }
+                 })();
 
-                return {
-                    stream: controller.readable,
-                    rawCall: {rawPrompt: prompt, rawSettings: {}}
-                };
+                 return {
+                     stream: controller.readable,
+                     rawCall: { rawPrompt: prompt, rawSettings: {} }
+                 };
             }
         };
     }
@@ -369,9 +335,7 @@ export class AIClient {
 
     async destroy() {
         for (const [key, instance] of this.modelInstances) {
-            if (instance.destroy) {
-                await instance.destroy();
-            }
+            if (instance.destroy) {await instance.destroy();}
         }
         this.modelInstances.clear();
     }

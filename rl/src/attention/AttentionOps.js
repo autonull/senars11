@@ -1,4 +1,4 @@
-import { cosineSimilarity, softmax } from '@senars/core';
+import {cosineSimilarity, softmax} from '@senars/core';
 
 export const AttentionOps = {
     projectNeural(input, fromDim, toDim) {
@@ -15,7 +15,7 @@ export const AttentionOps = {
 
     projectSymbolic(input, attentionDim) {
         const projected = new Float32Array(attentionDim);
-        input.symbols?.forEach(({ symbol, confidence }) => {
+        input.symbols?.forEach(({symbol, confidence}) => {
             const idx = this.hashSymbol(symbol) % attentionDim;
             projected[idx] += confidence ?? 1;
         });
@@ -33,7 +33,9 @@ export const AttentionOps = {
     softmax: (scores) => softmax(scores),
 
     applyDropout(weights, dropout) {
-        if (dropout <= 0) {return weights;}
+        if (dropout <= 0) {
+            return weights;
+        }
         return weights.map(w => Math.random() < dropout ? 0 : w / (1 - dropout));
     },
 

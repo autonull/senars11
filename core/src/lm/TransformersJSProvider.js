@@ -1,5 +1,5 @@
 import {BaseProvider} from './BaseProvider.js';
-import {withTimeout} from '../util/async.js';
+import {withTimeout} from '@senars/core';
 
 let pipelinePromise = null;
 const importPipeline = () => {
@@ -28,36 +28,24 @@ export class TransformersJSProvider extends BaseProvider {
     }
 
     _contentToStr(c) {
-        if (typeof c === 'string') {
-            return c;
-        }
-        if (Array.isArray(c)) {
-            return c.map(x => typeof x === 'string' ? x : (x.text || '')).join('');
-        }
-        if (c && typeof c === 'object') {
-            return c.text || '';
-        }
+        if (typeof c === 'string') {return c;}
+        if (Array.isArray(c)) {return c.map(x => typeof x === 'string' ? x : (x.text || '')).join('');}
+        if (c && typeof c === 'object') {return c.text || '';}
         return String(c);
     }
 
     _formatChatPrompt(messages) {
-        if (!Array.isArray(messages)) {
-            return String(messages);
-        }
+        if (!Array.isArray(messages)) {return String(messages);}
         const content = (m) => this._contentToStr(m.content);
-        if (this.task === 'text2text-generation') {
-            return messages.map(content).join('\n');
-        }
+        if (this.task === 'text2text-generation') {return messages.map(content).join('\n');}
         const CT = '\x3c\x7c\x69\x6d\x5f\x73\x74\x61\x72\x74\x7c\x3e';
         const ET = '\x3c\x7c\x69\x6d\x5f\x65\x6e\x64\x7c\x3e';
         const fmt = (m) => `${CT}${m.role || 'user'}\n${content(m)}${ET}`;
-        return `${messages.map(fmt).join('\n')}\n${CT}assistant\n`;
+        return `${messages.map(fmt).join('\n')  }\n${CT}assistant\n`;
     }
 
     async _initialize() {
-        if (this.pipeline) {
-            return;
-        }
+        if (this.pipeline) {return;}
         const startTime = Date.now();
         this._emitEvent('lm:model-load-start', {modelName: this.modelName, task: this.task});
         try {
@@ -76,16 +64,11 @@ export class TransformersJSProvider extends BaseProvider {
             });
             this.pipeline = await withTimeout(loadModelPromise, this.loadTimeout, `Model loading (${this.modelName})`);
             const elapsed = Date.now() - startTime;
-            this._emitEvent('lm:model-load-complete', {modelName: this.modelName, task: this.task, elapsedMs: elapsed});
+            this._emitEvent('lm:model-load-complete', { modelName: this.modelName, task: this.task, elapsedMs: elapsed });
             this._emitDebug('Model loaded successfully', {modelName: this.modelName, elapsedMs: elapsed});
         } catch (error) {
             if (error.message.includes('timed out')) {
-                this._emitEvent('lm:model-load-timeout', {
-                    modelName: this.modelName,
-                    task: this.task,
-                    timeoutMs: this.loadTimeout,
-                    elapsedMs: Date.now() - startTime
-                });
+                this._emitEvent('lm:model-load-timeout', { modelName: this.modelName, task: this.task, timeoutMs: this.loadTimeout, elapsedMs: Date.now() - startTime });
             }
             this.pipeline = null;
             throw error;
@@ -98,20 +81,15 @@ export class TransformersJSProvider extends BaseProvider {
         const temp = temperature ?? this.temperature ?? 0.7;
         const inputText = Array.isArray(prompt) ? this._formatChatPrompt(prompt) : String(prompt);
         try {
-            const generateOptions = {max_new_tokens: maxTokens ?? this.maxTokens ?? 256, do_sample: temp > 0};
-            if (temp > 0) {
-                generateOptions.temperature = temp;
-            }
+            const generateOptions = { max_new_tokens: maxTokens ?? this.maxTokens ?? 256, do_sample: temp > 0 };
+            if (temp > 0) {generateOptions.temperature = temp;}
             const output = await withTimeout(this.pipeline(inputText, generateOptions), this.loadTimeout, 'Inference');
             let text = Array.isArray(output) ? (output[0]?.generated_text ?? '') : typeof output === 'object' ? (output.generated_text ?? '') : String(output);
             // Strip prompt prefix (with or without ChatML tokens)
             const stripChatML = (s) => s.replace(/\x3c\x7c\x69\x6d\x5f\x73\x74\x61\x72\x74\x7c\x3e/g, '').replace(/\x3c\x7c\x69\x6d\x5f\x65\x6e\x64\x7c\x3e/g, '');
             const plainInput = stripChatML(inputText);
-            if (text.startsWith(inputText)) {
-                text = text.slice(inputText.length);
-            } else if (text.startsWith(plainInput)) {
-                text = text.slice(plainInput.length);
-            }
+            if (text.startsWith(inputText)) {text = text.slice(inputText.length);}
+            else if (text.startsWith(plainInput)) {text = text.slice(plainInput.length);}
             return text.trim();
         } catch (error) {
             this._emitDebug('Pipeline error', {error: error.message});
@@ -127,7 +105,5 @@ export class TransformersJSProvider extends BaseProvider {
         }
     }
 
-    async destroy() {
-        this.pipeline = null;
-    }
+    async destroy() { this.pipeline = null; }
 }

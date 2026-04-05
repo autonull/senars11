@@ -1,7 +1,7 @@
 /**
  * Advanced utility functions for the reasoner following AGENTS.md guidelines
  */
-import { generateId } from '@senars/core';
+import {generateId} from '@senars/core';
 
 /**
  * Create a configurable pipeline of functions that can be composed together

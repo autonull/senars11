@@ -118,9 +118,15 @@ export class ExhaustiveStrategy extends Strategy {
         const str2 = term2.toString();
 
         // Check if they have the same basic structure (e.g., both implications, both conjunctions)
-        if (str1.includes('==>') && str2.includes('==>')) {return true;}
-        if (str1.includes('&&') && str2.includes('&&')) {return true;}
-        if (str1.includes('||') && str2.includes('||')) {return true;}
+        if (str1.includes('==>') && str2.includes('==>')) {
+            return true;
+        }
+        if (str1.includes('&&') && str2.includes('&&')) {
+            return true;
+        }
+        if (str1.includes('||') && str2.includes('||')) {
+            return true;
+        }
 
         // Check if they have the same predicate name with different arguments
         const predPattern = /^[\w]+/;

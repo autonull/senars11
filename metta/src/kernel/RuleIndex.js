@@ -3,9 +3,9 @@
  * Tier 2 optimization: Replaces linear scan with O(1) lookups
  */
 
-import { isExpression, isSymbol, isVariable } from './Term.js';
-import { BloomFilter } from './BloomFilter.js';
-import { configManager } from '../config/config.js';
+import {isExpression, isSymbol, isVariable} from './Term.js';
+import {BloomFilter} from './BloomFilter.js';
+import {configManager} from '../config/config.js';
 
 export class RuleIndex {
     constructor(config = {}) {
@@ -59,7 +59,9 @@ export class RuleIndex {
         this.allRules.push(rule);
 
         const {pattern} = rule;
-        if (!pattern) {return;}
+        if (!pattern) {
+            return;
+        }
 
         // Index by functor
         if (isExpression(pattern)) {
@@ -96,7 +98,9 @@ export class RuleIndex {
             this.allRules.splice(idx, 1);
         }
 
-        if (!this.enabled) {return;}
+        if (!this.enabled) {
+
+        }
 
         // Note: Full removal from indexes would require reverse lookup
         // For now, we just remove from allRules (lazy deletion)
@@ -125,7 +129,7 @@ export class RuleIndex {
         if (typeof functor === 'string' && functor.includes('$')) {
             return this.allRules;
         }
-        
+
         // If term's operator is an expression (like ((λ $x $body) $val)),
         // fall back to all rules to allow pattern matching
         if (isExpression(term) && isExpression(term.operator)) {
@@ -185,9 +189,13 @@ export class RuleIndex {
      */
     _getSignature(functor, arity, firstArg) {
         let type = 'other';
-        if (isSymbol(firstArg)) {type = 'sym';}
-        else if (isVariable(firstArg)) {type = 'var';}
-        else if (isExpression(firstArg)) {type = 'exp';}
+        if (isSymbol(firstArg)) {
+            type = 'sym';
+        } else if (isVariable(firstArg)) {
+            type = 'var';
+        } else if (isExpression(firstArg)) {
+            type = 'exp';
+        }
         return `${functor}/${arity}/${type}`;
     }
 
@@ -201,7 +209,7 @@ export class RuleIndex {
         this.signatureIndex.clear();
         this.patternIndex.clear();
         this.bloomFilter = new BloomFilter();
-        this.stats = { inserts: 0, lookups: 0, hits: 0, misses: 0 };
+        this.stats = {inserts: 0, lookups: 0, hits: 0, misses: 0};
     }
 
     /**

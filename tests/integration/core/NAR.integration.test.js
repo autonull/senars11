@@ -1,4 +1,4 @@
-import {NAR, TermFactory, IntrospectionEvents} from '@senars/nar';
+import {IntrospectionEvents, NAR, TermFactory} from '@senars/nar';
 import {inputAll} from '../../support/testHelpers.js';
 
 describe('NAR Integration', () => {

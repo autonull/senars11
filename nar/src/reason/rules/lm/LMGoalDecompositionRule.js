@@ -28,7 +28,9 @@ export const createGoalDecompositionRule = (dependencies, config = {}) => {
         ...finalConfig,
 
         condition: (primaryPremise) => {
-            if (!lm || !primaryPremise) {return false;}
+            if (!lm || !primaryPremise) {
+                return false;
+            }
             const priority = primaryPremise.budget?.priority ?? 0.5;
             return isGoal(primaryPremise) && priority > 0.7;
         },
@@ -43,7 +45,9 @@ Output: List of subgoals, one per line`;
         },
 
         process: (lmResponse) => {
-            if (!lmResponse) {return [];}
+            if (!lmResponse) {
+                return [];
+            }
             const subGoals = parseSubGoals(lmResponse);
             return subGoals
                 .map(cleanText)

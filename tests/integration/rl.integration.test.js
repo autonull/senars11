@@ -1,22 +1,20 @@
-
-import { DQNAgent } from '../../rl/src/agents/DQNAgent.js';
-import { PPOAgent } from '../../rl/src/agents/PPOAgent.js';
-import { ProgrammaticAgent } from '../../rl/src/agents/ProgrammaticAgent.js';
-import { NeuroSymbolicAgent } from '../../rl/src/agents/NeuroSymbolicAgent.js';
-import { CartPole } from '../../rl/src/environments/CartPole.js';
-import { GridWorld } from '../../rl/src/environments/GridWorld.js';
+import {DQNAgent, PPOAgent} from '../../rl/src/index.js';
+import {ProgrammaticAgent} from '../../rl/src/agents/ProgrammaticAgent.js';
+import {NeuroSymbolicAgent} from '../../rl/src/agents/NeuroSymbolicAgent.js';
+import {CartPole} from '../../rl/src/environments/CartPole.js';
+import {GridWorld} from '../../rl/src/environments/GridWorld.js';
 
 describe('RL Integration Tests', () => {
 
     test('DQN Agent runs on CartPole', async () => {
         const env = new CartPole();
-        const agent = new DQNAgent(env, { batchSize: 4, memorySize: 100, hiddenSize: 16 });
+        const agent = new DQNAgent(env, {batchSize: 4, memorySize: 100, hiddenSize: 16});
         await agent.initialize();
 
         let obs = env.reset().observation;
         for (let i = 0; i < 20; i++) {
             const action = agent.act(obs);
-            const { observation: nextObs, reward, terminated } = env.step(action);
+            const {observation: nextObs, reward, terminated} = env.step(action);
             agent.learn(obs, action, reward, nextObs, terminated);
             obs = nextObs;
             if (terminated) obs = env.reset().observation;
@@ -29,13 +27,13 @@ describe('RL Integration Tests', () => {
 
     test('PPO Agent runs on CartPole', async () => {
         const env = new CartPole();
-        const agent = new PPOAgent(env, { batchSize: 4, updateSteps: 100, hiddenSize: 16 });
+        const agent = new PPOAgent(env, {batchSize: 4, updateSteps: 100, hiddenSize: 16});
         await agent.initialize();
 
         let obs = env.reset().observation;
         for (let i = 0; i < 20; i++) {
             const action = agent.act(obs);
-            const { observation: nextObs, reward, terminated } = env.step(action);
+            const {observation: nextObs, reward, terminated} = env.step(action);
             agent.learn(obs, action, reward, nextObs, terminated);
             obs = nextObs;
             if (terminated) obs = env.reset().observation;
@@ -77,7 +75,7 @@ describe('RL Integration Tests', () => {
 
     test('NeuroSymbolicAgent initializes and runs', async () => {
         const env = new GridWorld();
-        const agent = new NeuroSymbolicAgent(env, { reasoning: 'metta', planning: false });
+        const agent = new NeuroSymbolicAgent(env, {reasoning: 'metta', planning: false});
 
         let obs = env.reset().observation;
         const action = await agent.act(obs);

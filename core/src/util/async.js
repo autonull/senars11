@@ -36,9 +36,7 @@ export const withTimeout = async (promise, ms, message = 'Operation timed out') 
  */
 export async function* asyncIteratorWithDelay(items, delay = 0) {
     for (const item of items) {
-        if (delay > 0) {
-            await sleep(delay);
-        }
+        if (delay > 0) {await sleep(delay);}
         yield item;
     }
 }
@@ -52,12 +50,10 @@ export async function* asyncIteratorWithDelay(items, delay = 0) {
  * @returns {Promise<boolean>} True if condition met, false if timeout
  */
 export async function waitForCondition(condition, options = {}) {
-    const {timeout: timeoutMs = 5000, interval = 100} = options;
+    const { timeout: timeoutMs = 5000, interval = 100 } = options;
     const startTime = Date.now();
     while (Date.now() - startTime < timeoutMs) {
-        if (condition()) {
-            return true;
-        }
+        if (condition()) {return true;}
         await sleep(interval);
     }
     return false;
@@ -74,7 +70,7 @@ export async function waitForCondition(condition, options = {}) {
  * @returns {Promise} Result of operation
  */
 export async function retry(operation, options = {}) {
-    const {maxRetries = 3, backoff = 100, exponential = true, onError = null} = options;
+    const { maxRetries = 3, backoff = 100, exponential = true, onError = null } = options;
     let lastError;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -83,9 +79,7 @@ export async function retry(operation, options = {}) {
         } catch (error) {
             lastError = error;
             onError?.(error, attempt, maxRetries);
-            if (attempt === maxRetries) {
-                break;
-            }
+            if (attempt === maxRetries) {break;}
             await sleep(exponential ? backoff * Math.pow(2, attempt) : backoff);
         }
     }

@@ -2,11 +2,11 @@
  * Neuro-Symbolic Architecture
  * Main architecture class for neuro-symbolic processing
  */
-import { Component } from '../composable/Component.js';
-import { CompositionEngine } from '../composable/CompositionEngine.js';
-import { SymbolicTensor } from '@senars/tensor';
-import { PolicyUtils } from '../utils/PolicyUtils.js';
-import { ArchitectureConfig } from './ArchitectureConfig.js';
+import {Component} from '../composable/Component.js';
+import {CompositionEngine} from '../composable/CompositionEngine.js';
+import {SymbolicTensor} from '@senars/tensor';
+import {PolicyUtils} from '../utils/index.js';
+import {ArchitectureConfig} from './ArchitectureConfig.js';
 
 /**
  * Neuro-symbolic architecture with layered processing
@@ -59,7 +59,9 @@ export class NeuroSymbolicArchitecture extends Component {
 
         for (const layerName of this.executionOrder) {
             const layer = this.layers.get(layerName);
-            if (!layer) {continue;}
+            if (!layer) {
+                continue;
+            }
 
             const output = await layer.process(current, {
                 ...context,
@@ -83,8 +85,8 @@ export class NeuroSymbolicArchitecture extends Component {
      */
     async act(observation, goal = null) {
         const context = goal
-            ? { goal, lift: true, ground: true }
-            : { lift: true, ground: true };
+            ? {goal, lift: true, ground: true}
+            : {lift: true, ground: true};
 
         const result = await this.process(observation, context);
 
@@ -107,7 +109,7 @@ export class NeuroSymbolicArchitecture extends Component {
             const layer = this.layers.get(layerName);
             layer?.learn?.(transition, reward);
         });
-        this.emit('learning', { transition, reward });
+        this.emit('learning', {transition, reward});
     }
 
     /**
@@ -118,7 +120,7 @@ export class NeuroSymbolicArchitecture extends Component {
         return {
             config: this.config.toJSON(),
             layers: Array.from(this.layers.entries()).map(
-                ([name, layer]) => ({ name, config: layer.config })
+                ([name, layer]) => ({name, config: layer.config})
             ),
             executionOrder: this.executionOrder
         };

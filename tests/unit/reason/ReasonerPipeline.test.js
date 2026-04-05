@@ -1,4 +1,4 @@
-import {NAR, IntrospectionEvents} from '@senars/nar';
+import {IntrospectionEvents, NAR} from '@senars/nar';
 
 describe('Reasoner Pipeline Tests', () => {
     let nar;

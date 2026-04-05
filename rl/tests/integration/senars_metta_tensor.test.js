@@ -1,36 +1,32 @@
 /**
  * Integration Tests for SeNARS-MeTTa-Tensor and Unified Environment
  */
-import { strict as assert } from 'assert';
-import { describe, test, afterAll } from '@jest/globals';
+import {strict as assert} from 'assert';
+import {describe, test} from '@jest/globals';
 
 // SeNARS-MeTTa-Tensor Integration
-import {
-    UnifiedNeuroSymbolicAgent,
-    UnifiedAgentFactory
-} from '../../src/integration/SeNARSMettaTensor.js';
-import { NeuroSymbolicBridge } from '../../src/bridges/NeuroSymbolicBridge.js';
-import { TensorLogicPolicy } from '../../src/policies/TensorLogicPolicy.js';
-
+import {UnifiedAgentFactory, UnifiedNeuroSymbolicAgent} from '../../src/integration/SeNARSMettaTensor.js';
 // Unified Environment
 import {
     ActionSpace,
-    ObservationSpace,
-    EnvironmentAdapter,
-    DiscreteWrapper,
     ContinuousWrapper,
+    DiscreteWrapper,
+    EnvironmentAdapter,
+    EnvironmentRegistry,
     HybridEnvironment,
-    EnvironmentRegistry
-} from '../../src/environments/UnifiedEnvironment.js';
+    NeuroSymbolicBridge,
+    ObservationSpace,
+    TensorLogicPolicy
+} from '../../src/index.js';
 
 // Tensor Logic
-import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
+import {SymbolicTensor, TensorLogicBridge} from '@senars/tensor';
 
 describe('SeNARS-MeTTa-Tensor Integration', () => {
 
     describe('Action/Observation Space', () => {
         test('Discrete ActionSpace', () => {
-            const space = new ActionSpace({ type: 'Discrete', n: 5 });
+            const space = new ActionSpace({type: 'Discrete', n: 5});
 
             assert.equal(space.type, 'Discrete');
             assert.equal(space.n, 5);
@@ -80,9 +76,9 @@ describe('SeNARS-MeTTa-Tensor Integration', () => {
     describe('Environment Adapter', () => {
         test('EnvironmentAdapter', () => {
             const mockEnv = {
-                actionSpace: { type: 'Discrete', n: 4 },
-                observationSpace: { type: 'Box', shape: [4], low: -1, high: 1 },
-                reset: () => ({ observation: [0.1, 0.2, 0.3, 0.4] }),
+                actionSpace: {type: 'Discrete', n: 4},
+                observationSpace: {type: 'Box', shape: [4], low: -1, high: 1},
+                reset: () => ({observation: [0.1, 0.2, 0.3, 0.4]}),
                 step: (action) => ({
                     observation: [0.2, 0.3, 0.4, 0.5],
                     reward: 1.0,
@@ -106,9 +102,9 @@ describe('SeNARS-MeTTa-Tensor Integration', () => {
 
         test('DiscreteWrapper', () => {
             const mockEnv = {
-                actionSpace: { type: 'Box', shape: [2], low: -1, high: 1 },
-                observationSpace: { type: 'Box', shape: [4] },
-                reset: () => ({ observation: [0.1, 0.2, 0.3, 0.4] }),
+                actionSpace: {type: 'Box', shape: [2], low: -1, high: 1},
+                observationSpace: {type: 'Box', shape: [4]},
+                reset: () => ({observation: [0.1, 0.2, 0.3, 0.4]}),
                 step: (action) => ({
                     observation: [0.2, 0.3, 0.4, 0.5],
                     reward: Array.isArray(action) ? action[0] : 0,
@@ -117,7 +113,7 @@ describe('SeNARS-MeTTa-Tensor Integration', () => {
                 })
             };
 
-            const wrapper = new DiscreteWrapper(mockEnv, { numBins: 5 });
+            const wrapper = new DiscreteWrapper(mockEnv, {numBins: 5});
 
             assert.equal(wrapper.actionSpace.type, 'Discrete');
             assert.equal(wrapper.actionSpace.n, 5);
@@ -128,9 +124,9 @@ describe('SeNARS-MeTTa-Tensor Integration', () => {
 
         test('ContinuousWrapper', () => {
             const mockEnv = {
-                actionSpace: { type: 'Discrete', n: 4 },
-                observationSpace: { type: 'Box', shape: [4] },
-                reset: () => ({ observation: [0.1, 0.2, 0.3, 0.4] }),
+                actionSpace: {type: 'Discrete', n: 4},
+                observationSpace: {type: 'Box', shape: [4]},
+                reset: () => ({observation: [0.1, 0.2, 0.3, 0.4]}),
                 step: (action) => ({
                     observation: [0.2, 0.3, 0.4, 0.5],
                     reward: typeof action === 'number' ? action * 0.1 : 0,
@@ -139,7 +135,7 @@ describe('SeNARS-MeTTa-Tensor Integration', () => {
                 })
             };
 
-            const wrapper = new ContinuousWrapper(mockEnv, { scale: [-1, 1] });
+            const wrapper = new ContinuousWrapper(mockEnv, {scale: [-1, 1]});
 
             assert.equal(wrapper.actionSpace.type, 'Box');
             assert.deepEqual(wrapper.actionSpace.shape, [1]);
@@ -150,9 +146,9 @@ describe('SeNARS-MeTTa-Tensor Integration', () => {
 
         test('HybridEnvironment', () => {
             const mockEnv = {
-                actionSpace: { type: 'Discrete', n: 4 },
-                observationSpace: { type: 'Box', shape: [4] },
-                reset: () => ({ observation: [0.1, 0.2, 0.3, 0.4] }),
+                actionSpace: {type: 'Discrete', n: 4},
+                observationSpace: {type: 'Box', shape: [4]},
+                reset: () => ({observation: [0.1, 0.2, 0.3, 0.4]}),
                 step: (action) => ({
                     observation: [0.2, 0.3, 0.4, 0.5],
                     reward: 1.0,
@@ -185,10 +181,10 @@ describe('SeNARS-MeTTa-Tensor Integration', () => {
             const tensor = new SymbolicTensor(
                 new Float32Array([0.8, 0.2, 0.6, 0.4]),
                 [4],
-                { symbols: new Map([['0', { symbol: 'high', confidence: 0.9 }]]) }
+                {symbols: new Map([['0', {symbol: 'high', confidence: 0.9}]])}
             );
 
-            const symbols = bridge.liftToSymbols(tensor, { threshold: 0.3 });
+            const symbols = bridge.liftToSymbols(tensor, {threshold: 0.3});
             assert.ok(symbols.length >= 2);
 
             const grounded = bridge.groundToTensor(symbols, [4]);
@@ -204,10 +200,12 @@ describe('SeNARS-MeTTa-Tensor Integration', () => {
             const tensor = new SymbolicTensor(
                 new Float32Array([0.9, 0.1, 0.8, 0.2]),
                 [4],
-                { symbols: new Map([
-                    ['0', { symbol: 'feature_0', confidence: 0.9 }],
-                    ['2', { symbol: 'feature_2', confidence: 0.8 }]
-                ]) }
+                {
+                    symbols: new Map([
+                        ['0', {symbol: 'feature_0', confidence: 0.9}],
+                        ['2', {symbol: 'feature_2', confidence: 0.8}]
+                    ])
+                }
             );
 
             const narsese = tensor.toNarseseTerm('obs');
@@ -243,11 +241,11 @@ describe('SeNARS-MeTTa-Tensor Integration', () => {
             const bridge = new NeuroSymbolicBridge();
 
             const arrayObs = [0.8, -0.5, 0.9, -0.2];
-            const arrayNarsese = bridge.observationToNarsese(arrayObs, { simple: true });
+            const arrayNarsese = bridge.observationToNarsese(arrayObs, {simple: true});
             assert.ok(arrayNarsese.includes('obs'));
 
-            const objectObs = { position: 5, velocity: 2 };
-            const objectNarsese = bridge.observationToNarsese(objectObs, { simple: true });
+            const objectObs = {position: 5, velocity: 2};
+            const objectNarsese = bridge.observationToNarsese(objectObs, {simple: true});
             assert.ok(objectNarsese.includes('obs'));
 
             const actionNarsese = bridge.actionToNarsese(3);
@@ -289,10 +287,10 @@ describe('SeNARS-MeTTa-Tensor Integration', () => {
     describe('Unified Neuro-Symbolic Agent', () => {
         test('UnifiedNeuroSymbolicAgent', async () => {
             const agent = new UnifiedNeuroSymbolicAgent({
-                actionSpace: { type: 'Discrete', n: 4 },
+                actionSpace: {type: 'Discrete', n: 4},
                 integrationMode: 'metta-only',
                 reasoningCycles: 10,
-                mettaConfig: { inputDim: 4 }
+                mettaConfig: {inputDim: 4}
             });
 
             await agent.initialize();
@@ -327,10 +325,10 @@ describe('SeNARS-MeTTa-Tensor Integration', () => {
 
         test('UnifiedNeuroSymbolicAgent (continuous)', async () => {
             const agent = new UnifiedNeuroSymbolicAgent({
-                actionSpace: { type: 'Box', shape: [2], low: -1, high: 1 },
+                actionSpace: {type: 'Box', shape: [2], low: -1, high: 1},
                 actionType: 'continuous',
                 integrationMode: 'metta-only',
-                mettaConfig: { inputDim: 4, outputDim: 2 }
+                mettaConfig: {inputDim: 4, outputDim: 2}
             });
 
             await agent.initialize();
@@ -348,9 +346,9 @@ describe('SeNARS-MeTTa-Tensor Integration', () => {
     describe('Agent Factory', () => {
         test('UnifiedAgentFactory', async () => {
             const discreteAgent = UnifiedAgentFactory.createDiscrete({
-                actionSpace: { type: 'Discrete', n: 4 },
+                actionSpace: {type: 'Discrete', n: 4},
                 integrationMode: 'metta-only',
-                mettaConfig: { inputDim: 4 }
+                mettaConfig: {inputDim: 4}
             });
             await discreteAgent.initialize();
 
@@ -360,9 +358,9 @@ describe('SeNARS-MeTTa-Tensor Integration', () => {
             await discreteAgent.shutdown();
 
             const continuousAgent = UnifiedAgentFactory.createContinuous({
-                actionSpace: { type: 'Box', shape: [2], low: -1, high: 1 },
+                actionSpace: {type: 'Box', shape: [2], low: -1, high: 1},
                 integrationMode: 'metta-only',
-                mettaConfig: { inputDim: 4, outputDim: 2 }
+                mettaConfig: {inputDim: 4, outputDim: 2}
             });
             await continuousAgent.initialize();
 
@@ -379,11 +377,17 @@ describe('SeNARS-MeTTa-Tensor Integration', () => {
 
             class MockEnv {
                 constructor() {
-                    this.actionSpace = { type: 'Discrete', n: 4 };
-                    this.observationSpace = { type: 'Box', shape: [4] };
+                    this.actionSpace = {type: 'Discrete', n: 4};
+                    this.observationSpace = {type: 'Box', shape: [4]};
                 }
-                reset() { return { observation: [0, 0, 0, 0] }; }
-                step(action) { return { observation: [1, 1, 1, 1], reward: 1, terminated: false }; }
+
+                reset() {
+                    return {observation: [0, 0, 0, 0]};
+                }
+
+                step(action) {
+                    return {observation: [1, 1, 1, 1], reward: 1, terminated: false};
+                }
             }
 
             registry.register('MockEnv', MockEnv);

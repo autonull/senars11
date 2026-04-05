@@ -34,11 +34,11 @@ export {
 } from './composable/ComposableSystem.js';
 
 // ==================== Neuro-Symbolic Bridges ====================
-export { NeuroSymbolicBridge } from './bridges/NeuroSymbolicBridge.js';
-export { SeNARSBridge } from './bridges/SeNARSBridge.js';
+export {NeuroSymbolicBridge} from './bridges/NeuroSymbolicBridge.js';
+export {SeNARSBridge} from './bridges/SeNARSBridge.js';
 
 // ==================== Policies ====================
-export { TensorLogicPolicy } from './policies/TensorLogicPolicy.js';
+export {TensorLogicPolicy} from './policies/TensorLogicPolicy.js';
 export {
     PolicyNetwork,
     AttentionPolicy,
@@ -143,8 +143,8 @@ export {
 } from './modules/PlanningSystem.js';
 
 // ==================== Cognitive Systems ====================
-export { AttentionSystem, CognitiveSystem } from './systems/CognitiveSystem.js';
-export { ReasoningSystem, CausalGraph, CausalNode, CausalEdge, CausalReasoner } from './systems/CognitiveSystem.js';
+export {AttentionSystem, CognitiveSystem} from './systems/CognitiveSystem.js';
+export {ReasoningSystem, CausalGraph, CausalNode, CausalEdge, CausalReasoner} from './systems/CognitiveSystem.js';
 
 // ==================== Meta-Control ====================
 export {
@@ -154,7 +154,7 @@ export {
 } from './meta/MetaControlSystem.js';
 
 // ==================== Skills ====================
-export { Skill, SkillDiscovery } from './skills/SkillDiscovery.js';
+export {Skill, SkillDiscovery} from './skills/SkillDiscovery.js';
 export * from './skills/SkillManager.js';
 export * from './skills/HierarchicalSkillSystem.js';
 
@@ -206,22 +206,22 @@ export {
     RLCognitiveArchitecture as CognitiveArchitecture,
     ArchitecturePresets
 } from './systems/CognitiveArchitecture.js';
-export { CognitiveModule } from './systems/modules/CognitiveModule.js';
-export { PerceptionModule } from './systems/modules/PerceptionModule.js';
-export { ReasoningModule } from './systems/modules/ReasoningModule.js';
-export { PlanningModule } from './systems/modules/PlanningModule.js';
-export { ActionModule } from './systems/modules/ActionModule.js';
-export { MemoryModule } from './systems/modules/MemoryModule.js';
-export { SkillModule } from './systems/modules/SkillModule.js';
-export { MetaCognitiveModule } from './systems/modules/MetaCognitiveModule.js';
-export { CognitiveModule } from './systems/modules/CognitiveModule.js';
-export { PerceptionModule } from './systems/modules/PerceptionModule.js';
-export { ReasoningModule } from './systems/modules/ReasoningModule.js';
-export { PlanningModule } from './systems/modules/PlanningModule.js';
-export { ActionModule } from './systems/modules/ActionModule.js';
-export { MemoryModule } from './systems/modules/MemoryModule.js';
-export { SkillModule } from './systems/modules/SkillModule.js';
-export { MetaCognitiveModule } from './systems/modules/MetaCognitiveModule.js';
+export {CognitiveModule} from './systems/modules/CognitiveModule.js';
+export {PerceptionModule} from './systems/modules/PerceptionModule.js';
+export {ReasoningModule} from './systems/modules/ReasoningModule.js';
+export {PlanningModule} from './systems/modules/PlanningModule.js';
+export {ActionModule} from './systems/modules/ActionModule.js';
+export {MemoryModule} from './systems/modules/MemoryModule.js';
+export {SkillModule} from './systems/modules/SkillModule.js';
+export {MetaCognitiveModule} from './systems/modules/MetaCognitiveModule.js';
+export {CognitiveModule} from './systems/modules/CognitiveModule.js';
+export {PerceptionModule} from './systems/modules/PerceptionModule.js';
+export {ReasoningModule} from './systems/modules/ReasoningModule.js';
+export {PlanningModule} from './systems/modules/PlanningModule.js';
+export {ActionModule} from './systems/modules/ActionModule.js';
+export {MemoryModule} from './systems/modules/MemoryModule.js';
+export {SkillModule} from './systems/modules/SkillModule.js';
+export {MetaCognitiveModule} from './systems/modules/MetaCognitiveModule.js';
 export * from './systems/EmergentArchitecture.js';
 
 // ==================== Utilities ====================
@@ -239,11 +239,11 @@ export {
 /**
  * Formal interfaces for type checking and documentation.
  * Use JSDoc @implements tag to indicate implementation.
- * 
+ *
  * @example
  * ```javascript
  * import { IAgent } from '@senars/rl';
- * 
+ *
  * /**
  *  * @implements {IAgent}
  *  *\/

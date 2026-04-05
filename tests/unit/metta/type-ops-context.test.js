@@ -3,11 +3,9 @@
  * Tests get-type, match-types, and assert-type operations
  */
 
-import { MeTTaInterpreter } from '../../../metta/src/MeTTaInterpreter.js';
-import { Term } from '../../../metta/src/kernel/Term.js';
-import { Space } from '../../../metta/src/kernel/Space.js';
+import {MeTTaInterpreter, Space, Term} from '../../../metta/src/index.js';
 
-const { sym, exp, var: v } = Term;
+const {sym, exp, var: v} = Term;
 
 describe('Context-Dependent Type Operations', () => {
     let interpreter;

@@ -1,8 +1,8 @@
 import {WebSocketServer} from 'ws';
 import {EventEmitter} from 'events';
 import {ClientMessageHandlers} from './ClientMessageHandlers.js';
-import {DEFAULT_CLIENT_CAPABILITIES, WEBSOCKET_CONFIG} from '@senars/nar';
-import {generateId, Logger, sendToClient} from '@senars/core';
+import { DEFAULT_CLIENT_CAPABILITIES, WEBSOCKET_CONFIG } from '@senars/nar';
+import { sendToClient, Logger, generateId } from '@senars/core';
 
 const DEFAULT_OPTIONS = Object.freeze({
     port: WEBSOCKET_CONFIG.defaultPort,
@@ -137,14 +137,10 @@ class WebSocketMonitor {
     }
 
     _scheduleBatch() {
-        if (this._isStopped) {
-            return;
-        }
+        if (this._isStopped) {return;}
 
         this.batchTimer = setTimeout(() => {
-            if (this._isStopped) {
-                return;
-            }
+            if (this._isStopped) {return;}
 
             if (this.eventBuffer.length > 0) {
                 const batch = [...this.eventBuffer]; // Create a copy of the buffer
@@ -165,9 +161,7 @@ class WebSocketMonitor {
         const now = Date.now();
         const clientLimiter = this.clientRateLimiters.get(clientId);
 
-        if (!clientLimiter) {
-            return false;
-        }
+        if (!clientLimiter) {return false;}
 
         if (now - clientLimiter.lastReset > this.rateLimitWindowMs) {
             clientLimiter.messageCount = 0;
@@ -310,9 +304,7 @@ class WebSocketMonitor {
             this._replMessageHandler.processMessage(message)
                 .then(result => {
                     // Don't send if result is void/undefined (some handlers might send directly)
-                    if (result) {
-                        this._sendToClient(client, result);
-                    }
+                    if (result) {this._sendToClient(client, result);}
                 })
                 .catch(error => {
                     Logger.error('Error in ReplMessageHandler routing:', error);
@@ -341,7 +333,7 @@ class WebSocketMonitor {
     _handleMessageError(client, error) {
         const isSyntaxError = error instanceof SyntaxError;
         const errorMsg = isSyntaxError ? 'Invalid JSON format' : 'Error processing message';
-        const errorMessage = isSyntaxError ? error.message : error.message;
+        const errorMessage = error.message;
 
         Logger.error(isSyntaxError ? 'Invalid JSON received:' : 'Error handling client message:', errorMessage);
 
@@ -457,9 +449,7 @@ class WebSocketMonitor {
     _checkAndEmitLink(task) {
         // Extract relationships for graph visualization
         const {term} = task;
-        if (!term) {
-            return;
-        }
+        if (!term) {return;}
 
         const termStr = typeof term === 'string' ? term : (term.name || term.toString());
 
@@ -486,8 +476,8 @@ class WebSocketMonitor {
 
             // IMPORTANT: Emit node creation events for endpoints first
             // This ensures nodes exist in the graph before the edge is added
-            this.bufferEvent('concept.created', {term: subject});
-            this.bufferEvent('concept.created', {term: predicate});
+            this.bufferEvent('concept.created', { term: subject });
+            this.bufferEvent('concept.created', { term: predicate });
 
             this.bufferEvent('link.created', {
                 source: subject,

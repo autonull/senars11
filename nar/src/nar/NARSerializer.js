@@ -1,6 +1,6 @@
-import { ConfigManager } from '@senars/core/src/config/ConfigManager.js';
-import { IntrospectionEvents } from '@senars/core';
-import { NARInitializer } from './NARInitializer.js';
+import {ConfigManager} from '@senars/core/src/config/ConfigManager.js';
+import {IntrospectionEvents} from '@senars/core';
+import {NARInitializer} from './NARInitializer.js';
 
 export class NARSerializer {
     #nar;
@@ -25,12 +25,18 @@ export class NARSerializer {
 
     async deserialize(state) {
         try {
-            if (this.#nar._isRunning) {this.#nar.stop();}
-            if (state.config) {this.#nar._configManager = new ConfigManager(state.config);}
+            if (this.#nar._isRunning) {
+                this.#nar.stop();
+            }
+            if (state.config) {
+                this.#nar._configManager = new ConfigManager(state.config);
+            }
 
             await this._deserializeComponents(state);
 
-            if (state.isRunning !== undefined) {this.#nar._isRunning = state.isRunning;}
+            if (state.isRunning !== undefined) {
+                this.#nar._isRunning = state.isRunning;
+            }
 
             await this._reinitializeAfterDeserialization(state);
 
@@ -51,13 +57,13 @@ export class NARSerializer {
 
     _deserializeComponents(state) {
         const components = [
-            { key: 'memory', component: this.#nar._memory },
-            { key: 'taskManager', component: this.#nar._taskManager },
-            { key: 'focus', component: this.#nar._focus }
+            {key: 'memory', component: this.#nar._memory},
+            {key: 'taskManager', component: this.#nar._taskManager},
+            {key: 'focus', component: this.#nar._focus}
         ];
 
         return Promise.all(components.map(
-            async ({ key, component }) => {
+            async ({key, component}) => {
                 if (state[key] && typeof component.deserialize === 'function') {
                     await component.deserialize(state[key]);
                 }

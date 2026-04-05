@@ -1,4 +1,4 @@
-import {NAR, IntrospectionEvents} from '@senars/nar';
+import {IntrospectionEvents, NAR} from '@senars/nar';
 import WebSocket from 'ws';
 
 // Skip: WebSocket timing dependencies cause unreliable test results

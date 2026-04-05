@@ -1,5 +1,5 @@
-import { MeTTaInterpreter } from '@senars/metta/src/MeTTaInterpreter.js';
-import { Term } from '@senars/metta/src/kernel/Term.js';
+import {MeTTaInterpreter} from '@senars/metta/src/MeTTaInterpreter.js';
+import {Term} from '@senars/metta/src/kernel/Term.js';
 import path from 'path';
 
 const stdlibDir = path.resolve(process.cwd(), 'metta/src/stdlib');
@@ -32,8 +32,8 @@ describe('Examples to Unit Tests Promotion', () => {
         test('let*', () => expect(run('!(let* (( $x 10 ) ( $y 30 )) (+ $x $y))')).toBe('40'));
 
         test('let variable capture', () => {
-             // Should not recursively substitute
-             expect(run('!(let $x (foo $x) $x)')).toBe('(foo $x)');
+            // Should not recursively substitute
+            expect(run('!(let $x (foo $x) $x)')).toBe('(foo $x)');
         });
 
         test('recursion (factorial)', () => {

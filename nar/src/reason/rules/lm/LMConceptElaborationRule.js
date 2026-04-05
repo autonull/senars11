@@ -1,11 +1,10 @@
-import { LMRule } from '../../LMRule.js';
-import { createFallbackTerm, tryParseNarsese } from '../../RuleHelpers.js';
-import { Punctuation, Task } from '../../../task/Task.js';
-import { Truth } from '../../../Truth.js';
-import { Term } from '../../../term/Term.js';
+import {LMRule} from '../../LMRule.js';
+import {createFallbackTerm, tryParseNarsese} from '../../RuleHelpers.js';
+import {Punctuation, Task} from '../../../task/Task.js';
+import {Truth} from '../../../Truth.js';
 
 export const createConceptElaborationRule = (dependencies) => {
-    const { lm, parser, termFactory, eventBus, memory } = dependencies;
+    const {lm, parser, termFactory, eventBus, memory} = dependencies;
 
     return LMRule.create({
         id: 'concept-elaboration',
@@ -17,14 +16,24 @@ export const createConceptElaborationRule = (dependencies) => {
         singlePremise: true,
 
         condition: (primaryPremise) => {
-            if (!primaryPremise?.term) {return false;}
+            if (!primaryPremise?.term) {
+                return false;
+            }
             const {term} = primaryPremise;
-            if (term.components?.length > 0 && !term.isAtomic) {return false;}
+            if (term.components?.length > 0 && !term.isAtomic) {
+                return false;
+            }
 
             const name = term.name ?? term.toString();
-            if (typeof name !== 'string') {return false;}
-            if (name.startsWith('?') || name.startsWith('#')) {return false;}
-            if (/^\d+$/.test(name)) {return false;}
+            if (typeof name !== 'string') {
+                return false;
+            }
+            if (name.startsWith('?') || name.startsWith('#')) {
+                return false;
+            }
+            if (/^\d+$/.test(name)) {
+                return false;
+            }
 
             return (primaryPremise.type ?? 'BELIEF') === 'BELIEF';
         },
@@ -53,12 +62,16 @@ export const createConceptElaborationRule = (dependencies) => {
         process: (r) => r?.trim() ?? '',
 
         generate: (processedOutput) => {
-            if (!processedOutput) {return [];}
+            if (!processedOutput) {
+                return [];
+            }
 
             const parsed = tryParseNarsese(processedOutput, parser);
             const termToCreate = parsed?.term ?? parsed ?? createFallbackTerm(processedOutput, termFactory);
 
-            if (!termToCreate) {return [];}
+            if (!termToCreate) {
+                return [];
+            }
 
             const punctuation = parsed?.punctuation ?? Punctuation.BELIEF;
             const truth = parsed?.truthValue
@@ -69,7 +82,7 @@ export const createConceptElaborationRule = (dependencies) => {
                 term: termToCreate,
                 punctuation,
                 truth,
-                budget: { priority: 0.6, durability: 0.7, quality: 0.5 }
+                budget: {priority: 0.6, durability: 0.7, quality: 0.5}
             })];
         }
     });

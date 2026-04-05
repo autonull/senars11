@@ -1,7 +1,7 @@
 /**
  * WorkerPool.js - Platform-agnostic WorkerPool facade
  */
-import { ENV } from './env.js';
+import {ENV} from './env.js';
 
 export class WorkerPool {
     constructor(script, size) {
@@ -11,7 +11,9 @@ export class WorkerPool {
     }
 
     async _init() {
-        if (this.instance) {return;}
+        if (this.instance) {
+            return;
+        }
 
         if (ENV.isNode) {
             const mod = await import('./node/WorkerPool.js');

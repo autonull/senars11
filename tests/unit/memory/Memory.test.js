@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, test} from '@jest/globals';
-import {Memory, TermFactory, Task} from '@senars/nar';
+import {Memory, Task, TermFactory} from '@senars/nar';
 
 describe('Memory', () => {
     const createTask = (termName, termFactory) => new Task({

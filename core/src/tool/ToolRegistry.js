@@ -3,7 +3,7 @@
  * @description Automatic tool discovery and registration system
  */
 
-import {BaseComponent} from '../util/BaseComponent.js';
+import {BaseComponent} from '@senars/core';
 import {ToolEngine} from './ToolEngine.js';
 import {ToolDiscovery} from './ToolDiscovery.js';
 
@@ -14,7 +14,6 @@ import {ToolDiscovery} from './ToolDiscovery.js';
 export class ToolRegistry extends BaseComponent {
     /**
      * @param {ToolEngine} toolEngine - The tool engine instance to register tools with
-     * @param config
      */
     constructor(toolEngine, config = {}) {
         super(config, 'ToolRegistry');
@@ -158,11 +157,9 @@ export class ToolRegistry extends BaseComponent {
 
         const toolsToRegister = discoveredTools.filter(tool => {
             const toolId = this._generateToolId(tool.name, tool.class);
-            if (exclude?.includes(toolId)) {
-                return false;
-            }
-            return !(include && !include.includes(toolId));
-
+            if (exclude?.includes(toolId)) {return false;}
+            if (include && !include.includes(toolId)) {return false;}
+            return true;
         });
 
         for (const tool of toolsToRegister) {
@@ -227,26 +224,20 @@ export class ToolRegistry extends BaseComponent {
 
     findTools(criteria = {}) {
         const matching = [];
-        for (const [id, {class: ToolClass, metadata}] of this.discoveredTools.entries()) {
+        for (const [id, { class: ToolClass, metadata }] of this.discoveredTools.entries()) {
             if (this.#matchesCriteria(metadata, criteria)) {
-                matching.push({id, class: ToolClass, metadata});
+                matching.push({ id, class: ToolClass, metadata });
             }
         }
         return matching;
     }
 
     #matchesCriteria(metadata, criteria) {
-        if (criteria.category && metadata.category !== criteria.category) {
-            return false;
-        }
-        if (criteria.supportsStreaming !== undefined && metadata.supportsStreaming !== criteria.supportsStreaming) {
-            return false;
-        }
+        if (criteria.category && metadata.category !== criteria.category) {return false;}
+        if (criteria.supportsStreaming !== undefined && metadata.supportsStreaming !== criteria.supportsStreaming) {return false;}
         if (criteria.requiredCapabilities?.length) {
             for (const cap of criteria.requiredCapabilities) {
-                if (!metadata.capabilities?.includes(cap)) {
-                    return false;
-                }
+                if (!metadata.capabilities?.includes(cap)) {return false;}
             }
         }
         return true;
@@ -309,9 +300,7 @@ export class ToolRegistry extends BaseComponent {
         // For now, we'll implement a basic version that looks for known patterns
         const discoveryKey = `path_${path}_${Date.now()}`;
 
-        if (this.discoveredTools.has(discoveryKey)) {
-            return;
-        }
+        if (this.discoveredTools.has(discoveryKey)) {return;}
         this.discoveredTools.set(discoveryKey, {path, timestamp: Date.now()});
 
         // Clean old discovery records (keep for 5 minutes)

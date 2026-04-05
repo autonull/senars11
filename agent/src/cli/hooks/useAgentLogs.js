@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useState} from 'react';
 import {v4 as uuidv4} from 'uuid';
-import {ActivityViewModel} from '../../app/model/ActivityViewModel.js';
+import {ActivityViewModel} from '@senars/agent';
 
 export const useAgentLogs = (engine, app) => {
     const [logs, setLogs] = useState([{
@@ -31,9 +31,7 @@ export const useAgentLogs = (engine, app) => {
                 (log.title && log.title === newLog.title && log.subtitle === newLog.subtitle)
             );
 
-            if (isDuplicate) {
-                return prevLogs;
-            }
+            if (isDuplicate) {return prevLogs;}
 
             return [...prevLogs, newLog].slice(-50);
         });

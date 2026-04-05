@@ -1,7 +1,7 @@
 import { Component } from './Component.js';
 import { ConceptCard } from './ConceptCard.js';
 import { DerivationWidget } from './widgets/DerivationWidget.js';
-import { FluentUI, $, div, span, button, input, h3, h4, pre } from '../utils/FluentUI.js';
+import { $, div, span, button, input, h3, h4, pre } from '../utils/FluentUI.js';
 import { SyntaxHighlighter } from '../utils/SyntaxHighlighter.js';
 
 export class InspectorPanel extends Component {

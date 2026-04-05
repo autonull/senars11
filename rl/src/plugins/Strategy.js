@@ -2,7 +2,7 @@
  * Strategy System
  * Exploration and selection strategies for RL
  */
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {mergeConfig} from '../utils/index.js';
 
 const STRATEGY_DEFAULTS = {
     name: 'Strategy',
@@ -64,7 +64,11 @@ export class Strategy {
  */
 export class EpsilonGreedy extends Strategy {
     constructor(config = {}) {
-        super({ ...config, name: 'EpsilonGreedy' });
+        super({...config, name: 'EpsilonGreedy'});
+    }
+
+    get currentEpsilon() {
+        return this.config.epsilon;
     }
 
     select(values) {
@@ -95,10 +99,6 @@ export class EpsilonGreedy extends Strategy {
         );
     }
 
-    get currentEpsilon() {
-        return this.config.epsilon;
-    }
-
     getInfo() {
         return {
             ...super.getInfo(),
@@ -112,7 +112,7 @@ export class EpsilonGreedy extends Strategy {
  */
 export class BoltzmannExploration extends Strategy {
     constructor(config = {}) {
-        super({ ...config, name: 'BoltzmannExploration' });
+        super({...config, name: 'BoltzmannExploration'});
     }
 
     select(values) {
@@ -125,7 +125,9 @@ export class BoltzmannExploration extends Strategy {
         let cumsum = 0;
         for (let i = 0; i < probs.length; i++) {
             cumsum += probs[i];
-            if (r <= cumsum) {return i;}
+            if (r <= cumsum) {
+                return i;
+            }
         }
         return probs.length - 1;
     }
@@ -149,7 +151,7 @@ export class BoltzmannExploration extends Strategy {
  */
 export class UCB extends Strategy {
     constructor(config = {}) {
-        super({ ...config, name: 'UCB' });
+        super({...config, name: 'UCB'});
         this.counts = [];
         this.values = [];
     }
@@ -163,7 +165,9 @@ export class UCB extends Strategy {
 
         // Try each action once
         for (let i = 0; i < this.counts.length; i++) {
-            if (this.counts[i] === 0) {return i;}
+            if (this.counts[i] === 0) {
+                return i;
+            }
         }
 
         // UCB selection
@@ -203,7 +207,7 @@ export class UCB extends Strategy {
  */
 export class ThompsonSampling extends Strategy {
     constructor(config = {}) {
-        super({ ...config, name: 'ThompsonSampling' });
+        super({...config, name: 'ThompsonSampling'});
         this.successes = [];
         this.failures = [];
     }

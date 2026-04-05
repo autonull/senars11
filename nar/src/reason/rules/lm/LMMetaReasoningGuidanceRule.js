@@ -18,7 +18,9 @@ export const createMetaReasoningGuidanceRule = (dependencies) => {
         priority: 0.85,
 
         condition: (primaryPremise, secondaryPremise, context) => {
-            if (!primaryPremise) {return false;}
+            if (!primaryPremise) {
+                return false;
+            }
 
             const isGoalOrQuestion = isGoal(primaryPremise) || isQuestion(primaryPremise);
             const priority = primaryPremise.budget?.priority ?? 0.5;
@@ -44,10 +46,14 @@ Recommend the best primary strategy and briefly explain why.`;
         },
 
         generate: (processedOutput, primaryPremise, secondaryPremise, context) => {
-            if (!processedOutput) {return [];}
+            if (!processedOutput) {
+                return [];
+            }
 
             const termFactory = context?.termFactory || dependencies.termFactory;
-            if (!termFactory) {return [];}
+            if (!termFactory) {
+                return [];
+            }
 
             const newTermStr = `strategy_for_(${primaryPremise.term?.toString?.() || 'unknown'})`;
             const term = termFactory.atomic(newTermStr);

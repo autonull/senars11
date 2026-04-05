@@ -1,5 +1,5 @@
-import { describe, expect, test, beforeEach, jest } from '@jest/globals';
-import {LMRule, Task, Truth, TermFactory} from '@senars/nar';
+import {beforeEach, describe, expect, jest, test} from '@jest/globals';
+import {LMRule, Task, TermFactory, Truth} from '@senars/nar';
 
 describe('Phase 2.1: Async Neural-Symbolic Bridge Verification', () => {
     let termFactory;
@@ -21,11 +21,15 @@ describe('Phase 2.1: Async Neural-Symbolic Bridge Verification', () => {
             condition: () => true,
             prompt: () => 'prompt',
             process: (r) => r,
-            generate: (r, p, s, c) => [new Task({ term: c.termFactory.atomic('result'), punctuation: '.', truth: new Truth(1.0, 0.9) })]
+            generate: (r, p, s, c) => [new Task({
+                term: c.termFactory.atomic('result'),
+                punctuation: '.',
+                truth: new Truth(1.0, 0.9)
+            })]
         });
 
-        const primary = new Task({ term: termFactory.atomic('test'), punctuation: '.', truth: new Truth(1.0, 0.9) });
-        const context = { termFactory };
+        const primary = new Task({term: termFactory.atomic('test'), punctuation: '.', truth: new Truth(1.0, 0.9)});
+        const context = {termFactory};
 
         const startTime = Date.now();
         const promise = rule.apply(primary, null, context);
@@ -50,10 +54,10 @@ describe('Phase 2.1: Async Neural-Symbolic Bridge Verification', () => {
         const rule = new LMRule('cb-test', mockLM, {
             condition: () => true,
             prompt: () => 'prompt',
-            circuitBreaker: { failureThreshold: 3, resetTimeout: 1000 }
+            circuitBreaker: {failureThreshold: 3, resetTimeout: 1000}
         });
 
-        const primary = new Task({ term: termFactory.atomic('test'), punctuation: '.', truth: new Truth(1.0, 0.9) });
+        const primary = new Task({term: termFactory.atomic('test'), punctuation: '.', truth: new Truth(1.0, 0.9)});
 
         // Fail 3 times
         await rule.apply(primary);

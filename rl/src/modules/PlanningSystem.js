@@ -2,7 +2,7 @@
  * Unified Planning System
  * Consolidates Planner, HierarchicalPlanner, PathPlanner into a cohesive system
  */
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {mergeConfig} from '../utils/index.js';
 
 const PLANNING_DEFAULTS = {
     planningHorizon: 3,
@@ -16,8 +16,12 @@ const PLANNING_DEFAULTS = {
 };
 
 const formatTerm = (val) => {
-    if (Array.isArray(val)) {return `(${val.join(',')})`;}
-    if (typeof val === 'object' && val !== null) {return JSON.stringify(val);}
+    if (Array.isArray(val)) {
+        return `(${val.join(',')})`;
+    }
+    if (typeof val === 'object' && val !== null) {
+        return JSON.stringify(val);
+    }
     return String(val);
 };
 
@@ -42,7 +46,9 @@ export class PlanningSystem {
     }
 
     async act(obs, goal = null) {
-        if (!this.bridge) {return null;}
+        if (!this.bridge) {
+            return null;
+        }
 
         if (goal) {
             if (this.skills) {
@@ -127,7 +133,9 @@ export class PlanningSystem {
     }
 
     async plan(startState, goal) {
-        if (!this.bridge) {return null;}
+        if (!this.bridge) {
+            return null;
+        }
 
         const cacheKey = `${startState}_to_${goal}`;
         if (this.config.useCache && this.pathCache.has(cacheKey)) {
@@ -150,15 +158,19 @@ export class PlanningSystem {
     }
 
     async induce(trajectories) {
-        if (!this.bridge) {return;}
+        if (!this.bridge) {
+            return;
+        }
 
         const promises = trajectories.map(ep => this._processEpisode(ep));
         await Promise.all(promises);
         await this.bridge.runCycles(this.config.cyclesAfterInduction ?? 100);
     }
 
-    async _processEpisode({ obs, action, nextObs, reward }) {
-        if (!this.bridge) {return;}
+    async _processEpisode({obs, action, nextObs, reward}) {
+        if (!this.bridge) {
+            return;
+        }
 
         const o = formatTerm(obs);
         const n = formatTerm(nextObs);
@@ -199,12 +211,14 @@ export class PlanningSystem {
 
 export class IntrinsicMotivation {
     constructor(config = {}) {
-        this.config = mergeConfig({ intrinsicMode: 'none', intrinsicWeight: 0.1 }, config);
+        this.config = mergeConfig({intrinsicMode: 'none', intrinsicWeight: 0.1}, config);
         this.visitCounts = new Map();
     }
 
     calculate(transition) {
-        if (this.config.intrinsicMode === 'none') {return 0;}
+        if (this.config.intrinsicMode === 'none') {
+            return 0;
+        }
 
         return this.config.intrinsicMode === 'novelty'
             ? this._calculateNovelty(transition.nextObs)

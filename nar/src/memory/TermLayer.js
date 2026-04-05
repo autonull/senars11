@@ -47,7 +47,9 @@ export class TermLayer extends Layer {
 
     remove(source, target) {
         const sourceLinks = this.linkMap.get(source.name);
-        if (!sourceLinks?.has(target.name)) {return false;}
+        if (!sourceLinks?.has(target.name)) {
+            return false;
+        }
 
         const linkEntry = sourceLinks.get(target.name);
         // We call bag.remove, which triggers _onLinkRemoved, which updates linkMap.
@@ -70,7 +72,9 @@ export class TermLayer extends Layer {
 
     update(source, target, data) {
         const sourceLinks = this.linkMap.get(source.name);
-        if (!sourceLinks?.has(target.name)) {return false;}
+        if (!sourceLinks?.has(target.name)) {
+            return false;
+        }
 
         const linkEntry = sourceLinks.get(target.name);
         Object.assign(linkEntry.data, data);

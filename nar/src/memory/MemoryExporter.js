@@ -1,7 +1,8 @@
 import {TermCategorization} from './TermCategorization.js';
 
 export class MemoryExporter {
-    constructor() {}
+    constructor() {
+    }
 
     export(format, getAllConcepts, getStats, config) {
         const data = {
@@ -12,9 +13,12 @@ export class MemoryExporter {
         };
 
         switch (format.toLowerCase()) {
-            case 'json': return JSON.stringify(data, null, 2);
-            case 'csv': return this._exportToCSV(data);
-            default: return data;
+            case 'json':
+                return JSON.stringify(data, null, 2);
+            case 'csv':
+                return this._exportToCSV(data);
+            default:
+                return data;
         }
     }
 

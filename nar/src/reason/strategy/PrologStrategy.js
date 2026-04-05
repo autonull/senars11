@@ -8,11 +8,10 @@ import {Strategy} from '../Strategy.js';
 import {PrologParser} from '../../parser/PrologParser.js';
 import {Task} from '../../task/Task.js';
 import {Truth} from '../../Truth.js';
-import {TermFactory} from '../../term/TermFactory.js';
+import {getComponents, getVariableName, isCompound, isVariable, TermFactory} from '../../term/index.js';
 import {Unifier} from '../../term/Unifier.js';
 import {FunctorRegistry} from '../FunctorRegistry.js';
 import {isQuestion} from '../RuleHelpers.js';
-import {getComponents, getVariableName, isCompound, isVariable} from '../../term/TermUtils.js';
 import {Logger} from '@senars/core';
 
 export class PrologStrategy extends Strategy {
@@ -68,7 +67,9 @@ export class PrologStrategy extends Strategy {
     }
 
     async selectSecondaryPremises(primaryPremise) {
-        if (!isQuestion(primaryPremise)) {return super.selectSecondaryPremises(primaryPremise);}
+        if (!isQuestion(primaryPremise)) {
+            return super.selectSecondaryPremises(primaryPremise);
+        }
 
         try {
             this.memory?.updateKnowledgeBase?.(this._getAvailableTasks());
@@ -81,7 +82,9 @@ export class PrologStrategy extends Strategy {
     }
 
     async _resolveGoal(goalTask, currentDepth = 0, substitution = {}) {
-        if (currentDepth >= this.config.maxDepth) {return [];}
+        if (currentDepth >= this.config.maxDepth) {
+            return [];
+        }
 
         // Check for built-in predicates
         if (this._isBuiltIn(goalTask.term)) {
@@ -113,7 +116,9 @@ export class PrologStrategy extends Strategy {
                     }
                 }
             }
-            if (solutions.length >= this.config.maxSolutions) {break;}
+            if (solutions.length >= this.config.maxSolutions) {
+                break;
+            }
         }
 
         return solutions;
@@ -141,7 +146,9 @@ export class PrologStrategy extends Strategy {
         const pred = this._getPredicateName(term);
         const args = this._getPredicateArgs(term);
 
-        if (args.length !== 2) {return [];}
+        if (args.length !== 2) {
+            return [];
+        }
 
         const [arg1, arg2] = args;
 
@@ -183,11 +190,15 @@ export class PrologStrategy extends Strategy {
 
     _evalExpression(term) {
         // Already a tensor
-        if (term?.isTensor) {return term;}
+        if (term?.isTensor) {
+            return term;
+        }
 
         // Number atom
         const val = parseFloat(term.name);
-        if (!isNaN(val)) {return val;}
+        if (!isNaN(val)) {
+            return val;
+        }
 
         // Tensor operations (if TensorFunctor available)
         if (this.tensorFunctor && isCompound(term) && this.tensorFunctor.canEvaluate(term)) {
@@ -205,7 +216,7 @@ export class PrologStrategy extends Strategy {
                 return this.functorRegistry.execute(pred, v1, v2);
             }
         }
-        throw new Error(`Cannot evaluate term: ${  term.toString()}`);
+        throw new Error(`Cannot evaluate term: ${term.toString()}`);
     }
 
     _standardizeRuleVariables(rule) {
@@ -213,7 +224,9 @@ export class PrologStrategy extends Strategy {
         const suffix = `_${this.variableCounter++}`;
 
         const standardize = (term) => {
-            if (!term) {return term;}
+            if (!term) {
+                return term;
+            }
             if (isVariable(term)) {
                 const name = getVariableName(term);
                 if (!mapping[name]) {
@@ -236,7 +249,9 @@ export class PrologStrategy extends Strategy {
     }
 
     async _resolveRuleBody(goals, initialSubstitution, currentDepth) {
-        if (goals.length === 0) {return [initialSubstitution];}
+        if (goals.length === 0) {
+            return [initialSubstitution];
+        }
 
         const [firstGoal, ...remainingGoals] = goals;
         const firstGoalTerm = this.unifier.applySubstitution(firstGoal, initialSubstitution);
@@ -254,7 +269,9 @@ export class PrologStrategy extends Strategy {
                 const remainingSolutions = await this._resolveRuleBody(remainingGoals, nextSubstitution, currentDepth);
                 allSolutions.push(...remainingSolutions);
             }
-            if (allSolutions.length >= this.config.maxSolutions) {break;}
+            if (allSolutions.length >= this.config.maxSolutions) {
+                break;
+            }
         }
 
         return allSolutions;
@@ -276,7 +293,9 @@ export class PrologStrategy extends Strategy {
 
 
     _applySubstitutionToTask(task, substitution) {
-        if (!task || !substitution) {return task;}
+        if (!task || !substitution) {
+            return task;
+        }
 
         return new Task({
             term: this.unifier.applySubstitution(task.term, substitution),
@@ -297,7 +316,9 @@ export class PrologStrategy extends Strategy {
 
     updateKnowledgeBase(tasks) {
         for (const task of tasks) {
-            if (task.punctuation !== '.') {continue;}
+            if (task.punctuation !== '.') {
+                continue;
+            }
 
             const {term} = task;
             const isRule = term.operator === '==>';

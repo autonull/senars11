@@ -1,4 +1,12 @@
-import {DecompositionStrategy, TermLinkStrategy, TaskMatchStrategy, PremiseFormationStrategy, TermFactory, Task, Truth} from '@senars/nar';
+import {
+    DecompositionStrategy,
+    PremiseFormationStrategy,
+    Task,
+    TaskMatchStrategy,
+    TermFactory,
+    TermLinkStrategy,
+    Truth
+} from '@senars/nar';
 
 let factory;
 

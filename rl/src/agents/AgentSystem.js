@@ -1,13 +1,11 @@
-import { Agent } from '../core/RLCore.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { AgentFactoryUtils } from './QNetwork.js';
-import { NeuralAgent } from './NeuralAgent.js';
-import { DQNAgent } from './DQNAgent.js';
-import { PPOAgent } from './PPOAgent.js';
-import { PolicyGradientAgent } from './PolicyGradientAgent.js';
-import { RandomAgent } from './RandomAgent.js';
+import {AgentFactoryUtils} from './QNetwork.js';
+import {NeuralAgent} from './NeuralAgent.js';
+import {DQNAgent} from './DQNAgent.js';
+import {PPOAgent} from './PPOAgent.js';
+import {PolicyGradientAgent} from './PolicyGradientAgent.js';
+import {RandomAgent} from './RandomAgent.js';
 
-export { NeuralAgent };
+export {NeuralAgent};
 
 export class AgentBuilder {
     constructor(env) {
@@ -36,19 +34,19 @@ export class AgentBuilder {
     }
 
     withConfig(config) {
-        this.config = { ...this.config, ...config };
+        this.config = {...this.config, ...config};
         return this;
     }
 }
 
-export { AgentFactoryUtils };
-export { AgentFactoryUtils as AgentUtils };
+export {AgentFactoryUtils};
+export {AgentFactoryUtils as AgentUtils};
 
-export { DQNAgent } from './DQNAgent.js';
-export { PPOAgent } from './PPOAgent.js';
-export { PolicyGradientAgent } from './PolicyGradientAgent.js';
-export { RandomAgent } from './RandomAgent.js';
-export { MeTTaAgent } from './MeTTaAgent.js';
-export { ProgrammaticAgent } from './ProgrammaticAgent.js';
-export { NeuroSymbolicAgent } from './NeuroSymbolicAgent.js';
-export { QNetwork } from './QNetwork.js';
+export {DQNAgent} from './DQNAgent.js';
+export {PPOAgent} from './PPOAgent.js';
+export {PolicyGradientAgent} from './PolicyGradientAgent.js';
+export {RandomAgent} from './RandomAgent.js';
+export {MeTTaAgent} from './MeTTaAgent.js';
+export {ProgrammaticAgent} from './ProgrammaticAgent.js';
+export {NeuroSymbolicAgent} from './NeuroSymbolicAgent.js';
+export {QNetwork} from './QNetwork.js';

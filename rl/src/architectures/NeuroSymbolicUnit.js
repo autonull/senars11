@@ -2,10 +2,10 @@
  * Neuro-Symbolic Unit
  * Base processing unit for neuro-symbolic architectures
  */
-import { Component } from '../composable/Component.js';
-import { TensorLogicBridge, SymbolicTensor } from '@senars/tensor';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { UNIT_DEFAULTS } from './ArchitectureConfig.js';
+import {Component} from '../composable/Component.js';
+import {SymbolicTensor, TensorLogicBridge} from '@senars/tensor';
+import {mergeConfig} from '../utils/index.js';
+import {UNIT_DEFAULTS} from './ArchitectureConfig.js';
 
 /**
  * Neuro-symbolic processing unit
@@ -34,7 +34,7 @@ export class NeuroSymbolicUnit extends Component {
      * @returns {Promise<SymbolicTensor|Float32Array>} Processed output
      */
     async process(input, context = {}) {
-        const { lift = true, ground = false, attend = false } = context;
+        const {lift = true, ground = false, attend = false} = context;
         const encoded = this._encode(input);
         const lifted = lift ? this._lift(encoded) : encoded;
         const attended = attend ? this._applyAttention(lifted) : lifted;
@@ -43,7 +43,9 @@ export class NeuroSymbolicUnit extends Component {
     }
 
     _encode(input) {
-        if (input instanceof SymbolicTensor) {return input;}
+        if (input instanceof SymbolicTensor) {
+            return input;
+        }
         const data = Array.isArray(input)
             ? new Float32Array(input)
             : new Float32Array([input]);
@@ -51,7 +53,7 @@ export class NeuroSymbolicUnit extends Component {
     }
 
     _lift(tensor) {
-        return this.bridge.liftToSymbols(tensor, { threshold: 0.3 });
+        return this.bridge.liftToSymbols(tensor, {threshold: 0.3});
     }
 
     _ground(symbols) {
@@ -59,7 +61,9 @@ export class NeuroSymbolicUnit extends Component {
     }
 
     _applyAttention(tensor) {
-        if (!tensor.symbols?.size) {return tensor;}
+        if (!tensor.symbols?.size) {
+            return tensor;
+        }
         const mask = this.bridge.createAttentionMask(
             tensor,
             new Set(Array.from(tensor.symbols.values()).map(s => s.symbol))
@@ -83,12 +87,14 @@ export class NeuroSymbolicUnit extends Component {
      */
     setState(neural, symbolic = null) {
         this.state.neural = neural;
-        if (symbolic) {this.state.symbolic = symbolic;}
-        this.emit('stateUpdate', { neural, symbolic: this.state.symbolic });
+        if (symbolic) {
+            this.state.symbolic = symbolic;
+        }
+        this.emit('stateUpdate', {neural, symbolic: this.state.symbolic});
     }
 
     getState() {
-        return { ...this.state };
+        return {...this.state};
     }
 
     /**

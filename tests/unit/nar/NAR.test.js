@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, test} from '@jest/globals';
-import {NAR, Memory} from '@senars/nar';
+import {Memory, NAR} from '@senars/nar';
 
 describe('NAR', () => {
     let nar;

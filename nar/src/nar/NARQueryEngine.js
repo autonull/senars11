@@ -1,6 +1,6 @@
-import { Truth } from '../Truth.js';
-import { Stamp } from '../Stamp.js';
-import { Task } from '../task/Task.js';
+import {Truth} from '../Truth.js';
+import {Stamp} from '../Stamp.js';
+import {Task} from '../task/Task.js';
 
 export class NARQueryEngine {
     #nar;
@@ -28,7 +28,9 @@ export class NARQueryEngine {
     }
 
     async reconcile(beliefData) {
-        if (!beliefData?.term || !beliefData?.truth) {return false;}
+        if (!beliefData?.term || !beliefData?.truth) {
+            return false;
+        }
 
         try {
             const term = this.#nar._parser && typeof beliefData.term === 'string'
@@ -38,7 +40,7 @@ export class NARQueryEngine {
             const finalTruth = this.#calculateReconciledTruth(term, beliefData.truth);
             const task = this.#createReconciliationTask(term, finalTruth);
 
-            return await this.#nar._processNewTask(task, 'reconcile', beliefData.term, null, { traceId: 'gossip' });
+            return await this.#nar._processNewTask(task, 'reconcile', beliefData.term, null, {traceId: 'gossip'});
         } catch (error) {
             this.#nar.logError('Reconciliation failed:', error);
             return false;
@@ -46,13 +48,15 @@ export class NARQueryEngine {
     }
 
     async ask(task) {
-        if (!this.#nar._streamReasoner) {throw new Error('Stream reasoner is not initialized.');}
+        if (!this.#nar._streamReasoner) {
+            throw new Error('Stream reasoner is not initialized.');
+        }
         return this.#nar._streamReasoner.strategy.ask(task);
     }
 
     #resolveTerm(termInput) {
         if (this.#nar._parser && typeof termInput === 'string') {
-            const parsed = this.#nar._parser.parse(termInput.endsWith('.') ? termInput : `${termInput  }.`);
+            const parsed = this.#nar._parser.parse(termInput.endsWith('.') ? termInput : `${termInput}.`);
             return parsed.term;
         }
         return this.#nar._termFactory.create(termInput);
@@ -66,7 +70,9 @@ export class NARQueryEngine {
             const beliefs = concept.getTasksByType('BELIEF');
             if (beliefs.length > 0) {
                 const revised = Truth.revision(beliefs[0].truth, incomingTruth);
-                if (revised) {return revised;}
+                if (revised) {
+                    return revised;
+                }
             }
         }
         return incomingTruth;
