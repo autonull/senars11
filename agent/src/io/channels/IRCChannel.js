@@ -21,12 +21,17 @@ export class IRCChannel extends Embodiment {
             isInternal: false,
             defaultSalience: config.defaultSalience ?? 0.5
         });
-        
+
         this.type = 'irc';
         this.client = new Client();
         this.channels = new Set();
         this.knownUsers = new Map();
         this.pendingQueries = new Map();
+
+        this._sendQueue = [];
+        this._processingQueue = false;
+        this._messageInterval = config.rateLimit?.interval ?? 4000;
+        this._lastSendTime = 0;
 
         this._setupClientEvents();
     }
@@ -124,6 +129,9 @@ export class IRCChannel extends Embodiment {
         // Close event
         this.client.on('close', () => {
             this.setStatus('disconnected');
+            this._sendQueue.forEach(({ reject }) => reject(new Error('Connection closed')));
+            this._sendQueue = [];
+            this._processingQueue = false;
             this.emit('disconnected');
             this.knownUsers.clear();
         });
@@ -287,6 +295,9 @@ export class IRCChannel extends Embodiment {
 
     async disconnect() {
         if (this.status === 'disconnected') return;
+        this._sendQueue.forEach(({ reject }) => reject(new Error('Disconnecting')));
+        this._sendQueue = [];
+        this._processingQueue = false;
         this.client.quit(this.config.quitMessage || 'Leaving...');
         this.knownUsers.clear();
     }
@@ -320,20 +331,36 @@ export class IRCChannel extends Embodiment {
             throw new Error('Not connected to IRC');
         }
 
-        // Action message (/me)
-        if (metadata.action) {
-            this.client.action(target, content);
-        }
-        // Notice message
-        else if (metadata.notice) {
-            this.client.notice(target, content);
-        }
-        // Regular message
-        else {
-            this.client.say(target, content);
+        return new Promise((resolve, reject) => {
+            this._sendQueue.push({ target, content, metadata, resolve, reject });
+            this._processQueue();
+        });
+    }
+
+    async _processQueue() {
+        if (this._processingQueue || this._sendQueue.length === 0) return;
+        this._processingQueue = true;
+
+        while (this._sendQueue.length > 0) {
+            // Adaptive delay: if last send was recent, wait remaining time
+            const sinceLast = Date.now() - this._lastSendTime;
+            if (sinceLast < this._messageInterval) {
+                await new Promise(r => setTimeout(r, this._messageInterval - sinceLast));
+            }
+
+            const { target, content, metadata, resolve, reject } = this._sendQueue.shift();
+            const safe = String(content).replace(/[\r\n]/g, ' ').trim();
+            if (!safe) { resolve(true); continue; }
+            try {
+                if (metadata.action) this.client.action(target, safe);
+                else if (metadata.notice) this.client.notice(target, safe);
+                else this.client.say(target, safe);
+                this._lastSendTime = Date.now();
+                resolve(true);
+            } catch (e) { reject(e); }
         }
 
-        return true;
+        this._processingQueue = false;
     }
 
     /**

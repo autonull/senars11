@@ -2230,3 +2230,245 @@
   :reason    "test-block"
   :args      "(test.txt content)"
 )
+(audit-event
+  :id        "aud_1775344249619_1rqpmw51b"
+  :timestamp 1775344249619
+  :type      message-received
+  :cycle     0
+  :content   "ping"
+)
+(audit-event
+  :id        "aud_1775344249622_g2q9ofi92"
+  :timestamp 1775344249622
+  :type      response-sent
+  :cycle     0
+  :content   "Pong!"
+)
+(audit-event
+  :id        "aud_1775344451332_j6smdehf7"
+  :timestamp 1775344451332
+  :type      skill-invoked
+  :cycle     0
+  :skill     write-file
+  :args      "(test.txt content)"
+  :result    "success"
+)
+(audit-event
+  :id        "aud_1775344451350_6n7vyfa5n"
+  :timestamp 1775344451350
+  :type      skill-blocked
+  :cycle     0
+  :skill     write-file
+  :reason    "test-block"
+  :args      "(test.txt content)"
+)
+(audit-event
+  :id        "aud_1775345198245_up236wmx6"
+  :timestamp 1775345198245
+  :type      skill-invoked
+  :cycle     0
+  :skill     write-file
+  :args      "(test.txt content)"
+  :result    "success"
+)
+(audit-event
+  :id        "aud_1775345198286_krf8u3o4d"
+  :timestamp 1775345198286
+  :type      skill-blocked
+  :cycle     0
+  :skill     write-file
+  :reason    "test-block"
+  :args      "(test.txt content)"
+)
+(audit-event
+  :id        "aud_1775345631820_xgw9nhj2l"
+  :timestamp 1775345631820
+  :type      skill-invoked
+  :cycle     0
+  :skill     write-file
+  :args      "(test.txt content)"
+  :result    "success"
+)
+(audit-event
+  :id        "aud_1775345631835_t3sfv0r5b"
+  :timestamp 1775345631835
+  :type      skill-blocked
+  :cycle     0
+  :skill     write-file
+  :reason    "test-block"
+  :args      "(test.txt content)"
+)
+(audit-event
+  :id        "aud_1775345750746_lrq31h1xc"
+  :timestamp 1775345750746
+  :type      message-received
+  :cycle     0
+  :content   "SeNARchy: what's up"
+)
+(audit-event
+  :id        "aud_1775345755203_xe15kmzd6"
+  :timestamp 1775345755203
+  :type      llm-call
+  :cycle     0
+  :model     "unknown"
+  :latencyMs 4301
+  :promptChars 1389
+  :responseChars 34
+  :tokensIn  3074
+  :tokensOut 34
+)
+(audit-event
+  :id        "aud_1775345755207_0j52vkon5"
+  :timestamp 1775345755207
+  :type      response-sent
+  :cycle     0
+  :content   "Hello! How can I assist you today?"
+)
+(audit-event
+  :id        "aud_1775345762854_9xtrd0pks"
+  :timestamp 1775345762854
+  :type      message-received
+  :cycle     0
+  :content   "SeNARchy: what's 2+2?"
+)
+(audit-event
+  :id        "aud_1775345767611_bgrjanma1"
+  :timestamp 1775345767611
+  :type      llm-call
+  :cycle     0
+  :model     "unknown"
+  :latencyMs 4728
+  :promptChars 1426
+  :responseChars 35
+  :tokensIn  3113
+  :tokensOut 35
+)
+(audit-event
+  :id        "aud_1775345767617_10jnarao1"
+  :timestamp 1775345767617
+  :type      response-sent
+  :cycle     0
+  :content   "SeNARchy: Two plus two equals four."
+)
+(audit-event
+  :id        "aud_1775345779554_yylypq9zj"
+  :timestamp 1775345779554
+  :type      message-received
+  :cycle     0
+  :content   "SeNARchy: what did I just ask you?"
+)
+(audit-event
+  :id        "aud_1775345785467_j6v6jve4q"
+  :timestamp 1775345785467
+  :type      llm-call
+  :cycle     0
+  :model     "unknown"
+  :latencyMs 5902
+  :promptChars 1515
+  :responseChars 45
+  :tokensIn  3216
+  :tokensOut 45
+)
+(audit-event
+  :id        "aud_1775345785469_bnifv8n7j"
+  :timestamp 1775345785469
+  :type      response-sent
+  :cycle     0
+  :content   "SeNARchy: SeNARchy: Two plus two equals four."
+)
+(audit-event
+  :id        "aud_1775345811209_d0b06ftcr"
+  :timestamp 1775345811209
+  :type      message-received
+  :cycle     0
+  :content   "SeNARchy: remember that sseehh is your creator"
+)
+(audit-event
+  :id        "aud_1775345816557_iz7lzpjzu"
+  :timestamp 1775345816557
+  :type      llm-call
+  :cycle     0
+  :model     "unknown"
+  :latencyMs 5332
+  :promptChars 1626
+  :responseChars 35
+  :tokensIn  3338
+  :tokensOut 35
+)
+(audit-event
+  :id        "aud_1775345816560_7pc53se8i"
+  :timestamp 1775345816560
+  :type      response-sent
+  :cycle     0
+  :content   "Okay, I'll just say it for you now."
+)
+(audit-event
+  :id        "aud_1775345827856_udppncda6"
+  :timestamp 1775345827856
+  :type      message-received
+  :cycle     0
+  :content   "!help"
+)
+(audit-event
+  :id        "aud_1775345827859_fv83cxmzu"
+  :timestamp 1775345827859
+  :type      response-sent
+  :cycle     0
+  :content   "SeNARchy Commands:
+!help - Show this help
+!ping - Check if bot is alive
+!version - Show bot version
+!uptime - Show bot uptime
+!stats - Show message statistics
+!context - Dump system state (memories, beliefs, history)
+!whoami - Show your nick
+!users - Show users in channel
+
+Just ask questions or talk naturally!"
+)
+(audit-event
+  :id        "aud_1775345837742_zj96ds5f2"
+  :timestamp 1775345837742
+  :type      message-received
+  :cycle     0
+  :content   "!stats"
+)
+(audit-event
+  :id        "aud_1775345837745_rowvlzaty"
+  :timestamp 1775345837745
+  :type      response-sent
+  :cycle     0
+  :content   "Messages: 6, Responses: 5"
+)
+(audit-event
+  :id        "aud_1775345847565_zoaq99h0i"
+  :timestamp 1775345847565
+  :type      message-received
+  :cycle     0
+  :content   "!context"
+)
+(audit-event
+  :id        "aud_1775345847569_7nqx46m0m"
+  :timestamp 1775345847569
+  :type      response-sent
+  :cycle     0
+  :content   "=== System State ===
+
+RECALL (0 recent):
+  (empty)
+
+HISTORY (13 messages):
+  SeNARchy: SeNARchy: Two plus two equals four.
+  sseehh: SeNARchy: what did I just ask you?
+  SeNARchy: SeNARchy: SeNARchy: Two plus two equals four.
+  sseehh: SeNARchy: remember that sseehh is your creator
+  SeNARchy: Okay, I'll just say it for you now.
+  sseehh: !help
+  SeNARchy: SeNARchy Commands:
+!help - Show this help
+!ping - Check if bot is alive
+!version - Show bot version
+
+  sseehh: !stats
+  SeNARchy: Messages: 6"
+)

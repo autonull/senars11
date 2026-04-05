@@ -28,6 +28,7 @@ import { Agent } from '../../src/Agent.js';
 import { Logger } from '@senars/core';
 import { IRCChannel } from '../../src/io/channels/IRCChannel.js';
 import { IntelligentMessageProcessor } from '../../src/ai/IntelligentMessageProcessor.js';
+import { isEnabled } from '../../src/config/capabilities.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { promises as fs } from 'fs';
@@ -227,7 +228,8 @@ class IntelligentChatBot {
             username: this.config.nick.toLowerCase(),
             realname: 'SeNARS Intelligent Bot',
             tls: this.config.tls,
-            channels: [this.config.channel]
+            channels: [this.config.channel],
+            rateLimit: { interval: 4000 }
         });
         
         this.agent.channelManager.register(ircChannel);
@@ -242,9 +244,21 @@ class IntelligentChatBot {
             respondToCommands: true,
             respondToGreeting: true,
             learnFromConversation: true,
-            verbose: this.config.debug
+            verbose: this.config.debug,
+            agentConfig: this.agent.agentCfg
         });
         Logger.info('✅ Message Processor initialized');
+
+        // Wire SemanticMemory to agent if enabled by capabilities
+        if (isEnabled(this.agent.agentCfg, 'semanticMemory') && !this.agent._semanticMemory) {
+            const { SemanticMemory } = await import('../../src/memory/SemanticMemory.js');
+            this.agent._semanticMemory = new SemanticMemory({
+                dataDir: join(this.agent.agentCfg.workspace?.memoryDir ?? 'agent/memory', 'semantic'),
+                embedderConfig: this.agent.agentCfg.embedder ?? {}
+            });
+            await this.agent._semanticMemory.initialize();
+            Logger.info('✅ SemanticMemory wired to agent');
+        }
 
         // Set up enhanced channel event handling
         this._setupChannelHandlers();
@@ -414,52 +428,84 @@ class IntelligentChatBot {
 
             Logger.info(`[Response] Sending to ${target} (${isPrivate ? 'PM' : 'Channel'})`);
 
-            // Split long responses for IRC (max ~350 chars per line)
             const maxLineLength = 350;
             const responseLines = this._splitIntoLines(result.response, maxLineLength);
+            const batches = this._batchLines(responseLines, maxLineLength);
 
-            // Rate-limit delay between messages
-            const delay = 2500;
-            await new Promise(resolve => setTimeout(resolve, delay));
-
-            // Send each line separately
-            for (let i = 0; i < responseLines.length; i++) {
-                await this._sendWithRateLimit(target, responseLines[i]);
-                if (i < responseLines.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 800));
-                }
+            for (const batch of batches) {
+                await this._sendWithRateLimit(target, batch);
             }
 
-            Logger.info(`[Sent] ${responseLines.length} line(s) to ${target}`);
+            Logger.info(`[Sent] ${responseLines.length} line(s) → ${batches.length} msg(s) to ${target}`);
         } catch (error) {
             Logger.error('Error handling message:', error);
         }
     }
 
     /**
-     * Split response into IRC-safe lines (respects sentence boundaries)
+     * Split text into IRC-safe lines at sentence/space/newline boundaries
      */
     _splitIntoLines(text, maxLength) {
-        if (text.length <= maxLength) return [text];
+        const clean = text.replace(/\r\n/g, '\n').trim();
+        // Pre-split on newlines first (IRC newlines in a single say() = flood)
+        const rawLines = clean.split('\n').map(l => l.trim()).filter(l => l);
 
         const lines = [];
-        let remaining = text.trim();
-
-        while (remaining.length > maxLength) {
-            // Try to split at sentence boundary
-            let splitAt = remaining.lastIndexOf('.', maxLength);
-            if (splitAt < maxLength / 2) {
-                // No good sentence boundary, split at space
-                splitAt = remaining.lastIndexOf(' ', maxLength);
+        for (const rawLine of rawLines) {
+            if (rawLine.length <= maxLength) {
+                lines.push(rawLine);
+            } else {
+                // Long line — split at sentence or space boundary
+                let remaining = rawLine;
+                while (remaining.length > maxLength) {
+                    let splitAt = remaining.lastIndexOf('.', maxLength);
+                    if (splitAt < maxLength / 2) splitAt = remaining.lastIndexOf(' ', maxLength);
+                    if (splitAt < 1) splitAt = maxLength;
+                    else splitAt++;
+                    lines.push(remaining.substring(0, splitAt).trim());
+                    remaining = remaining.substring(splitAt).trim();
+                }
+                if (remaining) lines.push(remaining);
             }
-            if (splitAt < 1) splitAt = maxLength;
-
-            lines.push(remaining.substring(0, splitAt + 1).trim());
-            remaining = remaining.substring(splitAt + 1).trim();
         }
+        return lines.length ? lines : [clean.substring(0, maxLength)];
+    }
 
-        if (remaining) lines.push(remaining);
-        return lines;
+    /**
+     * Batch short consecutive lines into single messages to reduce IRC line count
+     * Never merges section headers, MeTTa atoms, or structural output
+     */
+    _batchLines(lines, maxLength) {
+        const BATCH_CHAR_LIMIT = Math.floor(maxLength * 0.8);
+        const SECTION_HEADER_RE = /^(===|[A-Z_]+[\s:(]|LLM:|\([a-z]+)/;
+        const batches = [];
+        let current = '';
+
+        for (const line of lines) {
+            const isStructural = SECTION_HEADER_RE.test(line) || line.length > BATCH_CHAR_LIMIT;
+            if (isStructural) {
+                if (current) batches.push(current);
+                batches.push(line);
+                current = '';
+            } else {
+                const candidate = current ? `${current} ${line}` : line;
+                if (candidate.length > maxLength) {
+                    if (current) batches.push(current);
+                    current = line;
+                } else {
+                    current = candidate;
+                }
+            }
+        }
+        if (current) batches.push(current);
+        return batches.length ? batches : lines;
+    }
+
+    /**
+     * Strip bot nick prefix from message content: "SeNARchy: hi" → "hi"
+     */
+    _stripNickPrefix(content) {
+        return content.replace(new RegExp(`^\\s*${this.config.nick}[,:\\s]+\\s*`, 'i'), '').trim();
     }
 
     async _sendWithRateLimit(target, content, metadata = {}) {

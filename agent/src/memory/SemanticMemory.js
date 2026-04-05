@@ -36,6 +36,7 @@ class VectorIndex {
         await this._ensureHNSW();
         const label = this._labelCounter++;
         this._itemMap.set(id, label);
+        this._vectors.set(id, vector);
         if (this._hnsw) this._hnsw.addPoint(vector, label);
     }
 
