@@ -25,8 +25,8 @@
 ;;     tick-wm               → ok
 ;;     build-context msg     → String
 ;;     llm-invoke ctx        → String   (async, via LLMInvoker)
-;;     parse-response resp   → GroundedCmds
-;;     execute-commands cmds → GroundedResults  (async)
+;;     parse-response resp   → Commands (from JSON {"actions":[...]})
+;;     execute-commands cmds → Results  (async)
 ;;
 ;;   NAL INFERENCE (via NarsOps)
 ;;     |- premises           → NAL conclusions

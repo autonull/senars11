@@ -1,17 +1,18 @@
-;; skills.metta — Skill declarations for SeNARS agent
+;; skills.metta — Action declarations for SeNARS agent
 ;;
 ;; Format: (skill name arg-types capability-gate tier description)
 ;;
-;; Skills whose capability-gate flag is disabled are omitted from the
-;; SKILLS context slot — the LLM cannot invoke what it cannot see.
+;; Actions whose capability-gate flag is disabled are omitted from the
+;; ACTIONS context slot — the LLM cannot invoke what it cannot see.
 ;;
-;; This file is read by SkillDispatcher.getActiveSkillDefs() which
+;; This file is read by ActionDispatcher.getActiveActionDefs() which
 ;; filters by isEnabled(config, capability-gate).
 ;;
 ;; Agent-writable when selfModifyingSkills is enabled (Phase 6).
 
 ;; ── Parity tier ───────────────────────────────────────────────────
 
+(skill respond       (String)         mettaControlPlane   :network     "Reply to user via the embodiment of the last received message")
 (skill remember      (String)         semanticMemory      :memory      "Store to long-term memory with embedding")
 (skill query         (String)         semanticMemory      :memory      "Recall top-K semantically similar memories")
 (skill pin           (String)         semanticMemory      :memory      "Add to pinned context (always in prompt)")

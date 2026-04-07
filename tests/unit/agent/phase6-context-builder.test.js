@@ -9,7 +9,7 @@
  * - Context slot assembly
  * - Budget truncation
  * - Grounded op registration
- * - Integration with SemanticMemory and SkillDispatcher
+ * - Integration with SemanticMemory and ActionDispatcher
  */
 
 import {beforeEach, describe, expect, it, jest} from '@jest/globals';
@@ -23,7 +23,7 @@ describe('Phase 6: ContextBuilder', () => {
     let mockConfig;
     let mockSemanticMemory;
     let mockHistorySpace;
-    let mockSkillDispatcher;
+    let mockActionDispatcher;
     let mockIntrospectionOps;
 
     beforeEach(() => {
@@ -32,7 +32,7 @@ describe('Phase 6: ContextBuilder', () => {
                 contextBudgets: true,
                 semanticMemory: true,
                 persistentHistory: true,
-                sExprSkillDispatch: true,
+                actionDispatch: true,
                 runtimeIntrospection: true,
                 harnessOptimization: true,
                 autonomousLoop: false
@@ -69,8 +69,8 @@ describe('Phase 6: ContextBuilder', () => {
             ])
         };
 
-        mockSkillDispatcher = {
-            getActiveSkillDefs: jest.fn(() => '(send "...")\n(remember "...")\n(query "...")')
+        mockActionDispatcher = {
+            getActiveActionDefs: jest.fn(() => '(send "...")\n(remember "...")\n(query "...")')
         };
 
         mockIntrospectionOps = {
@@ -85,7 +85,7 @@ describe('Phase 6: ContextBuilder', () => {
             mockConfig,
             mockSemanticMemory,
             mockHistorySpace,
-            mockSkillDispatcher,
+            mockActionDispatcher,
             mockIntrospectionOps
         );
     });
@@ -140,7 +140,7 @@ describe('Phase 6: ContextBuilder', () => {
 
             expect(context).toBeDefined();
             expect(context.length).toBeGreaterThan(0);
-            expect(context).toContain('SKILLS');
+            expect(context).toContain('ACTIONS');
             expect(context).toContain('CAPABILITIES');
         });
 
@@ -245,16 +245,16 @@ describe('Phase 6: ContextBuilder', () => {
     describe('_getActiveSkills()', () => {
         it('returns skills from dispatcher', () => {
             const result = contextBuilder._getActiveSkills();
-            expect(mockSkillDispatcher.getActiveSkillDefs).toHaveBeenCalled();
+            expect(mockActionDispatcher.getActiveActionDefs).toHaveBeenCalled();
             expect(result).toContain('(send');
         });
 
-        it('returns disabled message when sExprSkillDispatch is false', () => {
+        it('returns disabled message when actionDispatch is false', () => {
             const configWithoutSexpr = {
                 ...mockConfig,
-                capabilities: {...mockConfig.capabilities, sExprSkillDispatch: false}
+                capabilities: {...mockConfig.capabilities, actionDispatch: false}
             };
-            const builder = new ContextBuilder(configWithoutSexpr, null, null, mockSkillDispatcher, null);
+            const builder = new ContextBuilder(configWithoutSexpr, null, null, mockActionDispatcher, null);
             const result = builder._getActiveSkills();
             expect(result).toContain('disabled');
         });

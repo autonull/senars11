@@ -3,7 +3,7 @@
  */
 
 export const DEFAULTS = {
-    mettaControlPlane: true, sExprSkillDispatch: true, semanticMemory: true,
+    mettaControlPlane: true, actionDispatch: true, semanticMemory: true,
     persistentHistory: true, loopBudget: true, contextBudgets: true,
     fileReadSkill: true, webSearchSkill: true, fileWriteSkill: false, shellSkill: false,
     multiModelRouting: false, modelExploration: false, modelScoreUpdates: false,
@@ -18,19 +18,19 @@ export const DEFAULTS = {
 
 const PROFILES = {
     minimal: {
-        mettaControlPlane: false, sExprSkillDispatch: false, semanticMemory: false,
+        mettaControlPlane: false, actionDispatch: false, semanticMemory: false,
         persistentHistory: false, loopBudget: false, contextBudgets: false,
         fileReadSkill: false, fileWriteSkill: false, shellSkill: false, webSearchSkill: true,
         dynamicSkillDiscovery: false, executionHooks: false, runtimeIntrospection: false,
     },
     parity: {
-        mettaControlPlane: true, sExprSkillDispatch: true, semanticMemory: true,
+        mettaControlPlane: true, actionDispatch: true, semanticMemory: true,
         persistentHistory: true, loopBudget: true, contextBudgets: true,
         fileReadSkill: true, fileWriteSkill: false, shellSkill: false, webSearchSkill: true,
         auditLog: true, dynamicSkillDiscovery: false, executionHooks: false, runtimeIntrospection: false,
     },
     evolved: {
-        mettaControlPlane: true, sExprSkillDispatch: true, semanticMemory: true,
+        mettaControlPlane: true, actionDispatch: true, semanticMemory: true,
         persistentHistory: true, loopBudget: true, contextBudgets: true,
         fileReadSkill: true, fileWriteSkill: true, shellSkill: false, webSearchSkill: true,
         multiModelRouting: true, modelExploration: true, modelScoreUpdates: true,
@@ -40,7 +40,7 @@ const PROFILES = {
         actionTrace: true,
     },
     full: {
-        mettaControlPlane: true, sExprSkillDispatch: true, semanticMemory: true,
+        mettaControlPlane: true, actionDispatch: true, semanticMemory: true,
         persistentHistory: true, loopBudget: true, contextBudgets: true,
         fileReadSkill: true, fileWriteSkill: true, shellSkill: false, webSearchSkill: true,
         multiModelRouting: true, modelExploration: true, modelScoreUpdates: true,

@@ -5,7 +5,7 @@
  * - SafetyLayer.js tier lookup, MeTTa inference, fail-closed on timeout
  * - AuditSpace.js append-only event logging
  * - ShellGuard allowlist/forbidden pattern checking
- * - SkillDispatcher integration with safety checks and audit logging
+ * - ActionDispatcher integration with safety checks and audit logging
  * - Blocked skills produce audit atoms with zero overhead when safetyLayer: false
  */
 
@@ -14,7 +14,7 @@ import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals
 import { AuditSpace } from '../../src/memory/AuditSpace.js';
 import { ShellGuard, executeValidatedCommand } from '../../src/safety/ShellGuard.js';
 import { SafetyLayer } from '../../src/safety/SafetyLayer.js';
-import { SkillDispatcher } from '@senars/agent/skills/index.js';
+import { ActionDispatcher } from '@senars/agent/actions/index.js';
 
 function createMockInterpreter() {
     return {
@@ -257,14 +257,14 @@ describe('Phase 4: Safety & Accountability', () => {
         });
     });
 
-    describe('SkillDispatcher with SafetyLayer integration', () => {
+    describe('ActionDispatcher with SafetyLayer integration', () => {
         let dispatcher;
         let mockHandler;
 
         beforeEach(() => {
             mockHandler = jest.fn().mockResolvedValue('success');
 
-            dispatcher = new SkillDispatcher({
+            dispatcher = new ActionDispatcher({
                 capabilities: {
                     safetyLayer: true,
                     auditLog: true,
@@ -290,7 +290,7 @@ describe('Phase 4: Safety & Accountability', () => {
             const results = await dispatcher.execute(cmds);
 
             expect(results.length).toBe(1);
-            expect(results[0].skill).toBe('write-file');
+            expect(results[0].action).toBe('write-file');
             expect(results[0].error).toBeNull();
             expect(mockHandler).toHaveBeenCalledWith('test.txt', 'content');
         });
@@ -348,7 +348,7 @@ describe('Phase 4: Safety & Accountability', () => {
         });
 
         it('bypasses safety check when safetyLayer is disabled', async () => {
-            const safeDisabledDispatcher = new SkillDispatcher({
+            const safeDisabledDispatcher = new ActionDispatcher({
                 capabilities: {
                     safetyLayer: false,
                     auditLog: false,

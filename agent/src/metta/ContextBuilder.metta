@@ -9,7 +9,7 @@
 ;; Context slots (assembled in order):
 ;;   1. SYSTEM_PROMPT   — loaded from memory/harness/prompt.metta
 ;;   2. CAPABILITIES    — active capability flags
-;;   3. SKILLS          — S-expression skill declarations (filtered by capability)
+;;   3. ACTIONS         — available action definitions (filtered by capability)
 ;;   4. STARTUP_ORIENT  — active goals + needs attention, first cycle only
 ;;   5. TASKS           — all NARS goals with status
 ;;   6. PINNED          — pinned memories (always included)
@@ -69,12 +69,12 @@
    (context-section "CAPABILITIES"
      (filter-capabilities active)))
 
-;; SKILLS — S-expression skill declarations
+;; ACTIONS — available action definitions
 (= (slot-skills)
-   (context-section "SKILLS"
-     (if (cap? sExprSkillDispatch)
+   (context-section "ACTIONS"
+     (if (cap? actionDispatch)
        (get-active-skills)
-       "(skill dispatch disabled — using JSON tool calls)")))
+       "(action dispatch disabled — using plain text responses)")))
 
 ;; STARTUP_ORIENT — active goals + needs attention, first cycle only
 (= (slot-startup-orient)

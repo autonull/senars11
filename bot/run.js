@@ -1,18 +1,21 @@
 #!/usr/bin/env node
 
 /**
- * SeNARS ChatBot — Unified Entry Point
+ * SeNARS Bot — Unified Entry Point
  *
- * Modes:
- *   irc       — Full IRC bot with cognitive architecture (default)
- *   cognitive — LIDA cognitive cycle bot with IRC
- *   cli       — CLI-only mode (stdin/stdout, no IRC)
- *   demo      — Script-based demo with mock channel
+ * Single cognitive pipeline (MeTTaLoop) with config-driven embodiments.
+ * Modes are just which embodiments get registered — same loop, same pipeline.
+ *
+ * Usage:
+ *   node run.js                    — IRC mode (default)
+ *   node run.js --mode cli         — CLI mode (stdin/stdout)
+ *   node run.js --mode demo        — Demo mode (scripted messages)
+ *   node run.js --mode test        — Test mode (embedded IRC server)
  *
  * Config:
  *   --config <path>   Config file (default: bot.config.json in this dir)
  *   --profile <name>  Profile: minimal | parity | evolved | full
- *   --mode <mode>     Running mode
+ *   --mode <mode>     Running mode: irc | cli | demo | test
  *   --nick <nick>     Bot nickname
  *   --channel <chan>  IRC channel
  *   --host <host>     IRC server
@@ -22,15 +25,10 @@
  *   --tls             Enable TLS
  *   --debug           Debug logging
  *   --help            Show help
- *
- * Examples:
- *   node run.js
- *   node run.js --mode cli
- *   node run.js --config ~/my-bot.json --debug
- *   node run.js --profile evolved --nick MyBot --channel #mychan
  */
 
 import { Agent } from '@senars/agent';
+import { IRCChannel, CLIEmbodiment, DemoEmbodiment } from '@senars/agent/io/index.js';
 import { Logger } from '@senars/core';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve } from 'path';
@@ -46,14 +44,11 @@ const DEFAULTS = {
     mode: 'irc',
     nick: 'SeNARchy',
     personality: 'helpful, curious, and concise. You engage genuinely and remember context.',
-    host: null, // null → auto-host embedded IRC server
+    host: null,
     hostedPort: 6668,
     port: 6667,
     channel: '##metta',
     model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',
-    // model: 'onnx-community/gemma-3n-E2B-it-ONNX',
-    // model: 'onnx-community/Llama-3.2-3B-Instruct-ONNX',
-    // model: 'onnx-community/Qwen2.5-1.5B-Instruct',
     tls: false,
     debug: false,
     profile: 'parity',
@@ -67,12 +62,8 @@ const DEFAULTS = {
 
 function loadFileConfig(path) {
     if (!existsSync(path)) return null;
-    try {
-        return JSON.parse(readFileSync(path, 'utf8'));
-    } catch (e) {
-        Logger.warn(`Failed to load config from ${path}: ${e.message}`);
-        return null;
-    }
+    try { return JSON.parse(readFileSync(path, 'utf8')); }
+    catch (e) { Logger.warn(`Failed to load config from ${path}: ${e.message}`); return null; }
 }
 
 function mergeConfig(fileConfig, cli) {
@@ -106,7 +97,6 @@ function mergeConfig(fileConfig, cli) {
 function parseArgs() {
     const args = process.argv.slice(2);
     const cli = {};
-
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
         const next = args[i + 1];
@@ -114,16 +104,11 @@ function parseArgs() {
             case '--config': cli.configPath = resolve(next); i++; break;
             case '--mode': cli.mode = next; i++; break;
             case '--profile': cli.profile = next; i++; break;
-            case '--nick':
-            case '-n': cli.nick = next; i++; break;
-            case '--channel':
-            case '-c': cli.channel = next; i++; break;
-            case '--host':
-            case '-h': cli.host = next; i++; break;
-            case '--port':
-            case '-p': cli.port = parseInt(next, 10); i++; break;
-            case '--model':
-            case '-m': cli.model = next; i++; break;
+            case '--nick': case '-n': cli.nick = next; i++; break;
+            case '--channel': case '-c': cli.channel = next; i++; break;
+            case '--host': case '-h': cli.host = next; i++; break;
+            case '--port': case '-p': cli.port = parseInt(next, 10); i++; break;
+            case '--model': case '-m': cli.model = next; i++; break;
             case '--openai-base-url': cli.openaiBaseURL = next; i++; break;
             case '--openai-api-key': cli.openaiApiKey = next; i++; break;
             case '--tls': cli.tls = true; break;
@@ -132,54 +117,36 @@ function parseArgs() {
             case '--help': printHelp(); process.exit(0);
         }
     }
-
     return cli;
 }
 
 function printHelp() {
     console.log(`
-SeNARS ChatBot — Unified Entry Point
+SeNARS Bot — Unified Entry Point
 
 Usage: node run.js [options]
 
 Modes:
-  irc         Full IRC bot with cognitive architecture (default)
-  cognitive   LIDA cognitive cycle bot with IRC
-  cli         CLI-only mode (stdin/stdout, no IRC)
-  demo        Script-based demo with mock channel
+  irc         IRC bot with cognitive architecture (default)
+  cli         CLI-only mode (stdin/stdout)
+  demo        Scripted demo with mock messages
+  test        Test mode with embedded IRC server
 
 Options:
   --config <path>       Config file (default: bot.config.json)
-  --mode <mode>         Running mode (irc|cognitive|cli|demo)
+  --mode <mode>         Running mode (irc|cli|demo|test)
   --profile <name>      Profile: minimal|parity|evolved|full
   --nick, -n <nick>     Bot nickname (default: SeNARchy)
   --channel, -c <chan>  IRC channel (default: ##metta)
   --host, -h <host>     IRC server (default: irc.quakenet.org)
   --port, -p <port>     IRC port (default: 6667)
   --model, -m <model>   LLM model name
-  --openai-base-url     OpenAI-compatible endpoint (e.g. http://localhost:8080/v1)
+  --openai-base-url     OpenAI-compatible endpoint
   --openai-api-key      API key for OpenAI endpoint
   --tls                 Enable TLS
   --debug               Debug logging
   --personality <text>  Bot personality description
   --help                Show this help
-
-Provider selection:
-  - Default: Transformers.js runs models locally on CPU
-  - With --openai-base-url: Uses OpenAI-compatible endpoint
-
-Examples:
-  # Local CPU inference, IRC
-  node run.js
-
-  # CLI mode (no IRC)
-  node run.js --mode cli
-
-  # OpenAI-compatible endpoint
-  node run.js --openai-base-url http://localhost:8080/v1 --model my-model
-
-  # Custom config
-  node run.js --config ~/my-bot.json --debug
 `);
 }
 
@@ -189,23 +156,14 @@ async function createBot(config) {
     const hasOpenAIEndpoint = !!config.openaiBaseURL;
     const provider = hasOpenAIEndpoint ? 'openai' : 'transformers';
 
-    // Quiet init logs for interactive modes (cli, demo)
-    const quietMode = config.mode === 'cli' || config.mode === 'demo';
-    const savedLevel = Logger.getLevel();
-    if (quietMode) Logger.setLevel('WARN');
-
-    if (!quietMode) {
-        Logger.info(`🤖 SeNARS ChatBot [mode=${config.mode}, profile=${config.profile}]`);
-        Logger.info(`   Nick: ${config.nick}`);
-        Logger.info(`   Provider: ${provider}`);
-        Logger.info(`   Model: ${config.model}`);
-        if (hasOpenAIEndpoint) Logger.info(`   Endpoint: ${config.openaiBaseURL}`);
-    } else {
-        Logger.info(`🤖 SeNARS ChatBot [${config.model}]`);
-    }
+    Logger.info(`🤖 SeNARS Bot [mode=${config.mode}, profile=${config.profile}]`);
+    Logger.info(`   Nick: ${config.nick}`);
+    Logger.info(`   Provider: ${provider}`);
+    Logger.info(`   Model: ${config.model}`);
+    if (hasOpenAIEndpoint) Logger.info(`   Endpoint: ${config.openaiBaseURL}`);
 
     const agent = new Agent({
-        id: `chatbot-${config.nick}`,
+        id: `bot-${config.nick}`,
         profile: config.profile,
         lm: {
             provider,
@@ -224,174 +182,162 @@ async function createBot(config) {
     });
 
     await agent.initialize();
-    if (quietMode) Logger.setLevel(savedLevel);
     Logger.info('✅ Agent initialized');
 
+    // Warm LLM BEFORE registering embodiments — prevents race condition
+    await warmupLLM(agent, config);
+
+    // Register embodiments based on mode
+    const embodiments = await createEmbodiments(agent, config);
+    for (const emb of embodiments) {
+        agent.embodimentBus.register(emb);
+    }
+
+    // Connect all embodiments
+    for (const emb of embodiments) {
+        await emb.connect();
+    }
+
+    return {
+        start: () => agent.startMeTTaLoop(),
+        shutdown: async () => {
+            await agent.shutdown();
+            for (const emb of embodiments) {
+                await emb.disconnect?.();
+            }
+        },
+    };
+}
+
+async function warmupLLM(agent, config) {
+    if (!agent.ai) {
+        Logger.warn('⚠️  No LLM configured — bot will log but not respond');
+        agent._mettaLoopBuilder?.resolveLlmReady();
+        return;
+    }
+    try {
+        Logger.info('🔥 Warming up LLM...');
+        const result = await Promise.race([
+            agent.ai.generate('Hi', { maxTokens: 16 }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('LLM warm-up timed out (60s)')), 60000)),
+        ]);
+        if (result?.text) {
+            Logger.info(`✅ LLM ready (${result.model ?? config.model})`);
+        } else {
+            Logger.warn('⚠️  LLM returned empty response — model may not be loaded');
+        }
+    } catch (err) {
+        Logger.warn(`⚠️  LLM warm-up failed: ${err.message}`);
+        Logger.info('   Bot will attempt responses on demand');
+    } finally {
+        agent._mettaLoopBuilder?.resolveLlmReady();
+    }
+}
+
+async function createEmbodiments(agent, config) {
     switch (config.mode) {
         case 'irc':
-            return createIRCBot(agent, config);
-        case 'cognitive':
-            return createCognitiveBot(agent, config);
+            return await createIRCEmbodiment(config);
         case 'cli':
-            return createCLIBot(agent, config);
+            return [createCLIEmbodiment(config)];
         case 'demo':
-            return createDemoBot(agent, config);
+            return [createDemoEmbodiment(config)];
+        case 'test':
+            return await createTestEmbodiments(config);
         default:
             throw new Error(`Unknown mode: ${config.mode}`);
     }
 }
 
-async function createIRCBot(agent, config) {
-    const { IntelligentChatBot } = await import('./run-intelligent-chatbot.js');
-    const bot = new IntelligentChatBot(config);
-    bot.agent = agent;
-    bot.config = config;
-    await bot.initialize();
-    return { start: () => bot.start(), shutdown: () => bot.shutdown() };
-}
+async function createIRCEmbodiment(config) {
+    let host = config.host;
+    let port = config.port;
+    let hostedServer = null;
 
-async function createCognitiveBot(agent, config) {
-    const { CognitiveIRCBot } = await import('./run-cognitive-bot.js');
-    const bot = new CognitiveIRCBot(config);
-    bot.agent = agent;
-    bot.config = config;
-    await bot.initialize();
-    return { start: () => bot.start(), shutdown: () => bot.shutdown() };
-}
-
-async function createCLIBot(agent, config) {
-    const readline = await import('readline');
-    const { IntelligentMessageProcessor } = await import('@senars/agent/ai/index.js');
-
-    const processor = new IntelligentMessageProcessor(agent, {
-        botNick: config.nick,
-        personality: config.personality,
-        respondToMentions: true,
-        respondToQuestions: true,
-        respondToCommands: true,
-        respondToGreeting: true,
-        learnFromConversation: true,
-        verbose: config.debug,
-        agentConfig: agent.agentCfg,
-    });
-
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    const question = prompt => new Promise(resolve => {
-        if (rl.closed) return resolve(null);
-        rl.question(prompt, resolve);
-    });
-
-    Logger.info('✅ CLI Bot ready. Type messages or !help. Ctrl+C to exit.');
-
-    return {
-        async start() {
-            console.log(`\n${config.nick}: Online! Type your message (Ctrl+C to exit).\n`);
-            while (!rl.closed) {
-                const input = await question('> ');
-                if (input === null || !input.trim()) continue;
-                if (input.toLowerCase() === 'quit' || input.toLowerCase() === 'exit') break;
-                try {
-                    const result = await processor.processMessage({
-                        from: 'user',
-                        content: input,
-                        metadata: { isPrivate: true, channel: 'cli' },
-                        channelId: 'cli',
-                    });
-                    if (result.shouldRespond && result.response) {
-                        console.log(`\n${config.nick}: ${result.response}\n`);
-                    }
-                } catch (e) {
-                    Logger.error('Error:', e.message);
-                }
-            }
-            if (!rl.closed) rl.close();
-        },
-        async shutdown() {
-            rl.close();
-            await agent.shutdown();
-        },
-    };
-}
-
-async function createDemoBot(agent, config) {
-    const { Embodiment } = await import('@senars/agent/io/index.js');
-
-    class MockChannel extends Embodiment {
-        constructor() {
-            super({ id: 'mock', type: 'mock', name: 'Mock' });
-            this.status = 'connected';
-        }
-        async sendMessage(target, content) {
-            console.log(`\n  ${config.nick}: ${content}\n`);
-            return true;
-        }
-        async connect() { this.status = 'connected'; this.emit('connected', { nick: config.nick }); }
-        async disconnect() { this.status = 'disconnected'; }
+    // If no external host, start embedded IRC server (for local testing)
+    if (!host) {
+        const { MockIRCServer } = await import('../../tests/integration/irc/MockIRCServer.js');
+        hostedServer = new MockIRCServer();
+        port = config.hostedPort ?? 6668;
+        await hostedServer.start(port);
+        host = '127.0.0.1';
+        port = hostedServer.port;
+        Logger.info('🏠 Hosting embedded IRC server');
+        Logger.info(`   Address: 127.0.0.1:${port}`);
+        Logger.info(`   Connect with: /server 127.0.0.1 ${port}`);
     }
 
-    const mock = new MockChannel();
-    agent.channels.register(mock);
-
-    const { IntelligentMessageProcessor } = await import('@senars/agent/ai/index.js');
-    const processor = new IntelligentMessageProcessor(agent, {
-        botNick: config.nick,
-        personality: config.personality,
-        respondToMentions: true,
-        respondToQuestions: true,
-        respondToCommands: true,
-        respondToGreeting: true,
-        learnFromConversation: true,
-        verbose: config.debug,
-        agentConfig: agent.agentCfg,
+    const ircChannel = new IRCChannel({
+        id: 'irc',
+        host,
+        port,
+        nick: config.nick,
+        username: config.nick.toLowerCase(),
+        realname: `${config.nick} SeNARS Bot`,
+        tls: config.tls,
+        channels: [config.channel],
+        rateLimit: { interval: config.rateLimit?.perChannelInterval ?? 4000 },
     });
 
-    mock.on('message', async (msg) => {
-        if (msg.from === config.nick) return;
-        console.log(`  ${msg.from}: ${msg.content}`);
-        const result = await processor.processMessage(msg);
-        if (result.shouldRespond && result.response) {
-            await agent.channels.send('mock', 'demo', result.response);
-        }
-    });
-
-    await mock.connect();
-
-    const demoMessages = [
-        { from: 'Alice', content: 'Hi there!', delay: 1000 },
-        { from: 'Alice', content: 'What can you help me with?', delay: 3000 },
-        { from: 'Bob', content: '!help', delay: 5000 },
-        { from: 'Bob', content: '!context', delay: 7000 },
-        { from: 'Alice', content: 'Tell me something interesting.', delay: 9000 },
-    ];
-
-    console.log('\n── Demo Session ──────────────────────────────');
-
-    for (const msg of demoMessages) {
-        setTimeout(() => mock.emitMessage({ from: msg.from, content: msg.content, metadata: { isPrivate: false, channel: 'demo' } }), msg.delay);
+    if (hostedServer) {
+        ircChannel._hostedServer = hostedServer;
+        const origDisconnect = ircChannel.disconnect.bind(ircChannel);
+        ircChannel.disconnect = async () => {
+            await origDisconnect();
+            await hostedServer.stop();
+        };
     }
 
-    const lastDelay = demoMessages[demoMessages.length - 1].delay + 3000;
-    const shutdownFn = () => {
-        console.log('── Demo Complete ─────────────────────────────');
-        console.log('\nBot shutting down.');
-        mock.disconnect();
-        agent.shutdown().then(() => process.exit(0)).catch(() => process.exit(0));
-    };
-    setTimeout(shutdownFn, lastDelay);
+    ircChannel.on('connected', () => {
+        Logger.info(`🔌 Connected to IRC as ${config.nick}`);
+    });
 
-    Logger.info('✅ Demo Bot running.');
+    return [ircChannel];
+}
 
-    return {
-        start() {
-            process.on('SIGINT', () => this.shutdown());
-            process.on('SIGTERM', () => this.shutdown());
-        },
-        async shutdown() {
-            await mock.disconnect();
-            await agent.shutdown();
-            process.exit(0);
-        },
+function createCLIEmbodiment(config) {
+    return new CLIEmbodiment({
+        id: 'cli',
+        nick: config.nick,
+    });
+}
+
+function createDemoEmbodiment(config) {
+    return new DemoEmbodiment({
+        id: 'demo',
+        nick: config.nick,
+        channel: config.channel,
+    });
+}
+
+async function createTestEmbodiments(config) {
+    const { MockIRCServer } = await import('../../tests/integration/irc/MockIRCServer.js');
+    const server = new MockIRCServer();
+    const port = config.hostedPort ?? 6668;
+    await server.start(port);
+
+    Logger.info('🏠 Hosting embedded IRC server for test');
+    Logger.info(`   Address: 127.0.0.1:${server.port}`);
+
+    const ircChannel = new IRCChannel({
+        id: 'irc',
+        host: '127.0.0.1',
+        port: server.port,
+        nick: config.nick,
+        username: config.nick.toLowerCase(),
+        realname: `${config.nick} SeNARS Bot`,
+        tls: false,
+        channels: [config.channel],
+    });
+
+    ircChannel._hostedServer = server;
+    const origDisconnect = ircChannel.disconnect.bind(ircChannel);
+    ircChannel.disconnect = async () => {
+        await origDisconnect();
+        await server.stop();
     };
+
+    return [ircChannel];
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────
@@ -411,8 +357,8 @@ async function main() {
 
     try {
         const bot = await createBot(config);
+        Logger.info('🚀 Starting MeTTaLoop...');
         await bot.start();
-        if (config.mode === 'cli') process.exit(0);
     } catch (error) {
         Logger.error('Fatal error:', error);
         process.exit(1);

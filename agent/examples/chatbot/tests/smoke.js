@@ -31,7 +31,7 @@ class TestEnv {
      * @param {object} opts
      * @param {boolean} opts.withMemory     — attach SemanticMemory
      * @param {boolean} opts.withAudit      — attach AuditSpace
-     * @param {boolean} opts.withSkills     — enable sExprSkillDispatch
+     * @param {boolean} opts.withActions    — enable actionDispatch
      * @param {boolean} opts.withMetta      — attach mock MeTTa interpreter
      * @param {Function} opts.mockResponse  — (content, context) => string, overrides LLM
      * @param {number}   opts.maxContext    — maxContextLength override
@@ -40,7 +40,7 @@ class TestEnv {
     constructor(opts = {}) {
         this.id = `test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         this.opts = {
-            withMemory: false, withAudit: false, withSkills: false,
+            withMemory: false, withAudit: false, withActions: false,
             withMetta: false, mockResponse: null, maxContext: 30,
             beliefs: ['<("math" -- "arithmetic") --> known>'],
             ...opts
@@ -97,9 +97,9 @@ class TestEnv {
 
         const caps = {
             auditLog: this.opts.withAudit,
-            sExprSkillDispatch: this.opts.withSkills,
+            actionDispatch: this.opts.withActions,
             semanticMemory: this.opts.withMemory,
-            mettaControlPlane: this.opts.withSkills,
+            mettaControlPlane: this.opts.withActions,
             ...this.opts.capabilities
         };
 
@@ -349,7 +349,7 @@ async function testHelpConsolidation() {
 
 async function testContextAssembly() {
     console.log('\n=== 6: Context Assembly ===');
-    const env = await new TestEnv({ withMemory: true, withAudit: true, withSkills: true }).setup();
+    const env = await new TestEnv({ withMemory: true, withAudit: true, withActions: true }).setup();
 
     // Seed semantic memory
     await env.semanticMemory.remember({ content: 'User asked what is 2+2, bot answered 4', type: 'episodic', source: 'test' });
@@ -429,22 +429,23 @@ async function testContextTrimWithPersistence() {
     return true;
 }
 
-async function testSkillDispatchDetection() {
-    console.log('\n=== 9: Skill Dispatch Detection ===');
-    const env = await new TestEnv({ withSkills: true }).setup();
+async function testActionDispatchDetection() {
+    console.log('\n=== 9: Action Dispatch Detection ===');
+    const env = await new TestEnv({ withActions: true }).setup();
 
     const tests = [
-        ['(respond "The answer is 4.")', true, 'S-expression'],
-        ['(think "hmm") (respond "ok")', true, 'multi S-expr'],
+        ['{"actions":[{"name":"respond","args":["The answer is 4."]}]}', true, 'JSON action'],
+        ['{"actions":[{"name":"think","args":["hmm"]},{"name":"respond","args":["ok"]}]}', true, 'multi action'],
         ['The answer is 4.', false, 'plain text'],
         ['I think it is 4 because...', false, 'prose with paren'],
         ['', false, 'empty string'],
     ];
 
-    for (const [input, expected, label] of tests) {
-        const result = env.imp._detectSkillDispatchResponse(input);
-        assert(result === expected, `${label}: ${result} === ${expected}`);
-        pass(`${label} → ${expected ? 'skill' : 'text'}`);
+    for (const [input, expectActions, label] of tests) {
+        const { cmds } = env.imp._actionDispatcher.parseResponse(input);
+        const hasActions = cmds.length > 0;
+        assert(hasActions === expectActions, `${label}: ${hasActions} === ${expectActions}`);
+        pass(`${label} → ${expectActions ? 'actions' : 'text'}`);
     }
 
     await env.cleanup();
@@ -535,7 +536,7 @@ async function main() {
         testContextAssembly,
         testPersistentHistory,
         testContextTrimWithPersistence,
-        testSkillDispatchDetection,
+        testActionDispatchDetection,
         testAuditTrail,
         testCognitiveRecall,
         testStartupOrient,

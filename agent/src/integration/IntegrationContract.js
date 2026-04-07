@@ -30,13 +30,13 @@ export const MessageEnvelope = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════
- * 2. SKILL RESULT — SkillDispatcher → Consumer
+ * 2. ACTION RESULT — ActionDispatcher → Consumer
  * ═══════════════════════════════════════════════════════════════════════ */
 
-export const SkillResult = {
+export const ActionResult = {
     validate(result) {
-        if (!result || typeof result.skill !== 'string') {
-            return { valid: false, errors: ['missing skill name'] };
+        if (!result || typeof result.action !== 'string') {
+            return { valid: false, errors: ['missing action name'] };
         }
         if (typeof result.success !== 'boolean') {
             return { valid: false, errors: ['missing success boolean'] };

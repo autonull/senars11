@@ -186,7 +186,7 @@ describe('Phase 4.5: HookOrchestrator', () => {
 describe('Phase 4.5: IntrospectionOps', () => {
     let introspectionOps;
     let mockConfig;
-    let mockSkillDispatcher;
+    let mockActionDispatcher;
     let mockEmbodimentBus;
     let mockModelRouter;
     let mockLoopState;
@@ -204,8 +204,8 @@ describe('Phase 4.5: IntrospectionOps', () => {
             }
         };
 
-        mockSkillDispatcher = {
-            getActiveSkillDefs: jest.fn(() => '(send ...) \n(remember ...) \n(query ...)')
+        mockActionDispatcher = {
+            getActiveActionDefs: jest.fn(() => '(send ...) \n(remember ...) \n(query ...)')
         };
 
         mockEmbodimentBus = {
@@ -232,7 +232,7 @@ describe('Phase 4.5: IntrospectionOps', () => {
             historyBuffer: ['History 1', 'History 2'],
             error: null,
             prevmsg: 'Last message',
-            lastresults: [{skill: 'send', result: 'sent'}],
+            lastresults: [{action: 'send', result: 'sent'}],
             lastsend: 'Hello',
             modelOverride: null,
             modelOverrideCycles: 0
@@ -240,7 +240,7 @@ describe('Phase 4.5: IntrospectionOps', () => {
 
         introspectionOps = new IntrospectionOps(
             mockConfig,
-            mockSkillDispatcher,
+            mockActionDispatcher,
             mockEmbodimentBus,
             mockModelRouter,
             mockLoopState
@@ -283,7 +283,7 @@ describe('Phase 4.5: IntrospectionOps', () => {
             const skills = introspectionOps.listSkills();
 
             expect(skills).toContain('skill-inventory');
-            expect(mockSkillDispatcher.getActiveSkillDefs).toHaveBeenCalled();
+            expect(mockActionDispatcher.getActiveActionDefs).toHaveBeenCalled();
         });
 
         it('handles missing skill dispatcher', () => {
@@ -361,14 +361,14 @@ describe('Phase 4.5: IntrospectionOps', () => {
     describe('Static methods', () => {
         it('provides static generateManifest method', () => {
             const manifest = IntrospectionOps.generateManifest(
-                mockConfig, mockLoopState, mockSkillDispatcher, mockEmbodimentBus, mockModelRouter
+                mockConfig, mockLoopState, mockActionDispatcher, mockEmbodimentBus, mockModelRouter
             );
 
             expect(manifest).toContain('agent-manifest');
         });
 
         it('provides static listSkills method', () => {
-            const skills = IntrospectionOps.listSkills(mockConfig, mockSkillDispatcher);
+            const skills = IntrospectionOps.listSkills(mockConfig, mockActionDispatcher);
 
             expect(skills).toContain('skill-inventory');
         });

@@ -69,8 +69,11 @@ class CoreSkills {
 
         disp.register('metta', async expr => {
             try {
-                const { MeTTaInterpreter } = await import('@senars/metta/MeTTaInterpreter.js');
-                const interp = new MeTTaInterpreter();
+                const interp = deps.agent.metta;
+                if (!interp) {
+                    const { MeTTaInterpreter } = await import('@senars/metta/MeTTaInterpreter.js');
+                    return JSON.stringify(new MeTTaInterpreter().evaluate(new MeTTaInterpreter().parse(String(expr)))).slice(0, 500);
+                }
                 return JSON.stringify(interp.evaluate(interp.parse(String(expr)))).slice(0, 500);
             } catch (err) { return `(metta-error "${err.message}")`; }
         }, 'mettaControlPlane', ':reflect');
@@ -112,26 +115,26 @@ class CoreSkills {
 
         disp.register('respond', async content => {
             const msg = String(content);
-            if (msg === deps.loopState.lastsend) return '(duplicate suppressed)';
+            if (msg === deps.loopState.lastsend) return { sent: true, text: msg, duplicate: true };
             deps.loopState.lastsend = msg;
             const lastMsg = deps.loopState.lastmsg;
             if (!lastMsg?.from) {
                 Logger.debug(`[respond] ${msg}`);
-                return `responded: ${msg.slice(0, 120)}`;
+                return { sent: false, text: msg, reason: 'no-lastmsg' };
             }
             const embodiment = deps.agent.embodimentBus?.get(lastMsg.embodimentId);
             if (embodiment?.status !== 'connected') {
                 Logger.debug(`[respond] ${msg}`);
-                return `responded: ${msg.slice(0, 120)}`;
+                return { sent: false, text: msg, reason: 'disconnected' };
             }
             const target = lastMsg.isPrivate ? lastMsg.from : (lastMsg.channel ?? 'default');
             try {
                 await embodiment.sendMessage(target, msg);
-                return `responded-to ${lastMsg.from}@${lastMsg.embodimentId}`;
+                return { sent: true, text: msg };
             } catch (err) {
                 Logger.warn(`[respond] Send failed: ${err.message}`);
                 deps.loopState.wm.push({ content: `respond failed: ${err.message.slice(0, 120)}`, priority: 0.8, ttl: 2 });
-                return `(respond-error "${err.message.slice(0, 200)}")`;
+                return { sent: false, text: msg, error: err.message };
             }
         }, 'mettaControlPlane', ':reflect', 'Reply to user');
 
@@ -327,7 +330,12 @@ class NarsMetaSkills {
                 return `(snapshot :label "${label}" :beliefs ${beliefs.length} :ts ${Date.now()})`;
             }, 'memorySnapshots', ':meta');
             disp.register('nar-snapshot-compare', async (labelA, labelB, threshold) => {
-                return `(snapshot-compare :a "${labelA}" :b "${labelB}" :threshold ${parseFloat(threshold) || 0.5} :status "comparison-logged")`;
+                const mem = deps.agent.nar.memory;
+                const beliefs = mem?.getBeliefs?.() ?? [];
+                const thresh = parseFloat(threshold) || 0.5;
+                const highConf = beliefs.filter(b => (b.truth?.confidence ?? 0) >= thresh).length;
+                const lowConf = beliefs.length - highConf;
+                return `(snapshot-compare :a "${labelA}" :b "${labelB}" :threshold ${thresh} :beliefs ${beliefs.length} :high-confidence ${highConf} :low-confidence ${lowConf})`;
             }, 'memorySnapshots', ':meta');
         }
         if (cap('actionTrace')) {
@@ -337,7 +345,16 @@ class NarsMetaSkills {
                 return `(stamps :term "${term}" :count ${stamps.length} :values ${JSON.stringify(stamps).replace(/"/g, "'")})`;
             }, 'actionTrace', ':meta');
             disp.register('nar-recent-derivations', async count => {
-                return `(recent-derivations :count ${parseInt(count) || 10} :status "trace-available")`;
+                const mem = deps.agent.nar.memory;
+                const n = parseInt(count) || 10;
+                const beliefs = mem?.getBeliefs?.() ?? [];
+                const recent = beliefs.slice(-n).map(b => {
+                    const term = b.term?.toString?.() ?? 'unknown';
+                    const f = b.truth?.frequency?.toFixed(3) ?? '?';
+                    const c = b.truth?.confidence?.toFixed(3) ?? '?';
+                    return `(belief "${term.replace(/"/g, '\\"')}" :f ${f} :c ${c})`;
+                }).join(' ');
+                return `(recent-derivations :count ${recent.length || beliefs.length} :requested ${n} :items ${recent || '()'})`;
             }, 'actionTrace', ':meta');
         }
         if (cap('coordinatorMode')) {
@@ -387,7 +404,7 @@ class SelfModSkills {
             const skillsPath = deps.resolveMettaFile('skills.metta');
             const def = String(skillDef);
             await appendFile(skillsPath, `\n${def}`);
-            deps.agent._mettaLoopBuilder?._dispatcher?.loadSkillsFromFile(deps.resolveMettaFile('skills.metta'));
+            deps.agent._mettaLoopBuilder?._dispatcher?.loadActionsFromFile(deps.resolveMettaFile('skills.metta'));
             return `(skill-added "${def.slice(0, 80)}")`;
         }, 'selfModifyingSkills', ':meta');
     }

@@ -1,14 +1,14 @@
 /**
  * End-to-End Integration Test — MeTTaClaw Personal Assistant Chatbot
- * 
+ *
  * Tests the full agent pipeline:
  * - Agent initialization with parity profile
  * - MeTTa control plane setup
- * - Skill registration and dispatch
+ * - Action registration and dispatch
  * - Working memory (attend/dismiss/tick)
  * - Context building with budget management
  * - Message processing through VirtualEmbodiment
- * - S-expression parsing and execution
+ * - JSON tool-call parsing and execution
  * - Semantic memory operations
  * - Capability gating and dependency validation
  * - Full chatbot interaction cycles
@@ -16,7 +16,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { isEnabled, validateDeps } from '../../src/config/capabilities.js';
-import { SkillDispatcher } from '@senars/agent/skills/index.js';
+import { ActionDispatcher } from '@senars/agent/actions/index.js';
 import { VirtualEmbodiment } from '@senars/agent/io/index.js';
 import { EmbodimentBus } from '@senars/agent/io/index.js';
 
@@ -27,7 +27,7 @@ describe('MeTTaClaw Chatbot E2E', () => {
         it('resolves parity profile capabilities correctly', () => {
             const config = { profile: 'parity' };
             expect(isEnabled(config, 'mettaControlPlane')).toBe(true);
-            expect(isEnabled(config, 'sExprSkillDispatch')).toBe(true);
+            expect(isEnabled(config, 'actionDispatch')).toBe(true);
             expect(isEnabled(config, 'semanticMemory')).toBe(true);
             expect(isEnabled(config, 'persistentHistory')).toBe(true);
             expect(isEnabled(config, 'loopBudget')).toBe(true);
@@ -69,25 +69,25 @@ describe('MeTTaClaw Chatbot E2E', () => {
         });
     });
 
-    describe('2. SkillDispatcher Integration', () => {
+    describe('2. ActionDispatcher Integration', () => {
         let dispatcher;
         let mockHandler;
 
         beforeEach(() => {
             const config = {
                 profile: 'parity',
-                loop: { maxSkillsPerCycle: 3 },
-                capabilities: { sExprSkillDispatch: true }
+                loop: { maxActionsPerCycle: 3 },
+                capabilities: { actionDispatch: true }
             };
-            dispatcher = new SkillDispatcher(config);
+            dispatcher = new ActionDispatcher(config);
             mockHandler = jest.fn().mockResolvedValue('mock-result');
         });
 
-        it('parses and dispatches multi-skill S-expression response', async () => {
+        it('parses and dispatches multi-action JSON response', async () => {
             dispatcher.register('think', mockHandler, 'mettaControlPlane', ':reflect');
             dispatcher.register('send', mockHandler, 'mettaControlPlane', ':network');
 
-            const response = '((think "processing request") (send "Hello user"))';
+            const response = '{"actions":[{"name":"think","args":["processing request"]},{"name":"send","args":["Hello user"]}]}';
             const { cmds, error } = dispatcher.parseResponse(response);
 
             expect(error).toBeNull();
@@ -97,33 +97,10 @@ describe('MeTTaClaw Chatbot E2E', () => {
 
             const results = await dispatcher.execute(cmds);
             expect(results).toHaveLength(2);
-            expect(results[0].skill).toBe('think');
+            expect(results[0].action).toBe('think');
             expect(results[0].result).toBe('mock-result');
-            expect(results[1].skill).toBe('send');
+            expect(results[1].action).toBe('send');
             expect(mockHandler).toHaveBeenCalledTimes(2);
-        });
-
-        it('handles malformed S-expression with parenthesis balancing', () => {
-            const response = '((think "incomplete"';
-            const { cmds, error } = dispatcher.parseResponse(response);
-
-            expect(error).toBeNull();
-            expect(cmds.length).toBeGreaterThan(0);
-            expect(cmds[0].name).toBe('think');
-        });
-
-        it('parses JSON action format', async () => {
-            dispatcher.register('respond', mockHandler, 'mettaControlPlane', ':reflect');
-            dispatcher.register('remember', mockHandler, 'semanticMemory', ':memory');
-
-            const response = `{"actions":[{"name":"respond","args":["Hello!"]},{"name":"remember","args":["User is friendly"]}]}
-Plain text after JSON is fine.`;
-            const { cmds, error } = dispatcher.parseResponse(response);
-
-            expect(error).toBeNull();
-            expect(cmds).toHaveLength(2);
-            expect(cmds[0]).toEqual({ name: 'respond', args: ['Hello!'] });
-            expect(cmds[1]).toEqual({ name: 'remember', args: ['User is friendly'] });
         });
 
         it('parses plain text response when no JSON actions', () => {
@@ -143,12 +120,12 @@ Plain text after JSON is fine.`;
         });
 
         it('returns empty commands on completely invalid input', () => {
-            const response = 'this is not an s-expression at all {{{';
+            const response = 'this is not JSON at all {{{';
             const { cmds, error } = dispatcher.parseResponse(response);
             expect(cmds).toHaveLength(0);
         });
 
-        it('gates skill execution on capability flags', async () => {
+        it('gates action execution on capability flags', async () => {
             dispatcher.register('shell', mockHandler, 'shellSkill', ':system');
 
             const results = await dispatcher.execute([{ name: 'shell', args: ['ls'] }]);
@@ -156,8 +133,8 @@ Plain text after JSON is fine.`;
             expect(mockHandler).not.toHaveBeenCalled();
         });
 
-        it('respects maxSkillsPerCycle limit', () => {
-            const response = '((skill1 "a") (skill2 "b") (skill3 "c") (skill4 "d"))';
+        it('respects maxActionsPerCycle limit', () => {
+            const response = '{"actions":[{"name":"skill1","args":["a"]},{"name":"skill2","args":["b"]},{"name":"skill3","args":["c"]},{"name":"skill4","args":["d"]}]}';
             dispatcher.register('skill1', mockHandler, 'mettaControlPlane', ':reflect');
             dispatcher.register('skill2', mockHandler, 'mettaControlPlane', ':reflect');
             dispatcher.register('skill3', mockHandler, 'mettaControlPlane', ':reflect');
@@ -347,7 +324,7 @@ Plain text after JSON is fine.`;
                 `HISTORY:\n${histStr}\n`,
                 `LAST_RESULTS: ${lastResultsStr}\n\n`,
                 `INPUT: test input\n\n`,
-                `OUTPUT: Respond with ONLY a list of skill S-expressions.`
+                `OUTPUT: Respond with ONLY a JSON tool call if you need to take actions.`
             ].join('');
 
             expect(ctx).toContain('SKILLS:');
@@ -387,10 +364,10 @@ Plain text after JSON is fine.`;
                 profile: 'parity',
                 loop: { maxSkillsPerCycle: 3 },
                 workingMemory: { defaultTtl: 10, maxEntries: 20 },
-                capabilities: { sExprSkillDispatch: true }
+                capabilities: { actionDispatch: true }
             };
 
-            const dispatcher = new SkillDispatcher(config);
+            const dispatcher = new ActionDispatcher(config);
             const loopState = {
                 wm: [],
                 historyBuffer: [],
@@ -415,7 +392,7 @@ Plain text after JSON is fine.`;
             }, 'mettaControlPlane', ':reflect');
 
             const userInput = 'Hello, can you help me?';
-            const mockLLMResponse = `((think "User is asking for help") (send "Of course! How can I assist you?") (attend "User needs help" 0.8))`;
+            const mockLLMResponse = `{"actions":[{"name":"think","args":["User is asking for help"]},{"name":"send","args":["Of course! How can I assist you?"]},{"name":"attend","args":["User needs help","0.8"]}]}`;
 
             const { cmds, error } = dispatcher.parseResponse(mockLLMResponse);
             expect(error).toBeNull();
@@ -423,9 +400,9 @@ Plain text after JSON is fine.`;
 
             const results = await dispatcher.execute(cmds);
             expect(results).toHaveLength(3);
-            expect(results[0].skill).toBe('think');
-            expect(results[1].skill).toBe('send');
-            expect(results[2].skill).toBe('attend');
+            expect(results[0].action).toBe('think');
+            expect(results[1].action).toBe('send');
+            expect(results[2].action).toBe('attend');
 
             expect(sentMessages).toContain('Of course! How can I assist you?');
             expect(loopState.wm).toHaveLength(1);
@@ -441,10 +418,10 @@ Plain text after JSON is fine.`;
                 profile: 'parity',
                 loop: { maxSkillsPerCycle: 3 },
                 workingMemory: { defaultTtl: 10, maxEntries: 20 },
-                capabilities: { sExprSkillDispatch: true }
+                capabilities: { actionDispatch: true }
             };
 
-            const dispatcher = new SkillDispatcher(config);
+            const dispatcher = new ActionDispatcher(config);
             const loopState = {
                 wm: [],
                 historyBuffer: [],
@@ -466,7 +443,7 @@ Plain text after JSON is fine.`;
 
             for (let cycle = 0; cycle < 3; cycle++) {
                 loopState.cycleCount = cycle;
-                const response = `((attend "memory from cycle ${cycle}" ${0.5 + cycle * 0.1}) (send "response ${cycle}"))`;
+                const response = `{"actions":[{"name":"attend","args":["memory from cycle ${cycle}","${0.5 + cycle * 0.1}"]},{"name":"send","args":["response ${cycle}"]}]}`;
                 const { cmds } = dispatcher.parseResponse(response);
                 await dispatcher.execute(cmds);
                 loopState.historyBuffer.push(`Cycle ${cycle} completed`);
@@ -501,27 +478,27 @@ Plain text after JSON is fine.`;
     });
 
     describe('7. Capability Gating & Safety', () => {
-        it('disabled skills are invisible to getActiveSkillDefs', () => {
+        it('disabled actions are invisible to getActiveActionDefs', () => {
             const config = { profile: 'parity' };
-            const dispatcher = new SkillDispatcher(config);
+            const dispatcher = new ActionDispatcher(config);
 
             dispatcher.register('send', jest.fn(), 'mettaControlPlane', ':network');
             dispatcher.register('shell', jest.fn(), 'shellSkill', ':system');
 
-            const defs = dispatcher.getActiveSkillDefs();
+            const defs = dispatcher.getActiveActionDefs();
             expect(defs).toContain('send');
             expect(defs).not.toContain('shell');
         });
 
         it('capability mismatch warnings logged on registration', () => {
             const config = { profile: 'parity' };
-            const dispatcher = new SkillDispatcher(config);
+            const dispatcher = new ActionDispatcher(config);
 
-            dispatcher.loadSkillsFromFile = jest.fn();
+            dispatcher.loadActionsFromFile = jest.fn();
 
             dispatcher.register('send', jest.fn(), 'shellSkill', ':system');
 
-            const defs = dispatcher.getActiveSkillDefs();
+            const defs = dispatcher.getActiveActionDefs();
             expect(defs).not.toContain('send');
         });
     });
@@ -529,7 +506,7 @@ Plain text after JSON is fine.`;
     describe('8. Error Handling & Recovery', () => {
         it('handles handler errors without crashing dispatcher', async () => {
             const config = { profile: 'parity', loop: { maxSkillsPerCycle: 3 } };
-            const dispatcher = new SkillDispatcher(config);
+            const dispatcher = new ActionDispatcher(config);
 
             dispatcher.register('failing-skill', async () => {
                 throw new Error('intentional failure');
@@ -537,20 +514,20 @@ Plain text after JSON is fine.`;
 
             const results = await dispatcher.execute([{ name: 'failing-skill', args: [] }]);
             expect(results[0].error).toBe('intentional failure');
-            expect(results[0].skill).toBe('failing-skill');
+            expect(results[0].action).toBe('failing-skill');
         });
 
         it('handles empty command list gracefully', async () => {
             const config = { profile: 'parity' };
-            const dispatcher = new SkillDispatcher(config);
+            const dispatcher = new ActionDispatcher(config);
 
             const results = await dispatcher.execute([]);
             expect(results).toEqual([]);
         });
 
         it('handles null/undefined parse input', () => {
-            const config = { profile: 'parity', capabilities: { sExprSkillDispatch: true } };
-            const dispatcher = new SkillDispatcher(config);
+            const config = { profile: 'parity', capabilities: { actionDispatch: true } };
+            const dispatcher = new ActionDispatcher(config);
 
             const { cmds: cmds1, error: error1 } = dispatcher.parseResponse(null);
             expect(cmds1).toHaveLength(0);

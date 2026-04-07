@@ -16,11 +16,11 @@ const safeGet = async (fn, fallback = '', warnMsg) => {
 };
 
 export class ContextBuilder {
-    constructor(config, semanticMemory, historySpace, skillDispatcher, introspectionOps, nar = null) {
+    constructor(config, semanticMemory, historySpace, actionDispatcher, introspectionOps, nar = null) {
         this.config = config;
         this.semanticMemory = semanticMemory;
         this.historySpace = historySpace;
-        this.skillDispatcher = skillDispatcher;
+        this.actionDispatcher = actionDispatcher;
         this.introspectionOps = introspectionOps;
         this.nar = nar;
         this.lastFeedback = null;
@@ -92,7 +92,7 @@ export class ContextBuilder {
     }
 
     _concat(sections) {
-        const headers = ['SYSTEM_PROMPT', 'CAPABILITIES', 'SKILLS', 'STARTUP_ORIENT', 'TASKS', 'PINNED', 'WM_REGISTER', 'AGENT_MANIFEST', 'RECALL', 'HISTORY', 'FEEDBACK', 'INPUT'];
+        const headers = ['SYSTEM_PROMPT', 'CAPABILITIES', 'ACTIONS', 'STARTUP_ORIENT', 'TASKS', 'PINNED', 'WM_REGISTER', 'AGENT_MANIFEST', 'RECALL', 'HISTORY', 'FEEDBACK', 'INPUT'];
         return sections
             .map((s, i) => s?.trim() && i < headers.length ? `═══ ${headers[i]} ═══\n${s}\n\n` : '')
             .join('');
@@ -132,18 +132,12 @@ If you just want to respond, plain text is fine — no JSON needed.`;
     }
 
     _getActiveSkills() {
-        if (!isEnabled(this.config, 'sExprSkillDispatch')) {
-            return '(skill dispatch disabled — using JSON tool calls)';
+        if (!isEnabled(this.config, 'actionDispatch')) {
+            return '(action dispatch disabled — using plain text responses)';
         }
-        const defs = this.skillDispatcher?.getActiveSkillDefs();
-        if (!defs || defs.startsWith('(no skills')) return defs;
-        // Convert raw S-expr skill defs to human-readable action list
-        return defs.split('\n')
-            .map(line => {
-                const m = line.match(/^\(skill\s+(\S+)\s+\S+\s+\S+\s+\S+\s+"([^"]*)"/);
-                return m ? `• ${m[1]}: ${m[2]}` : line;
-            })
-            .join('\n');
+        const defs = this.actionDispatcher?.getActiveActionDefs();
+        if (!defs || defs.startsWith('(no actions')) return defs;
+        return defs;
     }
 
     async _getStartupOrient(cycleCount) {

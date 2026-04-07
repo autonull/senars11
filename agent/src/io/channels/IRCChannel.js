@@ -23,7 +23,7 @@ export class IRCChannel extends Embodiment {
 
         this._sendQueue = [];
         this._processingQueue = false;
-        this._messageInterval = config.rateLimit?.interval ?? 4000;
+        this._messageInterval = config.messageInterval ?? config.rateLimit?.interval ?? 4000;
         this._lastSendTime = 0;
 
         this._setupClientEvents();
@@ -141,15 +141,10 @@ export class IRCChannel extends Embodiment {
             Logger.error(`[IRC:${this.id}] Error:`, err);
         });
 
-        // Notice event (server operational messages — skip)
+        // Notice event (server operational messages — drop at source, do NOT queue into EmbodimentBus)
         this.client.on('notice', (event) => {
-            const from = event.nick;
-            if (!from || from === 'Server' || from === 'AUTH' || from === '*') return;
-            this.emitMessage({
-                from,
-                content: event.message,
-                metadata: {channel: event.target, type: 'notice'}
-            });
+            Logger.debug(`[IRC:${this.id}] Notice from ${event.nick}: ${event.message}`);
+            // Intentionally do NOT call emitMessage() — notices are server/system noise
         });
 
         // Welcome messages
@@ -240,28 +235,44 @@ export class IRCChannel extends Embodiment {
 
         this.setStatus('connecting');
 
-        try {
-            this.client.connect({
-                host: this.config.host || 'irc.libera.chat',
-                port: this.config.port || 6667,
-                nick: this.config.nick || 'senars-bot',
-                username: this.config.username || 'senars',
-                gecos: this.config.realname || `${this.config.nick} Bot`,
-                tls: !!this.config.tls,
-                password: this.config.password,
-                auto_reconnect: true,
-                auto_reconnect_wait: 2000,
-                auto_reconnect_max_retries: 5,
-                // Enable CTCP handling
-                ctcp: {
-                    version: `${this.config.nick} Bot 1.0`,
-                    ping: true
-                }
-            });
-        } catch (error) {
-            this.setStatus('error');
-            throw error;
-        }
+        return new Promise((resolve, reject) => {
+            const onRegistered = (event) => {
+                this.client.removeListener('error', onError);
+                resolve(event);
+            };
+            const onError = (err) => {
+                this.client.removeListener('registered', onRegistered);
+                this.setStatus('error');
+                reject(err);
+            };
+
+            this.client.once('registered', onRegistered);
+            this.client.once('error', onError);
+
+            try {
+                this.client.connect({
+                    host: this.config.host || 'irc.libera.chat',
+                    port: this.config.port || 6667,
+                    nick: this.config.nick || 'senars-bot',
+                    username: this.config.username || 'senars',
+                    gecos: this.config.realname || `${this.config.nick} Bot`,
+                    tls: !!this.config.tls,
+                    password: this.config.password,
+                    auto_reconnect: true,
+                    auto_reconnect_wait: 2000,
+                    auto_reconnect_max_retries: 5,
+                    ctcp: {
+                        version: `${this.config.nick} Bot 1.0`,
+                        ping: true
+                    }
+                });
+            } catch (error) {
+                this.client.removeListener('registered', onRegistered);
+                this.client.removeListener('error', onError);
+                this.setStatus('error');
+                reject(error);
+            }
+        });
     }
 
     async disconnect() {

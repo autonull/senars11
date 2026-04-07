@@ -39,7 +39,8 @@ export class AuditSpace {
             this._parseEvents(content);
             Logger.debug(`[AuditSpace] Restored ${this._events.length} events`);
         } catch {
-            Logger.debug('[AuditSpace] No existing events, starting fresh');
+            await writeFile(eventsPath, '', 'utf8');
+            Logger.debug('[AuditSpace] Created empty events file, starting fresh');
         }
         this._restored = true;
     }
@@ -131,7 +132,7 @@ export class AuditSpace {
             cycle: event.cycle
         };
         if (event.skill) {
-            fields.skill = event.skill;
+            fields.action = event.skill;
         }
         if (event.reason) {
             fields.reason = escapeQuotes(event.reason);

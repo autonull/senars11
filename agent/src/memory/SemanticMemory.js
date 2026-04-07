@@ -79,20 +79,24 @@ export class SemanticMemory {
     async initialize() {
         if (this._restored) {return;}
         await mkdir(this._dataDir, { recursive: true });
+        const atomsPath = join(this._dataDir, 'atoms.metta');
+        const vecPath = join(this._dataDir, 'atoms.vec');
         try {
-            const atomsContent = await readFile(join(this._dataDir, 'atoms.metta'), 'utf8');
+            const atomsContent = await readFile(atomsPath, 'utf8');
             this._parseAtoms(atomsContent);
             Logger.info(`[SemanticMemory] Restored ${this._atoms.size} atoms`);
         } catch {
-            Logger.debug('[SemanticMemory] No existing atoms, starting fresh');
+            await writeFile(atomsPath, '', 'utf8');
+            Logger.debug('[SemanticMemory] Created empty atoms file, starting fresh');
         }
         try {
-            const vecContent = await readFile(join(this._dataDir, 'atoms.vec'), 'utf8');
+            const vecContent = await readFile(vecPath, 'utf8');
             this._parseVectors(vecContent);
             this._index.setVectors(this._vectors);
             Logger.info(`[SemanticMemory] Restored ${this._vectors.size} vectors`);
         } catch {
-            Logger.debug('[SemanticMemory] No existing vectors, will embed on demand');
+            await writeFile(vecPath, '', 'utf8');
+            Logger.debug('[SemanticMemory] Created empty vectors file, will embed on demand');
         }
         this._restored = true;
     }

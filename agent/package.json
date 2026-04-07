@@ -14,7 +14,8 @@
     "./io/*.js": "./src/io/*.js",
     "./cognitive/*.js": "./src/cognitive/*.js",
     "./memory/*.js": "./src/memory/*.js",
-    "./src/*.js": "./src/*.js"
+    "./src/*.js": "./src/*.js",
+    "./metta/*.js": "./src/metta/*.js"
   },
   "bin": {
     "senars-agent": "./src/bin/cli.js",

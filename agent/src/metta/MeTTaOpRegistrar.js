@@ -68,12 +68,17 @@ export class MeTTaOpRegistrar {
         this.#loopState.wm = (this.#loopState.wm ?? []).map(e => ({ ...e, ttl: e.ttl - 1 })).filter(e => e.ttl > 0);
     }
 
-    registerContextOps(interp) {
-        // build-context delegates to ContextBuilder if available;
-        // otherwise falls back to lightweight inline assembly.
+    registerContextOps(interp, contextBuilder = null) {
+        // Delegate to ContextBuilder if available; otherwise use inline fallback.
         interp.ground.register('build-context', async msg => {
+            if (contextBuilder) {
+                const msgStr = msg?.value ?? (typeof msg === 'string' ? msg : '');
+                const ctx = await contextBuilder.build(msgStr, this.#loopState.cycleCount, this.#loopState.wm);
+                return this.#Term.grounded(ctx);
+            }
+            // Inline fallback — fewer slots than ContextBuilder.build()
             const msgStr = msg?.value ?? (typeof msg === 'string' ? msg : null) ?? '';
-            const skills = this.#dispatcher.getActiveSkillDefs();
+            const skills = this.#dispatcher.getActiveActionDefs();
             const { maxHist = 12000, maxFb = 6000, maxWm = 1500, maxPinned = 3000, maxRecall = 8000 } = this.#agentCfg.memory ?? {};
             const wmStr = this.#loopState.wm.length > 0
                 ? this.#loopState.wm.map(e => `[${e.priority.toFixed(2)}] ${e.content} (ttl:${e.ttl})`).join('\n').slice(0, maxWm)
@@ -100,9 +105,12 @@ export class MeTTaOpRegistrar {
             if (lastResultsStr && lastResultsStr !== '[]') ctx += `LAST_RESULTS: ${lastResultsStr}\n\n`;
             if (this.#loopState.error) ctx += `ERROR: ${JSON.stringify(this.#loopState.error)}\n\n`;
             if (msgStr) ctx += `INPUT: ${msgStr}\n\n`;
-            ctx += `OUTPUT: Respond with ONLY a list of skill S-expressions.\n`;
-            ctx += `Format: ((skill1 "arg1") (skill2 "arg2"))\n`;
-            ctx += `Max ${this.#agentCfg.loop?.maxSkillsPerCycle ?? 3} skills. Check parentheses carefully.`;
+            ctx += `OUTPUT FORMAT — You MUST respond in EXACTLY one of these ways:\n`;
+            ctx += `1) To reply to the user: {"actions":[{"name":"respond","args":["Your reply text"]}]} followed by any other actions.\n`;
+            ctx += `2) To reply in plain text: just write your reply text, no JSON.\n`;
+            ctx += `CRITICAL: If you perform actions (query, think, search, etc.) you MUST ALSO include a respond action with your reply text.\n`;
+            ctx += `Example: {"actions":[{"name":"respond","args":["4"]},{"name":"think","args":["basic math"]}]}  or just: The answer is 4.\n`;
+            ctx += `Never return ONLY a JSON without a respond action — that will silently drop your reply.`;
             return this.#Term.grounded(ctx);
         }, { async: true });
     }

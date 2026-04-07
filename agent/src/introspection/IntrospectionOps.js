@@ -5,9 +5,9 @@
 import {Logger} from '@senars/core';
 
 export class IntrospectionOps {
-    constructor(config, skillDispatcher, embodimentBus, modelRouter, loopState) {
+    constructor(config, actionDispatcher, embodimentBus, modelRouter, loopState) {
         this.config = config;
-        this.skillDispatcher = skillDispatcher;
+        this.actionDispatcher = actionDispatcher;
         this.embodimentBus = embodimentBus;
         this.modelRouter = modelRouter;
         this.loopState = loopState;
@@ -48,8 +48,8 @@ export class IntrospectionOps {
         if (!this.config.capabilities?.runtimeIntrospection) {
             return '(skill-inventory :restricted true)';
         }
-        const skillDefs = this.skillDispatcher?.getActiveSkillDefs() ?? '(no skills)';
-        const skills = skillDefs.split('\n').filter(s => s.trim());
+        const actionDefs = this.actionDispatcher?.getActiveActionDefs() ?? '(no actions)';
+        const skills = actionDefs.split('\n').filter(s => s.trim());
         const entries = skills.map(s => {
             const match = s.match(/\((\w+)/);
             const name = match ? match[1] : 'unknown';
@@ -105,7 +105,7 @@ export class IntrospectionOps {
             case '&lastresults':
             case 'lastresults': {
                 const results = (this.loopState.lastresults ?? []).map(r =>
-                    `(result :skill "${r.skill ?? 'unknown'}" :error "${r.error ?? 'none'}")`
+                    `(result :action "${r.action ?? 'unknown'}" :error "${r.error ?? 'none'}")`
                 ).join(' ');
                 return `(agent-state "&lastresults" (${results}))`;
             }
@@ -130,10 +130,10 @@ export class IntrospectionOps {
     }
 
     _getActiveSkills() {
-        if (!this.skillDispatcher) {
+        if (!this.actionDispatcher) {
             return [];
         }
-        return this.skillDispatcher.getActiveSkillDefs().split('\n').filter(s => s.trim());
+        return this.actionDispatcher.getActiveActionDefs().split('\n').filter(s => s.trim());
     }
 
     _getEmbodiments() {
@@ -201,11 +201,11 @@ export class IntrospectionOps {
 }
 
 // Static convenience methods
-IntrospectionOps.generateManifest = (config, loopState, skillDispatcher, embodimentBus, modelRouter) =>
-    new IntrospectionOps(config, skillDispatcher, embodimentBus, modelRouter, loopState).generateManifest();
+IntrospectionOps.generateManifest = (config, loopState, actionDispatcher, embodimentBus, modelRouter) =>
+    new IntrospectionOps(config, actionDispatcher, embodimentBus, modelRouter, loopState).generateManifest();
 
-IntrospectionOps.listSkills = (config, skillDispatcher) =>
-    new IntrospectionOps(config, skillDispatcher, null, null, null).listSkills();
+IntrospectionOps.listSkills = (config, actionDispatcher) =>
+    new IntrospectionOps(config, actionDispatcher, null, null, null).listSkills();
 
 IntrospectionOps.describeSubsystems = (config, embodimentBus) =>
     new IntrospectionOps(config, null, embodimentBus, null, null).describeSubsystems();
