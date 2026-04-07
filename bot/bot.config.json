@@ -1,17 +1,21 @@
 {
   "profile": "parity",
-  "bot": {
-    "nick": "SeNARchy",
-    "personality": "helpful, curious, and concise. You engage genuinely and remember context.",
-    "maxContextLength": 30,
-    "contextWindowMs": 3600000
-  },
-  "irc": {
-    "enabled": true,
-    "host": null,
-    "port": 6667,
-    "channel": "##metta",
-    "tls": false
+  "nick": "SeNARchy",
+  "personality": "helpful, curious, and concise. You engage genuinely and remember context.",
+  "embodiments": {
+    "irc": {
+      "enabled": true,
+      "host": null,
+      "port": 6667,
+      "channels": ["##metta"],
+      "tls": false
+    },
+    "cli": {
+      "enabled": false
+    },
+    "demo": {
+      "enabled": false
+    }
   },
   "lm": {
     "provider": "transformers",
@@ -38,5 +42,7 @@
     "perChannelInterval": 8000,
     "globalMax": 10,
     "globalInterval": 10000
-  }
+  },
+  "maxContextLength": 30,
+  "contextWindowMs": 3600000
 }

@@ -32,7 +32,7 @@ export class ActionDispatcher {
   }
 
   async _ensureSafetyAndAudit() {
-    // Stub
+    // Stub — overridden by MeTTaLoopBuilder after services are ready
   }
 
   register(name, handler, capFlag, tier, description = '') {
@@ -48,34 +48,72 @@ export class ActionDispatcher {
   }
 
   parseResponse(respStr) {
+    if (!respStr || typeof respStr !== 'string' || !respStr.trim()) {
+      return { cmds: [], error: null };
+    }
+    if (!isEnabled(this._config, 'actionDispatch')) {
+      return { cmds: [], error: null };
+    }
     try {
       const json = JSON.parse(respStr);
-      if (json.actions && Array.isArray(json.actions)) {
-        return { cmds: json.actions, error: null };
+      if (!json.actions || !Array.isArray(json.actions)) {
+        return { cmds: [], error: null };
       }
-      return { cmds: [], error: 'no actions found' };
-    } catch (e) {
-      return { cmds: [], error: e.message };
+      const maxActions = this._config.loop?.maxActionsPerCycle
+        ?? this._config.loop?.maxSkillsPerCycle
+        ?? Infinity;
+      const cmds = json.actions.slice(0, maxActions);
+      return { cmds, error: null };
+    } catch {
+      return { cmds: [], error: null };
     }
   }
 
   async execute(cmds) {
+    if (!cmds?.length) return [];
     return Promise.all(cmds.map(cmd => this._dispatch(cmd)));
   }
 
   async _dispatch({ name, args }) {
     const entry = this._handlers.get(name);
     if (!entry) {
-      return { name, error: `unknown-action: ${name}` };
+      return { action: name, error: `unknown-action: ${name}` };
     }
     if (!isEnabled(this._config, entry.capFlag)) {
-      return { name, error: `capability-disabled: ${entry.capFlag}` };
+      return { action: name, error: `capability-disabled: ${entry.capFlag}` };
     }
+
+    // Safety check
+    if (isEnabled(this._config, 'safetyLayer') && this._safetyLayer) {
+      try {
+        const safetyResult = await this._safetyLayer.check(name, args, entry.tier);
+        if (!safetyResult.cleared) {
+          const reason = `safety-blocked: ${safetyResult.reason}`;
+          if (this._auditSpace?.emitSkillBlocked) {
+            const auditBlocked = this._auditSpace.emitSkillBlocked(name, args, safetyResult.reason);
+            if (auditBlocked?.catch) auditBlocked.catch(() => {});
+          }
+          return { action: name, error: reason };
+        }
+      } catch {
+        return { action: name, error: 'safety-check-failed' };
+      }
+    }
+
+    // Audit: skill invoked
+    const auditPending = this._auditSpace?.emitSkillInvoked?.(name, args, 'pending');
+    if (auditPending?.catch) auditPending.catch(() => {});
+
     try {
       const result = await entry.handler(...(args || []));
-      return { name, result };
+      // Update audit with success
+      const auditOk = this._auditSpace?.emitSkillInvoked?.(name, args, 'success');
+      if (auditOk?.catch) auditOk.catch(() => {});
+      return { action: name, result, error: null };
     } catch (e) {
-      return { name, error: e.message };
+      const auditErr = this._auditSpace?.emitSkillInvoked?.(name, args, e.message);
+      if (auditErr?.catch) auditErr.catch(() => {});
+      return { action: name, error: e.message };
     }
   }
 

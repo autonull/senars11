@@ -209,7 +209,7 @@ async function startBotInProcess() {
         '--profile', 'parity',
         '--nick', 'SeNARchy',
         '--channel', '##metta',
-        '--debug',
+        '--provider', 'dummy',
     ], {
         cwd: '/home/me/senars10/bot',
         stdio: ['pipe', 'pipe', 'pipe'],
