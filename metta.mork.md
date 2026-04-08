@@ -426,7 +426,7 @@ MeTTa AST (Term.js)
 ### P3-B: SMT / Constraint Solver Integration  
 **New file**: `metta/src/extensions/SMTOps.js` (~100 LOC)
 
-**Rationale**: MORK integrates Z3 for constraint-safe reductions. A lightweight JS SMT polyfill (or thin wrapper around `z3-solver` npm package if available) enables verified probabilistic inference.
+**Rationale**: MORK integrates Z3 for constraint-safe reductions. A lightweight JS SMT polyfill (or thin wrapper around `z3-solver` pnpm package if available) enables verified probabilistic inference.
 
 **Design**:
 ```js
@@ -661,7 +661,7 @@ export const METTA_CONFIG = {
 | `TensorFunctor` Prolog-term model vs. MeTTa-term model mismatch | Medium | Bridge fails on edge cases | Adapter in `NeuralBridge.js` normalises `operator`/`name`/`components` fields |
 | JIT `new Function()` blocked by CSP | Low-Medium | JIT disabled | Gate behind `METTA_CONFIG.jit`; CSP violation logged once, then auto-disabled |
 | PathTrie rebalance pause on large inserts | Low | Latency spike | Run rebalance in microtask (`queueMicrotask`) off hot path |
-| `z3-solver` npm package size (~20MB WASM) | High | Bundle bloat | Default off (`smt: false`); dynamic `import()` only when enabled |
+| `z3-solver` pnpm package size (~20MB WASM) | High | Bundle bloat | Default off (`smt: false`); dynamic `import()` only when enabled |
 | IL compilation correctness for non-deterministic ops | Medium | Wrong results | Conservatively exclude `superpose`/`match` from IL compilation; mark them interpreter-only |
 
 ---

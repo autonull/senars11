@@ -2,18 +2,70 @@
  * common.js - Backward compatibility re-exports
  * Consolidates commonly used utilities
  */
-export * from './object.js';
 export * from './async.js';
-export * from './collection.js';
+// Export collection utils (excluding 'unique' to avoid conflict with MiscUtils.js)
+export {
+    sortByProperty,
+    filterBy,
+    findBy,
+    groupBy,
+    applyToAll,
+    createMap,
+    createSet,
+    chunk,
+    flatten,
+    flattenDeep,
+    calculateAverage,
+    calculateStatistics,
+    getPercentile,
+    getOutliers,
+    correlation,
+    sum,
+    min,
+    max,
+    partition
+} from './collection.js';
 export * from './math.js';
-export * from './string.js';
+// Export string utils (excluding 'isEmpty', 'generateId', 'formatTimestamp' to avoid conflict with MiscUtils.js)
+export {
+    cleanText,
+    capitalize,
+    truncate,
+    escapeRegExp,
+    safeJSONParse,
+    isValidLength,
+    isNonEmpty,
+    pad,
+    repeat
+} from './string.js';
 export * from './error.js';
 export * from './validate.js';
-export * from './config.js';
 export * from './func.js';
-export * from './perf.js';
+// Export perf utils (excluding 'debounce', 'throttle', 'memoize' to avoid conflict with func.js)
+export {
+    measureTime,
+    cacheWithTTL,
+    lazy,
+    rateLimit
+} from './perf.js';
 export * from './guard.js';
+// MiscUtils takes precedence for conflicting exports
 export * from './MiscUtils.js';
+// Export config (takes precedence for mergeConfig)
+export * from './config.js';
+// Export object utils (excluding mergeConfig to avoid conflict with config.js, pick/omit to avoid conflict with func.js)
+export {
+    freeze,
+    deepFreeze,
+    isObject,
+    deepClone,
+    safeClone,
+    selectiveDeepClone,
+    deepMerge,
+    deepMergeConfig,
+    safeGet,
+    setNestedProperty,
+    deepEqual,
+    validateWithSchema
+} from './object.js';
 
-// Re-export safeAsync from error.js for backward compatibility
-export { safeAsync } from './error.js';

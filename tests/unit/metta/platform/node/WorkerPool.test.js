@@ -3,7 +3,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { jest } from '@jest/globals';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Workaround for Jest VM environment
+const __filename = typeof __filename !== 'undefined' ? __filename : fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const workerScript = path.resolve(__dirname, '../../../../../metta/src/platform/node/metta-worker.js');
 
 describe('Node WorkerPool', () => {

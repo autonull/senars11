@@ -5,10 +5,10 @@
 | Goal | Command / Location |
 |------|-------------------|
 | Run reasoning | `const nar = new NAR(); nar.input('(a --> b).');` |
-| Start REPL | `npm run repl` |
+| Start REPL | `pnpm run repl` |
 | Run demos | `node agent/src/demo/demoRunner.js` |
 | Start MCP server | `node agent/src/mcp/start-server.js` |
-| Run all tests | `npm test` |
+| Run all tests | `pnpm test` |
 | Start WebSocket monitor | `node agent/src/server/WebSocketMonitor.js` |
 
 ## Subsystems
@@ -75,9 +75,9 @@ Examples:
 ## Verification
 
 ```bash
-npm test                    # All tests (99.8% pass rate)
-npm run test:unit           # Unit tests only
-npm run test:integration    # Integration tests
+pnpm test                    # All tests (99.8% pass rate)
+pnpm run test:unit           # Unit tests only
+pnpm run test:integration    # Integration tests
 node examples/phase10-final-demo.js  # Full system demo
 ```
 
@@ -161,7 +161,7 @@ reasoner.on('lm_failure', ({ provider, error }) => {
 
 | Issue | Quick Fix |
 |-------|-----------|
-| Module not found | `npm install && npm run build` |
+| Module not found | `pnpm install && pnpm run build` |
 | Tests failing | Check Node version: `node --version` (need >= 16.x) |
 | REPL not responding | Increase `cpuThrottleInterval` in config |
 | Out of memory | Reduce `memory.capacity` in config |

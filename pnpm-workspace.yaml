@@ -1,0 +1,7 @@
+packages:
+  - 'core'
+  - 'agent'
+  - 'ui'
+  - 'tensor'
+  - 'metta'
+  - 'rl'

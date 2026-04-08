@@ -1,3 +1,6 @@
+/**
+ * @jest-environment jsdom
+ */
 import {Knowledge, TruthValueUtils} from '../../../agent/src/know/Knowledge.js';
 import {DataTableKnowledge} from '../../../agent/src/know/DataTableKnowledge.js';
 

@@ -22,9 +22,13 @@ export function registerAdvancedOps(interpreter) {
     register({
         // Substitution operations
         '&subst': {
-            fn: (a, b, c) => c
-                ? Unify.subst(c, a.name ? { [a.name]: b } : {}, { recursive: false })
-                : Unify.subst(a, bindingsAtomToObj(b), { recursive: false }),
+            fn: (a, b, c) => {
+                if (c) {
+                    const bindings = a.name ? { [a.name]: b } : {};
+                    return Unify.subst(c, bindings, { recursive: false });
+                }
+                return Unify.subst(a, bindingsAtomToObj(b), { recursive: false });
+            },
             opts: { lazy: true }
         },
         '&let': {
@@ -82,20 +86,17 @@ export function registerAdvancedOps(interpreter) {
                 const results = match(s, typePattern, v('type'));
                 return results.length ? results[0] : sym('%Undefined%');
             },
-            opts: { lazy: true }
+            opts: {}
         },
-        'match-types': {
+        '&match-types': {
             fn: (t1, t2, thenBranch, elseBranch) => {
-                if (t1.name === '%Undefined%' || t2.name === '%Undefined%' ||
-                    t1.name === 'Atom' || t2.name === 'Atom') {
-                    return thenBranch;
-                }
-                const bindings = Unify.unify(t1, t2);
-                return bindings !== null ? thenBranch : elseBranch;
+                const isWildcard = (t) => t.name === '%Undefined%' || t.name === 'Atom';
+                if (isWildcard(t1) || isWildcard(t2)) return thenBranch;
+                return Unify.unify(t1, t2) !== null ? thenBranch : elseBranch;
             },
             opts: { lazy: true }
         },
-        'assert-type': {
+        '&assert-type': {
             fn: (atom, expectedType, space) => {
                 const s = space || interpreter.space;
                 const actualType = interpreter.ground.execute('&get-type', atom, s);
@@ -150,10 +151,12 @@ export function registerAdvancedOps(interpreter) {
         // Control flow operations
         '&if': {
             fn: (cond, thenB, elseB) => {
-                const res = interpreter._reduceDeterministic(cond);
-                if (res.name === 'True') return interpreter._reduceDeterministic(thenB);
-                if (res.name === 'False') return interpreter._reduceDeterministic(elseB);
-                return exp('if', [res, thenB, elseB]);
+                const results = interpreter.evaluate(cond);
+                const condRes = Array.isArray(results) ? (results.length > 0 ? results[0] : null) : results;
+
+                if (condRes?.name === 'True') return thenB;
+                if (condRes?.name === 'False') return elseB;
+                return exp(sym('if'), [condRes || cond, thenB, elseB]);
             },
             opts: { lazy: true }
         },

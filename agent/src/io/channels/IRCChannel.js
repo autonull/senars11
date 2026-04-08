@@ -2,19 +2,31 @@
  * IRCChannel.js - IRC Protocol Implementation
  * Wraps 'irc-framework' for resilient IRC connectivity.
  * Supports: channel messages, private messages, CTCP, actions, notices
+ * 
+ * Phase 5: Updated to extend Embodiment for unified I/O abstraction
  */
-import { Channel } from '../Channel.js';
+import { Embodiment } from '../Embodiment.js';
 import { Client } from 'irc-framework';
 import { Logger } from '@senars/core';
 
-export class IRCChannel extends Channel {
+export class IRCChannel extends Embodiment {
     constructor(config = {}) {
-        super(config);
+        super({
+            ...config,
+            name: config.name || 'IRC',
+            description: config.description || 'IRC chat channel',
+            capabilities: config.capabilities || ['private-messages', 'channel-ops', 'ctcp'],
+            constraints: { maxMessageLength: 512 },
+            isPublic: config.isPublic ?? true,
+            isInternal: false,
+            defaultSalience: config.defaultSalience ?? 0.5
+        });
+        
         this.type = 'irc';
         this.client = new Client();
         this.channels = new Set();
-        this.knownUsers = new Map(); // Track users per channel
-        this.pendingQueries = new Map(); // Track CTCP queries
+        this.knownUsers = new Map();
+        this.pendingQueries = new Map();
 
         this._setupClientEvents();
     }
@@ -39,11 +51,15 @@ export class IRCChannel extends Channel {
             const isPrivate = this._isPrivateMessage(event);
 
             // Emit as unified message event with isPrivate flag
-            this.emitMessage(from, content, {
-                channel: target,
-                type: event.type || 'message',
-                tags: event.tags,
-                isPrivate: isPrivate
+            this.emitMessage({
+                from,
+                content,
+                metadata: {
+                    channel: target,
+                    type: event.type || 'message',
+                    tags: event.tags,
+                    isPrivate
+                }
             });
         });
 
@@ -124,13 +140,9 @@ export class IRCChannel extends Channel {
             const content = event.message;
             const target = event.target;
 
-            this.emit('notice', {
-                id: `notice_${Date.now()}`,
-                channelId: this.id,
-                protocol: this.type,
+            this.emitMessage({
                 from,
                 content,
-                timestamp: Date.now(),
                 metadata: { channel: target, type: 'notice' }
             });
         });

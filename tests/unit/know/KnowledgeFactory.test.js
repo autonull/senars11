@@ -1,3 +1,6 @@
+/**
+ * @jest-environment jsdom
+ */
 import {Knowledge, KnowledgeFactory} from '../../../agent/src/know/index.js';
 
 class TestKnowledge extends Knowledge {

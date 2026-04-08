@@ -24,7 +24,8 @@ try {
     fork = null;
 }
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const _fileURLToPath = fileURLToPath;
+const __dirname_fixed = path.dirname(_fileURLToPath(import.meta.url));
 
 const DISTRIBUTED_DEFAULTS = {
     numWorkers: 4,
@@ -55,8 +56,8 @@ export class WorkerPool extends Component {
     async _spawnWorker(id) {
         const workerConfig = { workerData: { id, config: this.config }, stdout: true, stderr: true };
         const worker = this.config.workerType === 'process'
-            ? fork(path.join(__dirname, 'Worker.js'), workerConfig)
-            : new Worker(path.join(__dirname, 'Worker.js'), workerConfig);
+            ? fork(path.join(__dirname_fixed, 'Worker.js'), workerConfig)
+            : new Worker(path.join(__dirname_fixed, 'Worker.js'), workerConfig);
 
         const workerInfo = { id, worker, status: 'idle', currentTask: null, tasksCompleted: 0, createdAt: Date.now() };
 

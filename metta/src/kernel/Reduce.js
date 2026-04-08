@@ -19,15 +19,17 @@ import { Unify } from './Unify.js';
 const contextPool = [];
 const CONTEXT_POOL_SIZE = 100;
 
-function acquireContext(space, ground, limit, cache, reduceND) {
+function acquireContext(space, ground, limit, cache, reduceND, interpreter = null) {
   const ctx = contextPool.pop() || {};
   ctx.config = configManager;
   ctx.space = space;
   ctx.ground = ground;
   ctx.limit = limit;
+  ctx.steps = 0;
   ctx.cache = cache;
   ctx.Unify = Unify;
   ctx.reduceND = reduceND;
+  ctx.interpreter = interpreter;
   ctx._metrics = { stages: new Map(), startTime: Date.now() };
   return ctx;
 }
@@ -35,6 +37,7 @@ function acquireContext(space, ground, limit, cache, reduceND) {
 function releaseContext(ctx) {
   if (contextPool.length < CONTEXT_POOL_SIZE) {
     ctx._metrics.stages.clear();
+    ctx.steps = 0;
     contextPool.push(ctx);
   }
 }
@@ -112,8 +115,8 @@ export function reductionOptions() {
  * @param {ReductionCache} cache - Result cache
  * @returns {Object} { reduced, applied, deadEnd? }
  */
-export function step(atom, space, ground, limit = 10000, cache = null) {
-  const ctx = acquireContext(space, ground, limit, cache, globalReduceND);
+export function step(atom, space, ground, limit = 10000, cache = null, interpreter = null) {
+  const ctx = acquireContext(space, ground, limit, cache, globalReduceND, interpreter);
   try {
     const pl = getGlobalPipeline();
     const gen = pl.execute(atom, ctx);
@@ -152,14 +155,13 @@ export function* stepYield(atom, space, ground, limit = 10000, cache = null) {
  * @param {ReductionCache} cache - Result cache
  * @returns {Atom} Reduced atom
  */
-export function reduce(atom, space, ground, limit = 10000, cache = null) {
-  const ctx = acquireContext(space, ground, limit, cache, globalReduceND);
+export function reduce(atom, space, ground, limit = 10000, cache = null, interpreter = null) {
+  const ctx = acquireContext(space, ground, limit, cache, globalReduceND, interpreter);
   try {
     const pl = getGlobalPipeline();
     let current = atom;
-    let steps = 0;
 
-    while (steps < limit) {
+    while (ctx.steps < limit) {
       const gen = pl.execute(current, ctx);
       const { value, done } = gen.next();
 
@@ -168,10 +170,13 @@ export function reduce(atom, space, ground, limit = 10000, cache = null) {
       }
 
       current = value.reduced;
-      steps++;
+      ctx.steps++;
     }
 
-    throw new Error(`Max steps exceeded: ${limit} steps`);
+    if (ctx.steps >= limit) {
+        throw new Error(`Max steps exceeded: ${limit} steps`);
+    }
+    return current;
   } finally {
     releaseContext(ctx);
   }
@@ -186,8 +191,8 @@ export function reduce(atom, space, ground, limit = 10000, cache = null) {
  * @param {ReductionCache} cache - Result cache
  * @returns {Atom[]} All possible results
  */
-export function reduceND(atom, space, ground, limit = 10000, cache = null) {
-  const ctx = acquireContext(space, ground, limit, cache, globalReduceND);
+export function reduceND(atom, space, ground, limit = 10000, cache = null, interpreter = null) {
+  const ctx = acquireContext(space, ground, limit, cache, globalReduceND, interpreter);
   try {
     const results = [];
     const pl = getGlobalPipeline();

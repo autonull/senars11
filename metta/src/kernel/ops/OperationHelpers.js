@@ -2,9 +2,16 @@
  * OperationHelpers.js - Shared helper functions
  */
 
-import { sym, isExpression, constructList, isList, flattenList } from '../../kernel/Term.js';
+import { sym, exp, isExpression, constructList, isList, flattenList } from '../../kernel/Term.js';
 
 export class OperationHelpers {
+    /**
+     * Create an Error atom
+     */
+    static error(term, message) {
+        return exp(sym('Error'), [term, sym(message)]);
+    }
+
     /**
      * Convert an atom to a number
      */

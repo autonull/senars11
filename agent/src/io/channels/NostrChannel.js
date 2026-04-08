@@ -1,10 +1,12 @@
 /**
  * NostrChannel.js - Nostr Protocol Implementation
  * Uses 'nostr-tools' and 'ws' for decentralized messaging.
+ * 
+ * Phase 5: Updated to extend Embodiment for unified I/O abstraction
  */
-import { Channel } from '../Channel.js';
+import { Embodiment } from '../Embodiment.js';
 import { SimplePool, getPublicKey, finalizeEvent, nip19 } from 'nostr-tools';
-import { WebSocket } from 'ws'; // Node.js WebSocket polyfill if needed
+import { WebSocket } from 'ws';
 import { Logger } from '@senars/core';
 import { randomBytes } from 'crypto';
 
@@ -13,9 +15,19 @@ if (typeof global.WebSocket === 'undefined') {
     global.WebSocket = WebSocket;
 }
 
-export class NostrChannel extends Channel {
+export class NostrChannel extends Embodiment {
     constructor(config = {}) {
-        super(config);
+        super({
+            ...config,
+            name: config.name || 'Nostr',
+            description: config.description || 'Nostr decentralized channel',
+            capabilities: config.capabilities || ['private-messages', 'encryption', 'multi-relay'],
+            constraints: { maxMessageLength: 65536 },
+            isPublic: config.isPublic ?? true,
+            isInternal: false,
+            defaultSalience: config.defaultSalience ?? 0.6
+        });
+        
         this.type = 'nostr';
         this.pool = new SimplePool();
         this.relays = config.relays || ['wss://relay.damus.io', 'wss://relay.nostr.band'];
@@ -114,10 +126,6 @@ export class NostrChannel extends Channel {
 
         if (event.kind === 4) {
             try {
-                // Decryption requires nip04 implementation
-                // For this MVP, we might skip full NIP-04 decryption implementation
-                // unless 'nostr-tools' nip04 module is fully available and easy to use in this context.
-                // We'll placeholder it.
                 if (this.config.decrypt !== false) {
                      const { nip04 } = await import('nostr-tools');
                      content = await nip04.decrypt(this.sk, event.pubkey, event.content);
@@ -128,11 +136,15 @@ export class NostrChannel extends Channel {
             }
         }
 
-        this.emitMessage(event.pubkey, content, {
-            id: event.id,
-            kind: event.kind,
-            tags: event.tags,
-            created_at: event.created_at
+        this.emitMessage({
+            from: event.pubkey,
+            content,
+            metadata: {
+                id: event.id,
+                kind: event.kind,
+                tags: event.tags,
+                created_at: event.created_at
+            }
         });
     }
 

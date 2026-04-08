@@ -85,8 +85,10 @@ describe('Kernel Ground', () => {
             expect(result.name).toBe('5');
         });
 
-        test('&/ throws on division by zero', () => {
-            expect(() => ground.execute('&/', Term.sym('10'), Term.sym('0'))).toThrow(/zero/);
+        test('&/ returns Error on division by zero', () => {
+            const result = ground.execute('&/', Term.sym('10'), Term.sym('0'));
+            expect(result.operator.name).toBe('Error');
+            expect(result.components[1].name).toBe('Division by zero');
         });
 
         test('handles decimal numbers', () => {
@@ -94,8 +96,10 @@ describe('Kernel Ground', () => {
             expect(result.name).toBe('4');
         });
 
-        test('throws on non-numeric input', () => {
-            expect(() => ground.execute('&+', Term.sym('foo'), Term.sym('bar'))).toThrow(/number/);
+        test('returns Error on non-numeric input', () => {
+            const result = ground.execute('&+', Term.sym('foo'), Term.sym('bar'));
+            expect(result.operator.name).toBe('Error');
+            expect(result.components[1].name).toBe('Expected numbers');
         });
     });
 

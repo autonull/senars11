@@ -1,22 +1,24 @@
 /**
  * ChannelExtension.js - MeTTa Extension for Channel Primitives
- * Bridges the JS ChannelManager to MeTTa Atoms.
+ * Bridges the JS EmbodimentBus to MeTTa Atoms.
+ * 
+ * Phase 5: Updated to work with EmbodimentBus instead of ChannelManager
  */
 import { Term } from '../kernel/Term.js';
 import { Logger } from '../../../core/src/util/Logger.js';
 
 export class ChannelExtension {
-    constructor(interpreter, channelManager) {
+    constructor(interpreter, embodimentBus) {
         this.interpreter = interpreter;
-        this.channelManager = channelManager;
+        this.embodimentBus = embodimentBus;
         this.ground = interpreter.ground;
-        this.eventListeners = new Map(); // channelId -> [{ type, callback }]
+        this.eventListeners = new Map(); // embodimentId -> [{ type, callback }]
         this.agent = null; // Will be injected
     }
 
     register() {
-        this.ground.add('join-channel', this._joinChannel.bind(this));
-        this.ground.add('leave-channel', this._leaveChannel.bind(this));
+        this.ground.add('join-embodiment', this._joinEmbodiment.bind(this));
+        this.ground.add('leave-embodiment', this._leaveEmbodiment.bind(this));
         this.ground.add('send-message', this._sendMessage.bind(this));
         this.ground.add('web-search', this._webSearch.bind(this));
         this.ground.add('on-event', this._onEvent.bind(this));
@@ -27,56 +29,55 @@ export class ChannelExtension {
         this.ground.add('write-file', this._writeFile.bind(this));
 
         // Listen to all messages globally to route to specific listeners
-        this.channelManager.on('message', this._handleGlobalMessage.bind(this));
+        this.embodimentBus.on('message', this._handleGlobalMessage.bind(this));
 
         Logger.info('Channel primitives registered in MeTTa.');
     }
 
-    async _joinChannel(typeAtom, configAtom) {
-        // (join-channel <type> <config>)
+    async _joinEmbodiment(typeAtom, configAtom) {
         const type = typeAtom.name || typeAtom.toString();
         const config = this._atomToConfig(configAtom);
 
-        Logger.info(`[MeTTa] Joining channel: ${type} with config`, config);
+        Logger.info(`[MeTTa] Joining embodiment: ${type} with config`, config);
 
-        let ChannelClass;
+        let EmbodimentClass;
 
         try {
-            // Lazy import to avoid circular dependency
-            const { IRCChannel, NostrChannel } = await import('../../../agent/src/io/index.js');
+            const { IRCChannel, NostrChannel, CLIChannel } = await import('../../../agent/src/io/index.js');
 
-            if (type === 'irc') ChannelClass = IRCChannel;
-            else if (type === 'nostr') ChannelClass = NostrChannel;
-            else return Term.sym('Error:UnknownChannelType');
+            if (type === 'irc') EmbodimentClass = IRCChannel;
+            else if (type === 'nostr') EmbodimentClass = NostrChannel;
+            else if (type === 'cli') EmbodimentClass = CLIChannel;
+            else return Term.sym('Error:UnknownEmbodimentType');
 
-            const channel = new ChannelClass(config);
-            this.channelManager.register(channel);
-            await channel.connect();
+            const embodiment = new EmbodimentClass(config);
+            this.embodimentBus.register(embodiment);
+            await embodiment.connect();
 
-            return Term.sym(channel.id);
+            return Term.sym(embodiment.id);
         } catch (error) {
-            Logger.error('Error joining channel:', error);
+            Logger.error('Error joining embodiment:', error);
             return Term.sym('Error:JoinFailed');
         }
     }
 
-    async _leaveChannel(channelIdAtom) {
-        const id = channelIdAtom.name;
+    async _leaveEmbodiment(embodimentIdAtom) {
+        const id = embodimentIdAtom.name;
         try {
-            await this.channelManager.unregister(id);
+            await this.embodimentBus.unregister(id);
             return Term.sym('True');
         } catch (error) {
             return Term.sym('False');
         }
     }
 
-    async _sendMessage(channelIdAtom, targetAtom, contentAtom) {
-        const id = channelIdAtom.name;
+    async _sendMessage(embodimentIdAtom, targetAtom, contentAtom) {
+        const id = embodimentIdAtom.name;
         const target = targetAtom.name || targetAtom.toString().replace(/"/g, '');
         const content = contentAtom.name || contentAtom.toString().replace(/"/g, '');
 
         try {
-            await this.channelManager.sendMessage(id, target, content);
+            await this.embodimentBus.sendMessage(id, target, content);
             return Term.sym('True');
         } catch (error) {
             Logger.error(`Failed to send message to ${id}:`, error);

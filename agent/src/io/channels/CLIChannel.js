@@ -2,15 +2,26 @@
  * CLIChannel.js - Command Line Interface Channel
  * Provides interactive terminal-based communication.
  * Uses readline for input and supports colored output.
+ * 
+ * Phase 5: Updated to extend Embodiment for unified I/O abstraction
  */
-import { Channel } from '../Channel.js';
-import { EventEmitter } from 'events';
+import { Embodiment } from '../Embodiment.js';
 import { Logger } from '@senars/core';
 import * as readline from 'readline';
 
-export class CLIChannel extends Channel {
+export class CLIChannel extends Embodiment {
     constructor(config = {}) {
-        super(config);
+        super({
+            ...config,
+            name: config.name || 'CLI',
+            description: config.description || 'Command-line interface',
+            capabilities: config.capabilities || ['interactive', 'colored-output', 'history'],
+            constraints: {},
+            isPublic: false,
+            isInternal: false,
+            defaultSalience: config.defaultSalience ?? 0.8  // Higher salience for direct user input
+        });
+        
         this.type = 'cli';
         this.rl = null;
         this.inputQueue = [];
@@ -85,7 +96,7 @@ export class CLIChannel extends Channel {
 
     _handleInput(line) {
         const trimmed = line.trim();
-        
+
         // Add to history
         if (trimmed) {
             this.history.push(trimmed);
@@ -96,9 +107,13 @@ export class CLIChannel extends Channel {
         }
 
         // Emit message event
-        this.emitMessage('user', trimmed, {
-            type: 'input',
-            isPrivate: true
+        this.emitMessage({
+            from: 'user',
+            content: trimmed,
+            metadata: {
+                type: 'input',
+                isPrivate: true
+            }
         });
 
         // Resolve pending input promise if waiting
