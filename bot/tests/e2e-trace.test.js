@@ -2,7 +2,7 @@
 /**
  * e2e-trace.test.js — Full end-to-end trace of the bot pipeline.
  *
- * Starts the bot in-process with an embedded MockIRCServer, connects a raw TCP
+ * Starts the bot in-process with an embedded EmbeddedIRCServer, connects a raw TCP
  * client as a simulated IRC user, sends messages, and traces every step.
  *
  * Usage:
@@ -12,6 +12,13 @@
 import { createConnection } from 'net';
 import { spawn } from 'child_process';
 import { strict as assert } from 'assert';
+import { fileURLToPath } from 'url';
+import { dirname, join, resolve } from 'path';
+import { Logger, resolveWithFallback } from '@senars/core';
+
+const fallbackBotDir = () => join(process.cwd(), 'bot/src');
+const __dirname = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackBotDir);
+const BOT_DIR = resolve(__dirname, '..');
 
 /* ── Simulated IRC user (raw TCP client) ─────────────────────────────── */
 
@@ -85,45 +92,6 @@ function sleep(ms) {
     return new Promise(r => setTimeout(r, ms));
 }
 
-async function waitForPort(port, timeoutMs = 30000) {
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-        try {
-            await new Promise((resolve, reject) => {
-                const socket = createConnection({ host: '127.0.0.1', port });
-                socket.on('connect', () => { socket.destroy(); resolve(); });
-                socket.on('error', reject);
-                setTimeout(() => { socket.destroy(); reject(new Error('timeout')); }, 2000);
-            });
-            return;
-        } catch {
-            await sleep(1000);
-        }
-    }
-    throw new Error(`Timed out waiting for port ${port}`);
-}
-
-async function waitForBotReady(botProcess, port) {
-    return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Bot startup timed out')), 120000);
-        const checkPort = async () => {
-            try {
-                await waitForPort(port, 3000);
-                clearTimeout(timeout);
-                resolve();
-            } catch {
-                if (botProcess.killed) {
-                    clearTimeout(timeout);
-                    reject(new Error('Bot process exited before becoming ready'));
-                } else {
-                    setTimeout(checkPort, 1000);
-                }
-            }
-        };
-        checkPort();
-    });
-}
-
 /* ── Main ─────────────────────────────────────────────────────────────── */
 
 async function main() {
@@ -137,30 +105,29 @@ async function main() {
         '--profile', 'parity',
         '--nick', 'SeNARchy',
         '--channel', '##metta',
-        '--host', '127.0.0.1',
-        '--port', '6668',
-        '--debug',
+        '--provider', 'dummy',
     ], {
-        cwd: '/home/me/senars10/bot',
+        cwd: BOT_DIR,
         stdio: ['pipe', 'pipe', 'pipe'],
         env: { ...process.env, NODE_ENV: 'development' },
     });
 
     let botOutput = '';
     let botErrors = '';
+    let botPort = null;
 
     botProcess.stdout.on('data', (data) => {
         const str = data.toString();
         botOutput += str;
         process.stdout.write(`[BOT] ${str}`);
+        const m = str.match(/Embedded IRC server: 127\.0\.0\.1:(\d+)/);
+        if (m) botPort = parseInt(m[1], 10);
     });
-
     botProcess.stderr.on('data', (data) => {
         const str = data.toString();
         botErrors += str;
         process.stderr.write(`[BOT-ERR] ${str}`);
     });
-
     botProcess.on('exit', (code, signal) => {
         console.log(`\n[BOT] Process exited: code=${code}, signal=${signal}`);
         console.log(`[BOT] Total stdout: ${botOutput.length} chars`);
@@ -168,16 +135,22 @@ async function main() {
     });
 
     try {
-        // Step 2: Wait for embedded IRC server to be ready
-        console.log('[2/6] Waiting for embedded IRC server on port 6668...');
-        await waitForBotReady(botProcess, 6668);
-        console.log('✅ Embedded IRC server ready\n');
+        // Step 2: Wait for embedded IRC server to be ready (discover port from stdout)
+        console.log('[2/6] Waiting for embedded IRC server...');
+        const deadline = Date.now() + 30000;
+        while (!botPort && Date.now() < deadline) {
+            await sleep(200);
+            const m = botOutput.match(/Embedded IRC server: 127\.0\.0\.1:(\d+)/);
+            if (m) botPort = parseInt(m[1], 10);
+        }
+        if (!botPort) throw new Error('Bot never started embedded IRC server');
+        console.log(`✅ Embedded IRC server ready on port ${botPort}\n`);
 
         // Step 3: Connect fake user
         console.log('[3/6] Connecting test user...');
-        const user = new FakeIRCUser('127.0.0.1', 6668, 'testuser');
+        const user = new FakeIRCUser('127.0.0.1', botPort, 'testuser');
         await user.connect();
-        console.log('✅ Test user connected and joined ##metta\n');
+        console.log(`✅ Test user connected and joined ##metta (port ${botPort})\n`);
 
         // Give the bot a moment to settle
         await sleep(2000);
@@ -282,9 +255,9 @@ async function main() {
 
     } finally {
         console.log('\n── Cleanup ──');
-        botProcess.kill('SIGTERM');
+        if (!botProcess.killed) botProcess.kill('SIGTERM');
         await sleep(2000);
-        try { botProcess.kill('SIGKILL'); } catch {}
+        if (!botProcess.killed) { try { botProcess.kill('SIGKILL'); } catch {} }
         console.log('✅ Bot process terminated');
     }
 }

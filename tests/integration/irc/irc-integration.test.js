@@ -4,7 +4,7 @@
  * IRC Integration Test — Full pipeline over real TCP
  *
  * Tests the complete message flow:
- *   MockIRCServer (TCP) → irc-framework → IRCChannel → Embodiment →
+ *   EmbeddedIRCServer (TCP) → irc-framework → IRCChannel → Embodiment →
  *   EmbodimentBus → AgentMessageQueue → MeTTaLoop → respond → IRCChannel → TCP
  *
  * Also validates:
@@ -20,7 +20,7 @@
 import { IRCChannel } from '@senars/agent/io/index.js';
 import { EmbodimentBus } from '@senars/agent/io/index.js';
 import { Logger } from '@senars/core';
-import { MockIRCServer } from './MockIRCServer.js';
+import { EmbeddedIRCServer } from '@senars/bot/irc';
 
 Logger.setLevel('WARN'); // quiet during tests
 
@@ -80,7 +80,7 @@ describe('IRC Integration — Mock Server Pipeline', () => {
     let ircChannel;
 
     beforeEach(async () => {
-        mockServer = new MockIRCServer();
+        mockServer = new EmbeddedIRCServer();
         await mockServer.start();
         bus = new EmbodimentBus();
     });

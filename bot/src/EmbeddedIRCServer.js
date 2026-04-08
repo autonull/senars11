@@ -1,37 +1,50 @@
-#!/usr/bin/env node
-
 /**
- * MockIRCServer.js — In-process TCP IRC server for integration testing
+ * EmbeddedIRCServer — In-process TCP IRC server
  *
- * Implements a minimal RFC 1459-compatible IRC server that:
- * - Accepts multiple client connections via TCP
- * - Handles NICK/USER registration
- * - Routes PRIVMSG between clients on shared channels
- * - Supports JOIN/PART/QUIT
- * - Sends proper numeric reply codes for registration
+ * A minimal RFC 1459-compatible IRC server for single-node deployments.
+ * No external IRC server required — the bot hosts its own.
  *
- * Designed for integration tests that connect the real IRCChannel
- * (via irc-framework) to a local server with no external dependencies.
+ * Capabilities:
+ * - Multi-client TCP connections
+ * - NICK/USER registration with proper numeric replies
+ * - JOIN/PART/QUIT on channels
+ * - PRIVMSG routing (channel and private)
+ * - CAP negotiation
+ * - Message capture for diagnostics
+ *
+ * Usage:
+ *   const server = new EmbeddedIRCServer();
+ *   const port = await server.start(6668);
+ *   await server.stop();
  */
 import { createServer } from 'net';
 import { EventEmitter } from 'events';
 
-export class MockIRCServer extends EventEmitter {
+export class EmbeddedIRCServer extends EventEmitter {
     constructor() {
         super();
         this._server = null;
         this._port = 0;
-        this._clients = new Map();  // socket → { nick, user, channels }
-        this._channels = new Map();  // channelName → Set<socket>
+        this._clients = new Map();
+        this._channels = new Map();
         this._capturedMessages = [];
     }
 
     /* ── Lifecycle ─────────────────────────────────────────────────── */
 
+    /**
+     * Start listening on the given port. Idempotent — returns existing port if already running.
+     * @param {number} [port=0] — 0 for auto-assign
+     * @returns {Promise<number>} the actual port bound
+     */
     async start(port = 0) {
+        if (this._server) return this._port;
         return new Promise((resolve, reject) => {
             this._server = createServer((socket) => this._handleConnection(socket));
-            this._server.on('error', reject);
+            this._server.on('error', (err) => {
+                this._server = null;
+                reject(err);
+            });
             this._server.listen(port, '127.0.0.1', () => {
                 this._port = this._server.address().port;
                 this.emit('started', { port: this._port });
@@ -40,10 +53,13 @@ export class MockIRCServer extends EventEmitter {
         });
     }
 
+    /**
+     * Stop the server and disconnect all clients. Idempotent.
+     */
     async stop() {
         if (!this._server) return;
         for (const socket of this._clients.keys()) {
-            socket.destroy();
+            try { socket.destroy(); } catch {}
         }
         this._clients.clear();
         this._channels.clear();
@@ -59,51 +75,27 @@ export class MockIRCServer extends EventEmitter {
     get port() { return this._port; }
     get clientCount() { return this._clients.size; }
     get capturedMessages() { return [...this._capturedMessages]; }
-
     clearCapturedMessages() { this._capturedMessages = []; }
 
-    /* ── Server-side message injection ────────────────────────────── */
+    /* ── Server-side injection (diagnostics / simulated users) ─────── */
 
-    /**
-     * Inject a message from a simulated user into a channel.
-     * Writes directly to all channel members' sockets (the bot).
-     * The simulated user doesn't need to be connected — the server
-     * fabricates the wire-format message as if the user sent it.
-     */
     simulateUserMessage(nick, channel, content) {
-        const msg = `:${nick}!~user@localhost PRIVMSG ${channel} :${content}`;
-        this._broadcastToChannel(channel, msg);
+        this._broadcastToChannel(channel, `:${nick}!~user@localhost PRIVMSG ${channel} :${content}`);
         this._capturedMessages.push({ from: nick, channel, content, type: 'privmsg' });
     }
 
-    /**
-     * Inject a private message from a simulated user to the bot.
-     */
     simulatePrivateMessage(nick, targetNick, content) {
-        const msg = `:${nick}!~user@localhost PRIVMSG ${targetNick} :${content}`;
-        this._sendToNick(targetNick, msg);
+        this._sendToNick(targetNick, `:${nick}!~user@localhost PRIVMSG ${targetNick} :${content}`);
         this._capturedMessages.push({ from: nick, channel: targetNick, content, type: 'private' });
     }
 
-    /**
-     * Simulate a user joining a channel.
-     * Broadcasts the JOIN wire message to all channel members.
-     */
     simulateJoin(nick, channel) {
-        const joinMsg = `:${nick}!~user@localhost JOIN ${channel}`;
-        this._broadcastToChannel(channel, joinMsg);
+        this._broadcastToChannel(channel, `:${nick}!~user@localhost JOIN ${channel}`);
         this._capturedMessages.push({ from: nick, channel, content: null, type: 'join' });
     }
 
-    /**
-     * Simulate a server MOTD / numeric reply (no nick).
-     * Tests boundary validation: should be dropped by IRCChannel.
-     */
     simulateServerMessage(targetNick, content) {
-        // Send a message with no source nick (server-only message)
-        // This simulates numeric replies like :irc.server 376 <nick> :End of MOTD
-        const msg = `${content}`;
-        this._sendToNick(targetNick, msg);
+        this._sendToNick(targetNick, content);
     }
 
     /* ── Connection handling ──────────────────────────────────────── */
@@ -111,7 +103,6 @@ export class MockIRCServer extends EventEmitter {
     _handleConnection(socket) {
         const clientInfo = { nick: null, user: null, channels: new Set(), registered: false, cleanedUp: false };
         this._clients.set(socket, clientInfo);
-
         let buffer = '';
 
         const cleanup = () => {
@@ -124,15 +115,11 @@ export class MockIRCServer extends EventEmitter {
         socket.on('data', (data) => {
             buffer += data.toString('utf-8');
             const lines = buffer.split('\r\n');
-            buffer = lines.pop(); // keep incomplete line
-
+            buffer = lines.pop();
             for (const line of lines) {
-                if (line.trim()) {
-                    this._handleCommand(socket, clientInfo, line.trim());
-                }
+                if (line.trim()) this._handleCommand(socket, clientInfo, line.trim());
             }
         });
-
         socket.on('close', cleanup);
         socket.on('error', cleanup);
     }
@@ -140,36 +127,24 @@ export class MockIRCServer extends EventEmitter {
     _handleCommand(socket, clientInfo, line) {
         const parts = line.split(' ');
         const cmd = parts[0].toUpperCase();
-
         switch (cmd) {
-            case 'NICK':
-                this._handleNick(socket, clientInfo, parts[1]);
-                break;
-            case 'USER':
-                this._handleUser(socket, clientInfo, parts.slice(1));
-                break;
+            case 'NICK': this._handleNick(socket, clientInfo, parts[1]); break;
+            case 'USER': this._handleUser(socket, clientInfo, parts.slice(1)); break;
             case 'JOIN': {
-                const channel = parts[1];
-                if (channel && channel.startsWith('#')) {
-                    this._handleJoin(socket, clientInfo, channel);
-                }
+                const ch = parts[1];
+                if (ch?.startsWith('#')) this._handleJoin(socket, clientInfo, ch);
                 break;
             }
             case 'PART': {
-                const channel = parts[1];
-                const reason = parts.slice(2).join(' ').replace(/^:/, '') || 'Left';
-                if (channel) {
-                    this._handlePart(socket, clientInfo, channel, reason);
-                }
+                const ch = parts[1];
+                if (ch) this._handlePart(socket, clientInfo, ch, parts.slice(2).join(' ').replace(/^:/, '') || 'Left');
                 break;
             }
             case 'PRIVMSG': {
                 const target = parts[1];
                 const msgIdx = line.indexOf(':', line.indexOf(target) + target.length);
-                const content = msgIdx >= 0 ? line.substring(msgIdx + 1) : (parts.slice(2).join(' '));
-                if (target && content !== undefined) {
-                    this._handlePrivMsg(socket, clientInfo, target, content);
-                }
+                const content = msgIdx >= 0 ? line.substring(msgIdx + 1) : parts.slice(2).join(' ');
+                if (target && content !== undefined) this._handlePrivMsg(socket, clientInfo, target, content);
                 break;
             }
             case 'QUIT': {
@@ -179,15 +154,8 @@ export class MockIRCServer extends EventEmitter {
                 socket.destroy();
                 break;
             }
-            case 'PONG':
-                // Silently accept pongs
-                break;
-            case 'CAP':
-                // Send CAP ACK
-                this._send(socket, 'CAP * ACK');
-                break;
-            default:
-                break;
+            case 'PONG': break;
+            case 'CAP': this._send(socket, 'CAP * ACK'); break;
         }
     }
 
@@ -196,16 +164,14 @@ export class MockIRCServer extends EventEmitter {
         const oldNick = clientInfo.nick;
         clientInfo.nick = nick;
         this._tryRegister(socket, clientInfo);
-
-        // Notify channels of nick change
         if (oldNick) {
-            for (const channel of clientInfo.channels) {
-                this._broadcastToChannel(channel, `:${oldNick}!~user@localhost NICK ${nick}`);
+            for (const ch of clientInfo.channels) {
+                this._broadcastToChannel(ch, `:${oldNick}!~user@localhost NICK ${nick}`);
             }
         }
     }
 
-    _handleUser(socket, clientInfo, _args) {
+    _handleUser(socket, clientInfo) {
         clientInfo.user = 'user';
         this._tryRegister(socket, clientInfo);
     }
@@ -213,91 +179,61 @@ export class MockIRCServer extends EventEmitter {
     _tryRegister(socket, clientInfo) {
         if (clientInfo.registered || !clientInfo.nick || !clientInfo.user) return;
         clientInfo.registered = true;
-
         const nick = clientInfo.nick;
         const host = 'localhost';
-
-        // Send welcome numerics
-        this._send(socket, `:${host} 001 ${nick} :Welcome to the Mock IRC Network, ${nick}`);
-        this._send(socket, `:${host} 002 ${nick} :Your host is mock-irc, running version 0.0.1`);
+        this._send(socket, `:${host} 001 ${nick} :Welcome to the IRC Network, ${nick}`);
+        this._send(socket, `:${host} 002 ${nick} :Your host is embedded-irc, running version 0.0.1`);
         this._send(socket, `:${host} 003 ${nick} :This server was started recently`);
-        this._send(socket, `:${host} 004 ${nick} mock-irc 0.0.1 io`);
+        this._send(socket, `:${host} 004 ${nick} embedded-irc 0.0.1 io`);
         this._send(socket, `:${host} 251 ${nick} :There are 1 users and 0 invisible on 1 server`);
         this._send(socket, `:${host} 255 ${nick} :I have 1 clients and 0 servers`);
-
-        // MOTD
-        this._send(socket, `:${host} 375 ${nick} :- mock-irc Message of the Day -`);
-        this._send(socket, `:${host} 372 ${nick} :- Welcome to the mock IRC server for testing!`);
+        this._send(socket, `:${host} 375 ${nick} :- embedded-irc Message of the Day -`);
+        this._send(socket, `:${host} 372 ${nick} :- Welcome to the embedded IRC server!`);
         this._send(socket, `:${host} 376 ${nick} :End of /MOTD command.`);
-
         this.emit('client-registered', { nick, socket });
     }
 
     _handleJoin(socket, clientInfo, channel) {
         if (!clientInfo.registered) return;
-
-        if (!this._channels.has(channel)) {
-            this._channels.set(channel, new Set());
-        }
+        if (!this._channels.has(channel)) this._channels.set(channel, new Set());
         this._channels.get(channel).add(socket);
         clientInfo.channels.add(channel);
 
-        // Send join confirmation and names
         const joinMsg = `:${clientInfo.nick}!~user@localhost JOIN ${channel}`;
         this._send(socket, joinMsg);
         this._broadcastToChannel(channel, joinMsg, socket);
 
-        // NAMES reply
         const nicks = Array.from(this._channels.get(channel))
-            .map(s => this._clients.get(s)?.nick)
-            .filter(Boolean)
-            .join(' ');
-        this._send(socket, `:${'localhost'} 353 ${clientInfo.nick} = ${channel} :${nicks}`);
-        this._send(socket, `:${'localhost'} 366 ${clientInfo.nick} ${channel} :End of /NAMES list.`);
-
+            .map(s => this._clients.get(s)?.nick).filter(Boolean).join(' ');
+        this._send(socket, `:localhost 353 ${clientInfo.nick} = ${channel} :${nicks}`);
+        this._send(socket, `:localhost 366 ${clientInfo.nick} ${channel} :End of /NAMES list.`);
         this.emit('user-joined', { nick: clientInfo.nick, channel });
     }
 
     _handlePart(socket, clientInfo, channel, reason) {
         if (!clientInfo.channels.has(channel)) return;
-
         clientInfo.channels.delete(channel);
         const ch = this._channels.get(channel);
-        if (ch) {
-            ch.delete(socket);
-            if (ch.size === 0) this._channels.delete(channel);
-        }
-
-        const partMsg = `:${clientInfo.nick}!~user@localhost PART ${channel} :${reason}`;
-        this._broadcastToChannel(channel, partMsg);
+        if (ch) { ch.delete(socket); if (ch.size === 0) this._channels.delete(channel); }
+        this._broadcastToChannel(channel, `:${clientInfo.nick}!~user@localhost PART ${channel} :${reason}`);
     }
 
     _handlePrivMsg(socket, clientInfo, target, content) {
         if (!clientInfo.registered) return;
-
         if (target.startsWith('#')) {
             const msg = `:${clientInfo.nick}!~user@localhost PRIVMSG ${target} :${content}`;
             this._broadcastToChannel(target, msg, socket);
-            this._capturedMessages.push({
-                from: clientInfo.nick, channel: target, content, type: 'privmsg'
-            });
+            this._capturedMessages.push({ from: clientInfo.nick, channel: target, content, type: 'privmsg' });
         } else {
-            // Private message
-            const msg = `:${clientInfo.nick}!~user@localhost PRIVMSG ${target} :${content}`;
-            this._sendToNick(target, msg);
-            this._capturedMessages.push({
-                from: clientInfo.nick, channel: target, content, type: 'private'
-            });
+            this._sendToNick(target, `:${clientInfo.nick}!~user@localhost PRIVMSG ${target} :${content}`);
+            this._capturedMessages.push({ from: clientInfo.nick, channel: target, content, type: 'private' });
         }
     }
 
     _handleQuit(socket, clientInfo, reason) {
         if (!clientInfo.nick) return;
-
         const quitMsg = `:${clientInfo.nick}!~user@localhost QUIT :${reason}`;
-        for (const channel of clientInfo.channels) {
-            this._broadcastToChannel(channel, quitMsg, socket);
-        }
+        for (const ch of clientInfo.channels) this._broadcastToChannel(ch, quitMsg, socket);
         clientInfo.channels.clear();
         this.emit('user-quit', { nick: clientInfo.nick, reason });
     }
@@ -312,9 +248,10 @@ export class MockIRCServer extends EventEmitter {
     }
 
     _send(socket, message) {
-        if (socket && !socket.destroyed) {
-            socket.write(message + '\r\n');
-        }
+        if (!socket || socket.destroyed) return;
+        socket.write(message + '\r\n', (err) => {
+            if (err) socket.destroy();
+        });
     }
 
     _sendToNick(nick, message) {
@@ -324,15 +261,9 @@ export class MockIRCServer extends EventEmitter {
 
     _broadcastToChannel(channel, message, excludeSocket = null) {
         const members = this._channels.get(channel);
-        if (!members) {
-            return;
-        }
-        let sent = 0;
+        if (!members) return;
         for (const socket of members) {
-            if (socket !== excludeSocket) {
-                this._send(socket, message);
-                sent++;
-            }
+            if (socket !== excludeSocket) this._send(socket, message);
         }
     }
 }

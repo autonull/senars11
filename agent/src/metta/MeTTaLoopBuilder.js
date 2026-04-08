@@ -123,9 +123,10 @@ export class MeTTaLoopBuilder {
         const msgQueue = new AgentMessageQueue(this.agent.embodimentBus, this.#cap);
 
         // Create ContextBuilder early so op registrar can delegate to it
+        // When contextBudgets is disabled, provide a minimal fallback
         const contextBuilder = this.#cap('contextBudgets')
             ? await this.#createContextBuilder(this._loopState, this._dispatcher, interp)
-            : null;
+            : this.#minimalContextBuilder();
 
         const opRegistrar = new MeTTaOpRegistrar(this.agent, this.agentCfg, this._dispatcher, this._loopState, budget, Term, this.#cap, llmInvoker);
         opRegistrar.registerBasicOps(interp, () => msgQueue.dequeue());
@@ -207,60 +208,66 @@ export class MeTTaLoopBuilder {
                     }
 
                     // Build context, invoke LLM, parse and execute actions
-                    Logger.info(`[MeTTa] Building context for cycle ${loopState.cycleCount}...`);
-                    const ctx = await contextBuilder.build(msg.text, loopState.cycleCount, loopState.wm);
-                    Logger.info(`[MeTTa] Context built: ${ctx?.length ?? 0} chars`);
-                    Logger.info(`[MeTTa] Invoking LLM...`);
-                    const resp = await llmInvoker.invoke(ctx);
-                    Logger.info(`[MeTTa] LLM response: ${String(resp).substring(0, 120)}`);
-                    const { cmds, error } = this.#parseResponse(resp, loopState);
-                    Logger.info(`[MeTTa] LLM: ${String(resp).substring(0, 120)}`);
-                    if (cmds.length) {
-                        Logger.debug(`[MeTTa] Actions: ${cmds.map(c => c.name).join(', ')}`);
-                    } else if (error) {
-                        Logger.debug(`[MeTTa] Parse error: ${error}`);
-                    }
-
+                    let resp = '';
                     let results = [];
-                    if (cmds.length) {
-                        try { results = await this.#executeCommands(cmds, loopState); }
-                        catch (err) { Logger.error('[MeTTa execute-commands]', err.message); }
-                        loopState.lastresults = results;
-                    }
-
-                    // ── Send response back to user ──────────────────────────
-                    // Only send if no successful respond action was already dispatched
-                    // (the respond handler sends directly; we only fill in when it didn't)
-                    const responded = results.some(r => r.action === 'respond' && !r.error);
-                    if (!responded) {
-                        const replyText = this.#extractReplyText(resp, results);
-                        if (replyText) {
-                            await this.#sendReply(loopState.lastmsg, replyText);
+                    try {
+                        Logger.info(`[MeTTa] Building context for cycle ${loopState.cycleCount}...`);
+                        const ctx = await contextBuilder.build(msg.text, loopState.cycleCount, loopState.wm);
+                        Logger.info(`[MeTTa] Context built: ${ctx?.length ?? 0} chars`);
+                        Logger.info('[MeTTa] Invoking LLM...');
+                        resp = await llmInvoker.invoke(ctx);
+                        Logger.info(`[MeTTa] LLM response: ${String(resp).substring(0, 120)}`);
+                        const { cmds, error } = this.#parseResponse(resp, loopState);
+                        if (cmds.length) {
+                            Logger.debug(`[MeTTa] Actions: ${cmds.map(c => c.name).join(', ')}`);
+                        } else if (error) {
+                            Logger.debug(`[MeTTa] Parse error: ${error}`);
                         }
-                    }
 
-                    // ── Post-cycle bookkeeping ──────────────────────────────
-                    if (this.#cap('persistentHistory')) {
-                        loopState.historyBuffer.push([
-                            `USER: ${msg.text}`, `AGENT: ${resp}`,
-                            `RESULT: ${JSON.stringify(results)}`
-                        ].join('\n'));
-                    }
-
-                    if (this.#cap('auditLog')) {
-                        await this._dispatcher._ensureSafetyAndAudit();
-                        if (this._dispatcher._auditSpace) {
-                            await this._dispatcher._auditSpace.emitCycleAudit(msg.text, resp, results);
+                        if (cmds.length) {
+                            try { results = await this.#executeCommands(cmds, loopState); }
+                            catch (err) { Logger.error('[MeTTa execute-commands]', err.message); }
+                            loopState.lastresults = results;
                         }
-                    }
 
-                    if (harnessOptimizer?.shouldOptimize(loopState.cycleCount)) {
-                        const result = await harnessOptimizer.runOptimizationCycle();
-                        this.#emit('optimization', { cycle: loopState.cycleCount, reason: result.reason });
+                        // ── Send response back to user ──────────────────────────
+                        const responded = results.some(r => r.action === 'respond' && !r.error);
+                        if (!responded) {
+                            const replyText = this.#extractReplyText(resp, results);
+                            if (replyText) {
+                                await this.#sendReply(loopState.lastmsg, replyText);
+                            }
+                        }
+
+                        // ── Post-cycle bookkeeping ──────────────────────────────
+                        if (this.#cap('persistentHistory')) {
+                            loopState.historyBuffer.push([
+                                `USER: ${msg.text}`, `AGENT: ${resp}`,
+                                `RESULT: ${JSON.stringify(results)}`
+                            ].join('\n'));
+                        }
+
+                        if (this.#cap('auditLog')) {
+                            await this._dispatcher._ensureSafetyAndAudit();
+                            if (this._dispatcher._auditSpace) {
+                                await this._dispatcher._auditSpace.emitCycleAudit(msg.text, resp, results);
+                            }
+                        }
+
+                        if (harnessOptimizer?.shouldOptimize(loopState.cycleCount)) {
+                            const result = await harnessOptimizer.runOptimizationCycle();
+                            this.#emit('optimization', { cycle: loopState.cycleCount, reason: result.reason });
+                        }
+                    } catch (err) {
+                        Logger.error(`[MeTTa cycle ${loopState.cycleCount}] Error:`, err.message);
+                        loopState.error = err.message;
+                        loopState.lastresults = [];
+                        resp = '';
+                        results = [];
                     }
 
                     loopState.cycleCount++;
-                    this.#emit('cycle-end', { cycle: loopState.cycleCount, budget: budget.current, error });
+                    this.#emit('cycle-end', { cycle: loopState.cycleCount, budget: budget.current, error: loopState.error });
 
                     await this.#sleep();
                 }
@@ -442,6 +449,22 @@ export class MeTTaLoopBuilder {
             { getRecent: async n => loopState.historyBuffer.slice(-n) }, dispatcher, introspectionOps, this.agent);
         cb.registerGroundedOps(interp);
         return cb;
+    }
+
+    /**
+     * Minimal context builder for when contextBudgets is disabled (e.g., minimal profile).
+     * Provides just enough context for the LLM to function — input text and action definitions.
+     */
+    #minimalContextBuilder() {
+        return {
+            build: (msg) => {
+                const actions = this._dispatcher?.getActiveActionDefs() ?? '(no actions available)';
+                return `You are SeNARchy, a helpful AI assistant.\n\n` +
+                    `AVAILABLE ACTIONS:\n${actions}\n\n` +
+                    `To take actions, respond with JSON: {"actions":[{"name":"action","args":["..."]}]}.\n\n` +
+                    `INPUT: ${msg}`;
+            }
+        };
     }
 
     async #maybeInitHarnessOptimizer(loopState, auditSpace) {

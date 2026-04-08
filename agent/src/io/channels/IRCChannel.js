@@ -276,14 +276,14 @@ export class IRCChannel extends Embodiment {
     }
 
     async disconnect() {
-        if (this.status === 'disconnected') {
-            return;
-        }
-        this._sendQueue.forEach(({reject}) => reject(new Error('Disconnecting')));
+        if (this.status === 'disconnected') return;
+        this._sendQueue.forEach(({ reject }) => reject(new Error('Disconnecting')));
         this._sendQueue = [];
         this._processingQueue = false;
-        this.client.quit(this.config.quitMessage || 'Leaving...');
         this.knownUsers.clear();
+        try { this.client.quit(this.config.quitMessage || 'Leaving...'); }
+        catch (e) { Logger.warn(`[IRC:${this.id}] quit error:`, e.message); }
+        this.setStatus('disconnected');
     }
 
     async join(channel) {

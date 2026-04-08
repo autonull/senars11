@@ -34,6 +34,7 @@ export class Embodiment extends EventEmitter {
     }
 
     calculateSalience(message) {
+        if (!message) return this.profile.defaultSalience;
         let salience = this.profile.defaultSalience;
         if (message.isPrivate || message.isMention) {
             salience += 0.2;

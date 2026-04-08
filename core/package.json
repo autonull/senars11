@@ -6,7 +6,6 @@
   "exports": {
     ".": "./src/index.js",
     "./util/*.js": "./src/util/*.js",
-    "./util/*.js": "./src/util/*.js",
     "./config/*.js": "./src/config/*.js",
     "./lm/*.js": "./src/lm/*.js",
     "./errors/*.js": "./src/errors/*.js",

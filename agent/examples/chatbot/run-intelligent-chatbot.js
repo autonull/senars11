@@ -169,8 +169,8 @@ class IntelligentChatBot {
     async _maybeStartHostedServer() {
         if (this.config.host) return null;
 
-        const { MockIRCServer } = await import('../../tests/integration/irc/MockIRCServer.js');
-        const server = new MockIRCServer();
+        const { EmbeddedIRCServer } = await import('@senars/bot/irc');
+        const server = new EmbeddedIRCServer();
         const port = this.config.hostedPort ?? 6668;
         await server.start(port);
 

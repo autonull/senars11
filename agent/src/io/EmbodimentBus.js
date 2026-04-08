@@ -257,11 +257,16 @@ export class EmbodimentBus extends EventEmitter {
     async shutdown() {
         if (this._shuttingDown) return;
         this._shuttingDown = true;
-        const promises = Array.from(this.embodiments.values()).map(e => e.disconnect());
-        await Promise.all(promises);
+        let failures = 0;
+        await Promise.allSettled(
+            Array.from(this.embodiments.values()).map(async e => {
+                try { await e.disconnect?.(); }
+                catch (err) { failures++; Logger.warn(`[${e.id}] disconnect error:`, err.message); }
+            })
+        );
         this.embodiments.clear();
         this._messageQueue = [];
-        Logger.info('EmbodimentBus shutdown complete');
+        Logger.info(`EmbodimentBus shutdown complete${failures ? ` (${failures} errors)` : ''}`);
     }
 
     // ── Private ──────────────────────────────────────────────────────

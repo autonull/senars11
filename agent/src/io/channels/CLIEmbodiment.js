@@ -31,6 +31,10 @@ export class CLIEmbodiment extends Embodiment {
     }
 
     async connect() {
+        if (!process.stdin.isTTY) {
+            Logger.warn('[CLI] stdin is not a TTY — interactive mode may not work as expected');
+        }
+
         this._rl = readline.createInterface({ input: process.stdin, output: process.stdout });
         this.setStatus('connected');
 

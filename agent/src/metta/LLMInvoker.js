@@ -46,15 +46,19 @@ export class LLMInvoker {
         if (this.#cap('multiModelRouting') && this.#agent.modelRouter) {
             return this.#invokeWithRouter(ctxStr);
         }
-        
-        // Transformers cold start can take 60+ seconds on first inference
-        const result = await Promise.race([
-            this.#agent.ai.generate(ctxStr, { maxTokens: 256 }),
-            new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('LLM generation timed out after 90s')), 90000);
-            })
-        ]);
-        return result.text ?? '';
+
+        let timer;
+        try {
+            const result = await Promise.race([
+                this.#agent.ai.generate(ctxStr, { maxTokens: 256 }),
+                new Promise((_, reject) => {
+                    timer = setTimeout(() => reject(new Error('LLM generation timed out after 90s')), 90000);
+                })
+            ]);
+            return result.text ?? '';
+        } finally {
+            clearTimeout(timer);
+        }
     }
 
     async #invokeWithRouter(ctxStr) {

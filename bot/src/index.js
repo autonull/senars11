@@ -1,35 +1,27 @@
-#!/usr/bin/env node
-
 /**
  * SeNARS Bot — Unified Bot Runtime
  *
  * Single cognitive pipeline with config-driven multi-embodiment support.
  *
- *   import { createBot, Bot } from '@senars/bot';
+ * Programmatic API:
+ *   import { createBot, Bot, registerEmbodimentFactory } from '@senars/bot';
  *   const bot = await createBot(config);
  *   await bot.start();
+ *
+ * Extending:
+ *   registerEmbodimentFactory('nostr', createNostrEmbodiment);
  */
 
 import { Agent } from '@senars/agent';
 import { IRCChannel, CLIEmbodiment, DemoEmbodiment } from '@senars/agent/io/index.js';
-import { Logger } from '@senars/core';
-import { join, resolve } from 'path';
+import { join, resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { Logger, resolveWithFallback } from '@senars/core';
+import { EmbeddedIRCServer } from './EmbeddedIRCServer.js';
 
-// Resolve __dirname in both ESM and Jest environments
-let __dirname;
-try {
-    const { fileURLToPath, dirname } = await import('url');
-    __dirname = dirname(fileURLToPath(import.meta.url));
-} catch {
-    __dirname = resolve(process.cwd(), 'bot/src');
-}
+const fallbackBotDir = () => join(process.cwd(), 'bot/src');
+const __dirname = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackBotDir);
 const __root = join(__dirname, '../..');
-
-const EMBODIMENT_FACTORIES = {
-    irc: createIRCEmbodiment,
-    cli: createCLIEmbodiment,
-    demo: createDemoEmbodiment,
-};
 
 const DEFAULT_LM = {
     provider: 'transformers',
@@ -38,16 +30,59 @@ const DEFAULT_LM = {
     maxTokens: 256,
 };
 
+/**
+ * Embodiment factory registry. External packages can add new types
+ * via registerEmbodimentFactory(type, fn).
+ *
+ * Factory signature: (def, cfg, ctx) => Promise<Embodiment[]>
+ *   def  — embodiment definition from config (e.g. { host, port, channels })
+ *   cfg  — merged bot config
+ *   ctx  — lifecycle context { onCleanup(fn) }
+ */
+const _embodimentFactories = new Map();
+
+function registerBuiltinFactories() {
+    _embodimentFactories.set('irc', createIRCEmbodiment);
+    _embodimentFactories.set('cli', createCLIEmbodiment);
+    _embodimentFactories.set('demo', createDemoEmbodiment);
+}
+registerBuiltinFactories();
+
+/**
+ * Register a custom embodiment factory.
+ * @param {string} type - embodiment type identifier (e.g. 'nostr', 'matrix')
+ * @param {function} factory - async (def, cfg, ctx) => Embodiment[]
+ */
+export function registerEmbodimentFactory(type, factory) {
+    if (typeof factory !== 'function') {
+        throw new TypeError(`Embodiment factory for "${type}" must be a function`);
+    }
+    _embodimentFactories.set(type, factory);
+    Logger.info(`[Bot] Registered embodiment factory: ${type}`);
+}
+
 export class Bot {
     #config;
     #agent;
     #embodiments = [];
     #started = false;
     #startTime;
-    #embeddedServers = [];
+    #cleanupFns = [];
+    #shutdownCalled = false;
+    #loopState = { running: false, paused: false, cycleCount: 0, llmReady: false };
+    #readyResolve;
+    #readyReject;
+    #readyPromise;
 
+    /**
+     * @param {object} config — merged config from mergeConfig() or loadConfig()
+     */
     constructor(config) {
         this.#config = Object.freeze({ ...config });
+        this.#readyPromise = new Promise((resolve, reject) => {
+            this.#readyResolve = resolve;
+            this.#readyReject = reject;
+        });
     }
 
     get config() { return this.#config; }
@@ -55,23 +90,23 @@ export class Bot {
     get isStarted() { return this.#started; }
     get startTime() { return this.#startTime; }
 
+    /**
+     * Promise that resolves when the bot is fully initialized (agent, LLM, embodiments).
+     * Rejects if initialization fails.
+     */
+    get ready() { return this.#readyPromise; }
+
+    /**
+     * Bot status snapshot. Safe for health checks and monitoring.
+     * Does not reach into Agent internals — tracks state locally.
+     */
     get status() {
-        const loop = this.#agent?._mettaLoopBuilder;
         return {
             started: this.#started,
             uptime: this.#startTime ? Date.now() - this.#startTime : 0,
             profile: this.#config.profile,
             nick: this.#config.nick,
-            loop: loop ? {
-                running: loop.isRunning ?? false,
-                paused: loop.isPaused ?? false,
-                cycleCount: loop.loopState?.cycleCount ?? 0,
-            } : { running: false },
-            llm: {
-                ready: this.#agent?._mettaLoopBuilder?._llmReady ?? false,
-                provider: this.#config.lm?.provider,
-                model: this.#config.lm?.modelName,
-            },
+            loop: { ...this.#loopState },
             embodiments: Object.fromEntries(
                 this.#embodiments.map(e => [e.id, { status: e.status }])
             ),
@@ -86,10 +121,10 @@ export class Bot {
         const hasOpenAI = !!cfg.openaiBaseURL;
         const provider = hasOpenAI ? 'openai' : (lmCfg.provider ?? 'transformers');
 
-        Logger.info(`🤖 SeNARS Bot [profile=${cfg.profile}]`);
-        Logger.info(`   Nick: ${cfg.nick ?? 'SeNARchy'}`);
-        Logger.info(`   Provider: ${provider} | Model: ${lmCfg.modelName}`);
-        if (hasOpenAI) Logger.info(`   Endpoint: ${cfg.openaiBaseURL}`);
+        Logger.info(`[Bot] SeNARS Bot [profile=${cfg.profile}]`);
+        Logger.info(`[Bot] Nick: ${cfg.nick ?? 'SeNARchy'}`);
+        Logger.info(`[Bot] Provider: ${provider} | Model: ${lmCfg.modelName}`);
+        if (hasOpenAI) Logger.info(`[Bot] Endpoint: ${cfg.openaiBaseURL}`);
 
         this.#agent = new Agent({
             id: `bot-${cfg.nick ?? 'SeNARchy'}`,
@@ -108,10 +143,20 @@ export class Bot {
             workspace: cfg.workspace ?? join(__root, 'workspace'),
         });
 
-        await this.#agentInitialize();
+        // Agent.initialize() builds MeTTaLoopBuilder + MeTTaLoopStarter.
+        // Without it, startMeTTaLoop() throws.
+        await this.#agent.initialize();
+
+        // Mirror loop state from Agent internals (one-time hookup).
+        this.#syncLoopState();
+
+        // Warm up LLM before embodiments connect — prevents race condition.
         await this.#warmupLLM();
+
+        // Create and register embodiments.
         await this.#createEmbodiments();
 
+        this.#readyResolve();
         return this;
     }
 
@@ -125,81 +170,127 @@ export class Bot {
 
         this.#started = true;
         this.#startTime = Date.now();
-        Logger.info('🚀 Starting MeTTaLoop...');
-        this.#agent.startMeTTaLoop();
+        Logger.info('[Bot] Starting MeTTaLoop...');
+
+        // Start the cognitive loop with an error boundary so a crash
+        // doesn't silently leave the bot in a half-alive state.
+        try {
+            await this.#agent.startMeTTaLoop();
+        } catch (err) {
+            Logger.error('[Bot] MeTTaLoop crashed:', err.message);
+            this.#started = false;
+            await this.shutdown();
+            throw err;
+        }
+
         return this;
     }
 
     async shutdown() {
+        if (this.#shutdownCalled) return;
+        this.#shutdownCalled = true;
         this.#started = false;
+        this.#readyReject?.(new Error('Bot shutting down'));
+
         await this.#agent?.shutdown();
+
         for (const emb of this.#embodiments) {
-            await emb.disconnect?.();
+            try { await emb.disconnect?.(); }
+            catch (e) { Logger.warn(`[Bot] Embodiment ${emb.id} disconnect error:`, e.message); }
         }
-        for (const srv of this.#embeddedServers) {
-            await srv.stop?.();
+
+        for (const fn of this.#cleanupFns) {
+            try { await fn(); }
+            catch (e) { Logger.warn('[Bot] Cleanup error:', e.message); }
         }
-        Logger.info('👋 Bot shutdown complete');
+        this.#cleanupFns = [];
+        this.#embodiments = [];
+
+        Logger.info('[Bot] Shutdown complete');
     }
 
     /* ── Internal ─────────────────────────────────────────────────────── */
 
-    async #agentInitialize() {
-        // Agent.initialize doesn't exist; initialize means agent is ready after construction
-        // The heavy init happens in startMeTTaLoop
-        this.#agent._mettaLoopBuilder?.resolveLlmReady?.();
+    /**
+     * Hook into the Agent's MeTTaLoopBuilder to track loop state locally.
+     * This avoids reaching into Agent internals in the status getter.
+     */
+    #syncLoopState() {
+        const builder = this.#agent._mettaLoopBuilder;
+        if (!builder) return;
+
+        const update = () => {
+            this.#loopState.running = builder.isRunning ?? false;
+            this.#loopState.paused = builder.isPaused ?? false;
+            this.#loopState.cycleCount = builder.loopState?.cycleCount ?? 0;
+            this.#loopState.llmReady = builder._llmReady ?? false;
+        };
+
+        builder.on?.('cycle-end', update);
+        builder.on?.('start', update);
+        builder.on?.('halt', update);
+        update();
     }
 
     async #warmupLLM() {
         const agent = this.#agent;
+        const builder = agent._mettaLoopBuilder;
         if (!agent.ai) {
-            Logger.warn('⚠️  No LLM configured — bot will log but not respond');
-            agent._mettaLoopBuilder?.resolveLlmReady();
+            Logger.warn('[Bot] No LLM configured — bot will log but not respond');
+            builder?.resolveLlmReady();
             return;
         }
+        let timer;
         try {
-            Logger.info('🔥 Warming up LLM...');
+            Logger.info('[Bot] Warming up LLM...');
             const result = await Promise.race([
                 agent.ai.generate('Hi', { maxTokens: 16 }),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('LLM warm-up timed out (60s)')), 60_000)),
+                new Promise((_, reject) => {
+                    timer = setTimeout(() => reject(new Error('LLM warm-up timeout (60s)')), 60_000);
+                })
             ]);
             if (result?.text) {
-                Logger.info(`✅ LLM ready (${result.model ?? this.#config.lm?.modelName})`);
+                Logger.info(`[Bot] LLM ready (${result.model ?? this.#config.lm?.modelName})`);
             } else {
-                Logger.warn('⚠️  LLM returned empty — model may not be loaded');
+                Logger.warn('[Bot] LLM returned empty — model may not be loaded');
             }
         } catch (err) {
-            Logger.warn(`⚠️  LLM warm-up failed: ${err.message} — will retry on demand`);
+            Logger.warn(`[Bot] LLM warm-up failed: ${err.message} — will retry on demand`);
         } finally {
-            agent._mettaLoopBuilder?.resolveLlmReady();
+            clearTimeout(timer);
+            builder?.resolveLlmReady();
         }
     }
 
     async #createEmbodiments() {
         const cfg = this.#config;
         const embDefs = cfg.embodiments ?? this.#defaultEmbodiments();
+        const ctx = { onCleanup: (fn) => this.#cleanupFns.push(fn) };
 
         for (const [type, def] of Object.entries(embDefs)) {
             if (!def?.enabled) continue;
-            const factory = EMBODIMENT_FACTORIES[type];
+            const factory = _embodimentFactories.get(type);
             if (!factory) {
-                Logger.warn(`Unknown embodiment type: ${type}`);
+                Logger.warn(`[Bot] Unknown embodiment type: "${type}" — skipped`);
                 continue;
             }
-            const embs = await factory(def, cfg);
-            for (const emb of embs) {
-                this.#agent.embodimentBus.register(emb);
-                this.#embodiments.push(emb);
+            try {
+                const embs = await factory(def, cfg, ctx);
+                for (const emb of embs) {
+                    this.#agent.embodimentBus.register(emb);
+                    this.#embodiments.push(emb);
+                }
+            } catch (err) {
+                Logger.error(`[Bot] Embodiment "${type}" failed to initialize:`, err.message);
             }
         }
 
         if (!this.#embodiments.length) {
-            Logger.warn('⚠️  No embodiments configured — bot has no I/O');
+            Logger.warn('[Bot] No embodiments configured — bot has no I/O');
         }
     }
 
     #defaultEmbodiments() {
-        // Backward compat: if --mode is set, enable only that embodiment
         const mode = this.#config.mode ?? 'irc';
         return { [mode]: { enabled: true } };
     }
@@ -207,21 +298,30 @@ export class Bot {
 
 /* ── Embodiment Factories ─────────────────────────────────────────────── */
 
-async function createIRCEmbodiment(def, cfg) {
+/**
+ * IRC embodiment factory.
+ * Starts an embedded EmbeddedIRCServer when no host is provided.
+ */
+async function createIRCEmbodiment(def, cfg, ctx) {
     let host = def.host ?? cfg.host;
     let port = def.port ?? cfg.port ?? 6667;
-    let hostedServer = null;
 
     if (!host) {
-        const { MockIRCServer } = await import('../../tests/integration/irc/MockIRCServer.js');
-        hostedServer = new MockIRCServer();
-        await hostedServer.start(def.hostedPort ?? cfg.hostedPort ?? 6668);
+        const server = new EmbeddedIRCServer();
+        await server.start(def.hostedPort ?? cfg.hostedPort ?? 6668);
         host = '127.0.0.1';
-        port = hostedServer.port;
-        Logger.info(`🏠 Embedded IRC server: 127.0.0.1:${port}`);
+        port = server.port;
+        ctx.onCleanup(() => server.stop());
+
+        // Wire server lifecycle events to Bot logging
+        server.on('client-registered', ({ nick }) => Logger.info(`[IRC] Client registered: ${nick}`));
+        server.on('user-joined', ({ nick, channel }) => Logger.info(`[IRC] ${nick} joined ${channel}`));
+        server.on('user-quit', ({ nick, reason }) => Logger.info(`[IRC] ${nick} quit: ${reason}`));
+
+        Logger.info(`[Bot] Embedded IRC server: 127.0.0.1:${port}`);
     }
 
-    const channels = def.channels ?? cfg.channels ?? [cfg.channel ?? '##metta'];
+    const channels = def.channels ?? [cfg.channel ?? '##metta'];
     const nick = cfg.nick ?? 'SeNARchy';
 
     const irc = new IRCChannel({
@@ -236,19 +336,20 @@ async function createIRCEmbodiment(def, cfg) {
         rateLimit: { interval: cfg.rateLimit?.perChannelInterval ?? 4000 },
     });
 
-    if (hostedServer) {
-        const origDisconnect = irc.disconnect.bind(irc);
-        irc.disconnect = async () => { await origDisconnect(); await hostedServer.stop(); };
-    }
-
-    irc.on('connected', () => Logger.info(`🔌 IRC connected as ${nick}`));
+    irc.on('connected', () => Logger.info(`[Bot] IRC connected as ${nick}`));
     return [irc];
 }
 
+/**
+ * CLI embodiment factory — stdin/stdout interaction.
+ */
 function createCLIEmbodiment(def, cfg) {
     return [new CLIEmbodiment({ id: 'cli', nick: cfg.nick ?? 'SeNARchy' })];
 }
 
+/**
+ * Demo embodiment factory — scripted message playback.
+ */
 function createDemoEmbodiment(def, cfg) {
     return [new DemoEmbodiment({
         id: 'demo',
@@ -259,6 +360,11 @@ function createDemoEmbodiment(def, cfg) {
 
 /* ── Public Factory ───────────────────────────────────────────────────── */
 
+/**
+ * Create and initialize a Bot in one call.
+ * @param {object} config — merged config from mergeConfig() or loadConfig()
+ * @returns {Promise<Bot>}
+ */
 export async function createBot(config) {
     const bot = new Bot(config);
     await bot.initialize();

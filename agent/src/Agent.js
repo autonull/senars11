@@ -128,7 +128,7 @@ export class Agent extends BaseComponent {
     }
 
     #registerMeTTaExtensions() {
-        if (!this.metta || this._channelExtensionRegistered) {return;}
+        if (!this.metta) return;
         this.#registerExtension('../../../metta/src/extensions/ChannelExtension.js', ext => {
             ext.agent = this;
         });
@@ -140,8 +140,7 @@ export class Agent extends BaseComponent {
             const ext = new Extension(this.metta, this.embodimentBus);
             configure?.(ext);
             ext.register();
-            this._channelExtensionRegistered = true;
-        }).catch(err => Logger.error('Failed to register MeTTa extension:', err));
+        }).catch(err => Logger.warn(`[Agent] Extension ${path.split('/').pop()} not loaded:`, err.message));
     }
 
     async initialize() {
@@ -318,6 +317,7 @@ export class Agent extends BaseComponent {
     formatTaskForDisplay(task) { return FormattingUtils.formatTask(task); }
 
     async shutdown() {
+        this._mettaLoopBuilder?.stop();
         await this.embodimentBus?.shutdown();
         await this.nar.shutdown?.();
     }
