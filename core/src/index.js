@@ -3,6 +3,7 @@ export * from './memory/Memory.js';
 export * from './memory/Concept.js';
 export * from './term/Term.js';
 export * from './term/TermFactory.js';
+export * from './term/Unifier.js';
 export * from './Truth.js';
 export * from './Stamp.js';
 export * from './reason/Reasoner.js';

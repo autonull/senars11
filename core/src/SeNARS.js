@@ -1,5 +1,6 @@
 import { NAR } from './nar/NAR.js';
 import { Logger } from './util/Logger.js';
+import { Unifier } from './term/Unifier.js';
 
 /**
  * SeNARS Facade - A simplified API for SeNARS reasoning system
@@ -20,6 +21,7 @@ export class SeNARS {
 
         this._initialized = false;
         this._initPromise = null;
+        this._unifier = null;
     }
 
     async _initialize() {
@@ -30,6 +32,10 @@ export class SeNARS {
             try {
                 await this.nar.initialize();
                 this._initialized = true;
+                // Initialize unifier using the NAR's term factory
+                if (this.nar._termFactory) {
+                    this._unifier = new Unifier(this.nar._termFactory);
+                }
             } catch (error) {
                 Logger.error('Failed to initialize SeNARS:', error);
                 this._initPromise = null;
@@ -51,11 +57,25 @@ export class SeNARS {
         }
     }
 
+    /**
+     * Ask a question to the system.
+     * Supports variable unification (e.g., "(like, num:1, ?what)?").
+     * @param {string} narsese - The question in Narsese format.
+     * @param {Object} options - Options for the query.
+     * @returns {Promise<Object>} - The answer with confidence and proof.
+     */
     async ask(narsese, options = {}) {
         await this._ensureInitialized();
         const cycles = options.cycles ?? 20;
 
         try {
+            // Parse the question first to get the term pattern
+            let questionTerm = null;
+            if (this.nar._parser) {
+                const parsed = this.nar._parser.parse(narsese);
+                questionTerm = parsed.term;
+            }
+
             await this.nar.input(narsese);
 
             if (cycles > 0) {
@@ -63,16 +83,28 @@ export class SeNARS {
             }
 
             const allBeliefs = this.nar.getBeliefs();
-            const keyTerms = this._extractKeyTerms(narsese);
+            let matchingBeliefs = [];
 
-            const matchingBeliefs = allBeliefs.filter(b => {
-                const beliefStr = b.term?.toString() || '';
-                return keyTerms.every(term => beliefStr.includes(term));
-            });
+            if (questionTerm && this._unifier) {
+                // Use unification to find matching beliefs
+                matchingBeliefs = allBeliefs.filter(b => {
+                    const result = this._unifier.match(questionTerm, b.term);
+                    return result.success;
+                });
+            } else {
+                // Fallback to string matching if parser/unifier not available
+                const keyTerms = this._extractKeyTerms(narsese);
+                matchingBeliefs = allBeliefs.filter(b => {
+                    const beliefStr = b.term?.toString() || '';
+                    return keyTerms.every(term => beliefStr.includes(term));
+                });
+            }
 
             let answer = false;
             let confidence = 0;
             let frequency = 0;
+            let bestSubstitution = {};
+            let bestBeliefTerm = null;
 
             if (matchingBeliefs?.length > 0) {
                 const bestBelief = matchingBeliefs.reduce((best, current) => {
@@ -83,6 +115,15 @@ export class SeNARS {
                     frequency = bestBelief.truth.f;
                     confidence = bestBelief.truth.c;
                     answer = frequency > 0.5;
+                    bestBeliefTerm = bestBelief.term?.toString();
+
+                    // Get the substitution for the best answer if using unification
+                    if (questionTerm && this._unifier) {
+                         const matchResult = this._unifier.match(questionTerm, bestBelief.term);
+                         if (matchResult.success) {
+                             bestSubstitution = matchResult.substitution;
+                         }
+                    }
                 }
             }
 
@@ -90,6 +131,8 @@ export class SeNARS {
                 answer,
                 confidence,
                 frequency,
+                substitution: bestSubstitution,
+                term: bestBeliefTerm,
                 proof: this._getRecentProofChain(),
                 timestamp: Date.now()
             };
@@ -100,6 +143,92 @@ export class SeNARS {
                 confidence: 0,
                 error: error.message,
                 timestamp: Date.now()
+            };
+        }
+    }
+
+    /**
+     * Attempt to achieve a goal.
+     * @param {string} narsese - The goal statement (will append '!' if missing).
+     * @param {Object} options - Options (cycles, threshold).
+     * @returns {Promise<Object>} - Status of goal achievement.
+     */
+    async achieve(narsese, options = {}) {
+        await this._ensureInitialized();
+        const cycles = options.cycles ?? 50;
+        const threshold = options.threshold ?? 0.8;
+
+        const goalInput = narsese.trim().endsWith('!') ? narsese : `${narsese.replace(/[?.!]$/, '')}!`;
+
+        try {
+            let goalTerm = null;
+             if (this.nar._parser) {
+                const parsed = this.nar._parser.parse(goalInput);
+                goalTerm = parsed.term;
+            }
+
+            await this.nar.input(goalInput);
+
+            if (cycles > 0) {
+                await this.nar.runCycles(cycles);
+            }
+
+            // Check if goal is satisfied (belief exists with high expectation)
+            // Note: NARS handles goal processing internally, but we can peek at beliefs
+            // to see if the system *believes* the goal condition is met.
+
+            const allBeliefs = this.nar.getBeliefs();
+            let matchingBeliefs = [];
+
+             if (goalTerm && this._unifier) {
+                matchingBeliefs = allBeliefs.filter(b => {
+                    // Match belief against goal content
+                    const result = this._unifier.match(goalTerm, b.term);
+                    return result.success;
+                });
+            } else {
+                 const keyTerms = this._extractKeyTerms(goalInput);
+                 matchingBeliefs = allBeliefs.filter(b => {
+                    const beliefStr = b.term?.toString() || '';
+                    return keyTerms.every(term => beliefStr.includes(term));
+                });
+            }
+
+            let achieved = false;
+            let bestTruth = { f: 0, c: 0 };
+            let bestTerm = null;
+
+            if (matchingBeliefs.length > 0) {
+                const bestBelief = matchingBeliefs.reduce((best, current) => {
+                     // Using expectation: e = c * (f - 0.5) + 0.5
+                     const expCurrent = (current.truth?.c ?? 0) * ((current.truth?.f ?? 0) - 0.5) + 0.5;
+                     const expBest = (best.truth?.c ?? 0) * ((best.truth?.f ?? 0) - 0.5) + 0.5;
+                     return expCurrent > expBest ? current : best;
+                }, matchingBeliefs[0]);
+
+                if (bestBelief) {
+                    bestTruth = bestBelief.truth;
+                    bestTerm = bestBelief.term?.toString();
+                    const expectation = (bestTruth.c) * (bestTruth.f - 0.5) + 0.5;
+                    // Usually "achieved" means expectation > threshold (e.g. > 0.5 or higher)
+                    // Or if simple truth: f > 0.5 and c > threshold
+                    achieved = expectation > threshold || (bestTruth.f > 0.8 && bestTruth.c > 0.5);
+                }
+            }
+
+            return {
+                achieved,
+                term: bestTerm,
+                truth: bestTruth,
+                cyclesRun: cycles,
+                timestamp: Date.now()
+            };
+
+        } catch (error) {
+            Logger.error('Achieve failed:', error);
+             return {
+                achieved: false,
+                error: error.message
             };
         }
     }
