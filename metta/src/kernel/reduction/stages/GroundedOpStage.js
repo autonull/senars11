@@ -54,6 +54,6 @@ export class GroundedOpStage extends ReductionStage {
                 }
             }
         }
-        return {executeGrounded: true, atom, op, args};
+        return {executeGrounded: true, atom, op, args, async: opOptions?.async === true};
     }
 }

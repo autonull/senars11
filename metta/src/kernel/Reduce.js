@@ -229,7 +229,7 @@ export async function reduceNDAsync(atom, space, ground, limit = 10000, cache = 
         const results = [];
         const pl = getGlobalPipeline();
         let stepCount = 0;
-        for (const result of pl.execute(atom, ctx)) {
+        for await (const result of pl.executeAsync(atom, ctx)) {
             if (++stepCount % 100 === 0) {
                 await Promise.resolve();
             }

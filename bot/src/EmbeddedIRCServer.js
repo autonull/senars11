@@ -43,7 +43,7 @@ export class EmbeddedIRCServer extends EventEmitter {
      * @returns {Promise<number>} the actual port bound
      */
     async start(port = 0) {
-        if (this._server) return this._port;
+        if (this._server) {return this._port;}
         return new Promise((resolve, reject) => {
             this._server = createServer((socket) => this._handleConnection(socket));
             this._server.on('error', (err) => {
@@ -62,7 +62,7 @@ export class EmbeddedIRCServer extends EventEmitter {
      * Stop the server and disconnect all clients. Idempotent.
      */
     async stop() {
-        if (!this._server) return;
+        if (!this._server) {return;}
         for (const socket of this._clients.keys()) {
             try { socket.destroy(); } catch {}
         }
@@ -149,7 +149,7 @@ export class EmbeddedIRCServer extends EventEmitter {
             const lines = buffer.split('\r\n');
             buffer = lines.pop();
             for (const line of lines) {
-                if (!line.trim()) continue;
+                if (!line.trim()) {continue;}
 
                 // Rate limiting: sliding window per message line
                 const now = Date.now();
@@ -180,19 +180,19 @@ export class EmbeddedIRCServer extends EventEmitter {
             case 'USER': this._handleUser(socket, clientInfo, parts.slice(1)); break;
             case 'JOIN': {
                 const ch = parts[1];
-                if (ch?.startsWith('#')) this._handleJoin(socket, clientInfo, ch);
+                if (ch?.startsWith('#')) {this._handleJoin(socket, clientInfo, ch);}
                 break;
             }
             case 'PART': {
                 const ch = parts[1];
-                if (ch) this._handlePart(socket, clientInfo, ch, parts.slice(2).join(' ').replace(/^:/, '') || 'Left');
+                if (ch) {this._handlePart(socket, clientInfo, ch, parts.slice(2).join(' ').replace(/^:/, '') || 'Left');}
                 break;
             }
             case 'PRIVMSG': {
                 const target = parts[1];
                 const msgIdx = line.indexOf(':', line.indexOf(target) + target.length);
                 const content = msgIdx >= 0 ? line.substring(msgIdx + 1) : parts.slice(2).join(' ');
-                if (target && content !== undefined) this._handlePrivMsg(socket, clientInfo, target, content);
+                if (target && content !== undefined) {this._handlePrivMsg(socket, clientInfo, target, content);}
                 break;
             }
             case 'QUIT': {
@@ -213,7 +213,7 @@ export class EmbeddedIRCServer extends EventEmitter {
     }
 
     _handleNick(socket, clientInfo, nick) {
-        if (!nick) return;
+        if (!nick) {return;}
 
         // Nick collision: reject if another client already has this nick.
         // Allow the client to re-SET their own nick (NICK change).
@@ -223,7 +223,7 @@ export class EmbeddedIRCServer extends EventEmitter {
         }
 
         // Release old nick from the set
-        if (clientInfo.nick) this._allNicks.delete(clientInfo.nick);
+        if (clientInfo.nick) {this._allNicks.delete(clientInfo.nick);}
 
         const oldNick = clientInfo.nick;
         clientInfo.nick = nick;
@@ -243,9 +243,9 @@ export class EmbeddedIRCServer extends EventEmitter {
     }
 
     _tryRegister(socket, clientInfo) {
-        if (clientInfo.registered || !clientInfo.nick || !clientInfo.user) return;
+        if (clientInfo.registered || !clientInfo.nick || !clientInfo.user) {return;}
         clientInfo.registered = true;
-        const nick = clientInfo.nick;
+        const {nick} = clientInfo;
         const host = 'localhost';
         this._send(socket, `:${host} 001 ${nick} :Welcome to the IRC Network, ${nick}`);
         this._send(socket, `:${host} 002 ${nick} :Your host is embedded-irc, running version 0.0.1`);
@@ -260,8 +260,8 @@ export class EmbeddedIRCServer extends EventEmitter {
     }
 
     _handleJoin(socket, clientInfo, channel) {
-        if (!clientInfo.registered) return;
-        if (!this._channels.has(channel)) this._channels.set(channel, new Set());
+        if (!clientInfo.registered) {return;}
+        if (!this._channels.has(channel)) {this._channels.set(channel, new Set());}
         this._channels.get(channel).add(socket);
         clientInfo.channels.add(channel);
 
@@ -277,15 +277,15 @@ export class EmbeddedIRCServer extends EventEmitter {
     }
 
     _handlePart(socket, clientInfo, channel, reason) {
-        if (!clientInfo.channels.has(channel)) return;
+        if (!clientInfo.channels.has(channel)) {return;}
         clientInfo.channels.delete(channel);
         const ch = this._channels.get(channel);
-        if (ch) { ch.delete(socket); if (ch.size === 0) this._channels.delete(channel); }
+        if (ch) { ch.delete(socket); if (ch.size === 0) {this._channels.delete(channel);} }
         this._broadcastToChannel(channel, `:${clientInfo.nick}!~user@localhost PART ${channel} :${reason}`);
     }
 
     _handlePrivMsg(socket, clientInfo, target, content) {
-        if (!clientInfo.registered) return;
+        if (!clientInfo.registered) {return;}
         if (target.startsWith('#')) {
             const msg = `:${clientInfo.nick}!~user@localhost PRIVMSG ${target} :${content}`;
             this._broadcastToChannel(target, msg, socket);
@@ -297,10 +297,10 @@ export class EmbeddedIRCServer extends EventEmitter {
     }
 
     _handleQuit(socket, clientInfo, reason) {
-        if (!clientInfo.nick) return;
+        if (!clientInfo.nick) {return;}
         this._allNicks.delete(clientInfo.nick);
         const quitMsg = `:${clientInfo.nick}!~user@localhost QUIT :${reason}`;
-        for (const ch of clientInfo.channels) this._broadcastToChannel(ch, quitMsg, socket);
+        for (const ch of clientInfo.channels) {this._broadcastToChannel(ch, quitMsg, socket);}
         clientInfo.channels.clear();
         this.emit('user-quit', { nick: clientInfo.nick, reason });
     }
@@ -309,28 +309,28 @@ export class EmbeddedIRCServer extends EventEmitter {
 
     _findClientByNick(nick) {
         for (const [socket, info] of this._clients) {
-            if (info.nick === nick) return socket;
+            if (info.nick === nick) {return socket;}
         }
         return null;
     }
 
     _send(socket, message) {
-        if (!socket || socket.destroyed) return;
-        socket.write(message + '\r\n', (err) => {
-            if (err) socket.destroy();
+        if (!socket || socket.destroyed) {return;}
+        socket.write(`${message  }\r\n`, (err) => {
+            if (err) {socket.destroy();}
         });
     }
 
     _sendToNick(nick, message) {
         const socket = this._findClientByNick(nick);
-        if (socket) this._send(socket, message);
+        if (socket) {this._send(socket, message);}
     }
 
     _broadcastToChannel(channel, message, excludeSocket = null) {
         const members = this._channels.get(channel);
-        if (!members) return;
+        if (!members) {return;}
         for (const socket of members) {
-            if (socket !== excludeSocket) this._send(socket, message);
+            if (socket !== excludeSocket) {this._send(socket, message);}
         }
     }
 }

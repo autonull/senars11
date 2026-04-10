@@ -16,6 +16,34 @@ const fallbackBotDir = () => join(process.cwd(), 'bot/src');
 const __dirname = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackBotDir);
 export const DEFAULT_CONFIG_PATH = resolve(__dirname, '..', 'bot.config.json');
 
+/* ── Profiles ─────────────────────────────────────────────────────────── */
+
+export const PROFILES = Object.freeze({
+    minimal: Object.freeze({
+        profile: 'minimal',
+        nick: 'SeNARchy',
+        embodiments: Object.freeze({
+            irc: { enabled: false },
+            cli: { enabled: true },
+            demo: { enabled: false },
+        }),
+        lm: Object.freeze({
+            provider: 'transformers',
+            modelName: 'HuggingFaceTB/SmolLM2-360M-Instruct',
+            temperature: 0.7,
+            maxTokens: 128,
+        }),
+        loop: Object.freeze({ budget: 10, sleepMs: 1000 }),
+        capabilities: Object.freeze({
+            contextBudgets: false,
+            semanticMemory: false,
+            auditLog: false,
+            persistentHistory: false,
+            goalPursuit: false,
+        }),
+    }),
+});
+
 /* ── Defaults ─────────────────────────────────────────────────────────── */
 
 export const DEFAULTS = Object.freeze({
@@ -49,43 +77,52 @@ const KNOWN_MODES = new Set(['irc', 'cli', 'demo', 'multi']);
  * Load a JSON config file. Returns null on failure (logged as warning).
  */
 export function loadFileConfig(path) {
-    if (!path || !existsSync(path)) return null;
+    if (!path || !existsSync(path)) {return null;}
     try { return JSON.parse(readFileSync(path, 'utf8')); }
     catch (e) { Logger.warn(`[Bot] Failed to load config from ${path}: ${e.message}`); return null; }
 }
 
 /**
  * Merge defaults, file config, and CLI args. CLI wins.
+ * Profile defaults are applied before file/CLI overrides.
  */
 export function mergeConfig(fileConfig, cli) {
     const fc = fileConfig ?? {};
+    const profileName = cli.profile ?? fc.profile ?? DEFAULTS.profile;
+    const profileDefaults = PROFILES[profileName] ?? {};
 
-    // Merge CLI embodiment flags into file config embodiments
+    // Profile defaults for embodiments
+    const profileEmbs = profileDefaults.embodiments ?? {};
     const fileEmbs = fc.embodiments ?? {};
     const ircOverrides = {};
-    if (cli.host !== undefined) ircOverrides.host = cli.host;
-    if (cli.port !== undefined) ircOverrides.port = cli.port;
-    if (cli.channel !== undefined) ircOverrides.channels = [cli.channel];
-    if (cli.tls !== undefined) ircOverrides.tls = cli.tls;
-    const ircEmb = deepMerge({}, fileEmbs.irc ?? {}, ircOverrides);
-    const embodiments = mergeEmbodiments({ ...fileEmbs, irc: ircEmb }, cli.mode, cli.multi);
+    if (cli.host !== undefined) {ircOverrides.host = cli.host;}
+    if (cli.port !== undefined) {ircOverrides.port = cli.port;}
+    if (cli.channel !== undefined) {ircOverrides.channels = [cli.channel];}
+    if (cli.tls !== undefined) {ircOverrides.tls = cli.tls;}
+    const ircEmb = deepMerge({}, profileEmbs.irc ?? {}, fileEmbs.irc ?? {}, ircOverrides);
+    const cliEmb = deepMerge({}, profileEmbs.cli ?? {}, fileEmbs.cli ?? {});
+    const demoEmb = deepMerge({}, profileEmbs.demo ?? {}, fileEmbs.demo ?? {});
+    const embodiments = mergeEmbodiments({ irc: ircEmb, cli: cliEmb, demo: demoEmb }, cli.mode, cli.multi);
 
     const hasOpenAI = !!(cli.openaiBaseURL ?? fc.lm?.openai?.baseURL);
-    const provider = cli.provider ?? fc.lm?.provider ?? (hasOpenAI ? 'openai' : DEFAULTS.lm.provider);
+    const provider = cli.provider ?? fc.lm?.provider ?? (hasOpenAI ? 'openai' : (profileDefaults.lm?.provider ?? DEFAULTS.lm.provider));
     const lmOverrides = {};
-    if (cli.model !== undefined) lmOverrides.modelName = cli.model;
+    if (cli.model !== undefined) {lmOverrides.modelName = cli.model;}
+
+    const profileCaps = profileDefaults.capabilities ?? {};
+    const fileCaps = fc.capabilities ?? {};
 
     return {
-        profile: cli.profile ?? fc.profile ?? DEFAULTS.profile,
-        nick: cli.nick ?? fc.nick ?? DEFAULTS.nick,
+        profile: profileName,
+        nick: cli.nick ?? fc.nick ?? profileDefaults.nick ?? DEFAULTS.nick,
         personality: cli.personality ?? fc.personality ?? DEFAULTS.personality,
         provider,
-        lm: deepMerge({}, DEFAULTS.lm, fc.lm ?? {}, lmOverrides, { provider }),
-        loop: deepMerge({}, DEFAULTS.loop, fc.loop ?? {}),
+        lm: deepMerge({}, DEFAULTS.lm, profileDefaults.lm ?? {}, fc.lm ?? {}, lmOverrides, { provider }),
+        loop: deepMerge({}, DEFAULTS.loop, profileDefaults.loop ?? {}, fc.loop ?? {}),
         rateLimit: deepMerge({}, DEFAULTS.rateLimit, fc.rateLimit ?? {}),
         maxContextLength: fc.maxContextLength ?? DEFAULTS.maxContextLength,
         contextWindowMs: fc.contextWindowMs ?? DEFAULTS.contextWindowMs,
-        capabilities: { ...(fc.capabilities ?? {}) },
+        capabilities: { ...profileCaps, ...fileCaps },
         workspace: fc.workspace,
         debug: cli.debug ?? fc.debug ?? false,
         embodiments,
@@ -144,14 +181,14 @@ export async function loadConfig(cli) {
     const cliArgs = typeof cli === 'string' ? parseArgs(cli.split(/\s+/)) : (cli ?? parseArgs());
     const configPath = cliArgs.configPath ?? resolveConfigPath(cliArgs);
     const fileConfig = configPath ? loadFileConfig(configPath) : null;
-    if (fileConfig) Logger.info(`[Bot] Loaded config: ${configPath}`);
+    if (fileConfig) {Logger.info(`[Bot] Loaded config: ${configPath}`);}
 
     const config = mergeConfig(fileConfig, cliArgs);
-    if (config.debug) Logger.setLevel('DEBUG');
+    if (config.debug) {Logger.setLevel('DEBUG');}
 
     const errors = validateConfig(config);
     if (errors.length) {
-        Logger.error('[Bot] Config validation errors:\n' + errors.map(e => `  - ${e}`).join('\n'));
+        Logger.error(`[Bot] Config validation errors:\n${  errors.map(e => `  - ${e}`).join('\n')}`);
         throw new Error(`Invalid bot config:\n${errors.join('\n')}`);
     }
 
@@ -235,15 +272,15 @@ function mergeEmbodiments(fileEmbs, mode, multi) {
     // --mode multi and --multi both enable all embodiments
     if (multi || mode === 'multi') {
         for (const emb of Object.values(base)) {
-            if (emb && typeof emb === 'object') emb.enabled = true;
+            if (emb && typeof emb === 'object') {emb.enabled = true;}
         }
         return base;
     }
 
     if (mode && KNOWN_MODES.has(mode) && mode !== 'multi') {
-        for (const key of Object.keys(base)) base[key].enabled = false;
-        if (base[mode]) base[mode].enabled = true;
-        else Logger.warn(`[Bot] Unknown mode "${mode}" — no embodiments enabled`);
+        for (const key of Object.keys(base)) {base[key].enabled = false;}
+        if (base[mode]) {base[mode].enabled = true;}
+        else {Logger.warn(`[Bot] Unknown mode "${mode}" — no embodiments enabled`);}
         return base;
     }
 
@@ -264,6 +301,6 @@ function deepMerge(target, ...sources) {
 }
 
 function resolveConfigPath(cliArgs) {
-    if (cliArgs.configPath) return cliArgs.configPath;
+    if (cliArgs.configPath) {return cliArgs.configPath;}
     return existsSync(DEFAULT_CONFIG_PATH) ? DEFAULT_CONFIG_PATH : null;
 }

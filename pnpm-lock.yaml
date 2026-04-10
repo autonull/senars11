@@ -159,6 +159,9 @@ importers:
       '@senars/core':
         specifier: workspace:*
         version: link:../core
+      '@senars/metta':
+        specifier: workspace:*
+        version: link:../metta
 
   core:
     dependencies:

@@ -3,7 +3,7 @@ import {FileLoader} from '../platform/node/FileLoader.js';
 import {VirtualFS} from '../platform/browser/VirtualFS.js';
 import {Logger} from '@senars/core';
 
-const DEFAULT_MODULES = ['core', 'list', 'match', 'types', 'hof', 'imagination', 'js'];
+const DEFAULT_MODULES = ['core', 'list', 'match', 'types', 'hof', 'imagination', 'js', 'io', 'memory'];
 
 export class StdlibLoader {
     #loadedModules = new Set();

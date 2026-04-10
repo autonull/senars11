@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@senars/agent": "workspace:*",
-    "@senars/core": "workspace:*"
+    "@senars/core": "workspace:*",
+    "@senars/metta": "workspace:*"
   }
 }

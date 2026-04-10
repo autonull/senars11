@@ -1,4 +1,5 @@
-import {sym} from './Term.js';
+import { sym } from './Term.js';
+import { configManager } from '../config/config.js';
 import {
     CoreRegistry,
     OperationHelpers,
@@ -6,21 +7,22 @@ import {
     registerBudgetOps,
     registerComparisonOps,
     registerExpressionOps,
+    registerHOFOps,
+    registerIOParser,
+    registerIOOps,
     registerIntrospectionOps,
+    registerListOps,
     registerLogicalOps,
+    registerMathOps,
     registerMetaprogrammingOps,
-    registerStringOps
+    registerReflectionOps,
+    registerSetOps,
+    registerSpaceOps,
+    registerStateOps,
+    registerStringOps,
+    registerTimeOps,
+    registerTypeOps,
 } from './ops/index.js';
-import {configManager} from '../config/config.js';
-import {registerListOps} from './ops/ListOps.js';
-import {registerIOOps} from './ops/IOOps.js';
-import {registerSpaceOps} from './ops/SpaceOps.js';
-import {registerStateOps} from './ops/StateOps.js';
-import {registerTypeOps} from './ops/TypeOps.js';
-import {registerMathOps} from './ops/MathOps.js';
-import {registerSetOps} from './ops/SetOps.js';
-import {registerHOFOps} from './ops/HOFOps.js';
-import {registerReflectionOps} from './ops/ReflectionOps.js';
 
 const AsyncFunction = Object.getPrototypeOf(async function () {
 }).constructor;
@@ -157,6 +159,8 @@ export class Ground extends CoreRegistry {
         registerListOps(this);
         registerStringOps(this);
         registerIOOps(this);
+        registerIOParser(this);
+        registerTimeOps(this);
     }
 
     _registerAdvancedOps() {

@@ -29,7 +29,7 @@ import { existsSync } from 'fs';
 const __agentDir = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackAgentDir);
 
 const lazyImport = (cache, key, importFn) => async () => {
-    if (!cache[key]) cache[key] = await importFn();
+    if (!cache[key]) {cache[key] = await importFn();}
     return cache[key];
 };
 
@@ -39,7 +39,6 @@ const loadContextBuilder = lazyImport(_lazyCache, 'ContextBuilder', () => import
 
 export class MeTTaLoopBuilder {
     #budget;
-    #sleepMs;
     #cap;
     #running = false;
     #paused = false;
@@ -50,7 +49,6 @@ export class MeTTaLoopBuilder {
         this.agent = agent;
         this.agentCfg = agentCfg;
         this.#budget = agentCfg.loop?.budget ?? 50;
-        this.#sleepMs = agentCfg.loop?.sleepMs ?? 2000;
         this.#cap = flag => isEnabled(agentCfg, flag);
         this._llmReady = false;
         this._llmReadyPromise = new Promise(resolve => { this._llmResolve = resolve; });
@@ -77,13 +75,13 @@ export class MeTTaLoopBuilder {
     }
 
     pause() {
-        if (!this.#running) return;
+        if (!this.#running) {return;}
         this.#paused = true;
         this.#emit('pause', { cycleCount: this._loopState?.cycleCount ?? 0 });
     }
 
     resume() {
-        if (!this.#paused) return;
+        if (!this.#paused) {return;}
         this.#paused = false;
         this.#pauseResolve?.();
         this.#pauseResolve = null;
@@ -121,11 +119,11 @@ export class MeTTaLoopBuilder {
         const sessionManager = new SessionManager(this.agentCfg.workspace ? join(this.agentCfg.workspace, 'sessions') : undefined);
         const checkpoint = await sessionManager.load();
         if (checkpoint) {
-            if (checkpoint.wm?.length) this._loopState.wm = checkpoint.wm;
-            if (checkpoint.historyBuffer?.length) this._loopState.historyBuffer = checkpoint.historyBuffer;
-            if (checkpoint.modelOverride) this._loopState.modelOverride = checkpoint.modelOverride;
-            if (checkpoint.modelOverrideCycles) this._loopState.modelOverrideCycles = checkpoint.modelOverrideCycles;
-            if (checkpoint.cycleCount) this._loopState.cycleCount = checkpoint.cycleCount;
+            if (checkpoint.wm?.length) {this._loopState.wm = checkpoint.wm;}
+            if (checkpoint.historyBuffer?.length) {this._loopState.historyBuffer = checkpoint.historyBuffer;}
+            if (checkpoint.modelOverride) {this._loopState.modelOverride = checkpoint.modelOverride;}
+            if (checkpoint.modelOverrideCycles) {this._loopState.modelOverrideCycles = checkpoint.modelOverrideCycles;}
+            if (checkpoint.cycleCount) {this._loopState.cycleCount = checkpoint.cycleCount;}
         }
 
         // Shared services
@@ -155,18 +153,18 @@ export class MeTTaLoopBuilder {
         await skillRegistrar.registerAll();
 
         const skillsCode = await readFile(this.#resolveMettaFile('skills.metta'), 'utf8');
-        const loopCode = await readFile(this.#resolveMettaFile('AgentLoop.metta'), 'utf8');
+        const loopCode = await readFile(this.#resolveBotMettaFile('loop.metta'), 'utf8');
         interp.run(skillsCode);
         interp.run(loopCode);
 
         const harnessOptimizer = await this.#maybeInitHarnessOptimizer(this._loopState, auditSpace);
 
-        return this.#buildLoop(this._loopState, budget, msgQueue, contextBuilder, harnessOptimizer, llmInvoker, sessionManager);
+        return this.#buildLoop(this._loopState, budget, msgQueue, contextBuilder, harnessOptimizer, llmInvoker, sessionManager, interp);
     }
 
     /* ── Loop ──────────────────────────────────────────────────────── */
 
-    #buildLoop(loopState, budget, msgQueue, contextBuilder, harnessOptimizer, llmInvoker, sessionManager) {
+    #buildLoop(loopState, budget, msgQueue, contextBuilder, harnessOptimizer, llmInvoker, sessionManager, interp) {
         return async () => {
             this.#running = true;
             loopState.cycleCount = 0;
@@ -174,6 +172,7 @@ export class MeTTaLoopBuilder {
             this.#emit('start', { profile: this.agentCfg.profile ?? 'parity' });
 
             try {
+                await interp.runAsync('(bot-init)');
                 while (this.#running) {
                     if (this.#paused) {
                         await new Promise(resolve => { this.#pauseResolve = resolve; });
@@ -188,112 +187,23 @@ export class MeTTaLoopBuilder {
                         budget.current = this.#budget;
                     }
 
-                    this.#emit('cycle-start', { cycle: loopState.cycleCount, budget: budget.current });
-
-                    const msg = await msgQueue.dequeue();
-
-                    // ── Idle cycle ──────────────────────────────────────────
-                    if (!msg) {
-                        budget.current--;
-                        loopState.wm = this.#tickWM(loopState.wm);
-                        loopState.cycleCount++;
-                        this.#emit('cycle-end', { cycle: loopState.cycleCount, budget: budget.current, error: null });
-                        await this.#sleep(msgQueue);
-                        continue;
-                    }
-
-                    // ── Active cycle ────────────────────────────────────────
-                    // Wait for LLM warmup on first message
                     if (!this._llmReady) {
                         Logger.info('[MeTTa] Waiting for LLM warmup...');
                         await this._llmReadyPromise;
-                        this._llmReady = true;
                     }
 
-                    const isNew = msg.text !== loopState.prevmsg;
-                    loopState.prevmsg = msg.text;
-                    loopState.lastmsg = msg;
-                    budget.current = isNew ? this.#budget : budget.current - 1;
-                    loopState.wm = this.#tickWM(loopState.wm);
-
-                    if (isNew) {
-                        Logger.info(`[MeTTa] New message: ${msg.text.substring(0, 120)}`);
-                    }
-
-                    // Build context, invoke LLM, parse and execute actions
-                    let resp = '';
-                    let results = [];
+                    this.#emit('cycle-start', { cycle: loopState.cycleCount, budget: budget.current });
                     try {
-                        Logger.info(`[MeTTa] Building context for cycle ${loopState.cycleCount}...`);
-                        const ctx = await contextBuilder.build(msg.text, loopState.cycleCount, loopState.wm);
-                        Logger.info(`[MeTTa] Context built: ${ctx?.length ?? 0} chars`);
-                        Logger.info('[MeTTa] Invoking LLM...');
-                        resp = await llmInvoker.invoke(ctx);
-                        Logger.info(`[MeTTa] LLM response: ${String(resp).substring(0, 120)}`);
-                        const { cmds, error } = this.#parseResponse(resp, loopState);
-                        if (cmds.length) {
-                            Logger.debug(`[MeTTa] Actions: ${cmds.map(c => c.name).join(', ')}`);
-                        } else if (error) {
-                            Logger.debug(`[MeTTa] Parse error: ${error}`);
-                        }
-
-                        if (cmds.length) {
-                            try { results = await this.#executeCommands(cmds, loopState); }
-                            catch (err) { Logger.error('[MeTTa execute-commands]', err.message); }
-                            loopState.lastresults = results;
-                        }
-
-                        // ── Send response back to user ──────────────────────────
-                        const responded = results.some(r => r.action === 'respond' && !r.error);
-                        if (!responded) {
-                            const replyText = this.#extractReplyText(resp, results);
-                            if (replyText) {
-                                await this.#sendReply(loopState.lastmsg, replyText);
-                            } else if (resp.startsWith('(llm-error')) {
-                                // LLM threw an error — send fallback acknowledgment
-                                const fallback = "I'm having trouble thinking right now — please try again.";
-                                await this.#sendReply(loopState.lastmsg, fallback);
-                                Logger.warn(`[MeTTa cycle ${loopState.cycleCount}] LLM error — sent fallback response to ${msg.embodimentId}`);
-                            } else if (!resp || !resp.trim()) {
-                                // LLM returned empty — acknowledge the user so they know the bot heard them
-                                const fallback = "I received your message but don't have anything useful to add right now.";
-                                await this.#sendReply(loopState.lastmsg, fallback);
-                                Logger.warn(`[MeTTa cycle ${loopState.cycleCount}] LLM returned empty — sent acknowledgment to ${msg.embodimentId}`);
-                            }
-                        }
-
-                        // ── Post-cycle bookkeeping ──────────────────────────────
-                        if (this.#cap('persistentHistory')) {
-                            loopState.historyBuffer.push([
-                                `USER: ${msg.text}`, `AGENT: ${resp}`,
-                                `RESULT: ${JSON.stringify(results)}`
-                            ].join('\n'));
-                        }
-
-                        if (this.#cap('auditLog')) {
-                            await this._dispatcher._ensureSafetyAndAudit();
-                            if (this._dispatcher._auditSpace) {
-                                await this._dispatcher._auditSpace.emitCycleAudit(msg.text, resp, results);
-                            }
-                        }
-
-                        if (harnessOptimizer?.shouldOptimize(loopState.cycleCount)) {
-                            const result = await harnessOptimizer.runOptimizationCycle();
-                            this.#emit('optimization', { cycle: loopState.cycleCount, reason: result.reason });
-                        }
+                        const hasMsg = loopState.lastmsg !== null;
+                        await interp.runAsync(hasMsg ? '(bot-process)' : '(bot-idle)');
+                        budget.current--;
                     } catch (err) {
-                        const from = loopState.lastmsg?.embodimentId ?? 'unknown';
-                        Logger.error(`[MeTTa cycle ${loopState.cycleCount} from:${from}] Error:`, err.message);
+                        Logger.error(`[MeTTa cycle ${loopState.cycleCount}]`, err.message);
                         loopState.error = err.message;
-                        loopState.lastresults = [];
-                        resp = '';
-                        results = [];
                     }
-
-                    loopState.cycleCount++;
-                    this.#emit('cycle-end', { cycle: loopState.cycleCount, budget: budget.current, error: loopState.error });
-
-                    await this.#sleep(msgQueue);
+                    this.#emit('cycle-end', {
+                        cycle: loopState.cycleCount, budget: budget.current, error: loopState.error
+                    });
                 }
             } finally {
                 this.#running = false;
@@ -301,156 +211,6 @@ export class MeTTaLoopBuilder {
                 this.#emit('halt', { cycleCount: loopState.cycleCount });
             }
         };
-    }
-
-    #tickWM(wm) {
-        return (wm ?? []).map(e => ({ ...e, ttl: e.ttl - 1 })).filter(e => e.ttl > 0);
-    }
-
-    /**
-     * Sleep for the configured delay, but wake immediately if a new message arrives.
-     * This prevents the loop from sitting idle when messages are waiting.
-     */
-    #sleep(msgQueue) {
-        if (!msgQueue?.onMessage) {
-            return new Promise(res => setTimeout(res, this.#sleepMs));
-        }
-        return Promise.race([
-            new Promise(res => setTimeout(res, this.#sleepMs)),
-            msgQueue.onMessage(),
-        ]);
-    }
-
-    /**
-     * Extract reply text from LLM response and/or action results.
-     * Priority: (1) respond action text, (2) result text from any successful action,
-     *           (3) response text with JSON stripped.
-     */
-    #extractReplyText(rawResp, results) {
-        // 1. Use successful respond action if present
-        const respondResult = results?.find(r => r.action === 'respond' && !r.error);
-        if (respondResult?.result?.text) {
-            return respondResult.result.text;
-        }
-        if (respondResult?.result?.sent && respondResult?.result?.text) {
-            return respondResult.result.text;
-        }
-
-        // 2. Fall back to result text from any successful non-respond action
-        for (const r of (results ?? [])) {
-            if (!r.error && r.action !== 'respond' && r.action !== 'think') {
-                const t = r.result?.text ?? r.result?.response ?? r.result?.answer;
-                if (t) return String(t).substring(0, 2000);
-            }
-        }
-
-        // 3. Strip JSON blocks and common junk prefixes from raw LLM text
-        if (!rawResp || typeof rawResp !== 'string') return null;
-        const text = rawResp.trim();
-        if (!text) return null;
-        // Remove JSON blocks
-        const stripped = this.#stripJsonBlocks(text);
-        // Strip common LLM meta-prefixes
-        let cleaned = stripped
-            .replace(/^(JSON\s*tool\s*call[:\s]*)+/gi, '')
-            .replace(/^(Action[s]?\s*:?\s*)+/gi, '')
-            .replace(/^(Response\s*:?\s*)+/gi, '')
-            .replace(/^(Output\s*:?\s*)+/gi, '')
-            .trim();
-        if (!cleaned) return null;
-        // Suppress error/sentinel responses
-        if (/^\(llm-error|^\(respond-error/i.test(cleaned)) return null;
-        return cleaned.length > 2000 ? cleaned.slice(0, 2000) + '...' : cleaned;
-    }
-
-    #stripJsonBlocks(text) {
-        let result = '';
-        let i = 0;
-        while (i < text.length) {
-            if (text[i] === '{') {
-                // Try to find balanced JSON block
-                const end = this.#findJsonBlockEnd(text, i);
-                if (end >= 0) {
-                    i = end + 1;
-                    continue;
-                }
-            }
-            result += text[i];
-            i++;
-        }
-        return result;
-    }
-
-    #findJsonBlockEnd(text, start) {
-        let depth = 0, inStr = false, escaped = false;
-        for (let i = start; i < text.length; i++) {
-            const ch = text[i];
-            if (escaped) { escaped = false; continue; }
-            if (ch === '\\') { escaped = true; continue; }
-            if (ch === '"') { inStr = !inStr; continue; }
-            if (inStr) continue;
-            if (ch === '{') depth++;
-            else if (ch === '}') {
-                depth--;
-                if (depth === 0) return i;
-            }
-        }
-        return -1;
-    }
-
-    async #sendReply(msg, text) {
-        const sanitized = this.#sanitizeResponse(text);
-        if (!sanitized) {
-            Logger.debug(`[MeTTa auto-respond] Suppressed: ${text?.substring(0, 80)}`);
-            return;
-        }
-        const embodiment = this.agent.embodimentBus?.get(msg.embodimentId);
-        if (embodiment?.status !== 'connected') {
-            Logger.warn(`[MeTTa auto-respond] Not connected: ${msg.embodimentId} (status: ${embodiment?.status ?? 'none'})`);
-            return;
-        }
-        const target = msg.isPrivate ? msg.from : (msg.channel ?? 'default');
-        Logger.info(`[MeTTa auto-respond] → ${target}: ${sanitized.substring(0, 80)}`);
-        try { await embodiment.sendMessage(target, sanitized); }
-        catch (e) { Logger.warn('[MeTTa auto-respond] Send failed:', e.message); }
-    }
-
-    #parseResponse(resp, loopState) {
-        const respStr = resp?.value ?? (typeof resp === 'string' ? resp : String(resp ?? ''));
-        if (!this._dispatcher) return { cmds: [], error: 'dispatcher-not-available' };
-        const { cmds, error } = this._dispatcher.parseResponse(respStr);
-        if (error) {
-            loopState.error = `${error}. Respond with JSON: {"actions":[{"name":"respond","args":["answer"]}]}`;
-        } else {
-            loopState.error = null;
-        }
-        return { cmds, error };
-    }
-
-    async #executeCommands(cmds, loopState) {
-        if (!this._dispatcher) return [];
-        try {
-            const results = await this._dispatcher.execute(cmds);
-            loopState.lastresults = results;
-            return results;
-        } catch (err) {
-            Logger.error(`[MeTTa execute-commands cycle:${loopState.cycleCount}]`, err.message);
-            return [];
-        }
-    }
-
-    #sanitizeResponse(text) {
-        if (!text || typeof text !== 'string') return null;
-        const trimmed = text.trim();
-        if (!trimmed) return null;
-        if (trimmed.startsWith('(llm-error') || trimmed.startsWith('(respond-error')) return null;
-        const nick = this.agent.agentCfg?.nick ?? this.agent?.agentCfg?.bot?.nick;
-        if (nick) {
-            const stripped = trimmed.replace(new RegExp(`^\\s*${nick}[,:\\s]+\\s*`, 'i'), '').trim();
-            if (!stripped) return null;
-            return stripped.length > 2000 ? stripped.slice(0, 2000) + '...' : stripped;
-        }
-        return trimmed.length > 2000 ? trimmed.slice(0, 2000) + '...' : trimmed;
     }
 
     /* ── Helpers ───────────────────────────────────────────────────── */
@@ -468,11 +228,11 @@ export class MeTTaLoopBuilder {
     }
 
     async #createContextBuilder(loopState, dispatcher, interp) {
-        if (!this.#cap('contextBudgets')) return null;
+        if (!this.#cap('contextBudgets')) {return null;}
         const { ContextBuilder } = await loadContextBuilder();
         const introspectionOps = {
             generateManifest: () => {
-                if (!this.#cap('runtimeIntrospection')) return '(manifest :restricted true)';
+                if (!this.#cap('runtimeIntrospection')) {return '(manifest :restricted true)';}
                 return JSON.stringify({
                     version: '0.1.0', profile: this.agentCfg.profile ?? 'parity',
                     capabilities: Object.fromEntries(Object.keys(this.agentCfg.capabilities ?? {}).map(k => isEnabled(this.agentCfg, k))),
@@ -486,10 +246,6 @@ export class MeTTaLoopBuilder {
         return cb;
     }
 
-    /**
-     * Minimal context builder for when contextBudgets is disabled (e.g., minimal profile).
-     * Provides just enough context for the LLM to function — input text and action definitions.
-     */
     #minimalContextBuilder() {
         return {
             build: (msg) => {
@@ -502,8 +258,8 @@ export class MeTTaLoopBuilder {
         };
     }
 
-    async #maybeInitHarnessOptimizer(loopState, auditSpace) {
-        if (!this.#cap('harnessOptimization')) return null;
+    async #maybeInitHarnessOptimizer(_loopState, _auditSpace) {
+        if (!this.#cap('harnessOptimization')) {return null;}
         const { HarnessOptimizer } = await loadHarnessOptimizer();
         await this._dispatcher._ensureSafetyAndAudit();
         const realAuditSpace = this._dispatcher._auditSpace;
@@ -524,5 +280,13 @@ export class MeTTaLoopBuilder {
         const direct = resolve(__agentDir, filename);
         const inMetta = resolve(__agentDir, 'metta', filename);
         return existsSync(direct) ? direct : inMetta;
+    }
+
+    #resolveBotMettaFile(filename) {
+        const botDir = resolve(__agentDir, '../../bot');
+        const direct = resolve(botDir, filename);
+        if (existsSync(direct)) {return direct;}
+        // Fallback to agent/ metta dir
+        return this.#resolveMettaFile(filename);
     }
 }

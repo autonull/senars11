@@ -3,19 +3,18 @@
  * Optimized for performance and robustness (Tier 1 & MORK-parity)
  */
 
-import {equals, exp, isExpression, isVariable} from '../Term.js';
-import {Zipper} from '../Zipper.js';
-import {Logger} from '@senars/core';
-import {ReductionStage} from './stages/ReductionStage.js';
-import {CacheStage} from './stages/CacheStage.js';
-import {JITStage} from './stages/JITStage.js';
-import {ZipperStage} from './stages/ZipperStage.js';
-import {GroundedOpStage} from './stages/GroundedOpStage.js';
-import {ExplicitCallStage} from './stages/ExplicitCallStage.js';
-import {RuleMatchStage} from './stages/RuleMatchStage.js';
-import {OperatorReduceStage} from './stages/OperatorReduceStage.js';
-import {SuperposeStage} from './stages/SuperposeStage.js';
-import {JITCompiler} from './JITCompiler.js';
+import { equals, exp, isExpression, isVariable } from '../Term.js';
+import { Zipper } from '../Zipper.js';
+import { Logger } from '@senars/core';
+import { CacheStage } from './stages/CacheStage.js';
+import { JITStage } from './stages/JITStage.js';
+import { ZipperStage } from './stages/ZipperStage.js';
+import { GroundedOpStage } from './stages/GroundedOpStage.js';
+import { ExplicitCallStage } from './stages/ExplicitCallStage.js';
+import { RuleMatchStage } from './stages/RuleMatchStage.js';
+import { OperatorReduceStage } from './stages/OperatorReduceStage.js';
+import { SuperposeStage } from './stages/SuperposeStage.js';
+import { JITCompiler } from './JITCompiler.js';
 
 export class ReductionPipeline {
     constructor(config = null) {
@@ -84,7 +83,7 @@ export class ReductionPipeline {
             if (result.useZipper) {
                 stageGenerator = this._executeWithZipper(result.atom, context);
             } else if (result.executeGrounded) {
-                stageGenerator = this._executeGrounded(result.atom, result.op, result.args, context);
+                stageGenerator = this._executeGrounded(result.atom, result.op, result.args, context, result.async);
             } else if (result.executeExplicit) {
                 stageGenerator = this._executeExplicit(result.atom, result.op, result.args, context);
             } else if (result.matchRules) {
@@ -121,6 +120,64 @@ export class ReductionPipeline {
         yield {reduced: atom, applied: false};
     }
 
+    async * executeAsync(atom, context) {
+        if (context.limit !== undefined && context.limit !== null && context.steps >= context.limit) {
+            throw new Error(`Max steps exceeded: ${context.limit} steps`);
+        }
+        this.stats.executions++;
+        for (const stage of this.stages) {
+            const stageStart = Date.now();
+            let result;
+            try {
+                result = stage.execute(atom, context);
+            } catch (e) {
+                if (e.message.startsWith('Max steps exceeded')) {throw e;}
+                Logger.error(`ReductionStage ${stage.name} error:`, e);
+                continue;
+            }
+            const stageTime = Date.now() - stageStart;
+            if (!result) {continue;}
+            this._recordStageHit(stage.name, stageTime);
+
+            let stageGenerator = null;
+            if (result.useZipper) {
+                stageGenerator = this._executeWithZipper(result.atom, context);
+            } else if (result.executeGrounded) {
+                stageGenerator = this._executeGroundedAsync(result.atom, result.op, result.args, context, result.async);
+            } else if (result.executeExplicit) {
+                stageGenerator = this._executeExplicit(result.atom, result.op, result.args, context);
+            } else if (result.matchRules) {
+                stageGenerator = this._matchRules(result.atom, result.rules, context);
+            } else if (result.reduceOperator) {
+                stageGenerator = this._reduceOperator(result.atom, context);
+            } else if (result.reduceArgument) {
+                stageGenerator = this._reduceArgument(result.atom, result.argIndex, result.arg, context);
+            } else if (result.reduceNestedSuperpose) {
+                stageGenerator = this._reduceNestedSuperpose(result.atom, result.superposeAtom, result.path, context);
+            } else if (result.superpose) {
+                stageGenerator = this._executeSuperpose(result.alternatives, context);
+            } else if (result.superposeEmpty) {
+                yield {reduced: atom, applied: true, deadEnd: true};
+                return;
+            } else if (result.applied) {
+                yield result;
+                return;
+            }
+
+            if (stageGenerator) {
+                let anyApplied = false;
+                for await (const res of stageGenerator) {
+                    if (res.applied) {
+                        yield res;
+                        anyApplied = true;
+                    }
+                }
+                if (anyApplied) {return;}
+            }
+        }
+        yield {reduced: atom, applied: false};
+    }
+
     * _executeWithZipper(atom, context) {
         if (atom.operator && isExpression(atom.operator)) {
             for (const res of this.execute(atom.operator, context)) {
@@ -152,9 +209,33 @@ export class ReductionPipeline {
         } while (zipper.depth > 0);
     }
 
-    * _executeGrounded(atom, op, args, _context) {
+    * _executeGrounded(atom, op, args, _context, isAsync = false) {
         try {
             const result = op(...args);
+            if (isAsync || result instanceof Promise) {
+                yield {reduced: result, applied: true, stage: 'grounded', async: true};
+                return;
+            }
+            if (result !== undefined && result !== null && !equals(result, atom)) {
+                yield {reduced: result, applied: true, stage: 'grounded'};
+            }
+        } catch (e) {
+            if (args.every(a => !isExpression(a)) && !args.some(isVariable)) {
+                throw e;
+            }
+        }
+    }
+
+    async * _executeGroundedAsync(atom, op, args, _context, isAsync = false) {
+        try {
+            const result = op(...args);
+            if (isAsync || result instanceof Promise) {
+                const resolved = await result;
+                if (resolved !== undefined && resolved !== null && !equals(resolved, atom)) {
+                    yield {reduced: resolved, applied: true, stage: 'grounded-async'};
+                }
+                return;
+            }
             if (result !== undefined && result !== null && !equals(result, atom)) {
                 yield {reduced: result, applied: true, stage: 'grounded'};
             }
