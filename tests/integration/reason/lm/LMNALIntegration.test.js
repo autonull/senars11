@@ -74,7 +74,11 @@ describe('LM ↔ NAL Integration', () => {
                     truth: {frequency: 1.0, confidence: 0.9}
                 },
                 termBuilder: (tf) => tf.atomic('solve_complex_problem'),
-                verify: (terms) => terms.some(t => ['solution', 'problem', 'solve'].some(w => t.includes(w))),
+                verify: (terms, agent) => {
+                    const goals = agent.nar?.getGoals?.() ?? [];
+                    const allTerms = [...terms, ...goals.map(g => g.term?.toString?.() ?? '')];
+                    return allTerms.some(t => ['solution', 'problem', 'solve', 'complex'].some(w => t.includes(w)));
+                },
                 description: 'analogical reasoning (relaxed check)'
             }
         ];

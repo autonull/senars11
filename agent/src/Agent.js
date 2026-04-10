@@ -177,6 +177,12 @@ export class Agent extends BaseComponent {
             }
         }
 
+        // Merge constructor loop settings (from Bot profile)
+        const constructorLoop = this.config.loop || {};
+        if (Object.keys(constructorLoop).length > 0) {
+            this.agentCfg.loop = { ...this.agentCfg.loop, ...constructorLoop };
+        }
+
         if (this.agentCfg.lm) {this.ai = new AIClient(this.agentCfg.lm);}
 
         const validationErrors = validate(this.agentCfg);

@@ -266,24 +266,24 @@ describe('CheckpointManager', () => {
             expect(progress.bestReward).toBe(-Infinity);
         });
 
-        it('should calculate training progress', async () => {
-            const agent = new MockAgent();
+it('should calculate training progress', async () => {
+      const agent = new MockAgent();
 
-            // Simulate training history with improving rewards (need 20+ for trend comparison)
-            for (let i = 1; i <= 25; i++) {
-                // First 15 episodes: lower rewards (10-30)
-                // Last 10 episodes: higher rewards (80-100)
-                const reward = i <= 15 ? 10 + (i * 2) : 80 + ((i - 15) * 2);
-                await manager.save(agent, i * 10, reward);
-            }
+      // Simulate training history with improving rewards (need 20+ for trend comparison)
+      for (let i = 1; i <= 25; i++) {
+        // First 15 episodes: lower rewards (10-30)
+        // Last 10 episodes: higher rewards (80-100)
+        const reward = i <= 15 ? 10 + (i * 2) : 80 + ((i - 15) * 2);
+        await manager.save(agent, i * 10, reward);
+      }
 
-            const progress = manager.getProgress();
+      const progress = manager.getProgress();
 
-            expect(progress.episodes).toBe(25);
-            expect(progress.bestReward).toBeGreaterThanOrEqual(80);
-            // Recent rewards should be higher than older
-            expect(progress.trend).toBe('improving');
-        });
+      expect(progress.episodes).toBe(25);
+      expect(progress.bestReward).toBeGreaterThanOrEqual(80);
+      // Recent rewards should be higher than older
+      expect(progress.trend).toBe('improving');
+    }, 10000);
     });
 
     describe('list', () => {

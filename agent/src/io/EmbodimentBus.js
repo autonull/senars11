@@ -34,10 +34,10 @@ export class EmbodimentBus extends EventEmitter {
     }
 
     /**
-     * Register an embodiment
+     * Register an embodiment and connect it.
      * @param {Embodiment} embodiment
      */
-    register(embodiment) {
+    async register(embodiment) {
         if (this.embodiments.has(embodiment.id)) {
             throw new Error(`Embodiment ${embodiment.id} already registered`);
         }
@@ -54,6 +54,9 @@ export class EmbodimentBus extends EventEmitter {
             embodimentId: embodiment.id,
             error: err
         }));
+
+        // Auto-connect the embodiment
+        await embodiment.connect();
 
         Logger.info(`Embodiment registered: ${embodiment.type} (${embodiment.id})`);
         this.emit('embodiment.registered', embodiment);

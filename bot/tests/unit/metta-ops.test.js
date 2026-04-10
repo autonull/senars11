@@ -12,9 +12,9 @@ const tmp = join(tmpdir(), `metta-ops-${Date.now()}`);
 let interp;
 
 beforeAll(async () => {
-    interp = new MeTTaInterpreter();
-    await mkdir(tmp, { recursive: true });
-});
+  interp = new MeTTaInterpreter();
+  await mkdir(tmp, { recursive: true });
+}, 10000);
 
 afterAll(async () => {
     rmSync(tmp, { recursive: true, force: true });

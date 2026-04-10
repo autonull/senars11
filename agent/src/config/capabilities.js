@@ -3,7 +3,7 @@
  */
 
 export const DEFAULTS = {
-    mettaControlPlane: true, actionDispatch: true, semanticMemory: true,
+  mettaControlPlane: false, actionDispatch: true, semanticMemory: true,
     persistentHistory: true, loopBudget: true, contextBudgets: true,
     fileReadSkill: true, webSearchSkill: true, fileWriteSkill: false, shellSkill: false,
     multiModelRouting: false, modelExploration: false, modelScoreUpdates: false,

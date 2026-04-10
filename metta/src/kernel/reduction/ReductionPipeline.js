@@ -12,6 +12,7 @@ import { ZipperStage } from './stages/ZipperStage.js';
 import { GroundedOpStage } from './stages/GroundedOpStage.js';
 import { ExplicitCallStage } from './stages/ExplicitCallStage.js';
 import { RuleMatchStage } from './stages/RuleMatchStage.js';
+import { ClosureStage } from './stages/ClosureStage.js';
 import { OperatorReduceStage } from './stages/OperatorReduceStage.js';
 import { SuperposeStage } from './stages/SuperposeStage.js';
 import { JITCompiler } from './JITCompiler.js';
@@ -30,6 +31,7 @@ export class ReductionPipeline {
             pipeline.use(new JITStage(jitCompiler));
         }
         pipeline.use(new SuperposeStage());
+        pipeline.use(new ClosureStage());
         pipeline.use(new RuleMatchStage());
         pipeline.use(new OperatorReduceStage());
         pipeline.use(new ZipperStage(config?.get('zipperThreshold') ?? 1));
@@ -88,6 +90,8 @@ export class ReductionPipeline {
                 stageGenerator = this._executeExplicit(result.atom, result.op, result.args, context);
             } else if (result.matchRules) {
                 stageGenerator = this._matchRules(result.atom, result.rules, context);
+            } else if (result.matchClosure) {
+                stageGenerator = this._matchClosure(result.atom, result.funcAtom, result.capturedArgs, result.providedArgs, result.allArgs, result.rules, context);
             } else if (result.reduceOperator) {
                 stageGenerator = this._reduceOperator(result.atom, context);
             } else if (result.reduceArgument) {
@@ -141,17 +145,19 @@ export class ReductionPipeline {
 
             let stageGenerator = null;
             if (result.useZipper) {
-                stageGenerator = this._executeWithZipper(result.atom, context);
+                stageGenerator = this._executeWithZipperAsync(result.atom, context);
             } else if (result.executeGrounded) {
                 stageGenerator = this._executeGroundedAsync(result.atom, result.op, result.args, context, result.async);
             } else if (result.executeExplicit) {
                 stageGenerator = this._executeExplicit(result.atom, result.op, result.args, context);
             } else if (result.matchRules) {
                 stageGenerator = this._matchRules(result.atom, result.rules, context);
+            } else if (result.matchClosure) {
+                stageGenerator = this._matchClosure(result.atom, result.funcAtom, result.capturedArgs, result.providedArgs, result.allArgs, result.rules, context);
             } else if (result.reduceOperator) {
-                stageGenerator = this._reduceOperator(result.atom, context);
+                stageGenerator = this._reduceOperatorAsync(result.atom, context);
             } else if (result.reduceArgument) {
-                stageGenerator = this._reduceArgument(result.atom, result.argIndex, result.arg, context);
+                stageGenerator = this._reduceArgumentAsync(result.atom, result.argIndex, result.arg, context);
             } else if (result.reduceNestedSuperpose) {
                 stageGenerator = this._reduceNestedSuperpose(result.atom, result.superposeAtom, result.path, context);
             } else if (result.superpose) {
@@ -209,11 +215,43 @@ export class ReductionPipeline {
         } while (zipper.depth > 0);
     }
 
+    async *_executeWithZipperAsync(atom, context) {
+        if (atom.operator && isExpression(atom.operator)) {
+            for await (const res of this.executeAsync(atom.operator, context)) {
+                if (res.applied && !equals(res.reduced, atom.operator)) {
+                    yield {reduced: exp(res.reduced, atom.components), applied: true, stage: 'zipper-op'};
+                    return;
+                }
+            }
+        }
+        const zipper = new Zipper(atom);
+        while (zipper.down(0)) { /* advance to deepest */
+        }
+        do {
+            let focusApplied = false;
+            for await (const res of this.executeAsync(zipper.focus, context)) {
+                if (res.applied && !equals(res.reduced, zipper.focus)) {
+                    yield {reduced: zipper.replace(res.reduced), applied: true, stage: 'zipper-focus'};
+                    focusApplied = true;
+                }
+            }
+            if (focusApplied) {
+                return;
+            }
+            while (!zipper.right()) {
+                if (!zipper.up()) {
+                    break;
+                }
+            }
+        } while (zipper.depth > 0);
+    }
+
     * _executeGrounded(atom, op, args, _context, isAsync = false) {
         try {
             const result = op(...args);
+            // In sync path, skip async ops (they'll be handled by the async pipeline)
             if (isAsync || result instanceof Promise) {
-                yield {reduced: result, applied: true, stage: 'grounded', async: true};
+                yield {reduced: atom, applied: false};
                 return;
             }
             if (result !== undefined && result !== null && !equals(result, atom)) {
@@ -278,9 +316,48 @@ export class ReductionPipeline {
         }
     }
 
+    * _matchClosure(atom, funcAtom, capturedArgs, providedArgs, allArgs, rules, context) {
+        // Build expression: (func captured1 captured2 ... provided1 provided2 ...)
+        const callExpr = exp(funcAtom, allArgs);
+        for (const rule of rules) {
+            const {pattern, result: template} = rule;
+            if (template === undefined || !isExpression(pattern)) {
+                continue;
+            }
+            const patternArgs = pattern.components ?? [];
+            // Check if allArgs can match the pattern
+            if (allArgs.length < patternArgs.length) {
+                // Still partial - return unevaluated
+                continue;
+            }
+            const binds = context.Unify?.unify(pattern, callExpr);
+            if (binds !== null && binds !== undefined) {
+                let reduced;
+                if (typeof template === 'function') {
+                    reduced = template(binds);
+                } else {
+                    reduced = context.Unify?.subst(template, binds, {recursive: false});
+                }
+                if (reduced !== undefined && reduced !== null) {
+                    yield {reduced, applied: true, stage: 'closure'};
+                }
+            }
+        }
+    }
+
     * _reduceOperator(atom, context) {
         const op = atom.operator;
         for (const res of this.execute(op, context)) {
+            if (res.applied && !equals(res.reduced, op)) {
+                yield {reduced: exp(res.reduced, atom.components), applied: true, stage: 'operator-reduce'};
+                return;
+            }
+        }
+    }
+
+    async *_reduceOperatorAsync(atom, context) {
+        const op = atom.operator;
+        for await (const res of this.executeAsync(op, context)) {
             if (res.applied && !equals(res.reduced, op)) {
                 yield {reduced: exp(res.reduced, atom.components), applied: true, stage: 'operator-reduce'};
                 return;
@@ -296,6 +373,27 @@ export class ReductionPipeline {
                 newArgs[componentIndex] = res.reduced;
                 yield {reduced: exp(atom.operator, newArgs), applied: true, stage: 'argument-reduce'};
                 return;
+            }
+        }
+    }
+
+    async *_reduceArgumentAsync(atom, argIndex, arg, context) {
+        for await (const res of this.executeAsync(arg, context)) {
+            if (res.applied && !equals(res.reduced, arg)) {
+                const newArgs = [...atom.components];
+                const componentIndex = argIndex + (atom.operator?.name === '^' ? 1 : 0);
+                newArgs[componentIndex] = res.reduced;
+                yield {reduced: exp(atom.operator, newArgs), applied: true, stage: 'argument-reduce'};
+                return;
+            }
+        }
+        // Arg couldn't be reduced further — try executing the grounded op as-is
+        if (atom.operator?.name === '^' && atom.components?.length >= 2) {
+            const opName = atom.components[0];
+            const op = context.ground.lookup(opName);
+            if (op && typeof op === 'function') {
+                const args = atom.components.slice(1);
+                yield* this._executeGroundedAsync(atom, op, args, context, context.ground.isAsync(opName));
             }
         }
     }

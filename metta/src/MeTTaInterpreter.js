@@ -134,27 +134,6 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
         return list;
     }
 
-    _handleLetStar(bindings, body) {
-        const {flattenList, sym, exp} = Term;
-        const pairs = this._extractLetStarPairs(bindings);
-        if (!pairs.length) {
-            return reduce(body, this.space, this.ground);
-        }
-
-        const [first, ...rest] = pairs;
-        if (!first?.components?.length) {
-            return body;
-        }
-
-        const [v, val] = this._extractVarAndValue(first);
-        if (!v || !val) {
-            return body;
-        }
-
-        const inner = rest.length ? exp(sym('let*'), [exp(rest[0], rest.slice(1)), body]) : body;
-        return reduce(exp(sym('let'), [v, val, inner]), this.space, this.ground);
-    }
-
     _extractLetStarPairs(bindings) {
         if (bindings.operator?.name === ':') {
             return flattenList(bindings).elements;
@@ -210,7 +189,14 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
                 }
                 continue;
             }
-            this._processExpression(e, res);
+            // Rules and type annotations: add to space
+            const isRule = (e.operator === '=' || e.operator?.name === '=') && e.components?.length === 2;
+            const isTypeAnnotation = (e.operator === ':' || e.operator?.name === ':') && e.components?.length === 2;
+            if (isRule) { this.space.addRule(e.components[0], e.components[1]); res.push(e); continue; }
+            if (isTypeAnnotation) { this.space.add(e); res.push(e); continue; }
+            // Bare expressions: add to space as facts (standard MeTTa behavior)
+            this.space.add(e);
+            res.push(e);
         }
         res.toString = () => Formatter.formatResult(res);
         return res;
@@ -229,7 +215,14 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
                 }
                 continue;
             }
-            this._processExpression(e, res);
+            // Rules and type annotations: add to space
+            const isRule = (e.operator === '=' || e.operator?.name === '=') && e.components?.length === 2;
+            const isTypeAnnotation = (e.operator === ':' || e.operator?.name === ':') && e.components?.length === 2;
+            if (isRule) { this.space.addRule(e.components[0], e.components[1]); res.push(e); continue; }
+            if (isTypeAnnotation) { this.space.add(e); res.push(e); continue; }
+            // Bare expressions: add to space as facts (standard MeTTa behavior)
+            this.space.add(e);
+            res.push(e);
         }
         res.toString = () => Formatter.formatResult(res);
         return res;

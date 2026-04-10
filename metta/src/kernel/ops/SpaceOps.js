@@ -18,9 +18,27 @@ const validateSpace = (ctx, spaceId) => {
 };
 
 export function registerSpaceOps(registry, interpreterContext) {
-    registry.register('&add-atom', (s, a) => (s.add(a), a));
-    registry.register('&rm-atom', (s, a) => s.remove(a));
-    registry.register('&get-atoms', s => OperationHelpers.listify(s.all()));
+    registry.register('&add-atom', (s, a) => {
+        const selfSpace = interpreterContext?.space;
+        if (s?.name === '&self' && selfSpace && typeof selfSpace.add === 'function') {
+            selfSpace.add(a);
+            return a;
+        }
+        if (s && typeof s.add === 'function') {
+            s.add(a);
+            return a;
+        }
+        return s;
+    });
+    registry.register('&rm-atom', (s, a) => {
+        const space = a.name === '&self' ? interpreterContext?.space : s;
+        if (space?.remove) space.remove(a);
+        return sym('()');
+    });
+    registry.register('&get-atoms', s => {
+        const space = s.name === '&self' ? interpreterContext?.space : s;
+        return OperationHelpers.listify(space?.all?.() ?? []);
+    });
 
     registry.register('new-space', () => {
         const newSpace = new Space();

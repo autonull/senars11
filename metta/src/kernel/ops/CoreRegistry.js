@@ -49,6 +49,7 @@ export class CoreRegistry {
     }
 
     _normalize(name) {
-        return name.startsWith('&') ? name : `&${name}`;
+        const n = typeof name === 'string' ? name : name?.name ?? String(name);
+        return n.startsWith('&') ? n : `&${n}`;
     }
 }

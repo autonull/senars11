@@ -30,10 +30,10 @@ describe('Phase 1: MeTTa Control Plane', () => {
                 expect(isEnabled(config, 'shellSkill')).toBe(false);
             });
 
-            it('resolves DEFAULTS when profile not specified', () => {
-                const config = {};
-                expect(isEnabled(config, 'mettaControlPlane')).toBe(true);
-            });
+it('resolves DEFAULTS when profile not specified', () => {
+      const config = {};
+      expect(isEnabled(config, 'mettaControlPlane')).toBe(false);
+    });
 
             it('returns false for unknown flags', () => {
                 const config = { profile: 'parity' };

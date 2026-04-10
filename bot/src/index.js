@@ -8,6 +8,7 @@
  */
 
 import { Agent } from '@senars/agent';
+import { Logger } from '@senars/core';
 import { IRCChannel, CLIEmbodiment, DemoEmbodiment } from '@senars/agent/io/index.js';
 import { EmbeddedIRCServer } from './EmbeddedIRCServer.js';
 
@@ -17,10 +18,11 @@ export async function createBot(config) {
 
     const ircCfg = config.embodiments?.irc;
     if (ircCfg?.enabled && !ircCfg.host) {
-        const server = new EmbeddedIRCServer(ircCfg.port, ircCfg.tls);
-        await server.start();
+        const server = new EmbeddedIRCServer();
+        const port = await server.start(ircCfg.port || 0);
         ircCfg.host = '127.0.0.1';
-        ircCfg.port = server.port;
+        ircCfg.port = port;
+        Logger.info(`[Bot] Embedded IRC server listening on 127.0.0.1:${port}`);
     }
 
     for (const [type, embCfg] of Object.entries(config.embodiments ?? {})) {

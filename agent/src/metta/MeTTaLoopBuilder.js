@@ -187,9 +187,10 @@ export class MeTTaLoopBuilder {
                         budget.current = this.#budget;
                     }
 
-                    if (!this._llmReady) {
-                        Logger.info('[MeTTa] Waiting for LLM warmup...');
-                        await this._llmReadyPromise;
+                    // Non-blocking: proceed even if LLM not ready; LLM-dependent ops
+                    // will return fallback values. Log at most once per 10 cycles.
+                    if (!this._llmReady && loopState.cycleCount % 10 === 0) {
+                        Logger.debug('[MeTTa] LLM not yet ready, proceeding with fallback ops');
                     }
 
                     this.#emit('cycle-start', { cycle: loopState.cycleCount, budget: budget.current });
@@ -282,11 +283,11 @@ export class MeTTaLoopBuilder {
         return existsSync(direct) ? direct : inMetta;
     }
 
-    #resolveBotMettaFile(filename) {
-        const botDir = resolve(__agentDir, '../../bot');
-        const direct = resolve(botDir, filename);
-        if (existsSync(direct)) {return direct;}
-        // Fallback to agent/ metta dir
-        return this.#resolveMettaFile(filename);
-    }
+#resolveBotMettaFile(filename) {
+    const botDir = resolve(__agentDir, '../../../bot');
+    const direct = resolve(botDir, filename);
+    if (existsSync(direct)) {return direct;}
+    // Fallback to agent/ metta dir
+    return this.#resolveMettaFile(filename);
+}
 }

@@ -99,7 +99,7 @@ export class App extends EventEmitter {
 
     async start({startAgent = true, setupSignals = false} = {}) {
         await this.initialize();
-        if (startAgent) {this.agent?.start?.();}
+        if (startAgent) {await this.agent?.start?.();}
         if (setupSignals) {this.setupGracefulShutdown();}
         this.emit('started', this.agent);
         return this.agent;

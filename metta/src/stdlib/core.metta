@@ -98,8 +98,8 @@
 (= (or $a $b) (^ &or $a $b))
 (= (not $a) (^ &not $a))
 (= (get-atoms $s) (^ &get-atoms $s))
-(= (add-atom $x) (^ &add-atom $x))
-(= (rm-atom $x) (^ &rm-atom $x))
+(= (add-atom $s $x) (^ &add-atom $s $x))
+(= (rm-atom $s $x) (^ &rm-atom $s $x))
 
 ; Expression Operations
 (= (cons-atom $h $t) (^ &cons-atom $h $t))
@@ -113,3 +113,30 @@
 (= (get-metatype $a) (^ &get-metatype $a))
 (= (get-type $a) (^ &get-type $a))
 (= (is-function $t) (^ &is-function $t))
+
+; ===== Control Flow =====
+
+; cut: prune alternative branches in non-deterministic reduction
+(= (cut) (^ &cut))
+
+; once: evaluate expression and return only first result, pruning alternatives
+(= (once $x) (^ &once $x))
+
+; empty: return the empty list
+(= (empty) ())
+
+; is-var: check if an atom is a variable
+(= (is-var $x) (^ &is-var $x))
+
+; case: pattern matching with multiple branches
+; (case expr ((pat1 res1) (pat2 res2) ...))
+(= (case $expr $branches) (^ &case $expr $branches))
+
+; foldall: fold over all reduction results
+(= (foldall $op $expr $init) (^ &foldall $op $expr $init))
+
+; repr: string representation with partial application detection
+(= (repr $x) (^ &repr $x))
+
+; =alpha: alpha-equivalence check
+(= (=alpha $a $b) (^ &=alpha $a $b))

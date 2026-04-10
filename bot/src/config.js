@@ -90,7 +90,6 @@ export function mergeConfig(fileConfig, cli) {
     const fc = fileConfig ?? {};
     const profileName = cli.profile ?? fc.profile ?? DEFAULTS.profile;
     const profileDefaults = PROFILES[profileName] ?? {};
-
     // Profile defaults for embodiments
     const profileEmbs = profileDefaults.embodiments ?? {};
     const fileEmbs = fc.embodiments ?? {};
@@ -118,7 +117,7 @@ export function mergeConfig(fileConfig, cli) {
         personality: cli.personality ?? fc.personality ?? DEFAULTS.personality,
         provider,
         lm: deepMerge({}, DEFAULTS.lm, profileDefaults.lm ?? {}, fc.lm ?? {}, lmOverrides, { provider }),
-        loop: deepMerge({}, DEFAULTS.loop, profileDefaults.loop ?? {}, fc.loop ?? {}),
+        loop: deepMerge({}, DEFAULTS.loop, fc.loop ?? {}, profileDefaults.loop ?? {}),
         rateLimit: deepMerge({}, DEFAULTS.rateLimit, fc.rateLimit ?? {}),
         maxContextLength: fc.maxContextLength ?? DEFAULTS.maxContextLength,
         contextWindowMs: fc.contextWindowMs ?? DEFAULTS.contextWindowMs,
@@ -131,6 +130,8 @@ export function mergeConfig(fileConfig, cli) {
 
 /**
  * Parse CLI args. Unknown flags produce a warning and are ignored.
+ * The `--` separator is handled per POSIX convention — the token itself is skipped
+ * and remaining args continue to be parsed normally.
  */
 export function parseArgs(argv) {
     const args = argv ?? process.argv.slice(2);
@@ -140,9 +141,11 @@ export function parseArgs(argv) {
         '--channel', '-c', '--host', '-h', '--port', '-p',
         '--model', '-m', '--provider', '--openai-base-url', '--openai-api-key', '--personality',
     ]);
-    const known = new Set([...valueFlags, '--tls', '--debug', '--multi', '--help']);
+    const known = new Set([...valueFlags, '--tls', '--debug', '--multi', '--help', '--']);
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
+        // POSIX: skip '--' separator token itself, continue parsing remaining args
+        if (arg === '--') {continue;}
         if (arg.startsWith('-') && !known.has(arg)) {
             Logger.warn(`[Bot] Unknown flag ignored: ${arg}`);
             continue;
@@ -178,7 +181,9 @@ export function parseArgs(argv) {
  * Load and merge config from CLI args + file. Main entry point.
  */
 export async function loadConfig(cli) {
-    const cliArgs = typeof cli === 'string' ? parseArgs(cli.split(/\s+/)) : (cli ?? parseArgs());
+    const cliArgs = Array.isArray(cli) ? parseArgs(cli)
+        : typeof cli === 'string' ? parseArgs(cli.split(/\s+/))
+        : parseArgs();
     const configPath = cliArgs.configPath ?? resolveConfigPath(cliArgs);
     const fileConfig = configPath ? loadFileConfig(configPath) : null;
     if (fileConfig) {Logger.info(`[Bot] Loaded config: ${configPath}`);}

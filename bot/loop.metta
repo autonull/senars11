@@ -7,8 +7,8 @@
 ;;            bot-idle (no message → sleep + recurse)
 
 ;; ── Combinator (not in stdlib) ────────────────────────────────────
-(= (when True  $expr) $expr)
-(= (when False $_) ())
+;; when: delegate to grounded &which reduces the condition before dispatching
+(= (when $cond $expr) (^ &when $cond $expr))
 
 ;; ── Initialization ────────────────────────────────────────────────
 (= (bot-init)

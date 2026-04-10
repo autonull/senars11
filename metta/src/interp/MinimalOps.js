@@ -5,6 +5,7 @@
 import {Term} from '../kernel/Term.js';
 import {Unify} from '../kernel/Unify.js';
 import {reduce, reduceND, reduceNDGenerator, step} from '../kernel/Reduce.js';
+import {reduceNDAsync} from '../kernel/Reduce.js';
 
 export function registerMinimalOps(interpreter) {
     const reg = (n, fn, opts) => interpreter.ground.register(n, fn, opts);
@@ -21,7 +22,8 @@ export function registerMinimalOps(interpreter) {
         'collapse-n': createCollapseNOp,
         'context-space': createContextSpaceOp,
         'noeval': createNoEvalOp,
-        'bind!': createBindOp
+        'bind!': createBindOp,
+        'test': createTestOp
     };
 
     for (const [name, factory] of Object.entries(ops)) {
@@ -144,8 +146,18 @@ function createBindOp(interpreter) {
  * Create the collapse operation
  */
 function createCollapseOp(interpreter) {
-    return (atom) =>
-        interpreter._listify(reduceND(atom, interpreter.space, interpreter.ground, interpreter.config.maxReductionSteps));
+    const {isList} = Term;
+    return async (atom) => {
+        const results = await reduceNDAsync(atom, interpreter.space, interpreter.ground,
+            interpreter.config.maxReductionSteps);
+        if (results.length === 0) return Term.sym('()');
+        if (results.length === 1) {
+            const single = results[0];
+            if (single.name === '()') return single;
+            if (isList(single)) return single;
+        }
+        return interpreter._listify(results);
+    };
 }
 
 const extractElements = (atom) => {
@@ -232,4 +244,63 @@ function createContextSpaceOp(interpreter) {
  */
 function createNoEvalOp(interpreter) {
     return (atom) => atom;
+}
+
+/**
+ * Create the test operation: (test actual expected)
+ * Uses the interpreter's evaluateAsync for proper async handling.
+ * Returns `expected` on match, or an Error atom on mismatch.
+ */
+function createTestOp(interpreter) {
+    const {sym, exp, isExpression} = Term;
+
+    function normalizeForComparison(atom) {
+        if (!atom) return atom;
+        // Fully normalize cons-lists: expand any PeTTa-style tails
+        if (atom.operator?.name === ':' && atom.components?.length === 2) {
+            const head = normalizeForComparison(atom.components[0]);
+            const tail = normalizeForComparison(atom.components[1]);
+            return exp(sym(':'), [head, tail]);
+        }
+        // Convert PeTTa-style list expressions to cons-lists
+        // (a b c) -> (: a (: b (: c ())))
+        if (isExpression(atom) && atom.components) {
+            return listExprToCons(atom);
+        }
+        return atom;
+    }
+
+    function listExprToCons(atom) {
+        if (!isExpression(atom) || !atom.components) return atom;
+        if (atom.operator?.name === ':') return normalizeForComparison(atom);
+        const op = listExprToCons(atom.operator);
+        let result = sym('()');
+        const elements = [op, ...atom.components.map(listExprToCons)];
+        for (let i = elements.length - 1; i >= 0; i--) {
+            result = exp(sym(':'), [elements[i], result]);
+        }
+        return result;
+    }
+
+    return async (actual, expected) => {
+        if (!expected) {
+            return exp(sym('Error'), [exp(sym('test'), [actual]), sym('MissingExpectedValue')]);
+        }
+        const reduceds = await interpreter.evaluateAsync(actual);
+        const reduced = Array.isArray(reduceds) ? (reduceds.length > 0 ? reduceds[0] : actual) : reduceds;
+        const normReduced = normalizeForComparison(reduced);
+        const normExpected = normalizeForComparison(expected);
+        let reducedStr = normReduced.toString();
+        let expectedStr = normExpected.toString();
+        // Handle quoted strings: strip surrounding quotes for comparison
+        if (reducedStr.startsWith('"') && reducedStr.endsWith('"')) {
+            reducedStr = reducedStr.slice(1, -1);
+        }
+        if (expectedStr.startsWith('"') && expectedStr.endsWith('"')) {
+            expectedStr = expectedStr.slice(1, -1);
+        }
+        return reducedStr === expectedStr
+            ? expected
+            : exp(sym('Error'), [exp(sym('test'), [actual, expected]), sym('Mismatch'), sym(reducedStr)]);
+    };
 }

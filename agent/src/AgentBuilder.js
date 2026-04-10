@@ -126,26 +126,27 @@ export class AgentBuilder {
         return new Agent(this._buildAgentConfig());
     }
 
-    _buildAgentConfig() {
-        const {subsystems, nar, memory, persistence, inputProcessing, lm} = this.config;
-        const {lm: lmSubsystem, tools, embeddingLayer, metrics} = subsystems;
+_buildAgentConfig() {
+    const {subsystems, nar, memory, persistence, inputProcessing, lm, capabilities} = this.config;
+    const {lm: lmSubsystem, tools, embeddingLayer, metrics} = subsystems;
 
-        const getSubsystemConfig = (subsystem) => ({
-            enabled: !!subsystem,
-            ...(typeof subsystem === 'object' ? subsystem : {})
-        });
+    const getSubsystemConfig = (subsystem) => ({
+      enabled: !!subsystem,
+      ...(typeof subsystem === 'object' ? subsystem : {})
+    });
 
-        return {
-            ...nar,
-            memory,
-            persistence,
-            inputProcessing,
-            lm: {...getSubsystemConfig(lmSubsystem), ...lm},
-            tools: getSubsystemConfig(tools),
-            embeddingLayer: getSubsystemConfig(embeddingLayer),
-            metricsMonitor: metrics ? (typeof metrics === 'object' ? metrics : {}) : undefined
-        };
-    }
+    return {
+      ...nar,
+      memory,
+      persistence,
+      inputProcessing,
+      lm: {...getSubsystemConfig(lmSubsystem), ...lm},
+      tools: getSubsystemConfig(tools),
+      embeddingLayer: getSubsystemConfig(embeddingLayer),
+      metricsMonitor: metrics ? (typeof metrics === 'object' ? metrics : {}) : undefined,
+      capabilities: capabilities || {mettaControlPlane: false}
+    };
+  }
 
     _setupPlugins(agent) {
         agent._pluginManager = new PluginManager({nar: agent, agent: agent, eventBus: agent._eventBus});

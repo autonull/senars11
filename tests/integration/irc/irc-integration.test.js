@@ -69,8 +69,7 @@ async function createIRCChannel(mockServer, nick = BOT_NICK, channel = TEST_CHAN
     });
 
     await ircChannel.connect();
-    await waitForEvent(ircChannel, 'connected', 3000);
-    await joinPromise; // wait until bot joined the channel
+    await joinPromise;
     return ircChannel;
 }
 

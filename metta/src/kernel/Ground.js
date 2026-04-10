@@ -182,5 +182,14 @@ export class Ground extends CoreRegistry {
                 throw new Error(`${op} should be provided by Interpreter`);
             })
         );
+        // PeTTa control flow operations
+        this.register('&cut', () => sym('()'));
+        this.register('&once', (atom) => {
+            // If atom is a cons-list, return first element; otherwise return as-is
+            if (atom.operator?.name === ':' && atom.components?.length >= 1) {
+                return atom.components[0];
+            }
+            return atom;
+        });
     }
 }

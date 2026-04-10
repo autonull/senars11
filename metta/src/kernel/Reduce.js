@@ -227,16 +227,37 @@ export async function reduceNDAsync(atom, space, ground, limit = 10000, cache = 
     const ctx = acquireContext(space, ground, limit, cache, globalReduceND, interpreter);
     try {
         const results = [];
-        const pl = getGlobalPipeline();
-        let stepCount = 0;
+        const pl = interpreter ? getOrCreatePipeline(interpreter) : getGlobalPipeline();
+        const initialResults = [];
+
+        // Phase 1: collect initial reductions
         for await (const result of pl.executeAsync(atom, ctx)) {
-            if (++stepCount % 100 === 0) {
-                await Promise.resolve();
-            }
             if (result.applied) {
-                results.push(result.reduced);
+                if (result.deadEnd) {
+                    return [];
+                }
+                initialResults.push(result.reduced);
             }
         }
+
+        // Phase 2: feed each result back until exhaustion
+        for (const initial of initialResults) {
+            let current = initial;
+            let reduced = true;
+            while (reduced && ctx.steps < limit) {
+                reduced = false;
+                for await (const result of pl.executeAsync(current, ctx)) {
+                    if (result.applied && !result.deadEnd) {
+                        current = result.reduced;
+                        reduced = true;
+                        ctx.steps++;
+                        break;
+                    }
+                }
+            }
+            results.push(current);
+        }
+
         return results.length > 0 ? results : [atom];
     } finally {
         releaseContext(ctx);

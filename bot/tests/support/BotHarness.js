@@ -35,8 +35,8 @@ export class BotHarness {
 
         return new Promise((resolve, reject) => {
             this.process.on('error', reject);
-            // Wait for "Embedded IRC server" or "Bot starting" line
-            this._waitForPattern(/Embedded IRC server|IRC connected|CLI embodiment/, 15000)
+            // Wait for IRC connected or embedded server started
+            this._waitForPattern(/IRC connected|CLI embodiment|Embedded IRC server/, 15000)
                 .then(() => resolve(this))
                 .catch(() => resolve(this)); // Continue even if pattern not found
         });
@@ -66,7 +66,7 @@ export class BotHarness {
     }
 
     discoverPort() {
-        const match = this.stdout.match(/Embedded IRC server[:\s]+[\d.]+:(\d+)/);
+        const match = this.stdout.match(/Embedded IRC server.*?(\d{4,6})/);
         return match ? parseInt(match[1], 10) : null;
     }
 

@@ -3,14 +3,14 @@
  */
 
 // Kernel imports
-import {grounded, Term} from '../kernel/Term.js';
+import {grounded, sym, Term} from '../kernel/Term.js';
 import {Unify} from '../kernel/Unify.js';
 import {bindingsAtomToObj, objToBindingsAtom} from '../kernel/Bindings.js';
 import {Formatter} from '../kernel/Formatter.js';
-import {match} from '../kernel/Reduce.js';
+import {match, reduceNDAsync} from '../kernel/Reduce.js';
 
 export function registerAdvancedOps(interpreter) {
-    const {sym, exp, var: v} = Term;
+    const {sym, exp, var: v, isExpression} = Term;
     const register = (ops) => {
         for (const [name, {fn, opts}] of Object.entries(ops)) {
             interpreter.ground.register(name, fn, opts);
@@ -31,9 +31,15 @@ export function registerAdvancedOps(interpreter) {
             },
             opts: {lazy: true}
         },
+        // let: reduce value, then substitute into body
         '&let': {
-            fn: (vari, val, body) => Unify.subst(body, vari?.name ? {[vari.name]: val} : {}, {recursive: false}),
-            opts: {lazy: true}
+            fn: async (vari, val, body) => {
+                const reduced = await reduceNDAsync(val, interpreter.space, interpreter.ground,
+                    undefined, undefined, interpreter);
+                const resolved = reduced[0] ?? val;
+                return Unify.subst(body, vari?.name ? {[vari.name]: resolved} : {}, {recursive: false});
+            },
+            opts: {lazy: true, async: true}
         },
 
         // Unification operations
@@ -153,16 +159,21 @@ export function registerAdvancedOps(interpreter) {
             opts: {}
         },
         '&add-atom': {
-            fn: (atom) => {
-                interpreter.space.add(atom);
+            fn: (s, a) => {
+                // PeTTa style: (&add-atom &self atom) or single arg: (&add-atom atom)
+                const space = s.name === '&self' ? interpreter.space : (s.add ? s : interpreter.space);
+                const atom = s.name === '&self' ? a : s;
+                if (space && atom) space.add(atom);
                 return atom;
             },
             opts: {}
         },
         '&rm-atom': {
-            fn: (atom) => {
-                interpreter.space.remove(atom);
-                return atom;
+            fn: (s, a) => {
+                const space = s.name === '&self' ? interpreter.space : (s.remove ? s : interpreter.space);
+                const atom = s.name === '&self' ? a : s;
+                if (space && atom) space.remove(atom);
+                return sym('()');
             },
             opts: {}
         },
@@ -193,24 +204,74 @@ export function registerAdvancedOps(interpreter) {
         },
 
         // Control flow operations
+        // &if: reduce condition, then evaluate chosen branch
         '&if': {
-            fn: (cond, thenB, elseB) => {
-                const results = interpreter.evaluate(cond);
-                const condRes = Array.isArray(results) ? (results.length > 0 ? results[0] : null) : results;
-
+            fn: async (cond, thenB, elseB) => {
+                const results = await reduceNDAsync(cond, interpreter.space, interpreter.ground,
+                    undefined, undefined, interpreter);
+                const condRes = results[0] ?? cond;
                 if (condRes?.name === 'True') {
-                    return thenB;
+                    const branchRes = await reduceNDAsync(thenB, interpreter.space, interpreter.ground,
+                        undefined, undefined, interpreter);
+                    return branchRes[0] ?? thenB;
                 }
                 if (condRes?.name === 'False') {
-                    return elseB;
+                    const branchRes = await reduceNDAsync(elseB, interpreter.space, interpreter.ground,
+                        undefined, undefined, interpreter);
+                    return branchRes[0] ?? elseB;
                 }
-                return exp(sym('if'), [condRes || cond, thenB, elseB]);
+                return exp(sym('if'), [condRes, thenB, elseB]);
             },
-            opts: {lazy: true}
+            opts: {lazy: true, async: true}
         },
+        // &when: reduce condition; if True reduce body, else return ()
+        '&when': {
+            fn: async (cond, body) => {
+                const results = await reduceNDAsync(cond, interpreter.space, interpreter.ground,
+                    undefined, undefined, interpreter);
+                const condRes = results[0] ?? cond;
+                if (condRes?.name === 'True') {
+                    const bodyRes = await reduceNDAsync(body, interpreter.space, interpreter.ground,
+                        undefined, undefined, interpreter);
+                    return bodyRes[0] ?? body;
+                }
+                return sym('()');
+            },
+            opts: {lazy: true, async: true}
+        },
+        // let*: sequentially reduce each binding value, substitute into remaining bindings and body
         '&let*': {
-            fn: (binds, body) => interpreter._handleLetStar(binds, body),
-            opts: {lazy: true}
+            fn: async (binds, body) => {
+                const pairs = interpreter._extractLetStarPairs(binds);
+                if (!pairs.length) {
+                    return reduceNDAsync(body, interpreter.space, interpreter.ground,
+                        undefined, undefined, interpreter).then(r => r[0] ?? body);
+                }
+                // Clone pairs so we can mutate binding values during substitution
+                const mutablePairs = pairs.map(p => ({...p}));
+                let result = body;
+                for (let i = 0; i < mutablePairs.length; i++) {
+                    const [vari, val] = interpreter._extractVarAndValue(mutablePairs[i]);
+                    if (!vari || !val) {continue;}
+                    // Substitute earlier bindings into this binding's value
+                    let substVal = val;
+                    for (let j = 0; j < i; j++) {
+                        const [prevVari, prevResolved] = mutablePairs[j].resolved;
+                        if (prevVari) {
+                            substVal = Unify.subst(substVal, {[prevVari.name]: prevResolved}, {recursive: false});
+                        }
+                    }
+                    const reduced = await reduceNDAsync(substVal, interpreter.space, interpreter.ground,
+                        undefined, undefined, interpreter);
+                    const resolved = reduced[0] ?? substVal;
+                    mutablePairs[i].resolved = [vari, resolved];
+                    result = Unify.subst(result, {[vari.name]: resolved}, {recursive: false});
+                }
+                const finalReduced = await reduceNDAsync(result, interpreter.space, interpreter.ground,
+                    undefined, undefined, interpreter);
+                return finalReduced[0] ?? result;
+            },
+            opts: {lazy: true, async: true}
         },
 
         // Higher-order function operations
@@ -270,6 +331,109 @@ export function registerAdvancedOps(interpreter) {
                 }, elements[0]);
             },
             opts: {lazy: true}
+        },
+
+        // is-var: check if atom is a variable
+        '&is-var': {
+            fn: (a) => sym(a._typeTag === 3 ? 'True' : 'False'),  // TYPE_VARIABLE = 3
+            opts: {}
+        },
+
+        // =alpha: check alpha-equivalence (structural equality ignoring variable names)
+        '&=alpha': {
+            fn: (a, b) => sym(alphaEquiv(a, b) ? 'True' : 'False'),
+            opts: {}
+        },
+
+        // repr: return string representation of an atom
+        '&repr': {
+            fn: (a) => {
+                // Check if this is a partially applied function
+                if (isExpression(a)) {
+                    const opName = a.operator?.name;
+                    if (opName) {
+                        const rules = interpreter.space.rulesFor(a.operator);
+                        if (rules.length > 0) {
+                            const expectedArity = rules[0].pattern?.components?.length ?? 0;
+                            const providedArity = a.components?.length ?? 0;
+                            if (providedArity < expectedArity) {
+                                const argsList = a.components.map(c => c.toString()).join(' ');
+                                return sym(`"(partial ${opName} (${argsList}))"`);
+                            }
+                        }
+                    }
+                }
+                return sym('"' + a.toString() + '"');
+            },
+            opts: {}
+        },
+
+        // case: match expression against multiple patterns
+        '&case': {
+            fn: async (expr, branches) => {
+                // branches is a list of (pattern result) pairs
+                const {isList, flattenList} = Term;
+                let current = branches;
+                while (isExpression(current) && current.operator?.name === ':') {
+                    const pair = current.components[0];
+                    if (isExpression(pair) && pair.components?.length >= 2) {
+                        const pattern = pair.components[0];
+                        const result = pair.components[1];
+                        const binds = Unify.unify(expr, pattern);
+                        if (binds) {
+                            const reduced = await reduceNDAsync(Unify.subst(result, binds),
+                                interpreter.space, interpreter.ground, undefined, undefined, interpreter);
+                            return reduced[0] ?? result;
+                        }
+                    }
+                    current = current.components[1];
+                }
+                // No match found, return original expression
+                return expr;
+            },
+            opts: {lazy: true, async: true}
+        },
+
+        // foldall: fold over all results of a non-deterministic reduction
+        '&foldall': {
+            fn: async (opFn, expr, init) => {
+                const results = await reduceNDAsync(expr, interpreter.space, interpreter.ground,
+                    undefined, undefined, interpreter);
+                let acc = init;
+                for (const el of results) {
+                    const substResult = Unify.subst(opFn, {[v('acc').name]: acc, [v('el').name]: el});
+                    const reduced = await reduceNDAsync(substResult, interpreter.space, interpreter.ground,
+                        undefined, undefined, interpreter);
+                    acc = reduced[0] ?? substResult;
+                }
+                return acc;
+            },
+            opts: {lazy: true, async: true}
         }
     });
+}
+
+/**
+ * Check alpha-equivalence: structural equality ignoring variable names
+ */
+function alphaEquiv(a, b) {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    const aType = a._typeTag ?? a.type;
+    const bType = b._typeTag ?? b.type;
+    // Variables are equivalent to any other variable
+    if ((aType === 3 || a.type === 'atom' && a.name?.startsWith('$')) &&
+        (bType === 3 || b.type === 'atom' && b.name?.startsWith('$'))) return true;
+    // Expressions: compare operators and components recursively
+    if (isExpression(a) && isExpression(b)) {
+        if (!alphaEquiv(a.operator, b.operator)) return false;
+        const aComps = a.components ?? [];
+        const bComps = b.components ?? [];
+        if (aComps.length !== bComps.length) return false;
+        return aComps.every((c, i) => alphaEquiv(c, bComps[i]));
+    }
+    // Grounded atoms: compare values
+    if (a.type === 'grounded' && b.type === 'grounded') return String(a.value) === String(b.value);
+    // Symbols: compare names
+    return a.name === b.name;
 }
