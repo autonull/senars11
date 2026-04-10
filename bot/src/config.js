@@ -3,11 +3,8 @@
  *
  * Three-layer precedence: DEFAULTS < file config < CLI args
  *
- * Canonical config shape:
- *   { profile, nick, embodiments: { irc, cli, demo }, lm, loop, rateLimit, capabilities }
- *
- * Legacy shapes (irc: {}, channels.irc: {}, bot: { nick }) are still accepted
- * but normalized to the canonical form.
+ * Canonical config shape (the only shape):
+ *   { profile, nick, personality, embodiments: { irc, cli, demo }, lm, loop, rateLimit, capabilities, debug, workspace }
  */
 
 import { existsSync, readFileSync } from 'fs';
@@ -17,10 +14,6 @@ import { Logger, resolveWithFallback } from '@senars/core';
 
 const fallbackBotDir = () => join(process.cwd(), 'bot/src');
 const __dirname = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackBotDir);
-
-/**
- * Default config file is one directory above src/ (i.e., bot/bot.config.json).
- */
 export const DEFAULT_CONFIG_PATH = resolve(__dirname, '..', 'bot.config.json');
 
 /* ── Defaults ─────────────────────────────────────────────────────────── */
@@ -40,7 +33,7 @@ export const DEFAULTS = Object.freeze({
     maxContextLength: 30,
     contextWindowMs: 3_600_000,
     embodiments: Object.freeze({
-        irc: { enabled: false },
+        irc: { enabled: false, host: null, port: 6667, channels: ['##metta'], tls: false },
         cli: { enabled: false },
         demo: { enabled: false },
     }),
@@ -63,21 +56,31 @@ export function loadFileConfig(path) {
 
 /**
  * Merge defaults, file config, and CLI args. CLI wins.
- * Normalizes legacy shapes to canonical form.
  */
 export function mergeConfig(fileConfig, cli) {
-    const fc = normalizeFileConfig(fileConfig);
-    const embodiments = mergeEmbodiments(fc.embodiments, cli.mode, cli.multi);
+    const fc = fileConfig ?? {};
+
+    // Merge CLI embodiment flags into file config embodiments
+    const fileEmbs = fc.embodiments ?? {};
+    const ircOverrides = {};
+    if (cli.host !== undefined) ircOverrides.host = cli.host;
+    if (cli.port !== undefined) ircOverrides.port = cli.port;
+    if (cli.channel !== undefined) ircOverrides.channels = [cli.channel];
+    if (cli.tls !== undefined) ircOverrides.tls = cli.tls;
+    const ircEmb = deepMerge({}, fileEmbs.irc ?? {}, ircOverrides);
+    const embodiments = mergeEmbodiments({ ...fileEmbs, irc: ircEmb }, cli.mode, cli.multi);
 
     const hasOpenAI = !!(cli.openaiBaseURL ?? fc.lm?.openai?.baseURL);
     const provider = cli.provider ?? fc.lm?.provider ?? (hasOpenAI ? 'openai' : DEFAULTS.lm.provider);
+    const lmOverrides = {};
+    if (cli.model !== undefined) lmOverrides.modelName = cli.model;
 
     return {
         profile: cli.profile ?? fc.profile ?? DEFAULTS.profile,
         nick: cli.nick ?? fc.nick ?? DEFAULTS.nick,
         personality: cli.personality ?? fc.personality ?? DEFAULTS.personality,
         provider,
-        lm: deepMerge({}, DEFAULTS.lm, fc.lm ?? {}),
+        lm: deepMerge({}, DEFAULTS.lm, fc.lm ?? {}, lmOverrides, { provider }),
         loop: deepMerge({}, DEFAULTS.loop, fc.loop ?? {}),
         rateLimit: deepMerge({}, DEFAULTS.rateLimit, fc.rateLimit ?? {}),
         maxContextLength: fc.maxContextLength ?? DEFAULTS.maxContextLength,
@@ -96,11 +99,11 @@ export function parseArgs(argv) {
     const args = argv ?? process.argv.slice(2);
     const cli = {};
     const valueFlags = new Set([
-        '--config','--mode','--profile','--nick','-n',
-        '--channel','-c','--host','-h','--port','-p',
-        '--model','-m','--provider','--openai-base-url','--openai-api-key','--personality',
+        '--config', '--mode', '--profile', '--nick', '-n',
+        '--channel', '-c', '--host', '-h', '--port', '-p',
+        '--model', '-m', '--provider', '--openai-base-url', '--openai-api-key', '--personality',
     ]);
-    const known = new Set([...valueFlags, '--tls','--debug','--multi','--help']);
+    const known = new Set([...valueFlags, '--tls', '--debug', '--multi', '--help']);
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
         if (arg.startsWith('-') && !known.has(arg)) {
@@ -135,7 +138,7 @@ export function parseArgs(argv) {
 }
 
 /**
- * Load and merge config from CLI args + file. Main entry point for CLI mode.
+ * Load and merge config from CLI args + file. Main entry point.
  */
 export async function loadConfig(cli) {
     const cliArgs = typeof cli === 'string' ? parseArgs(cli.split(/\s+/)) : (cli ?? parseArgs());
@@ -222,56 +225,22 @@ Options:
 /* ── Internal ─────────────────────────────────────────────────────────── */
 
 /**
- * Normalize legacy file config shapes to canonical form.
- *
- * Accepted legacy shapes:
- *   { bot: { nick, personality } }  →  { nick, personality }
- *   { irc: { host, port, channel } }  →  merged into embodiments.irc
- *   { channels: { irc: { ... } } }  →  merged into embodiments.irc
- */
-function normalizeFileConfig(fc) {
-    if (!fc) return {};
-    const normalized = { ...fc };
-
-    // Flatten legacy bot: {} nesting
-    if (fc.bot) {
-        normalized.nick ??= fc.bot.nick;
-        normalized.personality ??= fc.bot.personality;
-        normalized.maxContextLength ??= fc.bot.maxContextLength;
-        normalized.contextWindowMs ??= fc.bot.contextWindowMs;
-    }
-
-    // Merge legacy irc/channels.irc into embodiments.irc
-    const legacyIrc = { ...(fc.irc ?? {}), ...(fc.channels?.irc ?? {}) };
-    if (Object.keys(legacyIrc).length) {
-        normalized.embodiments ??= structuredClone(DEFAULTS.embodiments);
-        normalized.embodiments.irc = deepMerge(
-            {}, normalized.embodiments.irc ?? {},
-            { ...legacyIrc, enabled: legacyIrc.enabled ?? true }
-        );
-    }
-
-    return normalized;
-}
-
-/**
  * Merge embodiment configs from file config with CLI mode/multi flags.
- * --mode X enables only embodiment X.
- * --multi enables all embodiments.
+ * --mode X enables only embodiment X. --multi enables all.
  */
 function mergeEmbodiments(fileEmbs, mode, multi) {
     const defaults = structuredClone(DEFAULTS.embodiments);
     const base = fileEmbs ? deepMerge(structuredClone(defaults), fileEmbs) : defaults;
 
-    if (multi) {
+    // --mode multi and --multi both enable all embodiments
+    if (multi || mode === 'multi') {
         for (const emb of Object.values(base)) {
             if (emb && typeof emb === 'object') emb.enabled = true;
         }
         return base;
     }
 
-    if (mode && KNOWN_MODES.has(mode)) {
-        // Explicit mode: enable only that embodiment
+    if (mode && KNOWN_MODES.has(mode) && mode !== 'multi') {
         for (const key of Object.keys(base)) base[key].enabled = false;
         if (base[mode]) base[mode].enabled = true;
         else Logger.warn(`[Bot] Unknown mode "${mode}" — no embodiments enabled`);

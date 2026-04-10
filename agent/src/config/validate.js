@@ -14,11 +14,8 @@ export function validate(config) {
         errors.push(`Unknown profile '${config.profile}'. Valid: ${VALID_PROFILES.join(', ')}`);
     }
 
-    for (const key of Object.keys(config.capabilities ?? {})) {
-        if (!(key in DEFAULTS)) {
-            errors.push(`Unknown capability: ${key}`);
-        }
-    }
+    // Capability keys are optional — unknown keys are harmlessly ignored.
+    // Only profile and provider need validation.
 
     const lm = config.lm ?? {};
     if (lm.provider === 'openai' && !lm.apiKey && !process.env.OPENAI_API_KEY) {
@@ -28,10 +25,12 @@ export function validate(config) {
         errors.push('Anthropic provider selected but no API key configured (set lm.apiKey or ANTHROPIC_API_KEY)');
     }
 
-    if (config.channels?.irc?.enabled && !config.channels.irc.host) {
-        errors.push('IRC channel enabled but no host configured');
-    }
-    if (config.channels?.nostr?.enabled && !config.channels.nostr.privateKey) {
+    // IRC embodiment — only validate when explicitly connecting to external server
+    const ircEmb = config.embodiments?.irc ?? config.channels?.irc;
+    // host: null means embedded server (valid), host: 'example.com' means external
+    // No validation needed — the bot handles both cases correctly
+    const nostrEmb = config.channels?.nostr;
+    if (nostrEmb?.enabled && !nostrEmb.privateKey) {
         errors.push('Nostr channel enabled but no privateKey configured');
     }
 

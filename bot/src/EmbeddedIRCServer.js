@@ -28,6 +28,11 @@ export class EmbeddedIRCServer extends EventEmitter {
         this._clients = new Map();
         this._channels = new Map();
         this._capturedMessages = [];
+        this._allNicks = new Set();
+        this._pingIntervalMs = 60_000;
+        this._pingTimeoutMs = 30_000;
+        this._rateLimitWindowMs = 1000;
+        this._rateLimitMaxPerWindow = 20;
     }
 
     /* ── Lifecycle ─────────────────────────────────────────────────── */
@@ -63,6 +68,7 @@ export class EmbeddedIRCServer extends EventEmitter {
         }
         this._clients.clear();
         this._channels.clear();
+        this._allNicks.clear();
         return new Promise((resolve) => {
             this._server.close(() => {
                 this._server = null;
@@ -101,13 +107,39 @@ export class EmbeddedIRCServer extends EventEmitter {
     /* ── Connection handling ──────────────────────────────────────── */
 
     _handleConnection(socket) {
-        const clientInfo = { nick: null, user: null, channels: new Set(), registered: false, cleanedUp: false };
+        const clientInfo = {
+            nick: null, user: null, channels: new Set(), registered: false,
+            cleanedUp: false, expectingPong: false, pongTimer: null,
+            msgTimestamps: [], rateLimited: false,
+        };
         this._clients.set(socket, clientInfo);
         let buffer = '';
 
+        // Server-side PING timer
+        const schedulePing = () => {
+            clearTimeout(clientInfo.pongTimer);
+            clientInfo.pongTimer = setTimeout(() => {
+                if (!clientInfo.cleanedUp && this._clients.has(socket)) {
+                    clientInfo.expectingPong = true;
+                    this._send(socket, 'PING :embedded-irc');
+                    clientInfo.pongTimer = setTimeout(() => {
+                        this._send(socket, 'ERROR :Ping timeout');
+                        socket.destroy();
+                    }, this._pingTimeoutMs);
+                }
+            }, this._pingIntervalMs);
+        };
+        schedulePing();
+
         const cleanup = () => {
-            if (clientInfo.cleanedUp || !this._clients.has(socket)) return;
+            if (clientInfo.cleanedUp || !this._clients.has(socket)) {
+                return;
+            }
             clientInfo.cleanedUp = true;
+            clearTimeout(clientInfo.pongTimer);
+            if (clientInfo.nick) {
+                this._allNicks.delete(clientInfo.nick);
+            }
             this._handleQuit(socket, clientInfo, 'Connection closed');
             this._clients.delete(socket);
         };
@@ -117,7 +149,23 @@ export class EmbeddedIRCServer extends EventEmitter {
             const lines = buffer.split('\r\n');
             buffer = lines.pop();
             for (const line of lines) {
-                if (line.trim()) this._handleCommand(socket, clientInfo, line.trim());
+                if (!line.trim()) continue;
+
+                // Rate limiting: sliding window per message line
+                const now = Date.now();
+                clientInfo.msgTimestamps.push(now);
+                const windowStart = now - this._rateLimitWindowMs;
+                clientInfo.msgTimestamps = clientInfo.msgTimestamps.filter(t => t >= windowStart);
+                if (clientInfo.msgTimestamps.length > this._rateLimitMaxPerWindow) {
+                    if (!clientInfo.rateLimited) {
+                        clientInfo.rateLimited = true;
+                        this._send(socket, 'NOTICE * :*** You are sending too many messages, you have been rate limited');
+                        setTimeout(() => { clientInfo.rateLimited = false; }, this._rateLimitWindowMs);
+                    }
+                    continue; // Drop excess messages
+                }
+
+                this._handleCommand(socket, clientInfo, line.trim());
             }
         });
         socket.on('close', cleanup);
@@ -154,16 +202,34 @@ export class EmbeddedIRCServer extends EventEmitter {
                 socket.destroy();
                 break;
             }
-            case 'PONG': break;
+            case 'PONG':
+                clientInfo.expectingPong = false;
+                break;
+            case 'PING':
+                this._send(socket, `PONG :${parts.slice(1).join(' ') || 'embedded-irc'}`);
+                break;
             case 'CAP': this._send(socket, 'CAP * ACK'); break;
         }
     }
 
     _handleNick(socket, clientInfo, nick) {
         if (!nick) return;
+
+        // Nick collision: reject if another client already has this nick.
+        // Allow the client to re-SET their own nick (NICK change).
+        if (this._allNicks.has(nick) && clientInfo.nick !== nick) {
+            this._send(socket, `:localhost 433 * ${nick} :Nickname is already in use`);
+            return;
+        }
+
+        // Release old nick from the set
+        if (clientInfo.nick) this._allNicks.delete(clientInfo.nick);
+
         const oldNick = clientInfo.nick;
         clientInfo.nick = nick;
+        this._allNicks.add(nick);
         this._tryRegister(socket, clientInfo);
+
         if (oldNick) {
             for (const ch of clientInfo.channels) {
                 this._broadcastToChannel(ch, `:${oldNick}!~user@localhost NICK ${nick}`);
@@ -232,6 +298,7 @@ export class EmbeddedIRCServer extends EventEmitter {
 
     _handleQuit(socket, clientInfo, reason) {
         if (!clientInfo.nick) return;
+        this._allNicks.delete(clientInfo.nick);
         const quitMsg = `:${clientInfo.nick}!~user@localhost QUIT :${reason}`;
         for (const ch of clientInfo.channels) this._broadcastToChannel(ch, quitMsg, socket);
         clientInfo.channels.clear();

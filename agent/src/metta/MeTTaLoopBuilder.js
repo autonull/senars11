@@ -14,7 +14,7 @@
  *   - AgentMessageQueue: embodiment → loop bridge
  */
 import { readFile } from 'fs/promises';
-import { dirname, resolve } from 'path';
+import { dirname, resolve, join } from 'path';
 import { fileURLToPath } from 'url';
 import { fallbackAgentDir, Logger, resolveWithFallback } from '@senars/core';
 import { isEnabled } from '../config/index.js';
@@ -23,6 +23,7 @@ import { MeTTaSkillRegistrar } from './MeTTaSkillRegistrar.js';
 import { AgentMessageQueue } from './AgentMessageQueue.js';
 import { LLMInvoker } from './LLMInvoker.js';
 import { NarsOps } from './NarsOps.js';
+import { SessionManager } from './SessionManager.js';
 import { existsSync } from 'fs';
 
 const __agentDir = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackAgentDir);
@@ -116,6 +117,17 @@ export class MeTTaLoopBuilder {
         const budget = { current: this.#budget };
         const auditSpace = this.#getAuditSpace();
 
+        // Session checkpoint restore
+        const sessionManager = new SessionManager(this.agentCfg.workspace ? join(this.agentCfg.workspace, 'sessions') : undefined);
+        const checkpoint = await sessionManager.load();
+        if (checkpoint) {
+            if (checkpoint.wm?.length) this._loopState.wm = checkpoint.wm;
+            if (checkpoint.historyBuffer?.length) this._loopState.historyBuffer = checkpoint.historyBuffer;
+            if (checkpoint.modelOverride) this._loopState.modelOverride = checkpoint.modelOverride;
+            if (checkpoint.modelOverrideCycles) this._loopState.modelOverrideCycles = checkpoint.modelOverrideCycles;
+            if (checkpoint.cycleCount) this._loopState.cycleCount = checkpoint.cycleCount;
+        }
+
         // Shared services
         const llmInvoker = new LLMInvoker(this.agent, this.agentCfg, this._loopState, this.#cap, auditSpace);
         const narsOps = new NarsOps(this.agent.nar);
@@ -149,12 +161,12 @@ export class MeTTaLoopBuilder {
 
         const harnessOptimizer = await this.#maybeInitHarnessOptimizer(this._loopState, auditSpace);
 
-        return this.#buildLoop(this._loopState, budget, msgQueue, contextBuilder, harnessOptimizer, llmInvoker);
+        return this.#buildLoop(this._loopState, budget, msgQueue, contextBuilder, harnessOptimizer, llmInvoker, sessionManager);
     }
 
     /* ── Loop ──────────────────────────────────────────────────────── */
 
-    #buildLoop(loopState, budget, msgQueue, contextBuilder, harnessOptimizer, llmInvoker) {
+    #buildLoop(loopState, budget, msgQueue, contextBuilder, harnessOptimizer, llmInvoker, sessionManager) {
         return async () => {
             this.#running = true;
             loopState.cycleCount = 0;
@@ -169,6 +181,7 @@ export class MeTTaLoopBuilder {
 
                     if (budget.current <= 0) {
                         if (!this.#cap('autonomousLoop')) {
+                            await sessionManager.save(loopState);
                             this.#emit('budget-exhausted', { cycleCount: loopState.cycleCount });
                             break;
                         }
@@ -185,7 +198,7 @@ export class MeTTaLoopBuilder {
                         loopState.wm = this.#tickWM(loopState.wm);
                         loopState.cycleCount++;
                         this.#emit('cycle-end', { cycle: loopState.cycleCount, budget: budget.current, error: null });
-                        await this.#sleep();
+                        await this.#sleep(msgQueue);
                         continue;
                     }
 
@@ -236,6 +249,16 @@ export class MeTTaLoopBuilder {
                             const replyText = this.#extractReplyText(resp, results);
                             if (replyText) {
                                 await this.#sendReply(loopState.lastmsg, replyText);
+                            } else if (resp.startsWith('(llm-error')) {
+                                // LLM threw an error — send fallback acknowledgment
+                                const fallback = "I'm having trouble thinking right now — please try again.";
+                                await this.#sendReply(loopState.lastmsg, fallback);
+                                Logger.warn(`[MeTTa cycle ${loopState.cycleCount}] LLM error — sent fallback response to ${msg.embodimentId}`);
+                            } else if (!resp || !resp.trim()) {
+                                // LLM returned empty — acknowledge the user so they know the bot heard them
+                                const fallback = "I received your message but don't have anything useful to add right now.";
+                                await this.#sendReply(loopState.lastmsg, fallback);
+                                Logger.warn(`[MeTTa cycle ${loopState.cycleCount}] LLM returned empty — sent acknowledgment to ${msg.embodimentId}`);
                             }
                         }
 
@@ -259,7 +282,8 @@ export class MeTTaLoopBuilder {
                             this.#emit('optimization', { cycle: loopState.cycleCount, reason: result.reason });
                         }
                     } catch (err) {
-                        Logger.error(`[MeTTa cycle ${loopState.cycleCount}] Error:`, err.message);
+                        const from = loopState.lastmsg?.embodimentId ?? 'unknown';
+                        Logger.error(`[MeTTa cycle ${loopState.cycleCount} from:${from}] Error:`, err.message);
                         loopState.error = err.message;
                         loopState.lastresults = [];
                         resp = '';
@@ -269,10 +293,11 @@ export class MeTTaLoopBuilder {
                     loopState.cycleCount++;
                     this.#emit('cycle-end', { cycle: loopState.cycleCount, budget: budget.current, error: loopState.error });
 
-                    await this.#sleep();
+                    await this.#sleep(msgQueue);
                 }
             } finally {
                 this.#running = false;
+                await sessionManager.save(loopState);
                 this.#emit('halt', { cycleCount: loopState.cycleCount });
             }
         };
@@ -282,8 +307,18 @@ export class MeTTaLoopBuilder {
         return (wm ?? []).map(e => ({ ...e, ttl: e.ttl - 1 })).filter(e => e.ttl > 0);
     }
 
-    #sleep() {
-        return new Promise(res => setTimeout(res, this.#sleepMs));
+    /**
+     * Sleep for the configured delay, but wake immediately if a new message arrives.
+     * This prevents the loop from sitting idle when messages are waiting.
+     */
+    #sleep(msgQueue) {
+        if (!msgQueue?.onMessage) {
+            return new Promise(res => setTimeout(res, this.#sleepMs));
+        }
+        return Promise.race([
+            new Promise(res => setTimeout(res, this.#sleepMs)),
+            msgQueue.onMessage(),
+        ]);
     }
 
     /**
@@ -399,7 +434,7 @@ export class MeTTaLoopBuilder {
             loopState.lastresults = results;
             return results;
         } catch (err) {
-            Logger.error('[MeTTa execute-commands]', err.message);
+            Logger.error(`[MeTTa execute-commands cycle:${loopState.cycleCount}]`, err.message);
             return [];
         }
     }

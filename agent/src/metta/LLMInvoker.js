@@ -9,6 +9,10 @@
  */
 import { Logger } from '@senars/core';
 
+const MAX_RETRIES = 3;
+const BASE_BACKOFF_MS = 2000;
+const RETRYABLE_CODES = new Set(['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'UND_ERR_SOCKET']);
+
 export class LLMInvoker {
     #agent;
     #agentCfg;
@@ -25,21 +29,43 @@ export class LLMInvoker {
     }
 
     /**
-     * Invoke LLM with context.
+     * Invoke LLM with context. Returns response text or an error sentinel.
+     * Retries up to 3 times on transient network errors with exponential backoff.
      * @param {string} ctxStr — assembled context string
      * @returns {Promise<string>} LLM response text
      */
     async invoke(ctxStr) {
-        try {
-            const text = await this.#route(ctxStr);
-            this.#loopState.lastsend = text ?? '';
-            this.#emitAudit(ctxStr, text);
-            return text ?? '';
-        } catch (err) {
-            Logger.error('[LLMInvoker]', err.message);
-            this.#loopState.error = `llm-error: ${err.message}`;
-            return `(llm-error "${err.message.slice(0, 200)}")`;
+        let lastErr;
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                const text = await this.#route(ctxStr);
+                this.#loopState.lastsend = text ?? '';
+                this.#emitAudit(ctxStr, text);
+                if (attempt > 1) Logger.info(`[LLMInvoker] Succeeded on attempt ${attempt}`);
+                return text ?? '';
+            } catch (err) {
+                lastErr = err;
+                const retryable = this.#isRetryable(err);
+                if (retryable && attempt < MAX_RETRIES) {
+                    const delay = BASE_BACKOFF_MS * 2 ** (attempt - 1);
+                    Logger.warn(`[LLMInvoker] Transient error (attempt ${attempt}/${MAX_RETRIES}), retrying in ${delay}ms: ${err.message}`);
+                    await new Promise(res => setTimeout(res, delay));
+                    continue;
+                }
+                Logger.error(`[LLMInvoker] Failed after ${attempt} attempt${attempt > 1 ? 's' : ''}: ${err.message}`);
+                break;
+            }
         }
+        this.#loopState.error = `llm-error: ${lastErr?.message ?? 'unknown'}`;
+        this.#emitAudit(ctxStr, null);
+        return `(llm-error "${(lastErr?.message ?? 'unknown').slice(0, 200)}")`;
+    }
+
+    #isRetryable(err) {
+        if (!err) return false;
+        if (RETRYABLE_CODES.has(err.code)) return true;
+        const msg = err.message?.toLowerCase() ?? '';
+        return msg.includes('timed out') || msg.includes('socket') || msg.includes('network') || msg.includes('econn');
     }
 
     async #route(ctxStr) {

@@ -68,7 +68,6 @@ export class IntrospectionOps {
             semanticMemory: this.config.capabilities?.semanticMemory ?? false,
             safetyLayer: this.config.capabilities?.safetyLayer ?? false,
             auditLog: this.config.capabilities?.auditLog ?? false,
-            executionHooks: this.config.capabilities?.executionHooks ?? false,
             harnessOptimization: this.config.capabilities?.harnessOptimization ?? false
         };
         return this._toMeTTaAtom('subsystems', subsystems);

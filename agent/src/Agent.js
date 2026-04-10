@@ -160,6 +160,13 @@ export class Agent extends BaseComponent {
         this.#registerMeTTaExtensions();
         this.agentCfg = await this.#loadAgentConfig();
 
+        // Merge constructor config (from Bot or other callers) into agentCfg.
+        // This is how the Bot's bot.config.json capabilities reach the Agent.
+        const constructorCaps = this.config.capabilities;
+        if (constructorCaps && typeof constructorCaps === 'object') {
+            this.agentCfg.capabilities = { ...this.agentCfg.capabilities, ...constructorCaps };
+        }
+
         const constructorLm = this.config.lm || {};
         if (Object.keys(constructorLm).length > 0) {
             this.agentCfg.lm = { ...this.agentCfg.lm, ...constructorLm };

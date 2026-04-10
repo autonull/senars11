@@ -121,7 +121,10 @@ export class ActionDispatcher {
     const lines = [];
     for (const [name, decl] of this._actionDecls) {
       if (isEnabled(this._config, decl.capFlag)) {
-        lines.push(`• ${name}: ${decl.description}`);
+        const args = decl.argTypes && decl.argTypes !== 'any' && decl.argTypes !== '()'
+          ? `(${decl.argTypes})`
+          : '';
+        lines.push(`• ${name}${args}: ${decl.description}`);
       }
     }
     return lines.length ? lines.join('\n') : '(no actions available)';

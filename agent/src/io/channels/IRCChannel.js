@@ -47,13 +47,25 @@ export class IRCChannel extends Embodiment {
             if (!from || from === 'Server' || from === 'AUTH' || from === '*' || from === '') {
                 return;
             }
-            const content = event.message;
+            // Drop self-messages (the IRC server echoes our own PRIVMSGs back)
+            if (from === this.client.user?.nick) {
+                return;
+            }
+            let content = event.message;
             if (content == null || content === '') return;
 
             const { target } = event;
             const isPrivate = this._isPrivateMessage(event);
+            // Truncate overly long messages to avoid blowing up the LLM context
+            const maxContentLen = this.constraints?.maxMessageLength ?? 512;
+            if (content.length > maxContentLen) {
+                content = content.substring(0, maxContentLen) + '…';
+            }
+            // Detect whether the bot's nick is mentioned in the message
+            const botNick = this.client.user?.nick;
+            const isMention = isPrivate || (botNick && this._containsNickMention(content, botNick));
 
-            Logger.debug(`[IRC:${this.id}] Message from ${from} in ${target} (private=${isPrivate}): ${content?.substring(0, 80)}`);
+            Logger.debug(`[IRC:${this.id}] Message from ${from} in ${target} (private=${isPrivate}, mention=${isMention}): ${content?.substring(0, 80)}`);
 
             this.emitMessage({
                 from,
@@ -62,7 +74,8 @@ export class IRCChannel extends Embodiment {
                     channel: target,
                     type: event.type || 'message',
                     tags: event.tags,
-                    isPrivate
+                    isPrivate,
+                    isMention,
                 }
             });
         });
@@ -157,6 +170,20 @@ export class IRCChannel extends Embodiment {
     _isPrivateMessage(event) {
         const {target} = event;
         return target === this.client.user.nick || !/^[#&!+]/.test(target);
+    }
+
+    /**
+     * Check if the message content mentions the bot's nick.
+     * Matches: "BotNick:", "BotNick,", "@BotNick", "BotNick!", or "BotNick " at start.
+     * Also matches the nick anywhere in the message for channel awareness.
+     */
+    _containsNickMention(content, nick) {
+        if (!nick) return false;
+        // Escape regex special chars in nick
+        const escaped = nick.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Match nick followed by punctuation, whitespace, or at a word boundary
+        const re = new RegExp(`(?:^|\\s|[@!.,;:])${escaped}(?:\\s|[:,.!?]|$)`, 'i');
+        return re.test(content);
     }
 
     _isCTCP(content) {

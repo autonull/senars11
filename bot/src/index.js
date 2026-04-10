@@ -14,10 +14,11 @@
 
 import { Agent } from '@senars/agent';
 import { IRCChannel, CLIEmbodiment, DemoEmbodiment } from '@senars/agent/io/index.js';
-import { join, resolve, dirname } from 'path';
+import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { Logger, resolveWithFallback } from '@senars/core';
 import { EmbeddedIRCServer } from './EmbeddedIRCServer.js';
+import { BotStatusCommand } from './BotStatusCommand.js';
 
 const fallbackBotDir = () => join(process.cwd(), 'bot/src');
 const __dirname = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackBotDir);
@@ -73,6 +74,9 @@ export class Bot {
     #readyResolve;
     #readyReject;
     #readyPromise;
+    #readySettled = false;
+    #llmWarmupRetries = 0;
+    #maxLlmWarmupRetries = 3;
 
     /**
      * @param {object} config — merged config from mergeConfig() or loadConfig()
@@ -156,6 +160,10 @@ export class Bot {
         // Create and register embodiments.
         await this.#createEmbodiments();
 
+        // Register bot-level slash commands (visible in CLI mode).
+        this.#registerSlashCommands();
+
+        this.#readySettled = true;
         this.#readyResolve();
         return this;
     }
@@ -172,25 +180,49 @@ export class Bot {
         this.#startTime = Date.now();
         Logger.info('[Bot] Starting MeTTaLoop...');
 
-        // Start the cognitive loop with an error boundary so a crash
-        // doesn't silently leave the bot in a half-alive state.
-        try {
-            await this.#agent.startMeTTaLoop();
-        } catch (err) {
-            Logger.error('[Bot] MeTTaLoop crashed:', err.message);
-            this.#started = false;
-            await this.shutdown();
-            throw err;
-        }
+        // Start the cognitive loop with auto-recovery on crash.
+        this.#startLoopWithRecovery();
 
         return this;
+    }
+
+    /**
+     * Start MeTTaLoop with backoff-restart on crash.
+     * Unlike a simple try/catch+throw, this keeps the bot alive
+     * and retries after a delay, up to shutdown.
+     */
+    #startLoopWithRecovery() {
+        this.#agent.startMeTTaLoop()
+            .catch(async (err) => {
+                Logger.error('[Bot] MeTTaLoop crashed:', err.message);
+                this.#started = false;
+
+                if (this.#shutdownCalled) return;
+
+                const delay = 5000;
+                Logger.info(`[Bot] Restarting MeTTaLoop in ${delay}ms...`);
+                await new Promise(r => setTimeout(r, delay));
+
+                if (this.#shutdownCalled || !this.#agent) return;
+
+                this.#started = true;
+                Logger.info('[Bot] Restarting MeTTaLoop...');
+                this.#startLoopWithRecovery();
+            });
     }
 
     async shutdown() {
         if (this.#shutdownCalled) return;
         this.#shutdownCalled = true;
         this.#started = false;
-        this.#readyReject?.(new Error('Bot shutting down'));
+
+        // Only reject the ready promise if it hasn't been settled yet.
+        // After successful initialization the promise is resolved; calling
+        // reject on a resolved promise is semantically wrong (no-op but misleading).
+        if (!this.#readySettled) {
+            this.#readySettled = true;
+            this.#readyReject?.(new Error('Bot shutting down'));
+        }
 
         await this.#agent?.shutdown();
 
@@ -232,32 +264,51 @@ export class Bot {
         update();
     }
 
+    /**
+     * Warm up the LLM so the first real message doesn't pay the cold-start penalty.
+     * Uses a JSON-validation prompt to catch model config issues early.
+     * @returns {Promise<boolean>} true if warmup succeeded
+     */
     async #warmupLLM() {
         const agent = this.#agent;
         const builder = agent._mettaLoopBuilder;
         if (!agent.ai) {
             Logger.warn('[Bot] No LLM configured — bot will log but not respond');
             builder?.resolveLlmReady();
-            return;
+            return false;
         }
+
+        if (this.#llmWarmupRetries >= this.#maxLlmWarmupRetries) {
+            Logger.warn(`[Bot] LLM warmup exhausted after ${this.#maxLlmWarmupRetries} attempts`);
+            builder?.resolveLlmReady();
+            return false;
+        }
+
+        this.#llmWarmupRetries++;
         let timer;
         try {
-            Logger.info('[Bot] Warming up LLM...');
+            const attemptLabel = this.#llmWarmupRetries > 1 ? ` (attempt ${this.#llmWarmupRetries})` : '';
+            Logger.info(`[Bot] Warming up LLM${attemptLabel}...`);
             const result = await Promise.race([
-                agent.ai.generate('Hi', { maxTokens: 16 }),
+                agent.ai.generate('Respond with only this JSON: {"ok":true}', { maxTokens: 32 }),
                 new Promise((_, reject) => {
                     timer = setTimeout(() => reject(new Error('LLM warm-up timeout (60s)')), 60_000);
                 })
             ]);
             if (result?.text) {
                 Logger.info(`[Bot] LLM ready (${result.model ?? this.#config.lm?.modelName})`);
-            } else {
-                Logger.warn('[Bot] LLM returned empty — model may not be loaded');
+                return true;
             }
+            Logger.warn('[Bot] LLM returned empty — model may not be loaded');
+            return false;
         } catch (err) {
-            Logger.warn(`[Bot] LLM warm-up failed: ${err.message} — will retry on demand`);
+            Logger.warn(`[Bot] LLM warm-up failed: ${err.message}`);
+            return false;
         } finally {
             clearTimeout(timer);
+            // Always resolve LLM ready so the loop isn't blocked permanently.
+            // If warmup failed, the loop will still work — LLM calls are retried
+            // per-message with their own error handling.
             builder?.resolveLlmReady();
         }
     }
@@ -291,8 +342,23 @@ export class Bot {
     }
 
     #defaultEmbodiments() {
-        const mode = this.#config.mode ?? 'irc';
-        return { [mode]: { enabled: true } };
+        // Fallback for programmatic API use without mergeConfig().
+        // Enables IRC (the most common default) so the bot has I/O out of the box.
+        return { irc: { enabled: true } };
+    }
+
+    /**
+     * Register bot-level slash commands with the Agent's command registry.
+     * These commands expose Bot.status (uptime, loop, embodiments) in CLI mode.
+     */
+    #registerSlashCommands() {
+        const registry = this.#agent?.commandRegistry;
+        if (!registry) return;
+        try {
+            registry.register(new BotStatusCommand(this));
+        } catch (err) {
+            Logger.warn(`[Bot] Failed to register /status command: ${err.message}`);
+        }
     }
 }
 

@@ -1,5 +1,5 @@
 /**
- * capabilities.js — Capability flag resolution for METTACLAW agent.json
+ * capabilities.js — Capability flag resolution for SeNARS agent
  */
 
 export const DEFAULTS = {
@@ -9,7 +9,7 @@ export const DEFAULTS = {
     multiModelRouting: false, modelExploration: false, modelScoreUpdates: false,
     multiEmbodiment: false, virtualEmbodiment: false, autonomousLoop: false,
     attentionSalience: false, safetyLayer: false, auditLog: false, rlhfCollection: false,
-    dynamicSkillDiscovery: false, executionHooks: false, runtimeIntrospection: false,
+    dynamicSkillDiscovery: false, runtimeIntrospection: false,
     selfModifyingSkills: false, harnessOptimization: false, memoryConsolidation: false,
     goalPursuit: false, subAgentSpawning: false, selfEvaluation: false, harnessDiffusion: false,
     actionTrace: false, memorySnapshots: false, separateEvaluator: false, coordinatorMode: false,
@@ -21,13 +21,13 @@ const PROFILES = {
         mettaControlPlane: false, actionDispatch: false, semanticMemory: false,
         persistentHistory: false, loopBudget: false, contextBudgets: false,
         fileReadSkill: false, fileWriteSkill: false, shellSkill: false, webSearchSkill: true,
-        dynamicSkillDiscovery: false, executionHooks: false, runtimeIntrospection: false,
+        runtimeIntrospection: false,
     },
     parity: {
         mettaControlPlane: true, actionDispatch: true, semanticMemory: true,
         persistentHistory: true, loopBudget: true, contextBudgets: true,
         fileReadSkill: true, fileWriteSkill: false, shellSkill: false, webSearchSkill: true,
-        auditLog: true, dynamicSkillDiscovery: false, executionHooks: false, runtimeIntrospection: false,
+        auditLog: true, runtimeIntrospection: false,
     },
     evolved: {
         mettaControlPlane: true, actionDispatch: true, semanticMemory: true,
@@ -36,8 +36,7 @@ const PROFILES = {
         multiModelRouting: true, modelExploration: true, modelScoreUpdates: true,
         multiEmbodiment: true, virtualEmbodiment: true, autonomousLoop: true,
         attentionSalience: true, safetyLayer: true, auditLog: true, rlhfCollection: true,
-        dynamicSkillDiscovery: false, executionHooks: false, runtimeIntrospection: false,
-        actionTrace: true,
+        runtimeIntrospection: false, actionTrace: true,
     },
     full: {
         mettaControlPlane: true, actionDispatch: true, semanticMemory: true,
@@ -48,7 +47,7 @@ const PROFILES = {
         attentionSalience: true, safetyLayer: true, auditLog: true, rlhfCollection: true,
         selfModifyingSkills: true, harnessOptimization: true, memoryConsolidation: true,
         goalPursuit: true, subAgentSpawning: true, selfEvaluation: true, harnessDiffusion: false,
-        dynamicSkillDiscovery: true, executionHooks: true, runtimeIntrospection: true,
+        dynamicSkillDiscovery: true, runtimeIntrospection: true,
         actionTrace: true, memorySnapshots: true, separateEvaluator: true, coordinatorMode: true,
     },
 };
@@ -63,7 +62,6 @@ const DEPENDENCY_TABLE = {
     modelExploration: ['multiModelRouting', 'modelScoreUpdates'],
     harnessDiffusion: ['harnessOptimization'],
     dynamicSkillDiscovery: ['selfModifyingSkills'],
-    executionHooks: ['safetyLayer', 'auditLog'],
     actionTrace: ['auditLog'],
     memorySnapshots: ['semanticMemory'],
     separateEvaluator: ['subAgentSpawning', 'taskList'],
@@ -85,9 +83,7 @@ export function isEnabled(config, flag) {
 
 export function validateDeps(config) {
     for (const [flag, deps] of Object.entries(DEPENDENCY_TABLE)) {
-        if (!isEnabled(config, flag)) {
-            continue;
-        }
+        if (!isEnabled(config, flag)) continue;
         for (const dep of deps) {
             if (!isEnabled(config, dep)) {
                 throw new Error(

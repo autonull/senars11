@@ -64,6 +64,7 @@ export class ContextBuilder {
     async build(msg, cycleCount = 0, wmEntries = []) {
         this._currentWmEntries = wmEntries;
         this._currentCycleCount = cycleCount;
+        this._currentMsg = msg;
         try {
             const sections = await Promise.all([
                 this._loadHarnessPrompt(),
@@ -75,6 +76,7 @@ export class ContextBuilder {
                 this._getWmEntries(),
                 this._generateManifest(),
                 this._queryMemories(msg, this.budgets.recallItems),
+                this._getNarsBeliefs(msg),
                 this._getHistory(),
                 this._getFeedback(),
                 this._formatInput(msg)
@@ -92,7 +94,7 @@ export class ContextBuilder {
     }
 
     _concat(sections) {
-        const headers = ['SYSTEM_PROMPT', 'CAPABILITIES', 'ACTIONS', 'STARTUP_ORIENT', 'TASKS', 'PINNED', 'WM_REGISTER', 'AGENT_MANIFEST', 'RECALL', 'HISTORY', 'FEEDBACK', 'INPUT'];
+        const headers = ['SYSTEM_PROMPT', 'CAPABILITIES', 'ACTIONS', 'STARTUP_ORIENT', 'TASKS', 'PINNED', 'WM_REGISTER', 'AGENT_MANIFEST', 'RECALL', 'BELIEFS', 'HISTORY', 'FEEDBACK', 'INPUT'];
         return sections
             .map((s, i) => s?.trim() && i < headers.length ? `═══ ${headers[i]} ═══\n${s}\n\n` : '')
             .join('');
@@ -113,17 +115,12 @@ export class ContextBuilder {
         return `You are SeNARchy, a helpful AI assistant.
 Respond in plain text. Be concise.
 
-If you need to take actions (send a message, remember something, search, etc.), output a JSON tool call at the start of your response:
+If you need to take actions (send a message, remember something, run a query, etc.), output a JSON tool call:
 {"actions":[{"name":"action_name","args":["arg1","arg2"]}]}
 
-Available actions: respond, think, send, remember, search, read-file, write-file, attend, dismiss
+You can combine multiple actions in one response. To just reply, plain text is fine.
 
-Examples:
-{"actions":[{"name":"respond","args":["Hello! How can I help?"]}]}
-{"actions":[{"name":"think","args":["User seems confused"]},{"name":"respond","args":["Let me explain..."]}]}
-{"actions":[{"name":"remember","args":["User prefers technical answers"]}]}
-
-If you just want to respond, plain text is fine — no JSON needed.`;
+See the ACTIONS section below for the full list of available actions and their descriptions.`;
     }
 
     _filterCapabilities() {
@@ -218,6 +215,35 @@ If you just want to respond, plain text is fine — no JSON needed.`;
             const memories = await this.semanticMemory.query(msg?.content || msg || 'recent context', k);
             return this._truncate(memories.map(m => m.content ?? String(m)).join('\n'), this.budgets.recallChars);
         }, '', 'Failed to query memories');
+    }
+
+    _getNarsBeliefs(msg) {
+        if (!this.nar) return '';
+        return safeGet(() => {
+            const memory = this.nar.memory;
+            if (!memory?.getConcept) return '';
+            // Extract keywords from the message for belief querying
+            const keywords = typeof msg === 'string' ? msg.split(/\s+/).slice(0, 5) : [];
+            const beliefs = [];
+            const seen = new Set();
+            for (const kw of keywords) {
+                if (kw.length < 2) continue;
+                try {
+                    const concept = memory.getConcept(kw);
+                    if (!concept) continue;
+                    const tasks = concept.getTasksByType?.('BELIEF') ?? [];
+                    for (const t of tasks.slice(0, 5)) {
+                        const key = t.term?.toString?.() ?? String(t);
+                        if (seen.has(key)) continue;
+                        seen.add(key);
+                        const f = t.truthValue?.f?.toFixed(3) ?? '?';
+                        const c = t.truthValue?.c?.toFixed(3) ?? '?';
+                        beliefs.push(`${key} {f:${f} c:${c}}`);
+                    }
+                } catch { /* skip unqueryable concepts */ }
+            }
+            return this._truncate(beliefs.join('\n'), this.budgets.recallChars);
+        }, '', 'Failed to get NARS beliefs');
     }
 
     async _getHistory() {

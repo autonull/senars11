@@ -52,6 +52,10 @@ export class DummyProvider extends BaseProvider {
         const responses = cannedResponses[category] || cannedResponses.fallback;
         const idx = this._responseIndex % responses.length;
         this._responseIndex++;
+        // Every 3rd response, wrap in JSON action format so the action pipeline gets exercised
+        if (this._responseIndex % 3 === 0) {
+            return JSON.stringify({ actions: [{ name: 'respond', args: [responses[idx]] }] });
+        }
         return responses[idx];
     }
 

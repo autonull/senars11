@@ -5,7 +5,7 @@
  * NAL reasoning within the MeTTa control plane.
  *
  * Grounded ops:
- *   |- premises           → NAL inference conclusions
+ *   |- premises           → NAL inference conclusions (delegates to NARS stream reasoner)
  *   nar-beliefs term      → beliefs matching term
  *   nar-add sentence      → add belief/goal to NARS
  *   nar-truth term        → current truth value for term
@@ -23,12 +23,12 @@ export class NarsOps {
     register(interp) {
         const g = interp.ground;
 
-        // ── NAL inference ──────────────────────────────────────────
+        // ── NAL inference (delegates to NARS stream reasoner) ────────
         g.register('|-', async premisesStr => {
             if (!this.#nar) return Term.grounded('(error :no-nars-engine)');
             try {
                 const str = String(premisesStr?.value ?? premisesStr ?? '');
-                const conclusions = this.#infer(str);
+                const conclusions = await this.#infer(str);
                 return Term.grounded(conclusions.length > 0
                     ? conclusions.join('\n')
                     : '(no-conclusions)');
@@ -69,11 +69,9 @@ export class NarsOps {
 
     #getBeliefs(termStr) {
         const nar = this.#nar;
-        // Try public API first: nar.getBeliefs(termStr)
         if (typeof nar.getBeliefs === 'function') {
             try { return nar.getBeliefs(termStr) ?? []; } catch { /* fall through */ }
         }
-        // Fallback: memory.getConcept(term).getTasksByType('BELIEF')
         const memory = nar.memory;
         if (memory?.getConcept) {
             try {
@@ -84,84 +82,81 @@ export class NarsOps {
         return [];
     }
 
-    #infer(str) {
+    /**
+     * Run NAL inference by delegating to the NARS stream reasoner.
+     *
+     * Instead of manually pairing premises and applying Truth.* functions,
+     * this feeds premises into nar.input() and runs reasoning cycles,
+     * letting the full NAL rule engine (syllogistic, modus ponens,
+     * induction, abduction, analogy, conversion, comparison, compound
+     * terms, etc.) produce conclusions.
+     */
+    async #infer(str) {
         const nar = this.#nar;
         const conclusions = [];
-        const seen = new Set();
+        const beforeKeys = new Set();
 
-        const parser = nar._parser;
-        if (!parser) return conclusions;
+        // Snapshot existing belief keys so we can detect new conclusions
+        const memory = nar.memory;
+        if (memory?.getConcepts) {
+            for (const concept of memory.getConcepts?.() ?? []) {
+                beforeKeys.add(concept.name);
+            }
+        }
 
-        const premises = [];
+        // Feed premises into NARS
+        const premiseTerms = [];
         for (const part of str.split(/\n+/)) {
             const trimmed = part.trim();
             if (!trimmed) continue;
             try {
-                const parsed = parser.parse(trimmed);
-                if (parsed) premises.push(parsed);
-            } catch { /* skip unparseable */ }
+                if (nar.input) await nar.input(trimmed);
+                // Extract the term from the premise for later querying
+                const m = trimmed.match(/[<(\[]\s*([\w\-]+)/);
+                if (m) premiseTerms.push(m[1]);
+            } catch { /* skip unparseable premises */ }
         }
-        if (premises.length < 2) return conclusions;
 
-        const { Truth } = requireOrImport('@senars/nar/Truth.js');
-        if (!Truth) return conclusions;
+        if (premiseTerms.length < 2) return conclusions;
 
-        const addConclusion = (type, conclusion, truth) => {
-            const termStr = typeof conclusion === 'string' ? conclusion : conclusion?.toString?.() ?? String(conclusion);
-            const key = `${type}|${termStr}`;
-            if (seen.has(key)) return;
-            seen.add(key);
-            if (truth?.c > 0.1) {
-                conclusions.push(`(${type} :conclusion "${termStr}" :f ${truth.f.toFixed(3)} :c ${truth.c.toFixed(3)})`);
-            }
-        };
+        // Run reasoning cycles to let the stream reasoner derive conclusions
+        const cycles = nar.streamReasoner ? 5 : 3;
+        for (let i = 0; i < cycles; i++) {
+            if (nar.step) await nar.step();
+        }
 
-        const conflictMap = new Map();
-
-        for (let i = 0; i < premises.length; i++) {
-            for (let j = i + 1; j < premises.length; j++) {
-                const p1 = premises[i];
-                const p2 = premises[j];
-                const t1 = p1.truthValue ?? { f: 0.5, c: 0.9 };
-                const t2 = p2.truthValue ?? { f: 0.5, c: 0.9 };
-
-                const truthObjs = [t1, t2].map(t =>
-                    t instanceof Truth ? t : Truth.create(t.f ?? t.frequency ?? 0.5, t.c ?? t.confidence ?? 0.9));
-
-                const p1Term = p1.term?.toString?.() ?? String(p1);
-                const p2Term = p2.term?.toString?.() ?? String(p2);
-
-                const ded = Truth.deduction(truthObjs[0], truthObjs[1]);
-                addConclusion('deduction', p1Term, ded);
-
-                const ind = Truth.induction(truthObjs[0], truthObjs[1]);
-                addConclusion('induction', p2Term, ind);
-
-                const abd = Truth.abduction(truthObjs[0], truthObjs[1]);
-                addConclusion('abduction', p2Term, abd);
-
-                const rev = Truth.revision(truthObjs[0], truthObjs[1]);
-                if (rev && Math.abs(rev.f - truthObjs[0].f) > 0.01) {
-                    const conflictKey = `revision|${p1Term}`;
-                    if (!conflictMap.has(conflictKey) || Truth.expectation(rev) > Truth.expectation(conflictMap.get(conflictKey))) {
-                        conflictMap.set(conflictKey, rev);
-                    }
+        // Extract new/changed beliefs for the premise terms
+        const seen = new Set();
+        for (const termName of premiseTerms) {
+            const beliefs = this.#getBeliefs(termName);
+            for (const b of beliefs) {
+                const key = b.term?.toString?.() ?? String(b);
+                if (seen.has(key)) continue;
+                seen.add(key);
+                const f = b.truth?.f ?? b.truthValue?.f ?? 0;
+                const c = b.truth?.c ?? b.truthValue?.c ?? 0;
+                if (c > 0.1) {
+                    conclusions.push(`(belief "${key.replace(/"/g, '\\"')}" :f ${f.toFixed(3)} :c ${c.toFixed(3)})`);
                 }
             }
         }
 
-        for (const [key, truth] of conflictMap) {
-            const term = key.split('|')[1];
-            if (!seen.has(key)) {
-                seen.add(key);
-                conclusions.push(`(revision :conclusion "${term}" :f ${truth.f.toFixed(3)} :c ${truth.c.toFixed(3)})`);
+        // Also check for entirely new concepts that emerged
+        if (memory?.getConcepts) {
+            for (const concept of memory.getConcepts?.() ?? []) {
+                if (beforeKeys.has(concept.name)) continue;
+                const beliefs = concept.getTasksByType?.('BELIEF') ?? [];
+                for (const b of beliefs.slice(0, 3)) {
+                    const key = b.term?.toString?.() ?? String(b);
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    const f = b.truth?.f ?? b.truthValue?.f ?? 0;
+                    const c = b.truth?.c ?? b.truthValue?.c ?? 0;
+                    conclusions.push(`(derived "${key.replace(/"/g, '\\"')}" :f ${f.toFixed(3)} :c ${c.toFixed(3)})`);
+                }
             }
         }
 
         return conclusions;
     }
-}
-
-async function requireOrImport(spec) {
-    try { return await import(spec); } catch { return null; }
 }

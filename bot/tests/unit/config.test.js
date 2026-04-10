@@ -5,8 +5,11 @@
  * and validation.
  */
 
-import { describe, it, expect } from '@jest/globals';
-import { mergeConfig, parseArgs, validateConfig, DEFAULTS } from '../../src/config.js';
+import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { mergeConfig, parseArgs, validateConfig, DEFAULTS, loadFileConfig } from '../../src/config.js';
+import { existsSync, mkdirSync, writeFileSync, rmSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
 
 describe('Bot Config', () => {
     describe('DEFAULTS', () => {
@@ -124,18 +127,20 @@ describe('Bot Config', () => {
             expect(result.provider).toBe('ollama');
         });
 
-        it('normalizes legacy bot.nick shape', () => {
-            const fileConfig = { bot: { nick: 'LegacyBot' } };
+        it('ignores unknown top-level keys', () => {
+            const fileConfig = { randomKey: 'value', profile: 'minimal' };
             const result = mergeConfig(fileConfig, {});
-            expect(result.nick).toBe('LegacyBot');
+            expect(result.profile).toBe('minimal');
+            expect(result.randomKey).toBeUndefined();
         });
 
-        it('normalizes legacy irc.host shape', () => {
-            const fileConfig = { irc: { host: 'irc.old.com', port: 6669 } };
+        it('preserves unknown embodiment keys', () => {
+            const fileConfig = {
+                embodiments: { irc: { enabled: true }, custom: { enabled: true, url: 'ws://custom' } }
+            };
             const result = mergeConfig(fileConfig, {});
-            expect(result.embodiments.irc.host).toBe('irc.old.com');
-            expect(result.embodiments.irc.port).toBe(6669);
             expect(result.embodiments.irc.enabled).toBe(true);
+            expect(result.embodiments.custom.enabled).toBe(true);
         });
 
         it('--multi enables all embodiments', () => {
@@ -193,6 +198,59 @@ describe('Bot Config', () => {
         it('rejects non-string nick', () => {
             const errors = validateConfig({ nick: 42 });
             expect(errors.some(e => e.includes('Nick'))).toBe(true);
+        });
+    });
+
+    describe('loadFileConfig()', () => {
+        const testDir = join(tmpdir(), `senars-bot-config-test-${Date.now()}`);
+        beforeAll(() => { if (!existsSync(testDir)) mkdirSync(testDir, { recursive: true }); });
+        afterAll(() => { if (existsSync(testDir)) rmSync(testDir, { recursive: true, force: true }); });
+
+        function writeJson(filename, data) {
+            const path = join(testDir, filename);
+            writeFileSync(path, JSON.stringify(data, null, 2), 'utf8');
+            return path;
+        }
+
+        it('returns null for non-existent file', () => {
+            expect(loadFileConfig('/nonexistent/path/config.json')).toBeNull();
+        });
+
+        it('returns null for null/undefined path', () => {
+            expect(loadFileConfig(null)).toBeNull();
+            expect(loadFileConfig(undefined)).toBeNull();
+        });
+
+        it('loads valid JSON config from file', () => {
+            const path = writeJson('valid.json', { nick: 'FileBot', profile: 'evolved', loop: { budget: 75 } });
+            const result = loadFileConfig(path);
+            expect(result.nick).toBe('FileBot');
+            expect(result.profile).toBe('evolved');
+            expect(result.loop.budget).toBe(75);
+        });
+
+        it('returns null for malformed JSON', () => {
+            const path = join(testDir, 'malformed.json');
+            writeFileSync(path, '{ "nick": "Bot" invalid json }', 'utf8');
+            expect(loadFileConfig(path)).toBeNull();
+        });
+
+        it('returns null for empty file', () => {
+            const path = join(testDir, 'empty.json');
+            writeFileSync(path, '', 'utf8');
+            expect(loadFileConfig(path)).toBeNull();
+        });
+
+        it('loaded file config merges correctly', () => {
+            const path = writeJson('merge.json', {
+                nick: 'FileBot',
+                embodiments: { irc: { enabled: true, host: 'irc.test.com' } },
+            });
+            const fileConfig = loadFileConfig(path);
+            const merged = mergeConfig(fileConfig, {});
+            expect(merged.nick).toBe('FileBot');
+            expect(merged.embodiments.irc.enabled).toBe(true);
+            expect(merged.embodiments.irc.host).toBe('irc.test.com');
         });
     });
 });

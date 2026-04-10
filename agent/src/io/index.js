@@ -4,7 +4,6 @@ import { VirtualEmbodiment } from './VirtualEmbodiment.js';
 import { IRCChannel } from './channels/IRCChannel.js';
 import { NostrChannel } from './channels/NostrChannel.js';
 import { MatrixChannel } from './channels/MatrixChannel.js';
-import { CLIChannel } from './channels/CLIChannel.js';
 import { CLIEmbodiment } from './channels/CLIEmbodiment.js';
 import { DemoEmbodiment } from './channels/DemoEmbodiment.js';
 import { WebSearchTool } from './tools/WebSearch.js';
@@ -18,7 +17,6 @@ export {
     IRCChannel,
     NostrChannel,
     MatrixChannel,
-    CLIChannel,
     CLIEmbodiment,
     DemoEmbodiment,
     WebSearchTool,

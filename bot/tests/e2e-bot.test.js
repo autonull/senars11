@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 /**
- * e2e-bot.test.js — Full end-to-end test of the bot via its embedded IRC server.
+ * e2e-bot.test.js — End-to-end test of the bot via its embedded IRC server.
  *
- * Starts the bot as a child process (with embedded EmbeddedIRCServer), connects
- * a raw TCP client as a simulated IRC user, sends channel messages, and verifies
- * responses.
+ * Starts the bot as a child process with a real Transformers.js LLM,
+ * connects a raw TCP client as a simulated IRC user, sends messages,
+ * and verifies responses.
  *
- * The actual port is discovered by parsing bot stdout — no hardcoding.
+ * Port is discovered from bot stdout — no hardcoding.
  *
  * Usage:
  *   node bot/tests/e2e-bot.test.js
  */
 
 import { spawn } from 'child_process';
+import { createConnection } from 'net';
 import { strict as assert } from 'assert';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve } from 'path';
@@ -22,7 +23,7 @@ const fallbackBotDir = () => join(process.cwd(), 'bot/src');
 const __dirname = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackBotDir);
 const BOT_DIR = resolve(__dirname, '..');
 
-Logger.setLevel('INFO');
+Logger.setLevel('WARN');
 
 /* ── Simulated IRC user (raw TCP client) ─────────────────────────────── */
 
@@ -34,17 +35,18 @@ class FakeIRCUser {
         this.port = port;
         this._socket = null;
         this._buffer = '';
+        this._listeners = new Set();
     }
 
     connect() {
         return new Promise((resolve, reject) => {
             this._socket = createConnection({ host: this.host, port: this.port });
-            this._socket.on('data', (data) => this._onData(data));
+            this._socket.on('data', d => this._onData(d));
             this._socket.on('error', reject);
             this._socket.on('connect', () => {
                 this._send(`NICK ${this.nick}`);
                 this._send(`USER ${this.nick.toLowerCase()} 0 * :${this.nick}`);
-                const onReg = (line) => {
+                const onReg = line => {
                     if (line.includes(' 001 ')) {
                         this._listeners.delete(onReg);
                         this._send('JOIN ##metta');
@@ -56,8 +58,6 @@ class FakeIRCUser {
         });
     }
 
-    _listeners = new Set();
-
     _onData(data) {
         this._buffer += data.toString('utf-8');
         const lines = this._buffer.split('\r\n');
@@ -66,69 +66,79 @@ class FakeIRCUser {
             if (!line.trim()) continue;
             for (const fn of this._listeners) fn(line);
             if (line.includes('PRIVMSG')) {
-                const match = line.match(/:([^!]+)!.*PRIVMSG (##?\S+) :(.+)/);
-                if (match) this.messages.push({ from: match[1], channel: match[2], content: match[3] });
+                const m = line.match(/:([^!]+)!.*PRIVMSG (##?\S+) :(.+)/);
+                if (m) this.messages.push({ from: m[1], channel: m[2], content: m[3] });
             }
         }
     }
 
     _send(line) { this._socket.write(line + '\r\n'); }
     say(channel, content) { this._send(`PRIVMSG ${channel} :${content}`); }
-    disconnect() { this._send('QUIT :test done'); this._socket?.destroy(); }
+
+    /** Wait until at least one new bot reply appears, or timeout. */
+    waitForBotReply(timeout = 15000) {
+        return new Promise(resolve => {
+            const start = this.messages.length;
+            const end = Date.now() + timeout;
+            const tick = () => {
+                if (this.messages.length > start) {
+                    resolve(this.messages.filter(m => m.from === 'SeNARchy'));
+                    return;
+                }
+                if (Date.now() < end) { setTimeout(tick, 200); return; }
+                resolve([]);
+            };
+            setTimeout(tick, 200);
+        });
+    }
+
+    disconnect() { this._send('QUIT :done'); this._socket?.destroy(); }
 }
 
-/* ── Test runner ──────────────────────────────────────────────────────── */
+/* ── Test runner ─────────────────────────────────────────────────────── */
 
 const TESTS = [];
 let passed = 0, failed = 0;
 function test(name, fn) { TESTS.push({ name, fn }); }
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 /* ── Tests ────────────────────────────────────────────────────────────── */
 
-test("channel question generates a response", async (_bot, user) => {
+test('Channel question generates a response', async (_bot, user) => {
     user.messages.length = 0;
     user.say('##metta', "what's 2+2?");
-    const deadline = Date.now() + 30000;
-    while (Date.now() < deadline) { await sleep(500); if (user.messages.length > 0) break; }
-    assert.ok(user.messages.length > 0, 'Bot should send at least one response message');
-    const reply = user.messages.find(m => m.from === 'SeNARchy');
-    assert.ok(reply, 'Response should be from the bot');
-    console.log(`  → Bot replied: "${reply.content.substring(0, 120)}"`);
+    const replies = await user.waitForBotReply(120000);
+    assert.ok(replies.length > 0, 'Bot should respond to a question');
+    assert.ok(replies[0].content.length > 5, 'Response should be non-trivial');
+    console.log(`  → Bot replied: "${replies[0].content.substring(0, 120)}"`);
 });
 
-test("channel command !help generates a response", async (_bot, user) => {
+test('Channel command !help generates a response', async (_bot, user) => {
     user.messages.length = 0;
     user.say('##metta', '!help');
-    const deadline = Date.now() + 15000;
-    while (Date.now() < deadline) { await sleep(500); if (user.messages.length > 0) break; }
-    assert.ok(user.messages.length > 0, 'Bot should respond to !help');
-    const reply = user.messages.find(m => m.from === 'SeNARchy');
-    assert.ok(reply, '!help response should be from the bot');
+    const replies = await user.waitForBotReply(120000);
+    assert.ok(replies.length > 0, 'Bot should respond to !help');
 });
 
-test("URL containing bot nick does NOT trigger response", async (_bot, user) => {
+test('URL containing bot nick does NOT trigger response', async (_bot, user) => {
     user.messages.length = 0;
     user.say('##metta', 'check out https://example.com/SeNARchy/page');
-    await sleep(5000);
-    const botReply = user.messages.find(m => m.from === 'SeNARchy');
-    assert.ok(!botReply, 'Bot should NOT respond to URL containing its nick');
+    await sleep(15000);
+    const replies = user.messages.filter(m => m.from === 'SeNARchy');
+    assert.ok(replies.length === 0, `Bot should NOT respond to URL containing nick (got ${replies.length} replies)`);
 });
 
-test("channel greeting generates a response", async (_bot, user) => {
+test('Channel greeting generates a response', async (_bot, user) => {
     user.messages.length = 0;
     user.say('##metta', 'hello SeNARchy');
-    const deadline = Date.now() + 15000;
-    while (Date.now() < deadline) { await sleep(500); if (user.messages.length > 0) break; }
-    assert.ok(user.messages.length > 0, 'Bot should respond to greeting');
-    const reply = user.messages.find(m => m.from === 'SeNARchy');
-    assert.ok(reply, 'Greeting response should be from the bot');
+    const replies = await user.waitForBotReply(120000);
+    assert.ok(replies.length > 0, 'Bot should respond to greeting');
 });
 
 /* ── Main ─────────────────────────────────────────────────────────────── */
 
 async function main() {
-    console.log('═══ SeNARS Bot — End-to-End Tests ═══\n');
+    console.log('═══ SeNARS Bot — End-to-End Tests (Real LLM) ═══\n');
 
     const { child, port } = await startBotInProcess();
 
@@ -137,7 +147,7 @@ async function main() {
         await user.connect();
         console.log(`✅ Test user connected and joined ##metta (port ${port})\n`);
 
-        await sleep(1000);
+        await sleep(2000);
 
         for (const { name, fn } of TESTS) {
             console.log(`── ${name}`);
@@ -155,30 +165,37 @@ async function main() {
 }
 
 async function startBotInProcess() {
-    console.log('[e2e] Starting bot process...');
+    console.log('[e2e] Starting bot with real Transformers.js LLM...');
 
-    const child = spawn('node', ['run.js', '--mode', 'irc', '--profile', 'parity', '--nick', 'SeNARchy', '--channel', '##metta', '--provider', 'dummy'], {
+    const child = spawn('node', [
+        'run.js',
+        '--mode', 'irc',
+        '--profile', 'parity',
+        '--nick', 'SeNARchy',
+        '--channel', '##metta',
+        '--provider', 'transformers',
+        '--model', 'HuggingFaceTB/SmolLM2-360M-Instruct',
+    ], {
         cwd: BOT_DIR,
         stdio: ['pipe', 'pipe', 'pipe'],
-        env: { ...process.env, NODE_ENV: 'test' },
     });
 
     let botPort = null;
     let stdoutBuffer = '';
 
-    child.stdout.on('data', (data) => {
-        const str = data.toString();
+    child.stdout.on('data', d => {
+        const str = d.toString();
         stdoutBuffer += str;
         process.stdout.write(`[BOT] ${str}`);
         const m = str.match(/Embedded IRC server: 127\.0\.0\.1:(\d+)/);
         if (m) botPort = parseInt(m[1], 10);
     });
-    child.stderr.on('data', (data) => { process.stderr.write(`[BOT-ERR] ${data.toString()}`); });
+    child.stderr.on('data', d => process.stderr.write(`[BOT-ERR] ${d}`));
 
-    // Wait for the embedded server to report its actual port
-    const deadline = Date.now() + 30000;
+    // Wait for embedded server to report its port (model download may take time)
+    const deadline = Date.now() + 300_000; // 5 min for first-run model download
     while (!botPort && Date.now() < deadline) {
-        await sleep(200);
+        await sleep(500);
         const m = stdoutBuffer.match(/Embedded IRC server: 127\.0\.0\.1:(\d+)/);
         if (m) botPort = parseInt(m[1], 10);
     }
