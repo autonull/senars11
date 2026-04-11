@@ -7,7 +7,7 @@ import {grounded, isExpression, sym, Term} from '../kernel/Term.js';
 import {Unify} from '../kernel/Unify.js';
 import {bindingsAtomToObj, objToBindingsAtom} from '../kernel/Bindings.js';
 import {Formatter} from '../kernel/Formatter.js';
-import {match, reduceND} from '../kernel/Reduce.js';
+import {match, reduceND, reduceNDAsync} from '../kernel/Reduce.js';
 
 export function registerAdvancedOps(interpreter) {
     const {sym, exp, var: v, isExpression} = Term;
@@ -229,40 +229,71 @@ export function registerAdvancedOps(interpreter) {
         },
 
         // Control flow operations
-        // &if: reduce condition, then evaluate chosen branch
+        // &if: reduce condition, then evaluate chosen branch (works in both sync and async paths)
         '&if': {
-            fn: (cond, thenB, elseB) => {
-                const results = reduceND(cond, interpreter.space, interpreter.ground,
-                    undefined, undefined, interpreter);
-                const condRes = results[0] ?? cond;
-                if (condRes?.name === 'True') {
-                    const branchRes = reduceND(thenB, interpreter.space, interpreter.ground,
+            fn: async (cond, thenB, elseB) => {
+                // Try async reduction first (works in async pipeline)
+                try {
+                    const results = await reduceNDAsync(cond, interpreter.space, interpreter.ground,
                         undefined, undefined, interpreter);
-                    return branchRes[0] ?? thenB;
-                }
-                if (condRes?.name === 'False') {
-                    const branchRes = reduceND(elseB, interpreter.space, interpreter.ground,
+                    const condRes = results[0] ?? cond;
+                    if (condRes?.name === 'True') {
+                        const branchRes = await reduceNDAsync(thenB, interpreter.space, interpreter.ground,
+                            undefined, undefined, interpreter);
+                        return branchRes[0] ?? thenB;
+                    }
+                    if (condRes?.name === 'False') {
+                        const branchRes = await reduceNDAsync(elseB, interpreter.space, interpreter.ground,
+                            undefined, undefined, interpreter);
+                        return branchRes[0] ?? elseB;
+                    }
+                    return exp(sym('if'), [condRes, thenB, elseB]);
+                } catch {
+                    // Fallback: sync reduction (if condition is already a concrete value)
+                    const results = reduceND(cond, interpreter.space, interpreter.ground,
                         undefined, undefined, interpreter);
-                    return branchRes[0] ?? elseB;
+                    const condRes = results[0] ?? cond;
+                    if (condRes?.name === 'True') {
+                        const branchRes = reduceND(thenB, interpreter.space, interpreter.ground,
+                            undefined, undefined, interpreter);
+                        return branchRes[0] ?? thenB;
+                    }
+                    if (condRes?.name === 'False') {
+                        const branchRes = reduceND(elseB, interpreter.space, interpreter.ground,
+                            undefined, undefined, interpreter);
+                        return branchRes[0] ?? elseB;
+                    }
+                    return exp(sym('if'), [condRes, thenB, elseB]);
                 }
-                return exp(sym('if'), [condRes, thenB, elseB]);
             },
-            opts: {lazy: true}
+            opts: {lazy: true, async: true}
         },
         // &when: reduce condition; if True reduce body, else return ()
         '&when': {
-            fn: (cond, body) => {
-                const results = reduceND(cond, interpreter.space, interpreter.ground,
-                    undefined, undefined, interpreter);
-                const condRes = results[0] ?? cond;
-                if (condRes?.name === 'True') {
-                    const bodyRes = reduceND(body, interpreter.space, interpreter.ground,
+            fn: async (cond, body) => {
+                try {
+                    const results = await reduceNDAsync(cond, interpreter.space, interpreter.ground,
                         undefined, undefined, interpreter);
-                    return bodyRes[0] ?? body;
+                    const condRes = results[0] ?? cond;
+                    if (condRes?.name === 'True') {
+                        const bodyRes = await reduceNDAsync(body, interpreter.space, interpreter.ground,
+                            undefined, undefined, interpreter);
+                        return bodyRes[0] ?? body;
+                    }
+                    return sym('()');
+                } catch {
+                    const results = reduceND(cond, interpreter.space, interpreter.ground,
+                        undefined, undefined, interpreter);
+                    const condRes = results[0] ?? cond;
+                    if (condRes?.name === 'True') {
+                        const bodyRes = reduceND(body, interpreter.space, interpreter.ground,
+                            undefined, undefined, interpreter);
+                        return bodyRes[0] ?? body;
+                    }
+                    return sym('()');
                 }
-                return sym('()');
             },
-            opts: {lazy: true}
+            opts: {lazy: true, async: true}
         },
         // let*: sequentially reduce each binding value, substitute into remaining bindings and body
         '&let*': {

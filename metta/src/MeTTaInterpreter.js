@@ -194,9 +194,16 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
             const isTypeAnnotation = (e.operator === ':' || e.operator?.name === ':') && e.components?.length === 2;
             if (isRule) { this.space.addRule(e.components[0], e.components[1]); res.push(e); continue; }
             if (isTypeAnnotation) { this.space.add(e); res.push(e); continue; }
-            // Bare expressions: add to space as facts (standard MeTTa behavior)
+            // Bare expressions: add to space as facts AND evaluate
             this.space.add(e);
-            res.push(e);
+            const evalRes = this.evaluate(e);
+            if (Array.isArray(evalRes)) {
+                res.push(...evalRes);
+            } else if (evalRes != null) {
+                res.push(evalRes);
+            } else {
+                res.push(e);
+            }
         }
         res.toString = () => Formatter.formatResult(res);
         return res;
@@ -220,9 +227,16 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
             const isTypeAnnotation = (e.operator === ':' || e.operator?.name === ':') && e.components?.length === 2;
             if (isRule) { this.space.addRule(e.components[0], e.components[1]); res.push(e); continue; }
             if (isTypeAnnotation) { this.space.add(e); res.push(e); continue; }
-            // Bare expressions: add to space as facts (standard MeTTa behavior)
+            // Bare expressions: add to space as facts AND evaluate
             this.space.add(e);
-            res.push(e);
+            const evalRes = await this.evaluateAsync(e);
+            if (Array.isArray(evalRes)) {
+                res.push(...evalRes);
+            } else if (evalRes != null) {
+                res.push(evalRes);
+            } else {
+                res.push(e);
+            }
         }
         res.toString = () => Formatter.formatResult(res);
         return res;

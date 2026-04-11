@@ -162,15 +162,28 @@ function createBindOp(interpreter) {
 function createCollapseOp(interpreter) {
     const {isList} = Term;
     return async (atom) => {
-        const results = await reduceNDAsync(atom, interpreter.space, interpreter.ground,
-            interpreter.config.maxReductionSteps);
-        if (results.length === 0) return Term.sym('()');
-        if (results.length === 1) {
-            const single = results[0];
-            if (single.name === '()') return single;
-            if (isList(single)) return single;
+        try {
+            const results = await reduceNDAsync(atom, interpreter.space, interpreter.ground,
+                interpreter.config.maxReductionSteps);
+            if (results.length === 0) return Term.sym('()');
+            if (results.length === 1) {
+                const single = results[0];
+                if (single.name === '()') return single;
+                if (isList(single)) return single;
+            }
+            return interpreter._listify(results);
+        } catch {
+            // Sync fallback
+            const results = reduceND(atom, interpreter.space, interpreter.ground,
+                interpreter.config.maxReductionSteps);
+            if (results.length === 0) return Term.sym('()');
+            if (results.length === 1) {
+                const single = results[0];
+                if (single.name === '()') return single;
+                if (isList(single)) return single;
+            }
+            return interpreter._listify(results);
         }
-        return interpreter._listify(results);
     };
 }
 

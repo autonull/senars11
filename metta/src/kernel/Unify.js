@@ -198,6 +198,15 @@ const unifiedUnify = (t1, t2, binds = {}) => {
         return (t1 === t2 || t1.name === t2.name) ? binds : null;
     }
 
+    // Handle cons constructor in patterns FIRST: (cons $h $t) acts as (: $h $t)
+    // Must come BEFORE list-vs-expr conversion to prevent incorrect normalization
+    if (isExpression(t1) && t1.operator?.name === 'cons' && t1.components?.length === 2) {
+        return unifiedUnify(exp(sym(':'), t1.components), t2, binds);
+    }
+    if (isExpression(t2) && t2.operator?.name === 'cons' && t2.components?.length === 2) {
+        return unifiedUnify(t1, exp(sym(':'), t2.components), binds);
+    }
+
     if (isList(t1) && isList(t2)) {
         return unifyLists(t1, t2, binds);
     }
@@ -210,14 +219,6 @@ const unifiedUnify = (t1, t2, binds = {}) => {
     }
     if (isList(t2) && isExpression(t1) && t1.operator?.name !== ':') {
         return unifiedUnify(exprToCons(t1), t2, binds);
-    }
-
-    // Handle cons constructor in patterns: (cons $h $t) acts as (: $h $t)
-    if (isExpression(t1) && t1.operator?.name === 'cons' && t1.components?.length === 2) {
-        return unifiedUnify(exp(sym(':'), t1.components), t2, binds);
-    }
-    if (isExpression(t2) && t2.operator?.name === 'cons' && t2.components?.length === 2) {
-        return unifiedUnify(t1, exp(sym(':'), t2.components), binds);
     }
 
     const result = UnifyCore.unify(t1, t2, binds, mettaAdapter);

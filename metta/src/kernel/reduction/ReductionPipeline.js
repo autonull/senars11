@@ -207,10 +207,12 @@ export class ReductionPipeline {
             if (focusApplied) {
                 return;
             }
-            while (!zipper.right()) {
-                if (!zipper.up()) {
-                    break;
-                }
+            // Move right if possible, then descend to deepest of new subtree;
+            // otherwise move up one level
+            if (zipper.right()) {
+                while (zipper.down(0)) { /* descend */ }
+            } else if (!zipper.up()) {
+                break;
             }
         } while (zipper.depth > 0);
     }
@@ -238,10 +240,12 @@ export class ReductionPipeline {
             if (focusApplied) {
                 return;
             }
-            while (!zipper.right()) {
-                if (!zipper.up()) {
-                    break;
-                }
+            // Move right if possible, then descend to deepest of new subtree;
+            // otherwise move up one level
+            if (zipper.right()) {
+                while (zipper.down(0)) { /* descend */ }
+            } else if (!zipper.up()) {
+                break;
             }
         } while (zipper.depth > 0);
     }
@@ -249,8 +253,17 @@ export class ReductionPipeline {
     * _executeGrounded(atom, op, args, _context, isAsync = false) {
         try {
             const result = op(...args);
-            // In sync path, skip async ops (they'll be handled by the async pipeline)
-            if (isAsync || result instanceof Promise) {
+            // Handle async ops in sync path: try to resolve the Promise
+            if (result instanceof Promise) {
+                // Check if the Promise resolves immediately (e.g., async fn with no actual awaits)
+                let settled = false;
+                let syncResult;
+                result.then(r => { settled = true; syncResult = r; }).catch(() => {});
+                if (settled && syncResult !== undefined && syncResult !== null && !equals(syncResult, atom)) {
+                    yield {reduced: syncResult, applied: true, stage: 'grounded'};
+                    return;
+                }
+                // Promise didn't resolve immediately — skip in sync path
                 yield {reduced: atom, applied: false};
                 return;
             }

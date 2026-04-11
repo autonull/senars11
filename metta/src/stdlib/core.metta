@@ -3,11 +3,11 @@
 
 ; ===== Conditional Branching =====
 
-; if: conditional evaluation
-; (if True $then $else) → $then
-; (if False $then $else) → $else
-; Mapping to grounded &if for robust evaluation
-(= (if $cond $then $else) (^ &if $cond $then $else))
+; if: conditional evaluation — specific rules for concrete values
+(= (if True $then $else) $then)
+(= (if False $then $else) $else)
+; Non-concrete conditions: ZipperStage reduces sub-expressions first,
+; then the specific rules above match. No general &if rule needed.
 
 ; ===== Variable Binding =====
 
