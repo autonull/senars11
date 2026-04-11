@@ -23,10 +23,14 @@
 ; ===== Lambda (Anonymous Functions) =====
 
 ; Lambda application: ((λ $x $body) $value)
-; Use &subst grounded op to perform substitution  
+; Use &let grounded op to perform substitution
 ; IMPORTANT: Pattern uses $param/$val to avoid variable name collision with lambda body
-(= ((λ $param $body) $val) (^ &subst $param $val $body))
-(= ((lambda $param $body) $val) (^ &subst $param $val $body))
+(= ((λ $param $body) $val) (^ &let $param $val $body))
+(= ((lambda $param $body) $val) (^ &let $param $val $body))
+
+; PeTTa style lambda
+(= ((|-> $param $body) $val) (^ &let $param $val $body))
+(= (((|-> $param $body) $val1) $val2) ((|-> $param $body) ($val1 $val2)))
 
 ; Multiple argument lambda (curried)
 ; (λ ($x $y) $body) → (λ $x (λ $y $body))

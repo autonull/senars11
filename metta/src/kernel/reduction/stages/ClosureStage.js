@@ -13,11 +13,15 @@ export class ClosureStage extends ReductionStage {
         // Detect partial application: ((f 1) 2) -> operator is (f 1), args are [2]
         const opExpr = atom.operator;
         const funcAtom = opExpr.operator;
-        if (!funcAtom || !funcAtom.name) {
+        if (!funcAtom || (!funcAtom.name && funcAtom.type !== 'variable' && !funcAtom.operator?.name)) {
             return null;
         }
-        const rules = context.space?.rulesFor(funcAtom);
-        if (!rules || rules.length === 0) {
+        let rules = funcAtom?.name ? context.space?.rulesFor(funcAtom) : [];
+        if ((!rules || rules.length === 0) && atom.operator?.operator?.operator?.name) { rules = context.space?.rulesFor(atom.operator.operator.operator); }
+        if ((!rules || rules.length === 0) && atom.operator?.operator?.operator?.operator?.name) { rules = context.space?.rulesFor(atom.operator.operator.operator.operator); }
+        if ((!rules || rules.length === 0) && funcAtom?.operator?.name) { rules = context.space?.rulesFor(funcAtom.operator); }
+        if ((!rules || rules.length === 0) && funcAtom?.type === 'variable') { rules = context.space?.all() || []; }
+        if ((!rules || rules.length === 0) && funcAtom?.name) {
             return null;
         }
         // Combine captured args with provided args: (f 1) captured [1], (f 1) 2 provides [2]

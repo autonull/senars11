@@ -24,7 +24,7 @@ export function registerAdvancedOps(interpreter) {
         '&subst': {
             fn: (a, b, c) => {
                 if (c) {
-                    const bindings = a.name ? {[a.name]: b} : {};
+                    const bindings = a.name ? {[a.name]: b} : (Unify.unify(a, b) || (a?.components?.length === 1 && a.operator?.name !== ":" && a.components[0].name ? {[a.components[0].name]: b} : {}));
                     return Unify.subst(c, bindings, {recursive: false});
                 }
                 return Unify.subst(a, bindingsAtomToObj(b), {recursive: false});
@@ -37,7 +37,8 @@ export function registerAdvancedOps(interpreter) {
                 const reduced = await reduceNDAsync(val, interpreter.space, interpreter.ground,
                     undefined, undefined, interpreter);
                 const resolved = reduced[0] ?? val;
-                return Unify.subst(body, vari?.name ? {[vari.name]: resolved} : {}, {recursive: false});
+                const bindings = (vari?.type === 'variable' || vari?.name?.startsWith('$')) ? {[vari.name]: resolved} : (Unify.unify(vari, resolved) || (vari?.components?.length === 0 && vari.operator?.name !== ":" && (vari.operator?.type === 'variable' || vari.operator?.name?.startsWith('$')) ? {[vari.operator.name]: resolved} : null) || (vari?.components?.length === 1 && vari.operator?.name !== ":" && (vari.components[0]?.type === 'variable' || vari.components[0]?.name?.startsWith('$')) ? {[vari.components[0].name]: resolved} : null) || {});
+                return Unify.subst(body, bindings, {recursive: false});
             },
             opts: {lazy: true, async: true}
         },
@@ -48,7 +49,7 @@ export function registerAdvancedOps(interpreter) {
                 const b = Unify.unify(pat, term);
                 return b ? objToBindingsAtom(b) : sym('False');
             },
-            opts: {}
+            opts: {lazy: true}
         },
 
         // Matching operations
@@ -58,7 +59,7 @@ export function registerAdvancedOps(interpreter) {
         },
         '&query': {
             fn: (p, t) => interpreter._listify(match(interpreter.space, p, t)),
-            opts: {}
+            opts: {lazy: true}
         },
 
         // Type operations
@@ -83,7 +84,7 @@ export function registerAdvancedOps(interpreter) {
                 }
                 return grounded('Atom');
             },
-            opts: {}
+            opts: {lazy: true}
         },
         '&type-infer': {
             fn: (term) => {
@@ -93,11 +94,11 @@ export function registerAdvancedOps(interpreter) {
                     return sym('Error');
                 }
             },
-            opts: {}
+            opts: {lazy: true}
         },
         '&type-check': {
             fn: (t, type) => sym(interpreter.typeChecker ? 'True' : 'False'),
-            opts: {}
+            opts: {lazy: true}
         },
 
         // Context-dependent type operations
@@ -122,7 +123,7 @@ export function registerAdvancedOps(interpreter) {
                 const results = match(s, typePattern, v('type'));
                 return results.length ? results[0] : sym('%Undefined%');
             },
-            opts: {}
+            opts: {lazy: true}
         },
         '&match-types': {
             fn: (t1, t2, thenBranch, elseBranch) => {
@@ -156,7 +157,7 @@ export function registerAdvancedOps(interpreter) {
         // Space operations
         '&get-atoms': {
             fn: () => interpreter._listify(interpreter.space.all()),
-            opts: {}
+            opts: {lazy: true}
         },
         '&add-atom': {
             fn: (s, a) => {
@@ -166,7 +167,7 @@ export function registerAdvancedOps(interpreter) {
                 if (space && atom) space.add(atom);
                 return atom;
             },
-            opts: {}
+            opts: {lazy: true}
         },
         '&rm-atom': {
             fn: (s, a) => {
@@ -175,7 +176,7 @@ export function registerAdvancedOps(interpreter) {
                 if (space && atom) space.remove(atom);
                 return sym('()');
             },
-            opts: {}
+            opts: {lazy: true}
         },
 
         // I/O operations
@@ -200,7 +201,7 @@ export function registerAdvancedOps(interpreter) {
                 }
                 return formatNum(list?.components ? list.components.length + 1 : 1);
             },
-            opts: {}
+            opts: {lazy: true}
         },
 
         // Control flow operations
@@ -335,14 +336,14 @@ export function registerAdvancedOps(interpreter) {
 
         // is-var: check if atom is a variable
         '&is-var': {
-            fn: (a) => sym(a._typeTag === 3 ? 'True' : 'False'),  // TYPE_VARIABLE = 3
-            opts: {}
+            fn: (a) => sym(a.type === 'variable' || a.name?.startsWith('$') ? 'True' : 'False'),  // TYPE_VARIABLE = 3
+            opts: {lazy: true}
         },
 
         // =alpha: check alpha-equivalence (structural equality ignoring variable names)
         '&=alpha': {
             fn: (a, b) => sym(alphaEquiv(a, b) ? 'True' : 'False'),
-            opts: {}
+            opts: {lazy: true}
         },
 
         // repr: return string representation of an atom
@@ -365,7 +366,7 @@ export function registerAdvancedOps(interpreter) {
                 }
                 return sym('"' + a.toString() + '"');
             },
-            opts: {}
+            opts: {lazy: true}
         },
 
         // case: match expression against multiple patterns

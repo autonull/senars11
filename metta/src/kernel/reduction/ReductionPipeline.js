@@ -318,7 +318,26 @@ export class ReductionPipeline {
 
     * _matchClosure(atom, funcAtom, capturedArgs, providedArgs, allArgs, rules, context) {
         // Build expression: (func captured1 captured2 ... provided1 provided2 ...)
-        const callExpr = exp(funcAtom, allArgs);
+        let baseFunc = funcAtom;
+        let currentAtom = atom;
+
+        while (!baseFunc?.name && baseFunc?.type !== 'variable' && !baseFunc?.operator?.name && currentAtom?.operator) {
+            baseFunc = currentAtom.operator;
+            currentAtom = currentAtom.operator;
+        }
+
+        const callExpr = exp(baseFunc, allArgs);
+
+        // Find rules dynamically down the operator chain if missing
+        if (rules.length === 0) {
+            let lookupAtom = atom;
+            while (lookupAtom?.operator && rules.length === 0) {
+                if (lookupAtom.operator.name) {
+                    rules = context.space?.rulesFor(lookupAtom.operator) || [];
+                }
+                lookupAtom = lookupAtom.operator;
+            }
+        }
         for (const rule of rules) {
             const {pattern, result: template} = rule;
             if (template === undefined || !isExpression(pattern)) {
