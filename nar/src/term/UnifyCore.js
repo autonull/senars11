@@ -37,6 +37,12 @@ export const unify = (t1, t2, bindings = {}, adapter, depth = 0) => {
         return bindVariable(b2, b1, bindings, adapter);
     }
 
+    // Allow adapter to intercept compound unification (e.g. cons-list vs expression-form list)
+    if (adapter.preUnify) {
+        const pre = adapter.preUnify(b1, b2, bindings);
+        if (pre !== undefined) return pre;
+    }
+
     if (adapter.isCompound(b1) && adapter.isCompound(b2)) {
         return unifyCompounds(b1, b2, bindings, adapter, depth);
     }

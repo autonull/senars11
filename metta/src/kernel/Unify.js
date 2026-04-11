@@ -131,6 +131,24 @@ const mettaAdapter = {
             return constructList(comps, tail);
         }
         return exp(t.operator, comps);
+    },
+    // Intercept compound unification to handle cons-list vs expression-form list matching
+    preUnify: (t1, t2, bindings) => {
+        // (: h t) pattern vs expression-form list (a b c)
+        if (isList(t1) && isExpression(t2) && t2.operator?.name !== ':') {
+            return unifiedUnify(t1, exprToCons(t2), bindings);
+        }
+        if (isList(t2) && isExpression(t1) && t1.operator?.name !== ':') {
+            return unifiedUnify(exprToCons(t1), t2, bindings);
+        }
+        // (cons h t) in pattern acts as (: h t)
+        if (isExpression(t1) && t1.operator?.name === 'cons' && t1.components?.length === 2) {
+            return unifiedUnify(exp(sym(':'), t1.components), t2, bindings);
+        }
+        if (isExpression(t2) && t2.operator?.name === 'cons' && t2.components?.length === 2) {
+            return unifiedUnify(t1, exp(sym(':'), t2.components), bindings);
+        }
+        return undefined; // proceed with standard unification
     }
 };
 

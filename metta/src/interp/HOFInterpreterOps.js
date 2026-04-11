@@ -22,7 +22,7 @@ export function registerHofOps(interpreter) {
         // Apply fn to args: build (fn arg0 arg1 ...) and reduce
         const callExpr = exp(fn, args);
         return reduce(callExpr, interpreter.space, interpreter.ground,
-            interpreter.config.maxReductionSteps, interpreter.memoCache);
+            interpreter.config.maxReductionSteps, interpreter.memoCache, interpreter);
     };
 
     const substAndReduce = (fn, varName, el) => {
@@ -30,7 +30,7 @@ export function registerHofOps(interpreter) {
             return reduce(
                 Unify.subst(fn, {[varName.name]: el}),
                 interpreter.space, interpreter.ground,
-                interpreter.config.maxReductionSteps, interpreter.memoCache
+                interpreter.config.maxReductionSteps, interpreter.memoCache, interpreter
             );
         }
         // fn is a function symbol — call it
@@ -44,7 +44,7 @@ export function registerHofOps(interpreter) {
             if (varName?.name) {
                 return reduce(Unify.subst(transformFn, {[varName.name]: el}),
                     interpreter.space, interpreter.ground,
-                    interpreter.config.maxReductionSteps, interpreter.memoCache);
+                    interpreter.config.maxReductionSteps, interpreter.memoCache, interpreter);
             }
             // 2-arg form: (map-atom list fn) — varName is the fn, transformFn is undefined
             return applyFn(varName, [el]);
@@ -67,7 +67,7 @@ export function registerHofOps(interpreter) {
             if (varName?.name) {
                 result = reduce(Unify.subst(predFn, {[varName.name]: el}),
                     interpreter.space, interpreter.ground,
-                    interpreter.config.maxReductionSteps, interpreter.memoCache);
+                    interpreter.config.maxReductionSteps, interpreter.memoCache, interpreter);
             } else {
                 result = applyFn(varName, [el]);
             }
@@ -91,7 +91,7 @@ export function registerHofOps(interpreter) {
         return elements.reduce((acc, el) => {
             const substituted = Unify.subst(opFn, {[aVar.name]: acc, [bVar.name]: el});
             return reduce(substituted, interpreter.space, interpreter.ground,
-                interpreter.config.maxReductionSteps, interpreter.memoCache);
+                interpreter.config.maxReductionSteps, interpreter.memoCache, interpreter);
         }, init);
     }, {lazy: true});
 

@@ -7,7 +7,7 @@ import {grounded, isExpression, sym, Term} from '../kernel/Term.js';
 import {Unify} from '../kernel/Unify.js';
 import {bindingsAtomToObj, objToBindingsAtom} from '../kernel/Bindings.js';
 import {Formatter} from '../kernel/Formatter.js';
-import {match, reduceNDAsync} from '../kernel/Reduce.js';
+import {match, reduceND} from '../kernel/Reduce.js';
 
 export function registerAdvancedOps(interpreter) {
     const {sym, exp, var: v, isExpression} = Term;
@@ -33,14 +33,14 @@ export function registerAdvancedOps(interpreter) {
         },
         // let: reduce value, then substitute into body
         '&let': {
-            fn: async (vari, val, body) => {
-                const reduced = await reduceNDAsync(val, interpreter.space, interpreter.ground,
+            fn: (vari, val, body) => {
+                const reduced = reduceND(val, interpreter.space, interpreter.ground,
                     undefined, undefined, interpreter);
                 const resolved = reduced[0] ?? val;
                 const bindings = (vari?.type === 'variable' || vari?.name?.startsWith('$')) ? {[vari.name]: resolved} : (Unify.unify(vari, resolved) || (vari?.components?.length === 0 && vari.operator?.name !== ":" && (vari.operator?.type === 'variable' || vari.operator?.name?.startsWith('$')) ? {[vari.operator.name]: resolved} : null) || (vari?.components?.length === 1 && vari.operator?.name !== ":" && (vari.components[0]?.type === 'variable' || vari.components[0]?.name?.startsWith('$')) ? {[vari.components[0].name]: resolved} : null) || {});
                 return Unify.subst(body, bindings, {recursive: false});
             },
-            opts: {lazy: true, async: true}
+            opts: {lazy: true}
         },
 
         // Unification operations
@@ -231,54 +231,53 @@ export function registerAdvancedOps(interpreter) {
         // Control flow operations
         // &if: reduce condition, then evaluate chosen branch
         '&if': {
-            fn: async (cond, thenB, elseB) => {
-                const results = await reduceNDAsync(cond, interpreter.space, interpreter.ground,
+            fn: (cond, thenB, elseB) => {
+                const results = reduceND(cond, interpreter.space, interpreter.ground,
                     undefined, undefined, interpreter);
                 const condRes = results[0] ?? cond;
                 if (condRes?.name === 'True') {
-                    const branchRes = await reduceNDAsync(thenB, interpreter.space, interpreter.ground,
+                    const branchRes = reduceND(thenB, interpreter.space, interpreter.ground,
                         undefined, undefined, interpreter);
                     return branchRes[0] ?? thenB;
                 }
                 if (condRes?.name === 'False') {
-                    const branchRes = await reduceNDAsync(elseB, interpreter.space, interpreter.ground,
+                    const branchRes = reduceND(elseB, interpreter.space, interpreter.ground,
                         undefined, undefined, interpreter);
                     return branchRes[0] ?? elseB;
                 }
                 return exp(sym('if'), [condRes, thenB, elseB]);
             },
-            opts: {lazy: true, async: true}
+            opts: {lazy: true}
         },
         // &when: reduce condition; if True reduce body, else return ()
         '&when': {
-            fn: async (cond, body) => {
-                const results = await reduceNDAsync(cond, interpreter.space, interpreter.ground,
+            fn: (cond, body) => {
+                const results = reduceND(cond, interpreter.space, interpreter.ground,
                     undefined, undefined, interpreter);
                 const condRes = results[0] ?? cond;
                 if (condRes?.name === 'True') {
-                    const bodyRes = await reduceNDAsync(body, interpreter.space, interpreter.ground,
+                    const bodyRes = reduceND(body, interpreter.space, interpreter.ground,
                         undefined, undefined, interpreter);
                     return bodyRes[0] ?? body;
                 }
                 return sym('()');
             },
-            opts: {lazy: true, async: true}
+            opts: {lazy: true}
         },
         // let*: sequentially reduce each binding value, substitute into remaining bindings and body
         '&let*': {
-            fn: async (binds, body) => {
+            fn: (binds, body) => {
                 const pairs = interpreter._extractLetStarPairs(binds);
                 if (!pairs.length) {
-                    return reduceNDAsync(body, interpreter.space, interpreter.ground,
-                        undefined, undefined, interpreter).then(r => r[0] ?? body);
+                    const r = reduceND(body, interpreter.space, interpreter.ground,
+                        undefined, undefined, interpreter);
+                    return r[0] ?? body;
                 }
-                // Clone pairs so we can mutate binding values during substitution
                 const mutablePairs = pairs.map(p => ({...p}));
                 let result = body;
                 for (let i = 0; i < mutablePairs.length; i++) {
                     const [vari, val] = interpreter._extractVarAndValue(mutablePairs[i]);
                     if (!vari || !val) {continue;}
-                    // Substitute earlier bindings into this binding's value
                     let substVal = val;
                     for (let j = 0; j < i; j++) {
                         const [prevVari, prevResolved] = mutablePairs[j].resolved;
@@ -286,17 +285,17 @@ export function registerAdvancedOps(interpreter) {
                             substVal = Unify.subst(substVal, {[prevVari.name]: prevResolved}, {recursive: false});
                         }
                     }
-                    const reduced = await reduceNDAsync(substVal, interpreter.space, interpreter.ground,
+                    const reduced = reduceND(substVal, interpreter.space, interpreter.ground,
                         undefined, undefined, interpreter);
                     const resolved = reduced[0] ?? substVal;
                     mutablePairs[i].resolved = [vari, resolved];
                     result = Unify.subst(result, {[vari.name]: resolved}, {recursive: false});
                 }
-                const finalReduced = await reduceNDAsync(result, interpreter.space, interpreter.ground,
+                const finalReduced = reduceND(result, interpreter.space, interpreter.ground,
                     undefined, undefined, interpreter);
                 return finalReduced[0] ?? result;
             },
-            opts: {lazy: true, async: true}
+            opts: {lazy: true}
         },
 
         // Higher-order function operations
@@ -395,39 +394,32 @@ export function registerAdvancedOps(interpreter) {
 
         // case: match expression against multiple patterns
         '&case': {
-            fn: async (expr, branches) => {
+            fn: (expr, branches) => {
                 // First reduce expr to get its value
-                const exprResults = await reduceNDAsync(expr, interpreter.space, interpreter.ground,
+                const exprResults = reduceND(expr, interpreter.space, interpreter.ground,
                     undefined, undefined, interpreter);
                 const exprVal = exprResults[0] ?? expr;
 
                 // Collect all (pattern result) pairs from branches
-                // Branches can be:
-                //   cons-list form: (: (pat1 res1) (: (pat2 res2) ()))
-                //   expression form: ((pat1 res1) (pat2 res2) ...)
                 const pairs = [];
                 if (isExpression(branches) && branches.operator?.name === ':') {
-                    // cons-list form
                     let cur = branches;
                     while (isExpression(cur) && cur.operator?.name === ':') {
                         pairs.push(cur.components[0]);
                         cur = cur.components[1];
                     }
                 } else if (isExpression(branches)) {
-                    // expression form: operator is first branch, components are rest
                     pairs.push(branches.operator);
                     for (const c of (branches.components ?? [])) pairs.push(c);
                 }
 
                 for (const pair of pairs) {
                     if (!isExpression(pair)) continue;
-                    // pair is (pattern result) or (: pattern result)
                     let pattern, result;
                     if (pair.operator?.name === ':' && pair.components?.length === 2) {
                         pattern = pair.components[0];
                         result = pair.components[1];
                     } else {
-                        // expression form: (pattern result) → operator=pattern, components[0]=result
                         pattern = pair.operator;
                         result = pair.components?.[0];
                     }
@@ -435,9 +427,8 @@ export function registerAdvancedOps(interpreter) {
 
                     // Special: Empty pattern matches empty/no result
                     if (pattern?.name === 'Empty') {
-                        // Match if exprVal produced no results (empty)
                         if (exprVal?.name === 'Empty' || exprVal?.name === '()') {
-                            const reduced = await reduceNDAsync(result,
+                            const reduced = reduceND(result,
                                 interpreter.space, interpreter.ground, undefined, undefined, interpreter);
                             return reduced[0] ?? result;
                         }
@@ -446,15 +437,14 @@ export function registerAdvancedOps(interpreter) {
 
                     const binds = Unify.unify(exprVal, pattern);
                     if (binds !== null && binds !== undefined) {
-                        const reduced = await reduceNDAsync(Unify.subst(result, binds),
+                        const reduced = reduceND(Unify.subst(result, binds),
                             interpreter.space, interpreter.ground, undefined, undefined, interpreter);
                         return reduced[0] ?? result;
                     }
                 }
-                // No match found — return empty
                 return sym('()');
             },
-            opts: {lazy: true, async: true}
+            opts: {lazy: true}
         },
 
         // msort: sort a list
@@ -499,25 +489,24 @@ export function registerAdvancedOps(interpreter) {
 
         // foldall: fold over all results of a non-deterministic reduction
         '&foldall': {
-            fn: async (opFn, expr, init) => {
-                const results = await reduceNDAsync(expr, interpreter.space, interpreter.ground,
+            fn: (opFn, expr, init) => {
+                const results = reduceND(expr, interpreter.space, interpreter.ground,
                     undefined, undefined, interpreter);
                 let acc = init;
                 for (const el of results) {
-                    // Apply opFn to (acc, el): try as function call first, then substitution
                     let callExpr;
                     if (isExpression(opFn) || opFn?.type === 'atom') {
                         callExpr = exp(opFn, [acc, el]);
                     } else {
                         callExpr = Unify.subst(opFn, {[v('acc').name]: acc, [v('el').name]: el});
                     }
-                    const reduced = await reduceNDAsync(callExpr, interpreter.space, interpreter.ground,
+                    const reduced = reduceND(callExpr, interpreter.space, interpreter.ground,
                         undefined, undefined, interpreter);
                     acc = reduced[0] ?? callExpr;
                 }
                 return acc;
             },
-            opts: {lazy: true, async: true}
+            opts: {lazy: true}
         }
     });
 }

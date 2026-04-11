@@ -7,6 +7,20 @@ import {isExpression, isSymbol, isVariable} from './Term.js';
 import {BloomFilter} from './BloomFilter.js';
 import {configManager} from '../config/config.js';
 
+/**
+ * Extract the root functor name from a pattern.
+ * For `(f $x $y)` → `'f'`
+ * For `((λ $p $b) $v)` → `'λ'`
+ * For `(((|-> $p $b) $a) $v)` → `'|->'`
+ */
+function extractRootFunctor(atom) {
+    if (!atom) return null;
+    if (isSymbol(atom)) return atom.name;
+    if (isVariable(atom)) return atom.name;
+    if (isExpression(atom)) return extractRootFunctor(atom.operator);
+    return null;
+}
+
 export class RuleIndex {
     constructor(config = {}) {
         this.enabled = config.enabled ?? configManager.get('indexing');
@@ -65,7 +79,7 @@ export class RuleIndex {
 
         // Index by functor
         if (isExpression(pattern)) {
-            const functor = pattern.operator?.name || pattern.operator;
+            const functor = extractRootFunctor(pattern) || (pattern.operator?.name || pattern.operator);
             this._addToIndex(this.functorIndex, functor, rule);
 
             // Index by functor + arity
@@ -82,7 +96,7 @@ export class RuleIndex {
 
         // Add to bloom filter (by functor for fast negative lookups)
         if (isExpression(pattern)) {
-            const functor = pattern.operator?.name || pattern.operator;
+            const functor = extractRootFunctor(pattern) || (pattern.operator?.name || pattern.operator);
             this.bloomFilter.add(functor);
         } else if (isSymbol(pattern)) {
             this.bloomFilter.add(pattern.name);
@@ -116,6 +130,19 @@ export class RuleIndex {
 
         this.stats.lookups++;
 
+        // If term's operator is an expression (like ((λ $x $body) $val)),
+        // extract the root functor for lookup
+        if (isExpression(term) && isExpression(term.operator)) {
+            const rootFunctor = extractRootFunctor(term.operator);
+            if (rootFunctor) {
+                const rules = this.functorIndex.get(rootFunctor) || [];
+                if (rules.length > 0) {
+                    this.stats.hits++;
+                    return rules;
+                }
+            }
+        }
+
         // Fast negative check via bloom filter (by functor)
         let functor = null;
         if (isExpression(term)) {
@@ -127,12 +154,6 @@ export class RuleIndex {
         // If functor contains variables (like $x, $param), fall back to all rules
         // This allows unification to match patterns with different variable names
         if (typeof functor === 'string' && functor.includes('$')) {
-            return this.allRules;
-        }
-
-        // If term's operator is an expression (like ((λ $x $body) $val)),
-        // fall back to all rules to allow pattern matching
-        if (isExpression(term) && isExpression(term.operator)) {
             return this.allRules;
         }
 
