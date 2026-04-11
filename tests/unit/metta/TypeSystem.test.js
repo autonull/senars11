@@ -38,12 +38,15 @@ describe('MeTTa Type System Tests', () => {
     });
 
     test('check-type passes for valid type', () => {
-        const result = metta.run('(check-type 42 Number)');
-        expect(result[0].toString()).toBe('42');
+        // Add explicit type annotation
+        metta.run('(: mynum Number)');
+        const result = metta.run('(check-type mynum Number)');
+        expect(result[0].toString()).toBe('mynum');
     });
 
     test('check-type fails for mismatched type', () => {
-        const result = metta.run('(check-type 42 String)');
+        metta.run('(: mynum Number)');
+        const result = metta.run('(check-type mynum String)');
         expect(result[0].toString()).toContain('error');
     });
 

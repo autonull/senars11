@@ -17,6 +17,8 @@ import { OperatorReduceStage } from './stages/OperatorReduceStage.js';
 import { SuperposeStage } from './stages/SuperposeStage.js';
 import { JITCompiler } from './JITCompiler.js';
 
+import {SubExprStage} from './stages/SubExprStage.js';
+
 export class ReductionPipeline {
     constructor(config = null) {
         this.stages = [];
@@ -32,6 +34,7 @@ export class ReductionPipeline {
         }
         pipeline.use(new SuperposeStage());
         pipeline.use(new ClosureStage());
+        pipeline.use(new SubExprStage());
         pipeline.use(new RuleMatchStage());
         pipeline.use(new OperatorReduceStage());
         pipeline.use(new ZipperStage(config?.get('zipperThreshold') ?? 1));
@@ -92,6 +95,10 @@ export class ReductionPipeline {
                 stageGenerator = this._matchRules(result.atom, result.rules, context);
             } else if (result.matchClosure) {
                 stageGenerator = this._matchClosure(result.atom, result.funcAtom, result.capturedArgs, result.providedArgs, result.allArgs, result.rules, context);
+            } else if (result.reduceOperatorExpr) {
+                stageGenerator = this._reduceSubExpr(result.atom, 'operator', context);
+            } else if (result.reduceFirstArg) {
+                stageGenerator = this._reduceSubExpr(result.atom, 0, context);
             } else if (result.reduceOperator) {
                 stageGenerator = this._reduceOperator(result.atom, context);
             } else if (result.reduceArgument) {
@@ -154,6 +161,10 @@ export class ReductionPipeline {
                 stageGenerator = this._matchRules(result.atom, result.rules, context);
             } else if (result.matchClosure) {
                 stageGenerator = this._matchClosure(result.atom, result.funcAtom, result.capturedArgs, result.providedArgs, result.allArgs, result.rules, context);
+            } else if (result.reduceOperatorExpr) {
+                stageGenerator = this._reduceSubExprAsync(result.atom, 'operator', context);
+            } else if (result.reduceFirstArg) {
+                stageGenerator = this._reduceSubExprAsync(result.atom, 0, context);
             } else if (result.reduceOperator) {
                 stageGenerator = this._reduceOperatorAsync(result.atom, context);
             } else if (result.reduceArgument) {
@@ -487,6 +498,38 @@ export class ReductionPipeline {
             newComps[first] = this._replaceAtPath(atom.components[first], rest, replacement);
         }
         return exp(atom.operator, newComps);
+    }
+
+    * _reduceSubExpr(atom, path, context) {
+        const subExpr = path === 'operator' ? atom.operator : atom.components[path];
+        for (const res of this.execute(subExpr, context)) {
+            if (res.applied && !equals(res.reduced, subExpr)) {
+                if (path === 'operator') {
+                    yield {reduced: exp(res.reduced, atom.components), applied: true, stage: 'subexpr-operator'};
+                } else {
+                    const newComps = [...atom.components];
+                    newComps[path] = res.reduced;
+                    yield {reduced: exp(atom.operator, newComps), applied: true, stage: 'subexpr-arg'};
+                }
+                return;
+            }
+        }
+    }
+
+    async *_reduceSubExprAsync(atom, path, context) {
+        const subExpr = path === 'operator' ? atom.operator : atom.components[path];
+        for await (const res of this.executeAsync(subExpr, context)) {
+            if (res.applied && !equals(res.reduced, subExpr)) {
+                if (path === 'operator') {
+                    yield {reduced: exp(res.reduced, atom.components), applied: true, stage: 'subexpr-operator'};
+                } else {
+                    const newComps = [...atom.components];
+                    newComps[path] = res.reduced;
+                    yield {reduced: exp(atom.operator, newComps), applied: true, stage: 'subexpr-arg'};
+                }
+                return;
+            }
+        }
     }
 
     * _executeSuperpose(alternatives, _context) {

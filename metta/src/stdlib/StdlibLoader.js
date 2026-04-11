@@ -38,8 +38,7 @@ export class StdlibLoader {
                 stats.atomsAdded += res.atomCount;
                 this.#loadedModules.add(mod);
             } catch (err) {
-                stats.failed.push({module: mod, error: err.message});
-                Logger.warn(`Failed to load stdlib module '${mod}':`, err);
+                throw new Error(`Stdlib module '${mod}' failed to load: ${err.message}`);
             }
         }
         return stats;

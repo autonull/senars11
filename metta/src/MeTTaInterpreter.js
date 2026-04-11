@@ -121,7 +121,7 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
             try {
                 loadStdlib(this, this.config);
             } catch (e) {
-                Logger.warn('Stdlib load failed:', e.message);
+                throw new Error(`Stdlib failed to load: ${e.message}\n${e.stack}`);
             }
         }
     }

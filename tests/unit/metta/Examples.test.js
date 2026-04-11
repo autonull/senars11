@@ -41,9 +41,9 @@ describe('Examples to Unit Tests Promotion', () => {
                 (= (fact $n) (if (== $n 0) 1 (* $n (fact (- $n 1)))))
                 !(fact 5)
             `;
-            // Interpreter expands but doesn't fully evaluate recursive if chains
+            // Factorial fully evaluates to 120
             const result = runLast(code);
-            expect(result).toContain('fact');
+            expect(result).toBe('120');
         });
 
         test('closures', () => {

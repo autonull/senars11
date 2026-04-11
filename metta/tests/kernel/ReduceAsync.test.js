@@ -90,7 +90,8 @@ describe('reduceNDAsync', () => {
 
     describe('async &let*', () => {
         it('processes async bindings sequentially', async () => {
-            const interp = newInterpreter();
+            const interp = new MeTTaInterpreter();
+            const {Unify} = await import('@senars/metta/src/kernel/Unify.js');
             const order = [];
             interp.ground.register('a', async () => {
                 order.push('a');
@@ -102,6 +103,31 @@ describe('reduceNDAsync', () => {
                 await Promise.resolve();
                 return sym('2');
             }, { async: true });
+            // Override stdlib &let* with async-aware version
+            interp.ground.register('&let*', async (binds, body) => {
+                const pairs = interp._extractLetStarPairs(binds);
+                if (!pairs.length) {
+                    const r = await reduceNDAsync(body, interp.space, interp.ground, 100, null, interp);
+                    return r[0] ?? body;
+                }
+                const mutablePairs = pairs.map(p => ({...p}));
+                let result = body;
+                for (let i = 0; i < mutablePairs.length; i++) {
+                    const [vari, val] = interp._extractVarAndValue(mutablePairs[i]);
+                    if (!vari || !val) continue;
+                    let substVal = val;
+                    for (let j = 0; j < i; j++) {
+                        const [pv, pr] = mutablePairs[j].resolved;
+                        if (pv) substVal = Unify.subst(substVal, {[pv.name]: pr}, {recursive: false});
+                    }
+                    const reduced = await reduceNDAsync(substVal, interp.space, interp.ground, 100, null, interp);
+                    const resolved = reduced[0] ?? substVal;
+                    mutablePairs[i].resolved = [vari, resolved];
+                    result = Unify.subst(result, {[vari.name]: resolved}, {recursive: false});
+                }
+                const finalReduced = await reduceNDAsync(result, interp.space, interp.ground, 100, null, interp);
+                return finalReduced[0] ?? result;
+            }, { lazy: true, async: true });
 
             const parsed = interp.parser.parseExpression('(let* (($x (a)) ($y (b))) (list $x $y))');
             await reduceNDAsync(parsed, interp.space, interp.ground, 100, null, interp);

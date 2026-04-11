@@ -161,29 +161,30 @@ function createBindOp(interpreter) {
  */
 function createCollapseOp(interpreter) {
     const {isList} = Term;
-    return async (atom) => {
-        try {
-            const results = await reduceNDAsync(atom, interpreter.space, interpreter.ground,
-                interpreter.config.maxReductionSteps);
-            if (results.length === 0) return Term.sym('()');
-            if (results.length === 1) {
-                const single = results[0];
-                if (single.name === '()') return single;
-                if (isList(single)) return single;
+    return (atom) => {
+        const results = reduceND(atom, interpreter.space, interpreter.ground,
+            interpreter.config.maxReductionSteps, undefined, interpreter);
+        // Debug: check what reduceND returns for superpose
+        if (results.length > 1) {
+            // Multiple results — collect them
+        } else if (results.length === 1) {
+            // Single result — check if it's a superpose-internal
+            const single = results[0];
+            if (single?.operator?.name === 'superpose-internal') {
+                // Unpack superpose results
+                const elems = single.components ?? [];
+                if (elems.length > 0) {
+                    return interpreter._listify(elems);
+                }
             }
-            return interpreter._listify(results);
-        } catch {
-            // Sync fallback
-            const results = reduceND(atom, interpreter.space, interpreter.ground,
-                interpreter.config.maxReductionSteps);
-            if (results.length === 0) return Term.sym('()');
-            if (results.length === 1) {
-                const single = results[0];
-                if (single.name === '()') return single;
-                if (isList(single)) return single;
-            }
-            return interpreter._listify(results);
         }
+        if (results.length === 0) return Term.sym('()');
+        if (results.length === 1) {
+            const single = results[0];
+            if (single.name === '()') return single;
+            if (isList(single)) return single;
+        }
+        return interpreter._listify(results);
     };
 }
 

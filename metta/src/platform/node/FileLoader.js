@@ -35,15 +35,21 @@ export class FileLoader {
     }
 
     _getDefaultBaseDir() {
-        // Workaround for Jest VM environment
-        let currentFile;
-        try {
-            currentFile = typeof __filename !== 'undefined' ? __filename : fileURLToPath(import.meta.url);
-        } catch {
-            // Fallback: use import.meta.url directly
-            currentFile = fileURLToPath(import.meta.url);
+        // Priority: __dirname > fileURLToPath > URL.pathname > process.cwd()
+        // In Jest VM, fileURLToPath may throw 'require is not defined'.
+        let currentDir;
+        if (typeof __dirname !== 'undefined') {
+            currentDir = __dirname;
+        } else {
+            try {
+                // May throw in Jest VM
+                currentDir = path.dirname(fileURLToPath(import.meta.url));
+            } catch {
+                // Last resort: resolve relative to process.cwd()
+                // This assumes the test is run from the project root
+                currentDir = path.join(process.cwd(), 'metta/src/platform/node');
+            }
         }
-        const currentDir = path.dirname(currentFile);
         // Navigate from platform/node/ to stdlib/
         return path.join(currentDir, '../../stdlib');
     }
