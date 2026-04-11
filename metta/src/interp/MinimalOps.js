@@ -105,18 +105,32 @@ function createReturnOp(interpreter) {
 
 /**
  * Create the import! operation
+ * Handles both: (import! path) and (import! &self path)
  */
 function createImportOp(interpreter) {
-    const {sym, exp} = Term;
-    return async (moduleName) => {
-        const module = await interpreter.moduleLoader.import(moduleName.name);
-        // Merge exported symbols into current space
-        if (module.exports) {
-            for (const [name, atom] of Object.entries(module.exports)) {
-                interpreter.space.add(exp(sym('='), [sym(name), atom]));
+    const {sym} = Term;
+    return async (spaceOrPath, maybePath) => {
+        const {sym: s, exp: e} = Term;
+        // Handle (import! &self path) form
+        let modulePath;
+        if (maybePath !== undefined) {
+            // Two-arg form: (import! &self ../lib/foo)
+            modulePath = maybePath.name || maybePath.toString();
+        } else {
+            modulePath = spaceOrPath.name || spaceOrPath.toString();
+        }
+        // Load the module content directly into current interpreter space
+        try {
+            await interpreter.moduleLoader.include(modulePath);
+        } catch (err) {
+            // Try with .metta extension
+            try {
+                await interpreter.moduleLoader.include(modulePath + '.metta');
+            } catch {
+                return e(s('Error'), [s('import!'), s(`ModuleNotFound: ${modulePath}`)]);
             }
         }
-        return sym('ok');
+        return s('ok');
     };
 }
 

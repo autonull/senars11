@@ -72,7 +72,28 @@ export class ModuleLoader {
         if (ENV.isNode) {
             try {
                 const {FileLoader} = await import('../platform/node/FileLoader.js');
-                return FileLoader.load(`${this.basePath}/${fileName}`);
+                const path = await import('path');
+                // Try direct path first
+                const directPath = path.resolve(this.basePath, fileName);
+                try {
+                    return FileLoader.load(directPath);
+                } catch {}
+                // Try search paths: examples dir, metta/lib, project root
+                const {fileURLToPath} = await import('url');
+                const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+                const projectRoot = path.resolve(moduleDir, '../..');
+                const searchPaths = [
+                    path.resolve(projectRoot, 'metta/examples'),
+                    path.resolve(projectRoot, 'metta/lib'),
+                    path.resolve(projectRoot, 'metta/stdlib'),
+                    projectRoot,
+                    this.basePath,
+                ];
+                for (const base of searchPaths) {
+                    const candidate = path.resolve(base, fileName);
+                    try { return FileLoader.load(candidate); } catch {}
+                }
+                throw new Error(`File not found: ${fileName} (searched: ${searchPaths.join(', ')})`);
             } catch (e) {
                 throw e;
             }

@@ -1,4 +1,4 @@
-import {constructList, exp, flattenList, isExpression, isList, isVariable} from './Term.js';
+import {constructList, exp, flattenList, isExpression, isList, isVariable, sym} from './Term.js';
 import {getTypeTag, isSymbol as fastIsSymbol, TYPE_SYMBOL} from './FastPaths.js';
 import {configManager} from '../config/config.js';
 import * as UnifyCore from '@senars/nar/src/term/UnifyCore.js';
@@ -134,6 +134,42 @@ const mettaAdapter = {
     }
 };
 
+// Convert expression-form list (a b c d) to cons-list (: a (: b (: c (: d ()))))
+const exprToCons = (expr) => {
+    if (!isExpression(expr) || expr.operator?.name === ':') return expr;
+    const elements = [expr.operator, ...(expr.components ?? [])];
+    let result = sym('()');
+    for (let i = elements.length - 1; i >= 0; i--) {
+        result = exp(sym(':'), [elements[i], result]);
+    }
+    return result;
+};
+
+// Recursively replace (cons h t) with (: h t) in patterns
+const normalizeConsInPattern = (atom) => {
+    if (!isExpression(atom)) return atom;
+    if (atom.operator?.name === 'cons' && atom.components?.length === 2) {
+        return exp(sym(':'), [normalizeConsInPattern(atom.components[0]),
+                              normalizeConsInPattern(atom.components[1])]);
+    }
+    const newOp = normalizeConsInPattern(atom.operator);
+    const newComps = atom.components.map(normalizeConsInPattern);
+    if (newOp === atom.operator && newComps.every((c, i) => c === atom.components[i])) return atom;
+    return exp(newOp, newComps);
+};
+
+// Recursively convert expression-form lists to cons-lists in a term
+// Only converts when the term is a list-like expression (not a function application)
+const deepNormalizeExprToCons = (atom) => {
+    if (!isExpression(atom)) return atom;
+    if (atom.operator?.name === ':') {
+        // Already a cons-list - normalize components
+        return exp(sym(':'), atom.components.map(deepNormalizeExprToCons));
+    }
+    // Convert this expression to a cons-list
+    return exprToCons(atom);
+};
+
 const unifiedUnify = (t1, t2, binds = {}) => {
     if (configManager.get('fastPaths')) {
         const tag1 = getTypeTag(t1), tag2 = getTypeTag(t2);
@@ -146,6 +182,24 @@ const unifiedUnify = (t1, t2, binds = {}) => {
 
     if (isList(t1) && isList(t2)) {
         return unifyLists(t1, t2, binds);
+    }
+
+    // Handle cons pattern matching against expression-form lists:
+    // If one side is a cons-list (: h t) and the other is a non-cons expression (a b c),
+    // convert the expression to cons-list form and retry.
+    if (isList(t1) && isExpression(t2) && t2.operator?.name !== ':') {
+        return unifiedUnify(t1, exprToCons(t2), binds);
+    }
+    if (isList(t2) && isExpression(t1) && t1.operator?.name !== ':') {
+        return unifiedUnify(exprToCons(t1), t2, binds);
+    }
+
+    // Handle cons constructor in patterns: (cons $h $t) acts as (: $h $t)
+    if (isExpression(t1) && t1.operator?.name === 'cons' && t1.components?.length === 2) {
+        return unifiedUnify(exp(sym(':'), t1.components), t2, binds);
+    }
+    if (isExpression(t2) && t2.operator?.name === 'cons' && t2.components?.length === 2) {
+        return unifiedUnify(t1, exp(sym(':'), t2.components), binds);
     }
 
     const result = UnifyCore.unify(t1, t2, binds, mettaAdapter);

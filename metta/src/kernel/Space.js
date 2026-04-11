@@ -36,11 +36,38 @@ export class Space {
     }
 
     remove(atom) {
+        // Direct identity check first
         if (this.#atoms.has(atom)) {
             this.#atoms.delete(atom);
             this.#ruleIndex.removeRule(atom);
             this.#stats.removes++;
             return true;
+        }
+        // Handle rule expressions: (= pattern result)
+        if (atom?.operator?.name === '=' && atom.components?.length === 2) {
+            const pat = atom.components[0];
+            const res = atom.components[1];
+            const patStr = pat.toString();
+            const resStr = res.toString();
+            const ruleIdx = this.#ruleIndex.allRules.findIndex(r =>
+                r.result && r.pattern &&
+                r.pattern.toString() === patStr &&
+                r.result.toString() === resStr
+            );
+            if (ruleIdx !== -1) {
+                this.#ruleIndex.allRules.splice(ruleIdx, 1);
+                this.#stats.removes++;
+                return true;
+            }
+        }
+        // Try structural equality for plain atoms
+        for (const a of this.#atoms) {
+            if (a.toString() === atom?.toString()) {
+                this.#atoms.delete(a);
+                this.#ruleIndex.removeRule(a);
+                this.#stats.removes++;
+                return true;
+            }
         }
         return false;
     }

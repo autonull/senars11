@@ -30,7 +30,16 @@
 
 ; PeTTa style lambda
 (= ((|-> $param $body) $val) (^ &let $param $val $body))
+; 2-arg call: ((|-> ($x $y) body) a b) → ((|-> ($x $y) body) (a b))
+(= ((|-> $param $body) $val1 $val2) ((|-> $param $body) ($val1 $val2)))
+; 3-arg call
+(= ((|-> $param $body) $val1 $val2 $val3) (((|-> $param $body) ($val1 $val2)) $val3))
+; curried: (((|-> $param $body) $val1) $val2) → ((|-> $param $body) ($val1 $val2))
 (= (((|-> $param $body) $val1) $val2) ((|-> $param $body) ($val1 $val2)))
+
+; Same for lambda/λ multi-arg
+(= ((lambda $param $body) $val1 $val2) ((lambda $param $body) ($val1 $val2)))
+(= (((lambda $param $body) $val1) $val2) ((lambda $param $body) ($val1 $val2)))
 
 ; Multiple argument lambda (curried)
 ; (λ ($x $y) $body) → (λ $x (λ $y $body))
@@ -104,6 +113,7 @@
 (= (get-atoms $s) (^ &get-atoms $s))
 (= (add-atom $s $x) (^ &add-atom $s $x))
 (= (rm-atom $s $x) (^ &rm-atom $s $x))
+(= (remove-atom $s $x) (^ &rm-atom $s $x))
 
 ; Expression Operations
 (= (cons-atom $h $t) (^ &cons-atom $h $t))
@@ -144,3 +154,41 @@
 
 ; =alpha: alpha-equivalence check
 (= (=alpha $a $b) (^ &=alpha $a $b))
+
+; ===== Pair Operations =====
+(= (first-from-pair ($a $_)) $a)
+(= (second-from-pair ($_ $b)) $b)
+
+; ===== Sequencing (progn/prog1) =====
+; progn: evaluate all args, return last
+(= (progn $a) $a)
+(= (progn $a $b) (let $_ $a $b))
+(= (progn $a $b $c) (let $_ $a (progn $b $c)))
+(= (progn $a $b $c $d) (let $_ $a (progn $b $c $d)))
+
+; prog1: evaluate all args, return first
+(= (prog1 $a) $a)
+(= (prog1 $a $b) (let $x $a (let $_ $b $x)))
+(= (prog1 $a $b $c) (let $x $a (let $_ (progn $b $c) $x)))
+
+; ===== is-member: check list membership =====
+(= (is-member $x ()) False)
+(= (is-member $x ($x $rest)) True)
+(= (is-member $x ($h $rest)) (is-member $x $rest))
+(= (is-member $x (: $x $_)) True)
+(= (is-member $x (: $h $t)) (is-member $x $t))
+
+; ===== msort: sort a list =====
+(= (msort $l) (^ &msort $l))
+
+; ===== length: count elements in a list =====
+(= (length $l) (^ &length $l))
+
+; ===== hyperpose: non-deterministic choice from a list =====
+(= (hyperpose $l) (^ &hyperpose $l))
+
+; ===== maplist: apply function to list, return list =====
+(= (maplist $f ()) ())
+(= (maplist $f (: $h $t)) (: ($f $h) (maplist $f $t)))
+(= (maplist $f ($h)) (: ($f $h) ()))
+(= (maplist $f ($h $rest)) (: ($f $h) (maplist $f $rest)))

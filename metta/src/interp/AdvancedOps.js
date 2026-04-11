@@ -3,7 +3,7 @@
  */
 
 // Kernel imports
-import {grounded, sym, Term} from '../kernel/Term.js';
+import {grounded, isExpression, sym, Term} from '../kernel/Term.js';
 import {Unify} from '../kernel/Unify.js';
 import {bindingsAtomToObj, objToBindingsAtom} from '../kernel/Bindings.js';
 import {Formatter} from '../kernel/Formatter.js';
@@ -161,18 +161,42 @@ export function registerAdvancedOps(interpreter) {
         },
         '&add-atom': {
             fn: (s, a) => {
-                // PeTTa style: (&add-atom &self atom) or single arg: (&add-atom atom)
-                const space = s.name === '&self' ? interpreter.space : (s.add ? s : interpreter.space);
-                const atom = s.name === '&self' ? a : s;
-                if (space && atom) space.add(atom);
-                return atom;
+                // PeTTa style: (&add-atom &self atom) or named space
+                const resolveSpace = (name) => name === '&self' ? interpreter.space :
+                    (interpreter.spaces?.get(name) || null);
+                let space, atom;
+                if (s?.name === '&self' || resolveSpace(s?.name)) {
+                    space = resolveSpace(s?.name) ?? interpreter.space;
+                    atom = a;
+                } else if (s?.add) {
+                    space = s; atom = a;
+                } else {
+                    space = interpreter.space; atom = s;
+                }
+                if (space && atom) {
+                    if (atom?.operator?.name === '=' && atom.components?.length === 2) {
+                        space.addRule(atom.components[0], atom.components[1]);
+                    } else {
+                        space.add(atom);
+                    }
+                }
+                return atom ?? sym('()');
             },
             opts: {lazy: true}
         },
         '&rm-atom': {
             fn: (s, a) => {
-                const space = s.name === '&self' ? interpreter.space : (s.remove ? s : interpreter.space);
-                const atom = s.name === '&self' ? a : s;
+                const resolveSpace = (name) => name === '&self' ? interpreter.space :
+                    (interpreter.spaces?.get(name) || null);
+                let space, atom;
+                if (s?.name === '&self' || resolveSpace(s?.name)) {
+                    space = resolveSpace(s?.name) ?? interpreter.space;
+                    atom = a;
+                } else if (s?.remove) {
+                    space = s; atom = a;
+                } else {
+                    space = interpreter.space; atom = s;
+                }
                 if (space && atom) space.remove(atom);
                 return sym('()');
             },
@@ -372,27 +396,105 @@ export function registerAdvancedOps(interpreter) {
         // case: match expression against multiple patterns
         '&case': {
             fn: async (expr, branches) => {
-                // branches is a list of (pattern result) pairs
-                const {isList, flattenList} = Term;
-                let current = branches;
-                while (isExpression(current) && current.operator?.name === ':') {
-                    const pair = current.components[0];
-                    if (isExpression(pair) && pair.components?.length >= 2) {
-                        const pattern = pair.components[0];
-                        const result = pair.components[1];
-                        const binds = Unify.unify(expr, pattern);
-                        if (binds) {
-                            const reduced = await reduceNDAsync(Unify.subst(result, binds),
+                // First reduce expr to get its value
+                const exprResults = await reduceNDAsync(expr, interpreter.space, interpreter.ground,
+                    undefined, undefined, interpreter);
+                const exprVal = exprResults[0] ?? expr;
+
+                // Collect all (pattern result) pairs from branches
+                // Branches can be:
+                //   cons-list form: (: (pat1 res1) (: (pat2 res2) ()))
+                //   expression form: ((pat1 res1) (pat2 res2) ...)
+                const pairs = [];
+                if (isExpression(branches) && branches.operator?.name === ':') {
+                    // cons-list form
+                    let cur = branches;
+                    while (isExpression(cur) && cur.operator?.name === ':') {
+                        pairs.push(cur.components[0]);
+                        cur = cur.components[1];
+                    }
+                } else if (isExpression(branches)) {
+                    // expression form: operator is first branch, components are rest
+                    pairs.push(branches.operator);
+                    for (const c of (branches.components ?? [])) pairs.push(c);
+                }
+
+                for (const pair of pairs) {
+                    if (!isExpression(pair)) continue;
+                    // pair is (pattern result) or (: pattern result)
+                    let pattern, result;
+                    if (pair.operator?.name === ':' && pair.components?.length === 2) {
+                        pattern = pair.components[0];
+                        result = pair.components[1];
+                    } else {
+                        // expression form: (pattern result) → operator=pattern, components[0]=result
+                        pattern = pair.operator;
+                        result = pair.components?.[0];
+                    }
+                    if (pattern === undefined || result === undefined) continue;
+
+                    // Special: Empty pattern matches empty/no result
+                    if (pattern?.name === 'Empty') {
+                        // Match if exprVal produced no results (empty)
+                        if (exprVal?.name === 'Empty' || exprVal?.name === '()') {
+                            const reduced = await reduceNDAsync(result,
                                 interpreter.space, interpreter.ground, undefined, undefined, interpreter);
                             return reduced[0] ?? result;
                         }
+                        continue;
                     }
-                    current = current.components[1];
+
+                    const binds = Unify.unify(exprVal, pattern);
+                    if (binds !== null && binds !== undefined) {
+                        const reduced = await reduceNDAsync(Unify.subst(result, binds),
+                            interpreter.space, interpreter.ground, undefined, undefined, interpreter);
+                        return reduced[0] ?? result;
+                    }
                 }
-                // No match found, return original expression
-                return expr;
+                // No match found — return empty
+                return sym('()');
             },
             opts: {lazy: true, async: true}
+        },
+
+        // msort: sort a list
+        '&msort': {
+            fn: (list) => {
+                const {isList, flattenList, constructList, isExpression} = Term;
+                let elements;
+                if (isList(list)) {
+                    elements = flattenList(list).elements;
+                } else if (isExpression(list)) {
+                    elements = [list.operator, ...(list.components ?? [])];
+                } else {
+                    return list;
+                }
+                const sorted = [...elements].sort((a, b) => {
+                    const aStr = a.toString(), bStr = b.toString();
+                    return aStr < bStr ? -1 : aStr > bStr ? 1 : 0;
+                });
+                return interpreter._listify(sorted);
+            },
+            opts: {lazy: true}
+        },
+
+        // hyperpose: non-deterministic choice from a list (like superpose but lazy)
+        '&hyperpose': {
+            fn: (list) => {
+                const {isList, flattenList, isExpression} = Term;
+                let elements;
+                if (isList(list)) {
+                    elements = flattenList(list).elements;
+                } else if (isExpression(list)) {
+                    elements = [list.operator, ...(list.components ?? [])];
+                } else {
+                    return list;
+                }
+                if (elements.length === 0) return sym('()');
+                if (elements.length === 1) return elements[0];
+                return exp(sym('superpose-internal'), elements);
+            },
+            opts: {lazy: true}
         },
 
         // foldall: fold over all results of a non-deterministic reduction
@@ -402,10 +504,16 @@ export function registerAdvancedOps(interpreter) {
                     undefined, undefined, interpreter);
                 let acc = init;
                 for (const el of results) {
-                    const substResult = Unify.subst(opFn, {[v('acc').name]: acc, [v('el').name]: el});
-                    const reduced = await reduceNDAsync(substResult, interpreter.space, interpreter.ground,
+                    // Apply opFn to (acc, el): try as function call first, then substitution
+                    let callExpr;
+                    if (isExpression(opFn) || opFn?.type === 'atom') {
+                        callExpr = exp(opFn, [acc, el]);
+                    } else {
+                        callExpr = Unify.subst(opFn, {[v('acc').name]: acc, [v('el').name]: el});
+                    }
+                    const reduced = await reduceNDAsync(callExpr, interpreter.space, interpreter.ground,
                         undefined, undefined, interpreter);
-                    acc = reduced[0] ?? substResult;
+                    acc = reduced[0] ?? callExpr;
                 }
                 return acc;
             },
@@ -416,15 +524,15 @@ export function registerAdvancedOps(interpreter) {
 
 /**
  * Check alpha-equivalence: structural equality ignoring variable names
+ * TYPE_VARIABLE = 2, TYPE_EXPRESSION = 3 (do NOT use _typeTag===3 for variable check)
  */
 function alphaEquiv(a, b) {
     if (a === b) return true;
     if (!a || !b) return false;
-    const aType = a._typeTag ?? a.type;
-    const bType = b._typeTag ?? b.type;
-    // Variables are equivalent to any other variable
-    if ((aType === 3 || a.type === 'atom' && a.name?.startsWith('$')) &&
-        (bType === 3 || b.type === 'atom' && b.name?.startsWith('$'))) return true;
+    // Variables are equivalent to any other variable regardless of name
+    const aIsVar = a._typeTag === 2 || (a.type === 'atom' && a.name?.startsWith('$'));
+    const bIsVar = b._typeTag === 2 || (b.type === 'atom' && b.name?.startsWith('$'));
+    if (aIsVar && bIsVar) return true;
     // Expressions: compare operators and components recursively
     if (isExpression(a) && isExpression(b)) {
         if (!alphaEquiv(a.operator, b.operator)) return false;

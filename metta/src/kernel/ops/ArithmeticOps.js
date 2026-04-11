@@ -2,8 +2,15 @@
  * ArithmeticOps.js - Arithmetic operations
  */
 
-import {exp, sym} from '../Term.js';
+import {exp, flattenList, isExpression, isList, sym} from '../Term.js';
 import {OperationHelpers} from './OperationHelpers.js';
+
+// Format a number for output, preserving float format when needed
+const fmtNum = (n) => String(n);
+// Format as always-float (e.g. sqrt result): if integer, add .0
+const fmtFloat = (n) => Number.isInteger(n) ? n + '.0' : String(n);
+// Format as integer-truncated
+const fmtInt = (n) => String(Math.trunc(n));
 
 export function registerArithmeticOps(registry) {
     // Register basic arithmetic operations
@@ -14,6 +21,74 @@ export function registerArithmeticOps(registry) {
     // Custom logic for - and / to handle unary/binary
     registry.register('&-', createUnaryBinaryOp(x => -x, (a, b) => a - b));
     registry.register('&/', createUnaryBinaryOp(x => 1 / x, (a, b) => a / b, true));
+
+    // Math functions - these always return float format when applicable
+    const mathUnary = (fn, floatResult = true) => (...args) => {
+        try {
+            const [a] = OperationHelpers.requireNums(args, 1);
+            const r = fn(a);
+            return sym(floatResult ? fmtFloat(r) : fmtNum(r));
+        } catch (e) {
+            return OperationHelpers.error(exp(sym('^'), [sym('args'), ...args]), e.message);
+        }
+    };
+    const mathBinary = (fn, floatResult = true) => (...args) => {
+        try {
+            const [a, b] = OperationHelpers.requireNums(args, 2);
+            const r = fn(a, b);
+            return sym(floatResult ? fmtFloat(r) : fmtNum(r));
+        } catch (e) {
+            return OperationHelpers.error(exp(sym('^'), [sym('args'), ...args]), e.message);
+        }
+    };
+
+    registry.register('pow-math', mathBinary((a, b) => Math.pow(a, b), false));
+    registry.register('sqrt-math', mathUnary(Math.sqrt));
+    registry.register('abs-math', mathUnary(Math.abs, false));
+    registry.register('log-math', mathBinary((base, x) => Math.log(x) / Math.log(base)));
+    registry.register('sin-math', mathUnary(Math.sin));
+    registry.register('cos-math', mathUnary(Math.cos));
+    registry.register('tan-math', mathUnary(Math.tan));
+    registry.register('asin-math', mathUnary(Math.asin));
+    registry.register('acos-math', mathUnary(Math.acos));
+    registry.register('atan-math', mathUnary(Math.atan));
+    registry.register('trunc-math', mathUnary(n => Math.trunc(n), false));
+    registry.register('ceil-math', mathUnary(Math.ceil, false));
+    registry.register('floor-math', mathUnary(Math.floor, false));
+    registry.register('round-math', mathUnary(Math.round, false));
+    registry.register('isnan-math', (...args) => {
+        try { const [a] = OperationHelpers.requireNums(args, 1); return sym(isNaN(a) ? 'True' : 'False'); } catch { return sym('False'); }
+    });
+    registry.register('isinf-math', (...args) => {
+        try { const [a] = OperationHelpers.requireNums(args, 1); return sym(!isFinite(a) && !isNaN(a) ? 'True' : 'False'); } catch { return sym('False'); }
+    });
+
+    // min-atom / max-atom: operate on a list expression
+    const getListElements = (list) => {
+        if (isList(list)) return flattenList(list).elements;
+        if (isExpression(list)) return [list.operator, ...(list.components ?? [])];
+        return null;
+    };
+
+    registry.register('min-atom', (list) => {
+        const elements = getListElements(list);
+        if (!elements) return list;
+        const nums = elements.map(e => OperationHelpers.atomToNum(e)).filter(n => n !== null);
+        if (!nums.length) return list;
+        return sym(fmtNum(Math.min(...nums)));
+    }, {lazy: true});
+
+    registry.register('max-atom', (list) => {
+        const elements = getListElements(list);
+        if (!elements) return list;
+        const nums = elements.map(e => OperationHelpers.atomToNum(e)).filter(n => n !== null);
+        if (!nums.length) return list;
+        return sym(fmtNum(Math.max(...nums)));
+    }, {lazy: true});
+
+    registry.register('min', mathBinary(Math.min, false));
+    registry.register('max', mathBinary(Math.max, false));
+    registry.register('exp', mathUnary(Math.exp));
 }
 
 /**
