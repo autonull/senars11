@@ -3,13 +3,13 @@ import {ConfigManager, Validators} from '@senars/core';
 export const configManager = new ConfigManager();
 
 configManager
-    .define('maxReductionSteps', 10000, Validators.positive, 'Maximum reduction steps before timeout')
+    .define('maxReductionSteps', 1000, Validators.positive, 'Maximum reduction steps before timeout')
     .define('cacheCapacity', 1000, Validators.positive, 'Default cache capacity')
     .define('maxCacheSize', 10000, Validators.positive, 'Maximum cache size')
     .define('loadStdlib', true, Validators.boolean, 'Load standard library on init')
     .define('bridge', null, () => true, 'Bridge instance for reasoner')
     .define('maxInternedSymbols', 10000, Validators.positive, 'Maximum symbols to intern')
-    .define('zipperThreshold', 8, Validators.positive, 'Depth at which Zipper replaces recursive traversal')
+    .define('zipperThreshold', 1, Validators.positive, 'Depth at which Zipper replaces recursive traversal')
     .define('pathTrie', false, Validators.boolean, 'Enable PathTrie rule index')
     .define('jit', true, Validators.boolean, 'Enable JIT compilation')
     .define('jitThreshold', 50, Validators.positive, 'Calls before JIT compiling')
