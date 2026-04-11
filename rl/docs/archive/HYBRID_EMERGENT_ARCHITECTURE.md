@@ -2,13 +2,16 @@
 
 ## Vision
 
-Enable **true simultaneous control of both continuous and discrete actions** within unified environments, with **emergent cognitive architectures** where solutions arise naturally from component interaction rather than hardcoded pipelines.
+Enable **true simultaneous control of both continuous and discrete actions** within unified environments, with *
+*emergent cognitive architectures** where solutions arise naturally from component interaction rather than hardcoded
+pipelines.
 
 ## 🎯 Key Innovations
 
 ### 1. True Hybrid Action Spaces (Not Switching)
 
-Unlike previous approaches that switch between discrete and continuous modes, this system enables **simultaneous control** of both action types:
+Unlike previous approaches that switch between discrete and continuous modes, this system enables **simultaneous control
+** of both action types:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -46,13 +49,13 @@ Solutions **emerge** from the interaction of cognitive primitives rather than be
 
 **File: `environments/HybridActionSpace.js` (~740 lines)**
 
-| Component | Purpose |
-|-----------|---------|
-| `HybridActionSpace` | Unified space combining discrete + continuous |
-| `StructuredAction` | Action object with both component types |
-| `HybridEnvironmentAdapter` | Environment wrapper for hybrid actions |
-| `HybridActionSelector` | Selects both action types simultaneously |
-| `HybridActionSpaceFactory` | Factory for common hybrid configurations |
+| Component                  | Purpose                                       |
+|----------------------------|-----------------------------------------------|
+| `HybridActionSpace`        | Unified space combining discrete + continuous |
+| `StructuredAction`         | Action object with both component types       |
+| `HybridEnvironmentAdapter` | Environment wrapper for hybrid actions        |
+| `HybridActionSelector`     | Selects both action types simultaneously      |
+| `HybridActionSpaceFactory` | Factory for common hybrid configurations      |
 
 #### HybridActionSpace API
 
@@ -201,15 +204,15 @@ const custom = HybridActionSpaceFactory.createCustom(
 
 **File: `cognitive/EmergentArchitecture.js` (~880 lines)**
 
-| Component | Purpose |
-|-----------|---------|
-| `CognitivePrimitive` | Base class for cognitive operations |
-| `PerceptionPrimitive` | Feature extraction and symbol lifting |
-| `ReasoningPrimitive` | Symbolic inference and belief revision |
-| `ActionSelectionPrimitive` | Hybrid action selection |
-| `MemoryPrimitive` | Experience storage and retrieval |
-| `EmergentCognitiveArchitecture` | Self-organizing cognitive system |
-| `EmergentArchitectureFactory` | Factory for cognitive architectures |
+| Component                       | Purpose                                |
+|---------------------------------|----------------------------------------|
+| `CognitivePrimitive`            | Base class for cognitive operations    |
+| `PerceptionPrimitive`           | Feature extraction and symbol lifting  |
+| `ReasoningPrimitive`            | Symbolic inference and belief revision |
+| `ActionSelectionPrimitive`      | Hybrid action selection                |
+| `MemoryPrimitive`               | Experience storage and retrieval       |
+| `EmergentCognitiveArchitecture` | Self-organizing cognitive system       |
+| `EmergentArchitectureFactory`   | Factory for cognitive architectures    |
 
 #### Cognitive Primitives
 
@@ -460,13 +463,13 @@ action.setMetadata('confidence', 0.95);
 
 ## 📊 Architecture Comparison
 
-| Feature | Traditional | Switching | **Hybrid (Ours)** |
-|---------|-------------|-----------|-------------------|
-| **Action Types** | One type | Either/Or | **Both Simultaneously** |
-| **Selection** | Separate | Mode-dependent | **Unified** |
-| **Learning** | Separate policies | Switching policies | **Single integrated policy** |
-| **Environment** | Fixed type | Mode switching | **Native hybrid** |
-| **Cognition** | Hardcoded pipeline | Conditional | **Emergent** |
+| Feature          | Traditional        | Switching          | **Hybrid (Ours)**            |
+|------------------|--------------------|--------------------|------------------------------|
+| **Action Types** | One type           | Either/Or          | **Both Simultaneously**      |
+| **Selection**    | Separate           | Mode-dependent     | **Unified**                  |
+| **Learning**     | Separate policies  | Switching policies | **Single integrated policy** |
+| **Environment**  | Fixed type         | Mode switching     | **Native hybrid**            |
+| **Cognition**    | Hardcoded pipeline | Conditional        | **Emergent**                 |
 
 ## 🧪 Test Coverage
 
@@ -487,13 +490,15 @@ action.setMetadata('confidence', 0.95);
 
 The architecture enables **emergent intelligence** through:
 
-1. **Co-activation Patterns**: When perception and reasoning primitives activate together consistently, new cognitive pathways emerge
+1. **Co-activation Patterns**: When perception and reasoning primitives activate together consistently, new cognitive
+   pathways emerge
 
 2. **Belief Revision**: Reasoning primitive continuously updates belief base, enabling adaptive behavior
 
 3. **Experience-Guided Action**: Memory primitive retrieves relevant experiences, influencing action selection
 
-4. **Hybrid Coordination**: Discrete and continuous actions are selected together, enabling complex coordinated behaviors
+4. **Hybrid Coordination**: Discrete and continuous actions are selected together, enabling complex coordinated
+   behaviors
 
 ## 🏆 Achievement
 
@@ -505,4 +510,5 @@ This refactoring achieves:
 4. **Flexibility**: Works with any combination of action types
 5. **Scalability**: Add new primitives without modifying existing code
 
-The system is now positioned for **breakthrough general-purpose self-improving systems** with true hybrid action control and emergent cognitive capabilities.
+The system is now positioned for **breakthrough general-purpose self-improving systems** with true hybrid action control
+and emergent cognitive capabilities.

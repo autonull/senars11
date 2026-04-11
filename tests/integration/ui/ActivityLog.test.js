@@ -1,4 +1,4 @@
-import {AgentBuilder} from '../../../agent/src/AgentBuilder.js';
+import {AgentBuilder} from '../../../agent/src/index.js';
 import {ActivityModel} from '../../../agent/src/app/model/ActivityModel.js';
 import {ActivityMonitor} from '../../../agent/src/app/model/ActivityMonitor.js';
 import {ActionDispatcher} from '../../../agent/src/app/model/ActionDispatcher.js';

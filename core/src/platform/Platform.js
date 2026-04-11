@@ -18,14 +18,6 @@ export class Platform {
     }
 
     /**
-     * Check if running in a test environment
-     * @returns {boolean}
-     */
-    isTestEnv() {
-        throw new Error('Not implemented');
-    }
-
-    /**
      * File system capabilities
      */
     get fs() {
@@ -36,6 +28,14 @@ export class Platform {
      * Path manipulation capabilities
      */
     get path() {
+        throw new Error('Not implemented');
+    }
+
+    /**
+     * Check if running in a test environment
+     * @returns {boolean}
+     */
+    isTestEnv() {
         throw new Error('Not implemented');
     }
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import {LM} from '../../core/src/lm/LM.js';
-import {DummyProvider} from '../../core/src/lm/DummyProvider.js';
+import {DummyProvider} from '@senars/core';
 
 class FailingProvider extends DummyProvider {
     constructor(config = {}) {

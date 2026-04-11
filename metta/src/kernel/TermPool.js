@@ -3,8 +3,6 @@
  * Reduces GC pressure by reusing term objects
  */
 
-import { sym, exp } from './Term.js';
-
 /**
  * Base pool implementation with common functionality
  */
@@ -12,7 +10,7 @@ class BasePool {
     constructor(initialSize = 100, maxSize = 1000) {
         this.pool = [];
         this.maxSize = maxSize;
-        this.stats = { created: 0, reused: 0, released: 0 };
+        this.stats = {created: 0, reused: 0, released: 0};
 
         for (let i = 0; i < initialSize; i++) {
             this.pool.push(this._createItem());
@@ -51,7 +49,7 @@ class BasePool {
 
     clear() {
         this.pool = [];
-        this.stats = { created: 0, reused: 0, released: 0 };
+        this.stats = {created: 0, reused: 0, released: 0};
     }
 }
 
@@ -147,7 +145,7 @@ export class ExpressionPool extends BasePool {
             },
             _computeName() {
                 const opName = this.operator?._name ?? this.operator?.name ?? '?';
-                return `(${opName}${this.components.map(c => ' ' + (c._name ?? c.name ?? '?')).join('')})`;
+                return `(${opName}${this.components.map(c => ` ${c._name ?? c.name ?? '?'}`).join('')})`;
             }
         };
     }
@@ -177,7 +175,7 @@ export class ExpressionPool extends BasePool {
 
     _computeName(operator, components) {
         const opName = operator?._name ?? operator?.name ?? '?';
-        return `(${opName}${(components ?? []).map(c => ' ' + (c._name ?? c.name ?? '?')).join('')})`;
+        return `(${opName}${(components ?? []).map(c => ` ${c._name ?? c.name ?? '?'}`).join('')})`;
     }
 }
 

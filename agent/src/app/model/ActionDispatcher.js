@@ -1,5 +1,5 @@
 import {ActionTypes} from './ActivityTypes.js';
-import {Logger} from '../../../../core/src/util/Logger.js';
+import {Logger} from '@senars/core';
 
 /**
  * ActionDispatcher handles execution of actions triggered by the UI.

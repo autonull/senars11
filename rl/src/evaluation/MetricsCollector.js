@@ -2,9 +2,8 @@
  * Metrics Collector Module
  * Collects, aggregates, and analyzes evaluation metrics
  */
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { MetricsTracker } from '../utils/MetricsTracker.js';
-import { MathUtils } from './StatisticalTests.js';
+import {mergeConfig, MetricsTracker} from '../utils/index.js';
+import {MathUtils} from './StatisticalTests.js';
 
 const COLLECTOR_DEFAULTS = {
     metrics: ['reward', 'length', 'success'],
@@ -43,7 +42,9 @@ export class MetricsCollector {
      * @param {object} step - Step data
      */
     recordStep(step) {
-        if (!this.currentEpisode) return;
+        if (!this.currentEpisode) {
+            return;
+        }
 
         this.currentEpisode.steps++;
         this.currentEpisode.rewards.push(step.reward);
@@ -59,7 +60,9 @@ export class MetricsCollector {
      * @returns {object} Episode summary
      */
     endEpisode(result = {}) {
-        if (!this.currentEpisode) return null;
+        if (!this.currentEpisode) {
+            return null;
+        }
 
         const episode = {
             ...this.currentEpisode,
@@ -129,7 +132,7 @@ export class MetricsCollector {
         const recent = episodes.slice(-window);
 
         if (recent.length === 0) {
-            return { count: 0, avgReward: 0, successRate: 0 };
+            return {count: 0, avgReward: 0, successRate: 0};
         }
 
         const rewards = recent.map(e => e.totalReward);
@@ -154,7 +157,7 @@ export class MetricsCollector {
     getTrend(window = 50) {
         const episodes = this.history.get('episodes') || [];
         if (episodes.length < window * 2) {
-            return { trend: 'insufficient_data' };
+            return {trend: 'insufficient_data'};
         }
 
         const recent = episodes.slice(-window);
@@ -211,7 +214,7 @@ export class PerformanceAnalyzer {
      * @param {string} name - Operation name
      */
     start(name) {
-        this.timings.set(name, { start: performance.now(), count: (this.counts.get(name) || 0) + 1 });
+        this.timings.set(name, {start: performance.now(), count: (this.counts.get(name) || 0) + 1});
     }
 
     /**
@@ -221,7 +224,9 @@ export class PerformanceAnalyzer {
      */
     end(name) {
         const timing = this.timings.get(name);
-        if (!timing) return 0;
+        if (!timing) {
+            return 0;
+        }
 
         const duration = performance.now() - timing.start;
         this.counts.set(name, timing.count);
@@ -243,7 +248,7 @@ export class PerformanceAnalyzer {
     getStats(name) {
         const durations = this.timings.get(`${name}_durations`) || [];
         if (durations.length === 0) {
-            return { count: 0, avg: 0, min: 0, max: 0, total: 0 };
+            return {count: 0, avg: 0, min: 0, max: 0, total: 0};
         }
 
         return {
@@ -263,7 +268,9 @@ export class PerformanceAnalyzer {
     getAllStats() {
         const stats = {};
         for (const [key, value] of this.timings) {
-            if (!key.endsWith('_durations')) continue;
+            if (!key.endsWith('_durations')) {
+                continue;
+            }
             const name = key.replace('_durations', '');
             stats[name] = this.getStats(name);
         }

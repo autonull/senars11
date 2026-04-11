@@ -1,8 +1,4 @@
-import {Memory} from '../../../core/src/memory/Memory.js';
-import {Task} from '../../../core/src/task/Task.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
-import {Truth} from '../../../core/src/Truth.js';
-import {Stamp} from '../../../core/src/Stamp.js';
+import {Memory, Stamp, Task, TermFactory, Truth} from '@senars/nar';
 
 describe('Archive and Compilation', () => {
     let memory;

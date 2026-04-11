@@ -36,7 +36,7 @@ export class ResultCell extends Cell {
 
     updateViewMode(mode) {
         this.viewMode = mode;
-        if (!this.element) return;
+        if (!this.element) {return;}
 
         const catInfo = MESSAGE_CATEGORIES[this.category] || MESSAGE_CATEGORIES.unknown;
         const color = catInfo.color || '#00ff88';
@@ -90,7 +90,7 @@ export class ResultCell extends Cell {
             previewText = JSON.stringify(this.content);
         }
 
-        if (previewText.length > 120) previewText = previewText.substring(0, 120) + '...';
+        if (previewText.length > 120) {previewText = `${previewText.substring(0, 120)  }...`;}
 
         const previewSpan = FluentUI.create('span')
             .style({ color: '#aaa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: '1', opacity: '0.8' });
@@ -114,8 +114,8 @@ export class ResultCell extends Cell {
         if ((this.category === 'concept' || this.category === 'task') && typeof this.content === 'object') {
             wrapper.style({ marginBottom: '8px', position: 'relative' });
             const cardWrapper = FluentUI.create('div').mount(wrapper).dom;
-            if (this.category === 'concept') new ConceptCard(cardWrapper, this.content).render();
-            else new TaskCard(cardWrapper, this.content).render();
+            if (this.category === 'concept') {new ConceptCard(cardWrapper, this.content).render();}
+            else {new TaskCard(cardWrapper, this.content).render();}
             return;
         }
 

@@ -1,10 +1,8 @@
-import { describe, expect, test, beforeEach, jest } from '@jest/globals';
-import { SeNARSBridge } from '../../metta/src/SeNARSBridge.js';
-import { Task } from '../../core/src/task/Task.js';
-import { TermFactory } from '../../core/src/term/TermFactory.js';
-import { Truth } from '../../core/src/Truth.js';
+import {beforeEach, describe, expect, jest, test} from '@jest/globals';
+import {SeNARSBridge} from '../../metta/src/index.js';
+import {Task, TermFactory, Truth} from '@senars/nar';
 
-describe.skip('Phase 3.1: MeTTa Bridge Verification', () => {
+describe('Phase 3.1: MeTTa Bridge Verification', () => {
     let termFactory;
     let mockInterpreter;
     let mockReasoner;
@@ -15,9 +13,9 @@ describe.skip('Phase 3.1: MeTTa Bridge Verification', () => {
 
         mockInterpreter = {
             termFactory,
-            parser: { parseExpression: jest.fn(str => termFactory.create(str)) },
+            parser: {parseExpression: jest.fn(str => termFactory.create(str))},
             load: jest.fn(),
-            space: { size: jest.fn(() => 42) }
+            space: {size: jest.fn(() => 42)}
         };
 
         mockReasoner = {
@@ -36,7 +34,12 @@ describe.skip('Phase 3.1: MeTTa Bridge Verification', () => {
             }
         };
 
-        bridge = new SeNARSBridge(mockReasoner, mockInterpreter, {}, { emit: jest.fn() });
+        const mockEventBus = {
+            emit: jest.fn(),
+            hasSubscribers: jest.fn(() => false)
+        };
+
+        bridge = new SeNARSBridge(mockReasoner, mockInterpreter, {}, mockEventBus);
     });
 
     describe('SeNARSBridge', () => {
@@ -52,7 +55,7 @@ describe.skip('Phase 3.1: MeTTa Bridge Verification', () => {
 
         test('narsToMetta converts Task to Term', () => {
             const term = termFactory.create('(A --> B)');
-            const task = new Task({ term, punctuation: '.', truth: new Truth(1.0, 0.9) });
+            const task = new Task({term, punctuation: '.', truth: new Truth(1.0, 0.9)});
 
             const result = bridge.narsToMetta(task);
             expect(result).toBe(term);
@@ -61,7 +64,7 @@ describe.skip('Phase 3.1: MeTTa Bridge Verification', () => {
         test('queryWithReasoning delegates to Reasoner', () => {
             const query = '(query)';
             mockReasoner.derive.mockReturnValue([
-                new Task({ term: termFactory.create('result'), punctuation: '.', truth: new Truth(1.0, 0.9) })
+                new Task({term: termFactory.create('result'), punctuation: '.', truth: new Truth(1.0, 0.9)})
             ]);
 
             const results = bridge.queryWithReasoning(query);
@@ -72,7 +75,7 @@ describe.skip('Phase 3.1: MeTTa Bridge Verification', () => {
         });
 
         test('injectRule registers MeTTaRuleAdapter', () => {
-            const ruleTerm = { components: ['condition', 'result'] };
+            const ruleTerm = {components: ['condition', 'result']};
 
             bridge.injectRule(ruleTerm);
 
@@ -83,14 +86,14 @@ describe.skip('Phase 3.1: MeTTa Bridge Verification', () => {
         });
 
         test('importToSeNARS loads from interpreter and processes tasks', () => {
-             const code = '(some code)';
-             const mockTask = { term: termFactory.create('term'), punctuation: '.' };
-             mockInterpreter.load.mockReturnValue([mockTask]);
+            const code = '(some code)';
+            const mockTask = {term: termFactory.create('term'), punctuation: '.'};
+            mockInterpreter.load.mockReturnValue([mockTask]);
 
-             bridge.importToSeNARS(code);
+            bridge.importToSeNARS(code);
 
-             expect(mockInterpreter.load).toHaveBeenCalledWith(code);
-             expect(mockReasoner.process).toHaveBeenCalled();
+            expect(mockInterpreter.load).toHaveBeenCalledWith(code);
+            expect(mockReasoner.process).toHaveBeenCalled();
         });
     });
 });

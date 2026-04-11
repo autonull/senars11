@@ -31,7 +31,7 @@ export class AutoLearner {
      * @param {number} weight - Interaction weight (default 1)
      */
     recordInteraction(term, weight = 1) {
-        if (!term) return;
+        if (!term) {return;}
 
         // Simple decay/growth heuristic
         const current = this.preferences.conceptWeights[term] || 0;

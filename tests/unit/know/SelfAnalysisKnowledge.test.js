@@ -1,13 +1,23 @@
 /**
  * @jest-environment jsdom
  */
+// Mock browser APIs before any imports
+if (typeof window !== 'undefined') {
+    window.URL = window.URL || {};
+    window.URL.createObjectURL = window.URL.createObjectURL || function () {
+        return 'mock-url';
+    };
+    window.URL.revokeObjectURL = window.URL.revokeObjectURL || function () {
+    };
+}
+
 import {
     DependencyGraphKnowledge,
     DirectoryStructureKnowledge,
     FileAnalysisKnowledge,
+    SoftwareKnowledgeFactory,
     TestResultKnowledge
-} from '../../../agent/src/know/SoftwareKnowledge.js';
-import {SoftwareKnowledgeFactory} from '../../../agent/src/know/SoftwareKnowledgeFactory.js';
+} from '../../../agent/src/know/index.js';
 
 describe('Self-Analysis Knowledge', () => {
     const cases = [

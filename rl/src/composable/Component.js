@@ -2,9 +2,8 @@
  * RL Component System
  * Leverages core/BaseComponent for unified lifecycle management
  */
-import { BaseComponent } from '@senars/core';
-import { EventBus } from '@senars/core';
-import { deepMergeConfig } from '../utils/ConfigHelper.js';
+import {BaseComponent, EventBus} from '@senars/core';
+import {deepMergeConfig} from '../utils/ConfigHelper.js';
 
 const COMPONENT_DEFAULTS = {
     autoInitialize: true,
@@ -44,16 +43,6 @@ export class Component extends BaseComponent {
     }
 
     /**
-     * Override getMetrics to integrate MetricsTracker when available
-     */
-    getMetrics() {
-        if (this._metricsTracker && typeof this._metricsTracker.getAll === 'function') {
-            return this._metricsTracker.getAll();
-        }
-        return super.getMetrics();
-    }
-
-    /**
      * Initialized state accessor for backward compatibility
      * Maps to BaseComponent's _initialized
      */
@@ -65,8 +54,37 @@ export class Component extends BaseComponent {
         this._initialized = value;
     }
 
+    static deserialize(data, registry) {
+        const ComponentClass = registry.get(data.type);
+        if (!ComponentClass) {
+            throw new Error(`Unknown component type: ${data.type}`);
+        }
+
+        const component = new ComponentClass(data.config);
+        Object.entries(data.state || {}).forEach(([key, value]) => {
+            component.setState(key, value);
+        });
+        (data.children || []).forEach(({name, data: childData}) => {
+            const child = Component.deserialize(childData, registry);
+            component.add(name, child);
+        });
+        return component;
+    }
+
+    /**
+     * Override getMetrics to integrate MetricsTracker when available
+     */
+    getMetrics() {
+        if (this._metricsTracker && typeof this._metricsTracker.getAll === 'function') {
+            return this._metricsTracker.getAll();
+        }
+        return super.getMetrics();
+    }
+
     async initialize() {
-        if (this.initialized) return this;
+        if (this.initialized) {
+            return this;
+        }
 
         await Promise.all(Array.from(this.children.values()).map(child => child.initialize()));
         await this.onInitialize();
@@ -76,7 +94,8 @@ export class Component extends BaseComponent {
         return this;
     }
 
-    async onInitialize() {}
+    async onInitialize() {
+    }
 
     async shutdown() {
         await Promise.all(Array.from(this.children.values()).map(child => child.shutdown()));
@@ -89,7 +108,8 @@ export class Component extends BaseComponent {
         return this;
     }
 
-    async onShutdown() {}
+    async onShutdown() {
+    }
 
     add(name, component) {
         if (this.children.has(name)) {
@@ -97,7 +117,7 @@ export class Component extends BaseComponent {
         }
         component.parent = this;
         this.children.set(name, component);
-        this.emit('childAdded', { name, component });
+        this.emit('childAdded', {name, component});
         return this;
     }
 
@@ -106,7 +126,7 @@ export class Component extends BaseComponent {
         if (component) {
             component.parent = null;
             this.children.delete(name);
-            this.emit('childRemoved', { name, component });
+            this.emit('childRemoved', {name, component});
         }
         return this;
     }
@@ -122,7 +142,7 @@ export class Component extends BaseComponent {
     setState(key, value) {
         const prev = this._state.get(key);
         this._state.set(key, value);
-        this.emit('stateChange', { key, value, prev });
+        this.emit('stateChange', {key, value, prev});
         return this;
     }
 
@@ -139,15 +159,17 @@ export class Component extends BaseComponent {
             this._localEventListeners.set(event, new Set());
         }
         this._localEventListeners.get(event).add(callback);
-        const subscription = { event, callback };
+        const subscription = {event, callback};
         this._subscriptions.push(subscription);
         return subscription;
     }
 
-    unsubscribe({ event, callback }) {
+    unsubscribe({event, callback}) {
         this._localEventListeners.get(event)?.delete(callback);
         const idx = this._subscriptions.findIndex(s => s.event === event && s.callback === callback);
-        if (idx >= 0) this._subscriptions.splice(idx, 1);
+        if (idx >= 0) {
+            this._subscriptions.splice(idx, 1);
+        }
     }
 
     emit(event, data) {
@@ -161,13 +183,13 @@ export class Component extends BaseComponent {
         this.eventBus.emit(event, data);
 
         if (this.parent) {
-            this.parent.emit(event, { source: this, data });
+            this.parent.emit(event, {source: this, data});
         }
     }
 
     wrapMethod(methodName, fn) {
         const self = this;
-        return async function(...args) {
+        return async function (...args) {
             const start = performance.now();
             self._metrics.calls++;
 
@@ -177,14 +199,17 @@ export class Component extends BaseComponent {
                 self._metrics.lastCallTime = performance.now() - start;
                 return result;
             } catch (e) {
-                self.emit('error', { method: methodName, error: e });
+                self.emit('error', {method: methodName, error: e});
                 throw e;
             }
         };
     }
 
     getMetrics() {
-        return { ...this._metrics };
+        if (this._metricsTracker && typeof this._metricsTracker.getAll === 'function') {
+            return this._metricsTracker.getAll();
+        }
+        return {...this._metrics};
     }
 
     serialize() {
@@ -199,26 +224,9 @@ export class Component extends BaseComponent {
         };
     }
 
-    static deserialize(data, registry) {
-        const ComponentClass = registry.get(data.type);
-        if (!ComponentClass) {
-            throw new Error(`Unknown component type: ${data.type}`);
-        }
-
-        const component = new ComponentClass(data.config);
-        Object.entries(data.state || {}).forEach(([key, value]) => {
-            component.setState(key, value);
-        });
-        (data.children || []).forEach(({ name, data: childData }) => {
-            const child = Component.deserialize(childData, registry);
-            component.add(name, child);
-        });
-        return component;
-    }
-
     clone(configOverrides = {}) {
         const serialized = this.serialize();
-        const config = { ...serialized.config, ...configOverrides };
+        const config = {...serialized.config, ...configOverrides};
         const clone = new this.constructor(config);
         this._state.forEach((value, key) => {
             clone.setState(key, value);
@@ -233,7 +241,7 @@ export class Component extends BaseComponent {
 export function functionalComponent(fn, config = {}) {
     return class FunctionalComponent extends Component {
         constructor(cfg) {
-            super({ ...config, ...cfg });
+            super({...config, ...cfg});
             this.fn = null;
         }
 

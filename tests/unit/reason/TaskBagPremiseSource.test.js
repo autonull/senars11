@@ -1,6 +1,5 @@
-import {TaskBagPremiseSource} from '../../../core/src/reason/TaskBagPremiseSource.js';
-import {Focus} from '../../../core/src/memory/Focus.js';
-import {createTestTask} from '../../support/baseTestUtils.js';
+import {Focus, TaskBagPremiseSource} from '@senars/nar';
+import {createTestTask} from '../../support/index.js';
 
 describe('TaskBagPremiseSource', () => {
     let focus, premiseSource;

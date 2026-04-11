@@ -1,6 +1,4 @@
-import { jest } from '@jest/globals';
 import { MessageFilter, VIEW_MODES } from '../../src/notebook/MessageFilter.js';
-import { ReactiveState } from '../../src/core/ReactiveState.js';
 
 describe('MessageFilter Reactivity', () => {
     let filter;

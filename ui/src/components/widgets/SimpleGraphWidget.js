@@ -13,7 +13,7 @@ export class SimpleGraphWidget extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         this.container.innerHTML = '';
         this.container.style.cssText = 'height: 350px; width: 100%; background: #0a0a0c; border: 1px solid var(--border-color); position: relative; border-radius: 4px; overflow: hidden;';
@@ -166,13 +166,13 @@ export class SimpleGraphWidget extends Component {
     }
 
     updateData(newElements) {
-        if (!this.cy) return;
+        if (!this.cy) {return;}
         this.cy.add(newElements);
         this.cy.layout({ name: 'fcose', animate: true }).run();
     }
 
     expandView() {
-        const elements = this.cy.json().elements;
+        const {elements} = this.cy.json();
 
         const content = document.createElement('div');
         content.style.cssText = 'width:100%; height:100%;';

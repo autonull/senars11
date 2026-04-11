@@ -113,7 +113,9 @@ export class OntologyManager {
         // Direct type check
         if (this.instanceOf.has(instance)) {
             const types = this.instanceOf.get(instance);
-            if (types.has(type)) return true;
+            if (types.has(type)) {
+                return true;
+            }
 
             // Check through type hierarchy
             for (const instanceType of types) {
@@ -129,13 +131,19 @@ export class OntologyManager {
      * Check if a type subsumes another type (typeA is a supertype of typeB)
      */
     subsumes(subtype, supertype) {
-        if (subtype === supertype) return true;
+        if (subtype === supertype) {
+            return true;
+        }
 
         const superTypes = this.subsumption.get(subtype);
-        if (!superTypes) return false;
+        if (!superTypes) {
+            return false;
+        }
 
         // Direct supertype
-        if (superTypes.has(supertype)) return true;
+        if (superTypes.has(supertype)) {
+            return true;
+        }
 
         // Check through hierarchy
         for (const immediateSuper of superTypes) {

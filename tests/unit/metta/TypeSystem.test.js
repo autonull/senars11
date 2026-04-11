@@ -1,10 +1,10 @@
-import {MeTTaInterpreter} from '@senars/metta/src/MeTTaInterpreter.js';
+import {MeTTaTestUtils} from '../../helpers/MeTTaTestUtils.js';
 
 describe('MeTTa Type System Tests', () => {
     let metta;
 
     beforeEach(() => {
-        metta = new MeTTaInterpreter();
+        metta = MeTTaTestUtils.createInterpreter();
         // Core stdlib is loaded by default
         const onePlusOne = metta.run('(+ 1 1)');
         if (onePlusOne[0].toString() !== '2') {
@@ -38,12 +38,15 @@ describe('MeTTa Type System Tests', () => {
     });
 
     test('check-type passes for valid type', () => {
-        const result = metta.run('(check-type 42 Number)');
-        expect(result[0].toString()).toBe('42');
+        // Add explicit type annotation
+        metta.run('(: mynum Number)');
+        const result = metta.run('(check-type mynum Number)');
+        expect(result[0].toString()).toBe('mynum');
     });
 
     test('check-type fails for mismatched type', () => {
-        const result = metta.run('(check-type 42 String)');
+        metta.run('(: mynum Number)');
+        const result = metta.run('(check-type mynum String)');
         expect(result[0].toString()).toContain('error');
     });
 

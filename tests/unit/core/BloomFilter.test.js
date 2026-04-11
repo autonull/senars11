@@ -1,5 +1,4 @@
-
-import {BloomFilter} from '../../../core/src/util/BloomFilter.js';
+import {BloomFilter} from '@senars/core/src/util/BloomFilter';
 
 describe('BloomFilter', () => {
     test('initialization', () => {

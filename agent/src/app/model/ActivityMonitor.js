@@ -13,7 +13,9 @@ export class ActivityMonitor {
     }
 
     start() {
-        if (this.isMonitoring) return;
+        if (this.isMonitoring) {
+            return;
+        }
         this.isMonitoring = true;
         this._setupListeners();
     }
@@ -84,10 +86,18 @@ export class ActivityMonitor {
     }
 
     _extractMessage(data) {
-        if (typeof data === 'string') return data;
-        if (!data) return '';
-        if (data.message) return data.message;
-        if (data.text) return data.text;
+        if (typeof data === 'string') {
+            return data;
+        }
+        if (!data) {
+            return '';
+        }
+        if (data.message) {
+            return data.message;
+        }
+        if (data.text) {
+            return data.text;
+        }
 
         // Handle EventBus string spreading behavior
         // Check if object keys are mostly numeric indices
@@ -104,7 +114,9 @@ export class ActivityMonitor {
     }
 
     _addListener(event, handler) {
-        if (!this.engine.on) return;
+        if (!this.engine.on) {
+            return;
+        }
         const safeHandler = (data) => {
             try {
                 handler(data);
@@ -117,7 +129,9 @@ export class ActivityMonitor {
     }
 
     _removeListeners() {
-        if (!this.engine.off) return;
+        if (!this.engine.off) {
+            return;
+        }
         for (const [event, handler] of this._handlers) {
             this.engine.off(event, handler);
         }

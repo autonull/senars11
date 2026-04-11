@@ -1,21 +1,21 @@
-import { promises as fs } from 'fs';
-import { deepClone } from '../../../core/src/util/common.js';
+import {promises as fs} from 'fs';
+import {deepClone} from '@senars/core';
 
 class PersistenceAdapter {
     async save(state, identifier) {
-        throw new Error('save method must be implemented by subclass');
+        throw new Error('save method must be implemented');
     }
 
     async load(identifier) {
-        throw new Error('load method must be implemented by subclass');
+        throw new Error('load method must be implemented');
     }
 }
 
 class FileSystemAdapter extends PersistenceAdapter {
     async save(state, filePath) {
-        const serializedState = JSON.stringify(state, null, 2);
-        await fs.writeFile(filePath, serializedState);
-        return {success: true, identifier: filePath, size: serializedState.length};
+        const serialized = JSON.stringify(state, null, 2);
+        await fs.writeFile(filePath, serialized);
+        return {success: true, identifier: filePath, size: serialized.length};
     }
 
     async load(filePath) {
@@ -48,17 +48,13 @@ class MemoryAdapter extends PersistenceAdapter {
     }
 }
 
-const DEFAULT_CONFIG = Object.freeze({
-    defaultAdapter: 'file',
-    defaultPath: './agent.json'
-});
+const DEFAULT_CONFIG = Object.freeze({defaultAdapter: 'file', defaultPath: './agent.json'});
 
 export class PersistenceManager {
     constructor(options = {}) {
         this.adapters = new Map();
         this.defaultAdapter = options.defaultAdapter || DEFAULT_CONFIG.defaultAdapter;
         this._defaultPath = options.defaultPath || DEFAULT_CONFIG.defaultPath;
-
         this._registerDefaultAdapters();
     }
 
@@ -77,7 +73,7 @@ export class PersistenceManager {
 
     registerAdapter(name, adapter) {
         if (!(adapter instanceof PersistenceAdapter)) {
-            throw new Error('Adapter must be an instance of PersistenceAdapter');
+            throw new Error('Adapter must extend PersistenceAdapter');
         }
         this.adapters.set(name, adapter);
     }
@@ -91,11 +87,11 @@ export class PersistenceManager {
     }
 
     async save(state, adapterName = this.defaultAdapter, identifier = this.defaultPath) {
-        return await this.getAdapter(adapterName).save(state, identifier);
+        return this.getAdapter(adapterName).save(state, identifier);
     }
 
     async load(adapterName = this.defaultAdapter, identifier = this.defaultPath) {
-        return await this.getAdapter(adapterName).load(identifier);
+        return this.getAdapter(adapterName).load(identifier);
     }
 
     async saveToDefault(state) {

@@ -4,7 +4,7 @@
  * Example demonstrating LM integration with NAL reasoning
  */
 
-import {NAR} from './core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 
 async function lmIntegrationDemo() {
     console.log("🚀 Starting SeNARS LM Integration Demo...\n");

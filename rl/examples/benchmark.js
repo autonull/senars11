@@ -1,17 +1,15 @@
-
-import { GridWorld } from '../src/environments/GridWorld.js';
-import { Continuous1D } from '../src/environments/Continuous1D.js';
-import { RandomAgent } from '../src/agents/RandomAgent.js';
-import { PolicyGradientAgent } from '../src/agents/PolicyGradientAgent.js';
-import { MeTTaAgent } from '../src/agents/MeTTaAgent.js';
-import { NeuroSymbolicAgent } from '../src/agents/NeuroSymbolicAgent.js';
+import {GridWorld} from '../src/environments/GridWorld.js';
+import {Continuous1D} from '../src/environments/Continuous1D.js';
+import {PolicyGradientAgent, RandomAgent} from '../src/index.js';
+import {MeTTaAgent} from '../src/agents/MeTTaAgent.js';
+import {NeuroSymbolicAgent} from '../src/agents/NeuroSymbolicAgent.js';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import {fileURLToPath} from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function runEpisode(env, agent) {
-    const { observation } = env.reset();
+    const {observation} = env.reset();
     let totalReward = 0;
     let done = false;
     let steps = 0;
@@ -21,7 +19,7 @@ async function runEpisode(env, agent) {
     while (!done) {
         const action = await agent.act(obs);
         const result = env.step(action);
-        const { observation: nextObs, reward, terminated, truncated } = result;
+        const {observation: nextObs, reward, terminated, truncated} = result;
         done = terminated || truncated;
 
         await agent.learn(obs, action, reward, nextObs, done);
@@ -31,7 +29,7 @@ async function runEpisode(env, agent) {
         steps++;
     }
 
-    return { totalReward, steps };
+    return {totalReward, steps};
 }
 
 async function benchmark(envName, agentName, AgentClass, episodes = 50, strategyPath = null) {
@@ -54,12 +52,12 @@ async function benchmark(envName, agentName, AgentClass, episodes = 50, strategy
 
     for (let i = 0; i < episodes; i++) {
         console.time(`Episode ${i}`);
-        const { totalReward, steps } = await runEpisode(env, agent);
+        const {totalReward, steps} = await runEpisode(env, agent);
         console.timeEnd(`Episode ${i}`);
         rewards.push(totalReward);
 
         if ((i + 1) % 1 === 0) {
-             console.log(`Episode ${i + 1}: Reward = ${totalReward.toFixed(2)}, Steps = ${steps}`);
+            console.log(`Episode ${i + 1}: Reward = ${totalReward.toFixed(2)}, Steps = ${steps}`);
         }
     }
 

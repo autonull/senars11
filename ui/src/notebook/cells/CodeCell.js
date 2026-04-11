@@ -70,12 +70,12 @@ export class CodeCell extends Cell {
     _updateGutter() {
         if (this.gutter) {
             this.gutter.textContent = this.executionCount ? `[${this.executionCount}]` : '[ ]';
-            if (this.executionCount) this.gutter.style.color = '#00ff9d';
+            if (this.executionCount) {this.gutter.style.color = '#00ff9d';}
         }
     }
 
     updateMode() {
-        if (!this.body) return;
+        if (!this.body) {return;}
 
         if (this.isCollapsed) {
             this.body.style.display = 'none';

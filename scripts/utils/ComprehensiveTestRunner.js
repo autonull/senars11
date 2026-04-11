@@ -2,13 +2,8 @@
  * Simple test runner to verify all implemented functionality works together
  */
 
-import {Reasoner} from '../../core/src/reason/Reasoner.js';
-import {TaskBagPremiseSource} from '../../core/src/reason/TaskBagPremiseSource.js';
-import {Strategy} from '../../core/src/reason/Strategy.js';
-import {RuleProcessor} from '../../core/src/reason/RuleProcessor.js';
-import {RuleExecutor} from '../../core/src/reason/RuleExecutor.js';
-import {Rule} from '../../core/src/reason/Rule.js';
-import {createTestMemory, createTestTask} from '../../tests/support/baseTestUtils.js';
+import {Reasoner, TaskBagPremiseSource, Strategy, RuleProcessor, Rule} from '@senars/nar';
+import {createTestMemory, createTestTask} from '../../tests/support/index.js';
 
 // Test rule for the comprehensive test
 class TestRule extends Rule {

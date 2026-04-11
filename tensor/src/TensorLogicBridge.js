@@ -1,7 +1,7 @@
-import { Tensor } from './Tensor.js';
-import { TensorFunctor } from './TensorFunctor.js';
-import { SymbolicTensor, TensorOps } from './SymbolicTensor.js';
-import { mergeConfig } from '@senars/core/src/util/ConfigUtils';
+import {Tensor} from './Tensor.js';
+import {TensorFunctor} from './TensorFunctor.js';
+import {SymbolicTensor, TensorOps} from './SymbolicTensor.js';
+import {mergeConfig} from '@senars/core';
 
 const DEFAULTS = {
     defaultSymbolThreshold: 0.5,
@@ -31,7 +31,7 @@ export class TensorLogicBridge {
     }
 
     liftToSymbols(tensor, config = {}) {
-        const { threshold = this.config.defaultSymbolThreshold, useAnnotations = true } = config;
+        const {threshold = this.config.defaultSymbolThreshold, useAnnotations = true} = config;
 
         if (tensor instanceof SymbolicTensor && useAnnotations) {
             return tensor.projectToSymbols(threshold);
@@ -53,7 +53,7 @@ export class TensorLogicBridge {
     }
 
     groundToTensor(symbols, shape, config = {}) {
-        const { aggregation = 'sum', defaultWeight = 1.0 } = config;
+        const {aggregation = 'sum', defaultWeight = 1.0} = config;
         const data = new Float32Array(shape.reduce((a, b) => a * b, 1));
 
         symbols.forEach(sym => {
@@ -65,13 +65,13 @@ export class TensorLogicBridge {
         });
 
         const tensor = new SymbolicTensor(data, shape);
-        tensor.addProvenance('groundToTensor', aggregation, { symbols: symbols.length });
+        tensor.addProvenance('groundToTensor', aggregation, {symbols: symbols.length});
         return tensor;
     }
 
     symbolicAdd(t1, t2, mergeFn = 'union') {
         if (!(t1 instanceof SymbolicTensor) || !(t2 instanceof SymbolicTensor)) {
-            return this.functor.evaluate({ operator: 'add', components: [t1, t2] }, new Map());
+            return this.functor.evaluate({operator: 'add', components: [t1, t2]}, new Map());
         }
 
         const result = new SymbolicTensor(
@@ -92,19 +92,23 @@ export class TensorLogicBridge {
             });
         });
 
-        result.addProvenance('symbolicAdd', mergeFn, { t1, t2 });
+        result.addProvenance('symbolicAdd', mergeFn, {t1, t2});
         return result;
     }
 
     mergeSymbols(s1, s2, mode) {
-        if (!s1) return s2;
-        if (!s2) return s1;
+        if (!s1) {
+            return s2;
+        }
+        if (!s2) {
+            return s1;
+        }
         return MergeOps[mode]?.(s1, s2) ?? s1;
     }
 
     symbolicMul(t1, t2, mergeFn = 'intersection') {
         if (!(t1 instanceof SymbolicTensor) || !(t2 instanceof SymbolicTensor)) {
-            return this.functor.evaluate({ operator: 'mul', components: [t1, t2] }, new Map());
+            return this.functor.evaluate({operator: 'mul', components: [t1, t2]}, new Map());
         }
 
         const result = new SymbolicTensor(
@@ -123,13 +127,13 @@ export class TensorLogicBridge {
             }
         });
 
-        result.addProvenance('symbolicMul', mergeFn, { t1, t2 });
+        result.addProvenance('symbolicMul', mergeFn, {t1, t2});
         return result;
     }
 
     neuralOp(operation, tensor, ...args) {
         const result = this.functor.evaluate(
-            { operator: operation, components: [tensor, ...args] },
+            {operator: operation, components: [tensor, ...args]},
             new Map()
         );
 
@@ -138,7 +142,7 @@ export class TensorLogicBridge {
             : result;
 
         if (symbolicResult instanceof SymbolicTensor) {
-            symbolicResult.addProvenance('neuralOp', operation, { args });
+            symbolicResult.addProvenance('neuralOp', operation, {args});
 
             tensor.symbols.forEach((symbol, key) => {
                 symbolicResult.symbols.set(key, {
@@ -155,20 +159,20 @@ export class TensorLogicBridge {
         const mask = TensorOps.makeMask(tensor.data.length, symbolMask, tensor.symbols);
 
         return new SymbolicTensor(mask, tensor.shape, {
-            provenance: [{ operation: 'attentionMask', timestamp: Date.now() }]
+            provenance: [{operation: 'attentionMask', timestamp: Date.now()}]
         });
     }
 
     symbolicSoftmax(tensor, symbolWeights = null) {
         const result = TensorOps.softmax(tensor.data, symbolWeights, tensor.shape);
-        result.addProvenance('symbolicSoftmax', 'attention', { symbolWeights: !!symbolWeights });
+        result.addProvenance('symbolicSoftmax', 'attention', {symbolWeights: !!symbolWeights});
         return result;
     }
 
     extractRules(tensor, minConfidence = this.config.minRuleConfidence) {
         return Array.from(tensor.symbols)
-            .filter(([_, { confidence }]) => confidence >= minConfidence)
-            .map(([key, { symbol, confidence }]) => {
+            .filter(([_, {confidence}]) => confidence >= minConfidence)
+            .map(([key, {symbol, confidence}]) => {
                 const idx = key.split(',').map(Number);
                 const value = tensor.data[idx.reduce((a, b) => a * tensor.shape[b] + b, 0)];
                 return {
@@ -191,7 +195,9 @@ export class TensorLogicBridge {
 
 export function termToTensor(term, shape, registry = new Map()) {
     const match = term.match(/\((\w+)_([\d x]+):\[(.*?)\]\)/);
-    if (!match) return null;
+    if (!match) {
+        return null;
+    }
 
     const [, _, shapeStr, content] = match;
     const dims = shapeStr.split('x').map(Number);

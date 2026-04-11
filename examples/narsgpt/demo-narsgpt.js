@@ -3,9 +3,7 @@
  * Demonstrates attention buffer, atomization, grounding, and perspective transformation.
  */
 
-import {NarsGPTStrategy} from '../../core/src/reason/strategy/NarsGPTStrategy.js';
-import {createNarsGPTQARule, NarsGPTPrompts} from '../../core/src/reason/rules/lm/index.js';
-import {EmbeddingLayer} from '../../core/src/lm/EmbeddingLayer.js';
+import {NarsGPTStrategy, createNarsGPTQARule, NarsGPTPrompts, EmbeddingLayer} from '@senars/nar';
 
 const section = (title) => console.log(`\n${title}`);
 const show = (label, value) => console.log(`  ${label}: ${value}`);

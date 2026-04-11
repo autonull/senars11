@@ -1,5 +1,5 @@
-import { Ground } from '@senars/metta/src/kernel/Ground.js';
-import { sym, exp, isExpression } from '@senars/metta/src/kernel/Term.js';
+import {Ground} from '@senars/metta/src/kernel/Ground.js';
+import {exp, isExpression, sym} from '@senars/metta/src/kernel/Term.js';
 
 describe('Ground.js - Expression Operations', () => {
     let ground;

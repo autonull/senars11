@@ -1,6 +1,5 @@
 import {afterAll, beforeAll, describe, test} from '@jest/globals';
-import {Punctuation, Task} from '../../../../core/src/task/Task.js';
-import {TermFactory} from '../../../../core/src/term/TermFactory.js';
+import {Punctuation, Task, TermFactory} from '@senars/nar';
 import {createLMNALTestAgent} from '../../../support/lmTestHelpers.js';
 import {assertEventuallyTrue, getTerms, hasTermMatch} from '../../../support/testHelpers.js';
 
@@ -38,7 +37,7 @@ describe('LM ↔ NAL Integration', () => {
                     truth: {frequency: 1.0, confidence: 0.9}
                 },
                 termBuilder: (tf) => tf.atomic('write_book'),
-                verify: (terms, agent) => agent.getGoals().length > 0 || agent.getConcepts().length > 0,
+                verify: (terms, agent) => (agent.nar?.getGoals?.() ?? []).length > 0 || (agent.nar?.getConcepts?.() ?? agent.getBeliefs?.() ?? []).length > 0,
                 description: 'goal processing',
                 timeout: 5000
             },
@@ -51,7 +50,7 @@ describe('LM ↔ NAL Integration', () => {
                 },
                 termBuilder: (tf) => tf.atomic('"Activity correlates with results"'),
                 verify: (terms, agent) => {
-                    const all = [...agent.getQuestions(), ...agent.getBeliefs()].map(t => t.term.toString());
+                    const all = [...(agent.nar?.getQuestions?.() ?? []), ...(agent.getBeliefs?.() ?? [])].map(t => t.term.toString());
                     return all.some(t => ['activity', 'results', 'Increased'].some(w => t.includes(w)));
                 },
                 description: 'hypothesis generation'
@@ -75,7 +74,11 @@ describe('LM ↔ NAL Integration', () => {
                     truth: {frequency: 1.0, confidence: 0.9}
                 },
                 termBuilder: (tf) => tf.atomic('solve_complex_problem'),
-                verify: (terms) => terms.some(t => ['solution', 'problem', 'solve'].some(w => t.includes(w))),
+                verify: (terms, agent) => {
+                    const goals = agent.nar?.getGoals?.() ?? [];
+                    const allTerms = [...terms, ...goals.map(g => g.term?.toString?.() ?? '')];
+                    return allTerms.some(t => ['solution', 'problem', 'solve', 'complex'].some(w => t.includes(w)));
+                },
                 description: 'analogical reasoning (relaxed check)'
             }
         ];

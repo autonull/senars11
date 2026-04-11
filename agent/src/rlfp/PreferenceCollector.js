@@ -1,5 +1,5 @@
-import { promises as fs } from 'fs';
-import {Logger} from '../../../core/src/util/Logger.js';
+import {promises as fs} from 'fs';
+import {Logger} from '@senars/core';
 
 class PreferenceCollector {
     constructor() {
@@ -37,7 +37,9 @@ class PreferenceCollector {
             ]
         }]);
 
-        if (preference === 'SKIP') return null;
+        if (preference === 'SKIP') {
+            return null;
+        }
 
         const data = {
             trajectoryA,
@@ -72,7 +74,9 @@ class PreferenceCollector {
     }
 
     _formatTrajectory(traj) {
-        if (!Array.isArray(traj)) return "Invalid trajectory";
+        if (!Array.isArray(traj)) {
+            return "Invalid trajectory";
+        }
 
         return traj.map(step => {
             const ts = step.timestamp ? new Date(step.timestamp).toISOString().split('T')[1].split('.')[0] : '';

@@ -3,6 +3,7 @@
 **General-purpose Reinforcement Learning with Neuro-Symbolic Integration**
 
 A modular, extensible RL framework leveraging:
+
 - **SeNARS `core/`**: Uncertainty-aware reasoning, belief revision, goal management
 - **MeTTa `metta/`**: Self-modifying symbolic programs, grounded operations
 - **Tensor Logic `tensor/`**: Differentiable learning, automatic differentiation
@@ -25,6 +26,7 @@ The RL module requires a Python environment with `gymnasium` and `numpy` install
 2. Run setup script: `./rl/scripts/setup_env.sh`
 
 Or manually:
+
 ```bash
 pip install -r rl/requirements.txt
 ```
@@ -84,47 +86,47 @@ const { action, reasoning, symbolic } = await bridge.perceiveReasonAct(observati
 
 ### Agents
 
-| Agent | Description |
-|-------|-------------|
-| `Agent` | Base class for all RL agents |
-| `NeuralAgent` | Neural network-based agent |
-| `DQNAgent` | Deep Q-Network agent |
-| `PPOAgent` | Proximal Policy Optimization agent |
-| `PolicyGradientAgent` | Policy gradient agent |
-| `RandomAgent` | Random action baseline |
+| Agent                 | Description                        |
+|-----------------------|------------------------------------|
+| `Agent`               | Base class for all RL agents       |
+| `NeuralAgent`         | Neural network-based agent         |
+| `DQNAgent`            | Deep Q-Network agent               |
+| `PPOAgent`            | Proximal Policy Optimization agent |
+| `PolicyGradientAgent` | Policy gradient agent              |
+| `RandomAgent`         | Random action baseline             |
 
 ### Environments
 
-| Environment | Description |
-|-------------|-------------|
-| `Environment` | Base class for RL environments |
-| `DiscreteEnvironment` | Discrete action space environment |
+| Environment             | Description                         |
+|-------------------------|-------------------------------------|
+| `Environment`           | Base class for RL environments      |
+| `DiscreteEnvironment`   | Discrete action space environment   |
 | `ContinuousEnvironment` | Continuous action space environment |
-| `EnhancedEnvironment` | Environment with wrappers |
+| `EnhancedEnvironment`   | Environment with wrappers           |
 
 ### Policies
 
-| Policy | Description |
-|--------|-------------|
+| Policy              | Description                                   |
+|---------------------|-----------------------------------------------|
 | `TensorLogicPolicy` | Tensor-based policy with symbolic integration |
-| `PolicyNetwork` | Neural network policy |
-| `AttentionPolicy` | Multi-head attention policy |
-| `EnsemblePolicy` | Ensemble policy for uncertainty |
+| `PolicyNetwork`     | Neural network policy                         |
+| `AttentionPolicy`   | Multi-head attention policy                   |
+| `EnsemblePolicy`    | Ensemble policy for uncertainty               |
 
 ### Bridges
 
-| Bridge | Description |
-|--------|-------------|
+| Bridge                | Description                          |
+|-----------------------|--------------------------------------|
 | `NeuroSymbolicBridge` | Unified NARS ↔ MeTTa ↔ Tensor bridge |
-| `SeNARSBridge` | SeNARS integration bridge |
+| `SeNARSBridge`        | SeNARS integration bridge            |
 
 ### Neuro-Symbolic Systems
 
-| System | Description |
-|--------|-------------|
-| `WorldModel` | Learned world model with imagination |
-| `SymbolicDifferentiation` | Symbolic gradient computation |
-| `NeuroSymbolicSystem` | Unified neuro-symbolic system |
+| System                    | Description                          |
+|---------------------------|--------------------------------------|
+| `WorldModel`              | Learned world model with imagination |
+| `SymbolicDifferentiation` | Symbolic gradient computation        |
+| `NeuroSymbolicSystem`     | Unified neuro-symbolic system        |
 
 ---
 
@@ -300,12 +302,12 @@ class MyAgent extends Component {
 }
 ```
 
-| Interface | Description |
-|-----------|-------------|
-| `IAgent` | Contract for all RL agents (act, learn, save, load, etc.) |
-| `IEnvironment` | Contract for environments (reset, step, spaces, etc.) |
-| `IArchitecture` | Contract for architectures (act, learn, close) |
-| `IPolicy` | Contract for policies (selectAction, update, etc.) |
+| Interface       | Description                                               |
+|-----------------|-----------------------------------------------------------|
+| `IAgent`        | Contract for all RL agents (act, learn, save, load, etc.) |
+| `IEnvironment`  | Contract for environments (reset, step, spaces, etc.)     |
+| `IArchitecture` | Contract for architectures (act, learn, close)            |
+| `IPolicy`       | Contract for policies (selectAction, update, etc.)        |
 
 ---
 

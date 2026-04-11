@@ -6,10 +6,7 @@
  * not direct LM calls.
  */
 
-import {NAR} from './core/src/nar/NAR.js';
-import {TransformersJSProvider} from './core/src/lm/TransformersJSProvider.js';
-import {LMRuleFactory} from './core/src/lm/LMRuleFactory.js';
-import {LMRule} from './core/src/reason/LMRule.js';
+import {NAR, LMRule, TransformersJSProvider} from '@senars/nar';
 
 // Custom trace capture for logging all system activity
 class ReasoningTrace {

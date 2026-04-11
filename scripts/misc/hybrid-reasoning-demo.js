@@ -4,7 +4,7 @@
  * Multi-step reasoning demonstration showing NAL and LM rule interaction
  */
 
-import {NAR} from './core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 
 async function multiStepReasoningDemo() {
     console.log("🧠 Starting Multi-Step Reasoning Demo with NAL and LM Interaction...\n");

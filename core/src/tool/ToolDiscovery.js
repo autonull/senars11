@@ -1,79 +1,47 @@
 export class ToolDiscovery {
     static discover(toolClasses) {
         const discovered = [];
-
         for (const toolClass of toolClasses) {
             try {
-                const toolMetadata = this._analyze(toolClass);
-
-                if (toolMetadata) {
-                    discovered.push(toolMetadata);
+                const metadata = this.#analyze(toolClass);
+                if (metadata) {
+                    discovered.push(metadata);
                 }
-            } catch (error) {
-                // Ignore errors
+            } catch { /* skip invalid tools */
             }
         }
-
         return discovered;
     }
 
-    static _analyze(toolClass) {
-        try {
-            // Check if it's a class (function) or object
-            let toolInstance;
-
-            if (typeof toolClass === 'function') {
-                // Try to instantiate it to test it
-                toolInstance = new toolClass();
-            } else {
-                toolInstance = toolClass;
-            }
-
-            // Check required methods
-            const hasRequiredMethods = [
-                'execute',
-                'getDescription'
-            ].every(method => typeof toolInstance[method] === 'function');
-
-            if (!hasRequiredMethods) {
-                return null;
-            }
-
-            // Generate metadata
-            const className = toolClass.name ?? 'AnonymousTool';
-            const toolId = className
-                .replace(/tool$/i, '')
-                .replace(/([a-z])([A-Z])/g, '$1-$2')
-                .toLowerCase();
-
-            return this._createToolMetadataObject(toolClass, toolInstance, className, toolId);
-        } catch (error) {
+    static #analyze(toolClass) {
+        const instance = typeof toolClass === 'function' ? new toolClass() : toolClass;
+        if (!['execute', 'getDescription'].every(m => typeof instance[m] === 'function')) {
             return null;
         }
+
+        const className = toolClass.name ?? 'AnonymousTool';
+        const toolId = className.replace(/tool$/i, '').replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+        return this.#createMetadata(toolClass, instance, className, toolId);
     }
 
-    static _createToolMetadataObject(toolClass, toolInstance, className, toolId) {
+    static #createMetadata(toolClass, instance, className, toolId) {
         return {
             id: toolId,
             name: className,
             class: toolClass,
-            description: toolInstance.getDescription(),
-            category: toolInstance.getCategory?.() ?? 'general',
-            parameters: toolInstance.getParameterSchema?.() ?? {type: 'object', properties: {}},
-            capabilities: toolInstance.getCapabilities?.() ?? [],
-            parameterSchema: toolInstance.getParameterSchema ? toolInstance.getParameterSchema() : null,
-            supportsStreaming: typeof toolInstance.stream === 'function',
-            supportsValidation: typeof toolInstance.validate === 'function'
+            description: instance.getDescription(),
+            category: instance.getCategory?.() ?? 'general',
+            parameters: instance.getParameterSchema?.() ?? {type: 'object', properties: {}},
+            capabilities: instance.getCapabilities?.() ?? [],
+            parameterSchema: instance.getParameterSchema?.() ?? null,
+            supportsStreaming: typeof instance.stream === 'function',
+            supportsValidation: typeof instance.validate === 'function'
         };
     }
 
     static isToolLike(obj) {
-        // Check if it has the required methods
-        const hasExecute = typeof obj.prototype?.execute === 'function' ||
-            typeof obj.execute === 'function';
-        const hasGetDescription = typeof obj.prototype?.getDescription === 'function' ||
-            typeof obj.getDescription === 'function';
-
+        const hasExecute = typeof obj.prototype?.execute === 'function' || typeof obj.execute === 'function';
+        const hasGetDescription = typeof obj.prototype?.getDescription === 'function' || typeof obj.getDescription === 'function';
         return hasExecute && hasGetDescription;
     }
 }

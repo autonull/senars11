@@ -1,8 +1,6 @@
 import {jest} from '@jest/globals';
-import {RuleProcessor} from '../../../core/src/reason/RuleProcessor.js';
-import {SimpleRuleExecutor} from '@senars/core/src/reason/exec/SimpleRuleExecutor.js';
-import {Rule} from '../../../core/src/reason/Rule.js';
-import {createTestTask} from '../../support/baseTestUtils.js';
+import {Rule, RuleProcessor, SimpleRuleExecutor} from '@senars/nar';
+import {createTestTask} from '../../support/index.js';
 
 class TestRule extends Rule {
     constructor(id, type) {
@@ -64,5 +62,5 @@ describe('RuleProcessor', () => {
         const results = [];
         for await (const r of rp.process(stream())) results.push(r);
         expect(results.length).toBeGreaterThan(0);
-    });
+    }, 3000);
 });

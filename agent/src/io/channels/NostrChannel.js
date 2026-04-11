@@ -1,19 +1,10 @@
-/**
- * NostrChannel.js - Nostr Protocol Implementation
- * Uses 'nostr-tools' and 'ws' for decentralized messaging.
- * 
- * Phase 5: Updated to extend Embodiment for unified I/O abstraction
- */
 import { Embodiment } from '../Embodiment.js';
-import { SimplePool, getPublicKey, finalizeEvent, nip19 } from 'nostr-tools';
+import { SimplePool, getPublicKey, finalizeEvent } from 'nostr-tools';
 import { WebSocket } from 'ws';
 import { Logger } from '@senars/core';
 import { randomBytes } from 'crypto';
 
-// Polyfill WebSocket for Node environment if not present globally
-if (typeof global.WebSocket === 'undefined') {
-    global.WebSocket = WebSocket;
-}
+if (typeof global.WebSocket === 'undefined') {global.WebSocket = WebSocket;}
 
 export class NostrChannel extends Embodiment {
     constructor(config = {}) {
@@ -32,18 +23,16 @@ export class NostrChannel extends Embodiment {
         this.pool = new SimplePool();
         this.relays = config.relays || ['wss://relay.damus.io', 'wss://relay.nostr.band'];
 
-        // Key management
-        this.sk = config.privateKey; // Hex private key
+        this.sk = config.privateKey;
         if (!this.sk) {
-             // Generate ephemeral key if none provided (warning: identity lost on restart)
-             // For simplicity, we require a key or generate a throwaway one for testing
-             // In production, keys should be loaded securely
-             this.sk = this._generatePrivateKey();
-             Logger.warn(`[Nostr:${this.id}] Using ephemeral private key. Identity will be lost on restart.`);
+            this.sk = this._generatePrivateKey();
+            Logger.warn(`[Nostr:${this.id}] Using ephemeral private key. Identity will be lost on restart.`);
         }
 
+        this.skBytes = typeof this.sk === 'string' ? Uint8Array.from(this.sk.match(/.{2}/g).map(b => parseInt(b, 16))) : this.sk;
+
         try {
-            this.pk = getPublicKey(this.sk);
+            this.pk = getPublicKey(this.skBytes);
         } catch (e) {
             throw new Error(`Invalid private key for Nostr: ${e.message}`);
         }
@@ -52,34 +41,23 @@ export class NostrChannel extends Embodiment {
     }
 
     _generatePrivateKey() {
-        // Simple random 32-byte hex string generation for ephemeral keys
-        // In a real app, use generateSecretKey() from nostr-tools
         const array = new Uint8Array(32);
         if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-             crypto.getRandomValues(array);
-             return Buffer.from(array).toString('hex');
-        } else {
-            // Node.js fallback using imported crypto module
-            return randomBytes(32).toString('hex');
+            crypto.getRandomValues(array);
+            return Buffer.from(array).toString('hex');
         }
+        return randomBytes(32).toString('hex');
     }
 
     async connect() {
-        if (this.status === 'connected') return;
+        if (this.status === 'connected') {return;}
         this.setStatus('connecting');
-
         try {
-            // Verify relay connectivity
-            // SimplePool handles connections lazily, but we want to ensure at least one is reachable
-            // We can just set status to connected as the pool manages the sockets
             this.setStatus('connected');
             Logger.info(`[Nostr:${this.id}] Ready. Public Key: ${this.pk}`);
-
-            // Auto-subscribe to DM's or specific filters if configured
             if (this.config.filters) {
                 this.subscribe('main', this.config.filters);
             } else {
-                // Default: Listen for DMs (kind 4) and mentions (kind 1 with p tag)
                 this.subscribe('dms', [{ kinds: [4], '#p': [this.pk] }]);
                 this.subscribe('mentions', [{ kinds: [1], '#p': [this.pk] }]);
             }
@@ -122,13 +100,13 @@ export class NostrChannel extends Embodiment {
 
     async _handleEvent(event) {
         // Decrypt DMs if kind 4
-        let content = event.content;
+        let {content} = event;
 
         if (event.kind === 4) {
             try {
                 if (this.config.decrypt !== false) {
                      const { nip04 } = await import('nostr-tools');
-                     content = await nip04.decrypt(this.sk, event.pubkey, event.content);
+                     content = nip04.decrypt(this.sk, event.pubkey, event.content);
                 }
             } catch (e) {
                 Logger.warn(`[Nostr:${this.id}] Failed to decrypt DM:`, e);
@@ -149,7 +127,7 @@ export class NostrChannel extends Embodiment {
     }
 
     async sendMessage(target, content, metadata = {}) {
-        if (this.status !== 'connected') throw new Error('Not connected to Nostr');
+        if (this.status !== 'connected') {throw new Error('Not connected to Nostr');}
 
         const eventTemplate = {
             kind: metadata.kind || 1,
@@ -162,12 +140,12 @@ export class NostrChannel extends Embodiment {
         if (metadata.kind === 4) {
             // Encrypt content
              const { nip04 } = await import('nostr-tools');
-             eventTemplate.content = await nip04.encrypt(this.sk, target, content);
+             eventTemplate.content = nip04.encrypt(this.sk, target, content);
              eventTemplate.tags.push(['p', target]);
         }
 
         // Sign event
-        const event = finalizeEvent(eventTemplate, this.sk);
+        const event = finalizeEvent(eventTemplate, this.skBytes);
 
         // Publish to all relays
         try {

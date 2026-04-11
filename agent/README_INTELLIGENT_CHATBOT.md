@@ -1,10 +1,12 @@
 # SeNARS Intelligent IRC ChatBot
 
-A fully-featured, intelligent IRC chatbot built on the SeNARS cognitive architecture with MeTTa language integration and LLM-powered responses.
+A fully-featured, intelligent IRC chatbot built on the SeNARS cognitive architecture with MeTTa language integration and
+LLM-powered responses.
 
 ## Features
 
 ### Core Capabilities
+
 - **Intelligent Message Processing**: Classifies messages as questions, commands, greetings, or statements
 - **LLM-Powered Responses**: Uses Ollama with configurable models (default: Qwen3-8B)
 - **MeTTa Integration**: Cognitive architecture for reasoning and memory
@@ -13,6 +15,7 @@ A fully-featured, intelligent IRC chatbot built on the SeNARS cognitive architec
 - **Context-Aware Conversations**: Maintains conversation history per user/channel
 
 ### IRC Features
+
 - Channel messages and private messages
 - CTCP support (VERSION, PING, TIME, INFO)
 - User tracking (joins, parts, quits, nick changes)
@@ -22,12 +25,14 @@ A fully-featured, intelligent IRC chatbot built on the SeNARS cognitive architec
 - Auto-reconnect with exponential backoff
 
 ### Multi-Channel Architecture (Prototype)
+
 - **IRC**: Full implementation (irc-framework)
 - **Matrix**: Prototype implementation (matrix-js-sdk)
 - **CLI**: Terminal-based interaction
 - **Nostr**: Decentralized network support
 
 ### Built-in Commands
+
 ```
 !help     - Show available commands
 !ping     - Check bot responsiveness
@@ -41,6 +46,7 @@ A fully-featured, intelligent IRC chatbot built on the SeNARS cognitive architec
 ## Quick Start
 
 ### Prerequisites
+
 1. Node.js 18+
 2. Ollama running locally with desired model
 3. IRC server access
@@ -77,17 +83,17 @@ node examples/chatbot/run-intelligent-chatbot.js --help
 
 ### Command Line Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--host` | `-h` | `irc.quakenet.org` | IRC server hostname |
-| `--port` | `-p` | `6667` | IRC server port |
-| `--nick` | `-n` | `senars-bot` | Bot nickname |
-| `--channel` | `-c` | `##metta` | Channel to join |
-| `--model` | `-m` | `hf.co/bartowski/Qwen_Qwen3-8B-GGUF:Q6_K` | Ollama model |
-| `--ollama-url` | | `http://localhost:11434` | Ollama API URL |
-| `--tls` | | `false` | Enable TLS |
-| `--debug` | | `false` | Enable debug logging |
-| `--personality` | | (default) | Bot personality description |
+| Option          | Short | Default                                   | Description                 |
+|-----------------|-------|-------------------------------------------|-----------------------------|
+| `--host`        | `-h`  | `irc.quakenet.org`                        | IRC server hostname         |
+| `--port`        | `-p`  | `6667`                                    | IRC server port             |
+| `--nick`        | `-n`  | `senars-bot`                              | Bot nickname                |
+| `--channel`     | `-c`  | `##metta`                                 | Channel to join             |
+| `--model`       | `-m`  | `hf.co/bartowski/Qwen_Qwen3-8B-GGUF:Q6_K` | Ollama model                |
+| `--ollama-url`  |       | `http://localhost:11434`                  | Ollama API URL              |
+| `--tls`         |       | `false`                                   | Enable TLS                  |
+| `--debug`       |       | `false`                                   | Enable debug logging        |
+| `--personality` |       | (default)                                 | Bot personality description |
 
 ## Architecture
 
@@ -165,6 +171,7 @@ personality: 'helpful, knowledgeable, and concise. ' +
 ### Ollama Models
 
 Tested models:
+
 - `hf.co/bartowski/Qwen_Qwen3-8B-GGUF:Q6_K` (default)
 - `llama3.2`
 - `mistral`
@@ -330,6 +337,7 @@ ollama pull hf.co/bartowski/Qwen_Qwen3-8B-GGUF:Q6_K
 ### Rate Limiting
 
 If messages are being throttled:
+
 - Increase `perChannelMax`
 - Decrease `perChannelInterval`
 - Check `getRateLimitStats()` for current state
@@ -374,6 +382,7 @@ Part of the SeNARS project. See main LICENSE file.
 ## Support
 
 For issues and questions:
+
 - GitHub Issues
 - IRC: `##metta` on irc.quakenet.org
 - Documentation: See `README_CHATBOT.md`

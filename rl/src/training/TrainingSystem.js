@@ -2,18 +2,19 @@
  * Unified Training System
  * WorkerPool, ParallelExecutor, DistributedTrainer for distributed training
  */
-import { Component } from '../composable/Component.js';
-import { EventEmitter } from 'events';
-import { Worker } from 'worker_threads';
+import {Component} from '../composable/Component.js';
+import {EventEmitter} from 'events';
+import {Worker} from 'worker_threads';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {fileURLToPath} from 'url';
+import {mergeConfig} from '../utils/index.js';
+import {generateId} from '@senars/core';
 
 // Import core training classes from TrainingLoop.js
-export { TrainingConfig, EpisodeResult, TrainingLoop, TrainingPresets } from './TrainingLoop.js';
+export {TrainingConfig, EpisodeResult, TrainingLoop, TrainingPresets} from './TrainingLoop.js';
 
 // Import checkpoint manager
-export { CheckpointManager, createCheckpointCallback } from './CheckpointManager.js';
+export {CheckpointManager, createCheckpointCallback} from './CheckpointManager.js';
 
 // Conditional fork import - only available in parent process context
 let fork;
@@ -24,8 +25,16 @@ try {
     fork = null;
 }
 
-const _fileURLToPath = fileURLToPath;
-const __dirname_fixed = path.dirname(_fileURLToPath(import.meta.url));
+// Workaround for Jest VM environment where import.meta.url might not be available
+let __dirname_fixed;
+try {
+    __dirname_fixed = path.dirname(fileURLToPath(import.meta.url));
+} catch (e) {
+    // Jest VM environment - use global.__dirname or fallback
+    __dirname_fixed = typeof global !== 'undefined' && global.__dirname
+        ? global.__dirname
+        : process.cwd();
+}
 
 const DISTRIBUTED_DEFAULTS = {
     numWorkers: 4,
@@ -44,35 +53,35 @@ export class WorkerPool extends Component {
         this.taskQueue = [];
         this.activeTasks = new Map();
         this.completedTasks = [];
-        this.stats = { tasksSubmitted: 0, tasksCompleted: 0, tasksFailed: 0, totalExecutionTime: 0 };
+        this.stats = {tasksSubmitted: 0, tasksCompleted: 0, tasksFailed: 0, totalExecutionTime: 0};
         this.eventEmitter = new EventEmitter();
     }
 
     async onInitialize() {
-        await Promise.all(Array.from({ length: this.config.numWorkers }, (_, i) => this._spawnWorker(i)));
+        await Promise.all(Array.from({length: this.config.numWorkers}, (_, i) => this._spawnWorker(i)));
         this.setState('initialized', true);
     }
 
     async _spawnWorker(id) {
-        const workerConfig = { workerData: { id, config: this.config }, stdout: true, stderr: true };
+        const workerConfig = {workerData: {id, config: this.config}, stdout: true, stderr: true};
         const worker = this.config.workerType === 'process'
             ? fork(path.join(__dirname_fixed, 'Worker.js'), workerConfig)
             : new Worker(path.join(__dirname_fixed, 'Worker.js'), workerConfig);
 
-        const workerInfo = { id, worker, status: 'idle', currentTask: null, tasksCompleted: 0, createdAt: Date.now() };
+        const workerInfo = {id, worker, status: 'idle', currentTask: null, tasksCompleted: 0, createdAt: Date.now()};
 
         worker.on('message', message => this._handleWorkerMessage(workerInfo, message));
         worker.on('error', error => this._handleWorkerError(workerInfo, error));
         worker.on('exit', code => this._handleWorkerExit(workerInfo, code));
 
         this.workers.push(workerInfo);
-        this.emit('workerSpawned', { id });
+        this.emit('workerSpawned', {id});
         return workerInfo;
     }
 
     async submitTask(task) {
-        const taskId = task.id ?? `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-        const taskInfo = { ...task, id: taskId, submittedAt: Date.now() };
+        const taskId = task.id ?? generateId('task');
+        const taskInfo = {...task, id: taskId, submittedAt: Date.now()};
 
         this.taskQueue.push(taskInfo);
         this.stats.tasksSubmitted++;
@@ -92,7 +101,7 @@ export class WorkerPool extends Component {
     async _executeTask(worker, task) {
         worker.status = 'busy';
         worker.currentTask = task.id;
-        this.activeTasks.set(task.id, { worker, task, startedAt: Date.now() });
+        this.activeTasks.set(task.id, {worker, task, startedAt: Date.now()});
 
         const timeoutPromise = new Promise((_, reject) => {
             const timer = setTimeout(() => reject(new Error(`Task timeout after ${this.config.workerTimeout}ms`)), this.config.workerTimeout);
@@ -103,12 +112,15 @@ export class WorkerPool extends Component {
             const handler = (message) => {
                 if (message.id === task.id) {
                     worker.worker.removeListener('message', handler);
-                    if (message.type === 'result') resolve(message.result);
-                    else reject(new Error(message.error));
+                    if (message.type === 'result') {
+                        resolve(message.result);
+                    } else {
+                        reject(new Error(message.error));
+                    }
                 }
             };
             worker.worker.on('message', handler);
-            worker.worker.postMessage({ type: 'task', ...task });
+            worker.worker.postMessage({type: 'task', ...task});
         });
 
         try {
@@ -121,33 +133,37 @@ export class WorkerPool extends Component {
 
     _completeTask(taskId, result) {
         const taskInfo = this.activeTasks.get(taskId);
-        if (!taskInfo) return;
+        if (!taskInfo) {
+            return;
+        }
 
-        const { worker, startedAt } = taskInfo;
+        const {worker, startedAt} = taskInfo;
         worker.status = 'idle';
         worker.currentTask = null;
         worker.tasksCompleted++;
 
         this.stats.tasksCompleted++;
         this.stats.totalExecutionTime += Date.now() - startedAt;
-        this.completedTasks.push({ taskId, result, executionTime: Date.now() - startedAt });
+        this.completedTasks.push({taskId, result, executionTime: Date.now() - startedAt});
 
         this.activeTasks.delete(taskId);
-        this.emit('taskCompleted', { taskId, result });
+        this.emit('taskCompleted', {taskId, result});
         this._dispatchTasks();
     }
 
     _failTask(taskId, error) {
         const taskInfo = this.activeTasks.get(taskId);
-        if (!taskInfo) return;
+        if (!taskInfo) {
+            return;
+        }
 
-        const { worker } = taskInfo;
+        const {worker} = taskInfo;
         worker.status = 'idle';
         worker.currentTask = null;
 
         this.stats.tasksFailed++;
         this.activeTasks.delete(taskId);
-        this.emit('taskFailed', { taskId, error });
+        this.emit('taskFailed', {taskId, error});
         this._dispatchTasks();
     }
 
@@ -158,13 +174,17 @@ export class WorkerPool extends Component {
     }
 
     _handleWorkerError(workerInfo, error) {
-        if (workerInfo.currentTask) this._failTask(workerInfo.currentTask, error);
+        if (workerInfo.currentTask) {
+            this._failTask(workerInfo.currentTask, error);
+        }
     }
 
     _handleWorkerExit(workerInfo, code) {
         const idx = this.workers.indexOf(workerInfo);
-        if (idx >= 0) this.workers.splice(idx, 1);
-        this.emit('workerExited', { id: workerInfo.id, code });
+        if (idx >= 0) {
+            this.workers.splice(idx, 1);
+        }
+        this.emit('workerExited', {id: workerInfo.id, code});
     }
 
     async terminateWorker(workerInfo) {
@@ -178,7 +198,9 @@ export class WorkerPool extends Component {
         return new Promise((resolve, reject) => {
             const check = () => {
                 const completed = this.completedTasks.find(t => t.taskId === taskId);
-                if (completed) return resolve(completed.result);
+                if (completed) {
+                    return resolve(completed.result);
+                }
 
                 const failed = this.activeTasks.get(taskId);
                 if (!failed && !this.taskQueue.find(t => t.id === taskId)) {
@@ -218,7 +240,7 @@ export class ParallelExecutor extends Component {
             ...config
         });
 
-        this.pool = new WorkerPool({ numWorkers: this.config.maxConcurrency, ...config });
+        this.pool = new WorkerPool({numWorkers: this.config.maxConcurrency, ...config});
     }
 
     async onInitialize() {
@@ -226,12 +248,12 @@ export class ParallelExecutor extends Component {
     }
 
     async executeAll(tasks, options = {}) {
-        const { returnOrder = true } = options;
+        const {returnOrder = true} = options;
 
         const taskPromises = tasks.map(async (task, idx) => {
             const taskId = await this.pool.submitTask(task);
             const result = await this.pool.waitForCompletion(taskId, this.config.timeout);
-            return { index: idx, result };
+            return {index: idx, result};
         });
 
         const results = await Promise.all(taskPromises);
@@ -263,7 +285,7 @@ export class DistributedTrainer extends Component {
             ...config
         });
 
-        this.pool = new WorkerPool({ numWorkers: this.config.numWorkers });
+        this.pool = new WorkerPool({numWorkers: this.config.numWorkers});
         this.modelVersions = new Map();
         this.syncCounter = 0;
     }
@@ -274,7 +296,7 @@ export class DistributedTrainer extends Component {
 
     async train(agent, env, episodes) {
         const workerEpisodes = Math.floor(episodes / this.config.numWorkers);
-        const tasks = Array.from({ length: this.config.numWorkers }, (_, i) => ({
+        const tasks = Array.from({length: this.config.numWorkers}, (_, i) => ({
             type: 'rollout',
             env: env.constructor?.name ?? 'Environment',
             steps: 500,

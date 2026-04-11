@@ -1,4 +1,4 @@
-import { BloomFilter } from '../../../../metta/src/kernel/BloomFilter.js';
+import {BloomFilter} from '../../../../metta/src/kernel/BloomFilter.js';
 
 describe('BloomFilter', () => {
     let bloom;

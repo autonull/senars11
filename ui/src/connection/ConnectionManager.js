@@ -3,7 +3,7 @@ import { ConnectionInterface } from './ConnectionInterface.js';
 export class ConnectionManager extends ConnectionInterface {
     constructor(adapter) {
         super();
-        if (!adapter) throw new Error('ConnectionManager requires adapter');
+        if (!adapter) {throw new Error('ConnectionManager requires adapter');}
         this.adapter = adapter;
     }
 

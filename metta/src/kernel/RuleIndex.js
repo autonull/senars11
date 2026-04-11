@@ -3,9 +3,23 @@
  * Tier 2 optimization: Replaces linear scan with O(1) lookups
  */
 
-import { isExpression, isSymbol, isVariable } from './Term.js';
-import { BloomFilter } from './BloomFilter.js';
-import { configManager } from '../config/config.js';
+import {isExpression, isSymbol, isVariable} from './Term.js';
+import {BloomFilter} from './BloomFilter.js';
+import {configManager} from '../config/config.js';
+
+/**
+ * Extract the root functor name from a pattern.
+ * For `(f $x $y)` → `'f'`
+ * For `((λ $p $b) $v)` → `'λ'`
+ * For `(((|-> $p $b) $a) $v)` → `'|->'`
+ */
+function extractRootFunctor(atom) {
+    if (!atom) return null;
+    if (isSymbol(atom)) return atom.name;
+    if (isVariable(atom)) return atom.name;
+    if (isExpression(atom)) return extractRootFunctor(atom.operator);
+    return null;
+}
 
 export class RuleIndex {
     constructor(config = {}) {
@@ -58,12 +72,14 @@ export class RuleIndex {
         this.stats.inserts++;
         this.allRules.push(rule);
 
-        const pattern = rule.pattern;
-        if (!pattern) return;
+        const {pattern} = rule;
+        if (!pattern) {
+            return;
+        }
 
         // Index by functor
         if (isExpression(pattern)) {
-            const functor = pattern.operator?.name || pattern.operator;
+            const functor = extractRootFunctor(pattern) || (pattern.operator?.name || pattern.operator);
             this._addToIndex(this.functorIndex, functor, rule);
 
             // Index by functor + arity
@@ -80,7 +96,7 @@ export class RuleIndex {
 
         // Add to bloom filter (by functor for fast negative lookups)
         if (isExpression(pattern)) {
-            const functor = pattern.operator?.name || pattern.operator;
+            const functor = extractRootFunctor(pattern) || (pattern.operator?.name || pattern.operator);
             this.bloomFilter.add(functor);
         } else if (isSymbol(pattern)) {
             this.bloomFilter.add(pattern.name);
@@ -96,7 +112,9 @@ export class RuleIndex {
             this.allRules.splice(idx, 1);
         }
 
-        if (!this.enabled) return;
+        if (!this.enabled) {
+
+        }
 
         // Note: Full removal from indexes would require reverse lookup
         // For now, we just remove from allRules (lazy deletion)
@@ -112,6 +130,19 @@ export class RuleIndex {
 
         this.stats.lookups++;
 
+        // If term's operator is an expression (like ((λ $x $body) $val)),
+        // extract the root functor for lookup
+        if (isExpression(term) && isExpression(term.operator)) {
+            const rootFunctor = extractRootFunctor(term.operator);
+            if (rootFunctor) {
+                const rules = this.functorIndex.get(rootFunctor) || [];
+                if (rules.length > 0) {
+                    this.stats.hits++;
+                    return rules;
+                }
+            }
+        }
+
         // Fast negative check via bloom filter (by functor)
         let functor = null;
         if (isExpression(term)) {
@@ -123,12 +154,6 @@ export class RuleIndex {
         // If functor contains variables (like $x, $param), fall back to all rules
         // This allows unification to match patterns with different variable names
         if (typeof functor === 'string' && functor.includes('$')) {
-            return this.allRules;
-        }
-        
-        // If term's operator is an expression (like ((λ $x $body) $val)),
-        // fall back to all rules to allow pattern matching
-        if (isExpression(term) && isExpression(term.operator)) {
             return this.allRules;
         }
 
@@ -185,9 +210,13 @@ export class RuleIndex {
      */
     _getSignature(functor, arity, firstArg) {
         let type = 'other';
-        if (isSymbol(firstArg)) type = 'sym';
-        else if (isVariable(firstArg)) type = 'var';
-        else if (isExpression(firstArg)) type = 'exp';
+        if (isSymbol(firstArg)) {
+            type = 'sym';
+        } else if (isVariable(firstArg)) {
+            type = 'var';
+        } else if (isExpression(firstArg)) {
+            type = 'exp';
+        }
         return `${functor}/${arity}/${type}`;
     }
 
@@ -201,7 +230,7 @@ export class RuleIndex {
         this.signatureIndex.clear();
         this.patternIndex.clear();
         this.bloomFilter = new BloomFilter();
-        this.stats = { inserts: 0, lookups: 0, hits: 0, misses: 0 };
+        this.stats = {inserts: 0, lookups: 0, hits: 0, misses: 0};
     }
 
     /**

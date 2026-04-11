@@ -8,7 +8,7 @@ export class TimelineWidget extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         this.fluent().clear().class('timeline-widget')
             .style({

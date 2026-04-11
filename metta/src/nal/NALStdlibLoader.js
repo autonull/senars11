@@ -4,7 +4,10 @@
  * Separate from general MeTTa stdlib
  */
 
-import { createRequire } from 'module';
+import {Logger} from '@senars/core';
+import fs from 'fs';
+import path from 'path';
+import {fileURLToPath} from 'url';
 
 const NAL_MODULES = ['truth', 'nal', 'budget', 'attention', 'control', 'search', 'learn'];
 
@@ -18,7 +21,7 @@ export class NALStdlibLoader {
     }
 
     load() {
-        const stats = { loaded: [], failed: [], atomsAdded: 0 };
+        const stats = {loaded: [], failed: [], atomsAdded: 0};
 
         for (const mod of this.modules) {
             try {
@@ -27,7 +30,7 @@ export class NALStdlibLoader {
                 stats.atomsAdded += res.atomCount;
                 this.loadedModules.add(mod);
             } catch (err) {
-                stats.failed.push({ module: mod, error: err.message });
+                stats.failed.push({module: mod, error: err.message});
                 Logger.warn(`Failed to load NAL stdlib module '${mod}':`, err);
             }
         }
@@ -45,13 +48,7 @@ export class NALStdlibLoader {
         // 2. Fallback to Node.js fs if available
         else if (typeof process !== 'undefined' && process.versions?.node) {
             try {
-                const require = createRequire(import.meta.url);
-                const fs = require('fs');
-                const path = require('path');
-                const { fileURLToPath } = require('url');
-
                 const currentDir = path.dirname(fileURLToPath(import.meta.url));
-                // NAL stdlib is in ../nal/stdlib/ relative to metta/src/nal/
                 const nalStdlibDir = this.nalStdlibDir || path.join(currentDir, 'stdlib');
                 const filePath = path.join(nalStdlibDir, fileName);
 
@@ -71,7 +68,7 @@ export class NALStdlibLoader {
         this.interpreter.load(content);
         const countAfter = this.interpreter.space?.size?.() ?? 0;
 
-        return { module: name, atomCount: countAfter - countBefore };
+        return {module: name, atomCount: countAfter - countBefore};
     }
 
     getLoadedModules() {

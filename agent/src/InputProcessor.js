@@ -9,8 +9,12 @@ export class InputProcessor {
     async processInput(input) {
         const trimmed = input.trim();
 
-        if (!trimmed) return this.agent.executeCommand('next');
-        if (trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('*')) return '';
+        if (!trimmed) {
+            return this.agent.executeCommand('next');
+        }
+        if (trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('*')) {
+            return '';
+        }
 
         if (this.agent.runState.isRunning) {
             this.agent._stopRun();
@@ -61,7 +65,7 @@ export class InputProcessor {
 
             let augmentedInput = input;
             if (context.author && !input.startsWith('[')) {
-                 augmentedInput = `Message from ${context.author} via ${context.source}: ${input}`;
+                augmentedInput = `Message from ${context.author} via ${context.source}: ${input}`;
             }
 
             // We can also pass tools here if we want dynamic tool selection based on context
@@ -111,7 +115,9 @@ export class InputProcessor {
             }
 
             const task = this.agent.inputQueue.getTaskById(taskId);
-            if (task) task.metadata.status = 'duplicate/failed';
+            if (task) {
+                task.metadata.status = 'duplicate/failed';
+            }
             return '❌ Failed to process input (possibly duplicate or invalid)';
         } catch (error) {
             this._handleNarseseError(input, error, taskId);

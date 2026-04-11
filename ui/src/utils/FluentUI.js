@@ -52,20 +52,20 @@ export class FluentUI {
 
     addClass(...classNames) {
         classNames.forEach(className => {
-            if (className) this.element.classList.add(className);
+            if (className) {this.element.classList.add(className);}
         });
         return this;
     }
 
     removeClass(...classNames) {
         classNames.forEach(className => {
-            if (className) this.element.classList.remove(className);
+            if (className) {this.element.classList.remove(className);}
         });
         return this;
     }
 
     style(styles) {
-        if (!styles) return this;
+        if (!styles) {return this;}
         Object.entries(styles).forEach(([key, value]) => {
             // Check if key is a valid style property name (string, not index)
             if (isNaN(Number(key))) {
@@ -122,7 +122,7 @@ export class FluentUI {
     }
 
     val(value) {
-        if (value === undefined) return this.element.value;
+        if (value === undefined) {return this.element.value;}
         this.element.value = value;
         return this;
     }
@@ -140,7 +140,7 @@ export class FluentUI {
 
     child(...children) {
         children.forEach(child => {
-            if (child === null || child === undefined) return;
+            if (child === null || child === undefined) {return;}
 
             if (child instanceof FluentUI) {
                 this.element.appendChild(child.element);

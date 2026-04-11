@@ -1,6 +1,5 @@
-import { Platform } from './Platform.js';
-import fs from 'fs';
-import { promises as fsPromises } from 'fs';
+import {Platform} from './Platform.js';
+import fs, {promises as fsPromises} from 'fs';
 import path from 'path';
 
 /**
@@ -9,14 +8,6 @@ import path from 'path';
 export class PlatformNode extends Platform {
     get name() {
         return 'node';
-    }
-
-    isTestEnv() {
-        return (
-            process.env.NODE_ENV === 'test' ||
-            process.env.JEST_WORKER_ID !== undefined ||
-            process.env.VITEST === 'true'
-        );
     }
 
     get fs() {
@@ -31,5 +22,13 @@ export class PlatformNode extends Platform {
 
     get path() {
         return path;
+    }
+
+    isTestEnv() {
+        return (
+            process.env.NODE_ENV === 'test' ||
+            process.env.JEST_WORKER_ID !== undefined ||
+            process.env.VITEST === 'true'
+        );
     }
 }

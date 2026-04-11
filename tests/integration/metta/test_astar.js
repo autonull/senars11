@@ -53,6 +53,6 @@ catch
     console.error(e.stack);
 }
 }
-;
+
 
 runDemo();

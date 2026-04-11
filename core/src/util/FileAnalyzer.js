@@ -43,7 +43,9 @@ export class FileAnalyzer {
     }
 
     static _collectTestFilesRecursively(dir, testFiles, isTestFile) {
-        if (!fs.existsSync(dir)) return;
+        if (!fs.existsSync(dir)) {
+            return;
+        }
 
         const items = fs.readdirSync(dir, {withFileTypes: true});
 

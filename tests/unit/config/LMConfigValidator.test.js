@@ -1,5 +1,5 @@
 import {describe, expect, test} from '@jest/globals';
-import {validateLMConfig} from '../../../core/src/config/LMConfigValidator.js';
+import {validateLMConfig} from '@senars/core/src/config/LMConfigValidator';
 
 describe('LMConfigValidator', () => {
     const validConfigs = [

@@ -4,6 +4,7 @@
  */
 
 import { BaseTool } from '../BaseTool.js';
+import { cosineSimilarity } from '../../util/math.js';
 
 /**
  * Tool for generating embeddings from text content
@@ -39,23 +40,23 @@ export class EmbeddingTool extends BaseTool {
     async execute(params, context) {
         const {operation, text, texts, model = this.defaultModel, options = {}} = params;
 
-        if (!operation) throw new Error('Operation is required');
+        if (!operation) {throw new Error('Operation is required');}
 
         switch (operation.toLowerCase()) {
             case 'generate':
             case 'embed':
                 return await this._handleEmbedOperation(text, texts, model, options);
             case 'compare':
-                if (!text || !params.compareWith) throw new Error('text and compareWith are required for compare operation');
+                if (!text || !params.compareWith) {throw new Error('text and compareWith are required for compare operation');}
                 return await this._compareEmbeddings(text, params.compareWith, model, options);
             case 'similarity':
-                if (!text || !params.against) throw new Error('text and against are required for similarity operation');
+                if (!text || !params.against) {throw new Error('text and against are required for similarity operation');}
                 return await this._calculateSimilarity(text, params.against, model, options);
             case 'cluster':
-                if (!texts) throw new Error('texts array is required for cluster operation');
+                if (!texts) {throw new Error('texts array is required for cluster operation');}
                 return await this._clusterEmbeddings(texts, model, options);
             case 'search':
-                if (!text || !params.searchSpace) throw new Error('text and searchSpace are required for search operation');
+                if (!text || !params.searchSpace) {throw new Error('text and searchSpace are required for search operation');}
                 return await this._searchEmbeddings(text, params.searchSpace, model, options);
             default:
                 throw new Error(`Unsupported operation: ${operation}. Supported operations: generate, embed, compare, similarity, cluster, search`);
@@ -67,8 +68,8 @@ export class EmbeddingTool extends BaseTool {
      * @private
      */
     async _handleEmbedOperation(text, texts, model, options) {
-        if (!text && !texts) throw new Error('Either text or texts array is required for embed operation');
-        if (text && texts) throw new Error('Provide either text or texts array, not both');
+        if (!text && !texts) {throw new Error('Either text or texts array is required for embed operation');}
+        if (text && texts) {throw new Error('Provide either text or texts array, not both');}
 
         return text
             ? this._generateEmbedding(text, model, options)
@@ -213,7 +214,7 @@ export class EmbeddingTool extends BaseTool {
      * @private
      */
     async _searchEmbeddings(query, searchSpace, model, options = {}) {
-        if (!Array.isArray(searchSpace)) throw new Error('searchSpace must be an array');
+        if (!Array.isArray(searchSpace)) {throw new Error('searchSpace must be an array');}
         this._validateText(query, 'query text');
         this._validateTextsArray(searchSpace, 'search space', this.maxBatchSize);
 
@@ -494,7 +495,7 @@ export class EmbeddingTool extends BaseTool {
         for (let i = 0; i < text.length; i++) {
             const char = text.charCodeAt(i);
             hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // Convert to 32bit integer
+            hash &= hash; // Convert to 32bit integer
         }
 
         // Apply the hash to modify the embedding slightly
@@ -541,24 +542,6 @@ export class EmbeddingTool extends BaseTool {
      * @private
      */
     _cosineSimilarity(vecA, vecB) {
-        if (vecA.length !== vecB.length) {
-            throw new Error('Vectors must have the same length');
-        }
-
-        let dotProduct = 0;
-        let normA = 0;
-        let normB = 0;
-
-        for (let i = 0; i < vecA.length; i++) {
-            dotProduct += vecA[i] * vecB[i];
-            normA += vecA[i] ** 2;
-            normB += vecB[i] ** 2;
-        }
-
-        if (normA === 0 || normB === 0) {
-            return 0; // If one of the vectors is zero, similarity is 0
-        }
-
-        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+        return cosineSimilarity(vecA, vecB);
     }
 }

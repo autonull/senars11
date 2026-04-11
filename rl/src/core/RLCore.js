@@ -2,9 +2,8 @@
  * RL Core Abstractions
  * Unified framework leveraging SeNARS core/, MeTTa metta/, and Tensor Logic tensor/
  */
-import { Component } from '../composable/Component.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { MetricsTracker } from '../utils/MetricsTracker.js';
+import {Component} from '../composable/Component.js';
+import {mergeConfig, MetricsTracker} from '../utils/index.js';
 
 const AGENT_DEFAULTS = {
     training: true,
@@ -44,8 +43,20 @@ export class Agent extends Component {
         this.currentEpisodeReward = 0;
     }
 
+    static create(env, config = {}) {
+        return new Agent(env, config);
+    }
+
+    static createTraining(env, config = {}) {
+        return new Agent(env, {...config, training: true});
+    }
+
+    static createEvaluation(env, config = {}) {
+        return new Agent(env, {...config, training: false});
+    }
+
     async onInitialize() {
-        this.emit('initialized', { env: this.env?.constructor?.name ?? 'Unknown' });
+        this.emit('initialized', {env: this.env?.constructor?.name ?? 'Unknown'});
     }
 
     /**
@@ -80,7 +91,7 @@ export class Agent extends Component {
             this.currentEpisodeReward = 0;
         }
 
-        return { learned: true };
+        return {learned: true};
     }
 
     /**
@@ -89,7 +100,7 @@ export class Agent extends Component {
      * @returns {Object} Save result
      */
     async save(path = this.config.savePath) {
-        return { saved: true, path };
+        return {saved: true, path};
     }
 
     /**
@@ -98,7 +109,7 @@ export class Agent extends Component {
      * @returns {Object} Load result
      */
     async load(path = this.config.loadPath) {
-        return { loaded: true, path };
+        return {loaded: true, path};
     }
 
     /**
@@ -107,7 +118,7 @@ export class Agent extends Component {
      */
     setTraining(training) {
         this.training = training;
-        this.emit('trainingChanged', { training });
+        this.emit('trainingChanged', {training});
     }
 
     /**
@@ -133,18 +144,6 @@ export class Agent extends Component {
     async onShutdown() {
         this.emit('shutdown', {});
     }
-
-    static create(env, config = {}) {
-        return new Agent(env, config);
-    }
-
-    static createTraining(env, config = {}) {
-        return new Agent(env, { ...config, training: true });
-    }
-
-    static createEvaluation(env, config = {}) {
-        return new Agent(env, { ...config, training: false });
-    }
 }
 
 /**
@@ -164,8 +163,36 @@ export class Environment extends Component {
         });
     }
 
+    /**
+     * Get observation space
+     * @returns {Object} Observation space specification
+     */
+    get observationSpace() {
+        throw new Error('observationSpace getter must be implemented by subclass');
+    }
+
+    /**
+     * Get action space
+     * @returns {Object} Action space specification
+     */
+    get actionSpace() {
+        throw new Error('actionSpace getter must be implemented by subclass');
+    }
+
+    static create(config = {}) {
+        return new Environment(config);
+    }
+
+    static createDiscrete(actionN, obsDim = 4, config = {}) {
+        return new DiscreteEnvironment(actionN, obsDim, config);
+    }
+
+    static createContinuous(actionDim, obsDim = 4, config = {}) {
+        return new ContinuousEnvironment(actionDim, obsDim, config);
+    }
+
     async onInitialize() {
-        this.emit('initialized', { name: this.constructor?.name ?? 'Environment' });
+        this.emit('initialized', {name: this.constructor?.name ?? 'Environment'});
     }
 
     /**
@@ -177,7 +204,7 @@ export class Environment extends Component {
         this.currentSteps = 0;
         this.totalEpisodes++;
         this.metrics.increment('episodesCompleted');
-        return { observation: null, info: {} };
+        return {observation: null, info: {}};
     }
 
     /**
@@ -220,23 +247,7 @@ export class Environment extends Component {
      * @returns {Object} Seed result
      */
     seed(seed = this.config.seed) {
-        return { seeded: true, seed };
-    }
-
-    /**
-     * Get observation space
-     * @returns {Object} Observation space specification
-     */
-    get observationSpace() {
-        throw new Error('observationSpace getter must be implemented by subclass');
-    }
-
-    /**
-     * Get action space
-     * @returns {Object} Action space specification
-     */
-    get actionSpace() {
-        throw new Error('actionSpace getter must be implemented by subclass');
+        return {seeded: true, seed};
     }
 
     /**
@@ -276,18 +287,6 @@ export class Environment extends Component {
     sampleObservation() {
         return this.observationSpace.sample?.() ?? null;
     }
-
-    static create(config = {}) {
-        return new Environment(config);
-    }
-
-    static createDiscrete(actionN, obsDim = 4, config = {}) {
-        return new DiscreteEnvironment(actionN, obsDim, config);
-    }
-
-    static createContinuous(actionDim, obsDim = 4, config = {}) {
-        return new ContinuousEnvironment(actionDim, obsDim, config);
-    }
 }
 
 /**
@@ -299,27 +298,6 @@ export class DiscreteEnvironment extends Environment {
         this._actionN = actionN;
         this._obsDim = obsDim;
         this._state = new Array(obsDim).fill(0);
-    }
-
-    reset(options = {}) {
-        super.reset(options);
-        this._state = Array.from({ length: this._obsDim }, () => Math.random() * 2 - 1);
-        return { observation: [...this._state], info: {} };
-    }
-
-    step(action) {
-        super.step(action);
-        const reward = Math.random() * 2 - 1;
-        this._state = Array.from({ length: this._obsDim }, () => Math.random() * 2 - 1);
-        const terminated = Math.random() < 0.1;
-
-        return {
-            observation: [...this._state],
-            reward,
-            terminated,
-            truncated: this.currentSteps >= this.config.maxSteps,
-            info: {}
-        };
     }
 
     get observationSpace() {
@@ -337,6 +315,27 @@ export class DiscreteEnvironment extends Environment {
             n: this._actionN
         };
     }
+
+    reset(options = {}) {
+        super.reset(options);
+        this._state = Array.from({length: this._obsDim}, () => Math.random() * 2 - 1);
+        return {observation: [...this._state], info: {}};
+    }
+
+    step(action) {
+        super.step(action);
+        const reward = Math.random() * 2 - 1;
+        this._state = Array.from({length: this._obsDim}, () => Math.random() * 2 - 1);
+        const terminated = Math.random() < 0.1;
+
+        return {
+            observation: [...this._state],
+            reward,
+            terminated,
+            truncated: this.currentSteps >= this.config.maxSteps,
+            info: {}
+        };
+    }
 }
 
 /**
@@ -348,27 +347,6 @@ export class ContinuousEnvironment extends Environment {
         this._actionDim = actionDim;
         this._obsDim = obsDim;
         this._state = new Array(obsDim).fill(0);
-    }
-
-    reset(options = {}) {
-        super.reset(options);
-        this._state = Array.from({ length: this._obsDim }, () => Math.random() * 2 - 1);
-        return { observation: [...this._state], info: {} };
-    }
-
-    step(action) {
-        super.step(action);
-        const reward = Math.random() * 2 - 1;
-        this._state = Array.from({ length: this._obsDim }, () => Math.random() * 2 - 1);
-        const terminated = Math.random() < 0.1;
-
-        return {
-            observation: [...this._state],
-            reward,
-            terminated,
-            truncated: this.currentSteps >= this.config.maxSteps,
-            info: {}
-        };
     }
 
     get observationSpace() {
@@ -388,6 +366,27 @@ export class ContinuousEnvironment extends Environment {
             high: 1
         };
     }
+
+    reset(options = {}) {
+        super.reset(options);
+        this._state = Array.from({length: this._obsDim}, () => Math.random() * 2 - 1);
+        return {observation: [...this._state], info: {}};
+    }
+
+    step(action) {
+        super.step(action);
+        const reward = Math.random() * 2 - 1;
+        this._state = Array.from({length: this._obsDim}, () => Math.random() * 2 - 1);
+        const terminated = Math.random() < 0.1;
+
+        return {
+            observation: [...this._state],
+            reward,
+            terminated,
+            truncated: this.currentSteps >= this.config.maxSteps,
+            info: {}
+        };
+    }
 }
 
 /**
@@ -402,9 +401,17 @@ export class Architecture extends Component {
         this.metrics = this.config.trackMetrics ? new MetricsTracker() : null;
     }
 
+    static create(agent, config = {}) {
+        return new Architecture(agent, config);
+    }
+
+    static createWithMetrics(agent, config = {}) {
+        return new Architecture(agent, {...config, trackMetrics: true});
+    }
+
     async onInitialize() {
         this.initialized = true;
-        this.emit('initialized', { agent: this.agent?.constructor?.name ?? 'Unknown' });
+        this.emit('initialized', {agent: this.agent?.constructor?.name ?? 'Unknown'});
     }
 
     /**
@@ -430,7 +437,7 @@ export class Architecture extends Component {
         if (this.metrics) {
             this.metrics.increment('learningSteps');
         }
-        return { learned: true };
+        return {learned: true};
     }
 
     /**
@@ -451,14 +458,6 @@ export class Architecture extends Component {
             metrics: this.metrics?.getAll() ?? {}
         };
     }
-
-    static create(agent, config = {}) {
-        return new Architecture(agent, config);
-    }
-
-    static createWithMetrics(agent, config = {}) {
-        return new Architecture(agent, { ...config, trackMetrics: true });
-    }
 }
 
 /**
@@ -468,7 +467,19 @@ export class Architecture extends Component {
 export class Grounding extends Component {
     constructor(config = {}) {
         super(config);
-        this.metrics = new MetricsTracker({ liftsPerformed: 0, groundingsPerformed: 0 });
+        this.metrics = new MetricsTracker({liftsPerformed: 0, groundingsPerformed: 0});
+    }
+
+    static create(config = {}) {
+        return new Grounding(config);
+    }
+
+    static createLearned(config = {}) {
+        return new LearnedGrounding(config);
+    }
+
+    static createSymbolic(config = {}) {
+        return new SymbolicGrounding(config);
     }
 
     /**
@@ -505,19 +516,7 @@ export class Grounding extends Component {
      * @returns {Object} Grounding statistics
      */
     getStats() {
-        return { metrics: this.metrics.getAll() };
-    }
-
-    static create(config = {}) {
-        return new Grounding(config);
-    }
-
-    static createLearned(config = {}) {
-        return new LearnedGrounding(config);
-    }
-
-    static createSymbolic(config = {}) {
-        return new SymbolicGrounding(config);
+        return {metrics: this.metrics.getAll()};
     }
 }
 
@@ -540,7 +539,8 @@ export class SymbolicGrounding extends Grounding {
 }
 
 /**
- * Simple learned grounding
+ * Simple learned grounding (DEPRECATED: use memory/LearnedGrounding.js instead)
+ * @deprecated Use the feature-rich version in memory/LearnedGrounding.js
  */
 export class LearnedGrounding extends Grounding {
     constructor(config = {}) {

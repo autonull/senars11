@@ -1,6 +1,6 @@
-import { MeTTaAgent } from './MeTTaAgent.js';
-import { registerTensorPrimitives } from '../core/TensorPrimitives.js';
-import { deepMergeConfig } from '../utils/ConfigHelper.js';
+import {MeTTaAgent} from './MeTTaAgent.js';
+import {registerTensorPrimitives} from '../core/TensorPrimitives.js';
+import {deepMergeConfig} from '../utils/ConfigHelper.js';
 
 const PROGRAMMATIC_DEFAULTS = {
     strategyPath: null,
@@ -14,7 +14,7 @@ const PROGRAMMATIC_DEFAULTS = {
 export class ProgrammaticAgent extends MeTTaAgent {
     constructor(env, config = {}) {
         // Handle string config (strategy path) for backward compatibility
-        const normalizedConfig = typeof config === 'string' ? { strategyPath: config } : config;
+        const normalizedConfig = typeof config === 'string' ? {strategyPath: config} : config;
         const mergedConfig = deepMergeConfig(PROGRAMMATIC_DEFAULTS, normalizedConfig);
         super(env, mergedConfig);
         this.params = new Map();

@@ -1,10 +1,5 @@
-import {ReasonerBuilder} from '../../../core/src/reason/ReasonerBuilder.js';
-import {TaskBagPremiseSource} from '../../../core/src/reason/TaskBagPremiseSource.js';
-import {Strategy} from '../../../core/src/reason/Strategy.js';
-import {RuleProcessor} from '../../../core/src/reason/RuleProcessor.js';
-import {Focus} from '../../../core/src/memory/Focus.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
-import {createTestMemory} from '../../support/baseTestUtils.js';
+import {Focus, ReasonerBuilder, RuleProcessor, Strategy, TaskBagPremiseSource, TermFactory} from '@senars/nar';
+import {createTestMemory} from '../../support/index.js';
 
 describe('ReasonerBuilder', () => {
     let context;

@@ -8,7 +8,9 @@ const PROVIDER_REQUIREMENTS = {
 const VALID_PROVIDERS = Object.keys(PROVIDER_REQUIREMENTS);
 
 export const validateLMConfig = (config) => {
-    if (!config) return {isValid: false, errors: ['Configuration is required']};
+    if (!config) {
+        return {isValid: false, errors: ['Configuration is required']};
+    }
 
     const errors = [];
 
@@ -19,7 +21,9 @@ export const validateLMConfig = (config) => {
     } else {
         const requirements = PROVIDER_REQUIREMENTS[config.provider];
         requirements.requiredFields.forEach(field => {
-            if (!config[field]) errors.push(`${field} is required for ${config.provider}`);
+            if (!config[field]) {
+                errors.push(`${field} is required for ${config.provider}`);
+            }
         });
     }
 

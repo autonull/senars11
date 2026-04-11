@@ -58,7 +58,7 @@ export class LayoutManager {
     }
 
     _loadLayout(presetName) {
-        let config = LayoutPresets[presetName] || LayoutPresets.ide;
+        const config = LayoutPresets[presetName] || LayoutPresets.ide;
         this.layout.loadLayout(config);
     }
 

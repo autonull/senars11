@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import {NAR} from './core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 
 const nar = new NAR({
     lm: {

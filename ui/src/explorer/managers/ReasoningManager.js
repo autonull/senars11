@@ -1,4 +1,4 @@
-import { IntrospectionEvents } from '@senars/core';
+import { IntrospectionEvents } from '@senars/nar';
 
 export class ReasoningManager {
     constructor(app) {
@@ -73,7 +73,7 @@ export class ReasoningManager {
 
     _bindNAREvents() {
         const nar = this._getNAR();
-        if (!nar || this._narEventsBound) return;
+        if (!nar || this._narEventsBound) {return;}
 
         if (nar.hasOwnProperty('traceEnabled')) {
             nar.traceEnabled = true;
@@ -107,7 +107,7 @@ export class ReasoningManager {
     }
 
     _setupLMEvents() {
-        if (!this.lmController) return;
+        if (!this.lmController) {return;}
         this.lmController.on('model-load-start', () => this.app._updateLLMStatus('Loading...', 'loading'));
         this.lmController.on('model-load-complete', () => this.app._updateLLMStatus('Online', 'online'));
     }
@@ -149,7 +149,7 @@ export class ReasoningManager {
     }
 
     async _runReasonerLoop() {
-        if (!this.isReasonerRunning) return;
+        if (!this.isReasonerRunning) {return;}
 
         await this.stepReasoner();
 

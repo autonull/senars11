@@ -4,7 +4,7 @@
  */
 
 import { Logger } from './Logger.js';
-import { RuntimeError, SerializationError, DeserializationError } from './ErrorUtils.js';
+import { DeserializationError } from './ErrorUtils.js';
 
 /**
  * Safe serialization utility that handles conditional serialization
@@ -13,7 +13,7 @@ import { RuntimeError, SerializationError, DeserializationError } from './ErrorU
  * @returns {Object} Serialized object or fallback result
  */
 export function safeSerialize(obj, fallback = null) {
-    if (!obj) return null;
+    if (!obj) {return null;}
     
     if (typeof obj.serialize === 'function') {
         return obj.serialize();
@@ -38,7 +38,7 @@ export function safeSerialize(obj, fallback = null) {
  * @returns {Object} Deserialized object
  */
 export async function safeDeserialize(data, deserializer, entityType = 'unknown') {
-    if (!data) return null;
+    if (!data) {return null;}
     
     if (typeof deserializer === 'function') {
         try {
@@ -166,7 +166,7 @@ export function universalSerialize(obj, options = {}) {
         customSerializers = {}
     } = options;
     
-    if (!obj) return null;
+    if (!obj) {return null;}
     
     // Check for custom serializers first
     const objType = obj.constructor?.name;
@@ -198,7 +198,7 @@ export async function universalDeserialize(data, options = {}) {
         customDeserializers = {}
     } = options;
     
-    if (!data) return null;
+    if (!data) {return null;}
     
     try {
         // Extract type if present

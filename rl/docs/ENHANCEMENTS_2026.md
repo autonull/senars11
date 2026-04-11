@@ -2,7 +2,8 @@
 
 ## Overview
 
-This document describes the recent enhancements to the `rl/` module, including checkpointing, monitoring, enhanced error handling, architecture modularization, and Gymnasium compatibility.
+This document describes the recent enhancements to the `rl/` module, including checkpointing, monitoring, enhanced error
+handling, architecture modularization, and Gymnasium compatibility.
 
 ---
 
@@ -152,18 +153,18 @@ const latest = await checkpoint.loadLatest(agent);
 
 #### CheckpointManager
 
-| Method | Description |
-|--------|-------------|
-| `constructor(config)` | Create manager with configuration |
-| `initialize()` | Initialize checkpoint directory and load metadata |
-| `save(agent, episode, reward)` | Save checkpoint if conditions met |
-| `loadLatest(agent)` | Load most recent checkpoint |
-| `loadBest(agent)` | Load best performing checkpoint |
-| `load(agent, filename)` | Load specific checkpoint by filename |
-| `list()` | List all checkpoints |
-| `delete(filename)` | Delete specific checkpoint |
-| `getProgress()` | Get training progress statistics |
-| `shutdown()` | Cleanup and save metadata |
+| Method                         | Description                                       |
+|--------------------------------|---------------------------------------------------|
+| `constructor(config)`          | Create manager with configuration                 |
+| `initialize()`                 | Initialize checkpoint directory and load metadata |
+| `save(agent, episode, reward)` | Save checkpoint if conditions met                 |
+| `loadLatest(agent)`            | Load most recent checkpoint                       |
+| `loadBest(agent)`              | Load best performing checkpoint                   |
+| `load(agent, filename)`        | Load specific checkpoint by filename              |
+| `list()`                       | List all checkpoints                              |
+| `delete(filename)`             | Delete specific checkpoint                        |
+| `getProgress()`                | Get training progress statistics                  |
+| `shutdown()`                   | Cleanup and save metadata                         |
 
 #### Configuration Options
 
@@ -197,15 +198,15 @@ Provide actionable error messages with suggestions and documentation links to re
 
 ### Error Types
 
-| Error Class | Use Case |
-|-------------|----------|
-| `LifecycleError` | Component not initialized, already shutdown |
-| `EnvironmentError` | Environment not reset, invalid action, episode done |
-| `AgentError` | Agent not trained, observation mismatch |
-| `ConfigError` | Missing required config, invalid type, out of range |
-| `TensorError` | Shape mismatch, dtype mismatch |
-| `TrainingError` | NaN loss, training divergence |
-| `NeuroSymbolicError` | Grounding failed, lift failed |
+| Error Class          | Use Case                                            |
+|----------------------|-----------------------------------------------------|
+| `LifecycleError`     | Component not initialized, already shutdown         |
+| `EnvironmentError`   | Environment not reset, invalid action, episode done |
+| `AgentError`         | Agent not trained, observation mismatch             |
+| `ConfigError`        | Missing required config, invalid type, out of range |
+| `TensorError`        | Shape mismatch, dtype mismatch                      |
+| `TrainingError`      | NaN loss, training divergence                       |
+| `NeuroSymbolicError` | Grounding failed, lift failed                       |
 
 ### Usage
 
@@ -445,12 +446,12 @@ console.log(`
 
 ### API Reference
 
-| Class/Function | Description |
-|----------------|-------------|
-| `MetricsExporter` | Base exporter with multi-format support |
-| `TrainingMonitor` | Real-time monitoring with logging |
-| `createMonitor(config)` | Create exporter + monitor pair |
-| `createMonitorCallback(monitor)` | Create training loop callback |
+| Class/Function                   | Description                             |
+|----------------------------------|-----------------------------------------|
+| `MetricsExporter`                | Base exporter with multi-format support |
+| `TrainingMonitor`                | Real-time monitoring with logging       |
+| `createMonitor(config)`          | Create exporter + monitor pair          |
+| `createMonitorCallback(monitor)` | Create training loop callback           |
 
 ### Configuration Options
 
@@ -588,20 +589,20 @@ if (await isGymnasiumAvailable()) {
 
 ### Supported Environments
 
-| Environment | Observation Space | Action Space |
-|-------------|-------------------|--------------|
-| `CartPole-v1` | [4] | Discrete(2) |
-| `MountainCar-v0` | [2] | Discrete(3) |
-| `Pendulum-v1` | [3] | Continuous(1) |
-| `LunarLander-v3` | [8] | Discrete(4) |
+| Environment      | Observation Space | Action Space  |
+|------------------|-------------------|---------------|
+| `CartPole-v1`    | [4]               | Discrete(2)   |
+| `MountainCar-v0` | [2]               | Discrete(3)   |
+| `Pendulum-v1`    | [3]               | Continuous(1) |
+| `LunarLander-v3` | [8]               | Discrete(4)   |
 
 ### API Reference
 
-| Function/Class | Description |
-|----------------|-------------|
-| `gym(envName, config)` | Create and initialize GymWrapper |
-| `GymWrapper` | Gymnasium environment wrapper class |
-| `isGymnasiumAvailable()` | Check if gymnasium is installed |
+| Function/Class           | Description                         |
+|--------------------------|-------------------------------------|
+| `gym(envName, config)`   | Create and initialize GymWrapper    |
+| `GymWrapper`             | Gymnasium environment wrapper class |
+| `isGymnasiumAvailable()` | Check if gymnasium is installed     |
 
 ---
 
@@ -613,7 +614,8 @@ Integration tests showed warnings about active timers not being properly cleaned
 
 ### Solution
 
-Added `.unref()` calls to all `setTimeout` timers used for timeouts, allowing Node.js to exit even if timers are still pending.
+Added `.unref()` calls to all `setTimeout` timers used for timeouts, allowing Node.js to exit even if timers are still
+pending.
 
 ### Files Modified
 
@@ -631,19 +633,19 @@ Tests now complete cleanly without timer-related warnings.
 
 ### New Tests
 
-| Test Suite | Tests | Status |
-|------------|-------|--------|
-| `checkpoint.test.js` | 19 | ✅ Pass |
-| `enhanced-errors.test.js` | 28 | ✅ Pass |
-| `monitoring.test.js` | 20 | ✅ Pass |
-| `gymnasium.test.js` | 13 | ✅ Pass |
+| Test Suite                | Tests | Status |
+|---------------------------|-------|--------|
+| `checkpoint.test.js`      | 19    | ✅ Pass |
+| `enhanced-errors.test.js` | 28    | ✅ Pass |
+| `monitoring.test.js`      | 20    | ✅ Pass |
+| `gymnasium.test.js`       | 13    | ✅ Pass |
 
 ### Overall RL Tests
 
-| Suite | Tests | Status |
-|-------|-------|--------|
-| Unit Tests | 150/150 | ✅ 100% |
-| Integration Tests | 12/12 | ✅ 100% |
+| Suite             | Tests   | Status |
+|-------------------|---------|--------|
+| Unit Tests        | 150/150 | ✅ 100% |
+| Integration Tests | 12/12   | ✅ 100% |
 
 ---
 

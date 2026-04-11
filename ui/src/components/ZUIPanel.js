@@ -10,7 +10,7 @@ export class ZUIPanel {
     }
 
     async initialize() {
-        if (this.initialized) return;
+        if (this.initialized) {return;}
 
         this.container.classList.add('zui-panel');
 
@@ -27,7 +27,7 @@ export class ZUIPanel {
 
         // Setup ResizeObserver to handle initialization and resizing
         this.resizeObserver = new ResizeObserver((entries) => {
-            for (let entry of entries) {
+            for (const entry of entries) {
                 const { width, height } = entry.contentRect;
                 if (width > 0 && height > 0) {
                     if (!this.initialized) {
@@ -44,7 +44,7 @@ export class ZUIPanel {
     }
 
     async _initGraph() {
-        if (this.initialized) return;
+        if (this.initialized) {return;}
 
         console.log('ZUIPanel: Initializing graph with dimensions', this.graphContainer.clientWidth, this.graphContainer.clientHeight);
 

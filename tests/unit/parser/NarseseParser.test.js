@@ -1,6 +1,4 @@
-import {NarseseParser} from '../../../core/src/parser/NarseseParser.js';
-import {Term} from '../../../core/src/term/Term.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
+import {NarseseParser, Term, TermFactory} from '@senars/nar';
 
 describe('NarseseParser', () => {
     let parser, termFactory;
@@ -78,7 +76,7 @@ describe('NarseseParser', () => {
             expect(result.term.components[1].name).toBe('A');
         });
 
-        test.skip('delta operator ΔA - TODO: implement delta support in peggy grammar', () => {
+        test.skip('delta operator ΔA', () => {
             const result = parser.parse('ΔA.');
             expect(result.term.operator).toBe('Δ');
             expect(result.term.components[0].name).toBe('A');

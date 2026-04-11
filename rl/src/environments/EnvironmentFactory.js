@@ -2,9 +2,8 @@
  * Environment Factory and Registry
  * Factory pattern for creating and managing environments
  */
-import { RLEnvironment } from '../core/RLEnvironment.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { MetricsTracker } from '../utils/MetricsTracker.js';
+import {Environment} from '../core/RLCore.js';
+import {mergeConfig, MetricsTracker} from '../utils/index.js';
 
 const ENV_DEFAULTS = {
     maxSteps: 1000,
@@ -18,7 +17,7 @@ const ENV_DEFAULTS = {
 /**
  * Enhanced environment with metrics and episode recording
  */
-export class EnhancedEnvironment extends RLEnvironment {
+export class EnhancedEnvironment extends Environment {
     constructor(env, config = {}) {
         super(mergeConfig(ENV_DEFAULTS, config));
         this.env = env;
@@ -34,6 +33,18 @@ export class EnhancedEnvironment extends RLEnvironment {
 
     get metrics() {
         return this._metricsTracker;
+    }
+
+    get observationSpace() {
+        return this.env.observationSpace;
+    }
+
+    get actionSpace() {
+        return this.env.actionSpace;
+    }
+
+    get unwrapped() {
+        return this.env.unwrapped ?? this.env;
     }
 
     async onInitialize() {
@@ -64,7 +75,7 @@ export class EnhancedEnvironment extends RLEnvironment {
     _episodeComplete(reward) {
         this._metricsTracker.increment('episodes');
         this._metricsTracker.add('totalReward', reward);
-        
+
         if (reward > this._metricsTracker.get('bestReward')) {
             this._metricsTracker.set('bestReward', reward);
         }
@@ -87,18 +98,6 @@ export class EnhancedEnvironment extends RLEnvironment {
 
     sampleAction() {
         return this.env.sampleAction();
-    }
-
-    get observationSpace() {
-        return this.env.observationSpace;
-    }
-
-    get actionSpace() {
-        return this.env.actionSpace;
-    }
-
-    get unwrapped() {
-        return this.env.unwrapped ?? this.env;
     }
 
     getEpisodeHistory() {

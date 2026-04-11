@@ -1,12 +1,12 @@
 /**
  * FastPaths.js - Optimized Type Guards
  * Q2: Monomorphic type checks for V8 inline caching
- * 
+ *
  * Key optimization: Pre-computed type tags enable fast dispatch
  * V8 can inline these checks and cache the results
  */
 
-import { configManager } from '../config/config.js';
+import {configManager} from '../config/config.js';
 
 // Type tag constants for fast dispatch
 export const TYPE_SYMBOL = 1;
@@ -28,12 +28,14 @@ export function isVariableName(name) {
 /**
  * Get type tag from term
  * Uses pre-computed _typeTag if available, otherwise computes from type string
- * 
+ *
  * @param {object} term - MeTTa term
  * @returns {number} Type tag constant
  */
 export function getTypeTag(term) {
-    if (!term) return 0;
+    if (!term) {
+        return 0;
+    }
 
     // Fast path: pre-computed type tag (Q3: stable shapes)
     if (term._typeTag !== undefined) {

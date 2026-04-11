@@ -20,9 +20,16 @@ export const capitalize = (str) => str ? str.charAt(0).toUpperCase() + str.slice
  * Truncate string to specified length
  * @param {string} str - String to truncate
  * @param {number} length - Maximum length
+ * @param suffix
  * @returns {string} Truncated string
  */
-export const truncate = (str, length) => !str || str.length <= length ? str : str.slice(0, length) + '...';
+export const truncate = (str, length, suffix = '...') => {
+    if (!str) {
+        return '';
+    }
+    const s = String(str);
+    return s.length <= length ? s : s.slice(0, length - suffix.length) + suffix;
+};
 
 /**
  * Escape special regex characters
@@ -66,7 +73,7 @@ export const formatTimestamp = (timestamp = Date.now()) => new Date(timestamp).t
  * @param {string} prefix - ID prefix
  * @returns {string} Unique ID
  */
-export const generateId = (prefix = 'id') => `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+export const generateId = (prefix = 'id') => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 
 /**
  * Check if string is empty
@@ -98,3 +105,17 @@ export const pad = (str, length, char = ' ') => str ? str.padStart(length, char)
  * @returns {string} Repeated string
  */
 export const repeat = (str, n) => str?.repeat(n) ?? '';
+
+/**
+ * Generate a random alphanumeric string
+ * @param {number} length - Length of the string
+ * @returns {string} Random string
+ */
+export const randomString = (length = 8) => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+};

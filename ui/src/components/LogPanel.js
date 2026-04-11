@@ -1,5 +1,5 @@
 import { Component } from './Component.js';
-import { FluentUI, div, input, button, span } from '../utils/FluentUI.js';
+import { div, input, button, span } from '../utils/FluentUI.js';
 import { SyntaxHighlighter } from '../utils/SyntaxHighlighter.js';
 
 export class LogPanel extends Component {
@@ -20,7 +20,7 @@ export class LogPanel extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         // Clear container
         this.container.innerHTML = '';
@@ -95,16 +95,16 @@ export class LogPanel extends Component {
 
         this.logs.push(entry);
         // Keep max 1000 logs
-        if (this.logs.length > 1000) this.logs.shift();
+        if (this.logs.length > 1000) {this.logs.shift();}
 
         this._appendLog(entry);
     }
 
     _appendLog(entry) {
-        if (!this.logContent) return;
+        if (!this.logContent) {return;}
 
         // Check filters
-        if (!this._shouldShow(entry)) return;
+        if (!this._shouldShow(entry)) {return;}
 
         const el = this._createLogElement(entry);
         this.logContent.appendChild(el);
@@ -112,7 +112,7 @@ export class LogPanel extends Component {
     }
 
     _renderLogs() {
-        if (!this.logContent) return;
+        if (!this.logContent) {return;}
 
         this.logContent.innerHTML = '';
         const fragment = document.createDocumentFragment();
@@ -138,12 +138,12 @@ export class LogPanel extends Component {
     }
 
     _shouldShow(entry) {
-        if (this.filter.search && !entry.raw.toLowerCase().includes(this.filter.search)) return false;
+        if (this.filter.search && !entry.raw.toLowerCase().includes(this.filter.search)) {return false;}
 
         // Map types to categories
         let cat = entry.type;
-        if (cat === 'success') cat = 'system'; // Treat success as system unless explicit
-        if (!this.filter.categories[cat] && this.filter.categories[cat] !== undefined) return false;
+        if (cat === 'success') {cat = 'system';} // Treat success as system unless explicit
+        if (!this.filter.categories[cat] && this.filter.categories[cat] !== undefined) {return false;}
 
         return true;
     }
@@ -156,7 +156,7 @@ export class LogPanel extends Component {
         span().text(`[${entry.timestamp}] `).mount(entryDiv);
 
         // Message
-        let msg = entry.message;
+        const msg = entry.message;
         const msgSpan = span();
 
         if (entry.type !== 'error' && (msg.includes('<') || msg.includes('-->') || msg.includes('$') || msg.includes('{'))) {
@@ -173,6 +173,6 @@ export class LogPanel extends Component {
 
     clear() {
         this.logs = [];
-        if (this.logContent) this.logContent.innerHTML = '';
+        if (this.logContent) {this.logContent.innerHTML = '';}
     }
 }

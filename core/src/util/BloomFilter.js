@@ -1,5 +1,4 @@
-
-import { fnv1a } from './HashUtils.js';
+import {fnv1a} from './hashUtils.js';
 
 export class BloomFilter {
     /**
@@ -13,18 +12,6 @@ export class BloomFilter {
         this._buffer = new Uint32Array(Math.ceil(size / 32));
     }
 
-    /**
-     * Create a BloomFilter from existing data
-     * @param {Uint32Array} buffer - The bitfield buffer
-     * @param {number} size - Size in bits
-     * @param {number} hashes - Number of hashes
-     */
-    static from(buffer, size, hashes) {
-        const bf = new BloomFilter(size, hashes);
-        bf._buffer.set(buffer);
-        return bf;
-    }
-
     get size() {
         return this._size;
     }
@@ -35,6 +22,18 @@ export class BloomFilter {
 
     get buffer() {
         return this._buffer;
+    }
+
+    /**
+     * Create a BloomFilter from existing data
+     * @param {Uint32Array} buffer - The bitfield buffer
+     * @param {number} size - Size in bits
+     * @param {number} hashes - Number of hashes
+     */
+    static from(buffer, size, hashes) {
+        const bf = new BloomFilter(size, hashes);
+        bf._buffer.set(buffer);
+        return bf;
     }
 
     /**
@@ -56,7 +55,7 @@ export class BloomFilter {
 
     _apply(str, fn) {
         const h1 = fnv1a(str);
-        const h2 = fnv1a(str + 's'); // Simple secondary hash with salt
+        const h2 = fnv1a(`${str}s`); // Simple secondary hash with salt
         const size = this._size;
 
         for (let i = 0; i < this._hashes; i++) {
@@ -64,7 +63,9 @@ export class BloomFilter {
             const index = (h1 + i * h2) % size;
             // Handle negative result from modulo
             const safeIndex = index < 0 ? index + size : index;
-            if (fn(safeIndex) === false) return false;
+            if (fn(safeIndex) === false) {
+                return false;
+            }
         }
         return true;
     }
@@ -89,12 +90,16 @@ export class BloomFilter {
      * @returns {boolean}
      */
     intersects(other) {
-         if (other._size !== this._size) return false; // Or throw
+        if (other._size !== this._size) {
+            return false;
+        } // Or throw
 
-         for (let i = 0; i < this._buffer.length; i++) {
-             if ((this._buffer[i] & other._buffer[i]) !== 0) return true;
-         }
-         return false;
+        for (let i = 0; i < this._buffer.length; i++) {
+            if ((this._buffer[i] & other._buffer[i]) !== 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     clone() {
@@ -102,9 +107,13 @@ export class BloomFilter {
     }
 
     equals(other) {
-        if (!other || this._size !== other._size || this._hashes !== other._hashes) return false;
+        if (!other || this._size !== other._size || this._hashes !== other._hashes) {
+            return false;
+        }
         for (let i = 0; i < this._buffer.length; i++) {
-            if (this._buffer[i] !== other._buffer[i]) return false;
+            if (this._buffer[i] !== other._buffer[i]) {
+                return false;
+            }
         }
         return true;
     }

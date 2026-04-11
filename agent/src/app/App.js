@@ -1,6 +1,6 @@
 import {AgentBuilder} from '../AgentBuilder.js';
 import EventEmitter from 'events';
-import {Logger} from '@senars/core';
+import {Logger, generateId} from '@senars/core';
 import {ActivityModel} from './model/ActivityModel.js';
 import {ActivityMonitor} from './model/ActivityMonitor.js';
 import {ActionDispatcher} from './model/ActionDispatcher.js';
@@ -27,12 +27,12 @@ export class App extends EventEmitter {
     }
 
     async initialize() {
-        if (this.agent) return this.agent;
+        if (this.agent) {return this.agent;}
         return this.createAgent('default', this.config);
     }
 
     _generateAgentId() {
-        return `agent_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+        return generateId('agent');
     }
 
     async createAgent(agentId = null, config = {}) {
@@ -66,12 +66,12 @@ export class App extends EventEmitter {
 
     getAgent(agentId) {
         const entry = this.agents.get(agentId);
-        if (entry) entry.lastAccessed = new Date();
+        if (entry) {entry.lastAccessed = new Date();}
         return entry?.agent ?? null;
     }
 
     switchAgent(agentId) {
-        if (!this.agents.has(agentId)) throw new Error(`Agent ${agentId} does not exist`);
+        if (!this.agents.has(agentId)) {throw new Error(`Agent ${agentId} does not exist`);}
         this.activeAgentId = agentId;
         return this.getAgent(agentId);
     }
@@ -85,7 +85,7 @@ export class App extends EventEmitter {
 
     async removeAgent(agentId) {
         const agentEntry = this.agents.get(agentId);
-        if (!agentEntry) return false;
+        if (!agentEntry) {return false;}
 
         await this._cleanupAgent(agentEntry.agent, agentId);
         this.agents.delete(agentId);
@@ -99,8 +99,8 @@ export class App extends EventEmitter {
 
     async start({startAgent = true, setupSignals = false} = {}) {
         await this.initialize();
-        if (startAgent) this.agent?.start?.();
-        if (setupSignals) this.setupGracefulShutdown();
+        if (startAgent) {await this.agent?.start?.();}
+        if (setupSignals) {this.setupGracefulShutdown();}
         this.emit('started', this.agent);
         return this.agent;
     }
@@ -115,10 +115,9 @@ export class App extends EventEmitter {
     }
 
     async _shutdownAgent(agent, agentId) {
-        if (!agent) return;
+        if (!agent) {return;}
         this.log.info(`Stopping agent ${agentId}...`);
         try {
-            await agent.save?.();
             await agent.save?.();
             if (typeof agent.dispose === 'function') {
                 await agent.dispose();
@@ -131,7 +130,7 @@ export class App extends EventEmitter {
     }
 
     async _cleanupAgent(agent, agentId) {
-        if (!agent) return;
+        if (!agent) {return;}
         try {
             const entry = this.agents.get(agentId);
             if (entry && entry.monitor) {

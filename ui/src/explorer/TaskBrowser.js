@@ -1,6 +1,6 @@
 import { Component } from '../components/Component.js';
 import { TaskCard } from '../components/TaskCard.js';
-import { FluentUI, $ } from '../utils/FluentUI.js';
+import { $ } from '../utils/FluentUI.js';
 import { eventBus } from '../core/EventBus.js';
 import { EVENTS } from '../config/constants.js';
 import { SyntaxHighlighter } from '../utils/SyntaxHighlighter.js';
@@ -26,7 +26,7 @@ export class TaskBrowser extends Component {
     }
 
     addTask(task) {
-        if (!task?.term) return;
+        if (!task?.term) {return;}
 
         const term = task.term.toString();
         if (!this.concepts.has(term)) {
@@ -67,7 +67,7 @@ export class TaskBrowser extends Component {
     }
 
     requestRender() {
-        if (this.renderPending) return;
+        if (this.renderPending) {return;}
         this.renderPending = true;
         requestAnimationFrame(() => {
             this.renderList();
@@ -94,7 +94,7 @@ export class TaskBrowser extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         // Using FluentUI to rebuild the container structure
         const root = $(this.container).clear();
@@ -118,8 +118,8 @@ export class TaskBrowser extends Component {
                 .text(symbol)
                 .on('click', (e) => {
                     this.typeFilters[type] = !this.typeFilters[type];
-                    if (this.typeFilters[type]) $(e.target).addClass('active');
-                    else $(e.target).removeClass('active');
+                    if (this.typeFilters[type]) {$(e.target).addClass('active');}
+                    else {$(e.target).removeClass('active');}
                     this.currentPage = 1; // Reset page on filter change
                     this.renderList();
                 });
@@ -196,12 +196,12 @@ export class TaskBrowser extends Component {
 
     handlePageChange(delta) {
         this.currentPage += delta;
-        if (this.currentPage < 1) this.currentPage = 1;
+        if (this.currentPage < 1) {this.currentPage = 1;}
         this.renderList();
     }
 
     renderPaginationControls(totalPages = 1) {
-        if (!this.paginationControls) return;
+        if (!this.paginationControls) {return;}
 
         this.paginationControls.clear();
 
@@ -227,17 +227,17 @@ export class TaskBrowser extends Component {
 
     _isTypeVisible(t) {
         const type = t.type.toLowerCase();
-        if (type.includes('goal')) return this.typeFilters.goal;
-        if (type.includes('question') || type.includes('quest')) return this.typeFilters.question;
+        if (type.includes('goal')) {return this.typeFilters.goal;}
+        if (type.includes('question') || type.includes('quest')) {return this.typeFilters.question;}
         return this.typeFilters.belief;
     }
 
     renderList() {
-        if (!this.taskListContainer) return;
+        if (!this.taskListContainer) {return;}
         this.taskListContainer.clear();
 
         // 1. Filter
-        let filtered = Array.from(this.concepts.values())
+        const filtered = Array.from(this.concepts.values())
             .map(c => ({
                 ...c,
                 visibleItems: c.tasks.map((t, i) => ({ task: t, index: i })).filter(({ task }) => this._isTypeVisible(task))
@@ -260,14 +260,14 @@ export class TaskBrowser extends Component {
                 valB = b.term;
             }
 
-            if (valA < valB) return this.sortOrder === 'asc' ? -1 : 1;
-            if (valA > valB) return this.sortOrder === 'asc' ? 1 : -1;
+            if (valA < valB) {return this.sortOrder === 'asc' ? -1 : 1;}
+            if (valA > valB) {return this.sortOrder === 'asc' ? 1 : -1;}
             return 0;
         });
 
         // 3. Pagination
         const totalPages = Math.ceil(filtered.length / this.itemsPerPage);
-        if (this.currentPage > totalPages && totalPages > 0) this.currentPage = totalPages;
+        if (this.currentPage > totalPages && totalPages > 0) {this.currentPage = totalPages;}
 
         const start = (this.currentPage - 1) * this.itemsPerPage;
         const end = start + this.itemsPerPage;
@@ -290,11 +290,11 @@ export class TaskBrowser extends Component {
         const prioClass = maxPrio > 0.8 ? 'high' : (maxPrio > 0.5 ? 'med' : 'low');
 
         const details = $('details').class('concept-group', prioClass);
-        if (this.expandedStates.has(term)) details.attr('open', 'open');
+        if (this.expandedStates.has(term)) {details.attr('open', 'open');}
 
         details.on('toggle', (e) => {
-            if (e.target.open) this.expandedStates.add(term);
-            else this.expandedStates.delete(term);
+            if (e.target.open) {this.expandedStates.add(term);}
+            else {this.expandedStates.delete(term);}
         });
 
         const summary = $('summary').class('concept-summary').attr('title', term).mount(details);

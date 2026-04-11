@@ -1,77 +1,40 @@
-/**
- * Unify.js - Pattern Matching & Unification
- * Adapter for Core Unification Logic
- * With Tier 1 Performance Optimization: Fast-Path Type Guards
- * And Cycle Detection in Substitution
- */
+import {constructList, exp, flattenList, isExpression, isList, isVariable, sym} from './Term.js';
+import {getTypeTag, isSymbol as fastIsSymbol, TYPE_SYMBOL} from './FastPaths.js';
+import {configManager} from '../config/config.js';
+import * as UnifyCore from '@senars/nar/src/term/UnifyCore.js';
+import {SMTBridge} from '../extensions/SMTOps.js';
 
-// Local imports
-import { isVariable, isExpression, isList, flattenList, constructList, exp } from './Term.js';
-import { getTypeTag, TYPE_SYMBOL, TYPE_VARIABLE, TYPE_EXPRESSION, isSymbol as fastIsSymbol } from './FastPaths.js';
-import { configManager } from '../config/config.js';
-
-// External imports
-import * as UnifyCore from '../../../core/src/term/UnifyCore.js';
-
-// Lazy SMT bridge initialization
 let _smtBridge = null;
-function getSMTBridge() {
-  if (!_smtBridge && configManager.get('smt')) {
-    const { SMTBridge } = require('../extensions/SMTOps.js');
-    _smtBridge = new SMTBridge();
-  }
-  return _smtBridge;
-}
+const getSMTBridge = () => _smtBridge ??= configManager.get('smt') ? new SMTBridge() : null;
 
-/**
- * Safely substitute variables in a term with their bindings
- * Iterative implementation to prevent stack overflow on deep structures
- * @param {Atom} rootTerm The term to substitute into
- * @param {Object} bindings Map of variable names to values
- * @param {Set} rootVisited Set of visited variables to detect cycles
- * @param {boolean} recursive Whether to recursively substitute values from bindings (default: true)
- */
 const safeSubstitute = (rootTerm, bindings, rootVisited = new Set(), recursive = true) => {
-    // 1. Initial Check
-    if (!rootTerm) return rootTerm;
-    if (!bindings || Object.keys(bindings).length === 0) return rootTerm;
+    if (!rootTerm || !bindings || Object.keys(bindings).length === 0) {
+        return rootTerm;
+    }
 
-    // 2. Setup Stack for Iterative Processing
-    // Commands: PROCESS (visit node), CONSTRUCT_EXPR (build expression), CONSTRUCT_LIST (build list)
-    const stack = [];
-    stack.push({ type: 'PROCESS', term: rootTerm, visited: rootVisited });
-
-    const resultStack = []; // Stores processed terms
+    const stack = [{type: 'PROCESS', term: rootTerm, visited: rootVisited}];
+    const resultStack = [];
 
     while (stack.length > 0) {
         const cmd = stack.pop();
 
         if (cmd.type === 'PROCESS') {
-            const { term, visited } = cmd;
-
+            const {term, visited} = cmd;
             if (!term) {
                 resultStack.push(term);
                 continue;
             }
 
             if (isVariable(term)) {
-                const name = term.name;
-                const val = bindings[name];
-
-                // Check if variable is bound and not to itself
+                const val = bindings[term.name];
                 if (val !== undefined && val !== term) {
-                     // Stop recursion if disabled or cycle detected
-                     if (!recursive || visited.has(name)) {
-                         resultStack.push(val);
-                     } else {
-                         // Recurse on value (push new PROCESS frame)
-                         // Cycle detection: add current var to visited
-                         const newVisited = new Set(visited);
-                         newVisited.add(name);
-                         stack.push({ type: 'PROCESS', term: val, visited: newVisited });
-                     }
+                    if (!recursive || visited.has(term.name)) {
+                        resultStack.push(val);
+                    } else {
+                        const newVisited = new Set(visited).add(term.name);
+                        stack.push({type: 'PROCESS', term: val, visited: newVisited});
+                    }
                 } else {
-                    // Not bound or self-bound
                     resultStack.push(term);
                 }
                 continue;
@@ -79,196 +42,194 @@ const safeSubstitute = (rootTerm, bindings, rootVisited = new Set(), recursive =
 
             if (isExpression(term)) {
                 if (isList(term)) {
-                    // Handle lists: flatten -> process elements -> construct
-                    const { elements, tail } = flattenList(term);
-
-                    // Push CONSTRUCT command first (executed last)
-                    stack.push({
-                        type: 'CONSTRUCT_LIST',
-                        elemCount: elements.length,
-                        hasTail: !!tail,
-                        // Optimizing identity check would require storing original components
-                        // For lists, we'll rely on constructList's efficiency or structural eq later if needed
-                        original: term
-                    });
-
-                    // Push tail processing (if exists)
+                    const {elements, tail} = flattenList(term);
+                    stack.push({type: 'CONSTRUCT_LIST', elemCount: elements.length, hasTail: !!tail, original: term});
                     if (tail) {
-                        stack.push({ type: 'PROCESS', term: tail, visited: new Set(visited) });
+                        stack.push({type: 'PROCESS', term: tail, visited: new Set(visited)});
                     }
-
-                    // Push elements in reverse order so they are processed first-to-last
-                    // (Stack LIFO: push C, push B, push A -> pop A, pop B, pop C)
                     for (let i = elements.length - 1; i >= 0; i--) {
-                         stack.push({ type: 'PROCESS', term: elements[i], visited: new Set(visited) });
+                        stack.push({type: 'PROCESS', term: elements[i], visited: new Set(visited)});
                     }
                     continue;
                 }
 
-                // Generic Expression
                 const op = term.operator;
-                const comps = term.components;
-
                 stack.push({
                     type: 'CONSTRUCT_EXPR',
                     original: term,
-                    compCount: comps.length,
+                    compCount: term.components.length,
                     opIsObj: typeof op === 'object'
                 });
-
-                // Process components (reverse order)
-                for (let i = comps.length - 1; i >= 0; i--) {
-                     stack.push({ type: 'PROCESS', term: comps[i], visited: new Set(visited) });
+                for (let i = term.components.length - 1; i >= 0; i--) {
+                    stack.push({type: 'PROCESS', term: term.components[i], visited: new Set(visited)});
                 }
-
-                // Process operator if it's an object (first to be popped/processed)
                 if (typeof op === 'object') {
-                    stack.push({ type: 'PROCESS', term: op, visited });
+                    stack.push({type: 'PROCESS', term: op, visited});
                 }
                 continue;
             }
 
-            // Atomic / Symbol
             resultStack.push(term);
             continue;
         }
 
         if (cmd.type === 'CONSTRUCT_EXPR') {
-            const { original, compCount, opIsObj } = cmd;
-
-            // Pop components + op from resultStack
-            const totalToPop = compCount + (opIsObj ? 1 : 0);
-            // Splice removes from end, returns array [op, c1, c2...]
-            const items = resultStack.splice(resultStack.length - totalToPop, totalToPop);
-
+            const {original, compCount, opIsObj} = cmd;
+            const items = resultStack.splice(resultStack.length - compCount - (opIsObj ? 1 : 0), compCount + (opIsObj ? 1 : 0));
             let newOp = original.operator;
-
             if (opIsObj) {
-                newOp = items[0];
-                items.shift();
+                newOp = items.shift();
             }
-
-            // items now contains components [c1, c2, ...]
-
-            // Check for identity to avoid allocation
-            const changed = (newOp !== original.operator) ||
-                            items.some((c, i) => c !== original.components[i]);
-
-            if (changed) {
-                resultStack.push(exp(newOp, items));
-            } else {
-                resultStack.push(original);
-            }
+            const changed = newOp !== original.operator || items.some((c, i) => c !== original.components[i]);
+            resultStack.push(changed ? exp(newOp, items) : original);
             continue;
         }
 
         if (cmd.type === 'CONSTRUCT_LIST') {
-             const { elemCount, hasTail, original } = cmd;
+            const {elemCount, hasTail, original} = cmd;
+            const items = resultStack.splice(resultStack.length - elemCount - (hasTail ? 1 : 0), elemCount + (hasTail ? 1 : 0));
+            const newTail = hasTail ? items.pop() : undefined;
+            const {elements: origElements, tail: origTail} = flattenList(original);
+            const changed = newTail !== origTail || items.length !== origElements.length || items.some((e, i) => e !== origElements[i]);
+            resultStack.push(changed ? constructList(items, newTail) : original);
 
-             const totalToPop = elemCount + (hasTail ? 1 : 0);
-             const items = resultStack.splice(resultStack.length - totalToPop, totalToPop);
-
-             let newTail = hasTail ? items.pop() : undefined;
-             const newElements = items;
-
-             // Check for identity
-             // Flatten original again to check identity is expensive but safeSubstitute did it implicitly via recursion return checks
-             const { elements: origElements, tail: origTail } = flattenList(original);
-             const changed = (newTail !== origTail) ||
-                             newElements.length !== origElements.length ||
-                             newElements.some((e, i) => e !== origElements[i]);
-
-             if (changed) {
-                 resultStack.push(constructList(newElements, newTail));
-             } else {
-                 resultStack.push(original);
-             }
-             continue;
         }
     }
 
     return resultStack[0];
 };
 
-/**
- * Unify two list structures
- */
 const unifyLists = (t1, t2, bindings) => {
     const f1 = flattenList(t1);
     const f2 = flattenList(t2);
     const minLen = Math.min(f1.elements.length, f2.elements.length);
 
-    // Unify common elements
     let currBindings = bindings;
-    for (let i = 0; i < minLen; i++) {
+    for (let i = 0; i < minLen && currBindings; i++) {
         currBindings = unifiedUnify(f1.elements[i], f2.elements[i], currBindings);
-        if (!currBindings) return null;
+    }
+    if (!currBindings) {
+        return null;
     }
 
-    // Handle remaining elements
-    const t1Remainder = f1.elements.length > minLen
-        ? constructList(f1.elements.slice(minLen), f1.tail)
-        : f1.tail;
-    const t2Remainder = f2.elements.length > minLen
-        ? constructList(f2.elements.slice(minLen), f2.tail)
-        : f2.tail;
-
-    return unifiedUnify(t1Remainder, t2Remainder, currBindings);
+    const t1Rem = f1.elements.length > minLen ? constructList(f1.elements.slice(minLen), f1.tail) : f1.tail;
+    const t2Rem = f2.elements.length > minLen ? constructList(f2.elements.slice(minLen), f2.tail) : f2.tail;
+    return unifiedUnify(t1Rem, t2Rem, currBindings);
 };
 
-/**
- * Metta-specific adapter for core unification logic
- */
 const mettaAdapter = {
     isVariable,
     isCompound: isExpression,
     getVariableName: t => t.name,
-    getOperator: t => t.operator?.name ? t.operator : t.operator,
-    getComponents: t => t.components || [], // Structural: (; A B) -> (: A (: B ()))
+    getOperator: t => t.operator,
+    getComponents: t => t.components ?? [],
     equals: (t1, t2) => t1 === t2 || (t1?.equals?.(t2) ?? false),
     substitute: (t, b, opts) => safeSubstitute(t, b, undefined, opts?.recursive),
     reconstruct: (t, comps) => {
         if (isList(t)) {
-            const { tail } = flattenList(t);
+            const {tail} = flattenList(t);
             return constructList(comps, tail);
         }
-        return exp(typeof t.operator === 'object' ? t.operator : t.operator, comps);
+        return exp(t.operator, comps);
+    },
+    // Intercept compound unification to handle cons-list vs expression-form list matching
+    preUnify: (t1, t2, bindings) => {
+        // (: h t) pattern vs expression-form list (a b c)
+        if (isList(t1) && isExpression(t2) && t2.operator?.name !== ':') {
+            return unifiedUnify(t1, exprToCons(t2), bindings);
+        }
+        if (isList(t2) && isExpression(t1) && t1.operator?.name !== ':') {
+            return unifiedUnify(exprToCons(t1), t2, bindings);
+        }
+        // (cons h t) in pattern acts as (: h t)
+        if (isExpression(t1) && t1.operator?.name === 'cons' && t1.components?.length === 2) {
+            return unifiedUnify(exp(sym(':'), t1.components), t2, bindings);
+        }
+        if (isExpression(t2) && t2.operator?.name === 'cons' && t2.components?.length === 2) {
+            return unifiedUnify(t1, exp(sym(':'), t2.components), bindings);
+        }
+        return undefined; // proceed with standard unification
     }
 };
 
-/**
- * Unified function for unification to avoid circular reference
- */
-const unifiedUnify = (t1, t2, binds = {}) => {
-    // Fast path: symbol equality (80% of cases)
-    if (configManager.get('fastPaths')) {
-        const tag1 = getTypeTag(t1);
-        const tag2 = getTypeTag(t2);
+// Convert expression-form list (a b c d) to cons-list (: a (: b (: c (: d ()))))
+const exprToCons = (expr) => {
+    if (!isExpression(expr) || expr.operator?.name === ':') return expr;
+    const elements = [expr.operator, ...(expr.components ?? [])];
+    let result = sym('()');
+    for (let i = elements.length - 1; i >= 0; i--) {
+        result = exp(sym(':'), [elements[i], result]);
+    }
+    return result;
+};
 
+// Recursively replace (cons h t) with (: h t) in patterns
+const normalizeConsInPattern = (atom) => {
+    if (!isExpression(atom)) return atom;
+    if (atom.operator?.name === 'cons' && atom.components?.length === 2) {
+        return exp(sym(':'), [normalizeConsInPattern(atom.components[0]),
+                              normalizeConsInPattern(atom.components[1])]);
+    }
+    const newOp = normalizeConsInPattern(atom.operator);
+    const newComps = atom.components.map(normalizeConsInPattern);
+    if (newOp === atom.operator && newComps.every((c, i) => c === atom.components[i])) return atom;
+    return exp(newOp, newComps);
+};
+
+// Recursively convert expression-form lists to cons-lists in a term
+// Only converts when the term is a list-like expression (not a function application)
+const deepNormalizeExprToCons = (atom) => {
+    if (!isExpression(atom)) return atom;
+    if (atom.operator?.name === ':') {
+        // Already a cons-list - normalize components
+        return exp(sym(':'), atom.components.map(deepNormalizeExprToCons));
+    }
+    // Convert this expression to a cons-list
+    return exprToCons(atom);
+};
+
+const unifiedUnify = (t1, t2, binds = {}) => {
+    if (configManager.get('fastPaths')) {
+        const tag1 = getTypeTag(t1), tag2 = getTypeTag(t2);
         if (tag1 === TYPE_SYMBOL && tag2 === TYPE_SYMBOL) {
             return (t1 === t2 || t1.name === t2.name) ? binds : null;
         }
-    } else {
-        // Fallback to slower checks if optimization disabled
-        if (fastIsSymbol(t1) && fastIsSymbol(t2)) {
-            return (t1 === t2 || t1.name === t2.name) ? binds : null;
-        }
+    } else if (fastIsSymbol(t1) && fastIsSymbol(t2)) {
+        return (t1 === t2 || t1.name === t2.name) ? binds : null;
     }
 
-    // Fast path: lists
+    // Handle cons constructor in patterns FIRST: (cons $h $t) acts as (: $h $t)
+    // Must come BEFORE list-vs-expr conversion to prevent incorrect normalization
+    if (isExpression(t1) && t1.operator?.name === 'cons' && t1.components?.length === 2) {
+        return unifiedUnify(exp(sym(':'), t1.components), t2, binds);
+    }
+    if (isExpression(t2) && t2.operator?.name === 'cons' && t2.components?.length === 2) {
+        return unifiedUnify(t1, exp(sym(':'), t2.components), binds);
+    }
+
     if (isList(t1) && isList(t2)) {
         return unifyLists(t1, t2, binds);
     }
 
+    // Handle cons pattern matching against expression-form lists:
+    // If one side is a cons-list (: h t) and the other is a non-cons expression (a b c),
+    // convert the expression to cons-list form and retry.
+    if (isList(t1) && isExpression(t2) && t2.operator?.name !== ':') {
+        return unifiedUnify(t1, exprToCons(t2), binds);
+    }
+    if (isList(t2) && isExpression(t1) && t1.operator?.name !== ':') {
+        return unifiedUnify(exprToCons(t1), t2, binds);
+    }
+
     const result = UnifyCore.unify(t1, t2, binds, mettaAdapter);
 
-    // MORK Phase 3-B Integration point
     if (!result && configManager.get('smt')) {
         const bridge = getSMTBridge();
-        if (bridge && bridge.canSolve(binds)) {
-            // Unification failed structurally, but maybe SMT can resolve constraints
+        if (bridge?.canSolve(binds)) {
             const smtResult = bridge.solve([t1, t2]);
-            if (smtResult) return smtResult;
+            if (smtResult) {
+                return smtResult;
+            }
         }
     }
 
@@ -276,35 +237,18 @@ const unifiedUnify = (t1, t2, binds = {}) => {
 };
 
 export const Unify = {
-    /**
-     * Unify two terms
-     */
     unify: unifiedUnify,
-
-    /**
-     * Substitute variables in a term with their bindings
-     */
     subst: (term, bindings, options) => safeSubstitute(term, bindings, undefined, options?.recursive),
-
-    /**
-     * Match a pattern against a term
-     */
     match: (pat, term, binds = {}) => UnifyCore.match(pat, term, binds, mettaAdapter),
-
-    /**
-     * Match multiple patterns against multiple terms
-     */
     matchAll: (pats, terms) => {
         const res = [];
         pats.forEach(p => terms.forEach(t => {
             const b = unifiedUnify(p, t);
-            if (b) res.push({ pattern: p, term: t, bindings: b });
+            if (b) {
+                res.push({pattern: p, term: t, bindings: b});
+            }
         }));
         return res;
     },
-
-    /**
-     * Check if a term is a variable
-     */
     isVar: isVariable
 };

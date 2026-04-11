@@ -46,8 +46,8 @@ export class SemanticZoom {
     }
 
     _updateStyles(level) {
-        const cy = this.graph.cy;
-        if (!cy) return;
+        const {cy} = this.graph;
+        if (!cy) {return;}
 
         // Note: SeNARS styles are complex and managed by Config.js.
         // Overriding them simply here might break the look.

@@ -44,7 +44,7 @@ export class ToolIntegration extends BaseComponent {
      * Register all tools for the NAR system
      */
     async initializeTools() {
-        if (!this.registry) throw new Error('Tool registry not enabled');
+        if (!this.registry) {throw new Error('Tool registry not enabled');}
 
         try {
             // Register explicitly provided tools
@@ -161,7 +161,7 @@ export class ToolIntegration extends BaseComponent {
             for (const call of toolCalls) {
                 const result = await this.executeTool(call.toolId, call.params, context);
                 results.push(result);
-                if (!result.success && !call.continueOnError) break;
+                if (!result.success && !call.continueOnError) {break;}
             }
             return results;
         }
@@ -215,7 +215,7 @@ export class ToolIntegration extends BaseComponent {
             };
 
             acc[usage.toolId].totalCalls++;
-            if (usage.result.success) acc[usage.toolId].successfulCalls++;
+            if (usage.result.success) {acc[usage.toolId].successfulCalls++;}
             acc[usage.toolId].totalExecutionTime += usage.executionTime;
 
             return acc;

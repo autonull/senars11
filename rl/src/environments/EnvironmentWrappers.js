@@ -2,9 +2,8 @@
  * Environment Wrappers
  * Composable wrappers for modifying environment behavior
  */
-import { RLEnvironment } from '../core/RLEnvironment.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { MetricsTracker } from '../utils/MetricsTracker.js';
+import {Environment} from '../core/RLCore.js';
+import {mergeConfig, MetricsTracker} from '../utils/index.js';
 
 const WRAPPER_DEFAULTS = {
     trackMetrics: true
@@ -13,7 +12,7 @@ const WRAPPER_DEFAULTS = {
 /**
  * Base environment wrapper
  */
-export class EnvironmentWrapper extends RLEnvironment {
+export class EnvironmentWrapper extends Environment {
     constructor(env, config = {}) {
         super(mergeConfig(WRAPPER_DEFAULTS, config));
         this.env = env;
@@ -22,6 +21,18 @@ export class EnvironmentWrapper extends RLEnvironment {
 
     get metrics() {
         return this._metricsTracker;
+    }
+
+    get observationSpace() {
+        return this.env.observationSpace;
+    }
+
+    get actionSpace() {
+        return this.env.actionSpace;
+    }
+
+    get unwrapped() {
+        return this.env.unwrapped ?? this.env;
     }
 
     async onInitialize() {
@@ -46,18 +57,6 @@ export class EnvironmentWrapper extends RLEnvironment {
 
     sampleAction() {
         return this.env.sampleAction();
-    }
-
-    get observationSpace() {
-        return this.env.observationSpace;
-    }
-
-    get actionSpace() {
-        return this.env.actionSpace;
-    }
-
-    get unwrapped() {
-        return this.env.unwrapped ?? this.env;
     }
 }
 
@@ -89,18 +88,20 @@ export class NormalizeObservationWrapper extends EnvironmentWrapper {
     }
 
     normalize(obs) {
-        if (!Array.isArray(obs)) return obs;
+        if (!Array.isArray(obs)) {
+            return obs;
+        }
 
         // Update running statistics
         this.numObs++;
         const delta = obs.map((v, i) => v - (this.obsMean?.[i] ?? 0));
-        
+
         if (!this.obsMean) {
             this.obsMean = [...obs];
             this.obsStd = new Array(obs.length).fill(0);
         } else {
             this.obsMean = this.obsMean.map((m, i) => m + delta[i] / this.numObs);
-            this.obsStd = this.obsStd.map((s, i) => 
+            this.obsStd = this.obsStd.map((s, i) =>
                 s + delta[i] * (obs[i] - this.obsMean[i])
             );
         }
@@ -122,7 +123,9 @@ export class ClipActionWrapper extends EnvironmentWrapper {
 
     _clip(action) {
         const space = this.actionSpace;
-        if (space.type !== 'Box') return action;
+        if (space.type !== 'Box') {
+            return action;
+        }
 
         if (Array.isArray(action)) {
             return action.map((v, i) => Math.max(space.low[i], Math.min(space.high[i], v)));

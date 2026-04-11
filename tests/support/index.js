@@ -58,7 +58,7 @@ export {
     TestSetupError,
     TestTeardownError,
     TestAssertionError,
-    testErrorHandling
+    default as testErrorHandling
 } from './testErrorHandling.js';
 
 // Export flexible utilities

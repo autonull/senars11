@@ -70,7 +70,7 @@ export class AutocompleteManager {
     }
 
     onKeyDown(e) {
-        if (!this.isVisible) return false;
+        if (!this.isVisible) {return false;}
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();
@@ -182,7 +182,7 @@ export class AutocompleteManager {
     }
 
     insert() {
-        if (!this.matched[this.selectedIndex]) return;
+        if (!this.matched[this.selectedIndex]) {return;}
         const completion = this.matched[this.selectedIndex].label;
 
         const text = this.textarea.value;
@@ -210,7 +210,7 @@ export class AutocompleteManager {
         for (const prop of props) {
             this.measureDiv.style[prop] = styles[prop];
         }
-        this.measureDiv.style.width = this.textarea.clientWidth + 'px';
+        this.measureDiv.style.width = `${this.textarea.clientWidth  }px`;
 
         // 2. Set content up to cursor
         const text = this.textarea.value.substring(0, cursorPos);
@@ -236,14 +236,14 @@ export class AutocompleteManager {
         // rect.left/top are viewport coords of textarea.
         // We add marker offset.
         // We also need to account for textarea scroll.
-        const scrollLeft = this.textarea.scrollLeft;
-        const scrollTop = this.textarea.scrollTop;
+        const {scrollLeft} = this.textarea;
+        const {scrollTop} = this.textarea;
 
         let left = rect.left + markerLeft - scrollLeft;
         let top = rect.top + markerTop - scrollTop + parseInt(styles.lineHeight || 20);
 
         // Boundary checks (keep in viewport)
-        if (left + 200 > window.innerWidth) left = window.innerWidth - 210;
+        if (left + 200 > window.innerWidth) {left = window.innerWidth - 210;}
         if (top + 200 > window.innerHeight) {
             // Show above if not enough space below
             top = rect.top + markerTop - scrollTop - this.element.offsetHeight;

@@ -168,93 +168,40 @@ export class PluginManager {
     }
 
     async initializeAll() {
-        let allSuccessful = true;
-        const promises = [];
-
-        for (const [id, plugin] of this.plugins) {
-            promises.push(
-                plugin.initialize({
-                    ...this.context,
-                    pluginManager: this
-                })
-                    .catch(error => {
-                        Logger.error(`Failed to initialize plugin ${id}:`, error);
-                        allSuccessful = false;
-                    })
-            );
-        }
-
-        await Promise.all(promises);
-        this.initialized = allSuccessful;
-        return allSuccessful;
+        this.initialized = await this.#runForAll('initialize', {...this.context, pluginManager: this});
+        return this.initialized;
     }
 
     async startAll() {
         if (!this.initialized) {
-            Logger.warn('Plugins should be initialized before starting');
             await this.initializeAll();
         }
-
-        let allSuccessful = true;
-        const promises = [];
-
-        for (const [id, plugin] of this.plugins) {
-            promises.push(
-                plugin.start()
-                    .then(success => {
-                        success || (allSuccessful = false);
-                    })
-                    .catch(error => {
-                        Logger.error(`Failed to start plugin ${id}:`, error);
-                        allSuccessful = false;
-                    })
-            );
-        }
-
-        await Promise.all(promises);
-        return allSuccessful;
+        return this.#runForAll('start');
     }
 
     async stopAll() {
-        let allSuccessful = true;
-        const promises = [];
-
-        for (const [id, plugin] of this.plugins) {
-            promises.push(
-                plugin.stop()
-                    .then(success => {
-                        success || (allSuccessful = false);
-                    })
-                    .catch(error => {
-                        Logger.error(`Failed to stop plugin ${id}:`, error);
-                        allSuccessful = false;
-                    })
-            );
-        }
-
-        await Promise.all(promises);
-        return allSuccessful;
+        return this.#runForAll('stop');
     }
 
     async disposeAll() {
-        let allSuccessful = true;
-        const promises = [];
-
-        for (const [id, plugin] of this.plugins) {
-            promises.push(
-                plugin.dispose()
-                    .then(success => {
-                        success || (allSuccessful = false);
-                    })
-                    .catch(error => {
-                        Logger.error(`Failed to dispose plugin ${id}:`, error);
-                        allSuccessful = false;
-                    })
-            );
-        }
-
-        await Promise.all(promises);
+        await this.#runForAll('dispose');
         this.plugins.clear();
+        return true;
+    }
+
+    async #runForAll(method, extraContext = {}) {
+        let allSuccessful = true;
+        await Promise.all([...this.plugins].map(async ([id, plugin]) => {
+            try {
+                const result = await plugin[method](method === 'initialize' ? {...extraContext} : undefined);
+                if (!result) {
+                    allSuccessful = false;
+                }
+            } catch (error) {
+                Logger.error(`Failed to ${method} plugin ${id}:`, error);
+                allSuccessful = false;
+            }
+        }));
         return allSuccessful;
     }
 

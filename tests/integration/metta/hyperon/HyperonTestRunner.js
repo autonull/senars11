@@ -3,17 +3,24 @@
  * Runs official MeTTa test files and compares results
  */
 
-import { MeTTaInterpreter } from '../../../../metta/src/MeTTaInterpreter.js';
-import { Formatter } from '../../../../metta/src/kernel/Formatter.js';
-import { createRequire } from 'module';
+import {MeTTaInterpreter} from '../../../../metta/src/index.js';
+import {Formatter} from '../../../../metta/src/kernel/Formatter.js';
+import {basename, dirname, join, resolve} from 'path';
+import {fileURLToPath} from 'url';
+import {readdir} from 'fs/promises';
+import {existsSync, readFileSync} from 'fs';
 
-const require = createRequire(import.meta.url);
-const fs = require('fs');
-const path = require('path');
+let __dirname;
+try {
+    __dirname = dirname(fileURLToPath(import.meta.url));
+} catch {
+    // Fallback: resolve relative to known project structure
+    __dirname = resolve(process.cwd(), 'tests/integration/metta/hyperon');
+}
 
 export class HyperonTestRunner {
     constructor(options = {}) {
-        this.testDir = options.testDir || path.dirname(new URL(import.meta.url).pathname);
+        this.testDir = options.testDir || __dirname;
         this.verbose = options.verbose || false;
         this.failFast = options.failFast || false;
         this.results = {
@@ -27,18 +34,17 @@ export class HyperonTestRunner {
      * Run all tests in a directory
      */
     async runDirectory(dirName) {
-        const fullPath = path.join(this.testDir, dirName);
+        const fullPath = join(this.testDir, dirName);
 
-        if (!fs.existsSync(fullPath)) {
+        if (!existsSync(fullPath)) {
             console.warn(`Directory not found: ${fullPath}`);
             return this.getReport();
         }
 
-        const files = fs.readdirSync(fullPath)
-            .filter(f => f.endsWith('.metta'));
+        const files = (await readdir(fullPath)).filter(f => f.endsWith('.metta'));
 
         for (const file of files) {
-            const filePath = path.join(fullPath, file);
+            const filePath = join(fullPath, file);
             await this.runTestFile(filePath);
 
             if (this.failFast && this.results.failed.length > 0) {
@@ -53,7 +59,7 @@ export class HyperonTestRunner {
      * Run a single test file
      */
     async runTestFile(filePath) {
-        const content = fs.readFileSync(filePath, 'utf-8');
+        const content = readFileSync(filePath, 'utf-8');
         const testCases = this.parseTestFile(content, filePath);
 
         for (const testCase of testCases) {
@@ -92,7 +98,7 @@ export class HyperonTestRunner {
             if (line.startsWith('; Test:')) {
                 if (currentTest) testCases.push(currentTest);
                 currentTest = {
-                    file: path.basename(filePath),
+                    file: basename(filePath),
                     line: i + 1,
                     description: line.substring(7).trim(),
                     expression: null,

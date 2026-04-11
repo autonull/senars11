@@ -1,10 +1,12 @@
-
-import { InductionRule, AbductionRule } from '../../../../../core/src/reason/rules/nal/InductionAbductionRule.js';
-import { InheritanceSyllogisticRule } from '../../../../../core/src/reason/rules/nal/SyllogisticRule.js';
-import { ConversionRule } from '../../../../../core/src/reason/rules/nal/ConversionRule.js';
-import { Truth } from '../../../../../core/src/Truth.js';
-import { TermFactory } from '../../../../../core/src/term/TermFactory.js';
-import { Task } from '../../../../../core/src/task/Task.js';
+import {
+    AbductionRule,
+    ConversionRule,
+    InductionRule,
+    InheritanceSyllogisticRule,
+    Task,
+    TermFactory,
+    Truth
+} from '@senars/nar';
 
 describe('NAL Inference Rules', () => {
     let factory;
@@ -12,15 +14,15 @@ describe('NAL Inference Rules', () => {
 
     beforeEach(() => {
         factory = new TermFactory();
-        context = { termFactory: factory };
+        context = {termFactory: factory};
     });
 
     function createTask(term, f, c) {
         return new Task({
             term,
             truth: new Truth(f, c),
-            stamp: { id: 'test', derivations: [] },
-            budget: { priority: 0.8 }
+            stamp: {id: 'test', derivations: []},
+            budget: {priority: 0.8}
         });
     }
 

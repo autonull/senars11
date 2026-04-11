@@ -12,12 +12,14 @@
  *   node examples/ruminate.js --inputs "cat is an animal" "animals are mammals" --time 5000
  */
 
-import {NAR} from '../core/src/nar/NAR.js';
-import {LangChainProvider} from '../core/src/lm/LangChainProvider.js';
-import {TransformersJSProvider} from '../core/src/lm/TransformersJSProvider.js';
-import {createHypothesisGenerationRule} from '../core/src/reason/rules/lm/LMHypothesisGenerationRule.js';
-import {createConceptElaborationRule} from '../core/src/reason/rules/lm/LMConceptElaborationRule.js';
-import {createNarseseTranslationRule} from '../core/src/reason/rules/lm/LMNarseseTranslationRule.js';
+import {
+    NAR,
+    LangChainProvider,
+    TransformersJSProvider,
+    createHypothesisGenerationRule,
+    createConceptElaborationRule,
+    createNarseseTranslationRule
+} from '@senars/nar';
 
 // ANSI color codes for formatting
 const COLORS = {

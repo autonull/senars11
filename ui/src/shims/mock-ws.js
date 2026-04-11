@@ -18,7 +18,7 @@ export class WebSocketServer extends EventTarget {
         this.options = options;
     }
     on(event, cb) {}
-    close(cb) { if (cb) cb(); }
+    close(cb) { if (cb) {cb();} }
 }
 
 export default WebSocket;

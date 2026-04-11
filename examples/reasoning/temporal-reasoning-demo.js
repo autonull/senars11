@@ -3,7 +3,7 @@
  * description: Demonstrates temporal relationship reasoning in NAL
  */
 
-import {NAR} from '../../core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 
 async function temporalDemo() {
     console.log('=== NAL-only Temporal Reasoning Demo ===\n');

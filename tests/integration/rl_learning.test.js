@@ -1,13 +1,12 @@
-
-import { NeuroSymbolicAgent } from '../../rl/src/agents/NeuroSymbolicAgent.js';
-import { GridWorld } from '../../rl/src/environments/GridWorld.js';
+import {NeuroSymbolicAgent} from '../../rl/src/agents/NeuroSymbolicAgent.js';
+import {GridWorld} from '../../rl/src/environments/GridWorld.js';
 
 describe('RL Learning Integration Tests', () => {
 
     test('Agent learns temporal rule from experience', async () => {
         const env = new GridWorld();
         // Planning enabled
-        const agent = new NeuroSymbolicAgent(env, { reasoning: 'metta', planning: true, grounding: 'learned' });
+        const agent = new NeuroSymbolicAgent(env, {reasoning: 'metta', planning: true, grounding: 'learned'});
 
         // Initialize bridge
         await agent.initialize();
@@ -38,7 +37,7 @@ describe('RL Learning Integration Tests', () => {
         const query = `<(&/, <(*, ${startTerm}) --> obs>, ${actionTerm}) ==> ?what>?`;
 
         // Use a sufficient number of cycles for the query to be answered
-        const answer = await agent.bridge.ask(query, { cycles: 20 });
+        const answer = await agent.bridge.ask(query, {cycles: 20});
 
         console.log('Learning Query Answer:', JSON.stringify(answer, null, 2));
 
@@ -49,17 +48,17 @@ describe('RL Learning Integration Tests', () => {
 
         // Simple check: does the returned term contain the next state?
         if (answer.term) {
-             // The answer term should be the whole implication: <(&/, start, action) ==> next>
-             // Or at least contain the next state symbol
-             expect(answer.term).toContain(nextTerm);
+            // The answer term should be the whole implication: <(&/, start, action) ==> next>
+            // Or at least contain the next state symbol
+            expect(answer.term).toContain(nextTerm);
         } else {
-             // If no direct answer, maybe check if we can plan with it?
-             // But let's rely on ask() for now.
-             // If ask fails, it might be due to confidence/frequency thresholds.
-             // But we injected the rule via RuleInducer explicitly.
+            // If no direct answer, maybe check if we can plan with it?
+            // But let's rely on ask() for now.
+            // If ask fails, it might be due to confidence/frequency thresholds.
+            // But we injected the rule via RuleInducer explicitly.
 
-             // If ask returns nothing, fail.
-             throw new Error("Agent did not learn the transition rule. Answer was empty.");
+            // If ask returns nothing, fail.
+            throw new Error("Agent did not learn the transition rule. Answer was empty.");
         }
     });
 

@@ -1,12 +1,5 @@
-import { describe, expect, test, beforeEach, jest } from '@jest/globals';
-import { Bag } from '../../core/src/memory/Bag.js';
-import { Focus } from '../../core/src/memory/Focus.js';
-import { FocusSetSelector } from '../../core/src/memory/FocusSetSelector.js';
-import { MemoryResourceManager } from '../../core/src/memory/MemoryResourceManager.js';
-import { Task } from '../../core/src/task/Task.js';
-import { TermFactory } from '../../core/src/term/TermFactory.js';
-import { Stamp } from '../../core/src/Stamp.js';
-import { Truth } from '../../core/src/Truth.js';
+import {beforeEach, describe, expect, jest, test} from '@jest/globals';
+import {Bag, Focus, FocusSetSelector, MemoryResourceManager, Stamp, Task, TermFactory, Truth} from '@senars/nar';
 
 describe('Phase 1.3: Competitive Memory Verification', () => {
     let termFactory;
@@ -21,7 +14,7 @@ describe('Phase 1.3: Competitive Memory Verification', () => {
             term,
             punctuation: '.',
             truth: new Truth(1.0, 0.9),
-            budget: { priority, durability: 0.5, quality: 0.5, cycles: 100, depth: 10 },
+            budget: {priority, durability: 0.5, quality: 0.5, cycles: 100, depth: 10},
             stamp: Stamp.createInput() // Basic stamp
         });
     };
@@ -30,10 +23,10 @@ describe('Phase 1.3: Competitive Memory Verification', () => {
         test('Bag respects maxSize and evicts based on priority', () => {
             const bag = new Bag(3, 'priority'); // Max size 3, Priority policy
 
-            const item1 = { name: 'A', budget: { priority: 0.1 }, toString: () => 'A' };
-            const item2 = { name: 'B', budget: { priority: 0.9 }, toString: () => 'B' };
-            const item3 = { name: 'C', budget: { priority: 0.5 }, toString: () => 'C' };
-            const item4 = { name: 'D', budget: { priority: 0.8 }, toString: () => 'D' };
+            const item1 = {name: 'A', budget: {priority: 0.1}, toString: () => 'A'};
+            const item2 = {name: 'B', budget: {priority: 0.9}, toString: () => 'B'};
+            const item3 = {name: 'C', budget: {priority: 0.5}, toString: () => 'C'};
+            const item4 = {name: 'D', budget: {priority: 0.8}, toString: () => 'D'};
 
             bag.add(item1);
             bag.add(item2);
@@ -53,10 +46,10 @@ describe('Phase 1.3: Competitive Memory Verification', () => {
 
         test('Bag respects FIFO policy', () => {
             const bag = new Bag(3, 'fifo');
-            const item1 = { name: 'A', budget: { priority: 0.5 }, toString: () => 'A' };
-            const item2 = { name: 'B', budget: { priority: 0.5 }, toString: () => 'B' };
-            const item3 = { name: 'C', budget: { priority: 0.5 }, toString: () => 'C' };
-            const item4 = { name: 'D', budget: { priority: 0.5 }, toString: () => 'D' };
+            const item1 = {name: 'A', budget: {priority: 0.5}, toString: () => 'A'};
+            const item2 = {name: 'B', budget: {priority: 0.5}, toString: () => 'B'};
+            const item3 = {name: 'C', budget: {priority: 0.5}, toString: () => 'C'};
+            const item4 = {name: 'D', budget: {priority: 0.5}, toString: () => 'D'};
 
             bag.add(item1);
             bag.add(item2);
@@ -72,7 +65,7 @@ describe('Phase 1.3: Competitive Memory Verification', () => {
 
     describe('1.3.1 Focus (Working Memory)', () => {
         test('Focus prioritizes tasks correctly', () => {
-            const focus = new Focus({ defaultFocusSetSize: 5 });
+            const focus = new Focus({defaultFocusSetSize: 5});
 
             const t1 = createTask('t1', 0.1);
             const t2 = createTask('t2', 0.9);
@@ -174,10 +167,10 @@ describe('Phase 1.3: Competitive Memory Verification', () => {
             });
 
             // No pressure
-            expect(mgr.isUnderMemoryPressure({ totalConcepts: 10, totalTasks: 50 })).toBe(false);
+            expect(mgr.isUnderMemoryPressure({totalConcepts: 10, totalTasks: 50})).toBe(false);
 
             // High concept pressure (90/100 = 0.9 > 0.8)
-            expect(mgr.isUnderMemoryPressure({ totalConcepts: 90, totalTasks: 50 })).toBe(true);
+            expect(mgr.isUnderMemoryPressure({totalConcepts: 90, totalTasks: 50})).toBe(true);
         });
 
         test('Applies adaptive forgetting', () => {
@@ -189,7 +182,7 @@ describe('Phase 1.3: Competitive Memory Verification', () => {
             });
 
             const mockMemory = {
-                stats: { totalConcepts: 90 },
+                stats: {totalConcepts: 90},
                 _applyConceptForgetting: jest.fn()
             };
 

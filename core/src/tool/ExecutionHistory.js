@@ -12,21 +12,16 @@ export class ExecutionHistory {
     }
 
     get(options = {}, tools) {
-        let history = [...this.history];
-
+        let {history} = this;
         if (options.toolName) {
-            history = history.filter(exec => exec.toolId === options.toolName);
+            history = history.filter(e => e.toolId === options.toolName);
         }
         if (options.category) {
-            history = history.filter(exec => {
-                const tool = tools.get(exec.toolId);
-                return tool?.category === options.category;
-            });
+            history = history.filter(e => tools.get(e.toolId)?.category === options.category);
         }
         if (options.limit) {
             history = history.slice(-options.limit);
         }
-
-        return history;
+        return [...history];
     }
 }

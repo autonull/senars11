@@ -1,9 +1,9 @@
 import {beforeEach, describe, expect, it} from '@jest/globals';
-import {ForgettingStrategy} from '../../../../core/src/memory/forgetting/ForgettingStrategy.js';
-import {PriorityForgettingStrategy} from '../../../../core/src/memory/forgetting/PriorityForgettingStrategy.js';
-import {LRUForgettingStrategy} from '../../../../core/src/memory/forgetting/LRUForgettingStrategy.js';
-import {FIFOForgettingStrategy} from '../../../../core/src/memory/forgetting/FIFOForgettingStrategy.js';
-import {ForgettingStrategyFactory} from '../../../../core/src/memory/forgetting/ForgettingStrategyFactory.js';
+import {ForgettingStrategy} from '@senars/nar/src/memory/forgetting/ForgettingStrategy.js';
+import {PriorityForgettingStrategy} from '@senars/nar/src/memory/forgetting/PriorityForgettingStrategy.js';
+import {LRUForgettingStrategy} from '@senars/nar/src/memory/forgetting/LRUForgettingStrategy.js';
+import {FIFOForgettingStrategy} from '@senars/nar/src/memory/forgetting/FIFOForgettingStrategy.js';
+import {ForgettingStrategyFactory} from '@senars/nar/src/memory/forgetting/ForgettingStrategyFactory.js';
 
 describe('ForgettingStrategy', () => {
     describe('Base Class', () => {

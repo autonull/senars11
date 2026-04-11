@@ -5,8 +5,9 @@
 ## Overview
 
 Comprehensive refactoring of the `rl/` module following AGENTS.md principles:
+
 - **Elegant**: Cleaner inheritance hierarchy using `core/BaseComponent`
-- **Consolidated**: Deduplicated utilities by leveraging core modules  
+- **Consolidated**: Deduplicated utilities by leveraging core modules
 - **Consistent**: Unified lifecycle management across all components
 - **Organized**: Better structured exports and documentation
 - **DRY**: Removed redundant code by reusing core utilities
@@ -38,6 +39,7 @@ export class Component extends BaseComponent {
 ### 2. Utilities Consolidation (`rl/src/utils/`)
 
 **MetricsTracker**: Now a standalone utility (doesn't extend Component)
+
 ```javascript
 export class MetricsTracker {
     constructor(initialMetrics = {}) {
@@ -49,6 +51,7 @@ export class MetricsTracker {
 ```
 
 **ConfigHelper**: Added cycle detection for deep merge
+
 ```javascript
 export function deepMergeConfig(defaults, overrides = {}, _visited = new WeakSet()) {
     // Handles circular references safely
@@ -56,6 +59,7 @@ export function deepMergeConfig(defaults, overrides = {}, _visited = new WeakSet
 ```
 
 **Re-exports from core**:
+
 - `mergeConfig`, `validateConfig` from `@senars/core/src/util/ConfigUtils.js`
 - `Logger`, `Metrics` from `@senars/core/src/util/`
 
@@ -119,6 +123,7 @@ export class SemanticMemory extends Component {
 ### 5. MetaController Enhancements (`rl/src/meta/MetaControlSystem.js`)
 
 Added missing methods for self-optimization:
+
 ```javascript
 async optimizeHyperparameters() {
     // Adjusts exploration rate based on success rate
@@ -203,6 +208,7 @@ class DQNAgent extends NeuralAgent {
 ### 8. Core Module Exports (`core/src/index.js`)
 
 Added exports for RL module consumption:
+
 ```javascript
 export * from './util/BaseComponent.js';
 export * from './util/ConfigUtils.js';
@@ -212,12 +218,14 @@ export * from './util/Metrics.js';
 ### 7. Documentation Cleanup
 
 **Archived** 23 redundant refactoring documents to `docs/archive/`:
+
 - ADVANCED_ARCHITECTURE.md
 - CLEAN_ARCHITECTURE.md
 - COMPLETE_REFACTORING_FINAL.md
 - ... (20 more)
 
 **Retained** 5 essential documents:
+
 - `README.md` - Quick start and API reference
 - `IMPLEMENTATION_GUIDE.md` - Detailed implementation guide
 - `INTEGRATION_COMPLETE.md` - Integration status
@@ -227,11 +235,13 @@ export * from './util/Metrics.js';
 ## Test Results
 
 ### Unit Tests
+
 - ✅ **1478 tests passed** (all modules)
 - ✅ **70 RL-specific tests passed**
 - ✅ **19 composable system tests passed**
 
 ### Integration Tests
+
 - ✅ Self-optimization tests (2/2 passed)
 - ✅ MeTTa reflection tests (4/5 passed, 1 skipped)
 - ⚠️ Some teardown issues in legacy integration tests (not related to refactoring)
@@ -239,6 +249,7 @@ export * from './util/Metrics.js';
 ## Architecture Benefits
 
 ### Before
+
 ```
 rl/
 ├── Component (standalone)
@@ -252,6 +263,7 @@ rl/
 ```
 
 ### After
+
 ```
 rl/
 ├── Component (extends core/BaseComponent)
@@ -269,6 +281,7 @@ rl/
 ### For Existing Code
 
 **Component usage** - No changes required (backward compatible):
+
 ```javascript
 import { Component } from '@senars/rl';
 
@@ -279,6 +292,7 @@ class MyComponent extends Component {
 ```
 
 **Metrics access** - Use `set()` and `get()` methods:
+
 ```javascript
 // ✅ Correct:
 controller.metrics.set('modificationsApplied', 10);
@@ -289,6 +303,7 @@ controller.metrics.modificationsApplied = 10;
 ```
 
 **Policy serialization** - New methods available:
+
 ```javascript
 // Save policy weights
 const stateDict = policy.stateDict();
@@ -300,6 +315,7 @@ policy.loadStateDict(stateDict);
 ```
 
 **Memory with core integration**:
+
 ```javascript
 // Enable core memory integration
 const memory = new EpisodicMemory({
@@ -311,6 +327,7 @@ const memory = new EpisodicMemory({
 ## Dependencies
 
 The RL module leverages:
+
 - **SeNARS `core/`**: Reasoning, belief management, component lifecycle, Memory, BaseComponent
 - **MeTTa `metta/`**: Policy representation, symbolic programs, self-optimization
 - **Tensor Logic `tensor/`**: Module, Linear, Sequential, Optimizer, differentiable learning
@@ -318,59 +335,71 @@ The RL module leverages:
 ## Completed Refactoring Phases
 
 ### Phase 1: Core Infrastructure
+
 1. ✅ Component system refactoring - **COMPLETE**
 2. ✅ Utilities consolidation - **COMPLETE**
 3. ✅ Documentation cleanup - **COMPLETE**
 
 ### Phase 2: Neuro-Symbolic Integration
+
 4. ✅ Policy system modernization - **COMPLETE**
 5. ✅ Memory system integration - **COMPLETE**
 6. ✅ MetaController enhancements - **COMPLETE**
 7. ✅ Cognitive system NAR integration - **COMPLETE**
 
 ### Phase 3: Agent & Training Systems
+
 8. ✅ Agent system tensor/Module patterns - **COMPLETE**
 9. ✅ Experience system consolidation - **COMPLETE**
 10. ✅ Environment system standardization - **COMPLETE**
 
 ### Pending
+
 11. ⏳ Integration test cleanup (teardown issues) - **PENDING**
 12. ⏳ Additional neuro-symbolic integration examples - **PENDING**
 
 ## Files Modified
 
 ### Core Files
+
 - `core/src/index.js` - Added BaseComponent, ConfigUtils, Metrics exports
 
 ### RL Module Files (18 total)
 
 **Component System:**
+
 - `rl/src/composable/Component.js` - Extends BaseComponent
 - `rl/src/composable/ComposableSystem.js` - Fixed metrics getter
 
 **Utilities:**
+
 - `rl/src/utils/MetricsTracker.js` - Standalone utility
 - `rl/src/utils/ConfigHelper.js` - Cycle-safe deep merge
 - `rl/src/utils/index.js` - Re-exports core utilities
 
 **Core RL:**
+
 - `rl/src/index.js` - Reorganized exports
 - `rl/src/policies/PolicySystem.js` - Uses tensor/Module
 - `rl/src/memory/MemorySystem.js` - Integrates core/Memory
 - `rl/src/meta/MetaControlSystem.js` - Added optimization methods
 
 **Cognitive & Agents:**
+
 - `rl/src/cognitive/CognitiveSystem.js` - Integrates core/NAR
 - `rl/src/agents/AgentSystem.js` - Uses tensor/Module patterns
 
 **Experience & Environments:**
+
 - `rl/src/experience/ExperienceBuffer.js` - Consolidated with ExperienceSystem
 - `rl/src/environments/EnvironmentSystem.js` - Fixed metrics pattern
 
 **Tests:**
+
 - `rl/tests/integration/self_optimization.test.js` - Fixed test API usage
 
 ### Documentation
+
 - `rl/REFACTORING_2026_SUMMARY.md` - Created comprehensive summary
 - `rl/docs/archive/` - Archived 23 redundant documents
 
@@ -380,16 +409,19 @@ The RL module leverages:
 *Following AGENTS.md principles for elegant, consolidated, consistent, organized, DRY code*
 
 ## Final Test Results
+
 - ✅ **1478/1478 unit tests** (100% pass rate)
 - ✅ **70/70 RL-specific tests** (100% pass rate)
 - ✅ **141/142 test suites** (99.3% pass rate, 1 skipped)
 
 ## Integration Status
+
 - ✅ SeNARS `core/` - Fully leveraged (BaseComponent, Memory, NAR, Reasoner)
 - ✅ MeTTa `metta/` - Integrated (self-optimization, reflection)
 - ✅ Tensor Logic `tensor/` - Fully leveraged (Module, Linear, Optimizer)
 
 ## Key Metrics
+
 - **Files Modified:** 18 source files + 1 test file
 - **Documentation:** 23 files archived, 1 comprehensive summary created
 - **Code Quality:** Consistent metrics pattern, unified lifecycle, modular architecture

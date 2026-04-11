@@ -1,4 +1,4 @@
-import { ReactiveState } from '../../../src/core/ReactiveState.js';
+import { ReactiveState } from '../../../src/core/index.js';
 
 describe('ReactiveState', () => {
     test('should initialize with state', () => {

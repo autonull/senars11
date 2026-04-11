@@ -8,13 +8,13 @@ export function registerHOFOps(registry) {
 
     registry.register('map-atom-fast', (list, varName, transformFn) => {
         throw new Error('map-atom-fast requires interpreter context');
-    }, { lazy: true });
+    }, {lazy: true});
 
     registry.register('filter-atom-fast', (list, varName, predFn) => {
         throw new Error('filter-atom-fast requires interpreter context');
-    }, { lazy: true });
+    }, {lazy: true});
 
     registry.register('foldl-atom-fast', (list, init, aVar, bVar, opFn) => {
         throw new Error('foldl-atom-fast requires interpreter context');
-    }, { lazy: true });
+    }, {lazy: true});
 }

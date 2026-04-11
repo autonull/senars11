@@ -1,4 +1,4 @@
-import { Platform } from './Platform.js';
+import {Platform} from './Platform.js';
 
 /**
  * Browser platform implementation
@@ -8,16 +8,11 @@ export class PlatformBrowser extends Platform {
         return 'browser';
     }
 
-    isTestEnv() {
-        return (
-            (typeof window !== 'undefined' && (window.__JEST__ || window.__VITEST__)) ||
-            (typeof globalThis !== 'undefined' && (globalThis.__JEST__ || globalThis.__VITEST__))
-        );
-    }
-
     get fs() {
         // Minimal FS mock for browser
-        const throwNotSupported = () => { throw new Error('File system operations not supported in browser'); };
+        const throwNotSupported = () => {
+            throw new Error('File system operations not supported in browser');
+        };
         return {
             promises: {
                 readFile: throwNotSupported,
@@ -41,7 +36,7 @@ export class PlatformBrowser extends Platform {
             basename: (p) => p.split('/').pop(),
             extname: (p) => {
                 const parts = p.split('.');
-                return parts.length > 1 ? '.' + parts.pop() : '';
+                return parts.length > 1 ? `.${parts.pop()}` : '';
             },
             normalize: (p) => p,
             relative: (from, to) => {
@@ -50,5 +45,12 @@ export class PlatformBrowser extends Platform {
             },
             sep: '/'
         };
+    }
+
+    isTestEnv() {
+        return (
+            (typeof window !== 'undefined' && (window.__JEST__ || window.__VITEST__)) ||
+            (typeof globalThis !== 'undefined' && (globalThis.__JEST__ || globalThis.__VITEST__))
+        );
     }
 }

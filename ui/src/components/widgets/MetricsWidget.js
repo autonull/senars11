@@ -9,7 +9,7 @@ export class MetricsWidget extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         this.container.innerHTML = '';
         this.container.style.cssText = 'height: 300px; width: 100%; background: #111114; border: 1px solid var(--border-color); position: relative; border-radius: 4px; overflow: hidden;';

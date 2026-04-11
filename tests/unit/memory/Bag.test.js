@@ -1,4 +1,4 @@
-import {Bag} from '../../../core/src/memory/Bag.js';
+import {Bag} from '@senars/nar';
 import {createAtom, createTask} from './testUtils.js';
 
 describe('Bag', () => {

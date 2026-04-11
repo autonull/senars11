@@ -2,8 +2,7 @@
  * Experience System - Extended experience management
  * Experience, Episode, ExperienceStream, ExperienceIndex, ExperienceStore, SkillExtractor, ExperienceLearner
  */
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { SumTree, generateId, serializeValue, hashState } from '../utils/DataStructures.js';
+import {generateId, hashState, mergeConfig, serializeValue} from '../utils/index.js';
 
 const EXPERIENCE_DEFAULTS = {
     capacity: 100000,
@@ -39,8 +38,8 @@ const ExperienceLearnerDefaults = {
 };
 
 export class Experience {
-    constructor({ state, action, reward, nextState, done, info = {} }) {
-        const mergedInfo = { ...EXPERIENCE_INFO_DEFAULTS, ...info };
+    constructor({state, action, reward, nextState, done, info = {}}) {
+        const mergedInfo = {...EXPERIENCE_INFO_DEFAULTS, ...info};
         this.id = info.id ?? generateId('exp');
         this.state = state;
         this.action = action;
@@ -58,15 +57,35 @@ export class Experience {
         this.metadata = new Map();
     }
 
-    withReward(reward) { return new Experience({ ...this, reward }); }
-    withPriority(priority) { return new Experience({ ...this, info: { ...this.info, priority } }); }
-    withTag(tag) { return new Experience({ ...this, info: { ...this.info, tags: [...this.info.tags, tag] } }); }
+    withReward(reward) {
+        return new Experience({...this, reward});
+    }
 
-    setMetadata(key, value) { this.metadata.set(key, value); return this; }
-    getMetadata(key) { return this.metadata.get(key); }
+    withPriority(priority) {
+        return new Experience({...this, info: {...this.info, priority}});
+    }
+
+    withTag(tag) {
+        return new Experience({...this, info: {...this.info, tags: [...this.info.tags, tag]}});
+    }
+
+    setMetadata(key, value) {
+        this.metadata.set(key, value);
+        return this;
+    }
+
+    getMetadata(key) {
+        return this.metadata.get(key);
+    }
 
     toTransition() {
-        return { state: this.state, action: this.action, reward: this.reward, nextState: this.nextState, done: this.done };
+        return {
+            state: this.state,
+            action: this.action,
+            reward: this.reward,
+            nextState: this.nextState,
+            done: this.done
+        };
     }
 
     toJSON() {
@@ -83,44 +102,73 @@ export class Experience {
 }
 
 export class ExperienceStream {
-    constructor(iterator) { this._iterator = iterator; }
+    constructor(iterator) {
+        this._iterator = iterator;
+    }
 
-    static from(iterable) { return new ExperienceStream(iterable[Symbol.iterator]()); }
-    static empty() { return new ExperienceStream((function*() {})()); }
+    static from(iterable) {
+        return new ExperienceStream(iterable[Symbol.iterator]());
+    }
+
+    static empty() {
+        return new ExperienceStream((function* () {
+        })());
+    }
 
     filter(predicate) {
         const self = this;
-        return new ExperienceStream((function*() {
-            for (const exp of self._iterator) if (predicate(exp)) yield exp;
+        return new ExperienceStream((function* () {
+            for (const exp of self._iterator) {
+                if (predicate(exp)) {
+                    yield exp;
+                }
+            }
         })());
     }
 
     map(fn) {
         const self = this;
-        return new ExperienceStream((function*() {
-            for (const exp of self._iterator) yield fn(exp);
+        return new ExperienceStream((function* () {
+            for (const exp of self._iterator) {
+                yield fn(exp);
+            }
         })());
     }
 
     take(n) {
         const self = this;
-        return new ExperienceStream((function*() {
+        return new ExperienceStream((function* () {
             let count = 0;
             for (const exp of self._iterator) {
-                if (count++ >= n) break;
+                if (count++ >= n) {
+                    break;
+                }
                 yield exp;
             }
         })());
     }
 
     reduce(fn, acc) {
-        for (const exp of this._iterator) acc = fn(acc, exp);
+        for (const exp of this._iterator) {
+            acc = fn(acc, exp);
+        }
         return acc;
     }
 
-    collect() { return Array.from(this._iterator); }
-    forEach(fn) { for (const exp of this._iterator) fn(exp); return this; }
-    [Symbol.iterator]() { return this._iterator; }
+    collect() {
+        return Array.from(this._iterator);
+    }
+
+    forEach(fn) {
+        for (const exp of this._iterator) {
+            fn(exp);
+        }
+        return this;
+    }
+
+    [Symbol.iterator]() {
+        return this._iterator;
+    }
 }
 
 export class Episode {
@@ -132,23 +180,65 @@ export class Episode {
         this.metadata = new Map();
     }
 
-    add(experience) { this.experiences.push(experience); return this; }
-    addAll(experiences) { this.experiences.push(...experiences); return this; }
+    get length() {
+        return this.experiences.length;
+    }
 
-    get length() { return this.experiences.length; }
-    get totalReward() { return this.experiences.reduce((sum, e) => sum + e.reward, 0); }
-    get success() { return this.experiences.length > 0 && this.experiences.at(-1).done && this.totalReward > 0; }
-    get duration() { return (this.endTime ?? Date.now()) - this.startTime; }
+    get totalReward() {
+        return this.experiences.reduce((sum, e) => sum + e.reward, 0);
+    }
 
-    getTrajectory() { return this.experiences.map(e => e.toTransition()); }
-    getStates() { return this.experiences.map(e => e.state); }
-    getActions() { return this.experiences.map(e => e.action); }
-    getRewards() { return this.experiences.map(e => e.reward); }
+    get success() {
+        return this.experiences.length > 0 && this.experiences.at(-1).done && this.totalReward > 0;
+    }
 
-    finalize() { this.endTime = Date.now(); return this; }
-    setMetadata(key, value) { this.metadata.set(key, value); return this; }
-    getMetadata(key) { return this.metadata.get(key); }
-    stream() { return ExperienceStream.from(this.experiences); }
+    get duration() {
+        return (this.endTime ?? Date.now()) - this.startTime;
+    }
+
+    add(experience) {
+        this.experiences.push(experience);
+        return this;
+    }
+
+    addAll(experiences) {
+        this.experiences.push(...experiences);
+        return this;
+    }
+
+    getTrajectory() {
+        return this.experiences.map(e => e.toTransition());
+    }
+
+    getStates() {
+        return this.experiences.map(e => e.state);
+    }
+
+    getActions() {
+        return this.experiences.map(e => e.action);
+    }
+
+    getRewards() {
+        return this.experiences.map(e => e.reward);
+    }
+
+    finalize() {
+        this.endTime = Date.now();
+        return this;
+    }
+
+    setMetadata(key, value) {
+        this.metadata.set(key, value);
+        return this;
+    }
+
+    getMetadata(key) {
+        return this.metadata.get(key);
+    }
+
+    stream() {
+        return ExperienceStream.from(this.experiences);
+    }
 
     toJSON() {
         return {
@@ -169,35 +259,45 @@ export class ExperienceIndex {
     }
 
     add(experience) {
-        const id = experience.id;
+        const {id} = experience;
         this.timeline.push(id);
 
         experience.info.tags.forEach(tag => {
-            if (!this.byTag.has(tag)) this.byTag.set(tag, new Set());
+            if (!this.byTag.has(tag)) {
+                this.byTag.set(tag, new Set());
+            }
             this.byTag.get(tag).add(id);
         });
 
         const epId = experience.info.episode;
-        if (!this.byEpisode.has(epId)) this.byEpisode.set(epId, new Set());
+        if (!this.byEpisode.has(epId)) {
+            this.byEpisode.set(epId, new Set());
+        }
         this.byEpisode.get(epId).add(id);
 
         const rewardBin = Math.floor(experience.reward * 10);
-        if (!this.byReward.has(rewardBin)) this.byReward.set(rewardBin, new Set());
+        if (!this.byReward.has(rewardBin)) {
+            this.byReward.set(rewardBin, new Set());
+        }
         this.byReward.get(rewardBin).add(id);
 
         const stateHash = hashState(experience.state);
-        if (!this.byState.has(stateHash)) this.byState.set(stateHash, new Set());
+        if (!this.byState.has(stateHash)) {
+            this.byState.set(stateHash, new Set());
+        }
         this.byState.get(stateHash).add(id);
     }
 
     remove(id) {
         [this.byTag, this.byEpisode, this.byReward, this.byState].forEach(set => set.forEach(s => s.delete(id)));
         const idx = this.timeline.indexOf(id);
-        if (idx >= 0) this.timeline.splice(idx, 1);
+        if (idx >= 0) {
+            this.timeline.splice(idx, 1);
+        }
     }
 
     query(options = {}) {
-        const { tags, episode, minReward, maxReward, state, limit } = options;
+        const {tags, episode, minReward, maxReward, state, limit} = options;
         let candidates = new Set(this.timeline);
 
         if (tags) {
@@ -214,7 +314,9 @@ export class ExperienceIndex {
 
         if (minReward !== undefined) {
             this.byReward.forEach((ids, bin) => {
-                if (bin * 0.1 < minReward) ids.forEach(id => candidates.delete(id));
+                if (bin * 0.1 < minReward) {
+                    ids.forEach(id => candidates.delete(id));
+                }
             });
         }
 
@@ -279,18 +381,22 @@ export class ExperienceStore {
     }
 
     record(state, action, reward, nextState, done, info = {}) {
-        return this.add(new Experience({ state, action, reward, nextState, done, info }));
+        return this.add(new Experience({state, action, reward, nextState, done, info}));
     }
 
     startEpisode(metadata = {}) {
-        if (this.currentEpisode) this.endEpisode();
+        if (this.currentEpisode) {
+            this.endEpisode();
+        }
         this.currentEpisode = new Episode();
         Object.entries(metadata).forEach(([k, v]) => this.currentEpisode.setMetadata(k, v));
         return this.currentEpisode;
     }
 
     endEpisode() {
-        if (!this.currentEpisode) return null;
+        if (!this.currentEpisode) {
+            return null;
+        }
         this.currentEpisode.finalize();
         const episode = this.currentEpisode;
         this.episodes.set(episode.id, episode);
@@ -299,7 +405,9 @@ export class ExperienceStore {
     }
 
     sample(batchSize = this.config.batchSize) {
-        if (this.buffer.length === 0) return [];
+        if (this.buffer.length === 0) {
+            return [];
+        }
         const indices = new Set();
         while (indices.size < Math.min(batchSize, this.buffer.length)) {
             indices.add(Math.floor(Math.random() * this.buffer.length));
@@ -312,9 +420,17 @@ export class ExperienceStore {
         return ExperienceStream.from(results);
     }
 
-    getEpisode(id) { return this.episodes.get(id); }
-    getEpisodes() { return Array.from(this.episodes.values()); }
-    getSuccessfulEpisodes() { return this.getEpisodes().filter(e => e.success); }
+    getEpisode(id) {
+        return this.episodes.get(id);
+    }
+
+    getEpisodes() {
+        return Array.from(this.episodes.values());
+    }
+
+    getSuccessfulEpisodes() {
+        return this.getEpisodes().filter(e => e.success);
+    }
 
     getStats() {
         return {
@@ -362,7 +478,7 @@ export class SkillExtractor {
                 const key = this._patternKey(pattern);
 
                 if (!this.patterns.has(key)) {
-                    this.patterns.set(key, { pattern, count: 0, totalReward: 0 });
+                    this.patterns.set(key, {pattern, count: 0, totalReward: 0});
                 }
 
                 const entry = this.patterns.get(key);
@@ -416,15 +532,21 @@ export class ExperienceLearner {
     async learn() {
         this.step++;
 
-        if (this.step % this.config.updateFrequency !== 0) return null;
+        if (this.step % this.config.updateFrequency !== 0) {
+            return null;
+        }
 
         const batch = this.store.sample(this.config.batchSize);
-        if (batch.length === 0) return null;
+        if (batch.length === 0) {
+            return null;
+        }
 
         let totalLoss = 0;
         for (const exp of batch) {
             const loss = await this.agent.learn(exp.toTransition(), exp.reward);
-            if (loss) totalLoss += loss.loss ?? 0;
+            if (loss) {
+                totalLoss += loss.loss ?? 0;
+            }
         }
 
         return {
@@ -438,7 +560,9 @@ export class ExperienceLearner {
         const results = [];
         for (let i = 0; i < numSteps; i++) {
             const result = await this.learn();
-            if (result) results.push(result);
+            if (result) {
+                results.push(result);
+            }
         }
         return results;
     }

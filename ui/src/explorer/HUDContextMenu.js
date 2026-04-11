@@ -20,11 +20,11 @@ export class HUDContextMenu {
 
     _setupGlobalListeners() {
         document.addEventListener('click', (e) => {
-            if (!this.menuElement.contains(e.target)) this.hide();
+            if (!this.menuElement.contains(e.target)) {this.hide();}
         });
 
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.isVisible) this.hide();
+            if (e.key === 'Escape' && this.isVisible) {this.hide();}
         });
     }
 
@@ -74,8 +74,8 @@ export class HUDContextMenu {
         let left = x;
         let top = y;
 
-        if (left + width > vw) left = vw - width - 10;
-        if (top + height > vh) top = vh - height - 10;
+        if (left + width > vw) {left = vw - width - 10;}
+        if (top + height > vh) {top = vh - height - 10;}
 
         this.menuElement.style.left = `${left}px`;
         this.menuElement.style.top = `${top}px`;

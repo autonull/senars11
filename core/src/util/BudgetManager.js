@@ -124,7 +124,9 @@ export class BudgetManager {
     }
 
     calculateComplexityPenalty(complexity) {
-        if (this.config.enableComplexityPenalty === false) return 1.0;
+        if (this.config.enableComplexityPenalty === false) {
+            return 1.0;
+        }
 
         // Logarithmic penalty: higher complexity costs more, but diminishing returns
         // Base cost + log2(complexity)

@@ -2,7 +2,9 @@
 
 ## Overview
 
-This document describes the advanced neuro-symbolic RL capabilities for building **self-improving, general-purpose cognitive systems**. The framework provides fine-grained, composable components that enable versatile self-modifying architectures.
+This document describes the advanced neuro-symbolic RL capabilities for building **self-improving, general-purpose
+cognitive systems**. The framework provides fine-grained, composable components that enable versatile self-modifying
+architectures.
 
 ## Architecture Philosophy
 
@@ -675,39 +677,39 @@ globalRegistry.register('customModule', CustomModule, {
 
 ### Component
 
-| Method | Description |
-|--------|-------------|
-| `initialize()` | Initialize component and children |
-| `shutdown()` | Cleanup resources |
-| `add(name, component)` | Add child component |
-| `remove(name)` | Remove child component |
-| `get(name)` | Get child component |
-| `setState(key, value)` | Set internal state |
-| `getState(key)` | Get internal state |
-| `subscribe(event, cb)` | Subscribe to events |
-| `emit(event, data)` | Emit event |
-| `serialize()` | Serialize component |
+| Method                 | Description                       |
+|------------------------|-----------------------------------|
+| `initialize()`         | Initialize component and children |
+| `shutdown()`           | Cleanup resources                 |
+| `add(name, component)` | Add child component               |
+| `remove(name)`         | Remove child component            |
+| `get(name)`            | Get child component               |
+| `setState(key, value)` | Set internal state                |
+| `getState(key)`        | Get internal state                |
+| `subscribe(event, cb)` | Subscribe to events               |
+| `emit(event, data)`    | Emit event                        |
+| `serialize()`          | Serialize component               |
 
 ### MetaController
 
-| Method | Description |
-|--------|-------------|
-| `setArchitecture(arch)` | Set current architecture |
-| `getArchitecture()` | Get current architecture |
-| `evaluate()` | Evaluate performance |
-| `proposeModification()` | Generate modification proposal |
-| `applyModification(mod)` | Apply architecture modification |
-| `getModificationHistory()` | Get modification log |
+| Method                     | Description                     |
+|----------------------------|---------------------------------|
+| `setArchitecture(arch)`    | Set current architecture        |
+| `getArchitecture()`        | Get current architecture        |
+| `evaluate()`               | Evaluate performance            |
+| `proposeModification()`    | Generate modification proposal  |
+| `applyModification(mod)`   | Apply architecture modification |
+| `getModificationHistory()` | Get modification log            |
 
 ### TensorLogicBridge
 
-| Method | Description |
-|--------|-------------|
-| `liftToSymbols(tensor)` | Convert tensor to symbols |
-| `groundToTensor(symbols)` | Convert symbols to tensor |
-| `symbolicAdd(t1, t2)` | Add with symbol merging |
-| `symbolicMul(t1, t2)` | Multiply with intersection |
-| `extractRules(tensor)` | Extract symbolic rules |
+| Method                    | Description                |
+|---------------------------|----------------------------|
+| `liftToSymbols(tensor)`   | Convert tensor to symbols  |
+| `groundToTensor(symbols)` | Convert symbols to tensor  |
+| `symbolicAdd(t1, t2)`     | Add with symbol merging    |
+| `symbolicMul(t1, t2)`     | Multiply with intersection |
+| `extractRules(tensor)`    | Extract symbolic rules     |
 
 ## Troubleshooting
 

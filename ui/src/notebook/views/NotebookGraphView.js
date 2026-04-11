@@ -57,7 +57,7 @@ export class NotebookGraphView {
 
         this.cells.forEach(cell => {
             const text = typeof cell.content === 'string' ? cell.content : JSON.stringify(cell.content);
-            if (!text) return;
+            if (!text) {return;}
 
             const narsTerms = text.match(/<([^>]+)>/g) || [];
             narsTerms.forEach(t => {
@@ -159,7 +159,7 @@ export class NotebookGraphView {
         });
 
         this.cy.on('mouseover', 'node', (evt) => {
-            const container = this.container;
+            const {container} = this;
             const data = evt.target.data();
 
             let content = data.label;
@@ -181,8 +181,8 @@ export class NotebookGraphView {
 
             const moveHandler = (e) => {
                  const rect = container.getBoundingClientRect();
-                 tip.style.left = (e.clientX - rect.left + 10) + 'px';
-                 tip.style.top = (e.clientY - rect.top + 10) + 'px';
+                 tip.style.left = `${e.clientX - rect.left + 10  }px`;
+                 tip.style.top = `${e.clientY - rect.top + 10  }px`;
             };
 
             container.addEventListener('mousemove', moveHandler);

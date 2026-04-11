@@ -3,11 +3,11 @@
 
 ; ===== Conditional Branching =====
 
-; if: conditional evaluation
-; (if True $then $else) → $then
-; (if False $then $else) → $else
-; Mapping to grounded &if for robust evaluation
-(= (if $cond $then $else) (^ &if $cond $then $else))
+; if: conditional evaluation — specific rules for concrete values
+(= (if True $then $else) $then)
+(= (if False $then $else) $else)
+; Non-concrete conditions: ZipperStage reduces sub-expressions first,
+; then the specific rules above match. No general &if rule needed.
 
 ; ===== Variable Binding =====
 
@@ -23,10 +23,23 @@
 ; ===== Lambda (Anonymous Functions) =====
 
 ; Lambda application: ((λ $x $body) $value)
-; Use &subst grounded op to perform substitution  
+; Use &let grounded op to perform substitution
 ; IMPORTANT: Pattern uses $param/$val to avoid variable name collision with lambda body
-(= ((λ $param $body) $val) (^ &subst $param $val $body))
-(= ((lambda $param $body) $val) (^ &subst $param $val $body))
+(= ((λ $param $body) $val) (^ &let $param $val $body))
+(= ((lambda $param $body) $val) (^ &let $param $val $body))
+
+; PeTTa style lambda
+(= ((|-> $param $body) $val) (^ &let $param $val $body))
+; 2-arg call: ((|-> ($x $y) body) a b) → ((|-> ($x $y) body) (a b))
+(= ((|-> $param $body) $val1 $val2) ((|-> $param $body) ($val1 $val2)))
+; 3-arg call
+(= ((|-> $param $body) $val1 $val2 $val3) (((|-> $param $body) ($val1 $val2)) $val3))
+; curried: (((|-> $param $body) $val1) $val2) → ((|-> $param $body) ($val1 $val2))
+(= (((|-> $param $body) $val1) $val2) ((|-> $param $body) ($val1 $val2)))
+
+; Same for lambda/λ multi-arg
+(= ((lambda $param $body) $val1 $val2) ((lambda $param $body) ($val1 $val2)))
+(= (((lambda $param $body) $val1) $val2) ((lambda $param $body) ($val1 $val2)))
 
 ; Multiple argument lambda (curried)
 ; (λ ($x $y) $body) → (λ $x (λ $y $body))
@@ -98,8 +111,9 @@
 (= (or $a $b) (^ &or $a $b))
 (= (not $a) (^ &not $a))
 (= (get-atoms $s) (^ &get-atoms $s))
-(= (add-atom $x) (^ &add-atom $x))
-(= (rm-atom $x) (^ &rm-atom $x))
+(= (add-atom $s $x) (^ &add-atom $s $x))
+(= (rm-atom $s $x) (^ &rm-atom $s $x))
+(= (remove-atom $s $x) (^ &rm-atom $s $x))
 
 ; Expression Operations
 (= (cons-atom $h $t) (^ &cons-atom $h $t))
@@ -113,3 +127,68 @@
 (= (get-metatype $a) (^ &get-metatype $a))
 (= (get-type $a) (^ &get-type $a))
 (= (is-function $t) (^ &is-function $t))
+
+; ===== Control Flow =====
+
+; cut: prune alternative branches in non-deterministic reduction
+(= (cut) (^ &cut))
+
+; once: evaluate expression and return only first result, pruning alternatives
+(= (once $x) (^ &once $x))
+
+; empty: return the empty list
+(= (empty) ())
+
+; is-var: check if an atom is a variable
+(= (is-var $x) (^ &is-var $x))
+
+; case: pattern matching with multiple branches
+; (case expr ((pat1 res1) (pat2 res2) ...))
+(= (case $expr $branches) (^ &case $expr $branches))
+
+; foldall: fold over all reduction results
+(= (foldall $op $expr $init) (^ &foldall $op $expr $init))
+
+; repr: string representation with partial application detection
+(= (repr $x) (^ &repr $x))
+
+; =alpha: alpha-equivalence check
+(= (=alpha $a $b) (^ &=alpha $a $b))
+
+; ===== Pair Operations =====
+(= (first-from-pair ($a $_)) $a)
+(= (second-from-pair ($_ $b)) $b)
+
+; ===== Sequencing (progn/prog1) =====
+; progn: evaluate all args, return last
+(= (progn $a) $a)
+(= (progn $a $b) (let $_ $a $b))
+(= (progn $a $b $c) (let $_ $a (progn $b $c)))
+(= (progn $a $b $c $d) (let $_ $a (progn $b $c $d)))
+
+; prog1: evaluate all args, return first
+(= (prog1 $a) $a)
+(= (prog1 $a $b) (let $x $a (let $_ $b $x)))
+(= (prog1 $a $b $c) (let $x $a (let $_ (progn $b $c) $x)))
+
+; ===== is-member: check list membership =====
+(= (is-member $x ()) False)
+(= (is-member $x ($x $rest)) True)
+(= (is-member $x ($h $rest)) (is-member $x $rest))
+(= (is-member $x (: $x $_)) True)
+(= (is-member $x (: $h $t)) (is-member $x $t))
+
+; ===== msort: sort a list =====
+(= (msort $l) (^ &msort $l))
+
+; ===== length: count elements in a list =====
+(= (length $l) (^ &length $l))
+
+; ===== hyperpose: non-deterministic choice from a list =====
+(= (hyperpose $l) (^ &hyperpose $l))
+
+; ===== maplist: apply function to list, return list =====
+(= (maplist $f ()) ())
+(= (maplist $f (: $h $t)) (: ($f $h) (maplist $f $t)))
+(= (maplist $f ($h)) (: ($f $h) ()))
+(= (maplist $f ($h $rest)) (: ($f $h) (maplist $f $rest)))

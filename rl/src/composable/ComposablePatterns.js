@@ -21,7 +21,9 @@ export class BranchPattern {
             : this.condition;
 
         const pipeline = shouldBranch ? this.truePipeline : this.falsePipeline;
-        if (!pipeline) return input;
+        if (!pipeline) {
+            return input;
+        }
 
         return pipeline.act ? pipeline.act(input, context) : input;
     }
@@ -134,7 +136,7 @@ export class ChainPattern {
             current = result.output;
         }
 
-        return { success: true, output: current };
+        return {success: true, output: current};
     }
 
     toJSON() {

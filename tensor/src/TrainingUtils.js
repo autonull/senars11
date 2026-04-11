@@ -4,7 +4,7 @@ export class DataLoader {
     }
 
     * [Symbol.iterator]() {
-        let indices = [...Array(this.dataset.length).keys()];
+        const indices = [...Array(this.dataset.length).keys()];
         if (this.shuffle) {
             for (let i = indices.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -35,7 +35,9 @@ export class LRScheduler {
             exponential: () => this.baseLR * Math.exp(-0.1 * epoch),
             cosine: () => this.baseLR * 0.5 * (1 + Math.cos(Math.PI * epoch / this.maxEpochs))
         };
-        if (!schedules[this.mode]) throw new Error(`Unknown LR scheduler mode: ${this.mode}`);
+        if (!schedules[this.mode]) {
+            throw new Error(`Unknown LR scheduler mode: ${this.mode}`);
+        }
         this.optimizer.lr = schedules[this.mode]();
     }
 }

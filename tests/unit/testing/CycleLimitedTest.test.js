@@ -1,4 +1,4 @@
-import {CycleLimitedTester, runCycleLimitedTest} from '../../../core/src/testing/CycleLimitedTest.js';
+import {CycleLimitedTester, runCycleLimitedTest} from '@senars/nar/src/testing/CycleLimitedTest.js';
 
 describe('Cycle-Limited Testing Framework', () => {
     test('should terminate reliably within cycle limits', async () => {

@@ -58,7 +58,7 @@ export const isNumber = (value) => typeof value === 'number' && !isNaN(value);
  * @param {number} decimals - Decimal places
  * @returns {number} Rounded value
  */
-export const round = (value, decimals = 2) => Number(Math.round(value + 'e' + decimals) + 'e-' + decimals);
+export const round = (value, decimals = 2) => Number(`${Math.round(`${value}e${decimals}`)}e-${decimals}`);
 
 /**
  * Format a number with decimals
@@ -68,3 +68,72 @@ export const round = (value, decimals = 2) => Number(Math.round(value + 'e' + de
  */
 export const formatNumber = (num, decimals = 2) =>
     typeof num === 'number' ? num.toFixed(decimals) : String(num ?? '0');
+
+/**
+ * Generate a random float between min and max
+ * @param {number} min - Minimum value
+ * @param {number} max - Maximum value
+ * @returns {number} Random float
+ */
+export const random = (min = 0, max = 1) => Math.random() * (max - min) + min;
+
+/**
+ * Generate a random integer between min and max (inclusive)
+ * @param {number} min - Minimum value
+ * @param {number} max - Maximum value
+ * @returns {number} Random integer
+ */
+export const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+/**
+ * Compute dot product of two vectors
+ * @param {number[]|Float32Array} a - First vector
+ * @param {number[]|Float32Array} b - Second vector
+ * @returns {number} Dot product
+ */
+export const dotProduct = (a, b) => {
+    const len = Math.min(a.length, b.length);
+    let sum = 0;
+    for (let i = 0; i < len; i++) {
+        sum += a[i] * b[i];
+    }
+    return sum;
+};
+
+/**
+ * Compute euclidean norm (L2 norm) of a vector
+ * @param {number[]|Float32Array} v - Vector
+ * @returns {number} Euclidean norm
+ */
+export const euclideanNorm = (v) => {
+    let sum = 0;
+    for (let i = 0; i < v.length; i++) {
+        sum += v[i] * v[i];
+    }
+    return Math.sqrt(sum);
+};
+
+/**
+ * Compute cosine similarity between two vectors
+ * @param {number[]|Float32Array} a - First vector
+ * @param {number[]|Float32Array} b - Second vector
+ * @returns {number} Cosine similarity (-1 to 1)
+ */
+export const cosineSimilarity = (a, b) => {
+    const dot = dotProduct(a, b);
+    const normA = euclideanNorm(a);
+    const normB = euclideanNorm(b);
+    return dot / ((normA * normB) || 1);
+};
+
+/**
+ * Compute softmax over an array of scores
+ * @param {number[]} scores - Input scores
+ * @returns {number[]} Probability distribution
+ */
+export const softmax = (scores) => {
+    const maxScore = Math.max(...scores, -Infinity);
+    const expScores = scores.map(s => Math.exp(s - maxScore));
+    const sumExp = expScores.reduce((a, b) => a + b, 0) || 1;
+    return expScores.map(e => e / sumExp);
+};

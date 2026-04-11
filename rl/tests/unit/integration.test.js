@@ -3,16 +3,20 @@
  *
  * Comprehensive test suite for the neuro-symbolic integration components.
  */
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import {afterEach, beforeEach, describe, expect, it} from '@jest/globals';
 
 // Import modules to test
-import { NeuroSymbolicBridge } from '../../src/bridges/NeuroSymbolicBridge.js';
-import { TensorLogicPolicy } from '../../src/policies/TensorLogicPolicy.js';
-import { SkillLibrary, SkillDiscoveryEngine } from '../../src/skills/HierarchicalSkillSystem.js';
-import { Skill } from '../../src/skills/SkillDiscovery.js';
-import { ExperienceBuffer, CausalExperience } from '../../src/experience/ExperienceBuffer.js';
-import { MetaController, ModificationOperator } from '../../src/meta/MetaControlSystem.js';
-import { SymbolicTensor } from '@senars/tensor';
+import {
+    CausalExperience,
+    ExperienceBuffer,
+    MetaController,
+    ModificationOperator,
+    NeuroSymbolicBridge,
+    Skill,
+    SkillDiscoveryEngine,
+    TensorLogicPolicy
+} from '../../src/index.js';
+import {SymbolicTensor} from '@senars/tensor';
 
 describe('Neuro-Symbolic RL Framework', () => {
 
@@ -37,7 +41,7 @@ describe('Neuro-Symbolic RL Framework', () => {
 
         it('should convert tensor to symbols', () => {
             const tensor = new SymbolicTensor([0.8, 0.2, 0.9, 0.1], [4]);
-            const symbolic = bridge.liftToSymbols(tensor, { threshold: 0.5 });
+            const symbolic = bridge.liftToSymbols(tensor, {threshold: 0.5});
 
             expect(symbolic).toBeDefined();
             expect(Array.isArray(symbolic)).toBe(true);
@@ -114,7 +118,7 @@ describe('Neuro-Symbolic RL Framework', () => {
         });
 
         it('should perform forward pass', () => {
-            const state = Array.from({ length: 8 }, Math.random);
+            const state = Array.from({length: 8}, Math.random);
             const output = policy.forward(state);
 
             expect(output).toBeDefined();
@@ -122,8 +126,8 @@ describe('Neuro-Symbolic RL Framework', () => {
         });
 
         it('should select action', async () => {
-            const state = Array.from({ length: 8 }, Math.random);
-            const { action, actionProb } = await policy.selectAction(state);
+            const state = Array.from({length: 8}, Math.random);
+            const {action, actionProb} = await policy.selectAction(state);
 
             expect(action).toBeDefined();
             expect(typeof action).toBe('number');
@@ -134,7 +138,7 @@ describe('Neuro-Symbolic RL Framework', () => {
         });
 
         it('should update policy from experience', async () => {
-            const state = Array.from({ length: 8 }, Math.random);
+            const state = Array.from({length: 8}, Math.random);
             const action = 2;
             const experience = {
                 state,
@@ -144,7 +148,7 @@ describe('Neuro-Symbolic RL Framework', () => {
                 done: false
             };
 
-            const { loss, success } = await policy.update(experience, {
+            const {loss, success} = await policy.update(experience, {
                 advantages: [1.0]
             });
 
@@ -157,7 +161,7 @@ describe('Neuro-Symbolic RL Framework', () => {
         });
 
         it('should extract rules', () => {
-            const rules = policy.extractRules({ threshold: 0.3 });
+            const rules = policy.extractRules({threshold: 0.3});
 
             expect(rules).toBeDefined();
             expect(Array.isArray(rules)).toBe(true);
@@ -204,11 +208,11 @@ describe('Neuro-Symbolic RL Framework', () => {
         });
 
         it('should discover skills from experience', async () => {
-            const experiences = Array.from({ length: 10 }, () => ({
-                state: Array.from({ length: 8 }, Math.random),
+            const experiences = Array.from({length: 10}, () => ({
+                state: Array.from({length: 8}, Math.random),
                 action: Math.floor(Math.random() * 4),
                 reward: Math.random(),
-                nextState: Array.from({ length: 8 }, Math.random),
+                nextState: Array.from({length: 8}, Math.random),
                 done: false
             }));
 
@@ -224,10 +228,10 @@ describe('Neuro-Symbolic RL Framework', () => {
                 minUsageCount: 2
             });
             await skillEngine.initialize();
-            
+
             const serialized = skillEngine.serialize();
             expect(serialized).toBeDefined();
-            
+
             await skillEngine.shutdown();
         });
     });
@@ -267,7 +271,7 @@ describe('Neuro-Symbolic RL Framework', () => {
         });
 
         it('should store batch of experiences', async () => {
-            const experiences = Array.from({ length: 10 }, (_, i) => ({
+            const experiences = Array.from({length: 10}, (_, i) => ({
                 state: [i * 0.1, (i + 1) * 0.1],
                 action: i % 4,
                 reward: Math.random(),
@@ -282,15 +286,15 @@ describe('Neuro-Symbolic RL Framework', () => {
         });
 
         it('should sample experiences', async () => {
-            await buffer.storeBatch(Array.from({ length: 20 }, () => ({
-                state: Array.from({ length: 4 }, Math.random),
+            await buffer.storeBatch(Array.from({length: 20}, () => ({
+                state: Array.from({length: 4}, Math.random),
                 action: Math.floor(Math.random() * 4),
                 reward: Math.random(),
-                nextState: Array.from({ length: 4 }, Math.random),
+                nextState: Array.from({length: 4}, Math.random),
                 done: false
             })));
 
-            const sample = await buffer.sample(5, { strategy: 'random' });
+            const sample = await buffer.sample(5, {strategy: 'random'});
 
             expect(sample).toBeDefined();
             expect(sample.length).toBeLessThanOrEqual(5);
@@ -340,7 +344,7 @@ describe('Neuro-Symbolic RL Framework', () => {
         it('should track architecture', () => {
             const architecture = {
                 stages: [
-                    { id: 'comp1', type: 'test' }
+                    {id: 'comp1', type: 'test'}
                 ]
             };
 
@@ -385,9 +389,9 @@ describe('Neuro-Symbolic RL Framework', () => {
             await policy.initialize();
             await skillEngine.initialize();
 
-            const observation = Array.from({ length: 8 }, Math.random);
+            const observation = Array.from({length: 8}, Math.random);
 
-            const { action } = await policy.selectAction(observation);
+            const {action} = await policy.selectAction(observation);
 
             const experience = {
                 state: observation,

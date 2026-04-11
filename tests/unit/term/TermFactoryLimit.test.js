@@ -1,4 +1,4 @@
-import { TermFactory } from '../../../core/src/term/TermFactory.js';
+import {TermFactory} from '@senars/nar';
 
 describe('TermFactory Limits', () => {
     let factory;

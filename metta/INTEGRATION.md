@@ -150,12 +150,12 @@ metta/
 
 ### Component Responsibilities
 
-| Component | Purpose | Dependencies |
-|-----------|---------|--------------|
-| **core/** | Pure NARS implementation | None (standalone) |
-| **metta/src/kernel/** | MeTTa evaluation engine | Uses UnifyCore from core |
-| **metta/src/stdlib/** | General MeTTa functions | Kernel only |
-| **metta/src/nal/** | NAL reasoning capabilities | Kernel + stdlib |
+| Component             | Purpose                    | Dependencies             |
+|-----------------------|----------------------------|--------------------------|
+| **core/**             | Pure NARS implementation   | None (standalone)        |
+| **metta/src/kernel/** | MeTTa evaluation engine    | Uses UnifyCore from core |
+| **metta/src/stdlib/** | General MeTTa functions    | Kernel only              |
+| **metta/src/nal/**    | NAL reasoning capabilities | Kernel + stdlib          |
 
 ### Design Principles
 
@@ -285,18 +285,22 @@ npm test tests/integration/metta/
 ## Troubleshooting
 
 ### "Module not found" errors
+
 - Ensure you're importing from correct paths
 - Check if NAL stdlib was loaded: `loadNALStdlib(interp)`
 
 ### Slow performance with pure MeTTa
+
 - This is expected! Pure implementations are 100-1000x slower
 - Use grounded operations for production
 - Pure MeTTa is for education/benchmarking only
 
 ### Rules not found
+
 - Check rule loading: `interp.run('(&rule-count)')`
 - Verify pattern matches: `interp.run('(&get-rules-for pattern)')`
 
 ### Type errors
+
 - MeTTa is dynamically typed
 - Type checking is optional via `&type-check`

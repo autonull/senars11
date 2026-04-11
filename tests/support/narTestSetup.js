@@ -3,7 +3,7 @@
  * @description Common setup patterns for NAR integration tests
  */
 
-import {NAR} from '../../core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 
 /**
  * Standard NAR test setup with common configuration and lifecycle management

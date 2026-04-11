@@ -1,19 +1,21 @@
 /**
  * ChannelExtension.js - MeTTa Extension for Channel Primitives
  * Bridges the JS EmbodimentBus to MeTTa Atoms.
- * 
+ *
  * Phase 5: Updated to work with EmbodimentBus instead of ChannelManager
  */
-import { Term } from '../kernel/Term.js';
-import { Logger } from '../../../core/src/util/Logger.js';
+import {Term} from '../kernel/Term.js';
+import {Logger} from '@senars/core';
 
 export class ChannelExtension {
-    constructor(interpreter, embodimentBus) {
+    constructor(interpreter, embodimentBus, {channelFactories = {}, toolFactories = {}} = {}) {
         this.interpreter = interpreter;
         this.embodimentBus = embodimentBus;
         this.ground = interpreter.ground;
-        this.eventListeners = new Map(); // embodimentId -> [{ type, callback }]
-        this.agent = null; // Will be injected
+        this.eventListeners = new Map();
+        this.agent = null;
+        this.channelFactories = channelFactories;
+        this.toolFactories = toolFactories;
     }
 
     register() {
@@ -40,15 +42,9 @@ export class ChannelExtension {
 
         Logger.info(`[MeTTa] Joining embodiment: ${type} with config`, config);
 
-        let EmbodimentClass;
-
         try {
-            const { IRCChannel, NostrChannel, CLIChannel } = await import('../../../agent/src/io/index.js');
-
-            if (type === 'irc') EmbodimentClass = IRCChannel;
-            else if (type === 'nostr') EmbodimentClass = NostrChannel;
-            else if (type === 'cli') EmbodimentClass = CLIChannel;
-            else return Term.sym('Error:UnknownEmbodimentType');
+            const EmbodimentClass = this._resolveChannelFactory(type);
+            if (!EmbodimentClass) return Term.sym('Error:UnknownEmbodimentType');
 
             const embodiment = new EmbodimentClass(config);
             this.embodimentBus.register(embodiment);
@@ -59,6 +55,12 @@ export class ChannelExtension {
             Logger.error('Error joining embodiment:', error);
             return Term.sym('Error:JoinFailed');
         }
+    }
+
+    _resolveChannelFactory(type) {
+        const typeMap = {irc: 'irc', nostr: 'nostr', cli: 'cli'};
+        const key = typeMap[type];
+        return key ? this.channelFactories[key] : null;
     }
 
     async _leaveEmbodiment(embodimentIdAtom) {
@@ -88,42 +90,38 @@ export class ChannelExtension {
     async _webSearch(queryAtom) {
         const query = queryAtom.name || queryAtom.toString().replace(/"/g, '');
         try {
-             // Prefer using tool instance from agent if available to reuse config
-             let tool;
-             if (this.agent && this.agent.toolInstances && this.agent.toolInstances.websearch) {
-                 tool = this.agent.toolInstances.websearch;
-             } else {
-                 const { WebSearchTool } = await import('../../../agent/src/io/index.js');
-                 // Attempt to get config from agent config if possible, otherwise empty
-                 const config = this.agent && this.agent.config && this.agent.config.tools && this.agent.config.tools.websearch
-                                ? this.agent.config.tools.websearch
-                                : {};
-                 tool = new WebSearchTool(config);
-             }
+            let tool;
+            if (this.agent?.toolInstances?.websearch) {
+                tool = this.agent.toolInstances.websearch;
+            } else if (this.toolFactories.websearch) {
+                const config = this.agent?.config?.tools?.websearch ?? {};
+                tool = this.toolFactories.websearch(config);
+            } else {
+                Logger.warn('Web search requested but no WebSearchTool available. Inject via toolFactories or agent.toolInstances.');
+                return Term.sym('()');
+            }
 
-             const results = await tool.search(query);
+            const results = await tool.search(query);
 
-             // Handle case where results is an error object or not an array
-             if (!Array.isArray(results)) {
-                 if (results && results.error) {
-                     Logger.warn(`Web search returned error: ${results.error}`);
-                 }
-                 return Term.sym('()');
-             }
+            if (!Array.isArray(results)) {
+                if (results?.error) {
+                    Logger.warn(`Web search returned error: ${results.error}`);
+                }
+                return Term.sym('()');
+            }
 
-             // Convert results to MeTTa List: ( (Title Link Snippet) ... )
-             const listItems = results.map(r =>
+            const listItems = results.map(r =>
                 Term.exp(Term.sym(':'), [
                     Term.grounded(r.title),
                     Term.grounded(r.link),
                     Term.grounded(r.snippet)
                 ])
-             );
-             return this.interpreter._listify(listItems);
+            );
+            return this.interpreter._listify(listItems);
 
         } catch (error) {
             Logger.error('Web search failed:', error);
-             return Term.sym('()');
+            return Term.sym('()');
         }
     }
 
@@ -146,15 +144,7 @@ export class ChannelExtension {
     async _readFile(pathAtom) {
         const filePath = pathAtom.name || pathAtom.toString().replace(/"/g, '');
         try {
-            let fileTool;
-            if (this.agent && this.agent.toolInstances && this.agent.toolInstances.file) {
-                 fileTool = this.agent.toolInstances.file;
-            } else {
-                // Lazy load FileTool
-                const { FileTool } = await import('../../../agent/src/io/tools/FileTool.js');
-                fileTool = new FileTool({ workspace: './workspace' });
-            }
-
+            const fileTool = await this._resolveFileTool();
             const content = fileTool.readFile(filePath);
             return content ? Term.grounded(content) : Term.sym('Error:FileNotFound');
         } catch (e) {
@@ -166,19 +156,19 @@ export class ChannelExtension {
         const filePath = pathAtom.name || pathAtom.toString().replace(/"/g, '');
         const content = contentAtom.name || contentAtom.toString().replace(/"/g, '');
         try {
-             let fileTool;
-             if (this.agent && this.agent.toolInstances && this.agent.toolInstances.file) {
-                  fileTool = this.agent.toolInstances.file;
-             } else {
-                 const { FileTool } = await import('../../../agent/src/io/tools/FileTool.js');
-                 fileTool = new FileTool({ workspace: './workspace' });
-             }
-
+            const fileTool = await this._resolveFileTool();
             fileTool.writeFile(filePath, content);
             return Term.sym('True');
         } catch (e) {
             return Term.sym('False');
         }
+    }
+
+    async _resolveFileTool() {
+        if (this.agent?.toolInstances?.file) return this.agent.toolInstances.file;
+        if (this.toolFactories.file) return this.toolFactories.file({workspace: './workspace'});
+        Logger.warn('File operation requested but no FileTool available. Inject via toolFactories or agent.toolInstances.');
+        throw new Error('FileTool not available');
     }
 
     _onEvent(channelIdAtom, eventTypeAtom, callbackAtom) {
@@ -201,7 +191,9 @@ export class ChannelExtension {
 
     _handleGlobalMessage(msg) {
         const listeners = this.eventListeners.get(msg.channelId);
-        if (!listeners) return;
+        if (!listeners) {
+            return;
+        }
 
         const type = msg.metadata?.type || 'message';
 
@@ -237,14 +229,14 @@ export class ChannelExtension {
     _atomToConfig(atom) {
         const config = {};
         if (atom.type === 'expression' || atom.name === '()') {
-             const elements = this.interpreter._flattenToList(atom);
-             elements.forEach(pair => {
-                 if (pair.type === 'expression' && pair.components.length === 2) {
-                     const key = pair.components[0].toString().replace(/"/g, '');
-                     const val = pair.components[1].toString().replace(/"/g, '');
-                     config[key] = val;
-                 }
-             });
+            const elements = this.interpreter._flattenToList(atom);
+            elements.forEach(pair => {
+                if (pair.type === 'expression' && pair.components.length === 2) {
+                    const key = pair.components[0].toString().replace(/"/g, '');
+                    const val = pair.components[1].toString().replace(/"/g, '');
+                    config[key] = val;
+                }
+            });
         }
         return config;
     }

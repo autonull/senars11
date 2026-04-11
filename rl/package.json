@@ -5,6 +5,7 @@
   "main": "src/index.js",
   "dependencies": {
     "@senars/core": "workspace:*",
+    "@senars/nar": "workspace:*",
     "@senars/metta": "workspace:*",
     "@senars/tensor": "workspace:*"
   }

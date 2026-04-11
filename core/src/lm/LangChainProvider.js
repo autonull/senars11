@@ -14,7 +14,8 @@ import {
     ConnectionError as ProviderConnectionError,
     InitializationError,
     ModelNotFoundError as ProviderModelNotFoundError,
-    TimeoutError
+    TimeoutError,
+    ProviderError
 } from './ProviderError.js';
 
 export class LangChainProvider extends BaseProvider {

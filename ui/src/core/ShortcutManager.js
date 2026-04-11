@@ -35,7 +35,7 @@ export class ShortcutManager {
 
     _bindEvents() {
         document.addEventListener('keydown', (e) => {
-            if (!this.isEnabled) return;
+            if (!this.isEnabled) {return;}
 
             for (const shortcut of this.shortcuts) {
                 if (e.key.toLowerCase() === shortcut.key.toLowerCase() &&
@@ -59,9 +59,9 @@ export class ShortcutManager {
     showHelpModal() {
         const content = this.shortcuts.map(s => {
             const keys = [];
-            if (s.ctrl) keys.push('Ctrl');
-            if (s.shift) keys.push('Shift');
-            if (s.alt) keys.push('Alt');
+            if (s.ctrl) {keys.push('Ctrl');}
+            if (s.shift) {keys.push('Shift');}
+            if (s.alt) {keys.push('Alt');}
             keys.push(s.key.toUpperCase());
 
             const keyString = keys.join(' + ');

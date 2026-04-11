@@ -1,19 +1,23 @@
 # RL Module Refactoring Summary
 
 ## Overview
-Refactored the `rl/` module to enable extensible general-purpose Reinforcement Learning with proper neuro-symbolic integration, leveraging SeNARS `core/`, MeTTa `metta/`, and Tensor Logic `tensor/`.
+
+Refactored the `rl/` module to enable extensible general-purpose Reinforcement Learning with proper neuro-symbolic
+integration, leveraging SeNARS `core/`, MeTTa `metta/`, and Tensor Logic `tensor/`.
 
 ## Key Changes
 
 ### 1. Core Abstractions Consolidation
 
 **Created:** `rl/src/core/RLCore.js`
+
 - Unified base classes for Agent, Environment, Architecture, and Grounding
 - Eliminated duplication between `RL.js` and `CoreSystem.js`
 - Proper integration with Component pattern from `composable/Component.js`
 - Built-in metrics tracking via `MetricsTracker`
 
 **Updated:**
+
 - `rl/src/core/RL.js` - Now re-exports from RLCore.js
 - `rl/src/core/CoreSystem.js` - Now re-exports from RLCore.js
 - `rl/src/core/RLAgent.js` - Backward compatibility alias
@@ -22,12 +26,14 @@ Refactored the `rl/` module to enable extensible general-purpose Reinforcement L
 ### 2. Neuro-Symbolic Bridge Refactoring
 
 **Refactored:** `rl/src/bridges/NeuroSymbolicBridge.js`
+
 - Consolidated bidirectional integration between SeNARS, MeTTa, and Tensor Logic
 - Proper leverage of `@senars/tensor` SymbolicTensor and TensorLogicBridge
 - Cleaner initialization with async/await patterns
 - Removed redundant code, improved error handling
 
 **Refactored:** `rl/src/bridges/SeNARSBridge.js`
+
 - Simplified SeNARS integration layer
 - Better MeTTa bridge integration
 - Cleaner async initialization
@@ -35,18 +41,21 @@ Refactored the `rl/` module to enable extensible general-purpose Reinforcement L
 ### 3. Training System Fixes
 
 **Fixed:** `rl/src/training/TrainingSystem.js`
+
 - Conditional import of `fork` from `worker_threads` for Node.js compatibility
 - Maintains all existing functionality while fixing import errors
 
 ### 4. Agent System Exports
 
 **Fixed:** `rl/src/agents/AgentSystem.js`
+
 - Added proper export for `AgentFactoryUtils` (previously only exported as alias)
 - Maintains backward compatibility with `AgentUtils` alias
 
 ### 5. Unified Exports
 
 **Updated:** `rl/src/index.js`
+
 - Clean, organized export structure with clear section comments
 - 197 total exports covering all RL functionality
 - Proper re-exports from `@senars/tensor` for seamless integration
@@ -57,27 +66,33 @@ Refactored the `rl/` module to enable extensible general-purpose Reinforcement L
 ### Following @AGENTS.md Guidelines
 
 ✅ **Elegant & Consolidated**
+
 - Removed duplicate Agent/Environment implementations
 - Unified core abstractions in RLCore.js
 
 ✅ **Consistent & Organized**
+
 - Standardized Component pattern throughout
 - Clear separation of concerns
 
 ✅ **Deeply Deduplicated (DRY)**
+
 - Single source of truth for core classes
 - Re-exports for backward compatibility
 
 ✅ **Abstract, Modularized, Parameterized**
+
 - Component-based architecture
 - Configuration-driven behavior
 - Plugin-friendly design
 
 ✅ **Performance-Conscious**
+
 - Conditional imports to avoid unnecessary module loading
 - Metrics tracking for monitoring
 
 ✅ **Proper Error Handling**
+
 - Specific error types via NeuroSymbolicError
 - Context-aware logging
 - Graceful degradation when components unavailable
@@ -85,18 +100,21 @@ Refactored the `rl/` module to enable extensible general-purpose Reinforcement L
 ## Module Integration
 
 ### SeNARS Core Integration
+
 ```javascript
 import { SeNARS } from '@senars/core';
 // Used in NeuroSymbolicBridge for reasoning
 ```
 
 ### MeTTa Integration
+
 ```javascript
 import { MeTTaInterpreter } from '@senars/metta';
 // Used for policy representation and symbolic programs
 ```
 
 ### Tensor Logic Integration
+
 ```javascript
 import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
 // Used for differentiable learning and tensor operations
@@ -124,6 +142,7 @@ import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
 ## Testing
 
 All unit tests pass:
+
 ```
 ✓ rl/tests/unit/composable.test.js (30 tests)
 ✓ rl/tests/unit/neurosymbolic.test.js (20 tests)
@@ -135,6 +154,7 @@ Total: 70 tests passed
 ## Usage Examples
 
 ### Basic Agent-Environment Loop
+
 ```javascript
 import { Agent, Environment, TrainingLoop } from '@senars/rl';
 
@@ -150,6 +170,7 @@ await training.run();
 ```
 
 ### Neuro-Symbolic Integration
+
 ```javascript
 import { NeuroSymbolicBridge } from '@senars/rl';
 
@@ -169,6 +190,7 @@ const { action, reasoning, symbolic } = await bridge.perceiveReasonAct(
 ```
 
 ### Composable Components
+
 ```javascript
 import { Component, CompositionEngine } from '@senars/rl';
 
@@ -188,6 +210,7 @@ class CustomAgent extends Component {
 ## Backward Compatibility
 
 All existing imports continue to work:
+
 - `RLAgent` → alias for `Agent`
 - `RLEnvironment` → alias for `Environment`
 - `AgentUtils` → alias for `AgentFactoryUtils`
@@ -196,15 +219,18 @@ All existing imports continue to work:
 ## Files Modified
 
 ### Created
+
 - `rl/src/core/RLCore.js` - Unified core abstractions
 
 ### Refactored
+
 - `rl/src/bridges/NeuroSymbolicBridge.js` - Cleaner neuro-symbolic integration
 - `rl/src/bridges/SeNARSBridge.js` - Simplified SeNARS bridge
 - `rl/src/training/TrainingSystem.js` - Fixed worker_threads import
 - `rl/src/agents/AgentSystem.js` - Fixed exports
 
 ### Updated (Re-exports only)
+
 - `rl/src/core/RL.js`
 - `rl/src/core/CoreSystem.js`
 - `rl/src/core/RLAgent.js`
@@ -223,6 +249,7 @@ All existing imports continue to work:
 ## Next Steps
 
 Future enhancements could include:
+
 - Additional environment implementations
 - More exploration strategies
 - Distributed training improvements

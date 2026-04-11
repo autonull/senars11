@@ -1,0 +1,25 @@
+{
+  "name": "@senars/bot",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./irc": "./src/EmbeddedIRCServer.js"
+  },
+  "scripts": {
+    "bot": "node run.js",
+    "bot:cli": "node run.js --mode cli",
+    "bot:irc": "node run.js --mode irc",
+    "bot:demo": "node run.js --mode demo",
+    "bot:multi": "node run.js --mode multi",
+    "bot:test": "node tests/smoke.js",
+    "bot:e2e": "node tests/e2e-bot.test.js",
+    "test:pipeline": "node tests/pipeline.test.js"
+  },
+  "dependencies": {
+    "@senars/agent": "workspace:*",
+    "@senars/core": "workspace:*",
+    "@senars/metta": "workspace:*"
+  }
+}

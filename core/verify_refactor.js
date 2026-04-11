@@ -1,6 +1,6 @@
 import {TestNAR} from './src/testing/TestNAR.js';
 import {TermFactory} from './src/term/TermFactory.js';
-import {EventBus} from './src/util/EventBus.js';
+import {EventBus} from '@senars/core';
 
 async function verify() {
     console.log('Starting verification...');

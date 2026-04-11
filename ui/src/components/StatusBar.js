@@ -1,6 +1,6 @@
 import { Component } from './Component.js';
-import { FluentUI, $, div, button, span, input } from '../utils/FluentUI.js';
-import { ReactiveState } from '../core/ReactiveState.js';
+import { $, div, button, span, input } from '../utils/FluentUI.js';
+import { ReactiveState } from '../core/index.js';
 import { eventBus } from '../core/EventBus.js';
 import { MODES } from '../config/constants.js';
 
@@ -50,7 +50,7 @@ export class StatusBar extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         // Clear container
         $(this.container).clear();
@@ -80,7 +80,7 @@ export class StatusBar extends Component {
                 e.stopPropagation();
                 // Close others
                 this.container.querySelectorAll('.status-menu-item.active').forEach(item => {
-                    if (item !== wrapper.dom) item.classList.remove('active');
+                    if (item !== wrapper.dom) {item.classList.remove('active');}
                 });
                 wrapper.dom.classList.toggle('active');
             }).mount(wrapper);
@@ -94,7 +94,7 @@ export class StatusBar extends Component {
                         .data('action', item.action)
                         .class(item.class || '')
                         .on('click', () => {
-                            if (this.onMenuAction) this.onMenuAction(item.action);
+                            if (this.onMenuAction) {this.onMenuAction(item.action);}
                             wrapper.removeClass('active');
                         })
                         .mount(dropdown);
@@ -255,7 +255,7 @@ export class StatusBar extends Component {
         button('Widgets ▲').class('status-menu-btn').on('click', (e) => {
             e.stopPropagation();
             this.container.querySelectorAll('.status-menu-item.active').forEach(item => {
-                if (item !== wrapper.dom) item.classList.remove('active');
+                if (item !== wrapper.dom) {item.classList.remove('active');}
             });
             wrapper.dom.classList.toggle('active');
         }).mount(wrapper);
@@ -305,7 +305,7 @@ export class StatusBar extends Component {
 
     updateStatus(status) {
         this.state.status = status;
-        if (this.elStatus) this.elStatus.text(status);
+        if (this.elStatus) {this.elStatus.text(status);}
         if (status === 'Connected') {
             this.setCapability('reasoner', 'online', 'NAL Reasoner: Online');
         } else if (status === 'Disconnected') {
@@ -316,23 +316,23 @@ export class StatusBar extends Component {
     updateStats(stats = {}) {
         this.state.stats = { ...this.state.stats, ...stats };
 
-        if (this.elCycles) this.elCycles.text(`📊 ${stats.cycles || 0}`);
+        if (this.elCycles) {this.elCycles.text(`📊 ${stats.cycles || 0}`);}
 
         const activeNodes = stats.activeNodes !== undefined ? stats.activeNodes : (stats.nodes || 0);
         const maxNodes = stats.maxNodes || 50;
-        if (this.elNodes) this.elNodes.text(`🧠 ${activeNodes}/${maxNodes}`);
+        if (this.elNodes) {this.elNodes.text(`🧠 ${activeNodes}/${maxNodes}`);}
 
-        if (this.elTps) this.elTps.text(`⚡ ${stats.tps || 0}`);
+        if (this.elTps) {this.elTps.text(`⚡ ${stats.tps || 0}`);}
     }
 
     setReasonerRunning(isRunning) {
         if (this.btnRun) {
-            if (isRunning) this.btnRun.addClass('hidden');
-            else this.btnRun.removeClass('hidden');
+            if (isRunning) {this.btnRun.addClass('hidden');}
+            else {this.btnRun.removeClass('hidden');}
         }
         if (this.btnPause) {
-            if (isRunning) this.btnPause.removeClass('hidden');
-            else this.btnPause.addClass('hidden');
+            if (isRunning) {this.btnPause.removeClass('hidden');}
+            else {this.btnPause.addClass('hidden');}
         }
     }
 
@@ -341,7 +341,7 @@ export class StatusBar extends Component {
         if (el) {
             el.removeClass('status-offline', 'status-online', 'status-warning', 'status-error', 'status-loading');
             el.addClass(`status-${status}`);
-            if (tooltip) el.attr('title', tooltip);
+            if (tooltip) {el.attr('title', tooltip);}
         }
     }
 

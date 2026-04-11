@@ -1,30 +1,69 @@
-export * from './nar/NAR.js';
-export * from './memory/Memory.js';
-export * from './memory/Concept.js';
-export * from './term/Term.js';
-export * from './term/TermFactory.js';
-export * from './term/Unifier.js';
-export * from './Truth.js';
-export * from './Stamp.js';
-export * from './reason/Reasoner.js';
-export * from './reason/Rule.js';
-export * from './task/Task.js';
-export * from './task/Input.js';
+export * from './util/introspectionEvents.js';
 export * from './util/FormattingUtils.js';
 export * from './util/EventBus.js';
 export * from './util/Logger.js';
-export * from './util/UIConstants.js';
-export * from './config/Config.js';
-export * from './util/MessageTypes.js';
+export * from './util/uiConstants.js';
+export * from './config/ConfigManager.js';
+export * from './util/messageTypes.js';
 export * from './util/Plugin.js';
-export * from './util/ErrorHandler.js';
-export * from './config/constants.js';
+export {handleError, logError, createErrorHandler, safeAsync, safeSync, withRetry, ErrorHandler} from './util/error.js';
 export * from './lm/LMProviderBuilder.js';
 export * from './lm/LMConfig.js';
-export * from './util/DesignTokens.js';
-export * from './SeNARS.js';
+export {TransformersJSProvider, WebLLMProvider, DummyProvider} from './lm/index.js';
+export * from './util/designTokens.js';
 export * from './util/CommandRegistry.js';
-export * from './util/IntrospectionEvents.js';
 export * from './util/BaseComponent.js';
-export * from './util/ConfigUtils.js';
 export * from './util/Metrics.js';
+export * from './util/string.js';
+export * from './util/pathUtils.js';
+export * from './util/singleton.js';
+export * from './util/webSocketUtils.js';
+export * from './util/math.js';
+export * from './util/object.js';
+export * from './util/common.js';
+export {BaseTool} from './tool/index.js';
+export {
+    Errors,
+    ProviderError,
+    ConfigurationError,
+    ValidationError,
+    MeTTaError,
+    NarsTypeError,
+    NotImplementedError,
+    OperationNotFoundError,
+    EnhancedError,
+    LifecycleError,
+    NeuroSymbolicError,
+    ReductionError,
+    ExtensionError,
+    ParseError,
+    EnvironmentError,
+    ResourceError,
+    TimeoutError,
+    RuntimeError,
+    ConnectionError,
+    DeserializationError,
+    SerializationError,
+    ToolExecutionError,
+    InitializationError,
+    ModelNotFoundError,
+    WebSocketConnectionError,
+    AnalyzerError,
+    AnalysisError,
+    ReasonerError,
+    RuleExecutionError,
+    PremiseSourceError,
+    StreamProcessingError,
+    GraphOperationError,
+    MessageProcessingError,
+    CommandExecutionError,
+    SeNARSError,
+    AgentError,
+    TensorError,
+    TrainingError,
+    ConfigError,
+    validateConfig,
+    tryCatch,
+    withErrorHandler
+} from './errors/index.js';
+export {EmptyOutputError} from './lm/EmptyOutputError.js';

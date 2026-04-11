@@ -2,6 +2,7 @@ import {BaseComponent} from '../util/BaseComponent.js';
 import {Capability, CapabilityManager} from '../util/CapabilityManager.js';
 import {PerformanceTracker} from './PerformanceTracker.js';
 import {ExecutionHistory} from './ExecutionHistory.js';
+import {generateId} from '../util/string.js';
 
 export class ToolEngine extends BaseComponent {
     constructor(config = {}) {
@@ -24,7 +25,7 @@ export class ToolEngine extends BaseComponent {
     }
 
     async registerTool(id, tool, metadata = {}) {
-        if (this.tools.has(id)) throw new Error(`Tool with ID "${id}" already exists`);
+        if (this.tools.has(id)) {throw new Error(`Tool with ID "${id}" already exists`);}
 
         this._validateToolInterface(id, tool);
 
@@ -95,7 +96,7 @@ export class ToolEngine extends BaseComponent {
     }
 
     unregisterTool(id) {
-        if (!this.tools.has(id)) return false;
+        if (!this.tools.has(id)) {return false;}
 
         const tool = this.tools.get(id);
         this.tools.delete(id);
@@ -108,7 +109,7 @@ export class ToolEngine extends BaseComponent {
         const executionId = this._generateExecutionId();
         const tool = this.tools.get(toolId);
 
-        if (!tool) throw new Error(`Tool "${toolId}" not found`);
+        if (!tool) {throw new Error(`Tool "${toolId}" not found`);}
 
         const executionContext = this._createExecutionContext(executionId, toolId, params, context, startTime);
         this.activeExecutions.set(executionId, executionContext);
@@ -229,7 +230,7 @@ export class ToolEngine extends BaseComponent {
     }
 
     async executeTools(toolCalls, context = {}) {
-        if (!Array.isArray(toolCalls)) throw new Error('ToolCalls must be an array');
+        if (!Array.isArray(toolCalls)) {throw new Error('ToolCalls must be an array');}
 
         if (context.concurrent) {
             const promises = toolCalls.map(call =>
@@ -242,7 +243,7 @@ export class ToolEngine extends BaseComponent {
                 const result = await this.executeTool(call.toolId, call.params, {...context, ...call.context});
                 results.push(result);
 
-                if (!result.success && context.continueOnError !== true) break;
+                if (!result.success && context.continueOnError !== true) {break;}
             }
             return results;
         }
@@ -340,7 +341,7 @@ export class ToolEngine extends BaseComponent {
     }
 
     _generateExecutionId() {
-        return `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return generateId('exec');
     }
 
     cancelAllExecutions() {

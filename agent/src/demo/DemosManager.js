@@ -7,7 +7,7 @@ import os from 'os';
 import {FileSystemDemoSource} from './FileSystemDemoSource.js';
 import {BuiltinDemoSource} from './BuiltinDemoSource.js';
 import {ProcessDemoRunner} from './ProcessDemoRunner.js';
-import {Logger} from '../../../core/src/util/Logger.js';
+import {Logger} from '@senars/core';
 
 export class DemosManager {
     constructor() {
@@ -53,7 +53,9 @@ export class DemosManager {
 
     async runDemo(demoId, nar, sendDemoStep, waitIfNotPaused, params = {}) {
         const demo = this.demos.get(demoId);
-        if (!demo) throw new Error(`Demo ${demoId} not found`);
+        if (!demo) {
+            throw new Error(`Demo ${demoId} not found`);
+        }
 
         this.currentRunningDemoId = demoId;
 
@@ -110,8 +112,12 @@ export class DemosManager {
 
         for (const [index, step] of steps.entries()) {
             await sendDemoStep(demoId, index + 1, step.description);
-            if (step.input && nar) await this._executeInputSafely(nar, demoId, index + 1, step.input, sendDemoStep);
-            if (index < steps.length - 1) await waitIfNotPaused(stepDelay);
+            if (step.input && nar) {
+                await this._executeInputSafely(nar, demoId, index + 1, step.input, sendDemoStep);
+            }
+            if (index < steps.length - 1) {
+                await waitIfNotPaused(stepDelay);
+            }
         }
     }
 

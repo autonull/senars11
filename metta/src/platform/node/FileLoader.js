@@ -5,8 +5,8 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { ENV, requireEnvironment } from '../env.js';
+import {fileURLToPath} from 'url';
+import {requireEnvironment} from '../env.js';
 
 export class FileLoader {
     constructor(options = {}) {
@@ -14,7 +14,7 @@ export class FileLoader {
 
         this.fs = fs;
         this.path = path;
-        this.url = { fileURLToPath };
+        this.url = {fileURLToPath};
 
         this.searchPaths = options.searchPaths || [];
         this.baseDir = options.baseDir || this._getDefaultBaseDir();
@@ -24,15 +24,32 @@ export class FileLoader {
         }
     }
 
-    _getDefaultBaseDir() {
-        // Workaround for Jest VM environment
-        let currentFile;
-        try {
-            currentFile = typeof __filename !== 'undefined' ? __filename : fileURLToPath(import.meta.url);
-        } catch {
-            currentFile = import.meta.url;
+    /**
+     * Static helper to load a file directly
+     */
+    static load(filePath) {
+        if (fs.existsSync(filePath)) {
+            return fs.readFileSync(filePath, 'utf-8');
         }
-        const currentDir = path.dirname(currentFile);
+        throw new Error(`File not found: ${filePath}`);
+    }
+
+    _getDefaultBaseDir() {
+        // Priority: __dirname > fileURLToPath > URL.pathname > process.cwd()
+        // In Jest VM, fileURLToPath may throw 'require is not defined'.
+        let currentDir;
+        if (typeof __dirname !== 'undefined') {
+            currentDir = __dirname;
+        } else {
+            try {
+                // May throw in Jest VM
+                currentDir = path.dirname(fileURLToPath(import.meta.url));
+            } catch {
+                // Last resort: resolve relative to process.cwd()
+                // This assumes the test is run from the project root
+                currentDir = path.join(process.cwd(), 'metta/src/platform/node');
+            }
+        }
         // Navigate from platform/node/ to stdlib/
         return path.join(currentDir, '../../stdlib');
     }
@@ -81,15 +98,5 @@ export class FileLoader {
         if (!this.searchPaths.includes(path)) {
             this.searchPaths.push(path);
         }
-    }
-
-    /**
-     * Static helper to load a file directly
-     */
-    static load(filePath) {
-        if (fs.existsSync(filePath)) {
-             return fs.readFileSync(filePath, 'utf-8');
-        }
-        throw new Error(`File not found: ${filePath}`);
     }
 }

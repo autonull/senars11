@@ -2,8 +2,8 @@
  * MemoryExtension.js - MeTTa Extension for Long-Term Memory
  * deeply integrated with SeNARS Core Memory.
  */
-import { Term } from '../kernel/Term.js';
-import { Logger } from '@senars/core';
+import {Term} from '../kernel/Term.js';
+import {Logger} from '@senars/core';
 
 export class MemoryExtension {
     constructor(interpreter, agent) {
@@ -40,13 +40,13 @@ export class MemoryExtension {
                 // Simple atomic term for now to match mettaclaw string memory
                 // But if content has spaces, it needs to be an atomic string literal or compound
                 // We'll use a simple term factory if available or ad-hoc
-                term = { name: content, toString: () => content, type: 'atom', isTerm: true };
+                term = {name: content, toString: () => content, type: 'atom', isTerm: true};
 
                 const task = {
                     term: term,
-                    budget: { priority: 0.9, durability: 0.9, quality: 0.9 },
+                    budget: {priority: 0.9, durability: 0.9, quality: 0.9},
                     type: 'BELIEF', // Treat remembered items as beliefs
-                    sentence: { term: term, punctuation: '.', truth: { frequency: 1.0, confidence: 0.9 } }
+                    sentence: {term: term, punctuation: '.', truth: {frequency: 1.0, confidence: 0.9}}
                 };
 
                 this.agent.memory.addTask(task);
@@ -56,10 +56,10 @@ export class MemoryExtension {
 
             // Fallback to PersistenceManager (legacy/backup)
             if (this.agent.persistenceManager) {
-                 // Save to a simple list in persistence for basic parity if Core Memory fails
-                 // This mirrors original implementation
-                 Logger.warn('[Memory] Core Memory not available, using PersistenceManager fallback.');
-                 // ... existing logic ...
+                // Save to a simple list in persistence for basic parity if Core Memory fails
+                // This mirrors original implementation
+                Logger.warn('[Memory] Core Memory not available, using PersistenceManager fallback.');
+                // ... existing logic ...
             }
 
             return Term.sym('False');
@@ -80,7 +80,7 @@ export class MemoryExtension {
                 // Or if we have a vector index in Core Memory (not standard in NARS, but maybe in SeNARS extensions)
 
                 // Standard NARS retrieval: Get concept by name/term
-                const concept = this.agent.memory.getConcept({ name: query });
+                const concept = this.agent.memory.getConcept({name: query});
                 if (concept) {
                     // Return related beliefs
                     const beliefs = concept.getTasksByType('BELIEF');

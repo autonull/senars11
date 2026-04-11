@@ -1,4 +1,4 @@
-import {randomWeightedSelect} from '../../../core/src/reason/utils/randomWeightedSelect.js';
+import {randomWeightedSelect} from '@senars/nar';
 
 describe('randomWeightedSelect', () => {
     test('should select items based on weights', () => {

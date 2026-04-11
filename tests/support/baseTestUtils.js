@@ -1,8 +1,4 @@
-import {NAR} from '../../core/src/nar/NAR.js';
-import {Task} from '../../core/src/task/Task.js';
-import {Truth} from '../../core/src/Truth.js';
-import {TermFactory} from '../../core/src/term/TermFactory.js';
-import {ReasonerBuilder} from '../../core/src/reason/ReasonerBuilder.js';
+import {NAR, ReasonerBuilder, Task, TermFactory, Truth} from '@senars/nar';
 import {createTask, createTerm, createTruth, TEST_CONSTANTS} from './factories.js';
 import {ComponentTestSetup, NARTestSetup} from './setup.js';
 import {truthAssertions} from './assertions.js';

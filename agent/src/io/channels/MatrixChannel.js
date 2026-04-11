@@ -1,12 +1,5 @@
-/**
- * MatrixChannel.js - Matrix Protocol Implementation
- * Prototype for Matrix/Element integration.
- * Uses matrix-js-sdk for connectivity.
- * 
- * Phase 5: Updated to extend Embodiment for unified I/O abstraction
- */
-import { Embodiment } from '../Embodiment.js';
-import { Logger } from '@senars/core';
+import {Embodiment} from '../Embodiment.js';
+import {Logger} from '@senars/core';
 
 export class MatrixChannel extends Embodiment {
     constructor(config = {}) {
@@ -15,12 +8,11 @@ export class MatrixChannel extends Embodiment {
             name: config.name || 'Matrix',
             description: config.description || 'Matrix protocol channel',
             capabilities: config.capabilities || ['private-messages', 'rooms', 'typing-indicators', 'read-receipts'],
-            constraints: { maxMessageLength: 65536 },
+            constraints: {maxMessageLength: 65536},
             isPublic: config.isPublic ?? false,
             isInternal: false,
             defaultSalience: config.defaultSalience ?? 0.5
         });
-        
         this.type = 'matrix';
         this.client = null;
         this.matrixSdk = null;
@@ -29,7 +21,6 @@ export class MatrixChannel extends Embodiment {
     }
 
     async _loadSdk() {
-        // Dynamic import for matrix-js-sdk
         try {
             this.matrixSdk = await import('matrix-js-sdk');
             return true;
@@ -40,7 +31,9 @@ export class MatrixChannel extends Embodiment {
     }
 
     _setupClientEvents() {
-        if (!this.client) return;
+        if (!this.client) {
+            return;
+        }
 
         // Sync completed
         this.client.on('sync', (state, prevState, data) => {
@@ -48,29 +41,29 @@ export class MatrixChannel extends Embodiment {
                 case 'PREPARED':
                     Logger.info(`[Matrix:${this.id}] Connected and synced`);
                     this.setStatus('connected');
-                    this.emit('connected', { userId: this.client.getUserId() });
-                    
+                    this.emit('connected', {userId: this.client.getUserId()});
+
                     // Auto-join configured rooms
                     if (this.config.rooms) {
                         this.config.rooms.forEach(room => this.joinRoom(room));
                     }
                     break;
-                    
+
                 case 'SYNCING':
                     Logger.debug(`[Matrix:${this.id}] Syncing...`);
                     break;
-                    
+
                 case 'ERROR':
                     Logger.error(`[Matrix:${this.id}] Sync error:`, data?.error);
                     this.setStatus('error');
                     this.emit('error', data?.error);
                     break;
-                    
+
                 case 'RECONNECTING':
                     Logger.warn(`[Matrix:${this.id}] Reconnecting...`);
                     this.setStatus('connecting');
                     break;
-                    
+
                 case 'STOPPED':
                     Logger.info(`[Matrix:${this.id}] Stopped`);
                     this.setStatus('disconnected');
@@ -80,22 +73,24 @@ export class MatrixChannel extends Embodiment {
 
         // Room messages
         this.client.on('Room.message', (roomId, event) => {
-            if (event.getSender() === this.client.getUserId()) return; // Ignore own messages
-            
+            if (event.getSender() === this.client.getUserId()) {
+                return;
+            } // Ignore own messages
+
             const content = event.getContent();
             const from = event.getSender();
             const room = this.client.getRoom(roomId);
             const roomName = room?.name || roomId;
-            
+
             // Handle different message types
             const messageType = content.msgtype || 'm.text';
             let textContent = content.body || '';
-            
+
             // Handle formatted messages
             if (content.formatted_body) {
                 textContent = content.formatted_body;
             }
-            
+
             this.emitMessage({
                 from,
                 content: textContent,
@@ -114,8 +109,8 @@ export class MatrixChannel extends Embodiment {
             const inviter = inviteEvent.getSender();
             Logger.info(`[Matrix:${this.id}] Invited to room ${roomId} by ${inviter}`);
             this.pendingInvites.add(roomId);
-            this.emit('invite', { roomId, inviter });
-            
+            this.emit('invite', {roomId, inviter});
+
             // Auto-accept invites if configured
             if (this.config.autoAcceptInvites) {
                 this.joinRoom(roomId);
@@ -125,17 +120,17 @@ export class MatrixChannel extends Embodiment {
         // Room member joins
         this.client.on('RoomMember.membership', (event, member) => {
             if (member.membership === 'join' && member.userId !== this.client.getUserId()) {
-                this.emit('user_joined', { 
-                    userId: member.userId, 
+                this.emit('user_joined', {
+                    userId: member.userId,
                     roomId: member.roomId,
-                    name: member.name 
+                    name: member.name
                 });
             } else if (member.membership === 'leave') {
-                this.emit('user_left', { 
-                    userId: member.userId, 
+                this.emit('user_left', {
+                    userId: member.userId,
                     roomId: member.roomId,
                     name: member.name,
-                    reason: event.getContent().reason 
+                    reason: event.getContent().reason
                 });
             }
         });
@@ -166,8 +161,10 @@ export class MatrixChannel extends Embodiment {
     }
 
     async connect() {
-        if (this.status === 'connected') return;
-        
+        if (this.status === 'connected') {
+            return;
+        }
+
         this.setStatus('connecting');
 
         // Load SDK if not loaded
@@ -180,7 +177,7 @@ export class MatrixChannel extends Embodiment {
         }
 
         try {
-            const { createClient } = this.matrixSdk;
+            const {createClient} = this.matrixSdk;
 
             this.client = createClient({
                 baseUrl: this.config.homeserver || 'https://matrix.org',
@@ -221,13 +218,15 @@ export class MatrixChannel extends Embodiment {
     }
 
     async disconnect() {
-        if (this.status === 'disconnected') return;
-        
+        if (this.status === 'disconnected') {
+            return;
+        }
+
         if (this.client) {
             this.client.stopClient();
             this.client = null;
         }
-        
+
         this.joinedRooms.clear();
         this.pendingInvites.clear();
         this.setStatus('disconnected');
@@ -251,8 +250,10 @@ export class MatrixChannel extends Embodiment {
     }
 
     async leaveRoom(roomId) {
-        if (!this.client) return;
-        
+        if (!this.client) {
+            return;
+        }
+
         try {
             await this.client.leave(roomId);
             this.joinedRooms.delete(roomId);
@@ -273,7 +274,7 @@ export class MatrixChannel extends Embodiment {
         }
 
         const eventType = metadata.type || 'm.text';
-        
+
         // Handle different message types
         if (metadata.action) {
             // Emote message
@@ -290,20 +291,28 @@ export class MatrixChannel extends Embodiment {
     }
 
     async sendTyping(roomIdOrAlias, typing = true) {
-        if (!this.client) return;
+        if (!this.client) {
+            return;
+        }
 
         const resolvedRoomId = this._resolveRoomId(roomIdOrAlias);
-        if (!resolvedRoomId) return;
+        if (!resolvedRoomId) {
+            return;
+        }
 
         await this.client.sendTyping(resolvedRoomId, typing, typing ? 30000 : 0);
     }
 
     async sendReadReceipt(roomId, eventId) {
-        if (!this.client) return;
-        
+        if (!this.client) {
+            return;
+        }
+
         const room = this.client.getRoom(roomId);
-        if (!room) return;
-        
+        if (!room) {
+            return;
+        }
+
         const event = room.getTimeline().find(e => e.getId() === eventId);
         if (event) {
             await this.client.sendReadReceipt(event);
@@ -311,11 +320,15 @@ export class MatrixChannel extends Embodiment {
     }
 
     async getRoomMembers(roomId) {
-        if (!this.client) return [];
-        
+        if (!this.client) {
+            return [];
+        }
+
         const room = this.client.getRoom(this._resolveRoomId(roomId));
-        if (!room) return [];
-        
+        if (!room) {
+            return [];
+        }
+
         return room.getJoinedMembers().map(m => ({
             userId: m.userId,
             name: m.name,
@@ -324,7 +337,9 @@ export class MatrixChannel extends Embodiment {
     }
 
     async getJoinedRooms() {
-        if (!this.client) return [];
+        if (!this.client) {
+            return [];
+        }
         return this.client.getJoinedRooms().map(r => r.roomId);
     }
 
@@ -333,7 +348,7 @@ export class MatrixChannel extends Embodiment {
         if (target.startsWith('!')) {
             return this.joinedRooms.has(target) ? target : null;
         }
-        
+
         // If it's a room alias
         if (target.startsWith('#')) {
             const room = this.client.getRooms().find(r => {
@@ -342,7 +357,7 @@ export class MatrixChannel extends Embodiment {
             });
             return room?.roomId;
         }
-        
+
         // Try to find by name
         const room = this.client.getRooms().find(r => r.name === target);
         return room?.roomId;

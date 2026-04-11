@@ -7,6 +7,24 @@ export class ComponentRegistry {
         this.version = '1.0.0';
     }
 
+    static fromJSON(json, classMap) {
+        const registry = new ComponentRegistry();
+        registry.version = json.version;
+
+        json.components.forEach(comp => {
+            const ComponentClass = classMap.get(comp.name);
+            if (ComponentClass) {
+                registry.register(comp.name, ComponentClass, {
+                    version: comp.version,
+                    description: comp.description,
+                    dependencies: comp.dependencies
+                });
+            }
+        });
+
+        return registry;
+    }
+
     register(name, ComponentClass, options = {}) {
         const {
             aliases = [],
@@ -57,8 +75,12 @@ export class ComponentRegistry {
             }
         }
 
-        if (entry.factory) return entry.factory(config, context, this);
-        if (this.factories.has(resolvedName)) return this.factories.get(resolvedName)(config, context, this);
+        if (entry.factory) {
+            return entry.factory(config, context, this);
+        }
+        if (this.factories.has(resolvedName)) {
+            return this.factories.get(resolvedName)(config, context, this);
+        }
 
         return new entry.class(config);
     }
@@ -100,7 +122,9 @@ export class ComponentRegistry {
 
         while (toResolve.length > 0) {
             const current = toResolve.pop();
-            if (resolved.has(current)) continue;
+            if (resolved.has(current)) {
+                continue;
+            }
 
             const entry = this.components.get(current);
             if (!entry) {
@@ -121,7 +145,7 @@ export class ComponentRegistry {
         const instances = new Map();
 
         deps.forEach(depName => {
-            instances.set(depName, this.create(depName, {}, { parent: name }));
+            instances.set(depName, this.create(depName, {}, {parent: name}));
         });
 
         const component = instances.get(name);
@@ -136,11 +160,15 @@ export class ComponentRegistry {
     }
 
     importFrom(module, options = {}) {
-        const { prefix = '', suffix = '', filter = null } = options;
+        const {prefix = '', suffix = '', filter = null} = options;
 
         Object.entries(module).forEach(([name, ComponentClass]) => {
-            if (typeof ComponentClass !== 'function') return;
-            if (filter && !filter(name, ComponentClass)) return;
+            if (typeof ComponentClass !== 'function') {
+                return;
+            }
+            if (filter && !filter(name, ComponentClass)) {
+                return;
+            }
 
             const fullName = `${prefix}${name}${suffix}`;
             this.register(fullName, ComponentClass);
@@ -156,24 +184,6 @@ export class ComponentRegistry {
             aliases: Array.from(this.aliases.entries()),
             factories: Array.from(this.factories.keys())
         };
-    }
-
-    static fromJSON(json, classMap) {
-        const registry = new ComponentRegistry();
-        registry.version = json.version;
-
-        json.components.forEach(comp => {
-            const ComponentClass = classMap.get(comp.name);
-            if (ComponentClass) {
-                registry.register(comp.name, ComponentClass, {
-                    version: comp.version,
-                    description: comp.description,
-                    dependencies: comp.dependencies
-                });
-            }
-        });
-
-        return registry;
     }
 }
 

@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, it} from '@jest/globals';
-import {MemoryResourceManager} from '../../../core/src/memory/MemoryResourceManager.js';
+import {MemoryResourceManager} from '@senars/nar';
 
 describe('MemoryResourceManager', () => {
     let manager;

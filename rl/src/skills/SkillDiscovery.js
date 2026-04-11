@@ -1,7 +1,7 @@
-import { Component } from '../composable/Component.js';
-import { SymbolicTensor } from '@senars/tensor';
-import { TensorLogicPolicy } from '../policies/TensorLogicPolicy.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {Component} from '../composable/Component.js';
+import {TensorLogicPolicy} from '../policies/TensorLogicPolicy.js';
+import {mergeConfig} from '../utils/index.js';
+import {generateId} from '@senars/core';
 
 const DEFAULTS = {
     minSupport: 5,
@@ -22,18 +22,16 @@ const DEFAULTS = {
 };
 
 const PRIMITIVE_SKILLS = [
-    { id: 'move_forward', name: 'Move Forward' },
-    { id: 'move_backward', name: 'Move Backward' },
-    { id: 'turn_left', name: 'Turn Left' },
-    { id: 'turn_right', name: 'Turn Right' },
-    { id: 'grasp', name: 'Grasp Object' },
-    { id: 'release', name: 'Release Object' }
+    {id: 'move_forward', name: 'Move Forward'},
+    {id: 'move_backward', name: 'Move Backward'},
+    {id: 'turn_left', name: 'Turn Left'},
+    {id: 'turn_right', name: 'Turn Right'},
+    {id: 'grasp', name: 'Grasp Object'},
+    {id: 'release', name: 'Release Object'}
 ];
 
 const SkillUtils = {
-    generateId() {
-        return `skill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    },
+    generateId: () => generateId('skill'),
 
     extractMettaField(mettaStr, pattern) {
         return mettaStr.match(pattern)?.[1];
@@ -84,8 +82,33 @@ export class Skill {
         this.terminationCondition = config.terminationCondition ?? null;
     }
 
+    static fromMetta(mettaStr, policyMap = {}) {
+        const idMatch = mettaStr.match(/skill (\S+)/);
+        if (!idMatch) {
+            return null;
+        }
+
+        const extract = (pattern) => SkillUtils.extractMettaField(mettaStr, pattern);
+
+        return new Skill({
+            id: idMatch[1],
+            name: extract(/\(name (\S+)\)/) ?? idMatch[1],
+            precondition: extract(/\(precondition ([^)]+)\)/),
+            postcondition: extract(/\(postcondition ([^)]+)\)/),
+            policy: policyMap[extract(/\(policy (\S+)\)/)] ?? null,
+            policyType: extract(/\(policy (\S+)\)/)?.includes('neural') ? 'neural' : 'metta',
+            level: parseInt(extract(/\(level (\d+)\)/) ?? '0')
+        });
+    }
+
+    static fromJSON(json, policy = null) {
+        return new Skill({...json, policy});
+    }
+
     isApplicable(state, bridge) {
-        if (!this.precondition) return true;
+        if (!this.precondition) {
+            return true;
+        }
         const stateNarsese = bridge?.observationToNarsese(state) ?? '';
         return stateNarsese.includes(this.precondition);
     }
@@ -102,7 +125,7 @@ export class Skill {
         this.lastUsed = Date.now();
         this.usageCount++;
 
-        const { policy, policyType } = this;
+        const {policy, policyType} = this;
 
         if (policyType === 'neural' && policy.selectAction) {
             return policy.selectAction(state, options);
@@ -138,25 +161,13 @@ export class Skill {
         return `(skill ${this.id} (name ${this.name}) (precondition ${this.precondition ?? 'true'}) (postcondition ${this.postcondition ?? 'true'}) (policy ${this.policyType === 'metta' ? this.policy.toString() : `neural_policy_${this.id}`}) (level ${this.level}) (success-rate ${this.getSuccessRate()}) (avg-reward ${this.getAverageReward()}))`;
     }
 
-    static fromMetta(mettaStr, policyMap = {}) {
-        const idMatch = mettaStr.match(/skill (\S+)/);
-        if (!idMatch) return null;
-
-        const extract = (pattern) => SkillUtils.extractMettaField(mettaStr, pattern);
-
-        return new Skill({
-            id: idMatch[1],
-            name: extract(/\(name (\S+)\)/) ?? idMatch[1],
-            precondition: extract(/\(precondition ([^)]+)\)/),
-            postcondition: extract(/\(postcondition ([^)]+)\)/),
-            policy: policyMap[extract(/\(policy (\S+)\)/)] ?? null,
-            policyType: extract(/\(policy (\S+)\)/)?.includes('neural') ? 'neural' : 'metta',
-            level: parseInt(extract(/\(level (\d+)\)/) ?? '0')
-        });
-    }
-
     clone(overrides = {}) {
-        return new Skill({ ...this, children: [...this.children], tags: [...this.tags], metadata: { ...this.metadata }, ...overrides });
+        return new Skill({
+            ...this,
+            children: [...this.children],
+            tags: [...this.tags],
+            metadata: {...this.metadata}, ...overrides
+        });
     }
 
     toJSON() {
@@ -167,10 +178,6 @@ export class Skill {
             usageCount: this.usageCount, discoveredAt: this.discoveredAt, tags: this.tags, metadata: this.metadata
         };
     }
-
-    static fromJSON(json, policy = null) {
-        return new Skill({ ...json, policy });
-    }
 }
 
 const ClusteringUtils = {
@@ -178,12 +185,12 @@ const ClusteringUtils = {
         const clusters = new Map();
 
         experiences.forEach(exp => {
-            const { state, action, nextState, reward } = exp;
+            const {state, action, nextState, reward} = exp;
             const signature = `${SkillUtils.roundState(state).join(',')}_a${action}`;
 
             let cluster = clusters.get(signature);
             if (!cluster) {
-                cluster = { signature, states: [], nextStates: [], actions: [], rewards: [], support: 0 };
+                cluster = {signature, states: [], nextStates: [], actions: [], rewards: [], support: 0};
                 clusters.set(signature, cluster);
             }
 
@@ -235,12 +242,40 @@ export class SkillDiscovery extends Component {
         this.stateActionClusters = new Map();
         this.discoveryCounter = 0;
         this.bridge = null;
-        this.metrics = { skillsDiscovered: 0, skillsConsolidated: 0, compositionsCreated: 0 };
+        this.metrics = {skillsDiscovered: 0, skillsConsolidated: 0, compositionsCreated: 0};
+    }
+
+    static create(config = {}) {
+        return new SkillDiscovery(config);
+    }
+
+    static createNavigation(config = {}) {
+        return new SkillDiscovery({...config, maxLevels: 3, useNarseseGrounding: true});
+    }
+
+    static createManipulation(config = {}) {
+        return new SkillDiscovery({
+            ...config,
+            maxLevels: 4,
+            minSupport: 3,
+            useNarseseGrounding: true,
+            useMettaRepresentation: true
+        });
+    }
+
+    static createMinimal(config = {}) {
+        return new SkillDiscovery({
+            ...config,
+            maxLevels: 2,
+            minSupport: 10,
+            useNarseseGrounding: false,
+            useMettaRepresentation: false
+        });
     }
 
     async onInitialize() {
         try {
-            const { NeuroSymbolicBridge } = await import('../bridges/NeuroSymbolicBridge.js');
+            const {NeuroSymbolicBridge} = await import('../bridges/NeuroSymbolicBridge.js');
             this.bridge = new NeuroSymbolicBridge();
             await this.bridge.initialize();
         } catch {
@@ -248,12 +283,12 @@ export class SkillDiscovery extends Component {
         }
 
         this._registerDefaultPrimitives();
-        this.emit('initialized', { skills: this.skills.size, bridge: !!this.bridge });
+        this.emit('initialized', {skills: this.skills.size, bridge: !!this.bridge});
     }
 
     _registerDefaultPrimitives() {
         PRIMITIVE_SKILLS.forEach(prim => {
-            const skill = new Skill({ ...prim, policyType: 'neural', policy: null, level: 0 });
+            const skill = new Skill({...prim, policyType: 'neural', policy: null, level: 0});
             this.skills.set(skill.id, skill);
             this.primitiveSkills.add(skill.id);
             this.metrics.skillsDiscovered++;
@@ -261,7 +296,7 @@ export class SkillDiscovery extends Component {
     }
 
     async discoverSkills(experiences, options = {}) {
-        const { incremental = true, consolidate = false } = options;
+        const {incremental = true, consolidate = false} = options;
 
         if (incremental) {
             this.experienceBuffer.push(...experiences);
@@ -310,11 +345,13 @@ export class SkillDiscovery extends Component {
     }
 
     _inducePrecondition(states) {
-        if (!this.bridge || !this.config.useNarseseGrounding) return null;
+        if (!this.bridge || !this.config.useNarseseGrounding) {
+            return null;
+        }
 
         const predicateCounts = new Map();
         states.forEach(state => {
-            const narsese = this.bridge.observationToNarsese(state, { threshold: this.config.predicateThreshold });
+            const narsese = this.bridge.observationToNarsese(state, {threshold: this.config.predicateThreshold});
             const predicates = narsese.match(/<(\S+) --> observed>/g) ?? [];
             predicates.forEach(pred => {
                 predicateCounts.set(pred, (predicateCounts.get(pred) ?? 0) + 1);
@@ -349,7 +386,7 @@ export class SkillDiscovery extends Component {
                 reward: cluster.rewards[i],
                 nextState: cluster.nextStates[i],
                 done: false
-            }, { advantages: [cluster.rewards[i]] });
+            }, {advantages: [cluster.rewards[i]]});
         }
 
         return policy;
@@ -396,7 +433,7 @@ export class SkillDiscovery extends Component {
     }
 
     async composeSkills(goal, options = {}) {
-        const { maxDepth = this.config.maxCompositionDepth, usePlanning = true } = options;
+        const {maxDepth = this.config.maxCompositionDepth, usePlanning = true} = options;
 
         if (usePlanning && this.bridge?.senarsBridge) {
             return this._planWithNARS(goal, maxDepth);
@@ -406,12 +443,16 @@ export class SkillDiscovery extends Component {
     }
 
     async _planWithNARS(goal, maxDepth) {
-        if (!this.bridge) return null;
+        if (!this.bridge) {
+            return null;
+        }
 
         const goalNarsese = `<${goal} --> goal>!`;
-        const plan = await this.bridge.achieveGoal(goalNarsese, { cycles: 100 });
+        const plan = await this.bridge.achieveGoal(goalNarsese, {cycles: 100});
 
-        if (!plan?.executedOperations) return null;
+        if (!plan?.executedOperations) {
+            return null;
+        }
 
         const skillSequence = plan.executedOperations.map(op => this._findSkillForOperation(op)).filter(Boolean);
         return skillSequence.length > 0 ? this._createCompositeSkill(skillSequence, goal) : null;
@@ -419,7 +460,9 @@ export class SkillDiscovery extends Component {
 
     async _greedyComposition(goal, maxDepth) {
         const goalSkills = Array.from(this.skills.values()).filter(s => s.postcondition?.includes(goal));
-        if (goalSkills.length === 0) return null;
+        if (goalSkills.length === 0) {
+            return null;
+        }
 
         goalSkills.sort((a, b) => b.getSuccessRate() - a.getSuccessRate());
         const bestSkill = goalSkills[0];
@@ -455,12 +498,12 @@ export class SkillDiscovery extends Component {
                     const result = await skill.act(state, options);
                     lastAction = result.action;
                 }
-                return { action: lastAction };
+                return {action: lastAction};
             },
             policyType: 'hybrid',
             level: Math.max(...skillSequence.map(s => s.level)) + 1,
             children: skillSequence.map(s => s.id),
-            metadata: { sequence: skillSequence.map(s => s.id), goal }
+            metadata: {sequence: skillSequence.map(s => s.id), goal}
         });
 
         skillSequence.forEach(skill => {
@@ -510,7 +553,7 @@ export class SkillDiscovery extends Component {
         const skillBlocks = mettaStr.split('(skill ').slice(1);
 
         for (const block of skillBlocks) {
-            const skill = Skill.fromMetta('(skill ' + block, policyMap);
+            const skill = Skill.fromMetta(`(skill ${block}`, policyMap);
             if (skill) {
                 this.skills.set(skill.id, skill);
                 (skill.level === 0 ? this.primitiveSkills : this.compositeSkills).add(skill.id);
@@ -525,7 +568,7 @@ export class SkillDiscovery extends Component {
         return {
             skills: Array.from(this.skills.values()).map(s => s.toJSON()),
             hierarchy: this.getHierarchy(),
-            metrics: { ...this.metrics },
+            metrics: {...this.metrics},
             experienceBufferSize: this.experienceBuffer.length
         };
     }
@@ -534,21 +577,5 @@ export class SkillDiscovery extends Component {
         await this.bridge?.shutdown();
         this.skills.clear();
         this.experienceBuffer = [];
-    }
-
-    static create(config = {}) {
-        return new SkillDiscovery(config);
-    }
-
-    static createNavigation(config = {}) {
-        return new SkillDiscovery({ ...config, maxLevels: 3, useNarseseGrounding: true });
-    }
-
-    static createManipulation(config = {}) {
-        return new SkillDiscovery({ ...config, maxLevels: 4, minSupport: 3, useNarseseGrounding: true, useMettaRepresentation: true });
-    }
-
-    static createMinimal(config = {}) {
-        return new SkillDiscovery({ ...config, maxLevels: 2, minSupport: 10, useNarseseGrounding: false, useMettaRepresentation: false });
     }
 }

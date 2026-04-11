@@ -1,17 +1,17 @@
 /**
  * Simple Performance Tests
- * 
+ *
  * NOTE: These tests are timing-dependent and may fail on slower systems.
  * They are disabled by default. Run manually when needed.
  */
 
-import { MeTTaInterpreter } from '../../src/MeTTaInterpreter.js';
+import {MeTTaInterpreter} from '../../src/index.js';
 
 describe.skip('Simple Performance', () => {
     let interpreter;
 
     beforeEach(() => {
-        interpreter = new MeTTaInterpreter({ loadStdlib: false });
+        interpreter = new MeTTaInterpreter({loadStdlib: false});
     });
 
     test('basic arithmetic speed', () => {

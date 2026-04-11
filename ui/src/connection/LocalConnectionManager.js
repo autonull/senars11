@@ -19,13 +19,13 @@ export class LocalConnectionManager extends ConnectionInterface {
             this.updateStatus('connecting');
             // Try to load default config if available, else empty
             const config = Config ? Config.parse([]) : {};
-            if (config.system) config.system.enableLogging = false;
+            if (config.system) {config.system.enableLogging = false;}
 
             if (typeof window !== 'undefined') {
                 config.components = {};
             } else {
                 config.components ??= {};
-                if (config.components.Metacognition) config.components.Metacognition.enabled = false;
+                if (config.components.Metacognition) {config.components.Metacognition.enabled = false;}
                 config.components.LMIntegration && (config.components.LMIntegration.enabled = false);
             }
 
@@ -91,14 +91,14 @@ export class LocalConnectionManager extends ConnectionInterface {
                     await this.handleReset();
                     break;
                 case 'control/step':
-                    if (this.nar) await this.nar.cycle();
+                    if (this.nar) {await this.nar.cycle();}
                     break;
                 case 'control/start':
-                    if (this.nar) this.nar.run();
+                    if (this.nar) {this.nar.run();}
                     break;
                 case 'control/stop':
                 case 'control/pause':
-                    if (this.nar) this.nar.stop();
+                    if (this.nar) {this.nar.stop();}
                     break;
                 default:
                     console.log("LocalConnectionManager: Unhandled message type", type);
@@ -126,7 +126,7 @@ export class LocalConnectionManager extends ConnectionInterface {
     async _handleMettaInput(text) {
         try {
             const results = await this.metta.run(text);
-            if (!results?.length) return;
+            if (!results?.length) {return;}
 
             const cleanResults = results.filter(r => {
                 const str = r.toString();
@@ -136,7 +136,7 @@ export class LocalConnectionManager extends ConnectionInterface {
                 return true;
             });
 
-            if (cleanResults.length === 0) return;
+            if (cleanResults.length === 0) {return;}
 
             const output = cleanResults.map(r => r.toString()).join('\n');
             const vizMatch = output.match(/__VIZ__:(\w+):(.+)/s);
@@ -174,7 +174,7 @@ export class LocalConnectionManager extends ConnectionInterface {
     }
 
     async handleReset() {
-        if (this.nar) await this.nar.reset();
+        if (this.nar) {await this.nar.reset();}
         if (this.metta) {
             this.metta = new MeTTaInterpreter(this.nar, this.nar.config);
             await this.metta.initialize();

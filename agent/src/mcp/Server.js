@@ -32,15 +32,21 @@ export class Server {
                 goal: z.string().optional().describe("A goal to achieve or question to answer")
             },
             async ({premises, goal}) => {
-                if (!this.nar) return this._error("NAR instance not available.");
+                if (!this.nar) {
+                    return this._error("NAR instance not available.");
+                }
 
                 try {
                     // Safety: Scrub PII
                     const safePremises = this.safety.validateInput(premises);
                     const safeGoal = goal ? this.safety.validateInput(goal) : undefined;
 
-                    for (const premise of safePremises) await this.nar.input(premise);
-                    if (safeGoal) await this.nar.input(safeGoal);
+                    for (const premise of safePremises) {
+                        await this.nar.input(premise);
+                    }
+                    if (safeGoal) {
+                        await this.nar.input(safeGoal);
+                    }
 
                     const derivations = await this.nar.runCycles(10);
                     const uniqueDerivations = this._deduplicateTasks(derivations.flat());
@@ -58,7 +64,9 @@ export class Server {
                 limit: z.number().default(10).describe("Max results")
             },
             async ({query, limit}) => {
-                if (!this.nar) return this._error("NAR instance not available.");
+                if (!this.nar) {
+                    return this._error("NAR instance not available.");
+                }
 
                 try {
                     const safeQuery = this.safety.validateInput(query);
@@ -77,7 +85,9 @@ export class Server {
                 parameters: z.record(z.any()).describe("Parameters")
             },
             async ({toolName, parameters}) => {
-                if (!this.nar) return this._error("NAR instance not available.");
+                if (!this.nar) {
+                    return this._error("NAR instance not available.");
+                }
 
                 try {
                     // Supports MCR functionality (NARTool) via tool integration
@@ -112,7 +122,9 @@ export class Server {
             "get-focus",
             {limit: z.number().default(10).describe("Max items")},
             async ({limit}) => {
-                if (!this.nar) return this._error("NAR instance not available.");
+                if (!this.nar) {
+                    return this._error("NAR instance not available.");
+                }
                 try {
                     const tasks = this.nar.focus ? this.nar.focus.getTasks(limit) : [];
                     return this._formatFocusReport(tasks, limit);
@@ -136,7 +148,9 @@ export class Server {
                 })).optional().describe("Incoming belief deltas to reconcile")
             },
             async ({since, incoming}) => {
-                if (!this.nar) return this._error("NAR instance not available.");
+                if (!this.nar) {
+                    return this._error("NAR instance not available.");
+                }
                 try {
                     const stats = {reconciled: 0, outgoing: 0};
 
@@ -144,7 +158,9 @@ export class Server {
                     if (incoming && incoming.length > 0) {
                         for (const beliefData of incoming) {
                             const success = await this.nar.reconcile(beliefData);
-                            if (success) stats.reconciled++;
+                            if (success) {
+                                stats.reconciled++;
+                            }
                         }
                     }
 
@@ -176,9 +192,11 @@ export class Server {
                 pattern: z.string().optional().describe('Query pattern (for query mode)'),
                 template: z.string().optional().describe('Result template (for query mode)')
             },
-            async ({ code, mode, pattern, template }) => {
+            async ({code, mode, pattern, template}) => {
                 const interp = this.mettaInterpreter;
-                if (!interp) return this._error('MeTTa interpreter not attached. Pass {mettaInterpreter} to Server constructor.');
+                if (!interp) {
+                    return this._error('MeTTa interpreter not attached. Pass {mettaInterpreter} to Server constructor.');
+                }
                 try {
                     let result;
                     if (mode === 'load') {
@@ -191,7 +209,7 @@ export class Server {
                     } else {
                         result = interp.run(code);
                     }
-                    return { content: [{ type: 'text', text: String(result) }] };
+                    return {content: [{type: 'text', text: String(result)}]};
                 } catch (e) {
                     return this._error(`MeTTa error: ${e.message}`);
                 }
@@ -211,7 +229,9 @@ export class Server {
     _deduplicateTasks(tasks) {
         const unique = new Map();
         for (const task of tasks) {
-            if (!task?.term) continue;
+            if (!task?.term) {
+                continue;
+            }
             const termStr = task.term.toString();
             // Retain highest confidence task for same term
             if (!unique.has(termStr) || (task.truth?.confidence > unique.get(termStr).truth?.confidence)) {

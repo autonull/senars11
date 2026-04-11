@@ -42,7 +42,9 @@ class KnowledgeBaseConnector {
     async query(providerId, query, options = {}) {
         const cacheKey = this._buildCacheKey(providerId, query);
         const cachedResult = this._getCachedResult(cacheKey);
-        if (cachedResult) return cachedResult;
+        if (cachedResult) {
+            return cachedResult;
+        }
 
         this._checkRateLimit(providerId);
         const connector = await this.connect(providerId);
@@ -416,7 +418,9 @@ class ExternalKnowledgeManager {
     }
 
     async integrateWithNAR(knowledge, source) {
-        if (!this.nar) return;
+        if (!this.nar) {
+            return;
+        }
 
         for (const item of knowledge) {
             try {
@@ -431,7 +435,9 @@ class ExternalKnowledgeManager {
     }
 
     convertToNarsese(item) {
-        if (!item.title && !item.label) return null;
+        if (!item.title && !item.label) {
+            return null;
+        }
 
         const subject = item.title ?? item.label;
         const predicate = 'fact';

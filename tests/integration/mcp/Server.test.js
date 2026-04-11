@@ -1,5 +1,4 @@
-
-import { jest } from '@jest/globals';
+import {jest} from '@jest/globals';
 
 // Mock McpServer before importing Server
 // Note: unstable_mockModule is needed for ESM mocking in Jest
@@ -35,25 +34,25 @@ describe('MCP Server Integration', () => {
             input: jest.fn().mockResolvedValue(true),
             runCycles: jest.fn().mockResolvedValue([
                 [{
-                    term: { toString: () => '(test --> result)' },
-                    truth: { frequency: 0.9, confidence: 0.8 },
+                    term: {toString: () => '(test --> result)'},
+                    truth: {frequency: 0.9, confidence: 0.8},
                     punctuation: '.'
                 }]
             ]),
             query: jest.fn().mockReturnValue([
                 {
-                    term: { toString: () => '(concept --> known)' },
-                    truth: { frequency: 1.0, confidence: 0.9 },
+                    term: {toString: () => '(concept --> known)'},
+                    truth: {frequency: 1.0, confidence: 0.9},
                     punctuation: '.'
                 }
             ]),
-            executeTool: jest.fn().mockResolvedValue({ success: true, result: 'tool output' }),
+            executeTool: jest.fn().mockResolvedValue({success: true, result: 'tool output'}),
             focus: {
                 getTasks: jest.fn().mockReturnValue([])
             }
         };
 
-        serverInstance = new ServerClass({ nar: mockNar, safety: { piiDetection: false } });
+        serverInstance = new ServerClass({nar: mockNar, safety: {piiDetection: false}});
         mcpServerMock = serverInstance.server;
     });
 
@@ -69,7 +68,7 @@ describe('MCP Server Integration', () => {
     test('reason tool should process input and return report', async () => {
         const reasonHandler = mcpServerMock._getTool('reason');
 
-        const input = { premises: ['(a --> b).'], goal: '(b --> ?)?' };
+        const input = {premises: ['(a --> b).'], goal: '(b --> ?)?'};
         const result = await reasonHandler(input);
 
         expect(mockNar.input).toHaveBeenCalledWith('(a --> b).');
@@ -83,7 +82,7 @@ describe('MCP Server Integration', () => {
     test('memory-query tool should query NAR', async () => {
         const queryHandler = mcpServerMock._getTool('memory-query');
 
-        const input = { query: 'concept', limit: 5 };
+        const input = {query: 'concept', limit: 5};
         const result = await queryHandler(input);
 
         expect(mockNar.query).toHaveBeenCalledWith('concept');
@@ -94,10 +93,10 @@ describe('MCP Server Integration', () => {
     test('execute-tool should invoke NAR tool execution', async () => {
         const execHandler = mcpServerMock._getTool('execute-tool');
 
-        const input = { toolName: 'calculator', parameters: { op: 'add' } };
+        const input = {toolName: 'calculator', parameters: {op: 'add'}};
         const result = await execHandler(input);
 
-        expect(mockNar.executeTool).toHaveBeenCalledWith('calculator', { op: 'add' });
+        expect(mockNar.executeTool).toHaveBeenCalledWith('calculator', {op: 'add'});
         expect(result.content[0].text).toContain('Tool Execution: calculator');
     });
 });

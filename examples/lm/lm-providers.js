@@ -6,9 +6,7 @@
 // Note: This example is simplified for demonstration
 // Actual implementation would require proper installation of dependencies
 
-import {NAR} from '../../core/src/nar/NAR.js';
-import {DummyProvider} from '../../core/src/lm/DummyProvider.js';
-import {AdvancedNarseseTranslator} from '../../core/src/lm/AdvancedNarseseTranslator.js';
+import {AdvancedNarseseTranslator, DummyProvider, NAR} from '@senars/nar';
 
 console.log('=== LM Provider Examples ===\n');
 

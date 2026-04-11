@@ -1,7 +1,7 @@
-import {ProviderError} from './ProviderError.js';
+import {ProviderError} from '../errors/index.js';
 
 export class EmptyOutputError extends ProviderError {
     constructor(message = 'LM returned empty output', providerId = null) {
-        super(message, providerId, 'EMPTY_OUTPUT');
+        super(message, { providerId, code: 'EMPTY_OUTPUT' });
     }
 }

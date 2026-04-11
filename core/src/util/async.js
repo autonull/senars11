@@ -2,8 +2,6 @@
  * Async utilities for SeNARS
  */
 
-import { Logger } from './Logger.js';
-
 /**
  * Sleep for a specified duration
  * @param {number} ms - Duration in milliseconds
@@ -38,7 +36,7 @@ export const withTimeout = async (promise, ms, message = 'Operation timed out') 
  */
 export async function* asyncIteratorWithDelay(items, delay = 0) {
     for (const item of items) {
-        if (delay > 0) await sleep(delay);
+        if (delay > 0) {await sleep(delay);}
         yield item;
     }
 }
@@ -55,7 +53,7 @@ export async function waitForCondition(condition, options = {}) {
     const { timeout: timeoutMs = 5000, interval = 100 } = options;
     const startTime = Date.now();
     while (Date.now() - startTime < timeoutMs) {
-        if (condition()) return true;
+        if (condition()) {return true;}
         await sleep(interval);
     }
     return false;
@@ -81,7 +79,7 @@ export async function retry(operation, options = {}) {
         } catch (error) {
             lastError = error;
             onError?.(error, attempt, maxRetries);
-            if (attempt === maxRetries) break;
+            if (attempt === maxRetries) {break;}
             await sleep(exponential ? backoff * Math.pow(2, attempt) : backoff);
         }
     }

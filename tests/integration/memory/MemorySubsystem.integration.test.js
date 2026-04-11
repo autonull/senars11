@@ -1,15 +1,17 @@
 import {afterEach, beforeEach, describe, expect, test} from '@jest/globals';
-import {NAR} from '../../../core/src/nar/NAR.js';
-import {Memory} from '../../../core/src/memory/Memory.js';
-import {Focus} from '../../../core/src/memory/Focus.js';
-import {FocusSetSelector} from '../../../core/src/memory/FocusSetSelector.js';
-import {MemoryIndex} from '../../../core/src/memory/MemoryIndex.js';
-import {MemoryConsolidation} from '../../../core/src/memory/MemoryConsolidation.js';
-import {Concept} from '../../../core/src/memory/Concept.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
+import {
+    Concept,
+    Focus,
+    FocusSetSelector,
+    Memory,
+    MemoryConsolidation,
+    MemoryIndex,
+    NAR,
+    TermFactory
+} from '@senars/nar';
 import {inputAll, wait} from '../../support/testHelpers.js';
 import {generateBeliefs} from '../../support/integrationTestUtils.js';
-import {createTask, createTerm} from '../../support/factories.js';
+import {createTask, createTerm} from '../../support/index.js';
 
 describe('Memory Subsystem Integration', () => {
     describe.each([

@@ -8,9 +8,11 @@
 ### P0 - Core Infrastructure (Complete)
 
 #### 1. McpClientManager.js
+
 **Location:** `metta/src/mcp/McpClientManager.js`
 
 Minimal JavaScript client manager for MCP connections:
+
 - ✅ `connect(key, commandOrUrl, args, transport)` - Connect to MCP servers (stdio/SSE)
 - ✅ `callTool(key, toolName, params)` - Call tools with 30s timeout
 - ✅ `listTools(key)` - Discover available tools
@@ -19,9 +21,11 @@ Minimal JavaScript client manager for MCP connections:
 **Key Design Decision:** Keeps connection lifecycle in JS, pushes cognitive processing to MeTTa reasoning.
 
 #### 2. mcp-std.metta
+
 **Location:** `metta/src/mcp/mcp-std.metta`
 
 Pure MeTTa standard library for MCP operations:
+
 - ✅ `(mcp-manager)` - Access JS manager via `&js-global`
 - ✅ `(mcp-connect $server $cmd $args)` - Connect to servers
 - ✅ `(mcp-discover $server)` - Discover and assert tool facts
@@ -31,9 +35,11 @@ Pure MeTTa standard library for MCP operations:
 **Key Design Decision:** Tool registration happens dynamically in MeTTa, not hardcoded JS regexes.
 
 #### 3. MeTTaMCPManager (index.js)
+
 **Location:** `metta/src/mcp/index.js`
 
 Unified entry point for MeTTa MCP integration:
+
 - ✅ Single-call setup: `new MeTTaMCPManager(interpreter, options)`
 - ✅ Auto-injects manager into `globalThis` for `&js-global` access
 - ✅ Preloads `mcp-std.metta` standard library
@@ -42,15 +48,18 @@ Unified entry point for MeTTa MCP integration:
 ### P1 - Provider Extensions (Complete)
 
 #### 4. metta-eval Tool
+
 **Location:** `agent/src/mcp/Server.js`
 
 New MCP tool for external AI clients to evaluate MeTTa:
+
 - ✅ `mode: 'run'` - Evaluate and return results
 - ✅ `mode: 'load'` - Load code without evaluating
 - ✅ `mode: 'query'` - Query space for patterns
 - ✅ Integrated into Server constructor with `mettaInterpreter` option
 
 **Usage:**
+
 ```javascript
 const server = new Server({
   nar: narInstance,
@@ -61,11 +70,15 @@ const server = new Server({
 ### P2 - Dependencies & Documentation (Complete)
 
 #### 5. Package Dependencies
+
 **Location:** `metta/package.json`
+
 - ✅ Added `@modelcontextprotocol/sdk: ^1.21.1`
 
 #### 6. Documentation
+
 **Location:** `metta/src/mcp/README.md`
+
 - ✅ Architecture overview
 - ✅ Quick start guides for both use cases
 - ✅ API reference
@@ -73,12 +86,16 @@ const server = new Server({
 - ✅ Transport reference
 
 #### 7. Examples
+
 **Location:** `examples/`
+
 - ✅ `mcp-consumer-example.mjs` - Use Case A demo
 - ✅ `mcp-provider-example.mjs` - Use Case B demo
 
 #### 8. Tests
+
 **Location:** `test-mcp-integration.mjs`
+
 - ✅ Basic initialization test
 - ✅ JS reflection test
 - ✅ Tool availability pattern test
@@ -93,12 +110,13 @@ MeTTa Space → MeTTa Rules → JS Reflection → McpClientManager → MCP Serve
 ```
 
 **Flow:**
+
 1. `mcp-std.metta` uses `&js-global` to get `McpClientManager`
 2. `mcp-connect` creates stdio/SSE transport connection
 3. `mcp-discover` calls `listTools()` and asserts facts:
-   - `(tool-available read_file)`
-   - `(tool-description read_file "...")`
-   - `(tool-server read_file "fs_server")`
+    - `(tool-available read_file)`
+    - `(tool-description read_file "...")`
+    - `(tool-server read_file "fs_server")`
 4. MeTTa rules reason about tool selection
 5. `mcp-call` invokes tools via JS reflection
 
@@ -109,6 +127,7 @@ AI Client (Claude/Cursor) → MCP Server → SeNARS/MeTTa
 ```
 
 **Tools Available:**
+
 - `ping` - Health check
 - `reason` - NAL inference
 - `memory-query` - Concept memory query
@@ -123,26 +142,27 @@ AI Client (Claude/Cursor) → MCP Server → SeNARS/MeTTa
 ### Design Principles Followed
 
 1. **Minimal JS, Maximum MeTTa**
-   - JS handles only connection lifecycle
-   - MeTTa handles tool discovery, reasoning, invocation
+    - JS handles only connection lifecycle
+    - MeTTa handles tool discovery, reasoning, invocation
 
 2. **JS Reflection Integration**
-   - Leverages existing `&js-*` operations
-   - No thick middleware layers
-   - Clean separation of concerns
+    - Leverages existing `&js-*` operations
+    - No thick middleware layers
+    - Clean separation of concerns
 
 3. **Dynamic Tool Registration**
-   - No hardcoded JS regexes for tool categorization
-   - Tools discovered at runtime
-   - Facts asserted into MeTTa space naturally
+    - No hardcoded JS regexes for tool categorization
+    - Tools discovered at runtime
+    - Facts asserted into MeTTa space naturally
 
 4. **Timeout Safety**
-   - 30s default timeout on tool calls
-   - Prevents unbounded blocking
+    - 30s default timeout on tool calls
+    - Prevents unbounded blocking
 
 ## Testing Results
 
 All tests pass:
+
 ```bash
 ✅ node test-mcp-integration.mjs
 ✅ node examples/mcp-consumer-example.mjs
@@ -185,6 +205,7 @@ interp.run(`
 ### Claude Desktop Using SeNARS
 
 **Config:** `~/.config/Claude/claude_desktop_config.json`
+
 ```json
 {
   "mcpServers": {
@@ -197,11 +218,13 @@ interp.run(`
 ```
 
 **Claude Prompt:**
-> Use the reason tool with premises `<bird --> animal>.` and `<animal --> living_being>.` to derive whether birds are living beings.
+> Use the reason tool with premises `<bird --> animal>.` and `<animal --> living_being>.` to derive whether birds are
+> living beings.
 
 ## Files Changed/Created
 
 ### Created
+
 - `metta/src/mcp/McpClientManager.js` (70 lines)
 - `metta/src/mcp/mcp-std.metta` (32 lines)
 - `metta/src/mcp/index.js` (42 lines)
@@ -211,6 +234,7 @@ interp.run(`
 - `test-mcp-integration.mjs` (62 lines)
 
 ### Modified
+
 - `agent/src/mcp/Server.js` - Added `mettaInterpreter` option and `metta-eval` tool
 - `metta/package.json` - Added `@modelcontextprotocol/sdk` dependency
 

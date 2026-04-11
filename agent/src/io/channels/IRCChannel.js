@@ -1,13 +1,6 @@
-/**
- * IRCChannel.js - IRC Protocol Implementation
- * Wraps 'irc-framework' for resilient IRC connectivity.
- * Supports: channel messages, private messages, CTCP, actions, notices
- * 
- * Phase 5: Updated to extend Embodiment for unified I/O abstraction
- */
-import { Embodiment } from '../Embodiment.js';
-import { Client } from 'irc-framework';
-import { Logger } from '@senars/core';
+import {Embodiment} from '../Embodiment.js';
+import {Client} from 'irc-framework';
+import {Logger} from '@senars/core';
 
 export class IRCChannel extends Embodiment {
     constructor(config = {}) {
@@ -16,17 +9,22 @@ export class IRCChannel extends Embodiment {
             name: config.name || 'IRC',
             description: config.description || 'IRC chat channel',
             capabilities: config.capabilities || ['private-messages', 'channel-ops', 'ctcp'],
-            constraints: { maxMessageLength: 512 },
+            constraints: {maxMessageLength: 512},
             isPublic: config.isPublic ?? true,
             isInternal: false,
             defaultSalience: config.defaultSalience ?? 0.5
         });
-        
+
         this.type = 'irc';
         this.client = new Client();
         this.channels = new Set();
         this.knownUsers = new Map();
         this.pendingQueries = new Map();
+
+        this._sendQueue = [];
+        this._processingQueue = false;
+        this._messageInterval = config.messageInterval ?? config.rateLimit?.interval ?? 4000;
+        this._lastSendTime = 0;
 
         this._setupClientEvents();
     }
@@ -44,13 +42,31 @@ export class IRCChannel extends Embodiment {
         });
 
         this.client.on('message', (event) => {
-            // Normalize event structure
             const from = event.nick;
-            const content = event.message;
-            const target = event.target;
-            const isPrivate = this._isPrivateMessage(event);
+            // Drop all server/system messages at source
+            if (!from || from === 'Server' || from === 'AUTH' || from === '*' || from === '') {
+                return;
+            }
+            // Drop self-messages (the IRC server echoes our own PRIVMSGs back)
+            if (from === this.client.user?.nick) {
+                return;
+            }
+            let content = event.message;
+            if (content == null || content === '') return;
 
-            // Emit as unified message event with isPrivate flag
+            const { target } = event;
+            const isPrivate = this._isPrivateMessage(event);
+            // Truncate overly long messages to avoid blowing up the LLM context
+            const maxContentLen = this.constraints?.maxMessageLength ?? 512;
+            if (content.length > maxContentLen) {
+                content = content.substring(0, maxContentLen) + '…';
+            }
+            // Detect whether the bot's nick is mentioned in the message
+            const botNick = this.client.user?.nick;
+            const isMention = isPrivate || (botNick && this._containsNickMention(content, botNick));
+
+            Logger.debug(`[IRC:${this.id}] Message from ${from} in ${target} (private=${isPrivate}, mention=${isMention}): ${content?.substring(0, 80)}`);
+
             this.emitMessage({
                 from,
                 content,
@@ -58,55 +74,56 @@ export class IRCChannel extends Embodiment {
                     channel: target,
                     type: event.type || 'message',
                     tags: event.tags,
-                    isPrivate
+                    isPrivate,
+                    isMention,
                 }
             });
         });
 
         // Channel joins
         this.client.on('join', (event) => {
-            const { nick, channel } = event;
+            const {nick, channel} = event;
             Logger.debug(`[IRC:${this.id}] ${nick} joined ${channel}`);
             this._trackUser(channel, nick);
-            this.emit('user_joined', { nick, channel });
+            this.emit('user_joined', {nick, channel});
         });
 
         // Channel parts
         this.client.on('part', (event) => {
-            const { nick, channel, reason } = event;
+            const {nick, channel, reason} = event;
             Logger.debug(`[IRC:${this.id}] ${nick} left ${channel}: ${reason}`);
             this._untrackUser(channel, nick);
-            this.emit('user_part', { nick, channel, reason });
+            this.emit('user_part', {nick, channel, reason});
         });
 
         // Quits
         this.client.on('quit', (event) => {
-            const { nick, reason } = event;
+            const {nick, reason} = event;
             Logger.debug(`[IRC:${this.id}] ${nick} quit: ${reason}`);
             this._removeUserFromAllChannels(nick);
-            this.emit('user_quit', { nick, reason });
+            this.emit('user_quit', {nick, reason});
         });
 
         // Nick changes
         this.client.on('nick', (event) => {
-            const { oldNick, newNick } = event;
+            const {oldNick, newNick} = event;
             Logger.debug(`[IRC:${this.id}] ${oldNick} is now ${newNick}`);
             this._updateUserNick(oldNick, newNick);
-            this.emit('user_nick', { oldNick, newNick });
+            this.emit('user_nick', {oldNick, newNick});
         });
 
         // Channel mode changes
         this.client.on('mode', (event) => {
-            const { channel, setby, mode } = event;
+            const {channel, setby, mode} = event;
             Logger.debug(`[IRC:${this.id}] Mode change in ${channel} by ${setby}: ${mode}`);
-            this.emit('mode_change', { channel, setby, mode });
+            this.emit('mode_change', {channel, setby, mode});
         });
 
         // Topic changes
         this.client.on('topic', (event) => {
-            const { channel, topic, setby } = event;
+            const {channel, topic, setby} = event;
             Logger.info(`[IRC:${this.id}] Topic in ${channel}: ${topic}`);
-            this.emit('topic_change', { channel, topic, setby });
+            this.emit('topic_change', {channel, topic, setby});
         });
 
         // CTCP VERSION
@@ -124,6 +141,9 @@ export class IRCChannel extends Embodiment {
         // Close event
         this.client.on('close', () => {
             this.setStatus('disconnected');
+            this._sendQueue.forEach(({reject}) => reject(new Error('Connection closed')));
+            this._sendQueue = [];
+            this._processingQueue = false;
             this.emit('disconnected');
             this.knownUsers.clear();
         });
@@ -134,17 +154,10 @@ export class IRCChannel extends Embodiment {
             Logger.error(`[IRC:${this.id}] Error:`, err);
         });
 
-        // Notice event
+        // Notice event (server operational messages — drop at source, do NOT queue into EmbodimentBus)
         this.client.on('notice', (event) => {
-            const from = event.nick || 'Server';
-            const content = event.message;
-            const target = event.target;
-
-            this.emitMessage({
-                from,
-                content,
-                metadata: { channel: target, type: 'notice' }
-            });
+            Logger.debug(`[IRC:${this.id}] Notice from ${event.nick}: ${event.message}`);
+            // Intentionally do NOT call emitMessage() — notices are server/system noise
         });
 
         // Welcome messages
@@ -154,25 +167,29 @@ export class IRCChannel extends Embodiment {
         });
     }
 
-    /**
-     * Check if a message is private (not to a channel)
-     */
     _isPrivateMessage(event) {
-        const target = event.target;
-        // Private if target matches our nick or doesn't start with #/&/!/+
+        const {target} = event;
         return target === this.client.user.nick || !/^[#&!+]/.test(target);
     }
 
     /**
-     * Check if content is CTCP
+     * Check if the message content mentions the bot's nick.
+     * Matches: "BotNick:", "BotNick,", "@BotNick", "BotNick!", or "BotNick " at start.
+     * Also matches the nick anywhere in the message for channel awareness.
      */
+    _containsNickMention(content, nick) {
+        if (!nick) return false;
+        // Escape regex special chars in nick
+        const escaped = nick.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Match nick followed by punctuation, whitespace, or at a word boundary
+        const re = new RegExp(`(?:^|\\s|[@!.,;:])${escaped}(?:\\s|[:,.!?]|$)`, 'i');
+        return re.test(content);
+    }
+
     _isCTCP(content) {
         return content.startsWith('\x01') && content.endsWith('\x01');
     }
 
-    /**
-     * Handle CTCP messages
-     */
     _handleCTCP(from, content, target) {
         const ctcpData = content.slice(1, -1).split(' ');
         const command = ctcpData[0].toUpperCase();
@@ -207,9 +224,6 @@ export class IRCChannel extends Embodiment {
         });
     }
 
-    /**
-     * Track user in channel
-     */
     _trackUser(channel, nick) {
         if (!this.knownUsers.has(channel)) {
             this.knownUsers.set(channel, new Set());
@@ -217,28 +231,16 @@ export class IRCChannel extends Embodiment {
         this.knownUsers.get(channel).add(nick);
     }
 
-    /**
-     * Untrack user from channel
-     */
     _untrackUser(channel, nick) {
-        const users = this.knownUsers.get(channel);
-        if (users) {
-            users.delete(nick);
-        }
+        this.knownUsers.get(channel)?.delete(nick);
     }
 
-    /**
-     * Remove user from all channels
-     */
     _removeUserFromAllChannels(nick) {
         for (const users of this.knownUsers.values()) {
             users.delete(nick);
         }
     }
 
-    /**
-     * Update user nick
-     */
     _updateUserNick(oldNick, newNick) {
         for (const users of this.knownUsers.values()) {
             if (users.has(oldNick)) {
@@ -248,47 +250,67 @@ export class IRCChannel extends Embodiment {
         }
     }
 
-    /**
-     * Get users in a channel
-     */
     getUsersInChannel(channel) {
         const users = this.knownUsers.get(channel);
         return users ? Array.from(users) : [];
     }
 
     async connect() {
-        if (this.status === 'connected') return;
+        if (this.status === 'connected') {
+            return;
+        }
 
         this.setStatus('connecting');
 
-        try {
-            this.client.connect({
-                host: this.config.host || 'irc.libera.chat',
-                port: this.config.port || 6667,
-                nick: this.config.nick || 'senars-bot',
-                username: this.config.username || 'senars',
-                gecos: this.config.realname || `${this.config.nick} Bot`,
-                tls: this.config.tls !== false,
-                password: this.config.password,
-                auto_reconnect: true,
-                auto_reconnect_wait: 2000,
-                auto_reconnect_max_retries: 5,
-                // Enable CTCP handling
-                ctcp: {
-                    version: `${this.config.nick} Bot 1.0`,
-                    ping: true
-                }
-            });
-        } catch (error) {
-            this.setStatus('error');
-            throw error;
-        }
+        return new Promise((resolve, reject) => {
+            const onRegistered = (event) => {
+                this.client.removeListener('error', onError);
+                resolve(event);
+            };
+            const onError = (err) => {
+                this.client.removeListener('registered', onRegistered);
+                this.setStatus('error');
+                reject(err);
+            };
+
+            this.client.once('registered', onRegistered);
+            this.client.once('error', onError);
+
+            try {
+                this.client.connect({
+                    host: this.config.host || 'irc.libera.chat',
+                    port: this.config.port || 6667,
+                    nick: this.config.nick || 'senars-bot',
+                    username: this.config.username || 'senars',
+                    gecos: this.config.realname || `${this.config.nick} Bot`,
+                    tls: !!this.config.tls,
+                    password: this.config.password,
+                    auto_reconnect: true,
+                    auto_reconnect_wait: 2000,
+                    auto_reconnect_max_retries: 5,
+                    ctcp: {
+                        version: `${this.config.nick} Bot 1.0`,
+                        ping: true
+                    }
+                });
+            } catch (error) {
+                this.client.removeListener('registered', onRegistered);
+                this.client.removeListener('error', onError);
+                this.setStatus('error');
+                reject(error);
+            }
+        });
     }
 
     async disconnect() {
         if (this.status === 'disconnected') return;
-        this.client.quit(this.config.quitMessage || 'Leaving...');
+        this._sendQueue.forEach(({ reject }) => reject(new Error('Disconnecting')));
+        this._sendQueue = [];
+        this._processingQueue = false;
         this.knownUsers.clear();
+        try { this.client.quit(this.config.quitMessage || 'Leaving...'); }
+        catch (e) { Logger.warn(`[IRC:${this.id}] quit error:`, e.message); }
+        this.setStatus('disconnected');
     }
 
     async join(channel) {
@@ -309,57 +331,66 @@ export class IRCChannel extends Embodiment {
         }
     }
 
-    /**
-     * Send a message to channel or user
-     * @param {string} target - Channel (#channel) or nick
-     * @param {string} content - Message content
-     * @param {object} metadata - Options: action, notice, private
-     */
+
     async sendMessage(target, content, metadata = {}) {
         if (this.status !== 'connected') {
             throw new Error('Not connected to IRC');
         }
-
-        // Action message (/me)
-        if (metadata.action) {
-            this.client.action(target, content);
-        }
-        // Notice message
-        else if (metadata.notice) {
-            this.client.notice(target, content);
-        }
-        // Regular message
-        else {
-            this.client.say(target, content);
-        }
-
-        return true;
+        return new Promise((resolve, reject) => {
+            this._sendQueue.push({target, content, metadata, resolve, reject});
+            this._processQueue();
+        });
     }
 
-    /**
-     * Send a private message to a user
-     */
+    async _processQueue() {
+        if (this._processingQueue || this._sendQueue.length === 0) {
+            return;
+        }
+        this._processingQueue = true;
+
+        while (this._sendQueue.length > 0) {
+            // Adaptive delay: if last send was recent, wait remaining time
+            const sinceLast = Date.now() - this._lastSendTime;
+            if (sinceLast < this._messageInterval) {
+                await new Promise(r => setTimeout(r, this._messageInterval - sinceLast));
+            }
+
+            const {target, content, metadata, resolve, reject} = this._sendQueue.shift();
+            const safe = String(content).replace(/[\r\n]/g, ' ').trim();
+            if (!safe) {
+                resolve(true);
+                continue;
+            }
+            try {
+                if (metadata.action) {
+                    this.client.action(target, safe);
+                } else if (metadata.notice) {
+                    this.client.notice(target, safe);
+                } else {
+                    this.client.say(target, safe);
+                }
+                this._lastSendTime = Date.now();
+                resolve(true);
+            } catch (e) {
+                reject(e);
+            }
+        }
+
+        this._processingQueue = false;
+    }
+
     async sendPrivateMessage(nick, content) {
-        return this.sendMessage(nick, content, { private: true });
+        return this.sendMessage(nick, content, {private: true});
     }
 
-    /**
-     * Send an action message (/me)
-     */
     async sendAction(target, content) {
-        return this.sendMessage(target, content, { action: true });
+        return this.sendMessage(target, content, {action: true});
     }
 
-    /**
-     * Send a notice
-     */
     async sendNotice(target, content) {
-        return this.sendMessage(target, content, { notice: true });
+        return this.sendMessage(target, content, {notice: true});
     }
 
-    /**
-     * Set channel topic
-     */
     async setTopic(channel, topic) {
         if (this.status !== 'connected') {
             throw new Error('Not connected to IRC');
@@ -368,9 +399,6 @@ export class IRCChannel extends Embodiment {
         return true;
     }
 
-    /**
-     * Get channel user list
-     */
     async getChannelUsers(channel) {
         return new Promise((resolve) => {
             const users = [];
@@ -379,11 +407,8 @@ export class IRCChannel extends Embodiment {
                     users.push(...event.nicks);
                 }
             };
-
             this.client.on('names', namesListener);
             this.client.raw(`NAMES ${channel}`);
-
-            // Timeout after 5 seconds
             setTimeout(() => {
                 this.client.removeListener('names', namesListener);
                 resolve(users);
@@ -391,9 +416,6 @@ export class IRCChannel extends Embodiment {
         });
     }
 
-    /**
-     * Send CTCP query
-     */
     async sendCTCP(nick, command, data = '') {
         if (this.status !== 'connected') {
             throw new Error('Not connected to IRC');
@@ -402,18 +424,11 @@ export class IRCChannel extends Embodiment {
         return true;
     }
 
-    /**
-     * Check if target is a channel
-     */
     isChannel(target) {
         return /^[#&!+]/.test(target);
     }
 
-    /**
-     * Check if user is in a channel
-     */
     isUserInChannel(channel, nick) {
-        const users = this.knownUsers.get(channel);
-        return users ? users.has(nick) : false;
+        return this.knownUsers.get(channel)?.has(nick) ?? false;
     }
 }

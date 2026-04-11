@@ -1,10 +1,13 @@
 # MeTTa Implementation: Hyperon Parity & Beyond Roadmap
 
-**Objective:** Create the reference JavaScript/TypeScript implementation of MeTTa (Meta Type Talk) that achieves 100% feature parity with `hyperon-experimental` (Rust) while leveraging unique Web Platform capabilities and **exceeding Hyperon with pioneering AGI-native features**.
+**Objective:** Create the reference JavaScript/TypeScript implementation of MeTTa (Meta Type Talk) that achieves 100%
+feature parity with `hyperon-experimental` (Rust) while leveraging unique Web Platform capabilities and **exceeding
+Hyperon with pioneering AGI-native features**.
 
 **Philosophy:** Evolutionary refactor toward minimal core. Everything that can be MeTTa should be MeTTa.
 
 **References:**
+
 - **Specification:** `hyperon-experimental` (Rust Reference Implementation)
 - **Documentation:** `metta-lang.dev`
 - **Inspiration:** Jetta (High-performance), OpenCog DAS (Distribution)
@@ -15,11 +18,13 @@
 ## Executive Summary
 
 **Current State:**
+
 - **Code:** ~1200 LOC (existing MeTTa + SeNARS integration)
 - **Status:** ~95% Hyperon stdlib parity achieved (88/89 tests passing)
 - **Phases Completed:** 1-7 (Kernel, Expression Ops, Math, HOFs, Control Flow, Sets, Types)
 
 **Target State:**
+
 - **Code:** ~1100 LOC total (600 LOC JS kernel + 500 LOC MeTTa stdlib)
 - **Status:** 100% Hyperon parity + Beyond-Hyperon pioneering features
 - **Timeline:** 4 phases over 3-4 weeks (Phases 8-18)
@@ -60,6 +65,7 @@ stdlib/
 ### Demonstrations & Examples (~300 LOC MeTTa)
 
 **Core Demos** (3 demos, ~200 LOC):
+
 ```
 demos/
 ├── maze_solver.metta         (~80 LOC)  # Grid pathfinding with A*
@@ -68,6 +74,7 @@ demos/
 ```
 
 **Examples** (6 examples, ~150 LOC):
+
 ```
 examples/metta/
 ├── basics/
@@ -81,7 +88,9 @@ examples/metta/
 ```
 
 **Extended Demo Ecosystem** (40+ demos - Post-MVP):
-- **11 Categories** (A-K): Explainability, Temporal, Uncertainty, Memory, Adversarial, Analogical, Meta-Cognition, Resource-Bounded, Learning, Compositional, Multi-Agent
+
+- **11 Categories** (A-K): Explainability, Temporal, Uncertainty, Memory, Adversarial, Analogical, Meta-Cognition,
+  Resource-Bounded, Learning, Compositional, Multi-Agent
 - **10 NARL Benchmarks**: Progressive difficulty levels (Trace → Compose)
 - **Integration**: Month 2+ expansion
 
@@ -90,22 +99,24 @@ examples/metta/
 ## ✅ Completed Phases Summary
 
 > [!NOTE]
-> Phases 1-13 have been completed. Core kernel, expression ops, math functions, HOFs, control flow, set operations, type system, module system, stateful atoms, advanced nondeterminism, enhanced indexing, and tail call optimization are all implemented.
+> Phases 1-13 have been completed. Core kernel, expression ops, math functions, HOFs, control flow, set operations, type
+> system, module system, stateful atoms, advanced nondeterminism, enhanced indexing, and tail call optimization are all
+> implemented.
 
-| Phase | Description | Status | Tests |
-|-------|-------------|--------|-------|
-| Phase 1 | Kernel Hardening & Compliance | ✅ Complete | All passing |
-| Phase 2 | Expression Manipulation | ✅ Complete | 14/14 ✅ |
-| Phase 3 | Complete Math Functions | ✅ Complete | 20/20 ✅ |
-| Phase 4 | Higher-Order Functions | ✅ Complete | 10/10 ✅ |
-| Phase 5 | Control Flow & Error Handling | ✅ Complete | Verified |
-| Phase 6 | Set Operations | ✅ Complete | 12/12 ✅ |
-| Phase 7 | Type System | ✅ Complete | 22/22 ✅ |
-| Phase 8 | Module System & Space Isolation | ✅ Complete | Implemented |
-| Phase 9 | Stateful Atoms | ✅ Complete | Implemented |
-| Phase 10 | Advanced Nondeterminism | ✅ Complete | Implemented |
+| Phase    | Description                     | Status     | Tests       |
+|----------|---------------------------------|------------|-------------|
+| Phase 1  | Kernel Hardening & Compliance   | ✅ Complete | All passing |
+| Phase 2  | Expression Manipulation         | ✅ Complete | 14/14 ✅     |
+| Phase 3  | Complete Math Functions         | ✅ Complete | 20/20 ✅     |
+| Phase 4  | Higher-Order Functions          | ✅ Complete | 10/10 ✅     |
+| Phase 5  | Control Flow & Error Handling   | ✅ Complete | Verified    |
+| Phase 6  | Set Operations                  | ✅ Complete | 12/12 ✅     |
+| Phase 7  | Type System                     | ✅ Complete | 22/22 ✅     |
+| Phase 8  | Module System & Space Isolation | ✅ Complete | Implemented |
+| Phase 9  | Stateful Atoms                  | ✅ Complete | Implemented |
+| Phase 10 | Advanced Nondeterminism         | ✅ Complete | Implemented |
 | Phase 12 | Enhanced Indexing & Performance | ✅ Complete | Implemented |
-| Phase 13 | Tail Call Optimization | ✅ Complete | Implemented |
+| Phase 13 | Tail Call Optimization          | ✅ Complete | Implemented |
 
 **Current Total: ~98% Hyperon stdlib parity achieved with 70+ grounded operations.**
 
@@ -267,8 +278,9 @@ reg('bind!', (name, value) => {
 ```
 
 **Hyperon Parity Checklist:**
+
 - [x] `import!` - Load module into isolated space, import exports
-- [x] `include!` - Load file directly into current space  
+- [x] `include!` - Load file directly into current space
 - [x] `bind!` - Bind name to value in current space
 - [x] `new-space` - Create isolated atomspace
 - [x] `add-atom-to` - Add to specific space
@@ -342,11 +354,13 @@ export function registerStateOps(registry) {
 ```
 
 **Hyperon Parity Checklist:**
+
 - [x] `new-state` - Create mutable state atom
 - [x] `get-state` - Read current state value
 - [x] `change-state!` - Mutate state value
 
 **Beyond Hyperon:**
+
 - [x] `with-transaction` - Transactional state updates with rollback
 - [x] `state-version` - Track mutation count for optimistic concurrency
 
@@ -411,10 +425,12 @@ reg('collapse-n', (atom, n) => {
 ```
 
 **Hyperon Parity Checklist:**
+
 - [x] `collapse` - Collect all nondeterministic results into list
 - [x] `superpose` - Expand list into nondeterministic alternatives
 
 **Beyond Hyperon:**
+
 - [x] `superpose-weighted` - Probabilistic sampling from weighted alternatives
 - [x] `collapse-n` - Collect first N results (lazy evaluation)
 
@@ -579,6 +595,7 @@ export function registerDASOps(registry, dasConnector) {
 ```
 
 **Beyond Hyperon Features:**
+
 - [ ] Federated query across multiple DAS nodes
 - [ ] Automatic result merging and deduplication
 - [ ] Local caching with configurable TTL
@@ -694,6 +711,7 @@ export class Space {
 ```
 
 **Performance Improvements:**
+
 - [x] Multi-level indexing (functor → arity → signature)
 - [x] O(1) average lookup for common patterns
 - [x] Signature index for constant argument matching
@@ -763,6 +781,7 @@ export function reduceWithTCO(atom, space, ground, limit, cache) {
 ```
 
 **Features:**
+
 - [x] Tail call detection
 - [x] Trampolining for tail-recursive rules
 - [x] Works with if/case/switch in tail position
@@ -907,6 +926,7 @@ export function registerNeuralOps(registry, neuralBridge) {
 ```
 
 **Beyond Hyperon Features:**
+
 - [ ] Embedding generation (ONNX, TF.js, or API)
 - [ ] Semantic search on atomspace
 - [ ] Model loading and inference
@@ -996,6 +1016,7 @@ export function registerTemporalOps(registry, interpreter) {
 ```
 
 **Beyond Hyperon Features:**
+
 - [ ] Allen's Interval Algebra (13 temporal relations)
 - [ ] Causal relationship representation
 - [ ] Temporal projection queries
@@ -1112,6 +1133,7 @@ export function registerProbabilisticOps(registry, interpreter) {
 ```
 
 **Beyond Hyperon Features:**
+
 - [ ] Distribution constructors (normal, uniform, bernoulli, etc.)
 - [ ] Monte Carlo sampling
 - [ ] Bayesian posterior inference
@@ -1212,6 +1234,7 @@ export class VisualDebugger {
 ```
 
 **Beyond Hyperon Features:**
+
 - [ ] Reduction graph visualization
 - [ ] Time-travel debugging (step backwards)
 - [ ] Cytoscape/D3 export for web visualization
@@ -1329,6 +1352,7 @@ export class CollaborativeSpace extends ReactiveSpace {
 ```
 
 **Beyond Hyperon Features:**
+
 - [ ] Real-time collaborative editing
 - [ ] CRDT-based conflict resolution
 - [ ] Vector clock causality
@@ -1339,29 +1363,30 @@ export class CollaborativeSpace extends ReactiveSpace {
 
 ## 📊 Parity & Beyond Status
 
-| Category | Required | Implemented | Status | Priority |
-|----------|----------|-------------|--------|----------|
-| **PARITY** | | | | |
-| Core Kernel | 8 ops | 8 ops | ✅ Complete | - |
-| Expression Ops | 6 ops | 6 ops | ✅ Complete | - |
-| Math Functions | 16 ops | 16 ops | ✅ Complete | - |
-| Set Operations | 7 ops | 7 ops | ✅ Complete | - |
-| HOF Operations | 3+3 ops | 6 ops | ✅ Complete | - |
-| Type Operations | 5 ops | 5 ops | ✅ Complete | - |
-| Module System | 3 ops | 0 ops | ❌ Phase 8 | High |
-| Stateful Atoms | 3 ops | 0 ops | ❌ Phase 9 | High |
-| Collapse/Superpose | 2 ops | 1.5 ops | ⚠️ Phase 10 | High |
-| **BEYOND HYPERON** | | | | |
-| Distributed Atomspace | N/A | 0 ops | ❌ Phase 11 | Medium |
-| Enhanced Indexing | N/A | Basic | ⚠️ Phase 12 | Medium |
-| Tail Call Optimization | N/A | 0 | ❌ Phase 13 | Medium |
-| Neural-Symbolic Bridge | N/A | 0 ops | ❌ Phase 14 | Future |
-| Temporal Reasoning | N/A | Stubs | ⚠️ Phase 15 | Future |
-| Probabilistic Programming | N/A | 0 ops | ❌ Phase 16 | Future |
-| Visual Debugging | N/A | Basic | ⚠️ Phase 17 | Future |
-| Collaborative Spaces | N/A | 0 | ❌ Phase 18 | Future |
+| Category                  | Required | Implemented | Status      | Priority |
+|---------------------------|----------|-------------|-------------|----------|
+| **PARITY**                |          |             |             |          |
+| Core Kernel               | 8 ops    | 8 ops       | ✅ Complete  | -        |
+| Expression Ops            | 6 ops    | 6 ops       | ✅ Complete  | -        |
+| Math Functions            | 16 ops   | 16 ops      | ✅ Complete  | -        |
+| Set Operations            | 7 ops    | 7 ops       | ✅ Complete  | -        |
+| HOF Operations            | 3+3 ops  | 6 ops       | ✅ Complete  | -        |
+| Type Operations           | 5 ops    | 5 ops       | ✅ Complete  | -        |
+| Module System             | 3 ops    | 0 ops       | ❌ Phase 8   | High     |
+| Stateful Atoms            | 3 ops    | 0 ops       | ❌ Phase 9   | High     |
+| Collapse/Superpose        | 2 ops    | 1.5 ops     | ⚠️ Phase 10 | High     |
+| **BEYOND HYPERON**        |          |             |             |          |
+| Distributed Atomspace     | N/A      | 0 ops       | ❌ Phase 11  | Medium   |
+| Enhanced Indexing         | N/A      | Basic       | ⚠️ Phase 12 | Medium   |
+| Tail Call Optimization    | N/A      | 0           | ❌ Phase 13  | Medium   |
+| Neural-Symbolic Bridge    | N/A      | 0 ops       | ❌ Phase 14  | Future   |
+| Temporal Reasoning        | N/A      | Stubs       | ⚠️ Phase 15 | Future   |
+| Probabilistic Programming | N/A      | 0 ops       | ❌ Phase 16  | Future   |
+| Visual Debugging          | N/A      | Basic       | ⚠️ Phase 17 | Future   |
+| Collaborative Spaces      | N/A      | 0           | ❌ Phase 18  | Future   |
 
 **Current Progress:**
+
 - ✅ ~95% Hyperon stdlib parity (Phases 1-7 complete)
 - ⚠️ Module system and stateful atoms needed for 100% parity
 - 🚀 Beyond-Hyperon features planned for competitive advantage
@@ -1373,17 +1398,17 @@ export class CollaborativeSpace extends ReactiveSpace {
 ### Next Session Priority
 
 1. **Phase 8: Module System** (2-3 days)
-   - Implement `ModuleLoader.js`
-   - Add `import!`, `include!`, `bind!` operations
-   - Add `new-space`, space isolation
+    - Implement `ModuleLoader.js`
+    - Add `import!`, `include!`, `bind!` operations
+    - Add `new-space`, space isolation
 
 2. **Phase 9: Stateful Atoms** (1 day)
-   - Implement `StateOps.js`
-   - Add `new-state`, `get-state`, `change-state!`
+    - Implement `StateOps.js`
+    - Add `new-state`, `get-state`, `change-state!`
 
 3. **Phase 10: Complete Nondeterminism** (1 day)
-   - Rename `collapse-bind` → `collapse`
-   - Verify `superpose` semantics match Hyperon
+    - Rename `collapse-bind` → `collapse`
+    - Verify `superpose` semantics match Hyperon
 
 ### Stretch Goals
 
@@ -1397,65 +1422,76 @@ export class CollaborativeSpace extends ReactiveSpace {
 ### Demo Categories (11 Total)
 
 **Category A: Explainability** (3 demos)
+
 1. A1. Inference Audit Trail - Complete proof traces
 2. A2. Contradiction Detection - Explicit conflict handling
 3. A3. Epistemic Source Attribution - Input vs inferred vs derived
 
 **Category B: Temporal Reasoning** (3 demos)
+
 4. B1. Event Ordering and Causation
 5. B2. Frame Problem / Persistence
 6. B3. Delayed Effect Reasoning
 
 **Category C: Multi-Step Reasoning Under Uncertainty** (2 demos)
+
 7. C1. Confidence Degradation Tracking
 8. C2. Competing Hypothesis Evaluation
 
 **Category D: Memory Coherence** (2 demos)
+
 9. D1. Identity Persistence Through Updates
 10. D2. Cross-Session Consistency
 
 **Category E: Adversarial Robustness** (2 demos)
+
 11. E1. Prompt Injection Resistance
 12. E2. Trojan Belief Detection
 
 **Category F: Analogical Transfer** (2 demos)
+
 13. F1. A:B :: C:? analogies
 14. F2. Cross-Domain Transfer
 
 **Category G: Meta-Cognition** (2 demos)
+
 15. G1. Reasoning About Own Reasoning
 16. G2. Strategy Selection
 
 **Category H: Resource-Bounded Reasoning (AIKR)** (2 demos)
+
 17. H1. Time-Limited Inference
 18. H2. Memory Pressure
 
 **Category I: Learning/Adaptation** (2 demos)
+
 19. I1. Performance Improvement Over Time
 20. I2. Domain Knowledge Accumulation
 
 **Category J: Compositional Generalization** (2 demos)
+
 21. J1. Novel Combinations
 22. J2. Recursive Structure
 
 **Category K: Multi-Agent** (2 demos)
+
 23. K1. Belief Exchange with Trust
 24. K2. Collaborative Problem Solving
 
 ### NARL Benchmark Levels (10 Total)
 
-| Level | Name | Focus | SeNARS | LM Alone |
-|-------|------|-------|--------|----------|
-| 1 | **Trace** | Proof traces | 100% | 0% |
-| 2 | **Revise** | Belief revision | ~95% | ~40% |
-| 3 | **Persist** | Memory coherence | ~90% | ~50% |
-| 4 | **Cause** | Temporal causation | ~80% | ~35% |
-| 5 | **Resist** | Adversarial robustness | ~85% | ~30% |
-| 6 | **Uncertain** | Confidence tracking | ~90% | ~20% |
-| 7 | **Analog** | Analogical reasoning | ~75% | ~45% |
-| 8 | **Meta** | Meta-cognition | ~80% | ~10% |
-| 9 | **Bound** | Resource-bounded | ~85% | ~5% |
-| 10 | **Compose** | Compositional | ~80% | ~30% |
+| Level | Name          | Focus                  | SeNARS | LM Alone |
+|-------|---------------|------------------------|--------|----------|
+| 1     | **Trace**     | Proof traces           | 100%   | 0%       |
+| 2     | **Revise**    | Belief revision        | ~95%   | ~40%     |
+| 3     | **Persist**   | Memory coherence       | ~90%   | ~50%     |
+| 4     | **Cause**     | Temporal causation     | ~80%   | ~35%     |
+| 5     | **Resist**    | Adversarial robustness | ~85%   | ~30%     |
+| 6     | **Uncertain** | Confidence tracking    | ~90%   | ~20%     |
+| 7     | **Analog**    | Analogical reasoning   | ~75%   | ~45%     |
+| 8     | **Meta**      | Meta-cognition         | ~80%   | ~10%     |
+| 9     | **Bound**     | Resource-bounded       | ~85%   | ~5%      |
+| 10    | **Compose**   | Compositional          | ~80%   | ~30%     |
 
 **Total: 40+ demonstrations planned for post-MVP expansion**
 
@@ -1464,22 +1500,26 @@ export class CollaborativeSpace extends ReactiveSpace {
 ## 📊 Success Criteria
 
 **Parity Achievement:**
+
 - ✅ 51/51 Hyperon stdlib operations implemented (pending Phases 8-10)
 - ⚠️ Module system needed for complete parity
 - ⚠️ Stateful atoms needed for complete parity
 
 **Beyond Hyperon:**
+
 - Neural-symbolic bridge operational
 - DAS connector with federated queries
 - Temporal and probabilistic reasoning
 - Real-time collaborative editing
 
 **Performance:**
+
 - Indexed matching 10-100x faster for large rule sets
 - TCO eliminates stack overflow for recursive programs
 - < 1ms per reduction step maintained
 
 **Code Quality:**
+
 - ~1100 total LOC (vs current ~1200)
 - Clear separation: kernel (~600) vs stdlib (~500)
 - All public APIs documented
@@ -1491,56 +1531,57 @@ export class CollaborativeSpace extends ReactiveSpace {
 
 ### What We Gain ✅
 
-| Benefit | Impact |
-|---------|--------|
-| **Code Reduction** | 40% smaller codebase |
-| **Flexibility** | Hot-swap any logic without restart |
-| **Introspection** | Query system rules via `(match &self ...)` |
-| **Self-Modification** | System can learn new rules |
-| **Composability** | Small functions combine into complex behaviors |
-| **Clarity** | Logic is declarative MeTTa, not imperative JS |
-| **Testability** | MeTTa rules can be tested in isolation |
+| Benefit               | Impact                                         |
+|-----------------------|------------------------------------------------|
+| **Code Reduction**    | 40% smaller codebase                           |
+| **Flexibility**       | Hot-swap any logic without restart             |
+| **Introspection**     | Query system rules via `(match &self ...)`     |
+| **Self-Modification** | System can learn new rules                     |
+| **Composability**     | Small functions combine into complex behaviors |
+| **Clarity**           | Logic is declarative MeTTa, not imperative JS  |
+| **Testability**       | MeTTa rules can be tested in isolation         |
 
 ### What We Keep ✅
 
-| Preserved | Status |
-|-----------|--------|
-| **All tests pass** | Refactor guided by test suite |
-| **Examples work** | No breaking changes to demos |
-| **SeNARS integration** | Bridge preserved and enhanced |
-| **Performance** | Similar or better (functor indexing) |
+| Preserved              | Status                               |
+|------------------------|--------------------------------------|
+| **All tests pass**     | Refactor guided by test suite        |
+| **Examples work**      | No breaking changes to demos         |
+| **SeNARS integration** | Bridge preserved and enhanced        |
+| **Performance**        | Similar or better (functor indexing) |
 
 ### What We Accept ⚠️
 
-| Trade-off | Mitigation |
-|-----------|------------|
-| **LOC not 200** | V5's 200 LOC didn't include parser/errors. 600 is honest. |
-| **Not pure minimal** | Pragmatism over purity. Infrastructure adds real value. |
-| **Slower than C++** | JS is 5x slower than theoretical optimal, but fast enough. |
-| **Incomplete SeNARS** | Doesn't leverage Attention/Temporal yet. Can add later. |
+| Trade-off             | Mitigation                                                 |
+|-----------------------|------------------------------------------------------------|
+| **LOC not 200**       | V5's 200 LOC didn't include parser/errors. 600 is honest.  |
+| **Not pure minimal**  | Pragmatism over purity. Infrastructure adds real value.    |
+| **Slower than C++**   | JS is 5x slower than theoretical optimal, but fast enough. |
+| **Incomplete SeNARS** | Doesn't leverage Attention/Temporal yet. Can add later.    |
 
 ---
 
 ## Existing Code Mapping
 
-| Current File | New Location | Notes |
-|--------------|--------------|-------|
-| `TermFactory.js` | `kernel/Term.js` | Extract core, keep factory as adapter |
-| `MeTTaSpace.js` | `kernel/Space.js` | Simplify, remove NARS coupling |
-| `MeTTaHelpers.js` (Unification) | `kernel/Unify.js` | Extract pure functions |
-| `ReductionEngine.js` | `kernel/Reduce.js` | Simplify to step/reduce |
-| `GroundedAtoms.js` | `kernel/Ground.js` | Keep as registry |
-| `NonDeterminism.js` | `stdlib/match.metta` | Move logic to MeTTa |
-| `TypeSystem.js` | `stdlib/types.metta` | Express as constraint rules |
-| `MacroExpander.js` | (Remove) | Macros are just early reduction |
-| `SeNARSBridge.js` | `SeNARSBridge.js` | Enhance with grounded ops |
-| `MeTTaInterpreter.js` | `MeTTaInterpreter.js` | Simplify to wire kernel |
+| Current File                    | New Location          | Notes                                 |
+|---------------------------------|-----------------------|---------------------------------------|
+| `TermFactory.js`                | `kernel/Term.js`      | Extract core, keep factory as adapter |
+| `MeTTaSpace.js`                 | `kernel/Space.js`     | Simplify, remove NARS coupling        |
+| `MeTTaHelpers.js` (Unification) | `kernel/Unify.js`     | Extract pure functions                |
+| `ReductionEngine.js`            | `kernel/Reduce.js`    | Simplify to step/reduce               |
+| `GroundedAtoms.js`              | `kernel/Ground.js`    | Keep as registry                      |
+| `NonDeterminism.js`             | `stdlib/match.metta`  | Move logic to MeTTa                   |
+| `TypeSystem.js`                 | `stdlib/types.metta`  | Express as constraint rules           |
+| `MacroExpander.js`              | (Remove)              | Macros are just early reduction       |
+| `SeNARSBridge.js`               | `SeNARSBridge.js`     | Enhance with grounded ops             |
+| `MeTTaInterpreter.js`           | `MeTTaInterpreter.js` | Simplify to wire kernel               |
 
 ---
 
 ## Conclusion
 
 This roadmap balances:
+
 - **Elegance**: Minimal kernel, expressive MeTTa
 - **Pragmatism**: Extract from working code, don't rewrite
 - **Capability**: Full NAL, types, learning, introspection
@@ -1549,7 +1590,8 @@ This roadmap balances:
 
 **We're not building the theoretical minimum.** We're building **the practical minimum that works.**
 
-The result will be a powerful, flexible foundation that can grow into whatever we need—a reference implementation that achieves full Hyperon parity while pioneering the future of cognitive architectures on the Web Platform.
+The result will be a powerful, flexible foundation that can grow into whatever we need—a reference implementation that
+achieves full Hyperon parity while pioneering the future of cognitive architectures on the Web Platform.
 
 ---
 

@@ -1,8 +1,7 @@
 import {BaseMeTTaComponent} from './helpers/BaseMeTTaComponent.js';
 import {MeTTaRuleAdapter} from './helpers/MeTTaRuleAdapter.js';
 import {Term} from './kernel/Term.js';
-import {Task} from '../../core/src/task/Task.js';
-import {Truth} from '../../core/src/Truth.js';
+import {Task, Truth} from '@senars/nar';
 
 export class SeNARSBridge extends BaseMeTTaComponent {
     constructor(reasoner, mettaInterpreter, config = {}, eventBus = null) {
@@ -14,21 +13,14 @@ export class SeNARSBridge extends BaseMeTTaComponent {
     mettaToNars(term, punctuation = '.') {
         return this.trackOperation('mettaToNars', () => {
             this.emitMeTTaEvent('metta-to-nars', {term: term.toString()});
-            // Construct a proper Task object to ensure compatibility with Reasoner
-            // QUESTIONS must not have truth values
             const truth = (punctuation === '?' || punctuation === 'QUESTION') ? null : new Truth(0.9, 0.9);
-            return new Task({
-                term,
-                punctuation,
-                truth
-            });
+            return new Task({term, punctuation, truth});
         });
     }
 
     narsToMetta(task) {
         return this.trackOperation('narsToMetta', () => {
-            // task might be a Task object or a plain object
-            const term = task.term || task;
+            const term = task.term ?? task;
             this.emitMeTTaEvent('nars-to-metta', {term: term.toString()});
             return term;
         });
@@ -77,8 +69,6 @@ export class SeNARSBridge extends BaseMeTTaComponent {
         });
     }
 
-    // === Attention & Introspection ===
-
     getConceptSTI(atom) {
         return this._getBudget(atom, 'sti');
     }
@@ -106,7 +96,10 @@ export class SeNARSBridge extends BaseMeTTaComponent {
         this.trackOperation(`setConcept${type.toUpperCase()}`, () => {
             const term = atom?.toString?.() ?? String(atom);
             const c = this.reasoner?.memory?.getConcept?.(term);
-            if (c?.budget) c.budget[type] = value, this.emitMeTTaEvent(`${type}-updated`, {concept: term, [type]: value});
+            if (c?.budget) {
+                c.budget[type] = value;
+                this.emitMeTTaEvent(`${type}-updated`, {concept: term, [type]: value});
+            }
         });
     }
 
@@ -114,9 +107,10 @@ export class SeNARSBridge extends BaseMeTTaComponent {
         return this.trackOperation('getRelatedConcepts', () => {
             const term = atom?.toString?.() ?? String(atom);
             const c = this.reasoner?.memory?.getConcept?.(term);
-            if (!c?.links) return [];
-
-            const linked = Array.from(c.links).slice(0, max).map(l => l.target?.term ?? l.target);
+            if (!c?.links) {
+                return [];
+            }
+            const linked = [...c.links].slice(0, max).map(l => l.target?.term ?? l.target);
             this.emitMeTTaEvent('related-concepts-retrieved', {concept: term, count: linked.length});
             return linked;
         });
@@ -137,16 +131,14 @@ export class SeNARSBridge extends BaseMeTTaComponent {
             const concepts = this.reasoner?.memory?.getAllConcepts?.() ?? [];
             const stis = concepts.map(c => c.budget?.sti ?? 0).filter(s => s > 0);
             const avgSti = stis.length ? (stis.reduce((a, b) => a + b, 0) / stis.length).toFixed(2) : '0';
-            const maxSti = Math.max(...stis, 0).toFixed(2);
-            const minSti = stis.length ? Math.min(...stis).toFixed(2) : '0';
             const memUsage = process.memoryUsage ? (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2) : '0';
 
             return {
                 atomCount: this.mettaInterpreter?.space?.size?.() ?? 0,
                 conceptCount: concepts.length,
                 avgSTI: avgSti,
-                maxSTI: maxSti,
-                minSTI: minSti,
+                maxSTI: Math.max(...stis, 0).toFixed(2),
+                minSTI: stis.length ? Math.min(...stis).toFixed(2) : '0',
                 memoryMB: memUsage
             };
         });
@@ -167,17 +159,11 @@ export class SeNARSBridge extends BaseMeTTaComponent {
         const reg = (name, fn) => ground.register(name, fn);
 
         reg('&get-sti', a => sym(String(this.getConceptSTI(a))));
-        reg('&set-sti', (a, v) => (this.setConceptSTI(a, parseFloat(v.name || v)), a));
+        reg('&set-sti', (a, v) => (this.setConceptSTI(a, parseFloat(v.name ?? v)), a));
         reg('&get-lti', a => sym(String(this.getConceptLTI(a))));
-        reg('&set-lti', (a, v) => (this.setConceptLTI(a, parseFloat(v.name || v)), a));
-
+        reg('&set-lti', (a, v) => (this.setConceptLTI(a, parseFloat(v.name ?? v)), a));
         reg('&get-related', a => constructList(this.getRelatedConcepts(a), sym('()')));
-
-        reg('&nars-derive', (t, p) => {
-            const res = this.executeNARSDerivation(t, p?.name === '()' ? null : p);
-            return res || sym('()');
-        });
-
+        reg('&nars-derive', (t, p) => this.executeNARSDerivation(t, p?.name === '()' ? null : p) ?? sym('()'));
         reg('&system-stats', () => constructList(
             Object.entries(this.getSystemStats()).map(([k, v]) => exp(sym(':'), [sym(k), sym(String(v))])),
             sym('()')

@@ -1,6 +1,6 @@
-import {LMRuleFactory} from '../../../core/src/lm/LMRuleFactory.js';
+import {LMRuleFactory} from '@senars/nar/src/lm/LMRuleFactory.js';
 import {LM} from '../../../core/src/lm/LM.js';
-import {DummyProvider} from '../../../core/src/lm/DummyProvider.js';
+import {DummyProvider} from '@senars/core';
 
 describe('LMRuleFactory', () => {
     let lm;

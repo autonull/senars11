@@ -1,7 +1,7 @@
 import { Component } from './Component.js';
 import { SmartTextarea } from '../notebook/SmartTextarea.js';
-import { FluentUI, $ } from '../utils/FluentUI.js';
-import { ReactiveState } from '../core/ReactiveState.js';
+import { $ } from '../utils/FluentUI.js';
+import { ReactiveState } from '../core/index.js';
 
 export class CodeEditorPanel extends Component {
     constructor(container) {
@@ -25,7 +25,7 @@ export class CodeEditorPanel extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         try {
             $(this.container).clear().class('code-editor-panel');
@@ -218,7 +218,7 @@ export class CodeEditorPanel extends Component {
             // Group by group name
             const grouped = {};
             allFiles.forEach(f => {
-                if (!grouped[f.group]) grouped[f.group] = [];
+                if (!grouped[f.group]) {grouped[f.group] = [];}
                 grouped[f.group].push(f);
             });
 
@@ -237,11 +237,11 @@ export class CodeEditorPanel extends Component {
     }
 
     async onDemoSelect(path) {
-        if (!path || path === 'Load Demo...') return;
+        if (!path || path === 'Load Demo...') {return;}
 
         try {
-            const response = await fetch('/' + path);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const response = await fetch(`/${  path}`);
+            if (!response.ok) {throw new Error(`HTTP ${response.status}`);}
 
             const content = await response.text();
             this.editor.setValue(content);
@@ -269,7 +269,7 @@ export class CodeEditorPanel extends Component {
 
     execute(text) {
         const content = text || this.editor.getValue();
-        if (!content.trim()) return;
+        if (!content.trim()) {return;}
 
         // Future: Check syntax based on this.state.language before running
 

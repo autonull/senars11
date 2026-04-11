@@ -1,5 +1,5 @@
 import { Component } from './Component.js';
-import { FluentUI, div, button, span } from '../utils/FluentUI.js';
+import { div, button } from '../utils/FluentUI.js';
 
 /**
  * Standardized HUD Widget Container
@@ -27,7 +27,7 @@ export class HUDWidget extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         const widget = this.fluent()
             .class('hud-widget')
@@ -84,17 +84,17 @@ export class HUDWidget extends Component {
 
         if (this.isCollapsed) {
             this.contentContainer.addClass('collapsed');
-            if (btn) btn.text('▼').attr('title', 'Expand');
+            if (btn) {btn.text('▼').attr('title', 'Expand');}
             this.container.style.height = 'auto';
         } else {
             this.contentContainer.removeClass('collapsed');
-            if (btn) btn.text('▲').attr('title', 'Collapse');
+            if (btn) {btn.text('▲').attr('title', 'Collapse');}
             this.container.style.height = this.options.height;
         }
     }
 
     setContent(elementOrHtml) {
-        if (!this.contentContainer) return;
+        if (!this.contentContainer) {return;}
         this.contentContainer.clear();
 
         if (typeof elementOrHtml === 'string') {

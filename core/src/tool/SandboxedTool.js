@@ -90,7 +90,9 @@ export class SandboxedTool extends BaseTool {
     }
 
     sanitizeOutput(output) {
-        if (!output) return output;
+        if (!output) {
+            return output;
+        }
 
         return output
             .replace(/(password|token|key|secret|auth|api)[=:]\s*[^\\s\\n\\r]+/gi, '$1: [REDACTED]')

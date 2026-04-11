@@ -3,22 +3,26 @@
  * Q5: Reuse SeNARS TermCache for reduction memoization
  */
 
-import { TermCache } from '../../../core/src/term/TermCache.js';
-import { configManager } from '../config/config.js';
+import {TermCache} from '@senars/nar/src/term/TermCache.js';
+import {configManager} from '../config/config.js';
 
 export class ReductionCache {
     constructor(maxSize = configManager.get('maxCacheSize')) {
-        this.cache = new TermCache({ maxSize });
+        this.cache = new TermCache({maxSize});
         this.enabled = configManager.get('caching');
     }
 
     get(atom) {
-        if (!this.enabled) return undefined;
+        if (!this.enabled) {
+            return undefined;
+        }
         return this.cache.get(this._key(atom));
     }
 
     set(atom, result) {
-        if (!this.enabled) return;
+        if (!this.enabled) {
+            return;
+        }
         this.cache.put(this._key(atom), result);
     }
 

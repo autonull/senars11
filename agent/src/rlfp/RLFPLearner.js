@@ -1,5 +1,5 @@
 import fs from 'fs';
-import {Logger} from '../../../core/src/util/Logger.js';
+import {Logger} from '@senars/core';
 
 class RLFPLearner {
     constructor(agent) {
@@ -11,7 +11,9 @@ class RLFPLearner {
         const prefs = Array.isArray(preferences) ? preferences : [preferences];
         const validPrefs = prefs.filter(p => p?.preference && p.preference !== 'SKIP');
 
-        if (!validPrefs.length) return;
+        if (!validPrefs.length) {
+            return;
+        }
 
         Logger.info(`RLFPLearner: Processing ${validPrefs.length} preference(s)...`);
 
@@ -49,8 +51,12 @@ class RLFPLearner {
         return trajectory
             .filter(s => s.type !== 'llm_prompt')
             .map(s => {
-                if (s.type === 'tool_call') return `<tool_call>${s.name}(${JSON.stringify(s.args)})</tool_call>`;
-                if (s.type === 'lm_response') return s.content;
+                if (s.type === 'tool_call') {
+                    return `<tool_call>${s.name}(${JSON.stringify(s.args)})</tool_call>`;
+                }
+                if (s.type === 'lm_response') {
+                    return s.content;
+                }
                 return JSON.stringify(s);
             })
             .join('\n');
@@ -58,7 +64,7 @@ class RLFPLearner {
 
     _appendToFile(entry) {
         try {
-            fs.appendFileSync(this.outputFile, JSON.stringify(entry) + '\n');
+            fs.appendFileSync(this.outputFile, `${JSON.stringify(entry)}\n`);
         } catch (error) {
             Logger.error(`RLFPLearner write error: ${error.message}`);
         }

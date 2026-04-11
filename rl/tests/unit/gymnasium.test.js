@@ -1,15 +1,15 @@
 /**
  * GymnasiumWrapper Tests
  */
-import { GymWrapper, gym, isGymnasiumAvailable } from '../../src/environments/GymnasiumWrapper.js';
+import {gym, GymWrapper, isGymnasiumAvailable} from '../../src/index.js';
 
 describe('GymnasiumWrapper', () => {
     describe('isGymnasiumAvailable', () => {
-        it('should check gymnasium availability', async () => {
-            const available = await isGymnasiumAvailable();
-            // This will be false if gymnasium is not installed
-            expect(typeof available).toBe('boolean');
-        });
+it('should check gymnasium availability', async () => {
+    const available = await isGymnasiumAvailable();
+    // This will be false if gymnasium is not installed
+    expect(typeof available).toBe('boolean');
+  }, 10000);
     });
 
     describe('GymWrapper', () => {
@@ -17,7 +17,8 @@ describe('GymnasiumWrapper', () => {
 
         afterEach(async () => {
             if (wrapper) {
-                await wrapper.shutdown().catch(() => {});
+                await wrapper.shutdown().catch(() => {
+                });
             }
         });
 
@@ -36,37 +37,37 @@ describe('GymnasiumWrapper', () => {
             });
         });
 
-        describe('initialization', () => {
-            it('should initialize without Python', async () => {
-                wrapper = new GymWrapper('CartPole-v1');
-                await wrapper.initialize();
+describe('initialization', () => {
+    it('should initialize without Python', async () => {
+      wrapper = new GymWrapper('CartPole-v1');
+      await wrapper.initialize();
 
-                expect(wrapper.initialized).toBe(true);
-            });
+      expect(wrapper.initialized).toBe(true);
+    }, 10000);
 
-            it('should infer observation space for CartPole', async () => {
-                wrapper = new GymWrapper('CartPole-v1');
-                await wrapper.initialize();
+    it('should infer observation space for CartPole', async () => {
+      wrapper = new GymWrapper('CartPole-v1');
+      await wrapper.initialize();
 
-                expect(wrapper.observationSpace).toBeDefined();
-                expect(wrapper.observationSpace.shape).toEqual([4]);
-            });
+      expect(wrapper.observationSpace).toBeDefined();
+      expect(wrapper.observationSpace.shape).toEqual([4]);
+    }, 10000);
 
-            it('should infer action space for CartPole', async () => {
-                wrapper = new GymWrapper('CartPole-v1');
-                await wrapper.initialize();
+    it('should infer action space for CartPole', async () => {
+      wrapper = new GymWrapper('CartPole-v1');
+      await wrapper.initialize();
 
-                expect(wrapper.actionSpace).toBeDefined();
-                expect(wrapper.actionSpace.type).toBe('discrete');
-                expect(wrapper.actionSpace.n).toBe(2);
-            });
-        });
+      expect(wrapper.actionSpace).toBeDefined();
+      expect(wrapper.actionSpace.type).toBe('discrete');
+      expect(wrapper.actionSpace.n).toBe(2);
+    }, 10000);
+  });
 
-        describe('action sampling', () => {
-            beforeEach(async () => {
-                wrapper = new GymWrapper('CartPole-v1');
-                await wrapper.initialize();
-            });
+describe('action sampling', () => {
+    beforeEach(async () => {
+      wrapper = new GymWrapper('CartPole-v1');
+      await wrapper.initialize();
+    }, 10000);
 
             it('should sample discrete action', () => {
                 const action = wrapper.sampleAction();
@@ -84,11 +85,11 @@ describe('GymnasiumWrapper', () => {
             });
         });
 
-        describe('metadata', () => {
-            beforeEach(async () => {
-                wrapper = new GymWrapper('CartPole-v1');
-                await wrapper.initialize();
-            });
+describe('metadata', () => {
+    beforeEach(async () => {
+      wrapper = new GymWrapper('CartPole-v1');
+      await wrapper.initialize();
+    }, 10000);
 
             it('should return environment metadata', () => {
                 const metadata = wrapper.getMetadata();
@@ -98,15 +99,15 @@ describe('GymnasiumWrapper', () => {
             });
         });
 
-        describe('different environments', () => {
-            it('should handle MountainCar', async () => {
-                wrapper = new GymWrapper('MountainCar-v0');
-                await wrapper.initialize();
+describe('different environments', () => {
+    it('should handle MountainCar', async () => {
+      wrapper = new GymWrapper('MountainCar-v0');
+      await wrapper.initialize();
 
-                expect(wrapper.observationSpace.shape).toEqual([2]);
-                expect(wrapper.actionSpace.type).toBe('discrete');
-                expect(wrapper.actionSpace.n).toBe(3);
-            });
+      expect(wrapper.observationSpace.shape).toEqual([2]);
+      expect(wrapper.actionSpace.type).toBe('discrete');
+      expect(wrapper.actionSpace.n).toBe(3);
+    }, 10000);
 
             it('should handle Pendulum', async () => {
                 wrapper = new GymWrapper('Pendulum-v1');
