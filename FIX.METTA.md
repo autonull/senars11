@@ -1,13 +1,13 @@
-# PeTTa MeTTa Implementation - Gap Closure
+# PeTTa MeTTa Implementation — Debug Log & Gap Analysis
 
 ## Overview
 
-The MeTTa implementation in this repo (`metta/src/`) is being evaluated against
-the **PeTTa dialect** by running 100 example files from the
+The MeTTa implementation in this repo (`metta/src/`) is evaluated against the
+**PeTTa dialect** by running 100 example files from the
 [PeTTa repository](https://github.com/trueagi-io/PeTTa/tree/main/examples).
 
-Each example is run as an isolated child process with a 1-second timeout.
-Passing means: (a) completes within timeout, AND (b) all `!(test ...)` assertions match.
+Each example runs as an isolated child process with a 1-second timeout.
+Passing requires: (a) completes within timeout, AND (b) all `!(test ...)` assertions match.
 
 ### How to run tests
 
@@ -20,81 +20,62 @@ NODE_NO_WARNINGS=1 NODE_OPTIONS=--experimental-vm-modules node scripts/run-petta
 
 | Status | Count | Details |
 |--------|-------|---------|
-| ✓ Pass | **17** | and_or, chain, collapse, comments, constanthead, empty, greedy_chess, identity, if, if2, if4, ifsimple, letstar, matchtypes, multicall, myinterpreter, once |
-| ⏱ Timeout | 13 | factorial, fib, fibsmart, eval, holbenchmark, iter, letlet, matespace, matespace2, matespacefast, peano, peanofast, booleansolver |
-| ✗ Fail | 60 | See "Remaining work" below |
+| ✓ Pass | **19** | and_or, chain, collapse, comments, constanthead, curry, empty, greedy_chess, identity, if, if2, if3, if4, ifsimple, letstar, matchtypes, multicall, myinterpreter, once |
+| ⏱ Timeout | 9 | booleansolver, eval, factorial, fib, fibsmart, holbenchmark, iter, peano, peanofast |
+| ✗ Fail | 62 | See "Remaining work" below |
 | ⊘ Skip | 10 | External deps: git_import, git_import2, fibsmartimport, library, nars_direct, nars_tuffy, llm_cities, metta4_streams, mutex_and_transaction, he_atomspace |
 
-**Pass rate: 19%** (17/90 testable). Started at 12% (12/90).
+**Pass rate: 21%** (19/90 testable). Baseline was 12% (12/90).
 
 ---
 
-## What was done
+## Changes Applied
 
-### Infrastructure
-- `metta/examples/` — 100 `.metta` files copied from PeTTa repo
-- `metta/examples/README.md` — attribution + link
-- `scripts/run-petta-examples.js` — CLI runner (each example as separate child process)
-- `scripts/run-single-metta.js` — single-file runner (used by the CLI)
-- `tests/integration/metta/petta-examples.test.js` — Jest integration test
+### 1. `&is-var` — Fixed variable detection (`AdvancedOps.js`)
+**Bug**: Used `a._typeTag === 3` (Nar reasoner type constant) but VariableAtom in this codebase uses `.type === 'variable'`, not `._typeTag`.
+**Fix**: `a.type === 'variable' || a.name?.startsWith('$')` — covers both standard VariableAtom instances and PeTTa-style `$var` symbols.
+**Impact**: `if3.metta` now passes (was failing because `(is-var $A)` returned False).
 
-### MeTTa Implementation Fixes
+### 2. Lambda: `&subst` → `&let` (`core.metta`)
+**Bug**: Lambda rules used `(^ &subst $param $val $body)` which performs bare textual substitution without running the body through the reduction pipeline. Expressions like `(+ $x $y)` with substituted values were never reduced to `9`.
+**Fix**: Changed `(^ &subst $p $v $b)` to `(^ &let $p $v $b)`. The `&let` grounded op reduces the value first, substitutes, then the pipeline reduces the resulting body expression.
+**Impact**: `applyL1` in `lambda.metta` now returns `3` (was returning unevaluated `(+ 2 1)`).
 
-#### 1. Bare expressions → space (MeTTaInterpreter.js)
-**Bug**: `(a b)` was being evaluated instead of added to the space as a fact.
-**Fix**: Both sync and async processing paths now add bare expressions to the
-space, matching standard MeTTa behavior. Only `!`-prefixed expressions are evaluated.
+### 3. `&let` — Enhanced binding resolution (`AdvancedOps.js`)
+**Bug**: Only checked `vari?.name`, missing PeTTa variable forms like expression-wrapped variables `($x)`.
+**Fix**: Multi-path binding detection:
+- `vari.type === 'variable'` — standard VariableAtom
+- `vari.name?.startsWith('$')` — PeTTa-style `$var`
+- `vari.components?.length === 0` with variable operator — expression-form `($x)`
+- `vari.components?.length === 1` with variable component
+- Falls back to `Unify.unify(vari, resolved)` for expression patterns
 
-#### 2. Async Promise leak (ReductionPipeline.js)
-**Bug**: Grounded ops (`&==`, `&>`, `&+`, etc.) return Promises. The sync
-reduction path yielded these Promises as reduced atoms, causing `[object Promise]`
-to leak into comparisons.
-**Fix**:
-- Sync `_executeGrounded` now skips async ops (returns `applied: false`)
-- Added `_reduceArgumentAsync`, `_reduceOperatorAsync`, `_executeWithZipperAsync`
-  — full async pipeline
-- `_reduceArgumentAsync` falls through to execute the grounded op when the
-  argument can't be reduced further (e.g., `(^ &repr (f 1))` when `(f 1)` won't reduce)
+### 4. `&subst` — 3-arg form fallback (`AdvancedOps.js`)
+**Bug**: `(&subst a b c)` with 3 args only checked `a.name`, failing when `a` is an expression-form variable.
+**Fix**: Added `Unify.unify(a, b)` fallback and component-level binding detection.
 
-#### 3. Currying / partial application (ClosureStage.js)
-**Bug**: `((f 1) 2)` didn't combine partial args to match the rule for `f`.
-**Fix**: New `ClosureStage` detects expression-as-operator patterns like
-`((f 1) 2)` where `(f 1)` is a partial application. It combines captured args
-with provided args and tries rule matching.
+### 5. `ClosureStage` — Multi-level rule lookup (`ClosureStage.js`)
+**Bug**: Only looked up rules for `funcAtom.name` directly. Nested partial applications like `(((f 1) 2) 3)` have the function atom several levels deep.
+**Fix**: Walk up the operator chain:
+- `atom.operator.operator.operator` for 3-deep nesting
+- `atom.operator.operator.operator.operator` for 4-deep
+- `funcAtom.operator` when funcAtom is an expression
+- `context.space?.all()` when funcAtom is a variable
 
-#### 4. Missing grounded ops (AdvancedOps.js, Ground.js, core.metta)
-Added:
-- `&cut` — returns `()` (peeks non-determinism, placeholder for pruning)
-- `&once` — returns first element of a cons-list
-- `&is-var` — checks if atom is a variable (type-tag check)
-- `&=alpha` — alpha-equivalence (structural equality ignoring variable names)
-- `&repr` — string representation with partial-application detection
-- `&case` — pattern matching with multiple branches
-- `&foldall` — fold over all non-deterministic reduction results
+### 6. `_matchClosure` — Dynamic rule fallback (`ReductionPipeline.js`)
+**Bug**: When `ClosureStage` passed an empty `rules` array, `_matchClosure` had no way to find rules.
+**Fix**: Added dynamic rule lookup inside `_matchClosure` that walks the operator chain when `rules.length === 0`.
 
-#### 5. stdlib fixes (core.metta, hof.metta, list.metta)
-- Fixed `add-atom`/`rm-atom` arity: `(add-atom $s $x)` (2 args, PeTTa style)
-- Fixed `&add-atom`/`&rm-atom`/`&get-atoms` to handle `&self` → interpreter's space
-- Added `append` rules for PeTTa-style list expressions `($x)`, `($x $y)`, etc.
-- Added `map-atom` 2-arg variants for partial function application
-- Added `empty`, `cut`, `once`, `is-var`, `case`, `foldall`, `repr` stdlib rules
+### 7. PeTTa `|->` lambda syntax (`core.metta`)
+**Added**:
+```
+(= ((|-> $param $body) $val) (^ &let $param $val $body))
+(= (((|-> $param $body) $val1) $val2) ((|-> $param $body) ($val1 $val2)))
+```
 
-#### 6. Test op improvements (MinimalOps.js)
-- Uses `evaluateAsync` for proper async reduction
-- Normalizes cons-lists `(: a (: b ()))` and PeTTa expressions `(a b)` to the
-  same cons-list form for comparison
-- Handles quoted strings: `"(partial f (1))"` vs `(partial f (1))`
-- Handles `collapse` returning `()` for empty results
-
-#### 7. Collapse improvements (MinimalOps.js)
-- Async (`reduceNDAsync`)
-- Returns `()` directly for empty results (not `(: () ())`)
-- If single result is already a list, returns it as-is (avoids double-wrapping)
-
-#### 8. Bug fixes
-- `CoreRegistry._normalize()`: Guard for non-string atom names (was crashing with
-  `name.startsWith is not a function`)
-- PeTTa-style list expressions in `append`: `($x $y)` → `(: x (: y ()))`
+### 8. All grounded ops → `lazy: true` (`AdvancedOps.js`)
+**Bug**: Many ops had `opts: {}` (empty), causing the reduction pipeline to pre-reduce arguments before calling the op. For control-flow ops like `&if`, `&let`, this causes premature evaluation of unevaluated branches.
+**Fix**: All ops in AdvancedOps.js now have `opts: {lazy: true}`.
 
 ---
 
@@ -109,14 +90,14 @@ metta/src/
   kernel/
     Reduce.js            # Core reduction: reduceND, reduceNDAsync, reduceAsync, step, match
     Term.js              # Term factory: sym, exp, grounded, variable, isExpression, isList, equals
-    Unify.js             # Pattern matching/unification
+    Unify.js             # Pattern matching/unification (safeSubstitute, unifiedUnify)
     Space.js             # Atom space (facts + rules)
     Ground.js            # Grounded operations registry (CoreRegistry subclass)
     Zipper.js            # Deep expression traversal
     reduction/
-      ReductionPipeline.js  # Multi-stage reduction engine (Cache → Superpose → Closure → RuleMatch → OperatorReduce → Zipper → GroundedOp → ExplicitCall)
+      ReductionPipeline.js  # Multi-stage reduction engine
       stages/
-        ClosureStage.js     # NEW: Detects ((f 1) 2) partial applications
+        ClosureStage.js     # Detects ((f 1) 2) partial applications
         GroundedOpStage.js  # Grounded op invocation
         RuleMatchStage.js   # Rule matching
         SuperposeStage.js   # Non-deterministic alternatives
@@ -127,253 +108,170 @@ metta/src/
       ArithmeticOps.js      # &+, &*, &-, &/
       ComparisonOps.js      # &==, &>, &<
       LogicalOps.js         # &and, &or, &not
-      ...
   interp/
-    AdvancedOps.js       # &if, &when, &let, &let*, &map-fast, &add-atom (override), alphaEquiv
+    AdvancedOps.js       # &if, &when, &let, &let*, &map-fast, &add-atom, alphaEquiv
     MinimalOps.js        # eval, chain, unify, collapse, superpose, test, createTestOp
   stdlib/
-    core.metta           # if, let, let*, lambda, logic, arithmetic wrappers, cut, once, empty, is-var, case, foldall, repr
-    list.metta           # append, take, drop, nth, reverse, zip, etc.
+    core.metta           # if, let, let*, lambda, logic, arithmetic, cut, once, case, ...
+    list.metta           # append, take, drop, nth, reverse, zip, ...
     hof.metta            # map-atom, filter-atom, foldl-atom
-    match.metta          # match helpers
-    types.metta          # Type system
-    ...
-  config/
-    ConfigManager.js     # Configuration
-    ExtensionRegistry.js # Extensions
-
-scripts/
-  run-petta-examples.js  # Main test runner
-  run-single-metta.js    # Single-file runner (spawned by run-petta-examples.js)
 ```
 
 ### Key patterns
 
 **Grounded ops**: Registered via `ground.register('&name', fn, opts)`.
-- `lazy: true` — args are not pre-reduced (op gets raw atoms)
-- `async: true` — op is async, reduction pipeline uses async path
+- `lazy: true` — args are not pre-reduced (op gets raw atoms). Critical for control-flow.
+- `async: true` — op is async, reduction pipeline uses async path.
 
-**Reduction pipeline stages** (in order):
-1. CacheStage — memoized results
-2. JITStage — compiled hot paths
-3. SuperposeStage — expand non-deterministic alternatives
-4. **ClosureStage** — NEW: detect `((f args...) moreArgs)`
-5. RuleMatchStage — match rules for atom
-6. OperatorReduceStage — reduce operator expression
-7. ZipperStage — deep traversal for nested expressions
-8. GroundedOpStage — call grounded operations
-9. ExplicitCallStage — direct function calls
+**Reduction pipeline stages** (order):
+1. CacheStage → 2. JITStage → 3. SuperposeStage → 4. ClosureStage → 5. RuleMatchStage → 6. OperatorReduceStage → 7. ZipperStage → 8. GroundedOpStage → 9. ExplicitCallStage
 
 **Expression representation**:
-- PeTTa uses `(: head tail)` cons-cells for lists: `(: 1 (: 2 (: 3 ())))`
-- PeTTa also accepts shorthand: `(1 2 3)` parsed as expression with operator `1` and components `[2, 3]`
-- The parser converts `(1 2 3)` to `exp(sym('1'), [sym('2'), sym('3')])`
-- The `cons` rule maps: `(= (cons $h $t) (: $h $t))`
-- The `test` op normalizes both forms to cons-lists for comparison
-
-**Rule matching**: `space.rulesFor(atom)` finds all rules whose pattern unifies with the atom.
-The `ClosureStage` extends this by detecting partial applications and combining args.
+- PeTTa uses `(: head tail)` cons-cells: `(: 1 (: 2 (: 3 ())))`
+- Shorthand: `(1 2 3)` parsed as `exp(sym('1'), [sym('2'), sym('3')])`
+- The test op normalizes both forms to cons-lists for comparison
 
 ---
 
-## Remaining Work (60 failures)
+## Remaining Work (62 failures)
 
-### Priority 1: High impact, targeted fixes
+### Priority 1: Case, cut, lambda multi-arg
 
-#### 1.1 Fix `cut.metta` (1 file)
-**Test**: `(foo 1)`, `(foo 2)`, `match-single-via-cut` → should return only `(bar 1)`, not `(bar (: 1 (: 2 ())))`.
-**Root cause**: Our `match` returns a cons-list of all results. `cut` returns `()` which is added
-to the match results. In PeTTa, `match` produces non-deterministic alternatives via `superpose`,
-and `cut` prunes remaining alternatives.
-**Fix approach**:
-- Option A: Make `match` produce `superpose` alternatives instead of a cons-list
-- Option B: Make `cut` set a "cut flag" in the reduction context that causes the
-  reduction pipeline to stop producing alternatives after the current one
-- Option C: In the `ClosureStage` / `RuleMatchStage`, after a match succeeds with `cut`,
-  yield only that one result
+#### 1.1 `case` family (5 files: case, case2, caseconstrain, caseempty, casenew)
+**Root cause**: `&case` walks cons-list structure (`operator === ':'`) but branches may be expression-form `(pat result)` not cons-cells.
+**Fix**: Make `&case` handle both cons-list and expression-form branch lists.
 
-#### 1.2 Fix `if3.metta` (1 file)
-**Test**: `(if (is-var $A) (if True 42 lol) (+ 2 2))` → should return `42`.
-**Root cause**: The rule `(= (is-var $x) True)` matches EVERY atom (because `$x` is
-unconditionally bound). It should only return True for variable atoms.
-**Fix**: The `&is-var` grounded op is correct. The stdlib rule `(= (is-var $x) True)`
-in `core.metta` is wrong — it's a catch-all that shadows the grounded op. Remove it.
-The `(is-var $A)` in the test has `$A` as a free variable in the program text, which
-the parser represents as a VariableAtom. When reduced, `&is-var` sees the variable and
-returns True. But the catch-all rule intercepts first.
+#### 1.2 `cut.metta` (1 file)
+**Root cause**: `cut` returns `()` which gets added to match results. In PeTTa, `cut` prunes remaining non-deterministic alternatives.
+**Fix**: Implement cut flag in reduction context, or make `match` produce `superpose` alternatives.
 
-#### 1.3 Fix `lambda.metta` (1 file)
-**Test**: `applyL2` → should return `9`.
-**Root cause**: `applyL2` uses `(|-> $y (^ &+ $y $y))` — a PeTTa-style lambda. The
-reduction engine needs to recognize `|->` as lambda syntax and apply it. The `ClosureStage`
-handles `((lambda $p $b) $v)` but `|->` creates a different expression structure.
-**Fix**: Add `|->` pattern recognition to `ClosureStage` or add a stdlib rule.
+#### 1.3 `lambda.metta` multi-arg (partial: applyL1 passes, applyL2 fails)
+**Root cause**: `(lambda ($x $y) body)` has list-style parameters. `&let` needs to decompose `($x $y)` into nested single-variable lets.
+**Also**: `|->` curried application tests fail — the `(((|-> $x $y) $a) $b)` pattern isn't being reduced through properly.
 
-#### 1.4 Fix `case.metta` family (5 files: case, case2, caseconstrain, caseempty, casenew)
-**Test**: `(case 5 ((4 42) ($other 44)))` → should return `44`.
-**Root cause**: The `&case` grounded op exists but the unification logic may not handle
-the branch list structure correctly. PeTTa's case branches are `((pat result) ...)` lists.
-**Fix**: Debug `&case` to ensure it correctly iterates over cons-list branches and
-unifies patterns.
+#### 1.4 `ifcasenondet.metta` (1 file)
+Depends on `case` fix above.
 
-### Priority 2: Missing stdlib / ops
+### Priority 2: Missing ops / stdlib
 
-#### 2.1 `parse.metta` (1 file)
-The `parse` operation for parsing strings into atoms. May need `&parse` grounded op.
-
-#### 2.2 `partialdef.metta` (1 file)
-Partial function definitions — functions with fewer args than pattern vars should
-return a partial application, not fail.
-
-#### 2.3 `functionhead.metta` / `functionhead2.metta` / `functionhead3.metta` (3 files)
-Function head pattern matching — rules like `(= (h (42 10 40) 42000) True)` should
-match when called with those exact arguments.
-
-#### 2.4 `functionremoval.metta` / `functionremovalspec.metta` (2 files)
-`remove-atom` and dynamic rule removal.
-
-#### 2.5 `parametric_types.metta` (1 file)
-Type parameter extraction and inference.
+- **`parse.metta`** — Need `&parse` grounded op for string→atom parsing
+- **`partialdef.metta`** — Partial function definitions (fewer args than pattern vars)
+- **`functionhead.metta/2/3`** (3 files) — Function head pattern matching with exact args
+- **`functionremoval.metta/removalspec`** (2 files) — `remove-atom` and dynamic rule removal
+- **`parametric_types.metta`** — Type parameter extraction
 
 ### Priority 3: List / pattern matching
 
-#### 3.1 `nestedcons.metta` (1 file)
-`(cons $a (cons $b $L))` patterns don't match PeTTa lists `(: x (: y z))` because
-the stdlib `cons` rule `(= (cons $h $t) (: $h $t))` requires the rule matcher to
-follow the indirection. This is a fundamental pattern-matching limitation.
-
-#### 3.2 `listhead.metta` (1 file)
-Same issue — list deconstruction with pattern matching.
-
-#### 3.3 `permutations.metta` (1 file)
-Generates permutations using list pattern matching and recursion. Also very slow.
-
-#### 3.4 `logicprog.metta` / `logicprogset.metta` (2 files)
-Logic programming patterns — transitive closure, set operations.
+- **`nestedcons.metta`** — `(cons $a (cons $b $L))` patterns don't match cons-lists
+- **`listhead.metta`** — List deconstruction with pattern matching
+- **`permutations.metta`** — List pattern matching + recursion (also slow)
+- **`logicprog.metta/logicprogset`** (2 files) — Transitive closure, set operations
 
 ### Priority 4: Higher-order functions
 
-#### 4.1 `foldall.metta` / `foldallmatch.metta` / `foldallspacecount.metta` (3 files)
-`foldall` needs to iterate over all non-deterministic results of an expression.
-The current `&foldall` is a stub.
+- **`foldall.metta/foldallmatch/foldallspacecount`** (3 files) — `&foldall` needs full implementation
+- **`forall.metta`** — Universal quantification over results
 
-#### 4.2 `forall.metta` (1 file)
-Universal quantification over a set of results.
+### Priority 5: Performance (9 timeouts)
 
-### Priority 5: Performance (13 timeouts)
-
-These files produce correct results but take >1s:
-- **factorial, fib, fibsmart** — Recursive functions, heavy async overhead
-- **peano, peanofast** — Peano arithmetic, very deep recursion
+- **factorial, fib, fibsmart** — Recursive functions, async overhead
+- **peano, peanofast** — Peano arithmetic, deep recursion
 - **eval** — Nested eval chains
 - **holbenchmark** — Higher-order logic benchmarks
-- **iter** — Iteration with large numbers
-- **letlet, matespace, matespace2, matespacefast, booleansolver** — Deep reduction chains
-
-**Fix approaches**:
-- Increase max reduction steps
-- Add memoization / JIT caching
-- Optimize `reduceNDAsync` to reduce `await` overhead
-- Make simple arithmetic ops synchronous in the async pipeline
+- **iter** — Large iteration counts
+- **booleansolver** — Deep reduction chains
 
 ### Priority 6: External dependencies (10 skipped)
 
-These require external PeTTa libraries we don't have:
-- `he_*` files — need `lib_he` (HeMeTTa library)
-- `git_import*` — git-based module loading
-- `nars_*` — NARS integration
-- `llm_cities` — LLM integration
-- `metta4_streams` — stream processing
-- `mutex_and_transaction` — concurrent programming
-- `library` — PeTTa library system
-- `fibsmartimport` — imports PeTTa library
-- `patrick_*` — imports `lib_patrick`
+External PeTTa libraries not available: `he_*`, `git_import*`, `nars_*`, `llm_cities`, `metta4_streams`, `mutex_and_transaction`, `library`, `fibsmartimport`, `patrick_*`.
 
 ---
 
-## Key Insights
+## Key Insights & Debugging Procedures
 
-### The test op is strict
-The `!(test actual expected)` construct fully reduces `actual` and compares its
-string representation to `expected`. This means:
-- Partial reductions fail (e.g., if an op is not registered)
-- Different string representations of the same value fail (`3` vs `3.0`, cons vs expression)
-- The test normalization in `MinimalOps.createTestOp` handles cons-list ↔ expression
-  conversion, but there may be edge cases
+### Debugging procedure that worked
 
-### PeTTa list representation is ambiguous
-`(1 2 3)` can mean:
+```bash
+# 1. Run all tests for overview
+NODE_NO_WARNINGS=1 NODE_OPTIONS=--experimental-vm-modules node scripts/run-petta-examples.js
+
+# 2. Run single file for detailed output (exits 0=pass, 1=fail)
+NODE_NO_WARNINGS=1 NODE_OPTIONS=--experimental-vm-modules node scripts/run-single-metta.js lambda.metta
+
+# 3. Interactive debugging with node -e (bypasses runner's silent error handling)
+node -e "
+import {createMeTTa} from './metta/src/MeTTa.js';
+import fs from 'fs';
+const code = fs.readFileSync('./metta/examples/lambda.metta', 'utf-8');
+const m = createMeTTa({loadStdlib: false});
+const results = await m.runAsync(code);
+console.log(JSON.stringify(results.map(r => r.toString()), null, 2));
+"
+```
+
+The runner (`run-single-metta.js`) only exits 0/1 without printing diagnostics on failure. The `node -e` approach with `JSON.stringify(results.map(r => r.toString()))` reveals the actual reduction results, which is essential for diagnosing why tests fail.
+
+### Insight: VariableAtom detection is inconsistent
+VariableAtom instances have `.type === 'variable'` but NOT `._typeTag === 3`. The `_typeTag` constant comes from the Nar reasoner (`@senars/nar`) and isn't set on VariableAtom in this codebase. Always use `.type === 'variable'` or `.name?.startsWith('$')` for PeTTa compatibility.
+
+### Insight: Lambda needs `&let` not `&subst`
+`&subst` is a pure substitution function — it replaces variables with values but does NOT reduce the resulting expression through the pipeline. `&let` reduces the value first, substitutes, then returns the body which gets reduced by the caller (through `reduceNDAsync`). For nested expressions like `(+ $x $y)` where the result should be `9`, `&let` is required.
+
+### Insight: `&let` must handle PeTTa variable forms
+PeTTa variables appear in three forms:
+1. `VariableAtom` with `.type === 'variable'` (standard MeTTa parser output)
+2. Symbols starting with `$` — `.name.startsWith('$')` (PeTTa style)
+3. Expression forms like `($x)` — a VariableAtom as operator with zero components
+
+The `Unify.unify(pattern, value)` fallback handles the most complex cases. Always try unify first, then fall back to name/type checks.
+
+### Insight: Closure detection needs deep operator chain walking
+For `(((f 1) 2) 3)`, the structure is:
+```
+exp( exp( exp(f, [1]), [2] ), [3] )
+```
+The base function `f` is at `atom.operator.operator.operator`. `ClosureStage` must walk up the chain to find rules. When `funcAtom` is itself an expression (not a simple symbol), also check `funcAtom.operator`.
+
+### Insight: `_matchClosure` needs dynamic rule fallback
+Even when `ClosureStage` detects a closure, the `rules` array it passes may be empty if the function atom lookup returned nothing. `_matchClosure` must do its own rule lookup walking the operator chain.
+
+### Insight: `lazy: true` is critical for control-flow ops
+Without `lazy: true`, the reduction pipeline pre-reduces all arguments before calling the grounded op. For `&if`, this means BOTH branches get evaluated before the condition is checked — wrong semantics and wasteful. For `&let`, pre-reducing the body before substitution means variables in the body are never replaced. All control-flow and binding ops must be `lazy: true`.
+
+### Insight: Async overhead is significant
+Each `await` adds ~1-5ms. Deep recursive calls (factorial 10, Peano arithmetic) hit this because every reduction step goes through `await reduceNDAsync(...)`. The async pipeline is correct but slow. Consider sync fallback for simple arithmetic.
+
+### Insight: PeTTa list representation is ambiguous
+`(1 2 3)` can be:
 1. An expression with operator `1` and components `[2, 3]`
 2. A cons-list `(: 1 (: 2 (: 3 ())))`
 
-The test op's `normalizeForComparison` converts expression lists to cons-lists for
-fair comparison. But rule patterns that expect `(: $h $t)` won't match `(1 2 3)`
-unless there are explicit rules for the expression form.
+The test op's `normalizeForComparison` converts expressions to cons-lists, but rule patterns expecting `(: $h $t)` won't match expression-form `(1 2 3)` unless explicit rules bridge the gap.
 
-### Async overhead is significant
-Each `await` adds ~1-5ms. Deep recursive calls (factorial 10) hit this hard because
-every reduction step goes through `await reduceNDAsync(...)`. The async pipeline
-is correct but slow.
+### Insight: The `test` op is strict
+`!(test actual expected)` fully reduces both sides and compares string representations. Partial reductions, different representations (`3` vs `3.0`, cons vs expression), and un-evaluated expressions all cause mismatches.
 
-### The closure stage is partial
-`ClosureStage` detects `((f 1) 2)` but only when the inner operator is a simple symbol
-expression. It doesn't handle cases where the partial function is stored in a variable
-(e.g., `let $f (f 1) ($f 2)`).
+### Insight: stdlib loading
+`createMeTTa({loadStdlib: false})` skips loading `.metta` files but does NOT prevent hardcoded rules from being added. Rules in `core.metta`'s inline equivalents are still added to the space via the builder API.
 
-### Space-based facts vs rule-based facts
-When `(foo 1)` is added to the space, it's a fact atom. `match &self (foo $x)`
-should find it. This now works (bare expressions go to space). But when a rule
-defines `(= (foo $x) (bar $x))`, calling `(foo 1)` reduces via the rule, not the
-fact. The interaction between facts and rules in `match` can be surprising.
+### Insight: `_matchClosure` baseFunc resolution
+The `_matchClosure` method in ReductionPipeline.js needs to resolve `baseFunc` from deeply nested structures. The while loop:
+```js
+while (!baseFunc?.name && baseFunc?.type !== 'variable' && !baseFunc?.operator?.name && currentAtom?.operator) {
+    baseFunc = currentAtom.operator;
+    currentAtom = currentAtom.operator;
+}
+```
+This walks up the chain until it finds an atom with a `.name` or `.type === 'variable'`.
 
-### stdlib loading
-The stdlib is loaded from `metta/src/stdlib/*.metta` files at interpreter creation.
-Changes to these files take effect on next interpreter instantiation. The
-`{loadStdlib: false}` flag in tests only disables loading from `.metta` files —
-hardcoded rules in `core.metta`'s inline equivalents are still added to the space.
+### Insight: `&let` substitution for expression-form variables
+When the variable is an expression like `($x)` (operator=VariableAtom, no components), the binding check needs to look at `vari.operator?.name` or `vari.operator?.type`. The enhanced `&let` uses `Unify.unify(vari, resolved)` as a universal fallback that handles all forms.
 
 ---
 
-## Files Modified (for git diff reference)
+## Files Modified
 
-### Modified
-- `metta/src/MeTTaInterpreter.js` — bare expressions → space
-- `metta/src/interp/AdvancedOps.js` — `&is-var`, `&=alpha`, `&repr`, `&case`, `&foldall`, `&add-atom` fix, `alphaEquiv`
-- `metta/src/interp/MinimalOps.js` — `collapse` async, `test` with normalization, `test` quoted string handling
-- `metta/src/kernel/Ground.js` — `&cut`, `&once` placeholders
-- `metta/src/kernel/Reduce.js` — context pooling, async pipeline
-- `metta/src/kernel/ops/CoreRegistry.js` — `name.startsWith` guard
-- `metta/src/kernel/ops/SpaceOps.js` — `&self` resolution
-- `metta/src/kernel/reduction/ReductionPipeline.js` — async pipeline stages, closure dispatch
-- `metta/src/stdlib/core.metta` — `cut`, `once`, `empty`, `is-var`, `case`, `foldall`, `repr`, `=alpha` rules
-- `metta/src/stdlib/hof.metta` — `map-atom` PeTTa list variants
-- `metta/src/stdlib/list.metta` — `append` PeTTa list variants
-
-### New files
-- `metta/src/kernel/reduction/stages/ClosureStage.js`
-- `metta/examples/` — 100 PeTTa .metta files
-- `metta/examples/README.md`
-- `scripts/run-petta-examples.js`
-- `scripts/run-single-metta.js`
-- `tests/integration/metta/petta-examples.test.js`
-
----
-
-## Recommended Next Steps
-
-1. **Quick wins first** — Fix `if3.metta` (remove catch-all `is-var` rule), then
-   `lambda.metta` (add `|->` pattern support). These are 1-2 line fixes each.
-
-2. **Fix `cut.metta`** — This unlocks the `cut` semantics test and may help
-   `once.metta` variants too.
-
-3. **Fix `case` family** — Debug the `&case` grounded op.
-
-4. **Tackle list pattern matching** — This is the hardest architectural issue.
-   The fundamental problem is that PeTTa uses `(: h t)` cons-cells but also accepts
-   `(h t)` expression shorthand, and rule patterns don't automatically convert.
-
-5. **Performance** — After correctness, optimize the hot path. Consider:
-   - Sync fallback for simple arithmetic expressions
-   - Reduction result caching
-   - Batch async operations where possible
+- `metta/src/interp/AdvancedOps.js` — `&is-var` fix, `&let` binding resolution, `&subst` 3-arg fallback, all ops → `opts: {lazy: true}`
+- `metta/src/kernel/reduction/ReductionPipeline.js` — `_matchClosure` dynamic rule lookup, baseFunc resolution
+- `metta/src/kernel/reduction/stages/ClosureStage.js` — multi-level rule lookup
+- `metta/src/stdlib/core.metta` — lambda → `&let` (not `&subst`), `|->` rules
