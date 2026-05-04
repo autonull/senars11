@@ -1,6 +1,6 @@
 import {beforeEach, describe, expect, test} from '@jest/globals';
-import {ProviderRegistry} from '../../../core/src/lm/ProviderRegistry.js';
-import {DummyProvider} from '../../../core/src/lm/DummyProvider.js';
+import {ProviderRegistry} from '@senars/core/src/lm/index';
+import {DummyProvider} from '@senars/core';
 
 describe('ProviderRegistry', () => {
     let registry;

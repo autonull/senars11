@@ -1,8 +1,8 @@
 /**
  * ClientMessageHandlers - Modular handlers for WebSocket client messages
  */
-import {SUPPORTED_MESSAGE_TYPES} from '@senars/core';
-import {Logger} from '../../../core/src/util/Logger.js';
+import {Logger, sendToClient} from '@senars/core';
+import {SUPPORTED_MESSAGE_TYPES} from '@senars/nar';
 
 export class ClientMessageHandlers {
     constructor(webSocketMonitor) {
@@ -74,7 +74,9 @@ export class ClientMessageHandlers {
 
     // Private methods
     _handleSubscription(client, message, action) {
-        if (!client.subscriptions) client.subscriptions = new Set();
+        if (!client.subscriptions) {
+            client.subscriptions = new Set();
+        }
 
         const eventTypes = message.eventTypes ?? ['all'];
 
@@ -104,7 +106,7 @@ export class ClientMessageHandlers {
 
     // Handler for requesting client capabilities
     _handleRequestCapabilities(client, message) {
-        const clientId = client.clientId;
+        const {clientId} = client;
         const capabilities = this.monitor.clientCapabilities.get(clientId) || [];
 
         this._sendToClient(client, {
@@ -120,17 +122,10 @@ export class ClientMessageHandlers {
     }
 
     _sendToClient(client, message) {
-        // Validate that we have both client and monitor before sending
         if (!client) {
             Logger.warn('Attempt to send message to null/undefined client:', message);
             return;
         }
-
-        if (!this.monitor || typeof this.monitor._sendToClient !== 'function') {
-            Logger.error('Monitor or its _sendToClient method is not available');
-            return;
-        }
-
-        this.monitor._sendToClient(client, message);
+        sendToClient(client, message);
     }
 }

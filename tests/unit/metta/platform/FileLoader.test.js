@@ -2,13 +2,10 @@
  * Unit tests for FileLoader (Node.js adapter)
  */
 
-import { FileLoader } from '../../../../metta/src/platform/node/FileLoader.js';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+import {FileLoader} from '../../../../metta/src/platform/node/FileLoader.js';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 
 describe('FileLoader', () => {
     let tempDir;
@@ -22,13 +19,13 @@ describe('FileLoader', () => {
         fs.writeFileSync(path.join(tempDir, 'test.metta'), '(test content)');
         fs.writeFileSync(path.join(tempDir, 'core.metta'), '(core content)');
 
-        loader = new FileLoader({ baseDir: tempDir });
+        loader = new FileLoader({baseDir: tempDir});
     });
 
     afterEach(() => {
         // Clean up temporary directory
         if (tempDir && fs.existsSync(tempDir)) {
-            fs.rmSync(tempDir, { recursive: true, force: true });
+            fs.rmSync(tempDir, {recursive: true, force: true});
         }
     });
 
@@ -64,7 +61,7 @@ describe('FileLoader', () => {
             loader.addSearchPath(secondDir);
             expect(loader.exists('other.metta')).toBe(true);
 
-            fs.rmSync(secondDir, { recursive: true, force: true });
+            fs.rmSync(secondDir, {recursive: true, force: true});
         });
     });
 
@@ -92,7 +89,7 @@ describe('FileLoader', () => {
             const content2 = loader.read('test.metta');
             expect(content2).toBe('(test content)');
 
-            fs.rmSync(secondDir, { recursive: true, force: true });
+            fs.rmSync(secondDir, {recursive: true, force: true});
         });
     });
 
@@ -118,7 +115,7 @@ describe('FileLoader', () => {
             expect(files).toContain('test.metta');
             expect(files).toContain('other.metta');
 
-            fs.rmSync(secondDir, { recursive: true, force: true });
+            fs.rmSync(secondDir, {recursive: true, force: true});
         });
     });
 

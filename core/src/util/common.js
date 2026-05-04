@@ -2,18 +2,28 @@
  * common.js - Backward compatibility re-exports
  * Consolidates commonly used utilities
  */
-export * from './object.js';
 export * from './async.js';
-export * from './collection.js';
+export {
+    sortByProperty, filterBy, findBy, groupBy, applyToAll, createMap, createSet,
+    chunk, flatten, flattenDeep, calculateAverage, calculateStatistics,
+    getPercentile, getOutliers, correlation, sum, min, max, partition
+} from './collection.js';
 export * from './math.js';
-export * from './string.js';
-export * from './error.js';
+export {
+    cleanText, capitalize, truncate, escapeRegExp, safeJSONParse, isValidLength,
+    isEmpty, isNonEmpty, pad, repeat, randomString
+} from './string.js';
+export {
+    logError, logDetailedError, createErrorHandler, safeAsync, safeSync,
+    safeExecuteSync, wrapError, executeWithHandling, executeSyncWithHandling,
+    withRetry, createSafeWrapper, formatError, validateParams, ErrorHandler
+} from './error.js';
 export * from './validate.js';
-export * from './config.js';
 export * from './func.js';
-export * from './perf.js';
 export * from './guard.js';
-export * from './MiscUtils.js';
-
-// Re-export safeAsync from error.js for backward compatibility
-export { safeAsync } from './error.js';
+export * from './miscUtils.js';
+export * from '../config/ConfigUtils.js';
+export {
+    freeze, deepFreeze, isObject, deepClone, safeClone, selectiveDeepClone,
+    deepMerge, deepMergeConfig, mergeConfig, safeGet, setNestedProperty, deepEqual, validateWithSchema
+} from './object.js';

@@ -1,5 +1,5 @@
-import { promises as fs } from 'fs';
-import {Logger} from '../../../core/src/util/Logger.js';
+import {promises as fs} from 'fs';
+import {Logger} from '@senars/core';
 import {AGENT_EVENTS} from '../agent/constants.js';
 
 class ReasoningTrajectoryLogger {
@@ -28,13 +28,17 @@ class ReasoningTrajectoryLogger {
     }
 
     logStep(type, data) {
-        if (!this.isLogging) return;
+        if (!this.isLogging) {
+            return;
+        }
         this.trajectory.push({timestamp: Date.now(), type, ...data});
     }
 
     async endTrajectory(filePath) {
         this.isLogging = false;
-        if (!filePath) return this.trajectory;
+        if (!filePath) {
+            return this.trajectory;
+        }
 
         try {
             await fs.writeFile(filePath, JSON.stringify(this.trajectory, null, 2));

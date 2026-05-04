@@ -3,16 +3,7 @@
  * Demonstrates integration with OpenAI API for advanced reasoning.
  */
 
-import {NAR} from '../../core/src/nar/NAR.js';
-import {NarsGPTStrategy} from '../../core/src/reason/strategy/NarsGPTStrategy.js';
-import {
-    createNarsGPTBeliefRule,
-    createNarsGPTGoalRule,
-    createNarsGPTQARule
-} from '../../core/src/reason/rules/lm/index.js';
-import {EmbeddingLayer} from '../../core/src/lm/EmbeddingLayer.js';
-import {LangChainProvider} from '../../core/src/lm/LangChainProvider.js';
-import {EventBus} from '../../core/src/util/EventBus.js';
+import {NAR, NarsGPTStrategy, createNarsGPTBeliefRule, createNarsGPTGoalRule, createNarsGPTQARule, EmbeddingLayer, LangChainProvider, EventBus} from '@senars/nar';
 
 // Configuration
 const API_KEY = process.env.OPENAI_API_KEY;

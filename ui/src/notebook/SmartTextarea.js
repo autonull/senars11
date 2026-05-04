@@ -117,7 +117,7 @@ export class SmartTextarea {
 
         this.textarea.addEventListener('input', (e) => {
             this.update();
-            if (this.autoResize) this.adjustHeight();
+            if (this.autoResize) {this.adjustHeight();}
             this.autocomplete?.onInput(e);
         });
 
@@ -127,7 +127,7 @@ export class SmartTextarea {
         this.textarea.addEventListener('keyup', () => this.updateBrackets());
 
         this.textarea.addEventListener('keydown', (e) => {
-            if (this.autocomplete?.onKeyDown(e)) return;
+            if (this.autocomplete?.onKeyDown(e)) {return;}
 
             if ((e.shiftKey && e.key === 'Enter') || (e.ctrlKey && e.key === 'Enter')) {
                 e.preventDefault();
@@ -144,7 +144,7 @@ export class SmartTextarea {
         });
 
         this.wrapper.append(style, this.backdrop, this.bracketLayer, this.textarea);
-        if (this.container) this.container.appendChild(this.wrapper);
+        if (this.container) {this.container.appendChild(this.wrapper);}
 
         this.autocomplete = new AutocompleteManager(this.textarea, this.wrapper);
 
@@ -158,7 +158,7 @@ export class SmartTextarea {
     handleEnter() {
         const start = this.textarea.selectionStart;
         const end = this.textarea.selectionEnd;
-        const value = this.textarea.value;
+        const {value} = this.textarea;
 
         // Find current line start
         const lineStart = value.lastIndexOf('\n', start - 1) + 1;
@@ -175,7 +175,7 @@ export class SmartTextarea {
         }
 
         // Insert
-        const textToInsert = '\n' + indent;
+        const textToInsert = `\n${  indent}`;
         this.textarea.setRangeText(textToInsert, start, end, 'end');
         this.textarea.dispatchEvent(new Event('input')); // Trigger update
     }
@@ -184,7 +184,7 @@ export class SmartTextarea {
         this.textarea.style.height = 'auto';
         const newHeight = Math.max(this.textarea.scrollHeight, this.rows * 20); // Min height
         this.textarea.style.height = '100%'; // Reset to fill wrapper
-        this.wrapper.style.height = newHeight + 'px';
+        this.wrapper.style.height = `${newHeight  }px`;
         this.syncScrollbar();
     }
 
@@ -258,19 +258,19 @@ export class SmartTextarea {
             // Opening bracket - search forward
             let depth = 1;
             for (let i = index + 1; i < text.length; i++) {
-                if (text[i] === char) depth++;
-                else if (text[i] === pairs[char]) depth--;
+                if (text[i] === char) {depth++;}
+                else if (text[i] === pairs[char]) {depth--;}
 
-                if (depth === 0) return i;
+                if (depth === 0) {return i;}
             }
         } else if (reversePairs[char]) {
             // Closing bracket - search backward
             let depth = 1;
             for (let i = index - 1; i >= 0; i--) {
-                if (text[i] === char) depth++;
-                else if (text[i] === reversePairs[char]) depth--;
+                if (text[i] === char) {depth++;}
+                else if (text[i] === reversePairs[char]) {depth--;}
 
-                if (depth === 0) return i;
+                if (depth === 0) {return i;}
             }
         }
         return -1;
@@ -278,9 +278,9 @@ export class SmartTextarea {
 
     renderBracketHighlight(text, idx1, idx2) {
         const html = text.split('').map((char, i) => {
-            if (char === '<') char = '&lt;';
-            else if (char === '>') char = '&gt;';
-            else if (char === '&') char = '&amp;';
+            if (char === '<') {char = '&lt;';}
+            else if (char === '>') {char = '&gt;';}
+            else if (char === '&') {char = '&amp;';}
 
             return (i === idx1 || i === idx2)
                 ? `<span class="bracket-match">${char}</span>`

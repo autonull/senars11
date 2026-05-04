@@ -12,7 +12,7 @@ export class ActionRegistry {
      */
     static getActionsForActivity(activity) {
         const actions = [];
-        const type = activity.type;
+        const {type} = activity;
 
         // Common actions
         actions.push({

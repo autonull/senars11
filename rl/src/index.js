@@ -20,9 +20,6 @@ export {
     LearnedGrounding
 } from './core/RLCore.js';
 
-// Backward compatibility
-export { RLAgent, RLEnvironment } from './core/RLCore.js';
-
 // ==================== Component System ====================
 export {
     Component,
@@ -32,16 +29,15 @@ export {
     globalRegistry,
     CompositionEngine,
     EnhancedCompositionEngine,
-    ComposableUtils,
     PipelineBuilder
 } from './composable/ComposableSystem.js';
 
 // ==================== Neuro-Symbolic Bridges ====================
-export { NeuroSymbolicBridge } from './bridges/NeuroSymbolicBridge.js';
-export { SeNARSBridge } from './bridges/SeNARSBridge.js';
+export {NeuroSymbolicBridge} from './bridges/NeuroSymbolicBridge.js';
+export {SeNARSBridge} from './bridges/SeNARSBridge.js';
 
 // ==================== Policies ====================
-export { TensorLogicPolicy } from './policies/TensorLogicPolicy.js';
+export {TensorLogicPolicy} from './policies/TensorLogicPolicy.js';
 export {
     PolicyNetwork,
     AttentionPolicy,
@@ -142,29 +138,22 @@ export {
 // ==================== Planning & Modules ====================
 export {
     PlanningSystem,
-    Planner,
-    HierarchicalPlanner,
-    PathPlanner,
-    RuleInducer,
     IntrinsicMotivation
 } from './modules/PlanningSystem.js';
 
 // ==================== Cognitive Systems ====================
-export { AttentionSystem, CognitiveSystem } from './systems/CognitiveSystem.js';
-export { ReasoningSystem, CausalGraph, CausalNode, CausalEdge, CausalReasoner } from './systems/CognitiveSystem.js';
+export {AttentionSystem, CognitiveSystem} from './systems/CognitiveSystem.js';
+export {ReasoningSystem, CausalGraph, CausalNode, CausalEdge, CausalReasoner} from './systems/CognitiveSystem.js';
 
 // ==================== Meta-Control ====================
 export {
     MetaController,
     ModificationOperator,
-    ArchitectureEvolver,
-    SelfModifier,
-    ArchitectureSearch,
-    Evolver
+    ArchitectureEvolver
 } from './meta/MetaControlSystem.js';
 
 // ==================== Skills ====================
-export { Skill, SkillDiscovery } from './skills/SkillDiscovery.js';
+export {Skill, SkillDiscovery} from './skills/SkillDiscovery.js';
 export * from './skills/SkillManager.js';
 export * from './skills/HierarchicalSkillSystem.js';
 
@@ -179,8 +168,6 @@ export {
     BoltzmannExploration,
     UCB,
     ThompsonSampling,
-    PluginSystem,
-    StrategySystem,
     Explore
 } from './plugins/PluginStrategySystem.js';
 
@@ -189,9 +176,6 @@ export {
     BenchmarkRunner,
     MetricsCollector,
     StatisticalTests,
-    AgentComparator,
-    PowerAnalysis,
-    MultipleComparisonCorrection,
     Evaluator,
     Collector,
     Statistics,
@@ -211,7 +195,19 @@ export * from './config/ConfigManager.js';
 export * from './functional/FunctionalUtils.js';
 
 // ==================== Cognitive Architectures ====================
-export * from './systems/CognitiveArchitecture.js';
+export {
+    RLCognitiveArchitecture,
+    RLCognitiveArchitecture as CognitiveArchitecture,
+    ArchitecturePresets
+} from './systems/CognitiveArchitecture.js';
+export {CognitiveModule} from './systems/modules/CognitiveModule.js';
+export {PerceptionModule} from './systems/modules/PerceptionModule.js';
+export {ReasoningModule} from './systems/modules/ReasoningModule.js';
+export {PlanningModule} from './systems/modules/PlanningModule.js';
+export {ActionModule} from './systems/modules/ActionModule.js';
+export {MemoryModule} from './systems/modules/MemoryModule.js';
+export {SkillModule} from './systems/modules/SkillModule.js';
+export {MetaCognitiveModule} from './systems/modules/MetaCognitiveModule.js';
 export * from './systems/EmergentArchitecture.js';
 
 // ==================== Utilities ====================
@@ -229,11 +225,11 @@ export {
 /**
  * Formal interfaces for type checking and documentation.
  * Use JSDoc @implements tag to indicate implementation.
- * 
+ *
  * @example
  * ```javascript
  * import { IAgent } from '@senars/rl';
- * 
+ *
  * /**
  *  * @implements {IAgent}
  *  *\/

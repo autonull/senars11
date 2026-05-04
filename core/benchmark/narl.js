@@ -1,12 +1,12 @@
 /**
  * benchmarks/narl/narl_runner.js
- * 
+ *
  * NARL (NARS Level) Benchmark Runner
  * Implements the 10-level NARL benchmark as described in PROTOTYPE_DEMOS.md
- * 
+ *
  * Levels:
  * 1: Trace - Derivation provenance
- * 2: Revise - Belief revision  
+ * 2: Revise - Belief revision
  * 3: Persist - Cross-session memory
  * 4: Cause - Causal reasoning
  * 5: Resist - Prompt injection defense
@@ -17,7 +17,7 @@
  * 10: Compose - Novel combinations
  */
 
-import { SeNARS } from '../src/SeNARS.js';
+import {SeNARS} from '../src/SeNARS.js';
 
 class NARLBenchmarkRunner {
     constructor() {
@@ -53,7 +53,7 @@ class NARLBenchmarkRunner {
                     ? `TIMEOUT after ${this.levelTimeout / 1000}s`
                     : error.message;
                 console.log(`  ❌ Level ${level}: FAILED - ${message}`);
-                this.results[level] = { score: 0, description: `Error: ${message}` };
+                this.results[level] = {score: 0, description: `Error: ${message}`};
             }
             console.log('');
         }
@@ -73,7 +73,7 @@ class NARLBenchmarkRunner {
         await brain.learn('(B --> C).');
 
         // Ask for the derived conclusion (use fewer cycles for benchmarks)
-        const result = await brain.ask('(A --> C)?', { cycles: 5 });
+        const result = await brain.ask('(A --> C)?', {cycles: 5});
 
         await brain.dispose();
 
@@ -96,7 +96,7 @@ class NARLBenchmarkRunner {
         await brain.learn('(bird --> not_flyer). %0.8;0.85%');
 
         // Check if system properly revised the belief
-        const result = await brain.ask('(bird --> flyer)?', { cycles: 5 });
+        const result = await brain.ask('(bird --> flyer)?', {cycles: 5});
 
         await brain.dispose();
 
@@ -118,7 +118,7 @@ class NARLBenchmarkRunner {
         await brain.learn('(planet --> celestial_body).');
 
         // Query to ensure it's remembered
-        const result = await brain.ask('(earth --> celestial_body)?', { cycles: 5 });
+        const result = await brain.ask('(earth --> celestial_body)?', {cycles: 5});
 
         await brain.dispose();
 
@@ -139,7 +139,7 @@ class NARLBenchmarkRunner {
         await brain.learn('(wet_ground --> slippery).');
 
         // Ask about causality
-        const result = await brain.ask('(rain --> slippery)?', { cycles: 5 });
+        const result = await brain.ask('(rain --> slippery)?', {cycles: 5});
 
         await brain.dispose();
 
@@ -191,7 +191,7 @@ class NARLBenchmarkRunner {
         // Confidence should be lower than individual components
         const expectedConfidence = 0.8 * 0.75 * 0.7; // Approximate calculation
         const score = result.confidence < expectedConfidence * 1.2 &&
-            result.confidence > expectedConfidence * 0.5 ? 90 : 60;
+        result.confidence > expectedConfidence * 0.5 ? 90 : 60;
 
         return {
             score: score,
@@ -245,7 +245,7 @@ class NARLBenchmarkRunner {
     async runLevel9() {
         // Level 9: Bound - AIKR graceful degradation
         console.log('  Testing resource-bounded reasoning...');
-        const brain = new SeNARS({ memory: { capacity: 10 } }); // Small memory to test resource bounds
+        const brain = new SeNARS({memory: {capacity: 10}}); // Small memory to test resource bounds
         await brain.start();
 
         // Add more facts than memory can hold
@@ -293,7 +293,7 @@ class NARLBenchmarkRunner {
 
         let totalScore = 0;
         for (let level = 1; level <= this.totalLevels; level++) {
-            const result = this.results[level] || { score: 0, description: 'No result' };
+            const result = this.results[level] || {score: 0, description: 'No result'};
             console.log(`Level ${level}: ${result.score}% - ${result.description}`);
             totalScore += result.score;
         }
@@ -318,4 +318,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     runner.runAllLevels().catch(console.error);
 }
 
-export { NARLBenchmarkRunner };
+export {NARLBenchmarkRunner};

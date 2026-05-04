@@ -12,7 +12,9 @@ export class MemoryValidator {
     }
 
     calculateChecksum(obj) {
-        if (!this.isEnabled || !this.options.enableChecksums) return null;
+        if (!this.isEnabled || !this.options.enableChecksums) {
+            return null;
+        }
 
         let str;
         try {
@@ -21,7 +23,9 @@ export class MemoryValidator {
             return null;
         }
 
-        if (!str) return null;
+        if (!str) {
+            return null;
+        }
 
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
@@ -50,7 +54,9 @@ export class MemoryValidator {
     }
 
     storeChecksum(key, obj) {
-        if (!this.isEnabled) return;
+        if (!this.isEnabled) {
+            return;
+        }
 
         const checksum = this.calculateChecksum(obj);
         checksum && this.checksums.set(key, checksum);

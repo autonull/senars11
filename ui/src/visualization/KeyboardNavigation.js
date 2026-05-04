@@ -8,7 +8,7 @@ export class KeyboardNavigation {
     }
 
     initialize(container) {
-        if (!container) return;
+        if (!container) {return;}
         container.setAttribute('tabindex', '0');
         container.setAttribute('role', 'application');
         container.setAttribute('aria-label', 'SeNARS concept graph visualization');
@@ -21,7 +21,7 @@ export class KeyboardNavigation {
             return;
         }
 
-        if (!this.graphManager.cy) return;
+        if (!this.graphManager.cy) {return;}
         const nodes = this.graphManager.cy.nodes(':visible');
         // Allow pan/zoom even if no nodes, but navigation requires nodes
 
@@ -62,10 +62,10 @@ export class KeyboardNavigation {
             // Pan camera if no node selected
             const panAmount = 50;
             const pan = { x: 0, y: 0 };
-            if (dir === 'up') pan.y = panAmount;
-            if (dir === 'down') pan.y = -panAmount;
-            if (dir === 'left') pan.x = panAmount;
-            if (dir === 'right') pan.x = -panAmount;
+            if (dir === 'up') {pan.y = panAmount;}
+            if (dir === 'down') {pan.y = -panAmount;}
+            if (dir === 'left') {pan.x = panAmount;}
+            if (dir === 'right') {pan.x = -panAmount;}
             this.graphManager.cy.panBy(pan);
         }
     }

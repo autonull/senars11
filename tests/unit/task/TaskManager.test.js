@@ -1,9 +1,4 @@
-import {TaskManager} from '../../../core/src/task/TaskManager.js';
-import {Memory} from '../../../core/src/memory/Memory.js';
-import {Focus} from '../../../core/src/memory/Focus.js';
-import {Task} from '../../../core/src/task/Task.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
-import {Truth} from '../../../core/src/Truth.js';
+import {Focus, Memory, Task, TaskManager, TermFactory, Truth} from '@senars/nar';
 
 describe('TaskManager', () => {
     let mgr, memory, term;

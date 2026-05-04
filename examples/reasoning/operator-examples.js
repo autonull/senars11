@@ -1,5 +1,4 @@
-import {NarseseParser} from '../../core/src/parser/NarseseParser.js';
-import {TermFactory} from '../../core/src/term/TermFactory.js';
+import {NarseseParser, TermFactory} from '@senars/nar';
 
 const termFactory = new TermFactory();
 const parser = new NarseseParser(termFactory);

@@ -1,6 +1,4 @@
-import {LangChainProvider} from '../../../core/src/lm/LangChainProvider.js';
-import {HuggingFaceProvider} from '../../../core/src/lm/HuggingFaceProvider.js';
-import {AdvancedNarseseTranslator} from '../../../core/src/lm/AdvancedNarseseTranslator.js';
+import {AdvancedNarseseTranslator, HuggingFaceProvider, LangChainProvider} from '@senars/core/src/lm/index';
 
 describe('Module Syntax Check', () => {
     test('should import modules without syntax errors', () => {

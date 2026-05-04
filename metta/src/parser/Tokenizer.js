@@ -17,15 +17,20 @@ export class Tokenizer {
 
         const push = () => {
             const trimmed = current.trim();
-            if (trimmed) tokens.push(trimmed);
+            if (trimmed) {
+                tokens.push(trimmed);
+            }
             current = '';
         };
 
         for (let i = 0; i < str.length; i++) {
             const char = str[i];
+            const next = str[i + 1];
 
             if (inComment) {
-                if (char === '\n' || char === '\r') inComment = false;
+                if (char === '\n' || char === '\r') {
+                    inComment = false;
+                }
                 continue;
             }
 
@@ -47,6 +52,16 @@ export class Tokenizer {
                     inString = true;
                     quoteChar = char;
                     current += char;
+                    break;
+
+                case '/':
+                    if (next === '/') {
+                        push();
+                        inComment = true;
+                        i++; // Skip '/'
+                    } else {
+                        current += char;
+                    }
                     break;
 
                 case ';':

@@ -23,8 +23,8 @@ export const GraphConfig = {
             const saved = localStorage.getItem('senars-graph-config');
             if (saved) {
                 const config = JSON.parse(saved);
-                if (config.COLORS) Object.assign(this.COLORS, config.COLORS);
-                if (config.OVERRIDES) Object.assign(this.OVERRIDES, config.OVERRIDES);
+                if (config.COLORS) {Object.assign(this.COLORS, config.COLORS);}
+                if (config.OVERRIDES) {Object.assign(this.OVERRIDES, config.OVERRIDES);}
             }
         } catch (e) {
             console.error('Failed to load graph config', e);

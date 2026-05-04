@@ -38,7 +38,7 @@ export class BagBuffer {
     }
 
     _enforceCapacity() {
-        if (this.items.size <= this.capacity) return;
+        if (this.items.size <= this.capacity) {return;}
 
         // Convert to array to sort
         const entries = Array.from(this.items.entries());

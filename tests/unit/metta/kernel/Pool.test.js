@@ -1,8 +1,9 @@
-import { ObjectPool, GenerationalPool } from '../../../../metta/src/kernel/Pool.js';
+import {GenerationalPool, ObjectPool} from '../../../../metta/src/kernel/Pool.js';
 
 describe('ObjectPool', () => {
     test('reuses objects', () => {
-        const pool = new ObjectPool(() => ({ id: Math.random() }), (o) => {});
+        const pool = new ObjectPool(() => ({id: Math.random()}), (o) => {
+        });
         const obj1 = pool.acquire();
         pool.release(obj1);
         const obj2 = pool.acquire();
@@ -10,14 +11,17 @@ describe('ObjectPool', () => {
     });
 
     test('creates new objects when empty', () => {
-        const pool = new ObjectPool(() => ({ id: Math.random() }), (o) => {}, 0);
+        const pool = new ObjectPool(() => ({id: Math.random()}), (o) => {
+        }, 0);
         const obj1 = pool.acquire();
         const obj2 = pool.acquire();
         expect(obj1).not.toBe(obj2);
     });
 
     test('resets objects on release', () => {
-        const pool = new ObjectPool(() => ({ val: 0 }), (o) => { o.val = 0; });
+        const pool = new ObjectPool(() => ({val: 0}), (o) => {
+            o.val = 0;
+        });
         const obj = pool.acquire();
         obj.val = 123;
         pool.release(obj);
@@ -30,8 +34,9 @@ describe('GenerationalPool', () => {
     test('promotes objects after threshold', () => {
         const pool = new GenerationalPool(
             () => ({}),
-            () => {},
-            { promotionThreshold: 2, youngLimit: 10 }
+            () => {
+            },
+            {promotionThreshold: 2, youngLimit: 10}
         );
 
         const obj = pool.acquire(); // Age 0

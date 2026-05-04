@@ -3,9 +3,12 @@
   "version": "1.0.0",
   "type": "module",
   "main": "src/index.js",
-  "dependencies": {
-    "@senars/core": "^1.0.0"
+  "exports": {
+    ".": "./src/index.js",
+    "./*.js": "./src/*.js",
+    "./backends/*.js": "./src/backends/*.js"
   },
-  "devDependencies": {
+  "dependencies": {
+    "@senars/core": "workspace:*"
   }
 }

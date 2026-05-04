@@ -13,7 +13,7 @@ export class DemoLibraryModal {
     show() {
         const backdrop = FluentUI.create('div')
             .class('modal-backdrop')
-            .on('click', (e) => { if (e.target === backdrop.dom) this.close(backdrop); })
+            .on('click', (e) => { if (e.target === backdrop.dom) {this.close(backdrop);} })
             .style({ zIndex: '99999' })
             .mount(document.body);
 
@@ -111,7 +111,7 @@ export class DemoLibraryModal {
                     `)
                     .on('click', (e) => {
                         e.stopPropagation();
-                        if (this.onSelect) this.onSelect(name);
+                        if (this.onSelect) {this.onSelect(name);}
                         this.close(backdrop);
                     })
                     .mount(list);
@@ -158,8 +158,8 @@ export class DemoLibraryModal {
                 fileContent = null;
 
                 try {
-                    const response = await fetch('/' + node.path);
-                    if (!response.ok) throw new Error('Failed to load content');
+                    const response = await fetch(`/${  node.path}`);
+                    if (!response.ok) {throw new Error('Failed to load content');}
                     fileContent = await response.text();
                     previewContent.text(fileContent);
                     loadBtn.attr('disabled', null).style({ cursor: 'pointer', opacity: '1' });

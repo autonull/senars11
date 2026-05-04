@@ -3,7 +3,7 @@
  * description: Demonstrates inductive reasoning patterns in NAL
  */
 
-import {NAR} from '../../core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 
 async function inductiveDemo() {
     console.log('=== NAL-only Inductive Reasoning Demo ===\n');

@@ -3,14 +3,14 @@
  * Runs basic performance tests without Jest
  */
 
-import { MeTTaInterpreter } from '../src/MeTTaInterpreter.js';
+import {MeTTaInterpreter} from '../src/index.js';
 
 async function runBenchmark() {
     console.log('Starting MeTTa Performance Benchmark...');
-    
+
     // Create interpreter without stdlib
-    const interpreter = new MeTTaInterpreter({ loadStdlib: false });
-    
+    const interpreter = new MeTTaInterpreter({loadStdlib: false});
+
     console.log('\n1. Testing basic arithmetic performance...');
     const startArith = performance.now();
     for (let i = 0; i < 1000; i++) {
@@ -21,14 +21,14 @@ async function runBenchmark() {
     }
     const endArith = performance.now();
     console.log(`   1000 arithmetic operations: ${(endArith - startArith).toFixed(2)}ms`);
-    
+
     console.log('\n2. Testing rule application performance...');
     // Add a simple rule
     interpreter.space.addRule(
         interpreter.parser.parse('(square $x)'),
         interpreter.parser.parse('(^ &* $x $x)')
     );
-    
+
     const startRule = performance.now();
     for (let i = 1; i <= 100; i++) {
         const result = interpreter.run(`(square ${i})`);
@@ -39,7 +39,7 @@ async function runBenchmark() {
     }
     const endRule = performance.now();
     console.log(`   100 rule applications: ${(endRule - startRule).toFixed(2)}ms`);
-    
+
     console.log('\n3. Testing space operations...');
     const startSpace = performance.now();
     for (let i = 0; i < 1000; i++) {
@@ -49,7 +49,7 @@ async function runBenchmark() {
     const endSpace = performance.now();
     console.log(`   Adding 1000 atoms to space: ${(endSpace - startSpace).toFixed(2)}ms`);
     console.log(`   Final space size: ${interpreter.space.size()}`);
-    
+
     console.log('\n4. Testing simple reduction performance...');
     // Test a simple reduction that doesn't cause infinite loops
     interpreter.space.addRule(

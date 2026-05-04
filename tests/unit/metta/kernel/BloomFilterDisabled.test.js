@@ -1,5 +1,5 @@
-import { BloomFilter } from '../../../../metta/src/kernel/BloomFilter.js';
-import { METTA_CONFIG } from '../../../../metta/src/config.js';
+import {BloomFilter} from '../../../../metta/src/kernel/BloomFilter.js';
+import {METTA_CONFIG} from '../../../../metta/src/config.js';
 
 describe('BloomFilter Default Configuration', () => {
     test('is disabled by default', () => {

@@ -1,10 +1,12 @@
-import {DecompositionStrategy} from '../../../../core/src/reason/strategy/DecompositionStrategy.js';
-import {TermLinkStrategy} from '../../../../core/src/reason/strategy/TermLinkStrategy.js';
-import {TaskMatchStrategy} from '../../../../core/src/reason/strategy/TaskMatchStrategy.js';
-import {PremiseFormationStrategy} from '../../../../core/src/reason/strategy/PremiseFormationStrategy.js';
-import {TermFactory} from '../../../../core/src/term/TermFactory.js';
-import {Task} from '../../../../core/src/task/Task.js';
-import {Truth} from '../../../../core/src/Truth.js';
+import {
+    DecompositionStrategy,
+    PremiseFormationStrategy,
+    Task,
+    TaskMatchStrategy,
+    TermFactory,
+    TermLinkStrategy,
+    Truth
+} from '@senars/nar';
 
 let factory;
 

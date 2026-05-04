@@ -33,7 +33,7 @@
 ; Return the first match (or all matches as list if multiple?)
 ; The tests expect a single Atom if one exists.
 ; Since match returns a list, we take the head.
-(= (typeof $x) (car (match &self (: $x $t) $t)))
+(= (typeof $x) (^ &type-of $x))
 
 ; has-type?: check if term has specific type
 (= (has-type? $x $type)

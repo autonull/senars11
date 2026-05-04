@@ -21,7 +21,9 @@ export class FormattingUtils {
     }
 
     static formatTruth(truth) {
-        if (!truth) return DEFAULT_TRUTH;
+        if (!truth) {
+            return DEFAULT_TRUTH;
+        }
 
         const freq = truth.frequency?.toFixed(3) ?? '1.000';
         const conf = truth.confidence?.toFixed(3) ?? '0.900';
@@ -29,7 +31,9 @@ export class FormattingUtils {
     }
 
     static formatOccurrence(task) {
-        if (task.occurrenceTime === undefined && !task.stamp) return DEFAULT_PRIORITY; // Return empty string
+        if (task.occurrenceTime === undefined && !task.stamp) {
+            return DEFAULT_PRIORITY;
+        } // Return empty string
 
         const timeStr = task.occurrenceTime ?? '';
         const stampStr = task.stamp ? this.encodeShortId(task.stamp.id ?? task.stamp) : '';
@@ -42,35 +46,10 @@ export class FormattingUtils {
     }
 
     static formatConcept(concept) {
-        if (!concept) return 'undefined concept';
-        return concept.term ? concept.term.toString() : concept.toString();
-    }
-
-    static encodeShortId(input) {
-        if (!input) return 'N/A';
-
-        const inputStr = String(input);
-
-        // Calculate hash using reduce instead of traditional loop
-        let hash = Array.from(inputStr).reduce((acc, char) => {
-            const newHash = ((acc << 5) - acc) + char.charCodeAt(0);
-            return newHash | 0; // Convert to 32-bit signed integer
-        }, 0);
-
-        hash = Math.abs(hash);
-
-        if (hash === 0) return ID_CHARS[0];
-
-        let result = '';
-        const base = ID_CHARS.length;
-        let num = hash;
-
-        while (num > 0) {
-            result = ID_CHARS[num % base] + result;
-            num = Math.floor(num / base);
+        if (!concept) {
+            return 'undefined concept';
         }
-
-        return result.length > 8 ? result.substring(0, 8) : result;
+        return concept.term ? concept.term.toString() : concept.toString();
     }
 
     static formatTaskDetails(task) {
@@ -123,15 +102,26 @@ export class FormattingUtils {
         return stamp ? ` | Occ:${stamp}` : null;
     }
 
-    static formatNumber(num) {
-        return num >= 1000000 ? (num / 1000000).toFixed(1) + 'M' :
-            num >= 1000 ? (num / 1000).toFixed(1) + 'K' :
-                num.toString();
-    }
-
-    static formatFileSize(sizeInBytes) {
-        return sizeInBytes >= 1000000 ? (sizeInBytes / 1000000).toFixed(2) + ' MB' :
-            sizeInBytes >= 1000 ? (sizeInBytes / 1000).toFixed(2) + ' KB' :
-                sizeInBytes + ' bytes';
+    static encodeShortId(input) {
+        if (!input) {
+            return 'N/A';
+        }
+        const inputStr = String(input);
+        let hash = Array.from(inputStr).reduce((acc, char) => {
+            const newHash = ((acc << 5) - acc) + char.charCodeAt(0);
+            return newHash | 0;
+        }, 0);
+        hash = Math.abs(hash);
+        if (hash === 0) {
+            return ID_CHARS[0];
+        }
+        let result = '';
+        const base = ID_CHARS.length;
+        let num = hash;
+        while (num > 0) {
+            result = ID_CHARS[num % base] + result;
+            num = Math.floor(num / base);
+        }
+        return result.length > 8 ? result.substring(0, 8) : result;
     }
 }

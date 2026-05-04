@@ -1,7 +1,4 @@
-import {FocusSetSelector} from '../../../core/src/memory/FocusSetSelector.js';
-import {Task} from '../../../core/src/task/Task.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
-import {ArrayStamp} from '../../../core/src/Stamp.js';
+import {ArrayStamp, FocusSetSelector, Task, TermFactory} from '@senars/nar';
 
 describe('FocusSetSelector', () => {
     let selector, tf, now;

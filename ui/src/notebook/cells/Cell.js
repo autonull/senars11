@@ -1,6 +1,8 @@
+import { generateId } from '@senars/core';
+
 export class Cell {
     constructor(type, content = '') {
-        this.id = `cell-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        this.id = generateId('cell');
         this.type = type;
         this.content = content;
         this.timestamp = Date.now();

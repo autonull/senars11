@@ -11,10 +11,6 @@ const importMLC = () => {
 let customEngineFactory = null;
 
 export class WebLLMProvider extends BaseProvider {
-    static setCustomEngineFactory(factory) {
-        customEngineFactory = factory;
-    }
-
     constructor(config = {}) {
         super(config);
         // Default to a compact model as requested
@@ -24,9 +20,17 @@ export class WebLLMProvider extends BaseProvider {
         this._initPromise = null;
     }
 
+    static setCustomEngineFactory(factory) {
+        customEngineFactory = factory;
+    }
+
     async _initialize() {
-        if (this.engine) return;
-        if (this._initPromise) return this._initPromise;
+        if (this.engine) {
+            return;
+        }
+        if (this._initPromise) {
+            return this._initPromise;
+        }
 
         this._initPromise = this._doInitialize();
         try {
@@ -104,7 +108,7 @@ export class WebLLMProvider extends BaseProvider {
 
             const reply = await this.engine.chat.completions.create(requestOptions);
 
-            const message = reply.choices[0].message;
+            const {message} = reply.choices[0];
             const text = message.content || '';
 
             return {
@@ -132,7 +136,7 @@ export class WebLLMProvider extends BaseProvider {
         const temp = temperature ?? this.temperature ?? 0.7;
 
         try {
-            const messages = [{ role: "user", content: prompt }];
+            const messages = [{role: "user", content: prompt}];
             const asyncChunkGenerator = await this.engine.chat.completions.create({
                 messages,
                 temperature: temp,

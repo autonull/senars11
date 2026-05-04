@@ -54,9 +54,9 @@ export class ConnectionInterface {
      */
     unsubscribe(type, handler) {
         const handlers = this.messageHandlers.get(type);
-        if (!handlers) return;
+        if (!handlers) {return;}
         const index = handlers.indexOf(handler);
-        if (index > -1) handlers.splice(index, 1);
+        if (index > -1) {handlers.splice(index, 1);}
     }
 
     /**

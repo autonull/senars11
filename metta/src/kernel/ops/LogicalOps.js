@@ -2,7 +2,7 @@
  * LogicalOps.js - Logical operations
  */
 
-import { OperationHelpers } from './OperationHelpers.js';
+import {OperationHelpers} from './OperationHelpers.js';
 
 export function registerLogicalOps(registry) {
     registry.register('&and', (...args) => OperationHelpers.bool(args.every(a => OperationHelpers.truthy(a))));

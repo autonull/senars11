@@ -1,12 +1,6 @@
-import {
-    ImplicationSyllogisticRule as SyllogisticRule
-} from '../../../../../core/src/reason/rules/nal/SyllogisticRule.js';
-import {Task} from '../../../../../core/src/task/Task.js';
-import {Truth} from '../../../../../core/src/Truth.js';
-import {ArrayStamp} from '../../../../../core/src/Stamp.js';
-import {TermFactory} from '../../../../../core/src/term/TermFactory.js';
+import {ArrayStamp, ImplicationSyllogisticRule, Task, TermFactory, Truth} from '@senars/nar';
 
-describe('SyllogisticRule', () => {
+describe('ImplicationSyllogisticRule', () => {
     let termFactory;
     let termA, termB, termC;
 
@@ -18,7 +12,6 @@ describe('SyllogisticRule', () => {
     });
 
     test('should correctly identify transitive syllogistic patterns', () => {
-        // Test the pattern: (a ==> b) and (b ==> c) should produce (a ==> c)
         const termAB = termFactory.implication(termA, termB);
         const termBC = termFactory.implication(termB, termC);
 
@@ -38,11 +31,11 @@ describe('SyllogisticRule', () => {
             budget: {priority: 0.8, durability: 0.8, quality: 0.8}
         });
 
-        const rule = new SyllogisticRule();
+        const rule = new ImplicationSyllogisticRule();
+        const context = {termFactory};
 
-        // Both orderings should be valid for syllogistic reasoning
-        expect(rule.canApply(taskAB, taskBC)).toBe(true);
-        expect(rule.canApply(taskBC, taskAB)).toBe(true);
+        expect(rule.canApply(taskAB, taskBC, context)).toBe(true);
+        expect(rule.canApply(taskBC, taskAB, context)).toBe(true);
     });
 
     test('should maintain proper term structure through rule application', () => {
@@ -65,11 +58,10 @@ describe('SyllogisticRule', () => {
             budget: {priority: 0.8, durability: 0.8, quality: 0.8}
         });
 
-        const rule = new SyllogisticRule();
+        const rule = new ImplicationSyllogisticRule();
         const context = {termFactory};
         const results = rule.apply(taskAB, taskBC, context);
 
-        // Should produce (a ==> c)
         expect(results).toHaveLength(1);
         if (results.length > 0) {
             const result = results[0];

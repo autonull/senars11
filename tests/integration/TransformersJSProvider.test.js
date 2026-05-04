@@ -1,4 +1,4 @@
-import {TransformersJSProvider} from '../../core/src/lm/TransformersJSProvider.js';
+import {TransformersJSProvider} from '@senars/core';
 import {jest} from '@jest/globals';
 
 // Skip: ONNX runtime external dependency causes Float32Array tensor type errors

@@ -220,7 +220,7 @@ export class ComponentGenerator {
             }
 
             show() {
-                if (this.isOpen) return;
+                if (this.isOpen) {return;}
 
                 this.overlay = $('div')
                     .class('modal-overlay')
@@ -251,14 +251,14 @@ export class ComponentGenerator {
 
                 if (closeOnEscape) {
                     this.escapeHandler = (e) => {
-                        if (e.key === 'Escape') this.hide();
+                        if (e.key === 'Escape') {this.hide();}
                     };
                     document.addEventListener('keydown', this.escapeHandler);
                 }
             }
 
             hide() {
-                if (!this.isOpen) return;
+                if (!this.isOpen) {return;}
 
                 if (this.overlay && this.overlay.parentNode) {
                     this.overlay.parentNode.removeChild(this.overlay);
@@ -322,8 +322,8 @@ export class ComponentGenerator {
                             .attr('name', field.name)
                             .attr('id', field.name)
                             .apply(b => {
-                                if (field.required) b.attr('required', 'required');
-                                if (field.placeholder) b.attr('placeholder', field.placeholder);
+                                if (field.required) {b.attr('required', 'required');}
+                                if (field.placeholder) {b.attr('placeholder', field.placeholder);}
                             })
                     );
             }
@@ -344,7 +344,7 @@ export class ComponentGenerator {
 
             setValue(fieldName, value) {
                 const field = this.element.elements[fieldName];
-                if (field) field.value = value;
+                if (field) {field.value = value;}
             }
 
             reset() {

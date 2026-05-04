@@ -48,8 +48,8 @@ export class HUDLayoutManager {
             // HUDWidget exposes contentContainer as a FluentUI wrapper
             if (widgetWrapper.contentContainer && widgetWrapper.contentContainer.dom) {
                 component.container = widgetWrapper.contentContainer.dom;
-                if (component.initialize) component.initialize();
-                if (component.render) component.render();
+                if (component.initialize) {component.initialize();}
+                if (component.render) {component.render();}
             }
         }
 

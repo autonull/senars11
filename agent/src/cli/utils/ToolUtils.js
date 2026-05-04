@@ -90,8 +90,8 @@ export const getDefaultToolDefinitions = () => [
 
 /**
  * Parses raw arguments for NAR control tool
- * @param {any} rawArgs - Raw arguments received from the model
  * @returns {object} Processed arguments with action and content
+ * @param input
  */
 const parseNARCommand = (input) => {
     const lowerInput = input.toLowerCase().trim();

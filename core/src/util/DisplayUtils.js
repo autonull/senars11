@@ -12,7 +12,9 @@ export class DisplayUtils {
      * @returns {string} Formatted table as a string
      */
     static createTable(headers, rows, columnWidths = []) {
-        if (!headers || !rows) return '';
+        if (!headers || !rows) {
+            return '';
+        }
 
         // Calculate column widths if not provided
         const calculatedWidths = headers.map((header, i) => {
@@ -26,18 +28,18 @@ export class DisplayUtils {
         const widths = calculatedWidths.map(w => Math.min(w, 50)); // Cap widths at 50 chars
 
         // Create separator line
-        const separator = '  ' + widths.map(w => '─'.repeat(w + 2)).join('┼');
+        const separator = `  ${widths.map(w => '─'.repeat(w + 2)).join('┼')}`;
 
         // Create header row
-        const headerRow = '  ' + headers.map((header, i) =>
+        const headerRow = `  ${headers.map((header, i) =>
             header.padEnd(widths[i])
-        ).join(' │ ');
+        ).join(' │ ')}`;
 
         // Create data rows
         const dataRows = rows.map(row =>
-                '  ' + row.map((cell, i) =>
-                    String(cell || '').padEnd(widths[i])
-                ).join(' │ ')
+            `  ${row.map((cell, i) =>
+                String(cell || '').padEnd(widths[i])
+            ).join(' │ ')}`
         );
 
         // Combine all parts
@@ -58,9 +60,13 @@ export class DisplayUtils {
      * @returns {string} Truncated text
      */
     static truncateText(text, maxLength, ellipsis = '...') {
-        if (!text) return '';
+        if (!text) {
+            return '';
+        }
         const str = String(text);
-        if (str.length <= maxLength) return str;
+        if (str.length <= maxLength) {
+            return str;
+        }
         return str.substring(0, maxLength - ellipsis.length) + ellipsis;
     }
 
@@ -70,7 +76,9 @@ export class DisplayUtils {
      * @returns {string} Formatted number
      */
     static formatNumber(num) {
-        if (typeof num !== 'number') return String(num);
+        if (typeof num !== 'number') {
+            return String(num);
+        }
         return num.toLocaleString();
     }
 
@@ -81,10 +89,12 @@ export class DisplayUtils {
      * @returns {string} Formatted percentage
      */
     static formatPercentage(value, decimals = 1) {
-        if (typeof value !== 'number') return String(value);
+        if (typeof value !== 'number') {
+            return String(value);
+        }
         // If value is between 0 and 1, multiply by 100
         const percent = value <= 1 ? value * 100 : value;
-        return percent.toFixed(decimals) + '%';
+        return `${percent.toFixed(decimals)}%`;
     }
 
     /**
@@ -93,11 +103,19 @@ export class DisplayUtils {
      * @returns {string} Human readable size
      */
     static formatFileSize(size) {
-        if (typeof size !== 'number') return String(size);
-        if (size < 1024) return size + ' B';
-        if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB';
-        if (size < 1024 * 1024 * 1024) return (size / (1024 * 1024)).toFixed(1) + ' MB';
-        return (size / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+        if (typeof size !== 'number') {
+            return String(size);
+        }
+        if (size < 1024) {
+            return `${size} B`;
+        }
+        if (size < 1024 * 1024) {
+            return `${(size / 1024).toFixed(1)} KB`;
+        }
+        if (size < 1024 * 1024 * 1024) {
+            return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+        }
+        return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
     }
 
     /**
@@ -106,10 +124,16 @@ export class DisplayUtils {
      * @returns {string} Human readable duration
      */
     static formatDuration(duration) {
-        if (typeof duration !== 'number') return String(duration);
-        if (duration < 1000) return duration + 'ms';
-        if (duration < 60000) return (duration / 1000).toFixed(2) + 's';
-        return (duration / 60000).toFixed(2) + 'min';
+        if (typeof duration !== 'number') {
+            return String(duration);
+        }
+        if (duration < 1000) {
+            return `${duration}ms`;
+        }
+        if (duration < 60000) {
+            return `${(duration / 1000).toFixed(2)}s`;
+        }
+        return `${(duration / 60000).toFixed(2)}min`;
     }
 
     /**
@@ -134,10 +158,14 @@ export class DisplayUtils {
      * @returns {string} Formatted key-value pairs
      */
     static formatKeyValuePairs(obj, prefix = '  ', includeEmpty = false) {
-        if (!obj || typeof obj !== 'object') return '';
+        if (!obj || typeof obj !== 'object') {
+            return '';
+        }
 
         const entries = Object.entries(obj);
-        if (entries.length === 0) return '';
+        if (entries.length === 0) {
+            return '';
+        }
 
         const formattedEntries = entries
             .filter(([key, value]) => includeEmpty || (value !== null && value !== undefined && value !== ''))
@@ -157,16 +185,30 @@ export class DisplayUtils {
      * @returns {string} Formatted value
      */
     static _formatValue(value) {
-        if (value === null || value === undefined) return 'null';
+        if (value === null || value === undefined) {
+            return 'null';
+        }
         if (typeof value === 'number') {
-            if (value > 1000) return this.formatNumber(value);
-            if (value <= 1 && value >= 0) return this.formatPercentage(value);
+            if (value > 1000) {
+                return this.formatNumber(value);
+            }
+            if (value <= 1 && value >= 0) {
+                return this.formatPercentage(value);
+            }
             return String(value);
         }
-        if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-        if (typeof value === 'string') return value;
-        if (Array.isArray(value)) return `[${value.length} items]`;
-        if (typeof value === 'object') return '{Object}';
+        if (typeof value === 'boolean') {
+            return value ? 'Yes' : 'No';
+        }
+        if (typeof value === 'string') {
+            return value;
+        }
+        if (Array.isArray(value)) {
+            return `[${value.length} items]`;
+        }
+        if (typeof value === 'object') {
+            return '{Object}';
+        }
         return String(value);
     }
 
@@ -177,7 +219,9 @@ export class DisplayUtils {
      * @returns {string} Indented text
      */
     static indent(text, spaces = 2) {
-        if (!text) return '';
+        if (!text) {
+            return '';
+        }
         const indentStr = ' '.repeat(spaces);
         return String(text).split('\n').map(line => indentStr + line).join('\n');
     }
@@ -190,7 +234,9 @@ export class DisplayUtils {
      * @returns {string} Formatted list
      */
     static formatListWithEmoji(items, emoji = '•', prefix = '  ') {
-        if (!Array.isArray(items) || items.length === 0) return '';
+        if (!Array.isArray(items) || items.length === 0) {
+            return '';
+        }
         return items.map(item => `${prefix}${emoji} ${item}`).join('\n');
     }
 
@@ -204,7 +250,9 @@ export class DisplayUtils {
      * @returns {string} Formatted table string
      */
     static printDataFrame(df, options = {}) {
-        if (!df || typeof df !== 'object') return '';
+        if (!df || typeof df !== 'object') {
+            return '';
+        }
 
         const {
             maxRows = 20,

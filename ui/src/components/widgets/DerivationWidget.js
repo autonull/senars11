@@ -67,7 +67,7 @@ export class DerivationWidget extends SimpleGraphWidget {
     }
 
     _buildDerivationElements(data) {
-        if (!data || !data.derived) return [];
+        if (!data || !data.derived) {return [];}
 
         const elements = [];
         const { input, knowledge, derived, rule } = data;
@@ -77,14 +77,14 @@ export class DerivationWidget extends SimpleGraphWidget {
         elements.push({ group: 'nodes', data: { id: ruleId, label: rule || 'Rule', type: 'rule', classes: 'derivation-rule' } });
 
         const addTermNode = (termData, type) => {
-            if (!termData) return null;
-            const id = 'node_' + Math.random().toString(36).substr(2, 9);
+            if (!termData) {return null;}
+            const id = `node_${  Math.random().toString(36).substr(2, 9)}`;
             const label = termData.term || 'Unknown';
             elements.push({
                 group: 'nodes',
                 data: {
                     id: id,
-                    label: label.length > 20 ? label.substring(0, 18) + '..' : label,
+                    label: label.length > 20 ? `${label.substring(0, 18)  }..` : label,
                     fullTerm: label,
                     type: type
                 }

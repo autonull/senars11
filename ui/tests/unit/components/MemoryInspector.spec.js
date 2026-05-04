@@ -1,6 +1,5 @@
 import { jest } from '@jest/globals';
 import { MemoryInspector } from '../../../src/components/MemoryInspector.js';
-import { ReactiveState } from '../../../src/core/ReactiveState.js';
 
 describe('MemoryInspector Component', () => {
     let container;

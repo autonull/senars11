@@ -1,4 +1,4 @@
-import {TestNAR} from '../../../../core/src/testing/TestNAR.js';
+import {TestNAR} from '@senars/core/src/testing/TestNAR';
 
 describe('Post-Mortem Analysis', () => {
     test('should allow inspection of focus buffer', async () => {

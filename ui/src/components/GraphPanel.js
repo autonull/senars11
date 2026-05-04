@@ -2,7 +2,7 @@ import { Component } from './Component.js';
 import { SeNARSGraph } from '../zui/SeNARSGraph.js';
 import { FluentToolbar } from './ui/FluentToolbar.js';
 import { FluentUI } from '../utils/FluentUI.js';
-import { ReactiveState } from '../core/ReactiveState.js';
+import { ReactiveState } from '../core/index.js';
 import { eventBus } from '../core/EventBus.js';
 import { EVENTS } from '../config/constants.js';
 
@@ -52,7 +52,7 @@ export class GraphPanel extends Component {
     get scatterAxes() { return this.state.scatterAxes; }
 
     initialize() {
-        if (this.initialized || !this.container) return;
+        if (this.initialized || !this.container) {return;}
 
         if (this.graphOptions.showToolbar !== false) {
             this.createToolbar();

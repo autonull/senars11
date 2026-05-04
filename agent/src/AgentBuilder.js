@@ -1,12 +1,13 @@
 import {Agent} from './Agent.js';
 import {LMConfig, Logger, PluginManager} from '@senars/core';
 import {FunctorProvider} from './FunctorProvider.js';
+import {isEnabled} from './config/capabilities.js';
 
 export class AgentBuilder {
     constructor(initialConfig = {}) {
         this.config = this.constructor.getDefaultConfig();
         this.dependencies = new Map();
-        if (initialConfig) this.withConfig(initialConfig);
+        if (initialConfig) {this.withConfig(initialConfig);}
     }
 
     static getDefaultConfig() {
@@ -85,11 +86,11 @@ export class AgentBuilder {
     }
 
     withFunctors(config) {
-        return this.withSubsystem('functors', Array.isArray(config) ? config : config);
+        return this.withSubsystem('functors', config);
     }
 
     withRules(config) {
-        return this.withSubsystem('rules', Array.isArray(config) ? config : config);
+        return this.withSubsystem('rules', config);
     }
 
     withTools(config = true) {
@@ -111,6 +112,13 @@ export class AgentBuilder {
         FunctorProvider.registerFunctors(agent.evaluator?.getFunctorRegistry?.(), this.config.subsystems.functors);
         await this._initializeSubsystems(agent);
         this._setupLM(agent);
+
+        // If MeTTa control plane is enabled, log guidance for the caller.
+        // agent.initialize() already built the loop; caller uses agent.startMeTTaLoop().
+        if (agent.agentCfg && isEnabled(agent.agentCfg, 'mettaControlPlane')) {
+            Logger.info('[AgentBuilder] MeTTa control plane active. Use agent.startMeTTaLoop() to start.');
+        }
+
         return agent;
     }
 
@@ -118,26 +126,27 @@ export class AgentBuilder {
         return new Agent(this._buildAgentConfig());
     }
 
-    _buildAgentConfig() {
-        const {subsystems, nar, memory, persistence, inputProcessing, lm} = this.config;
-        const {lm: lmSubsystem, tools, embeddingLayer, metrics} = subsystems;
+_buildAgentConfig() {
+    const {subsystems, nar, memory, persistence, inputProcessing, lm, capabilities} = this.config;
+    const {lm: lmSubsystem, tools, embeddingLayer, metrics} = subsystems;
 
-        const getSubsystemConfig = (subsystem) => ({
-            enabled: !!subsystem,
-            ...(typeof subsystem === 'object' ? subsystem : {})
-        });
+    const getSubsystemConfig = (subsystem) => ({
+      enabled: !!subsystem,
+      ...(typeof subsystem === 'object' ? subsystem : {})
+    });
 
-        return {
-            ...nar,
-            memory,
-            persistence,
-            inputProcessing,
-            lm: {...getSubsystemConfig(lmSubsystem), ...lm},
-            tools: getSubsystemConfig(tools),
-            embeddingLayer: getSubsystemConfig(embeddingLayer),
-            metricsMonitor: metrics ? (typeof metrics === 'object' ? metrics : {}) : undefined
-        };
-    }
+    return {
+      ...nar,
+      memory,
+      persistence,
+      inputProcessing,
+      lm: {...getSubsystemConfig(lmSubsystem), ...lm},
+      tools: getSubsystemConfig(tools),
+      embeddingLayer: getSubsystemConfig(embeddingLayer),
+      metricsMonitor: metrics ? (typeof metrics === 'object' ? metrics : {}) : undefined,
+      capabilities: capabilities || {mettaControlPlane: false}
+    };
+  }
 
     _setupPlugins(agent) {
         agent._pluginManager = new PluginManager({nar: agent, agent: agent, eventBus: agent._eventBus});
@@ -179,7 +188,7 @@ export class AgentBuilder {
     }
 
     _setupLM(agent) {
-        if (!agent.lm) return;
+        if (!agent.lm) {return;}
 
         const config = new LMConfig();
         const providerType = this.config.lm.provider || 'ollama';

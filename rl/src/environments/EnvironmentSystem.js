@@ -4,8 +4,8 @@
  */
 
 // Space definitions
-export { ActionSpace } from './ActionSpace.js';
-export { ObservationSpace } from './ObservationSpace.js';
+export {ActionSpace} from './ActionSpace.js';
+export {ObservationSpace} from './ObservationSpace.js';
 
 // Wrappers
 export {
@@ -30,4 +30,4 @@ export {
 } from './EnvironmentFactory.js';
 
 // Gymnasium compatibility
-export { GymWrapper, gym, isGymnasiumAvailable } from './GymnasiumWrapper.js';
+export {GymWrapper, gym, isGymnasiumAvailable} from './GymnasiumWrapper.js';

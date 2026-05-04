@@ -3,7 +3,7 @@
  * Demonstrates basic causal reasoning patterns in NAL with both traditional and new stream-based reasoners
  */
 
-import {NAR} from '../../core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 
 async function traditionalCausalDemo() {
     console.log('=== Traditional NAL-only Causal Reasoning Demo ===\n');

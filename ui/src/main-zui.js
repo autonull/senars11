@@ -20,7 +20,7 @@ export class ZUIApp {
     }
 
     async initialize() {
-        if (!this.graph.initialize()) return;
+        if (!this.graph.initialize()) {return;}
 
         setTimeout(() => { $('#loader').addClass('hidden'); }, 500);
 
@@ -57,7 +57,7 @@ export class ZUIApp {
 
     updateLog(text, type) {
         const logContent = $('#log-content');
-        if (!logContent.dom) return;
+        if (!logContent.dom) {return;}
 
         const entry = document.createElement('div');
         entry.style.marginBottom = '4px';
@@ -75,7 +75,7 @@ export class ZUIApp {
         const panel = $('#detail-panel');
         const content = $('#detail-content');
 
-        if (!panel.dom || !content.dom) return;
+        if (!panel.dom || !content.dom) {return;}
 
         const term = concept.term || concept.name || 'Unknown';
         const priority = concept.budget?.priority?.toFixed(2) || 'N/A';
@@ -89,7 +89,7 @@ export class ZUIApp {
             const item = $('div').class('detail-item').mount(content);
             $('div').class('detail-label').text(label).mount(item);
             const valEl = $('div').class('detail-value').text(val).mount(item);
-            if (color) valEl.style({ color, fontSize: '1.1em' });
+            if (color) {valEl.style({ color, fontSize: '1.1em' });}
         };
 
         createDetailItem('Term', term, '#00bcd4');
@@ -127,8 +127,8 @@ export class ZUIApp {
             this.traceModeActive = !this.traceModeActive;
             const btn = $(e.currentTarget);
 
-            if (this.traceModeActive) btn.addClass('active');
-            else btn.removeClass('active');
+            if (this.traceModeActive) {btn.addClass('active');}
+            else {btn.removeClass('active');}
 
             if (this.traceModeActive && this.graph.keyboardNav?.kbState?.selectedNode) {
                  this.graph.toggleTraceMode(this.graph.keyboardNav.kbState.selectedNode.id());
@@ -198,11 +198,11 @@ export class ZUIApp {
             if (message.type === 'task.input' || message.type === 'task.added') {
                 const task = message.payload?.task || message.payload;
                 const term = task?.term?.name || task?.term?.toString() || task?.toString();
-                if (term) this.updateLog(`IN: ${term}`, 'input');
+                if (term) {this.updateLog(`IN: ${term}`, 'input');}
             } else if (message.type === 'reasoning.derivation') {
                 const task = message.payload?.task || message.payload;
                 const term = task?.term?.name || task?.term?.toString() || task?.toString();
-                if (term) this.updateLog(`OUT: ${term}`, 'output');
+                if (term) {this.updateLog(`OUT: ${term}`, 'output');}
             }
         });
 

@@ -33,7 +33,9 @@ const FUNCTOR_COLLECTIONS = {
 
 export class FunctorProvider {
     static registerFunctors(registry, functorConfig) {
-        if (!registry) return;
+        if (!registry) {
+            return;
+        }
 
         const collectionsToRegister = Array.isArray(functorConfig)
             ? functorConfig

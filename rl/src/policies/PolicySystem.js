@@ -2,11 +2,9 @@
  * Enhanced Policy System
  * Unified policy framework leveraging tensor/Module patterns
  */
-import { Component } from '../composable/Component.js';
-import { SymbolicTensor, TensorLogicBridge, Tensor, Module, Linear, Sequential } from '@senars/tensor';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { MetricsTracker } from '../utils/MetricsTracker.js';
-import { PolicyUtils, ParameterInitializer } from '../utils/PolicyUtils.js';
+import {Component} from '../composable/Component.js';
+import {Linear, Module, SymbolicTensor, Tensor, TensorLogicBridge} from '@senars/tensor';
+import {mergeConfig, MetricsTracker, PolicyUtils} from '../utils/index.js';
 import {Logger} from '@senars/core';
 
 const POLICY_DEFAULTS = {
@@ -34,18 +32,18 @@ class PolicyNetworkModule extends Module {
     constructor(inputDim, hiddenDim, outputDim, numLayers, backend) {
         super();
         this.backend = backend;
-        
+
         // Input layer
-        this.module('input', new Linear(inputDim, hiddenDim, { backend }));
-        
+        this.module('input', new Linear(inputDim, hiddenDim, {backend}));
+
         // Hidden layers
         for (let i = 1; i < numLayers; i++) {
-            this.module(`hidden${i}`, new Linear(hiddenDim, hiddenDim, { backend }));
+            this.module(`hidden${i}`, new Linear(hiddenDim, hiddenDim, {backend}));
         }
-        
+
         // Output layer
-        this.module('output', new Linear(hiddenDim, outputDim, { backend }));
-        
+        this.module('output', new Linear(hiddenDim, outputDim, {backend}));
+
         this.numLayers = numLayers;
         this.hiddenDim = hiddenDim;
         this.activation = 'relu';
@@ -56,18 +54,20 @@ class PolicyNetworkModule extends Module {
         return this;
     }
 
-    forward(input, { training = false } = {}) {
-        if (!this.backend) return input;
+    forward(input, {training = false} = {}) {
+        if (!this.backend) {
+            return input;
+        }
 
         let x = input;
-        
+
         // Input + hidden layers
         for (let i = 0; i < this.numLayers - 1; i++) {
             const layer = this._modules.get(i === 0 ? 'input' : `hidden${i}`);
             x = layer.forward(x);
             x = this._applyActivation(x);
         }
-        
+
         // Output layer
         const outputLayer = this._modules.get('output');
         return outputLayer.forward(x);
@@ -75,11 +75,16 @@ class PolicyNetworkModule extends Module {
 
     _applyActivation(x) {
         switch (this.activation) {
-            case 'relu': return this.backend.relu(x);
-            case 'tanh': return this.backend.tanh(x);
-            case 'sigmoid': return this.backend.sigmoid(x);
-            case 'gelu': return this.backend.gelu?.(x) ?? this.backend.relu(x);
-            default: return this.backend.relu(x);
+            case 'relu':
+                return this.backend.relu(x);
+            case 'tanh':
+                return this.backend.tanh(x);
+            case 'sigmoid':
+                return this.backend.sigmoid(x);
+            case 'gelu':
+                return this.backend.gelu?.(x) ?? this.backend.relu(x);
+            default:
+                return this.backend.relu(x);
         }
     }
 }
@@ -110,7 +115,7 @@ export class PolicyNetwork extends Component {
 
     async onInitialize() {
         try {
-            const { torch, AdamOptimizer, SGDOptimizer } = await import('@senars/tensor');
+            const {torch, AdamOptimizer, SGDOptimizer} = await import('@senars/tensor');
             this.backend = torch;
             this.tensorBridge.backend = this.backend;
 
@@ -128,25 +133,27 @@ export class PolicyNetwork extends Component {
     }
 
     _initializeNetwork() {
-        if (!this.backend) return;
+        if (!this.backend) {
+            return;
+        }
 
-        const { inputDim, hiddenDim, outputDim, numLayers, activation } = this.config;
+        const {inputDim, hiddenDim, outputDim, numLayers, activation} = this.config;
         this.network = new PolicyNetworkModule(inputDim, hiddenDim, outputDim, numLayers, this.backend);
         this.network.setActivation(activation);
     }
 
     forward(input, options = {}) {
-        const { training = false, returnIntermediate = false } = options;
+        const {training = false, returnIntermediate = false} = options;
 
         if (!this.backend || !this.network) {
-            return { output: new SymbolicTensor([0, 0, 0, 0], [4]), intermediate: null };
+            return {output: new SymbolicTensor([0, 0, 0, 0], [4]), intermediate: null};
         }
 
-        const tensorInput = input instanceof SymbolicTensor 
-            ? input 
+        const tensorInput = input instanceof SymbolicTensor
+            ? input
             : new SymbolicTensor(Array.isArray(input) ? input : [input], [input?.length ?? 1]);
 
-        const output = this.network.forward(tensorInput, { training });
+        const output = this.network.forward(tensorInput, {training});
 
         return {
             output: output instanceof SymbolicTensor ? output : new SymbolicTensor(output.data, output.shape),
@@ -156,39 +163,52 @@ export class PolicyNetwork extends Component {
 
     _activation(input) {
         switch (this.config.activation) {
-            case 'relu': return this.backend.relu(input);
-            case 'tanh': return this.backend.tanh(input);
-            case 'sigmoid': return this.backend.sigmoid(input);
-            case 'gelu': return this.backend.gelu?.(input) ?? this.backend.relu(input);
-            default: return this.backend.relu(input);
+            case 'relu':
+                return this.backend.relu(input);
+            case 'tanh':
+                return this.backend.tanh(input);
+            case 'sigmoid':
+                return this.backend.sigmoid(input);
+            case 'gelu':
+                return this.backend.gelu?.(input) ?? this.backend.relu(input);
+            default:
+                return this.backend.relu(input);
         }
     }
 
     _dropout(input, rate) {
-        if (!this.backend) return input;
+        if (!this.backend) {
+            return input;
+        }
         const maskData = Array.from(input.data).map(() => Math.random() > rate ? 1 / (1 - rate) : 0);
-        const mask = new Tensor(maskData, { backend: this.backend });
+        const mask = new Tensor(maskData, {backend: this.backend});
         mask.shape = input.shape;
         return this.backend.mul(input, mask);
     }
 
     getParameters() {
-        if (!this.network) return {};
+        if (!this.network) {
+            return {};
+        }
         return Object.fromEntries(
             Array.from(this.network.namedParameters()).map(([name, param]) => [
                 name,
-                { data: [...param.data], shape: [...param.shape] }
+                {data: [...param.data], shape: [...param.shape]}
             ])
         );
     }
 
     setParameters(params) {
-        if (!this.network) return;
+        if (!this.network) {
+            return;
+        }
         Object.entries(params).forEach(([name, paramData]) => {
             const param = this.network.namedParameters().get(name);
             if (param) {
                 param.data = [...paramData.data];
-                if (paramData.shape) param.shape = [...paramData.shape];
+                if (paramData.shape) {
+                    param.shape = [...paramData.shape];
+                }
             }
         });
     }
@@ -227,14 +247,14 @@ export class AttentionPolicy extends Component {
     }
 
     async attendAndAct(state, context = {}) {
-        const { output, intermediate } = this.policyNetwork.forward(state, { returnIntermediate: true });
+        const {output, intermediate} = this.policyNetwork.forward(state, {returnIntermediate: true});
 
         if (intermediate && intermediate.length > 0) {
             this.attentionWeights = this._computeAttention(intermediate, context);
         }
 
         const action = this._actionFromOutput(output);
-        return { action, attentionWeights: this.attentionWeights };
+        return {action, attentionWeights: this.attentionWeights};
     }
 
     _computeAttention(intermediates, context) {
@@ -270,7 +290,7 @@ export class EnsemblePolicy extends Component {
 
     async onInitialize() {
         for (let i = 0; i < this.config.ensembleSize; i++) {
-            const policy = new TensorLogicPolicy({ ...this.config, seed: i });
+            const policy = new TensorLogicPolicy({...this.config, seed: i});
             await policy.initialize();
             this.ensemble.push(policy);
         }
@@ -313,4 +333,4 @@ export class EnsemblePolicy extends Component {
 }
 
 // Re-export TensorLogicPolicy from dedicated file (single source of truth)
-export { TensorLogicPolicy, TensorLogicPolicy as Network, TensorLogicPolicy as Policy } from './TensorLogicPolicy.js';
+export {TensorLogicPolicy, TensorLogicPolicy as Network, TensorLogicPolicy as Policy} from './TensorLogicPolicy.js';

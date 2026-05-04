@@ -4,7 +4,7 @@
  * Compares both traditional cycle-based and new stream-based reasoning approaches.
  */
 
-import {NAR} from '../../core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 
 async function traditionalSyllogismDemo() {
     console.log('=== Traditional NAL-only Syllogistic Reasoning Demo ===\n');

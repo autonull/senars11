@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import {NAR} from '../../core/src/nar/NAR.js';
-import {Config} from '../../core/src/config/Config.js';
+import {NAR} from '@senars/nar';
+import {Config} from '@senars/nar';
 
 const section = (title) => console.log(`\n${'═'.repeat(60)}\n${title}\n${'═'.repeat(60)}`);
 const log = (...args) => console.log('  ', ...args);

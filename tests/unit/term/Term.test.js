@@ -1,6 +1,5 @@
 import fc from 'fast-check';
-import {TermType} from '../../../core/src/term/Term.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
+import {TermFactory, TermType} from '@senars/nar';
 
 const tf = new TermFactory();
 

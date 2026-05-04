@@ -1,7 +1,5 @@
-
-import { MeTTaInterpreter } from '../../../metta/src/MeTTaInterpreter.js';
-import { Term } from '../../../metta/src/kernel/Term.js';
-import { reduceND } from '../../../metta/src/kernel/Reduce.js';
+import {MeTTaInterpreter} from '../../../metta/src/index.js';
+import {reduceND} from '../../../metta/src/kernel/Reduce.js';
 
 describe('Superpose Non-Determinism', () => {
     let interpreter;

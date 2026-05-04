@@ -2,8 +2,8 @@
  * SetOps.js - Set operations
  */
 
-import { sym, exp } from '../../kernel/Term.js';
-import { OperationHelpers } from './OperationHelpers.js';
+import {sym} from '../Term.js';
+import {OperationHelpers} from './OperationHelpers.js';
 
 export function registerSetOps(registry) {
     const toSet = (expr) => new Set(OperationHelpers.flattenExpr(expr).map(x => x.toString()));
@@ -13,7 +13,9 @@ export function registerSetOps(registry) {
         const seen = new Set();
         const result = OperationHelpers.flattenExpr(expr).filter(el => {
             const key = toKey(el);
-            if (seen.has(key)) return false;
+            if (seen.has(key)) {
+                return false;
+            }
             seen.add(key);
             return true;
         });

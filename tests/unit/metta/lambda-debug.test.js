@@ -3,13 +3,13 @@
  * Minimal tests to isolate lambda evaluation issues
  */
 
-import { MeTTaTestUtils } from '../../helpers/MeTTaTestUtils.js';
+import {MeTTaTestUtils} from '../../helpers/MeTTaTestUtils.js';
 
 describe('Lambda Diagnostic Tests', () => {
     let interpreter;
 
     beforeEach(() => {
-        interpreter = MeTTaTestUtils.createInterpreter({ loadStdlib: true });
+        interpreter = MeTTaTestUtils.createInterpreter({loadStdlib: true});
     });
 
     test('lambda basic identity - (λ $x $x) 5', () => {

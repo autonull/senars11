@@ -1,8 +1,5 @@
-import { METTA_CONFIG, runComparison } from '../src/config.js';
-import { MeTTaInterpreter } from '../src/MeTTaInterpreter.js';
-import { sym, symbolEq } from '../src/kernel/Term.js';
-import { Unify } from '../src/kernel/Unify.js';
-import { Space } from '../src/kernel/Space.js';
+import {runComparison} from '../src/config.js';
+import {Space, sym, symbolEq, Unify} from '../src/index.js';
 
 export const BENCHMARKS = [
     {
@@ -73,10 +70,10 @@ export async function runBenchmarks(options = {}) {
     for (const bench of BENCHMARKS) {
         if (options.comparison) {
             const result = await runComparison(bench.code);
-            results.push({ name: bench.name, ...result });
+            results.push({name: bench.name, ...result});
         } else {
             const start = performance.now();
-            await bench.code();
+            bench.code();
             const elapsed = performance.now() - start;
 
             results.push({
@@ -95,5 +92,5 @@ export async function runBenchmarks(options = {}) {
 if (import.meta.url === `file://${process.argv[1]}`) {
     const args = process.argv.slice(2);
     const comparison = args.includes('--comparison');
-    runBenchmarks({ comparison }).then(console.table);
+    runBenchmarks({comparison}).then(console.table);
 }

@@ -5,9 +5,7 @@
  * This demo uses the Ollama provider with the Qwen3 model for better Narsese generation
  */
 
-import {NAR} from './core/src/nar/NAR.js';
-import {LangChainProvider} from './core/src/lm/LangChainProvider.js';
-import {LMRule} from './core/src/reason/LMRule.js';
+import {NAR, LMRule, LangChainProvider} from '@senars/nar';
 
 // Custom trace capture for logging all system activity
 class ReasoningTrace {

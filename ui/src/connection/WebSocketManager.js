@@ -1,6 +1,6 @@
 import { Config } from '../config/Config.js';
 import { Logger } from '../logging/Logger.js';
-import { WebSocketConnectionError } from '../errors/CustomErrors.js';
+import { WebSocketConnectionError } from '@senars/core';
 import { ConnectionInterface } from './ConnectionInterface.js';
 
 export class WebSocketManager extends ConnectionInterface {
@@ -50,7 +50,7 @@ export class WebSocketManager extends ConnectionInterface {
         } catch (error) {
             this.connectionStatus = 'error';
             this.logger.log('WS creation failed', 'error', '🚨');
-            if (!(error instanceof WebSocketConnectionError)) throw new WebSocketConnectionError(error.message, 'WEBSOCKET_CREATION_FAILED');
+            if (!(error instanceof WebSocketConnectionError)) {throw new WebSocketConnectionError(error.message, 'WEBSOCKET_CREATION_FAILED');}
         }
     }
 
@@ -60,7 +60,7 @@ export class WebSocketManager extends ConnectionInterface {
     }
 
     sendMessage(type, payload) {
-        if (!this.isConnected()) return false;
+        if (!this.isConnected()) {return false;}
         this.ws.send(JSON.stringify({ type, payload }));
         return true;
     }
@@ -70,7 +70,7 @@ export class WebSocketManager extends ConnectionInterface {
     getConnectionStatus() { return this.connectionStatus; }
 
     handleMessage(msg) {
-        if (!msg) return;
+        if (!msg) {return;}
         const events = msg.type === 'eventBatch'
             ? (msg.data ?? []).map(e => ({ type: e.type, payload: e.data, timestamp: e.timestamp }))
             : [msg];
@@ -79,7 +79,7 @@ export class WebSocketManager extends ConnectionInterface {
     }
 
     scheduleQueueProcessing() {
-        if (this.isProcessingQueue) return;
+        if (this.isProcessingQueue) {return;}
         this.isProcessingQueue = true;
         setTimeout(() => this.processQueue(), 0);
     }
@@ -97,7 +97,7 @@ export class WebSocketManager extends ConnectionInterface {
     }
 
     dispatchMessage(msg) {
-        if (msg.type === 'cycle.start' || msg.type === 'cycle.complete') return;
+        if (msg.type === 'cycle.start' || msg.type === 'cycle.complete') {return;}
         super.dispatchMessage(msg);
     }
 

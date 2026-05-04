@@ -1,6 +1,5 @@
-
-import { MeTTaAgent } from '../../rl/src/agents/MeTTaAgent.js';
-import { GridWorld } from '../../rl/src/environments/GridWorld.js';
+import {MeTTaAgent} from '../../rl/src/agents/MeTTaAgent.js';
+import {GridWorld} from '../../rl/src/environments/GridWorld.js';
 
 describe('RL MeTTa Integration Tests', () => {
 
@@ -38,7 +37,7 @@ describe('RL MeTTa Integration Tests', () => {
         await agent.metta.run(code);
         await agent.initialize();
 
-        const action = await agent.act([0,0]);
+        const action = await agent.act([0, 0]);
         expect(action).toBe(2);
     });
 

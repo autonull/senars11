@@ -3,7 +3,7 @@
  * @description Tool for file operations with safety validations
  */
 
-import { BaseTool } from '../BaseTool.js';
+import {BaseTool} from '../BaseTool.js';
 import {promises as fs} from 'fs';
 import path from 'path';
 
@@ -38,7 +38,9 @@ export class FileOperationsTool extends BaseTool {
     async execute(params, context) {
         const {operation, filePath, content, encoding = this.defaultEncoding} = params;
 
-        if (!operation || !filePath) throw new Error('Operation and filePath are required parameters');
+        if (!operation || !filePath) {
+            throw new Error('Operation and filePath are required parameters');
+        }
 
         // Ensure the file path is within safe directories
         this._validateFilePath(filePath);
@@ -47,10 +49,14 @@ export class FileOperationsTool extends BaseTool {
             case 'read':
                 return await this._readFile(filePath, encoding);
             case 'write':
-                if (content === undefined) throw new Error('Content is required for write operation');
+                if (content === undefined) {
+                    throw new Error('Content is required for write operation');
+                }
                 return await this._writeFile(filePath, content, encoding);
             case 'append':
-                if (content === undefined) throw new Error('Content is required for append operation');
+                if (content === undefined) {
+                    throw new Error('Content is required for append operation');
+                }
                 return await this._appendFile(filePath, content, encoding);
             case 'delete':
                 return await this._deleteFile(filePath);
@@ -59,7 +65,9 @@ export class FileOperationsTool extends BaseTool {
             case 'stat':
                 return await this._getFileInfo(filePath);
             case 'edit':
-                if (!content) throw new Error('Content is required for edit operation');
+                if (!content) {
+                    throw new Error('Content is required for edit operation');
+                }
                 return await this._editFile(filePath, content, encoding);
             default:
                 throw new Error(`Unsupported operation: ${operation}. Supported operations: read, write, append, delete, list, stat, edit`);

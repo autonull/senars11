@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, it} from '@jest/globals';
-import {NarsGPTStrategy} from '../../../../core/src/reason/strategy/NarsGPTStrategy.js';
+import {NarsGPTStrategy} from '@senars/nar';
 
 const mockEmbedding = () => ({
     getEmbedding: async (text) => {

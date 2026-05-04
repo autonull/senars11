@@ -2,8 +2,8 @@
  * Evolutionary Architecture
  * Architecture evolution through genetic algorithms
  */
-import { Component } from '../composable/Component.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {Component} from '../composable/Component.js';
+import {mergeConfig} from '../utils/index.js';
 
 const EVOLUTION_DEFAULTS = {
     populationSize: 10,
@@ -32,7 +32,7 @@ export class EvolutionaryArchitecture extends Component {
     }
 
     _initializePopulation() {
-        return Array.from({ length: this.config.populationSize }, () => ({
+        return Array.from({length: this.config.populationSize}, () => ({
             config: this._randomConfig(),
             fitness: 0
         }));
@@ -103,7 +103,7 @@ export class EvolutionaryArchitecture extends Component {
 
     _tournamentSelect(population, tournamentSize = 3) {
         const tournament = Array.from(
-            { length: tournamentSize },
+            {length: tournamentSize},
             () => population[Math.floor(Math.random() * population.length)]
         );
         return tournament.reduce((best, curr) =>
@@ -131,8 +131,8 @@ export class EvolutionaryArchitecture extends Component {
         const keys = Object.keys(parent1.config);
         const point = Math.floor(Math.random() * keys.length);
 
-        const child1Config = { ...parent1.config };
-        const child2Config = { ...parent2.config };
+        const child1Config = {...parent1.config};
+        const child2Config = {...parent2.config};
 
         for (let i = point; i < keys.length; i++) {
             const key = keys[i];
@@ -141,22 +141,22 @@ export class EvolutionaryArchitecture extends Component {
         }
 
         return [
-            { config: child1Config, fitness: 0 },
-            { config: child2Config, fitness: 0 }
+            {config: child1Config, fitness: 0},
+            {config: child2Config, fitness: 0}
         ];
     }
 
     _mutate() {
         return this.population.map(ind => {
             if (Math.random() < this.config.mutationRate) {
-                return { config: this._mutateConfig(ind.config), fitness: 0 };
+                return {config: this._mutateConfig(ind.config), fitness: 0};
             }
             return ind;
         });
     }
 
     _mutateConfig(config) {
-        const mutated = { ...config };
+        const mutated = {...config};
         const key = Object.keys(mutated)[Math.floor(Math.random() * Object.keys(mutated).length)];
 
         if (key === 'learningRate') {

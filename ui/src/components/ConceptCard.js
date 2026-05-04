@@ -12,7 +12,7 @@ export class ConceptCard extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         // Data extraction
         // Handle various concept formats (raw object vs class instance)
@@ -127,8 +127,8 @@ export class ConceptCard extends Component {
     }
 
     _getPriorityColor(val) {
-        if (val > 0.8) return 'var(--accent-primary, #00ff9d)';
-        if (val > 0.5) return 'var(--accent-warn, #ffcc00)';
+        if (val > 0.8) {return 'var(--accent-primary, #00ff9d)';}
+        if (val > 0.5) {return 'var(--accent-warn, #ffcc00)';}
         return 'var(--text-muted, #666)';
     }
 }

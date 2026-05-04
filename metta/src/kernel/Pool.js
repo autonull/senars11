@@ -3,19 +3,21 @@
  * Tier 2 optimization: Reduces GC pressure by reusing short-lived objects
  */
 
-import { configManager } from '../config/config.js';
+import {configManager} from '../config/config.js';
 
 export class ObjectPool {
     constructor(factory, reset, initialSize = 100) {
         this.factory = factory;
         this.reset = reset;
-        this.pool = Array.from({ length: initialSize }, () => factory());
+        this.pool = Array.from({length: initialSize}, () => factory());
         this.index = initialSize;
         this.enabled = configManager.get('pooling');
     }
 
     acquire() {
-        if (!this.enabled) return this.factory();
+        if (!this.enabled) {
+            return this.factory();
+        }
 
         if (this.index > 0) {
             return this.pool[--this.index];
@@ -24,7 +26,9 @@ export class ObjectPool {
     }
 
     release(obj) {
-        if (!this.enabled) return;
+        if (!this.enabled) {
+            return;
+        }
 
         this.reset(obj);
         if (this.index < this.pool.length) {
@@ -60,7 +64,7 @@ export class GenerationalPool {
         this.promotionThreshold = options.promotionThreshold ?? 3;
 
         // Statistics
-        this.stats = { allocations: 0, collections: 0, youngToOld: 0, promotions: 0 };
+        this.stats = {allocations: 0, collections: 0, youngToOld: 0, promotions: 0};
     }
 
     acquire() {
@@ -84,7 +88,9 @@ export class GenerationalPool {
     }
 
     release(obj, isLongLived = false) {
-        if (!this.enabled) return;
+        if (!this.enabled) {
+            return;
+        }
 
         this.reset(obj);
 
@@ -115,7 +121,9 @@ export class GenerationalPool {
     }
 
     collectYoung() {
-        if (!this.enabled) return;
+        if (!this.enabled) {
+            return;
+        }
 
         this.stats.collections++;
 
@@ -146,11 +154,13 @@ export class GenerationalPool {
 export const SUBSTITUTION_POOL = new GenerationalPool(
     () => new Map(),
     (map) => map.clear(),
-    { youngLimit: 200, oldLimit: 50 }
+    {youngLimit: 200, oldLimit: 50}
 );
 
 export const ARRAY_POOL = new ObjectPool(
     () => [],
-    (arr) => { arr.length = 0; },
+    (arr) => {
+        arr.length = 0;
+    },
     500
 );

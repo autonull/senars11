@@ -2,9 +2,8 @@
  * Plugin Manager
  * Manages plugin lifecycle and execution
  */
-import { Component } from '../composable/Component.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { MetricsTracker } from '../utils/MetricsTracker.js';
+import {Component} from '../composable/Component.js';
+import {mergeConfig, MetricsTracker} from '../utils/index.js';
 
 const MANAGER_DEFAULTS = {
     autoInstall: true,
@@ -53,12 +52,16 @@ export class PluginManager extends Component {
      */
     unregister(name) {
         const plugin = this.plugins.get(name);
-        if (!plugin) return false;
+        if (!plugin) {
+            return false;
+        }
 
         // Remove from hooks
         for (const [hookName, plugins] of this.hooks) {
             const idx = plugins.indexOf(plugin);
-            if (idx >= 0) plugins.splice(idx, 1);
+            if (idx >= 0) {
+                plugins.splice(idx, 1);
+            }
         }
 
         this.plugins.delete(name);
@@ -93,13 +96,15 @@ export class PluginManager extends Component {
         const results = {};
 
         for (const [name, plugin] of this.plugins) {
-            if (!plugin.config.enabled) continue;
+            if (!plugin.config.enabled) {
+                continue;
+            }
 
             try {
                 results[name] = await plugin.install(context);
                 this.metrics.increment('pluginsInstalled');
             } catch (error) {
-                results[name] = { error: error.message };
+                results[name] = {error: error.message};
                 if (this.config.strict) {
                     throw error;
                 }
@@ -122,7 +127,7 @@ export class PluginManager extends Component {
                 results[name] = await plugin.uninstall(context);
                 this.metrics.increment('pluginsUninstalled');
             } catch (error) {
-                results[name] = { error: error.message };
+                results[name] = {error: error.message};
             }
         }
 
@@ -140,14 +145,16 @@ export class PluginManager extends Component {
         const results = [];
 
         for (const plugin of plugins) {
-            if (!plugin.config.enabled) continue;
+            if (!plugin.config.enabled) {
+                continue;
+            }
 
             try {
                 const result = await plugin.execute(hookName, ...args);
-                results.push({ plugin: plugin.config.name, result, success: true });
+                results.push({plugin: plugin.config.name, result, success: true});
                 this.metrics.increment('hooksExecuted');
             } catch (error) {
-                results.push({ plugin: plugin.config.name, error: error.message, success: false });
+                results.push({plugin: plugin.config.name, error: error.message, success: false});
             }
         }
 
@@ -169,7 +176,9 @@ export class PluginManager extends Component {
         const sorted = [...plugins].sort((a, b) => b.config.priority - a.config.priority);
 
         for (const plugin of sorted) {
-            if (!plugin.config.enabled) continue;
+            if (!plugin.config.enabled) {
+                continue;
+            }
 
             try {
                 current = await plugin.execute(hookName, current, context);

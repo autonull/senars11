@@ -2,7 +2,9 @@
 
 ## Overview
 
-This document provides comprehensive implementation details for the **Neuro-Symbolic RL Framework** - a general-purpose, self-improving reinforcement learning system that synergizes **NARS**, **MeTTa**, and **Tensor Logic** for breakthrough cognitive capabilities.
+This document provides comprehensive implementation details for the **Neuro-Symbolic RL Framework** - a general-purpose,
+self-improving reinforcement learning system that synergizes **NARS**, **MeTTa**, and **Tensor Logic** for breakthrough
+cognitive capabilities.
 
 ## Architecture Summary
 
@@ -52,9 +54,11 @@ This document provides comprehensive implementation details for the **Neuro-Symb
 
 **File**: `rl/src/bridges/NeuroSymbolicBridge.js`
 
-**Purpose**: Unified bidirectional translation between NARS (Narsese), MeTTa (symbols), and Tensor (vectors) representations.
+**Purpose**: Unified bidirectional translation between NARS (Narsese), MeTTa (symbols), and Tensor (vectors)
+representations.
 
 **Key Classes**:
+
 - `NeuroSymbolicBridge` - Main integration component
 - `NeuroSymbolicBridgeFactory` - Factory for specialized configurations
 
@@ -76,6 +80,7 @@ const prediction = bridge.predictCausal(currentState, action);
 ```
 
 **Implementation Notes**:
+
 - Uses fallback modes when SeNARS/MeTTa not available
 - Caches inference results for performance
 - Tracks comprehensive metrics
@@ -90,10 +95,12 @@ const prediction = bridge.predictCausal(currentState, action);
 **Purpose**: Policy networks expressed as tensor operations with automatic differentiation and MeTTa integration.
 
 **Key Classes**:
+
 - `TensorLogicPolicy` - Neural policy with autodiff
 - `TensorLogicPolicyFactory` - Factory for policy configurations
 
 **Architecture**:
+
 ```
 Input (state) → [Linear + ReLU]×N → Output (action logits)
                     ↓
@@ -131,6 +138,7 @@ const rules = policy.extractRules({ threshold: 0.5 });
 ```
 
 **Learning Algorithms Supported**:
+
 - REINFORCE (policy gradient)
 - PPO-style clipped loss
 - Advantage actor-critic
@@ -144,11 +152,13 @@ const rules = policy.extractRules({ threshold: 0.5 });
 **Purpose**: Automatic discovery and composition of skills at multiple abstraction levels with neuro-symbolic grounding.
 
 **Key Classes**:
+
 - `Skill` - Skill representation with pre/post conditions
 - `HierarchicalSkillSystem` - Skill discovery and management
 - `SkillSystemFactory` - Factory for skill systems
 
 **Skill Structure**:
+
 ```javascript
 class Skill {
     id: string
@@ -185,6 +195,7 @@ const mettaSkills = skillSystem.exportToMetta();
 ```
 
 **Discovery Algorithm**:
+
 1. Cluster state-action pairs by similarity
 2. Induce preconditions from state clusters
 3. Induce postconditions from next-state clusters
@@ -201,12 +212,14 @@ const mettaSkills = skillSystem.exportToMetta();
 **Purpose**: Scalable experience storage with causal indexing, prioritized sampling, and distributed aggregation.
 
 **Key Classes**:
+
 - `CausalExperience` - Experience with causal annotations
 - `DistributedExperienceBuffer` - Main buffer implementation
 - `ExperienceBufferFactory` - Factory for buffers
 - `SumTree` - Priority-based sampling data structure
 
 **Features**:
+
 - **Causal Indexing**: Experiences indexed by causal signatures
 - **Prioritized Sampling**: Sample by TD-error or causal relevance
 - **Distributed Aggregation**: Collect from multiple workers
@@ -241,6 +254,7 @@ await buffer.aggregateWorkers();
 ```
 
 **Sampling Strategies**:
+
 - `random` - Uniform random sampling
 - `prioritized` - By TD-error priority
 - `causal` - By causal similarity to query
@@ -252,14 +266,17 @@ await buffer.aggregateWorkers();
 
 **File**: `rl/src/meta/MetaController.js`
 
-**Purpose**: Self-modifying architecture controller that proposes and evaluates architectural modifications during learning.
+**Purpose**: Self-modifying architecture controller that proposes and evaluates architectural modifications during
+learning.
 
 **Key Classes**:
+
 - `ModificationOperator` - Architecture modification operation
 - `MetaController` - Main meta-control component
 - `MetaControllerFactory` - Factory for meta-controllers
 
 **Modification Types**:
+
 - `add` - Add new component
 - `remove` - Remove existing component
 - `replace` - Replace component
@@ -301,6 +318,7 @@ const bestArchitecture = await metaController.evolveArchitecture(
 ```
 
 **Modification Proposal Process**:
+
 1. Generate candidate modifications from operator pool
 2. Generate additional candidates using NARS reasoning
 3. Generate additional candidates using MeTTa programs
@@ -316,6 +334,7 @@ const bestArchitecture = await metaController.evolveArchitecture(
 **Purpose**: Comprehensive evaluation framework with neuro-symbolic specific metrics.
 
 **Key Classes**:
+
 - `NeuroSymbolicMetricsCollector` - Extended metrics collection
 - `NeuroSymbolicBenchmarkRunner` - Extended benchmark runner
 - `AgentComparator` - Statistical comparison of agents
@@ -323,13 +342,13 @@ const bestArchitecture = await metaController.evolveArchitecture(
 
 **Evaluation Dimensions**:
 
-| Dimension | Metrics |
-|-----------|---------|
-| **RL Performance** | Reward, success rate, sample efficiency |
-| **Reasoning** | Inference accuracy, planning success, belief revision |
-| **Grounding** | Tensor-symbol conversion accuracy, consistency |
-| **Transfer** | Few-shot learning, zero-shot transfer |
-| **Interpretability** | Rule count, rule coverage, explanation quality |
+| Dimension            | Metrics                                               |
+|----------------------|-------------------------------------------------------|
+| **RL Performance**   | Reward, success rate, sample efficiency               |
+| **Reasoning**        | Inference accuracy, planning success, belief revision |
+| **Grounding**        | Tensor-symbol conversion accuracy, consistency        |
+| **Transfer**         | Few-shot learning, zero-shot transfer                 |
+| **Interpretability** | Rule count, rule coverage, explanation quality        |
 
 **Core Operations**:
 
@@ -530,6 +549,7 @@ npm test
 ### Test Coverage
 
 The test suite covers:
+
 - Bridge operations (tensor-symbol-narsese conversion)
 - Policy network forward/backward passes
 - Skill discovery and composition
@@ -542,67 +562,67 @@ The test suite covers:
 
 ### NeuroSymbolicBridge
 
-| Method | Description |
-|--------|-------------|
-| `initialize()` | Initialize bridge and sub-components |
-| `inputNarsese(statement)` | Input Narsese statement |
-| `askNarsese(question)` | Ask Narsese question |
-| `achieveGoal(goal)` | Achieve goal using NARS planning |
-| `liftToSymbols(tensor)` | Convert tensor to symbols |
-| `groundToTensor(symbols)` | Convert symbols to tensor |
-| `observationToNarsese(obs)` | Convert observation to Narsese |
-| `learnCausal(transition)` | Learn causal relationship |
-| `predictCausal(state, action)` | Predict causal outcome |
-| `perceiveReasonAct(obs)` | Complete perception-action cycle |
+| Method                         | Description                          |
+|--------------------------------|--------------------------------------|
+| `initialize()`                 | Initialize bridge and sub-components |
+| `inputNarsese(statement)`      | Input Narsese statement              |
+| `askNarsese(question)`         | Ask Narsese question                 |
+| `achieveGoal(goal)`            | Achieve goal using NARS planning     |
+| `liftToSymbols(tensor)`        | Convert tensor to symbols            |
+| `groundToTensor(symbols)`      | Convert symbols to tensor            |
+| `observationToNarsese(obs)`    | Convert observation to Narsese       |
+| `learnCausal(transition)`      | Learn causal relationship            |
+| `predictCausal(state, action)` | Predict causal outcome               |
+| `perceiveReasonAct(obs)`       | Complete perception-action cycle     |
 
 ### TensorLogicPolicy
 
-| Method | Description |
-|--------|-------------|
-| `initialize()` | Initialize policy and optimizer |
-| `forward(state)` | Forward pass through network |
-| `selectAction(state)` | Select action from policy |
-| `update(experience)` | Update policy from experience |
-| `extractRules()` | Extract symbolic rules |
-| `getParameters()` | Get policy parameters |
-| `setParameters(params)` | Set policy parameters |
+| Method                  | Description                     |
+|-------------------------|---------------------------------|
+| `initialize()`          | Initialize policy and optimizer |
+| `forward(state)`        | Forward pass through network    |
+| `selectAction(state)`   | Select action from policy       |
+| `update(experience)`    | Update policy from experience   |
+| `extractRules()`        | Extract symbolic rules          |
+| `getParameters()`       | Get policy parameters           |
+| `setParameters(params)` | Set policy parameters           |
 
 ### HierarchicalSkillSystem
 
-| Method | Description |
-|--------|-------------|
-| `initialize()` | Initialize skill system |
-| `discoverSkills(experiences)` | Discover new skills |
-| `composeSkills(goal)` | Compose skills for goal |
-| `getApplicableSkills(state)` | Get applicable skills |
-| `getSkill(id)` | Get skill by ID |
-| `exportToMetta()` | Export to MeTTa format |
-| `importFromMetta(metta)` | Import from MeTTa format |
+| Method                        | Description              |
+|-------------------------------|--------------------------|
+| `initialize()`                | Initialize skill system  |
+| `discoverSkills(experiences)` | Discover new skills      |
+| `composeSkills(goal)`         | Compose skills for goal  |
+| `getApplicableSkills(state)`  | Get applicable skills    |
+| `getSkill(id)`                | Get skill by ID          |
+| `exportToMetta()`             | Export to MeTTa format   |
+| `importFromMetta(metta)`      | Import from MeTTa format |
 
 ### DistributedExperienceBuffer
 
-| Method | Description |
-|--------|-------------|
-| `initialize()` | Initialize buffer |
-| `store(experience)` | Store single experience |
-| `storeBatch(experiences)` | Store multiple experiences |
-| `sample(k, options)` | Sample experiences |
-| `registerWorker(id)` | Register worker |
-| `receiveFromWorker(id, exp)` | Receive from worker |
-| `aggregateWorkers()` | Aggregate all workers |
-| `getStats()` | Get buffer statistics |
+| Method                       | Description                |
+|------------------------------|----------------------------|
+| `initialize()`               | Initialize buffer          |
+| `store(experience)`          | Store single experience    |
+| `storeBatch(experiences)`    | Store multiple experiences |
+| `sample(k, options)`         | Sample experiences         |
+| `registerWorker(id)`         | Register worker            |
+| `receiveFromWorker(id, exp)` | Receive from worker        |
+| `aggregateWorkers()`         | Aggregate all workers      |
+| `getStats()`                 | Get buffer statistics      |
 
 ### MetaController
 
-| Method | Description |
-|--------|-------------|
-| `initialize()` | Initialize meta-controller |
-| `setArchitecture(arch)` | Set current architecture |
+| Method                      | Description                     |
+|-----------------------------|---------------------------------|
+| `initialize()`              | Initialize meta-controller      |
+| `setArchitecture(arch)`     | Set current architecture        |
 | `evaluatePerformance(perf)` | Evaluate and potentially modify |
-| `proposeModification()` | Propose modification |
-| `applyModification(mod)` | Apply modification |
-| `evolveArchitecture(gens)` | Evolve architecture |
-| `getState()` | Get controller state |
+| `proposeModification()`     | Propose modification            |
+| `applyModification(mod)`    | Apply modification              |
+| `evolveArchitecture(gens)`  | Evolve architecture             |
+| `getState()`                | Get controller state            |
 
 ---
 
@@ -611,15 +631,19 @@ The test suite covers:
 ### Common Issues
 
 **Issue**: SeNARS not available
+
 - **Solution**: Bridge automatically falls back to symbolic mode
 
 **Issue**: Tensor backend not available
+
 - **Solution**: Policy uses random actions until backend loaded
 
 **Issue**: Memory exhaustion with large experience buffer
+
 - **Solution**: Reduce capacity or enable experience pruning
 
 **Issue**: Slow inference
+
 - **Solution**: Reduce `maxReasoningCycles`, enable caching
 
 ---
@@ -627,6 +651,7 @@ The test suite covers:
 ## Future Extensions
 
 Planned enhancements:
+
 1. **Multi-Agent Coordination**: Shared belief bases
 2. **Hierarchical Action Spaces**: Discrete high-level, continuous low-level
 3. **Meta-Learning Policies**: MeTTa scripts that generate policies

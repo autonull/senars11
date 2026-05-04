@@ -1,16 +1,14 @@
 /**
  * Policy Gradient Agent
- * 
+ *
  * Implements REINFORCE algorithm with baseline.
- * 
+ *
  * @implements {import('../interfaces/IAgent.js').IAgent}
  */
-import { NeuralAgent } from './NeuralAgent.js';
-import { Tensor } from '@senars/tensor';
-import { deepMergeConfig } from '../utils/ConfigHelper.js';
-import { AgentFactoryUtils, buildNetwork } from './QNetwork.js';
-import { NetworkBuilder } from '../utils/index.js';
-import { PolicyUtils } from '../utils/PolicyUtils.js';
+import {NeuralAgent} from './NeuralAgent.js';
+import {Tensor} from '@senars/tensor';
+import {deepMergeConfig} from '../utils/ConfigHelper.js';
+import {NetworkBuilder, PolicyUtils} from '../utils/index.js';
 
 const PG_DEFAULTS = {
     lr: 0.01,
@@ -51,12 +49,12 @@ export class PolicyGradientAgent extends NeuralAgent {
         if (this.env.actionSpace.type === 'Discrete') {
             const probs = logits.softmax();
             const action = PolicyUtils.sampleCategorical(probs.data);
-            this.logProbs.push({ logits, action, type: 'discrete' });
+            this.logProbs.push({logits, action, type: 'discrete'});
             return action;
         }
 
         const actionTensor = this._sampleContinuous(logits);
-        this.logProbs.push({ distParams: { mean: logits, std: 1.0 }, action: actionTensor, type: 'continuous' });
+        this.logProbs.push({distParams: {mean: logits, std: 1.0}, action: actionTensor, type: 'continuous'});
         return actionTensor.data;
     }
 
@@ -84,7 +82,7 @@ export class PolicyGradientAgent extends NeuralAgent {
 
     async _updatePolicy() {
         const returns = this._computeReturns(this.rewards, this.config.gamma);
-        let loss = new Tensor([0], { requiresGrad: true });
+        let loss = new Tensor([0], {requiresGrad: true});
 
         this.logProbs.forEach((item, i) => {
             const R_t = returns[i];
@@ -122,7 +120,9 @@ export class PolicyGradientAgent extends NeuralAgent {
     _updateParams(params, lr) {
         params.forEach(p => {
             if (p.grad) {
-                p.data.forEach((_, j) => { p.data[j] -= lr * p.grad[j]; });
+                p.data.forEach((_, j) => {
+                    p.data[j] -= lr * p.grad[j];
+                });
                 p.grad.fill(0);
             }
         });

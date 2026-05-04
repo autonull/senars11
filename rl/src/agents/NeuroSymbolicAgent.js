@@ -1,12 +1,12 @@
-import { RLAgent } from '../core/RLAgent.js';
-import { LearnedGrounding } from '../grounding/LearnedGrounding.js';
-import { EpisodicMemory } from '../memory/EpisodicMemory.js';
-import { SkillManager } from '../skills/SkillManager.js';
-import { SkillDiscovery } from '../skills/SkillDiscovery.js';
-import { DualProcessArchitecture } from '../architectures/DualProcessArchitecture.js';
-import { MeTTaPolicyArchitecture } from '../architectures/MeTTaPolicyArchitecture.js';
-import { EvolutionaryArchitecture } from '../architectures/EvolutionaryArchitecture.js';
-import { deepMergeConfig } from '../utils/ConfigHelper.js';
+import {Agent} from '../core/RLCore.js';
+import {LearnedGrounding} from '../memory/MemorySystem.js';
+import {EpisodicMemory} from '../memory/EpisodicMemory.js';
+import {SkillManager} from '../skills/SkillManager.js';
+import {SkillDiscovery} from '../skills/SkillDiscovery.js';
+import {DualProcessArchitecture} from '../architectures/DualProcessArchitecture.js';
+import {MeTTaPolicyArchitecture} from '../architectures/MeTTaPolicyArchitecture.js';
+import {EvolutionaryArchitecture} from '../architectures/EvolutionaryArchitecture.js';
+import {mergeConfig} from '../utils/index.js';
 
 const NEUROSYMBOLIC_DEFAULTS = {
     encoder: 'mlp',
@@ -25,14 +25,9 @@ const ARCHITECTURE_MAP = {
     'dual-process': DualProcessArchitecture
 };
 
-/**
- * NeuroSymbolicAgent - Agent with neuro-symbolic integration
- * Combines SeNARS reasoning, MeTTa policy representation, and Tensor learning
- */
-export class NeuroSymbolicAgent extends RLAgent {
+export class NeuroSymbolicAgent extends Agent {
     constructor(env, config = {}) {
-        // Merge configs before calling super to ensure proper inheritance
-        const mergedConfig = deepMergeConfig(NEUROSYMBOLIC_DEFAULTS, config);
+        const mergedConfig = mergeConfig(NEUROSYMBOLIC_DEFAULTS, config);
         super(env, mergedConfig);
 
         this.grounding = new LearnedGrounding();
@@ -48,8 +43,8 @@ export class NeuroSymbolicAgent extends RLAgent {
 
     _setupBridgeAliases() {
         if (this.architecture instanceof DualProcessArchitecture) {
-            const { bridge, planner, hierarchical, inducer, metta } = this.architecture;
-            Object.assign(this, { bridge, planner, hierarchical, inducer, metta });
+            const {bridge, planner, hierarchical, inducer, metta} = this.architecture;
+            Object.assign(this, {bridge, planner, hierarchical, inducer, metta});
         } else if (this.architecture instanceof MeTTaPolicyArchitecture) {
             this.metta = this.architecture.metta;
         }
@@ -69,7 +64,7 @@ export class NeuroSymbolicAgent extends RLAgent {
     }
 
     async plan(goal) {
-        return this.architecture.planner?.act(null, goal) ?? null;
+        return await this.architecture.planner?.act(null, goal) ?? null;
     }
 
     async explain(decision) {
@@ -90,7 +85,7 @@ export class NeuroSymbolicAgent extends RLAgent {
     }
 
     async discoverSkills(experiences, options = {}) {
-        return this.skillDiscovery?.discoverSkills(experiences, options) ?? [];
+        return await this.skillDiscovery?.discoverSkills(experiences, options) ?? [];
     }
 
     getSkills() {
@@ -98,7 +93,7 @@ export class NeuroSymbolicAgent extends RLAgent {
     }
 
     async composeSkills(goal) {
-        return this.skillDiscovery?.composeSkills(goal) ?? null;
+        return await this.skillDiscovery?.composeSkills(goal) ?? null;
     }
 
     async close() {

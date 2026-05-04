@@ -64,7 +64,7 @@ export class ContextualWidget {
     }
 
     updateTransform(data) {
-        if (!this.transformContainer || !this.graph.cy) return;
+        if (!this.transformContainer || !this.graph.cy) {return;}
         const pan = this.graph.cy.pan();
         const zoom = this.graph.cy.zoom();
         this.transformContainer.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
@@ -78,9 +78,9 @@ export class ContextualWidget {
         // 0.4 - 1.0: Header Only (LOD 1)
         // > 1.0: Full Content (LOD 2)
         // > 2.5: High Detail / Enhanced (LOD 3)
-        if (zoom > 0.4) lodClass = 'zui-lod-1';
-        if (zoom > 1.0) lodClass = 'zui-lod-2';
-        if (zoom > 2.5) lodClass = 'zui-lod-3';
+        if (zoom > 0.4) {lodClass = 'zui-lod-1';}
+        if (zoom > 1.0) {lodClass = 'zui-lod-2';}
+        if (zoom > 2.5) {lodClass = 'zui-lod-3';}
 
         if (this.currentLOD !== lodClass) {
             this.transformContainer.className = `zui-transform-layer ${lodClass}`;
@@ -89,14 +89,14 @@ export class ContextualWidget {
 
         // Smooth opacity fade-in from 0.3 to 0.5
         let opacity = 1;
-        if (zoom < 0.3) opacity = 0;
-        else if (zoom < 0.5) opacity = (zoom - 0.3) / 0.2;
+        if (zoom < 0.3) {opacity = 0;}
+        else if (zoom < 0.5) {opacity = (zoom - 0.3) / 0.2;}
 
         this.transformContainer.style.opacity = opacity;
     }
 
     attach(nodeId, contentHtml, options = {}) {
-        if (this.activeWidgets.has(nodeId)) return;
+        if (this.activeWidgets.has(nodeId)) {return;}
 
         const div = document.createElement('div');
         div.className = 'zui-widget';
@@ -158,10 +158,10 @@ export class ContextualWidget {
 
     updateNodeWidget(nodeId) {
         const node = this.graph.cy?.getElementById(nodeId);
-        if (!node?.length) return;
+        if (!node?.length) {return;}
 
         const div = this.activeWidgets.get(nodeId);
-        if (!div) return;
+        if (!div) {return;}
 
         // Use Model Position (Fractal Space)
         const pos = node.position();
@@ -220,7 +220,7 @@ export class ContextualWidget {
     }
 
     showHoverFrame(node) {
-        if (!this.hoverFrame) return;
+        if (!this.hoverFrame) {return;}
 
         const pos = node.position();
         const width = node.width() || 30;
@@ -256,7 +256,7 @@ export class ContextualWidget {
     clear() {
         this.activeWidgets.forEach(div => div.remove());
         this.activeWidgets.clear();
-        if (this.hoverFrame) this.hoverFrame.style.display = 'none';
+        if (this.hoverFrame) {this.hoverFrame.style.display = 'none';}
         // this.transformContainer.innerHTML = ''; // Also clears container
     }
 }

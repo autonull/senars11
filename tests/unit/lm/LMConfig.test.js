@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, test} from '@jest/globals';
-import {LMConfig} from '../../../core/src/lm/LMConfig.js';
+import {LMConfig} from '@senars/core';
 import {LMConfigPersistence} from '../../../agent/src/io/LMConfigPersistence.js';
 import fs from 'fs';
 

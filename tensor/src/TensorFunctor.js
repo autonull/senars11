@@ -19,6 +19,7 @@ export class TensorFunctor {
         this.bridge = new TruthTensorBridge(this.backend);
         this.loss = new LossFunctor(this.backend);
         this.ops = new Map();
+        this._optimizers = new Map();
     }
 
     evaluate(term, bindings) {
@@ -48,22 +49,28 @@ export class TensorFunctor {
 
             case 'grad': {
                 const [output, input] = [0, 1].map(i => this.resolve(term.components[i], bindings));
-                if (!(output instanceof Tensor) || !(input instanceof Tensor))
+                if (!(output instanceof Tensor) || !(input instanceof Tensor)) {
                     throw new Error('grad requires Tensor arguments');
-                if (!output.requiresGrad)
+                }
+                if (!output.requiresGrad) {
                     throw new Error('Cannot compute gradient: output does not require gradients');
+                }
                 output.backward();
                 return input.grad ?? this.backend.zeros(input.shape);
             }
             case 'backward': {
                 const tensor = this.resolve(term.components[0], bindings);
-                if (!(tensor instanceof Tensor)) throw new Error('backward requires Tensor');
+                if (!(tensor instanceof Tensor)) {
+                    throw new Error('backward requires Tensor');
+                }
                 tensor.backward();
                 return tensor;
             }
             case 'zero_grad': {
                 const tensor = this.resolve(term.components[0], bindings);
-                if (!(tensor instanceof Tensor)) throw new Error('zero_grad requires Tensor');
+                if (!(tensor instanceof Tensor)) {
+                    throw new Error('zero_grad requires Tensor');
+                }
                 tensor.zeroGrad();
                 return tensor;
             }
@@ -111,9 +118,14 @@ export class TensorFunctor {
                 const param = this.resolve(term.components[0], bindings);
                 const lr = this.resolve(term.components[1], bindings);
                 const momentum = term.components[2] ? this.resolve(term.components[2], bindings) : 0;
-                if (!(param instanceof Tensor)) throw new Error('sgd_step requires Tensor');
-                if (!param.grad) return param;
-                new SGDOptimizer(lr, momentum).step(new Map([['param', param]]));
+                if (!(param instanceof Tensor)) {
+                    throw new Error('sgd_step requires Tensor');
+                }
+                if (!param.grad) {
+                    return param;
+                }
+                const optimizer = this._getOrCreateOptimizer('sgd', param, {lr, momentum});
+                optimizer.step(new Map([['param', param]]));
                 return param;
             }
 
@@ -122,37 +134,60 @@ export class TensorFunctor {
                 const lr = this.resolve(term.components[1], bindings);
                 const beta1 = term.components[2] ? this.resolve(term.components[2], bindings) : 0.9;
                 const beta2 = term.components[3] ? this.resolve(term.components[3], bindings) : 0.999;
-                if (!(param instanceof Tensor)) throw new Error('adam_step requires Tensor');
-                if (!param.grad) return param;
-                new AdamOptimizer(lr, beta1, beta2).step(new Map([['param', param]]));
+                if (!(param instanceof Tensor)) {
+                    throw new Error('adam_step requires Tensor');
+                }
+                if (!param.grad) {
+                    return param;
+                }
+                const optimizer = this._getOrCreateOptimizer('adam', param, {lr, beta1, beta2});
+                optimizer.step(new Map([['param', param]]));
                 return param;
             }
 
             default:
-                if (binaryOps.includes(op)) return this._callBinaryOp(op, term, bindings);
-                if (unaryOps.includes(op)) return this._callUnaryOp(op, term, bindings);
-                if (reductionOps.includes(op)) return this._callReductionOp(op, term, bindings);
-                if (shapeOps.includes(op)) return this._callShapeOp(op, term, bindings);
+                if (binaryOps.includes(op)) {
+                    return this._callBinaryOp(op, term, bindings);
+                }
+                if (unaryOps.includes(op)) {
+                    return this._callUnaryOp(op, term, bindings);
+                }
+                if (reductionOps.includes(op)) {
+                    return this._callReductionOp(op, term, bindings);
+                }
+                if (shapeOps.includes(op)) {
+                    return this._callShapeOp(op, term, bindings);
+                }
                 return term;
         }
     }
 
     resolve(term, bindings) {
-        if (term instanceof Tensor) return term;
-        if (typeof term === 'number') return term;
-        if (Array.isArray(term)) return term;
+        if (term instanceof Tensor) {
+            return term;
+        }
+        if (typeof term === 'number') {
+            return term;
+        }
+        if (Array.isArray(term)) {
+            return term;
+        }
 
         if (term?.isVariable) {
             const varName = term.name || term.toString();
             return bindings.has(varName) ? this.resolve(bindings.get(varName), bindings) : term;
         }
 
-        if (term?.components) return this.evaluate(term, bindings);
+        if (term?.components) {
+            return this.evaluate(term, bindings);
+        }
         return term;
     }
 
     createTensor(data, options = {}) {
-        if (data instanceof Tensor) return data;
+        if (data instanceof Tensor) {
+            return data;
+        }
         return new Tensor(data, {
             requiresGrad: options.requiresGrad ?? false,
             backend: this.backend
@@ -194,5 +229,13 @@ export class TensorFunctor {
         return this.ops.has(op) || TensorFunctor._TENSOR_OPS.has(op);
     }
 
-
+    _getOrCreateOptimizer(type, param, config) {
+        const key = `${type}:${param.data.byteOffset ?? param.data.toString().slice(0, 20)}`;
+        if (!this._optimizers.has(key)) {
+            this._optimizers.set(key, type === 'adam'
+                ? new AdamOptimizer(config.lr, config.beta1, config.beta2)
+                : new SGDOptimizer(config.lr, config.momentum));
+        }
+        return this._optimizers.get(key);
+    }
 }

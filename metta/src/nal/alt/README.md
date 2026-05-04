@@ -1,19 +1,23 @@
 # Pure MeTTa Alternatives
 
-This directory contains **pure MeTTa** implementations of NAL functions and algorithms, designed for **benchmarking** and **educational purposes**.
+This directory contains **pure MeTTa** implementations of NAL functions and algorithms, designed for **benchmarking**
+and **educational purposes**.
 
 ## Purpose
 
 Compare performance characteristics between:
+
 1. **Grounded Operations** (JavaScript-backed): Fast, using native JS math
 2. **Pure MeTTa** (reduction-only): Slower, but demonstrates MeTTa's computational model
 
 ## Files
 
 ### truth-pure.metta
+
 Pure MeTTa implementations of all NAL truth functions without using grounded operations (`&*`, `&/`, `&+`, `&-`).
 
 **Example:**
+
 ```metta
 ; Grounded (fast)
 (truth-ded (0.9 0.8) (0.7 0.6))  ; => (0.63 0.504)
@@ -23,15 +27,18 @@ Pure MeTTa implementations of all NAL truth functions without using grounded ope
 ```
 
 **Use cases:**
+
 - Understanding MeTTa's reduction semantics
 - Teaching NAL logic without JavaScript dependency
 - Verifying grounded implementations
 - Self-hosting experiments (MeTTa interpreting itself)
 
 ### search-pure.metta
+
 Pure MeTTa search algorithms (DFS, BFS, A*) using only list manipulation primitives defined in MeTTa.
 
 **Example:**
+
 ```metta
 ; Define graph
 (edge A B)
@@ -44,6 +51,7 @@ Pure MeTTa search algorithms (DFS, BFS, A*) using only list manipulation primiti
 ```
 
 **Use cases:**
+
 - Demonstrating graph traversal in pure functional style
 - Teaching search algorithms in MeTTa
 - Benchmarking list operation overhead
@@ -51,21 +59,25 @@ Pure MeTTa search algorithms (DFS, BFS, A*) using only list manipulation primiti
 ## Performance Expectations
 
 **Truth Functions:**
+
 - Grounded: ~0.001ms per operation
 - Pure MeTTa: ~0.1-1ms per operation (100-1000x slower)
 
 **Search Algorithms:**
+
 - Grounded: ~0.01ms per node
 - Pure MeTTa: ~1-10ms per node (100-1000x slower)
 
 ## When to Use
 
 ### Use Grounded (Default)
+
 - Production reasoning
 - Real-time inference
 - Large-scale computations
 
 ### Use Pure MeTTa
+
 - MeTTa tutorial/documentation
 - Self-metaprogramming experiments
 - Verifying grounded correctness
@@ -75,7 +87,9 @@ Pure MeTTa search algorithms (DFS, BFS, A*) using only list manipulation primiti
 ## Implementation Notes
 
 ### Arithmetic Primitives
+
 Pure implementations use recursive addition/multiplication:
+
 ```metta
 (= (add 0 $y) $y)
 (= (add $x $y)
@@ -85,7 +99,9 @@ Pure implementations use recursive addition/multiplication:
 This is **intentionally inefficient** to demonstrate pure reduction.
 
 ### List Operations
+
 All list operations (append, reverse, member) are recursive:
+
 ```metta
 (= (append (:) $list2) $list2)
 (= (append (: $head $tail) $list2)

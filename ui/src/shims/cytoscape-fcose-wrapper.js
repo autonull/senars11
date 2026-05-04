@@ -13,7 +13,7 @@ import 'cytoscape-fcose/cytoscape-fcose.js';
 // Or maybe cytoscape expects a function returning a class?
 
 export default function(cytoscape) {
-    if (!cytoscape) return;
+    if (!cytoscape) {return;}
 
     // Define the layout class
     class MockFcoseLayout {
@@ -22,7 +22,7 @@ export default function(cytoscape) {
         }
 
         run() {
-            const eles = this.options.eles;
+            const {eles} = this.options;
             const nodes = eles.nodes();
 
             nodes.each((ele, i) => {
@@ -34,7 +34,7 @@ export default function(cytoscape) {
 
             nodes.layoutPositions(this, this.options, (ele) => ele.scratch('fcose'));
 
-            if(this.options.stop) this.options.stop();
+            if(this.options.stop) {this.options.stop();}
             eles.emit('layoutstop');
 
             return this;

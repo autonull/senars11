@@ -1,5 +1,5 @@
 import {ReplMessageHandler} from './ReplMessageHandler.js';
-import {Logger} from '../../../core/src/util/Logger.js';
+import {Logger} from '@senars/core';
 
 export class ReplCommonInterface {
     constructor(engine) {

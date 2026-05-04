@@ -3,7 +3,7 @@
  * @description Tool for web automation and web-based operations with safety features
  */
 
-import { BaseTool } from '../BaseTool.js';
+import {BaseTool} from '../BaseTool.js';
 import {Logger} from '../../util/Logger.js';
 
 /**
@@ -41,24 +41,36 @@ export class WebAutomationTool extends BaseTool {
     async execute(params, context) {
         const {operation, url, method = 'GET', headers = {}, body, options = {}} = params;
 
-        if (!operation) throw new Error('Operation is required');
+        if (!operation) {
+            throw new Error('Operation is required');
+        }
 
         switch (operation.toLowerCase()) {
             case 'get':
             case 'fetch':
-                if (!url) throw new Error('URL is required for fetch operation');
+                if (!url) {
+                    throw new Error('URL is required for fetch operation');
+                }
                 return await this._fetchUrl(url, {method: 'GET', headers, ...options});
             case 'post':
-                if (!url) throw new Error('URL is required for POST operation');
+                if (!url) {
+                    throw new Error('URL is required for POST operation');
+                }
                 return await this._fetchUrl(url, {method: 'POST', headers, body, ...options});
             case 'scrape':
-                if (!url) throw new Error('URL is required for scrape operation');
+                if (!url) {
+                    throw new Error('URL is required for scrape operation');
+                }
                 return await this._scrapeUrl(url, {headers, ...options});
             case 'check':
-                if (!url) throw new Error('URL is required for check operation');
+                if (!url) {
+                    throw new Error('URL is required for check operation');
+                }
                 return await this._checkUrl(url, {headers, ...options});
             case 'head':
-                if (!url) throw new Error('URL is required for HEAD operation');
+                if (!url) {
+                    throw new Error('URL is required for HEAD operation');
+                }
                 return await this._headRequest(url, {headers, ...options});
             default:
                 throw new Error(`Unsupported operation: ${operation}. Supported operations: get, post, scrape, check, head`);
@@ -70,11 +82,11 @@ export class WebAutomationTool extends BaseTool {
      * @private
      */
     async _fetchUrl(url, options = {}) {
-        // Validate URL and safety
         this._validateUrl(url);
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+        const startTime = Date.now();
 
         try {
             const requestHeaders = {
@@ -82,7 +94,6 @@ export class WebAutomationTool extends BaseTool {
                 ...options.headers
             };
 
-            // Basic fetch - in a real implementation you'd want to handle cookies, sessions, etc.
             const response = await fetch(url, {
                 method: options.method || 'GET',
                 headers: requestHeaders,
@@ -100,7 +111,7 @@ export class WebAutomationTool extends BaseTool {
                 throw new Error(`Response exceeds maximum size: ${this.maxResponseSize} bytes`);
             }
 
-            return this._createWebResponse('fetch', url, response, content);
+            return this._createWebResponse('fetch', url, response, content, startTime);
         } catch (error) {
             clearTimeout(timeoutId);
 
@@ -142,11 +153,11 @@ export class WebAutomationTool extends BaseTool {
      * @private
      */
     async _checkUrl(url, options = {}) {
-        // Validate URL and safety
         this._validateUrl(url);
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+        const startTime = Date.now();
 
         try {
             const requestHeaders = {
@@ -155,7 +166,7 @@ export class WebAutomationTool extends BaseTool {
             };
 
             const response = await fetch(url, {
-                method: 'GET', // Use GET instead of HEAD to get more info about accessibility
+                method: 'GET',
                 headers: requestHeaders,
                 signal: controller.signal,
                 redirect: 'follow'
@@ -163,7 +174,7 @@ export class WebAutomationTool extends BaseTool {
 
             clearTimeout(timeoutId);
 
-            return this._createCheckResponse(url, response);
+            return this._createCheckResponse(url, response, startTime);
         } catch (error) {
             clearTimeout(timeoutId);
 
@@ -186,11 +197,11 @@ export class WebAutomationTool extends BaseTool {
      * @private
      */
     async _headRequest(url, options = {}) {
-        // Validate URL and safety
         this._validateUrl(url);
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+        const startTime = Date.now();
 
         try {
             const requestHeaders = {
@@ -207,7 +218,7 @@ export class WebAutomationTool extends BaseTool {
 
             clearTimeout(timeoutId);
 
-            return this._createHeadResponse(url, response);
+            return this._createHeadResponse(url, response, startTime);
         } catch (error) {
             clearTimeout(timeoutId);
 
@@ -229,7 +240,7 @@ export class WebAutomationTool extends BaseTool {
      * Create a web response object
      * @private
      */
-    _createWebResponse(operation, url, response, content) {
+    _createWebResponse(operation, url, response, content, startTime) {
         return {
             success: true,
             operation,
@@ -240,7 +251,7 @@ export class WebAutomationTool extends BaseTool {
             content: this._sanitizeContent(content),
             size: content.length,
             contentType: response.headers.get('content-type') || 'unknown',
-            duration: Date.now() - (Date.now() - this.timeout) // Approximate duration
+            duration: Date.now() - startTime
         };
     }
 
@@ -248,7 +259,7 @@ export class WebAutomationTool extends BaseTool {
      * Create a check response object
      * @private
      */
-    _createCheckResponse(url, response) {
+    _createCheckResponse(url, response, startTime) {
         return {
             success: response.ok,
             operation: 'check',
@@ -257,7 +268,8 @@ export class WebAutomationTool extends BaseTool {
             statusText: response.statusText,
             headers: Object.fromEntries(response.headers.entries()),
             accessible: response.ok,
-            contentType: response.headers.get('content-type') || 'unknown'
+            contentType: response.headers.get('content-type') || 'unknown',
+            duration: Date.now() - startTime
         };
     }
 
@@ -265,7 +277,7 @@ export class WebAutomationTool extends BaseTool {
      * Create a HEAD response object
      * @private
      */
-    _createHeadResponse(url, response) {
+    _createHeadResponse(url, response, startTime) {
         return {
             success: response.ok,
             operation: 'head',
@@ -273,7 +285,8 @@ export class WebAutomationTool extends BaseTool {
             status: response.status,
             statusText: response.statusText,
             headers: Object.fromEntries(response.headers.entries()),
-            accessible: response.ok
+            accessible: response.ok,
+            duration: Date.now() - startTime
         };
     }
 
@@ -375,7 +388,7 @@ export class WebAutomationTool extends BaseTool {
 
             // Check if domain is in allowed list
             const isAllowed = Array.from(this.allowedDomains).some(allowed =>
-                domain === allowed || domain.endsWith('.' + allowed)
+                domain === allowed || domain.endsWith(`.${allowed}`)
             );
 
             if (!isAllowed) {

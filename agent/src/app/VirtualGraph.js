@@ -10,7 +10,9 @@ export class VirtualGraph {
      * Update the graph state based on incoming message
      */
     updateFromMessage(message) {
-        if (!message) return;
+        if (!message) {
+            return;
+        }
 
         const {type} = message;
         const payload = message.payload || message.data;
@@ -42,7 +44,9 @@ export class VirtualGraph {
     }
 
     updateFromSnapshot(payload) {
-        if (!payload || !payload.concepts) return;
+        if (!payload || !payload.concepts) {
+            return;
+        }
 
         // Clear existing
         this.nodes.clear();
@@ -54,13 +58,15 @@ export class VirtualGraph {
     }
 
     addNode(data, defaultType = 'concept') {
-        if (!data) return;
+        if (!data) {
+            return;
+        }
 
         // Unwrap nested data structures common in NAR events
         const actualData = data.task || data.concept || data.derivedTask || data;
 
-        let id = actualData.id;
-        let term = actualData.term;
+        let {id} = actualData;
+        let {term} = actualData;
 
         // Handle object term
         if (typeof term === 'object' && term !== null) {
@@ -73,8 +79,12 @@ export class VirtualGraph {
             term = term._name || term.name; // Use name as string representation
         }
 
-        if (!id) id = term;
-        if (!id) return;
+        if (!id) {
+            id = term;
+        }
+        if (!id) {
+            return;
+        }
 
         // If it's a string, wrap it
         const nodeData = typeof actualData === 'string' ? {term: actualData, id: actualData} : {...actualData};
@@ -85,7 +95,9 @@ export class VirtualGraph {
         }
 
         // Ensure type
-        if (!nodeData.type) nodeData.type = defaultType;
+        if (!nodeData.type) {
+            nodeData.type = defaultType;
+        }
 
         this.nodes.set(id, nodeData);
     }

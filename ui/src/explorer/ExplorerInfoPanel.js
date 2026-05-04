@@ -9,7 +9,7 @@ export class ExplorerInfoPanel {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         const el = document.createElement('div');
         el.className = 'info-panel';
@@ -26,7 +26,7 @@ export class ExplorerInfoPanel {
     }
 
     updateStats(stats) {
-        if (!this.statsContent) return;
+        if (!this.statsContent) {return;}
 
         this.statsContent.innerHTML = `
             <div style="margin-bottom: 8px;">

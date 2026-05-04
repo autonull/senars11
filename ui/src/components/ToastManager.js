@@ -32,10 +32,10 @@ class ToastManagerService {
 
         // Icon based on type
         let icon = 'ℹ️';
-        if (type === 'success') icon = '✅';
-        if (type === 'warning') icon = '⚠️';
-        if (type === 'error') icon = '🚨';
-        if (type === 'system') icon = '🤖';
+        if (type === 'success') {icon = '✅';}
+        if (type === 'warning') {icon = '⚠️';}
+        if (type === 'error') {icon = '🚨';}
+        if (type === 'system') {icon = '🤖';}
 
         toast.innerHTML = `
             <span class="toast-icon">${icon}</span>
@@ -71,7 +71,7 @@ class ToastManagerService {
     }
 
     dismiss(toast) {
-        if (!toast) return;
+        if (!toast) {return;}
 
         toast.classList.remove('show');
         toast.classList.add('hide');

@@ -1,9 +1,7 @@
-
-import { MetaController } from '../../src/meta/MetaController.js';
-import { NeuroSymbolicBridge } from '../../src/bridges/NeuroSymbolicBridge.js';
-import { strict as assert } from 'assert';
-import { describe, test } from '@jest/globals';
-import { MeTTaInterpreter } from '@senars/metta/src/MeTTaInterpreter.js';
+import {MetaController, NeuroSymbolicBridge} from '../../src/index.js';
+import {strict as assert} from 'assert';
+import {describe, test} from '@jest/globals';
+import {MeTTaInterpreter} from '@senars/metta/src/MeTTaInterpreter.js';
 
 describe('MeTTa Self-Optimization', () => {
 
@@ -13,7 +11,7 @@ describe('MeTTa Self-Optimization', () => {
         const controller = new MetaController({
             useMettaRepresentation: true,
             mettaInterpreter,
-            mettaConfig: { ground: mettaInterpreter.ground },
+            mettaConfig: {ground: mettaInterpreter.ground},
             explorationRate: 0.5
         });
 
@@ -41,7 +39,7 @@ describe('MeTTa Self-Optimization', () => {
         const controller = new MetaController({
             useMettaRepresentation: true,
             mettaInterpreter,
-            mettaConfig: { ground: mettaInterpreter.ground },
+            mettaConfig: {ground: mettaInterpreter.ground},
             explorationRate: 0.5
         });
 

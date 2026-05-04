@@ -1,6 +1,14 @@
 import {TruthValueUtils} from './NarseseTemplate.js';
-import * as dfd from 'danfojs';
 import {DataTableKnowledge} from './DataTableKnowledge.js';
+import {Logger} from '@senars/core';
+
+// Reuse the mock mechanism from DataTableKnowledge
+async function loadDanfojs() {
+    if (globalThis.__mockDanfojs) {
+        return globalThis.__mockDanfojs;
+    }
+    return import('danfojs');
+}
 
 export class FileAnalysisKnowledge extends DataTableKnowledge {
     constructor(data = null, options = {}) {
@@ -20,6 +28,7 @@ export class FileAnalysisKnowledge extends DataTableKnowledge {
                     complexity_classCount: file.complexity?.classCount || 0,
                     complexity_conditionalCount: file.complexity?.conditionalCount || 0
                 }));
+                const dfd = await loadDanfojs();
                 this.df = new dfd.DataFrame(flatData);
             } else if (this.data?.fileAnalysis) {
                 const flatData = this.data.fileAnalysis.map(file => ({
@@ -30,6 +39,7 @@ export class FileAnalysisKnowledge extends DataTableKnowledge {
                     uncovered: file.uncovered,
                     size: file.size
                 }));
+                const dfd = await loadDanfojs();
                 this.df = new dfd.DataFrame(flatData);
             } else {
                 await super.initDataTable(this.data);
@@ -64,13 +74,15 @@ export class FileAnalysisKnowledge extends DataTableKnowledge {
 
             return null;
         } catch (error) {
-            console.error(`Error converting file row to task: ${error.message}`);
+            Logger.error(`Error converting file row to task: ${error.message}`);
             return null;
         }
     }
 
     async createRelationships() {
-        if (!this.df) await this.processData();
+        if (!this.df) {
+            await this.processData();
+        }
 
         const rows = this.df?.values || [];
         const cols = this.df?.columns || [];
@@ -114,6 +126,7 @@ export class TestResultKnowledge extends DataTableKnowledge {
                     numPassingAsserts: test.numPassingAsserts,
                     failureMessages: test.failureMessages ? test.failureMessages.join('; ') : ''
                 }));
+                const dfd = await loadDanfojs();
                 this.df = new dfd.DataFrame(flatData);
             } else {
                 await super.initDataTable(this.data);
@@ -148,13 +161,15 @@ export class TestResultKnowledge extends DataTableKnowledge {
 
             return null;
         } catch (error) {
-            console.error(`Error converting test row to task: ${error.message}`);
+            Logger.error(`Error converting test row to task: ${error.message}`);
             return null;
         }
     }
 
     async createRelationships() {
-        if (!this.df) await this.processData();
+        if (!this.df) {
+            await this.processData();
+        }
 
         const rows = this.df?.values || [];
         const cols = this.df?.columns || [];
@@ -208,6 +223,7 @@ export class DirectoryStructureKnowledge extends DataTableKnowledge {
                     parentDirectory: stats.parentDirectory || null,
                     subdirectories: Array.isArray(stats.subdirectories) ? stats.subdirectories.join(',') : ''
                 }));
+                const dfd = await loadDanfojs();
                 this.df = new dfd.DataFrame(flatData);
             } else {
                 await super.initDataTable(this.data);
@@ -240,13 +256,15 @@ export class DirectoryStructureKnowledge extends DataTableKnowledge {
 
             return null;
         } catch (error) {
-            console.error(`Error converting directory row to task: ${error.message}`);
+            Logger.error(`Error converting directory row to task: ${error.message}`);
             return null;
         }
     }
 
     async createRelationships() {
-        if (!this.df) await this.processData();
+        if (!this.df) {
+            await this.processData();
+        }
 
         const rows = this.df?.values || [];
         const cols = this.df?.columns || [];
@@ -297,6 +315,7 @@ export class DependencyGraphKnowledge extends DataTableKnowledge {
                         type: 'dependency'
                     })) : []
                 );
+                const dfd = await loadDanfojs();
                 this.df = new dfd.DataFrame(flatData);
             } else {
                 await super.initDataTable(this.data);
@@ -316,13 +335,15 @@ export class DependencyGraphKnowledge extends DataTableKnowledge {
                 truth: {frequency: 1.0, confidence: 0.9}
             });
         } catch (error) {
-            console.error(`Error converting dependency row to task: ${error.message}`);
+            Logger.error(`Error converting dependency row to task: ${error.message}`);
             return null;
         }
     }
 
     async createRelationships() {
-        if (!this.df) await this.processData();
+        if (!this.df) {
+            await this.processData();
+        }
 
         const rows = this.df?.values || [];
         const cols = this.df?.columns || [];

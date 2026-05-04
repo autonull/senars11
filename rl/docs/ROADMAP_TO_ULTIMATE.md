@@ -2,13 +2,15 @@
 
 **From "Working" to "World-Class"**
 
-Based on the comprehensive RL module refactoring completed, here's a strategic roadmap to transform this into the ultimate useful and usable AI system.
+Based on the comprehensive RL module refactoring completed, here's a strategic roadmap to transform this into the
+ultimate useful and usable AI system.
 
 ---
 
 ## Executive Summary
 
 **Current State:**
+
 - ✅ Clean architecture (9/10 elegance score)
 - ✅ 95% test coverage
 - ✅ Modular, maintainable code
@@ -16,6 +18,7 @@ Based on the comprehensive RL module refactoring completed, here's a strategic r
 - ✅ Neuro-symbolic integration
 
 **To Become Ultimate:**
+
 - 🎯 Developer experience (DX) excellence
 - 🎯 Production-grade reliability
 - 🎯 Comprehensive learning resources
@@ -31,6 +34,7 @@ Based on the comprehensive RL module refactoring completed, here's a strategic r
 **Problem:** Static markdown docs don't show live behavior.
 
 **Solution:**
+
 ```
 rl/docs/
 ├── interactive/
@@ -40,6 +44,7 @@ rl/docs/
 ```
 
 **Implementation:**
+
 - Embed runnable code examples (like Observable notebooks)
 - Live policy training visualization
 - Step-through debugging of agent decisions
@@ -53,11 +58,13 @@ rl/docs/
 **Problem:** Users don't know where to start.
 
 **Solution:**
+
 ```bash
 npx @senars/create-rl-app my-project
 ```
 
 **Templates:**
+
 ```
 ├── basic-dqn/           # Minimal DQN on CartPole
 ├── neuro-symbolic/      # Full NS integration example
@@ -75,6 +82,7 @@ npx @senars/create-rl-app my-project
 **Problem:** Hard to understand why agents fail.
 
 **Solution:**
+
 ```javascript
 import { DebugAgent } from '@senars/rl/debug';
 
@@ -90,6 +98,7 @@ await debugAgent.train(env, { episodes: 100 });
 ```
 
 **Features:**
+
 - Action distribution histograms
 - Q-value heatmaps over time
 - Gradient flow visualization
@@ -105,11 +114,13 @@ await debugAgent.train(env, { episodes: 100 });
 **Problem:** Cryptic errors frustrate users.
 
 **Before:**
+
 ```
 Error: Cannot read properties of undefined
 ```
 
 **After:**
+
 ```
 Error: Environment not initialized before agent.act()
 
@@ -124,6 +135,7 @@ Example:
 ```
 
 **Implementation:**
+
 - Custom error classes with suggestions
 - Link to relevant docs
 - Show example fix
@@ -139,6 +151,7 @@ Example:
 **Problem:** Training interruptions lose all progress.
 
 **Solution:**
+
 ```javascript
 import { CheckpointManager } from '@senars/rl/training';
 
@@ -157,6 +170,7 @@ await agent.train(env, {
 ```
 
 **Features:**
+
 - Auto-save every N episodes
 - Keep best N models
 - Resume from interruption
@@ -171,6 +185,7 @@ await agent.train(env, {
 **Problem:** Can't track training progress remotely.
 
 **Solution:**
+
 ```javascript
 import { MetricsExporter } from '@senars/rl/monitoring';
 
@@ -190,6 +205,7 @@ agent.on('episodeComplete', (metrics) => {
 ```
 
 **Dashboards:**
+
 - Real-time reward curves
 - Loss over time
 - Action distribution
@@ -204,6 +220,7 @@ agent.on('episodeComplete', (metrics) => {
 **Problem:** Hyperparameter tuning is manual and error-prone.
 
 **Solution:**
+
 ```yaml
 # config.yaml
 agent:
@@ -247,6 +264,7 @@ const bestConfig = await search.run(agent, env);
 **Solutions:**
 
 **A. Parallel Environments:**
+
 ```javascript
 import { ParallelEnv } from '@senars/rl/parallel';
 
@@ -260,6 +278,7 @@ await agent.train(envs, { episodes: 1000 });
 ```
 
 **B. GPU Acceleration:**
+
 ```javascript
 import { GPUBackend } from '@senars/tensor/gpu';
 
@@ -268,6 +287,7 @@ const agent = new DQNAgent(env, { backend });
 ```
 
 **C. Experience Compression:**
+
 ```javascript
 const buffer = new ExperienceBuffer({
     compression: 'quantize',  // Reduce memory 4x
@@ -286,6 +306,7 @@ const buffer = new ExperienceBuffer({
 **Problem:** Users reinvent the wheel for common tasks.
 
 **Solution:**
+
 ```javascript
 import { ModelZoo } from '@senars/rl/zoo';
 
@@ -313,6 +334,7 @@ await agent.train(customEnv, { episodes: 100 });
 **Problem:** Can't train competing/cooperating agents.
 
 **Solution:**
+
 ```javascript
 import { MultiAgentEnv, SelfPlay } from '@senars/rl/multi-agent';
 
@@ -330,6 +352,7 @@ await trainer.train(env, { episodes: 10000 });
 ```
 
 **Features:**
+
 - Self-play training
 - Elo rating system
 - League management
@@ -344,6 +367,7 @@ await trainer.train(env, { episodes: 10000 });
 **Problem:** Can't learn long-horizon tasks.
 
 **Solution:**
+
 ```javascript
 import { HAC } from '@senars/rl/hierarchical';
 
@@ -366,6 +390,7 @@ await agent.train(env, { episodes: 1000 });
 **Problem:** Can't adapt to new tasks quickly.
 
 **Solution:**
+
 ```javascript
 import { MAML } from '@senars/rl/meta';
 
@@ -392,6 +417,7 @@ await metaLearner.adapt(newTask, { steps: 5 });
 **Problem:** Can't use standard environments.
 
 **Solution:**
+
 ```javascript
 import { GymWrapper } from '@senars/rl/compat';
 
@@ -410,6 +436,7 @@ await agent.train(env, { episodes: 1000 });
 **Problem:** Can't share models easily.
 
 **Solution:**
+
 ```javascript
 import { HuggingFaceHub } from '@senars/rl/hub';
 
@@ -432,6 +459,7 @@ const agent = await HuggingFaceHub.download('sb3/dqn-cartpole');
 **Problem:** Can't combine RL with LLM reasoning.
 
 **Solution:**
+
 ```javascript
 import { RLChain } from '@senars/rl/langchain';
 
@@ -457,6 +485,7 @@ const result = await chain.run('Optimize the system for throughput');
 **Problem:** Documentation is passive.
 
 **Solution:**
+
 ```
 rl/learn/
 ├── 01-your-first-agent.md      # Interactive tutorial
@@ -467,6 +496,7 @@ rl/learn/
 ```
 
 Each tutorial includes:
+
 - Runnable code cells
 - Quizzes with instant feedback
 - Visualizations
@@ -481,11 +511,13 @@ Each tutorial includes:
 **Problem:** Some users prefer video.
 
 **Solution:**
+
 - 10-part video series (10 min each)
 - Companion Jupyter notebooks
 - Certificate of completion
 
 **Outline:**
+
 1. Introduction to RL with SeNARS
 2. Your First Agent (DQN)
 3. Policy Gradient Methods
@@ -506,6 +538,7 @@ Each tutorial includes:
 **Problem:** Users need recipes for common tasks.
 
 **Solution:**
+
 ```
 rl/cookbook/
 ├── recipes/
@@ -518,6 +551,7 @@ rl/cookbook/
 ```
 
 Each recipe:
+
 - Problem statement
 - Copy-paste solution
 - Explanation
@@ -532,6 +566,7 @@ Each recipe:
 ### 6.1 Algorithm Zoo
 
 **Implement missing algorithms:**
+
 - [ ] A2C / A3C
 - [ ] SAC (Soft Actor-Critic)
 - [ ] TD3 (Twin Delayed DDPG)
@@ -548,6 +583,7 @@ Each recipe:
 **Problem:** Can't understand why agent made decision.
 
 **Solution:**
+
 ```javascript
 import { SaliencyMap, AttentionViz } from '@senars/rl/explain';
 
@@ -569,6 +605,7 @@ const weights = await attention.getWeights(observation);
 **Problem:** Agents might learn unsafe behaviors.
 
 **Solution:**
+
 ```javascript
 import { SafeRL } from '@senars/rl/safety';
 
@@ -588,40 +625,43 @@ const safeAgent = new SafeRL(agent, {
 
 ## Prioritization Matrix
 
-| Feature | Impact | Effort | Priority |
-|---------|--------|--------|----------|
-| Quickstart Templates | ⭐⭐⭐⭐⭐ | Low | **P0** |
-| Debugging Tools | ⭐⭐⭐⭐⭐ | Medium | **P0** |
-| Interactive Tutorials | ⭐⭐⭐⭐⭐ | Medium | **P0** |
-| Checkpointing | ⭐⭐⭐⭐⭐ | Low | **P0** |
-| Error Messages | ⭐⭐⭐⭐ | Low | **P1** |
-| Monitoring | ⭐⭐⭐⭐ | Medium | **P1** |
-| Gymnasium Compat | ⭐⭐⭐⭐⭐ | Medium | **P1** |
-| Model Zoo | ⭐⭐⭐⭐ | Medium | **P1** |
-| Parallel Envs | ⭐⭐⭐⭐ | High | **P2** |
-| Multi-Agent | ⭐⭐⭐⭐ | High | **P2** |
-| Hugging Face Hub | ⭐⭐⭐⭐ | Low | **P2** |
-| Hierarchical RL | ⭐⭐⭐⭐ | High | **P3** |
-| Meta-Learning | ⭐⭐⭐ | High | **P3** |
-| LangChain Integration | ⭐⭐⭐⭐⭐ | Medium | **P1** |
+| Feature               | Impact | Effort | Priority |
+|-----------------------|--------|--------|----------|
+| Quickstart Templates  | ⭐⭐⭐⭐⭐  | Low    | **P0**   |
+| Debugging Tools       | ⭐⭐⭐⭐⭐  | Medium | **P0**   |
+| Interactive Tutorials | ⭐⭐⭐⭐⭐  | Medium | **P0**   |
+| Checkpointing         | ⭐⭐⭐⭐⭐  | Low    | **P0**   |
+| Error Messages        | ⭐⭐⭐⭐   | Low    | **P1**   |
+| Monitoring            | ⭐⭐⭐⭐   | Medium | **P1**   |
+| Gymnasium Compat      | ⭐⭐⭐⭐⭐  | Medium | **P1**   |
+| Model Zoo             | ⭐⭐⭐⭐   | Medium | **P1**   |
+| Parallel Envs         | ⭐⭐⭐⭐   | High   | **P2**   |
+| Multi-Agent           | ⭐⭐⭐⭐   | High   | **P2**   |
+| Hugging Face Hub      | ⭐⭐⭐⭐   | Low    | **P2**   |
+| Hierarchical RL       | ⭐⭐⭐⭐   | High   | **P3**   |
+| Meta-Learning         | ⭐⭐⭐    | High   | **P3**   |
+| LangChain Integration | ⭐⭐⭐⭐⭐  | Medium | **P1**   |
 
 ---
 
 ## 90-Day Action Plan
 
 ### Month 1: Foundation
+
 - [ ] Quickstart templates (5 templates)
 - [ ] Checkpointing system
 - [ ] Error message improvements
 - [ ] Debug agent (basic version)
 
 ### Month 2: Learning
+
 - [ ] Interactive tutorials (3 tutorials)
 - [ ] Cookbook (10 recipes)
 - [ ] Video course (first 5 episodes)
 - [ ] Gymnasium compatibility layer
 
 ### Month 3: Production
+
 - [ ] Monitoring & metrics export
 - [ ] Configuration management
 - [ ] Hugging Face integration
@@ -632,22 +672,23 @@ const safeAgent = new SafeRL(agent, {
 
 ## Success Metrics
 
-| Metric | Current | Target (90 days) |
-|--------|---------|------------------|
-| Time to first agent | 30 min | 5 min |
-| Test coverage | 95% | 98% |
-| Documentation pages | 5 | 50+ |
-| Pre-trained models | 0 | 10+ |
-| Integration tests | 218 | 300+ |
-| GitHub stars | N/A | 1000+ |
-| Monthly downloads | N/A | 10,000+ |
-| Community contributions | 0 | 20+ |
+| Metric                  | Current | Target (90 days) |
+|-------------------------|---------|------------------|
+| Time to first agent     | 30 min  | 5 min            |
+| Test coverage           | 95%     | 98%              |
+| Documentation pages     | 5       | 50+              |
+| Pre-trained models      | 0       | 10+              |
+| Integration tests       | 218     | 300+             |
+| GitHub stars            | N/A     | 1000+            |
+| Monthly downloads       | N/A     | 10,000+          |
+| Community contributions | 0       | 20+              |
 
 ---
 
 ## Conclusion
 
-The RL module now has an **elegant foundation** (9/10 architecture score). To become the **ultimate AI system**, focus on:
+The RL module now has an **elegant foundation** (9/10 architecture score). To become the **ultimate AI system**, focus
+on:
 
 1. **Developer Experience** - Make it joyful to use
 2. **Production Readiness** - Make it reliable at scale

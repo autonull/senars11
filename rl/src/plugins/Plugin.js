@@ -2,9 +2,8 @@
  * Plugin System
  * Extensible plugin architecture with lifecycle hooks
  */
-import { Component } from '../composable/Component.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { MetricsTracker } from '../utils/MetricsTracker.js';
+import {Component} from '../composable/Component.js';
+import {mergeConfig, MetricsTracker} from '../utils/index.js';
 
 const PLUGIN_DEFAULTS = {
     name: 'unnamed',
@@ -90,8 +89,8 @@ export class Plugin extends Component {
     async install(context = {}) {
         this.metrics.increment('installsPerformed');
         this.setState('installed', true);
-        this.emit('installed', { context });
-        return { installed: true, plugin: this.config.name };
+        this.emit('installed', {context});
+        return {installed: true, plugin: this.config.name};
     }
 
     /**
@@ -102,8 +101,8 @@ export class Plugin extends Component {
     async uninstall(context = {}) {
         this.metrics.increment('uninstallsPerformed');
         this.setState('installed', false);
-        this.emit('uninstalled', { context });
-        return { uninstalled: true, plugin: this.config.name };
+        this.emit('uninstalled', {context});
+        return {uninstalled: true, plugin: this.config.name};
     }
 
     async onInitialize() {

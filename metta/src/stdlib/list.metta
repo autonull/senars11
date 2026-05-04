@@ -37,8 +37,14 @@
 ; map: apply function to each element
 ; (map $f ()) → ()
 ; (map $f (: $h $t)) → (: ($f $h) (map $f $t))
-(= (map $f ()) ())
-(= (map $f (: $h $t)) (: ($f $h) (map $f $t)))
+; Using grounded &map-fast for Phase 2 success criterion
+(= (map $f $list) (^ &map-fast $f $list))
+
+; apply: helper for higher-order function applications
+; Ensures both grounded lambdas and symbolic rules work
+(= (apply (λ $p $b) $v) (^ &subst $p $v $b))
+(= (apply (lambda $p $b) $v) (^ &subst $p $v $b))
+(= (apply $f $v) ($f $v))
 
 ; ===== Fold (Reduce) =====
 
@@ -82,6 +88,12 @@
 ; append: concatenate two lists
 (= (append () $ys) $ys)
 (= (append (: $h $t) $ys) (: $h (append $t $ys)))
+; Single-element expression as singleton list: (x) -> (: x ())
+(= (append ($x) $ys) (: $x $ys))
+; Multi-element expression as cons-list: (x y ...) -> (: x (y ...))
+; For 2+ element lists, recursively append the tail
+(= (append ($h $t) $ys) (: $h (append $t $ys)))
+(= (append ($h $m $t) $ys) (: $h (append ($m $t) $ys)))
 
 ; ===== List Utilities =====
 

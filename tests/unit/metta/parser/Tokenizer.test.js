@@ -1,4 +1,4 @@
-import { Tokenizer } from '../../../../metta/src/parser/Tokenizer.js';
+import {Tokenizer} from '../../../../metta/src/parser/Tokenizer.js';
 
 describe('MeTTa Tokenizer', () => {
     let tokenizer;

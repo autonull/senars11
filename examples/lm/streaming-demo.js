@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import {TransformersJSProvider} from '../../core/src/lm/TransformersJSProvider.js';
+import {TransformersJSProvider} from '@senars/core';
 
 const countTokens = text => text.split(/\s+/).filter(t => t.length > 0).length;
 const tokensPerSec = (tokens, ms) => ((tokens / ms) * 1000).toFixed(2);

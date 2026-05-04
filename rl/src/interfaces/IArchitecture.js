@@ -1,9 +1,9 @@
 /**
  * Architecture Interface - Contract for all RL architectures
- * 
+ *
  * All architecture implementations must implement this interface.
  * Architectures define how agents process observations and select actions.
- * 
+ *
  * @interface IArchitecture
  * @extends {import('../composable/Component.js').Component}
  */

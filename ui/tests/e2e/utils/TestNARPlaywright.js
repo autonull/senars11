@@ -1,6 +1,6 @@
 import {expect} from '@playwright/test';
 import {NarPage} from './NarPage.js';
-import {TaskMatch} from '../../../../core/src/testing/TaskMatch.js';
+import {TaskMatch} from '@senars/core/src/testing/TaskMatch';
 import {NarseseParser} from '../../../../core/src/parser/NarseseParser.js';
 import {TermFactory} from '../../../../core/src/term/TermFactory.js';
 

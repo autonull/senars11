@@ -3,14 +3,14 @@
  * In a full build environment, this should be replaced by the actual 'cytoscape-fcose' package.
  */
 export default function(cytoscape) {
-    if (!cytoscape) return;
+    if (!cytoscape) {return;}
 
     function MockFcoseLayout(options) {
         this.options = options;
     }
 
     MockFcoseLayout.prototype.run = function() {
-        const eles = this.options.eles;
+        const {eles} = this.options;
         const nodes = eles.nodes();
 
         console.log(`MockFcoseLayout delegating to COSE on ${nodes.length} nodes`);

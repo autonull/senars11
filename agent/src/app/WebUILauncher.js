@@ -9,9 +9,9 @@ import {spawn} from 'child_process';
 import {fileURLToPath} from 'url';
 import {dirname, join} from 'path';
 import {WebSocketMonitor} from '../server/WebSocketMonitor.js';
-import {NAR} from '../../core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 import {DemoWrapper} from '../demo/DemoWrapper.js';
-import {Logger} from '../../core/src/util/Logger.js';
+import { Logger } from '@senars/core';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -80,7 +80,7 @@ const startWebSocketServer = async (config = DEFAULT_CONFIG) => {
     const demoWrapper = new DemoWrapper();
     await demoWrapper.initialize(nar, monitor);
     await demoWrapper.sendDemoList();
-    demoWrapper.runPeriodicMetricsUpdate();
+    await demoWrapper.runPeriodicMetricsUpdate();
     nar.start();
 
     Logger.info('WebSocket server started successfully');
@@ -142,8 +142,8 @@ const shutdownServices = async (webSocketServer) => {
         Logger.error('Error saving state on shutdown:', saveError.message);
     }
 
-    if (webSocketServer.monitor) await webSocketServer.monitor.stop();
-    if (webSocketServer.nar) webSocketServer.nar.stop();
+    if (webSocketServer.monitor) {await webSocketServer.monitor.stop();}
+    if (webSocketServer.nar) {webSocketServer.nar.stop();}
 };
 
 // Set up graceful shutdown

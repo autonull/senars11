@@ -1,9 +1,9 @@
 /**
  * Agent Interface - Contract for all RL agents
- * 
+ *
  * All agent implementations must implement this interface.
  * Use JSDoc @implements tag to indicate implementation.
- * 
+ *
  * @interface IAgent
  * @extends {import('../composable/Component.js').Component}
  */

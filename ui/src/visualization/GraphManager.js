@@ -26,8 +26,8 @@ export class GraphManager {
     _setupGlobalListeners() {
         eventBus.on(EVENTS.CONCEPT_SELECT, (payload) => {
             const { id, concept } = payload;
-            if (concept?.term) this.autoLearner.recordInteraction(concept.term, 1);
-            if (id) this.highlightNode(id);
+            if (concept?.term) {this.autoLearner.recordInteraction(concept.term, 1);}
+            if (id) {this.highlightNode(id);}
         });
 
         eventBus.on(EVENTS.GRAPH_FILTER, (payload) => this.applyFilters(payload));
@@ -67,7 +67,7 @@ export class GraphManager {
     }
 
     _setupInteractionEvents() {
-        if (!this.cy) return;
+        if (!this.cy) {return;}
 
         this.cy.on('tap', 'node', (event) => this._handleNodeClick(event));
         this.cy.on('tap', 'edge', (event) => this._handleEdgeClick(event));
@@ -88,7 +88,7 @@ export class GraphManager {
             });
         }
 
-        if (event.originalEvent.shiftKey) this.toggleTraceMode(data.id);
+        if (event.originalEvent.shiftKey) {this.toggleTraceMode(data.id);}
     }
 
     _handleNodeDoubleClick(event) {
@@ -120,13 +120,13 @@ export class GraphManager {
     }
 
     setLayout(name) {
-        if (!this.cy) return;
+        if (!this.cy) {return;}
         this.currentLayout = name;
         this.cy.layout(Config.getGraphLayout(name)).run();
     }
 
     applyScatterLayout(xAxis = 'priority', yAxis = 'confidence') {
-        if (!this.cy) return;
+        if (!this.cy) {return;}
         this.currentLayout = 'scatter';
 
         const nodes = this.cy.nodes();
@@ -166,14 +166,14 @@ export class GraphManager {
     }
 
     applySortedGridLayout(sortField = 'priority') {
-        if (!this.cy) return;
+        if (!this.cy) {return;}
         this.currentLayout = 'sorted-grid';
 
         const nodes = this.cy.nodes().sort((a, b) => {
             const getVal = (n) => {
                  const d = n.data('fullData') || {};
-                 if (sortField === 'priority') return d.budget?.priority || 0;
-                 if (sortField === 'term') return n.id();
+                 if (sortField === 'priority') {return d.budget?.priority || 0;}
+                 if (sortField === 'term') {return n.id();}
                  return 0;
             };
             // Descending order
@@ -190,7 +190,7 @@ export class GraphManager {
     }
 
     applyFilters(filters) {
-        if (!this.cy) return;
+        if (!this.cy) {return;}
         this.filters = { ...this.filters, ...filters };
 
         this.cy.batch(() => {
@@ -200,9 +200,9 @@ export class GraphManager {
                 const priority = data?.budget?.priority ?? 0;
 
                 let visible = true;
-                if (type === 'task' && !this.filters.showTasks) visible = false;
-                if (priority < this.filters.minPriority) visible = false;
-                if (this.filters.hideIsolated && node.degree() === 0) visible = false;
+                if (type === 'task' && !this.filters.showTasks) {visible = false;}
+                if (priority < this.filters.minPriority) {visible = false;}
+                if (this.filters.hideIsolated && node.degree() === 0) {visible = false;}
 
                 node.style('display', visible ? 'element' : 'none');
             });
@@ -210,7 +210,7 @@ export class GraphManager {
     }
 
     toggleTraceMode(nodeId) {
-        if (!this.cy || this.cy.destroyed()) return;
+        if (!this.cy || this.cy.destroyed()) {return;}
 
         if (this.traceMode && this.tracedNode === nodeId) {
             this.traceMode = false;
@@ -218,7 +218,7 @@ export class GraphManager {
             this.cy.elements().removeClass('trace-highlight trace-dim');
         } else {
             const root = this.cy.getElementById(nodeId);
-            if (root.empty()) return;
+            if (root.empty()) {return;}
 
             this.traceMode = true;
             this.tracedNode = nodeId;
@@ -247,9 +247,9 @@ export class GraphManager {
     }
 
     highlightNode(nodeId) {
-        if (!this.cy || this.cy.destroyed()) return;
+        if (!this.cy || this.cy.destroyed()) {return;}
         const node = typeof nodeId === 'string' ? this.cy.getElementById(nodeId) : nodeId;
-        if (!node || node.empty()) return;
+        if (!node || node.empty()) {return;}
 
         this.cy.elements().removeClass('keyboard-selected');
         node.addClass('keyboard-selected');
@@ -261,7 +261,7 @@ export class GraphManager {
     }
 
     setCommandProcessor(commandProcessor) {
-        if (!commandProcessor) return;
+        if (!commandProcessor) {return;}
         this.callbacks.commandProcessor = commandProcessor;
         if (!this.contextMenu) {
             this.contextMenu = new ContextMenu(this, commandProcessor);
@@ -270,7 +270,7 @@ export class GraphManager {
 
     _calculateNodeWeight(priority, term) {
         let weight = priority * 100;
-        if (term) weight += this.autoLearner.getConceptModifier(term);
+        if (term) {weight += this.autoLearner.getConceptModifier(term);}
         return Math.min(Math.max(weight, 10), 100);
     }
 
@@ -288,14 +288,14 @@ export class GraphManager {
     }
 
     addNode(nodeData, runLayout = true) {
-        if (!this.cy) return false;
+        if (!this.cy) {return false;}
 
         const config = this._createNodeConfig(nodeData);
-        if (this.cy.getElementById(config.data.id).length) return false;
+        if (this.cy.getElementById(config.data.id).length) {return false;}
 
         this.cy.add(config);
 
-        if (runLayout) this.scheduleLayout();
+        if (runLayout) {this.scheduleLayout();}
         return true;
     }
 
@@ -321,14 +321,14 @@ export class GraphManager {
     }
 
     addEdge(edgeData, runLayout = true) {
-        if (!this.cy) return false;
+        if (!this.cy) {return false;}
 
         const config = this._createEdgeConfig(edgeData);
-        if (this.cy.getElementById(config.data.id).length) return false;
+        if (this.cy.getElementById(config.data.id).length) {return false;}
 
         this.cy.add(config);
 
-        if (runLayout) this.scheduleLayout();
+        if (runLayout) {this.scheduleLayout();}
         return true;
     }
 
@@ -349,7 +349,7 @@ export class GraphManager {
     }
 
     updateFromMessage(message) {
-        if (!this.cy || !this.updatesEnabled) return;
+        if (!this.cy || !this.updatesEnabled) {return;}
 
         const handlers = {
             'concept.created': () => this.addNode(message.payload, true),
@@ -365,7 +365,7 @@ export class GraphManager {
     }
 
     updateNode(payload) {
-        if (!this.cy || !payload?.id) return;
+        if (!this.cy || !payload?.id) {return;}
         const node = this.cy.getElementById(payload.id);
 
         if (node.length > 0) {
@@ -401,7 +401,7 @@ export class GraphManager {
     }
 
     updateFromSnapshot(payload) {
-        if (!this.cy || !payload?.concepts) return;
+        if (!this.cy || !payload?.concepts) {return;}
         this.cy.elements().remove();
         payload.concepts.forEach(c => this.addNode(c, false));
         this.scheduleLayout();
@@ -409,7 +409,7 @@ export class GraphManager {
 
     animateUpdate(nodeId) {
         const node = this.cy?.getElementById(nodeId);
-        if (!node?.length) return;
+        if (!node?.length) {return;}
 
         // Flash effect
         node.animation({
@@ -428,14 +428,14 @@ export class GraphManager {
     }
 
     scheduleLayout() {
-        if (this.pendingLayout || !this.cy || this.cy.destroyed()) return;
+        if (this.pendingLayout || !this.cy || this.cy.destroyed()) {return;}
         this.pendingLayout = true;
 
         // Adaptive debounce based on graph size
         const nodeCount = this.cy.nodes().length;
         const delay = nodeCount > 100 ? 1000 : 500;
 
-        if (this.layoutTimeout) clearTimeout(this.layoutTimeout);
+        if (this.layoutTimeout) {clearTimeout(this.layoutTimeout);}
         this.layoutTimeout = setTimeout(() => {
             if (this.cy && !this.cy.destroyed()) {
                 this.cy.layout(Config.getGraphLayout()).run();
@@ -457,7 +457,7 @@ export class GraphManager {
     fitToScreen() { this.cy?.animate({ fit: { eles: this.cy.elements(), padding: 30 }, duration: 300 }); }
 
     destroy() {
-        if (this.layoutTimeout) clearTimeout(this.layoutTimeout);
+        if (this.layoutTimeout) {clearTimeout(this.layoutTimeout);}
         this.contextMenu?.destroy();
         this.cy?.destroy();
     }

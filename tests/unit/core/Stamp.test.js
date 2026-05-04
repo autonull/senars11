@@ -1,4 +1,4 @@
-import {ArrayStamp, BloomStamp, Stamp} from '../../../core/src/Stamp.js';
+import {ArrayStamp, BloomStamp, Stamp} from '@senars/nar';
 
 describe('Stamp', () => {
     describe('ArrayStamp', () => {

@@ -1,5 +1,5 @@
-import { Logger } from './Logger.js';
-import { getPlatform } from '../platform/index.js';
+import {Logger} from './Logger.js';
+import {getPlatform} from '../platform/index.js';
 
 export class FileUtils {
     static get platform() {
@@ -34,7 +34,7 @@ export class FileUtils {
                 return normalizedPath.includes(exclusion.substring(3));
             } else if (exclusion.endsWith('/*')) {
                 const prefix = exclusion.slice(0, -2);
-                return normalizedPath.startsWith(prefix) || normalizedPath.includes('/' + prefix);
+                return normalizedPath.startsWith(prefix) || normalizedPath.includes(`/${prefix}`);
             } else {
                 return normalizedPath.includes(exclusion);
             }
@@ -50,7 +50,7 @@ export class FileUtils {
             }
             return JSON.parse(content);
         } catch (error) {
-            Logger.error(`Error parsing JSON from ${filePath}:`, { message: error.message });
+            Logger.error(`Error parsing JSON from ${filePath}:`, {message: error.message});
             return null;
         }
     }
@@ -59,7 +59,9 @@ export class FileUtils {
         const TOP_N = 20;
         try {
             const coverageDetailPath = './coverage/coverage-final.json';
-            if (!this.platform.fs.exists(coverageDetailPath)) return [];
+            if (!this.platform.fs.exists(coverageDetailPath)) {
+                return [];
+            }
 
             let coverageDetail;
             try {
@@ -70,7 +72,7 @@ export class FileUtils {
                 }
                 coverageDetail = JSON.parse(fileContent);
             } catch (parseError) {
-                Logger.error('Error parsing coverage-final.json:', { message: parseError.message });
+                Logger.error('Error parsing coverage-final.json:', {message: parseError.message});
                 return [];
             }
 
@@ -94,7 +96,9 @@ export class FileUtils {
 
                     // Validate coverage structure before accessing properties
                     if (!coverage || typeof coverage !== 'object' || !coverage.s) {
-                        if (verbose) Logger.warn(`Invalid coverage structure for file: ${filePath}`);
+                        if (verbose) {
+                            Logger.warn(`Invalid coverage structure for file: ${filePath}`);
+                        }
                         continue;
                     }
 
@@ -131,7 +135,9 @@ export class FileUtils {
                     });
                 } catch (fileError) {
                     // Skip this file if there's an error processing it
-                    if (verbose) Logger.warn(`Error processing coverage for ${filePath}:`, { message: fileError.message });
+                    if (verbose) {
+                        Logger.warn(`Error processing coverage for ${filePath}:`, {message: fileError.message});
+                    }
 
                 }
             }
@@ -148,7 +154,7 @@ export class FileUtils {
 
             return files.slice(0, TOP_N);
         } catch (error) {
-            Logger.error('Error in analyzeCoverageByFile:', { message: error.message });
+            Logger.error('Error in analyzeCoverageByFile:', {message: error.message});
             return [];
         }
     }

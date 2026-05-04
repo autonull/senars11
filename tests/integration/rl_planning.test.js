@@ -1,13 +1,12 @@
-
-import { NeuroSymbolicAgent } from '../../rl/src/agents/NeuroSymbolicAgent.js';
-import { GridWorld } from '../../rl/src/environments/GridWorld.js';
+import {NeuroSymbolicAgent} from '../../rl/src/agents/NeuroSymbolicAgent.js';
+import {GridWorld} from '../../rl/src/environments/GridWorld.js';
 
 describe('RL Planning Integration Tests', () => {
 
     test('NeuroSymbolicAgent with planning enabled', async () => {
         const env = new GridWorld();
         // Planning enabled, reasoning with 'metta' (which uses SeNARSBridge)
-        const agent = new NeuroSymbolicAgent(env, { reasoning: 'metta', planning: true });
+        const agent = new NeuroSymbolicAgent(env, {reasoning: 'metta', planning: true});
 
         await agent.initialize();
 

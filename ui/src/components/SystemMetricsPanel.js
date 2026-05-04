@@ -17,7 +17,7 @@ export class SystemMetricsPanel extends Component {
     }
 
     initialize() {
-        if (this.initialized) return;
+        if (this.initialized) {return;}
         // If container exists (passed in constructor), render.
         // If not, render will be called by mount() later.
         if (this.container) {
@@ -27,7 +27,7 @@ export class SystemMetricsPanel extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         // Note: Container ID and class are now managed by HUDWidget/HUDLayoutManager
         // We just render the content grid
@@ -137,16 +137,16 @@ export class SystemMetricsPanel extends Component {
         };
 
         this.history.push(this.metrics.throughput);
-        if (this.history.length > 50) this.history.shift();
+        if (this.history.length > 50) {this.history.shift();}
 
         this.updateView();
     }
 
     updateView() {
-        if (!this.container && !this.initialized) return;
+        if (!this.container && !this.initialized) {return;}
         // If rendered but references lost or not created yet
-        if (!this.ui.throughput) this.render();
-        if (!this.ui.throughput) return;
+        if (!this.ui.throughput) {this.render();}
+        if (!this.ui.throughput) {return;}
 
         const { throughput, memoryUtilization, successRate, avgLatency, uptime } = this.metrics;
         const memory = (memoryUtilization * 100).toFixed(1);
@@ -163,9 +163,9 @@ export class SystemMetricsPanel extends Component {
         }
 
         this.ui.memoryBar.style({ width: `${memory}%` });
-        if (memoryUtilization > 0.8) this.ui.memoryBar.class('progress-fill danger');
-        else if (memoryUtilization > 0.6) this.ui.memoryBar.class('progress-fill warning');
-        else this.ui.memoryBar.class('progress-fill success');
+        if (memoryUtilization > 0.8) {this.ui.memoryBar.class('progress-fill danger');}
+        else if (memoryUtilization > 0.6) {this.ui.memoryBar.class('progress-fill warning');}
+        else {this.ui.memoryBar.class('progress-fill success');}
 
         this.ui.memoryText.text(`${Math.round(memory)}%`);
 
@@ -181,7 +181,7 @@ export class SystemMetricsPanel extends Component {
     }
 
     generateGraphPaths(data) {
-        if (data.length < 2) return { linePath: '', areaPath: '' };
+        if (data.length < 2) {return { linePath: '', areaPath: '' };}
 
         // Dynamic scale
         const max = Math.max(...data, 10) * 1.1;

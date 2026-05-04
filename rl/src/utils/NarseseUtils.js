@@ -1,4 +1,3 @@
-
 const NARSESE_PATTERNS = {
     statement: /<(.+?) --> (.+?)>\.?/,
     question: /<(.+?) --> (.+?)>\?/,
@@ -7,8 +6,8 @@ const NARSESE_PATTERNS = {
 };
 
 const METTA_TRANSFORMS = [
-    { pattern: NARSESE_PATTERNS.mettaImplies, transform: (m) => `<${m[1]} --> ${m[2]}>.` },
-    { pattern: NARSESE_PATTERNS.mettaInherits, transform: (m) => `<${m[1]} --> ${m[2]}>.` }
+    {pattern: NARSESE_PATTERNS.mettaImplies, transform: (m) => `<${m[1]} --> ${m[2]}>.`},
+    {pattern: NARSESE_PATTERNS.mettaInherits, transform: (m) => `<${m[1]} --> ${m[2]}>.`}
 ];
 
 export const NarseseUtils = {
@@ -29,9 +28,11 @@ export const NarseseUtils = {
 
     toNarsese(mettaExpr) {
         const expr = mettaExpr.toString();
-        for (const { pattern, transform } of METTA_TRANSFORMS) {
+        for (const {pattern, transform} of METTA_TRANSFORMS) {
             const match = expr.match(pattern);
-            if (match) return transform(match);
+            if (match) {
+                return transform(match);
+            }
         }
         return expr;
     },
@@ -42,30 +43,42 @@ export const NarseseUtils = {
 
     parseQuestion(question) {
         const match = question.toString().match(NARSESE_PATTERNS.question);
-        return match ? { subject: match[1], predicate: match[2] } : null;
+        return match ? {subject: match[1], predicate: match[2]} : null;
     },
 
     valueToMetta(value) {
-        if (Array.isArray(value)) return `(${value.map(v => this.valueToMetta(v)).join(' ')})`;
-        if (value && typeof value === 'object') return `(${Object.values(value).map(v => this.valueToMetta(v)).join(' ')})`;
+        if (Array.isArray(value)) {
+            return `(${value.map(v => this.valueToMetta(v)).join(' ')})`;
+        }
+        if (value && typeof value === 'object') {
+            return `(${Object.values(value).map(v => this.valueToMetta(v)).join(' ')})`;
+        }
         return String(value);
     },
 
     // --- From SeNARSMettaTensor ---
 
     observationToNarsese(observation, prefix = 'obs') {
-        if (Array.isArray(observation)) return observation.map((v, i) => `<f${i} --> ${prefix}>.`).join(' ');
-        if (observation && typeof observation === 'object') return Object.entries(observation).map(([k, v]) => `<${k} --> ${prefix}>.`).join(' ');
+        if (Array.isArray(observation)) {
+            return observation.map((v, i) => `<f${i} --> ${prefix}>.`).join(' ');
+        }
+        if (observation && typeof observation === 'object') {
+            return Object.entries(observation).map(([k, v]) => `<${k} --> ${prefix}>.`).join(' ');
+        }
         return `<${observation} --> ${prefix}>.`;
     },
 
     actionToNarsese(action, prefix = 'op') {
-        if (Array.isArray(action)) return `^${prefix}(${action.join(' ')})`;
+        if (Array.isArray(action)) {
+            return `^${prefix}(${action.join(' ')})`;
+        }
         return typeof action === 'number' ? `^${prefix}_${action}` : `^${action}`;
     },
 
     goalToNarsese(goal) {
-        if (typeof goal === 'string') return `${goal}!`;
+        if (typeof goal === 'string') {
+            return `${goal}!`;
+        }
         if (goal && typeof goal === 'object') {
             const terms = Object.entries(goal).map(([k, v]) => `${k}_${v}`).join(' ');
             return `<(*, ${terms}) --> goal>!`;
@@ -74,9 +87,13 @@ export const NarseseUtils = {
     },
 
     parseOperation(operation) {
-        if (!operation) return null;
+        if (!operation) {
+            return null;
+        }
         const match = operation.toString().match(/\^op_?(\d+|\(.*?\))/);
-        if (!match) return null;
+        if (!match) {
+            return null;
+        }
 
         const actionStr = match[1];
         return actionStr.startsWith('(')

@@ -1,4 +1,4 @@
-import {Capability, CapabilityManager, CapabilityTypes} from '../../../core/src/util/CapabilityManager.js';
+import {Capability, CapabilityManager, CapabilityTypes} from '@senars/core/src/util/CapabilityManager';
 
 describe('CapabilityManager', () => {
     describe('Capability', () => {

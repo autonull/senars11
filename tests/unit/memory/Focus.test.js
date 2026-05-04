@@ -1,6 +1,4 @@
-import {Focus} from '../../../core/src/memory/Focus.js';
-import {Task} from '../../../core/src/task/Task.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
+import {Focus, Task, TermFactory} from '@senars/nar';
 
 describe('Focus', () => {
     let focus, tf;

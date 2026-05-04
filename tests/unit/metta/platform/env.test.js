@@ -2,7 +2,7 @@
  * Unit tests for environment detection module
  */
 
-import { ENV, getEnvironment, requireEnvironment } from '../../../../metta/src/platform/env.js';
+import {ENV, getEnvironment, requireEnvironment} from '../../../../metta/src/platform/env.js';
 
 describe('Environment Detection', () => {
     describe('ENV flags', () => {

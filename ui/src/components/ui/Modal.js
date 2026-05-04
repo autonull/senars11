@@ -21,7 +21,7 @@ export class Modal {
                 opacity: 0, transition: 'opacity 0.2s'
             })
             .on('click', (e) => {
-                if (e.target === this.backdrop.dom) this.close();
+                if (e.target === this.backdrop.dom) {this.close();}
             })
             .mount(document.body);
 
@@ -77,7 +77,7 @@ export class Modal {
 
         // Close on Escape
         this._escHandler = (e) => {
-            if (e.key === 'Escape') this.close();
+            if (e.key === 'Escape') {this.close();}
         };
         document.addEventListener('keydown', this._escHandler);
 
@@ -85,7 +85,7 @@ export class Modal {
     }
 
     close() {
-        if (!this.backdrop) return;
+        if (!this.backdrop) {return;}
 
         this.backdrop.style({ opacity: '0' });
         this.element.style({ transform: 'translateY(20px)' });

@@ -1,7 +1,6 @@
-
-import { NeuroSymbolicAgent } from '../src/agents/NeuroSymbolicAgent.js';
-import { RandomAgent } from '../src/agents/RandomAgent.js';
-import { CompositionalWorld } from '../src/environments/CompositionalWorld.js';
+import {NeuroSymbolicAgent} from '../src/agents/NeuroSymbolicAgent.js';
+import {RandomAgent} from '../src/index.js';
+import {CompositionalWorld} from '../src/environments/CompositionalWorld.js';
 
 // Mock SeNARSBridge if not available
 // We wrap in try/catch to gracefully handle missing dependencies in CI

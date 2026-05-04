@@ -1,5 +1,4 @@
-import {NAR} from '../../../core/src/nar/NAR.js';
-import {IntrospectionEvents} from '../../../core/src/util/IntrospectionEvents.js';
+import {IntrospectionEvents, NAR} from '@senars/nar';
 
 describe('Reasoner Pipeline Tests', () => {
     let nar;

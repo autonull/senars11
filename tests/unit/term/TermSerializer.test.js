@@ -1,5 +1,4 @@
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
-import {TermSerializer} from '../../../core/src/term/TermSerializer.js';
+import {TermFactory, TermSerializer} from '@senars/nar';
 
 describe('TermSerializer', () => {
     let factory;

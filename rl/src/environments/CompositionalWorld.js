@@ -1,31 +1,44 @@
-import { RLEnvironment } from '../core/RLEnvironment.js';
-import { deepMergeConfig } from '../utils/ConfigHelper.js';
+import {Environment} from '../core/RLCore.js';
+import {deepMergeConfig} from '../utils/ConfigHelper.js';
 
 const DEFAULTS = {
     size: 10,
     numObjects: 3,
     maxSteps: 100,
     actions: [
-        [0, -1], // Up
-        [0, 1],  // Down
-        [-1, 0], // Left
-        [1, 0]   // Right
+        [0, -1],
+        [0, 1],
+        [-1, 0],
+        [1, 0]
     ]
 };
 
 /**
  * CompositionalWorld - Environment with multiple objects for composition testing
  */
-export class CompositionalWorld extends RLEnvironment {
+export class CompositionalWorld extends Environment {
     constructor(config = {}) {
         const mergedConfig = deepMergeConfig(DEFAULTS, config);
         super(mergedConfig);
         this.reset();
     }
 
+    get observationSpace() {
+        return {
+            type: 'Box',
+            shape: [2 + 2 * this.objects.length],
+            low: [0],
+            high: [this.config.size]
+        };
+    }
+
+    get actionSpace() {
+        return {type: 'Discrete', n: 4};
+    }
+
     reset() {
         this.agentPos = [0, 0];
-        this.objects = Array.from({ length: this.config.numObjects }, (_, i) => ({
+        this.objects = Array.from({length: this.config.numObjects}, (_, i) => ({
             id: i,
             pos: [
                 Math.floor(Math.random() * this.config.size),
@@ -34,7 +47,7 @@ export class CompositionalWorld extends RLEnvironment {
             type: 'target'
         }));
         this.steps = 0;
-        return { observation: this._getObs(), info: {} };
+        return {observation: this._getObs(), info: {}};
     }
 
     _getObs() {
@@ -72,18 +85,5 @@ export class CompositionalWorld extends RLEnvironment {
         const [x, y] = this.agentPos;
         const hitIndex = this.objects.findIndex(o => o.pos[0] === x && o.pos[1] === y);
         return [hitIndex, hitIndex >= 0 ? 1.0 : 0.0, false];
-    }
-
-    get observationSpace() {
-        return {
-            type: 'Box',
-            shape: [2 + 2 * this.objects.length],
-            low: [0],
-            high: [this.config.size]
-        };
-    }
-
-    get actionSpace() {
-        return { type: 'Discrete', n: 4 };
     }
 }

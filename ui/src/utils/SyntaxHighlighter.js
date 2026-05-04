@@ -1,7 +1,7 @@
 
 export class SyntaxHighlighter {
     static highlight(text, language = 'auto') {
-        if (!text) return '';
+        if (!text) {return '';}
 
         let isMetta = false;
         if (language === 'metta') {
@@ -15,7 +15,7 @@ export class SyntaxHighlighter {
         }
 
         // Escape HTML first
-        let html = text
+        const html = text
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")

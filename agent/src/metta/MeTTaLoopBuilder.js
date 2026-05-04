@@ -1,0 +1,293 @@
+/**
+ * MeTTaLoopBuilder.js — SeNARS Agent MeTTa Control Plane
+ *
+ * Builds and runs the agent's autonomous cognitive loop.
+ *
+ * Phases: init → register ops → register skills → load MeTTa → build loop → run
+ *
+ * Architecture:
+ *   - LLMInvoker: shared LLM service (no duplication)
+ *   - NarsOps: NAL inference grounded ops (|- bridge to NARS)
+ *   - ContextBuilder: 12-slot context assembly (single source)
+ *   - MeTTaOpRegistrar: grounded op registration
+ *   - MeTTaSkillRegistrar: skill handler registration
+ *   - AgentMessageQueue: embodiment → loop bridge
+ */
+import { readFile } from 'fs/promises';
+import { dirname, resolve, join } from 'path';
+import { fileURLToPath } from 'url';
+import { fallbackAgentDir, Logger, resolveWithFallback } from '@senars/core';
+import { isEnabled } from '../config/index.js';
+import { MeTTaOpRegistrar } from './MeTTaOpRegistrar.js';
+import { MeTTaSkillRegistrar } from './MeTTaSkillRegistrar.js';
+import { AgentMessageQueue } from './AgentMessageQueue.js';
+import { LLMInvoker } from './LLMInvoker.js';
+import { NarsOps } from './NarsOps.js';
+import { SessionManager } from './SessionManager.js';
+import { existsSync } from 'fs';
+
+const __agentDir = resolveWithFallback(() => dirname(fileURLToPath(import.meta.url)), fallbackAgentDir);
+
+const lazyImport = (cache, key, importFn) => async () => {
+    if (!cache[key]) {cache[key] = await importFn();}
+    return cache[key];
+};
+
+const _lazyCache = {};
+const loadHarnessOptimizer = lazyImport(_lazyCache, 'HarnessOptimizer', () => import('../harness/HarnessOptimizer.js'));
+const loadContextBuilder = lazyImport(_lazyCache, 'ContextBuilder', () => import('../memory/ContextBuilder.js'));
+
+export class MeTTaLoopBuilder {
+    #budget;
+    #cap;
+    #running = false;
+    #paused = false;
+    #pauseResolve = null;
+    #events = new Map();
+
+    constructor(agent, agentCfg) {
+        this.agent = agent;
+        this.agentCfg = agentCfg;
+        this.#budget = agentCfg.loop?.budget ?? 50;
+        this.#cap = flag => isEnabled(agentCfg, flag);
+        this._llmReady = false;
+        this._llmReadyPromise = new Promise(resolve => { this._llmResolve = resolve; });
+    }
+
+    /** Call this when LLM warmup completes (background or foreground) */
+    resolveLlmReady() {
+        this._llmReady = true;
+        this._llmResolve?.();
+    }
+
+    /* ── Lifecycle ─────────────────────────────────────────────────── */
+
+    on(event, fn) {
+        const fns = this.#events.get(event) ?? [];
+        fns.push(fn);
+        this.#events.set(event, fns);
+    }
+
+    #emit(event, data) {
+        for (const fn of this.#events.get(event) ?? []) {
+            try { fn(data); } catch (err) { Logger.error(`[loop-event:${event}]`, err.message); }
+        }
+    }
+
+    pause() {
+        if (!this.#running) {return;}
+        this.#paused = true;
+        this.#emit('pause', { cycleCount: this._loopState?.cycleCount ?? 0 });
+    }
+
+    resume() {
+        if (!this.#paused) {return;}
+        this.#paused = false;
+        this.#pauseResolve?.();
+        this.#pauseResolve = null;
+        this.#emit('resume', { cycleCount: this._loopState?.cycleCount ?? 0 });
+    }
+
+    stop() {
+        this.#running = false;
+        this.#paused = false;
+        this.#pauseResolve?.();
+        this.#emit('stop', { cycleCount: this._loopState?.cycleCount ?? 0 });
+    }
+
+    get isRunning() { return this.#running; }
+    get isPaused() { return this.#paused; }
+    get loopState() { return this._loopState; }
+    get dispatcher() { return this._dispatcher; }
+
+    /* ── Build ─────────────────────────────────────────────────────── */
+
+    async build() {
+        const { MeTTaInterpreter } = await import('@senars/metta/MeTTaInterpreter.js');
+        const { Term } = await import('@senars/metta/kernel/Term.js');
+        const { ActionDispatcher } = await import('../actions/ActionDispatcher.js');
+
+        const interp = new MeTTaInterpreter();
+        this._dispatcher = new ActionDispatcher(this.agentCfg);
+        this._dispatcher.loadActionsFromFile(this.#resolveMettaFile('skills.metta'));
+
+        this._loopState = this.#createLoopState();
+        const budget = { current: this.#budget };
+        const auditSpace = this.#getAuditSpace();
+
+        // Session checkpoint restore
+        const sessionManager = new SessionManager(this.agentCfg.workspace ? join(this.agentCfg.workspace, 'sessions') : undefined);
+        const checkpoint = await sessionManager.load();
+        if (checkpoint) {
+            if (checkpoint.wm?.length) {this._loopState.wm = checkpoint.wm;}
+            if (checkpoint.historyBuffer?.length) {this._loopState.historyBuffer = checkpoint.historyBuffer;}
+            if (checkpoint.modelOverride) {this._loopState.modelOverride = checkpoint.modelOverride;}
+            if (checkpoint.modelOverrideCycles) {this._loopState.modelOverrideCycles = checkpoint.modelOverrideCycles;}
+            if (checkpoint.cycleCount) {this._loopState.cycleCount = checkpoint.cycleCount;}
+        }
+
+        // Shared services
+        const llmInvoker = new LLMInvoker(this.agent, this.agentCfg, this._loopState, this.#cap, auditSpace);
+        const narsOps = new NarsOps(this.agent.nar);
+
+        const msgQueue = new AgentMessageQueue(this.agent.embodimentBus, this.#cap);
+
+        // Create ContextBuilder early so op registrar can delegate to it
+        // When contextBudgets is disabled, provide a minimal fallback
+        const contextBuilder = this.#cap('contextBudgets')
+            ? await this.#createContextBuilder(this._loopState, this._dispatcher, interp)
+            : this.#minimalContextBuilder();
+
+        const opRegistrar = new MeTTaOpRegistrar(this.agent, this.agentCfg, this._dispatcher, this._loopState, budget, Term, this.#cap, llmInvoker);
+        opRegistrar.registerBasicOps(interp, () => msgQueue.dequeue());
+        opRegistrar.registerContextOps(interp, contextBuilder);
+        opRegistrar.registerLLMOps(interp);
+        opRegistrar.registerCommandOps(interp);
+        opRegistrar.registerIntrospectionOps(interp);
+        opRegistrar.registerDiscoveryOps(interp, interp);
+
+        // NAL inference grounded ops
+        narsOps.register(interp);
+
+        const skillRegistrar = new MeTTaSkillRegistrar(this.agent, this.agentCfg, this._dispatcher, this._loopState, this.#cap);
+        await skillRegistrar.registerAll();
+
+        const skillsCode = await readFile(this.#resolveMettaFile('skills.metta'), 'utf8');
+        const loopCode = await readFile(this.#resolveBotMettaFile('loop.metta'), 'utf8');
+        interp.run(skillsCode);
+        interp.run(loopCode);
+
+        const harnessOptimizer = await this.#maybeInitHarnessOptimizer(this._loopState, auditSpace);
+
+        return this.#buildLoop(this._loopState, budget, msgQueue, contextBuilder, harnessOptimizer, llmInvoker, sessionManager, interp);
+    }
+
+    /* ── Loop ──────────────────────────────────────────────────────── */
+
+    #buildLoop(loopState, budget, msgQueue, contextBuilder, harnessOptimizer, llmInvoker, sessionManager, interp) {
+        return async () => {
+            this.#running = true;
+            loopState.cycleCount = 0;
+            budget.current = this.#budget;
+            this.#emit('start', { profile: this.agentCfg.profile ?? 'parity' });
+
+            try {
+                await interp.runAsync('(bot-init)');
+                while (this.#running) {
+                    if (this.#paused) {
+                        await new Promise(resolve => { this.#pauseResolve = resolve; });
+                    }
+
+                    if (budget.current <= 0) {
+                        if (!this.#cap('autonomousLoop')) {
+                            await sessionManager.save(loopState);
+                            this.#emit('budget-exhausted', { cycleCount: loopState.cycleCount });
+                            break;
+                        }
+                        budget.current = this.#budget;
+                    }
+
+                    // Non-blocking: proceed even if LLM not ready; LLM-dependent ops
+                    // will return fallback values. Log at most once per 10 cycles.
+                    if (!this._llmReady && loopState.cycleCount % 10 === 0) {
+                        Logger.debug('[MeTTa] LLM not yet ready, proceeding with fallback ops');
+                    }
+
+                    this.#emit('cycle-start', { cycle: loopState.cycleCount, budget: budget.current });
+                    try {
+                        const hasMsg = loopState.lastmsg !== null;
+                        await interp.runAsync(hasMsg ? '(bot-process)' : '(bot-idle)');
+                        budget.current--;
+                    } catch (err) {
+                        Logger.error(`[MeTTa cycle ${loopState.cycleCount}]`, err.message);
+                        loopState.error = err.message;
+                    }
+                    this.#emit('cycle-end', {
+                        cycle: loopState.cycleCount, budget: budget.current, error: loopState.error
+                    });
+                }
+            } finally {
+                this.#running = false;
+                await sessionManager.save(loopState);
+                this.#emit('halt', { cycleCount: loopState.cycleCount });
+            }
+        };
+    }
+
+    /* ── Helpers ───────────────────────────────────────────────────── */
+
+    #createLoopState() {
+        return {
+            prevmsg: null, lastmsg: null, lastresults: [], lastsend: '', error: null,
+            cycleCount: 0, wm: [], historyBuffer: [],
+            modelOverride: null, modelOverrideCycles: 0
+        };
+    }
+
+    #getAuditSpace() {
+        return this._dispatcher?._auditSpace ?? null;
+    }
+
+    async #createContextBuilder(loopState, dispatcher, interp) {
+        if (!this.#cap('contextBudgets')) {return null;}
+        const { ContextBuilder } = await loadContextBuilder();
+        const introspectionOps = {
+            generateManifest: () => {
+                if (!this.#cap('runtimeIntrospection')) {return '(manifest :restricted true)';}
+                return JSON.stringify({
+                    version: '0.1.0', profile: this.agentCfg.profile ?? 'parity',
+                    capabilities: Object.fromEntries(Object.keys(this.agentCfg.capabilities ?? {}).map(k => isEnabled(this.agentCfg, k))),
+                    cycleCount: loopState.cycleCount, wmEntries: loopState.wm.length
+                }, null, 2);
+            }
+        };
+        const cb = new ContextBuilder(this.agentCfg, this.agent.semanticMemory,
+            { getRecent: async n => loopState.historyBuffer.slice(-n) }, dispatcher, introspectionOps, this.agent);
+        cb.registerGroundedOps(interp);
+        return cb;
+    }
+
+    #minimalContextBuilder() {
+        return {
+            build: (msg) => {
+                const actions = this._dispatcher?.getActiveActionDefs() ?? '(no actions available)';
+                return `You are SeNARchy, a helpful AI assistant.\n\n` +
+                    `AVAILABLE ACTIONS:\n${actions}\n\n` +
+                    `To take actions, respond with JSON: {"actions":[{"name":"action","args":["..."]}]}.\n\n` +
+                    `INPUT: ${msg}`;
+            }
+        };
+    }
+
+    async #maybeInitHarnessOptimizer(_loopState, _auditSpace) {
+        if (!this.#cap('harnessOptimization')) {return null;}
+        const { HarnessOptimizer } = await loadHarnessOptimizer();
+        await this._dispatcher._ensureSafetyAndAudit();
+        const realAuditSpace = this._dispatcher._auditSpace;
+        const auditWrapper = realAuditSpace ? {
+            queryByType: async (type, limit) => realAuditSpace.getRecent(limit, type),
+            emitHarnessModified: async (cycle, score) => realAuditSpace.emitHarnessModified(cycle, score)
+        } : {
+            queryByType: async () => [],
+            emitHarnessModified: async (cycle, score) => Logger.info(`[audit] harness-modified cycle=${cycle} score=${score}`)
+        };
+        const ho = new HarnessOptimizer(this.agentCfg,
+            { invoke: async ctx => { const r = await this.agent.ai.generate(ctx); return { response: r.text ?? '', model: 'fallback', latency: 0 }; } },
+            auditWrapper);
+        return ho;
+    }
+
+    #resolveMettaFile(filename) {
+        const direct = resolve(__agentDir, filename);
+        const inMetta = resolve(__agentDir, 'metta', filename);
+        return existsSync(direct) ? direct : inMetta;
+    }
+
+#resolveBotMettaFile(filename) {
+    const botDir = resolve(__agentDir, '../../../bot');
+    const direct = resolve(botDir, filename);
+    if (existsSync(direct)) {return direct;}
+    // Fallback to agent/ metta dir
+    return this.#resolveMettaFile(filename);
+}
+}
