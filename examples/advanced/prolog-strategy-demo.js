@@ -3,13 +3,7 @@
  * Demonstrates Prolog-style backward chaining resolution
  */
 
-import {NAR} from '../../core/src/nar/NAR.js';
-import {PrologStrategy} from '../../core/src/reason/strategy/PrologStrategy.js';
-import {TaskBagPremiseSource} from '../../core/src/reason/TaskBagPremiseSource.js';
-import {RuleProcessor} from '../../core/src/reason/RuleProcessor.js';
-import {RuleExecutor} from '../../core/src/reason/RuleExecutor.js';
-import {Reasoner} from '../../core/src/reason/Reasoner.js';
-import {SyllogisticRule} from '../../core/src/reason/rules/nal/SyllogisticRule.js';
+import {NAR, PrologStrategy, TaskBagPremiseSource, RuleProcessor, RuleExecutor, Reasoner, SyllogisticRule} from '@senars/nar';
 
 async function runDemo() {
     console.log('=== SeNARS Prolog Strategy Demo ===\n');

@@ -4,7 +4,7 @@ export class Toast {
     static container = null;
 
     static init() {
-        if (this.container) return;
+        if (this.container) {return;}
         this.container = FluentUI.create('div')
             .class('toast-container')
             .style({
@@ -57,7 +57,7 @@ export class Toast {
     }
 
     static dismiss(toast) {
-        if (!toast) return;
+        if (!toast) {return;}
         const el = toast instanceof FluentUI ? toast : new FluentUI(toast);
 
         el.style({ transform: 'translateX(100%)', opacity: '0' });

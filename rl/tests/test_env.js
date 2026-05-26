@@ -1,13 +1,12 @@
-
-import { GridWorld } from '../src/environments/GridWorld.js';
-import { strict as assert } from 'assert';
+import {GridWorld} from '../src/environments/GridWorld.js';
+import {strict as assert} from 'assert';
 
 console.log("Testing GridWorld...");
 
 const env = new GridWorld(5, [0, 0], [4, 4]);
 
 // Test reset
-const { observation } = env.reset();
+const {observation} = env.reset();
 assert.deepEqual(observation, [0, 0]);
 assert.equal(env.currentSteps, 0);
 

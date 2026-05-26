@@ -2,8 +2,8 @@
  * Architecture Factory and Templates
  * Factory pattern for creating pre-configured architectures
  */
-import { ArchitectureBuilder } from './ArchitectureBuilder.js';
-import { ArchitectureTemplates } from './ArchitectureConfig.js';
+import {ArchitectureBuilder} from './ArchitectureBuilder.js';
+import {ArchitectureTemplates} from './ArchitectureConfig.js';
 
 /**
  * Factory for creating neuro-symbolic architectures

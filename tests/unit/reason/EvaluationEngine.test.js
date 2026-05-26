@@ -1,5 +1,4 @@
-import {EvaluationEngine} from '../../../core/src/reason/EvaluationEngine.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
+import {EvaluationEngine, TermFactory} from '@senars/nar';
 
 describe('EvaluationEngine', () => {
     let engine;
@@ -45,7 +44,7 @@ describe('EvaluationEngine', () => {
         // Or update test to use public `evaluate` or `processOperation`.
 
         // Using `evaluate` with comparison operators
-        expect(engine.evaluate({ operator: '>', components: [{value: 5}, {value: 3}] })).toBe(true);
-        expect(engine.evaluate({ operator: '<', components: [{value: 5}, {value: 3}] })).toBe(false);
+        expect(engine.evaluate({operator: '>', components: [{value: 5}, {value: 3}]})).toBe(true);
+        expect(engine.evaluate({operator: '<', components: [{value: 5}, {value: 3}]})).toBe(false);
     });
 });

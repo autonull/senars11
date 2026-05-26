@@ -31,7 +31,7 @@ export class AgentStreamer {
             }
         } catch (error) {
             Logger.error('Streaming error:', error);
-            yield { type: 'error', error: error.message };
+            yield {type: 'error', error: error.message};
         }
     }
 
@@ -41,9 +41,9 @@ export class AgentStreamer {
             const history = this.agent.getHistory();
             const botName = this.agent.id || 'Assistant';
             const messages = [
-                { role: 'system', content: `You are ${botName}. Respond helpfully.` },
-                ...history.slice(-10).map(h => ({ role: 'user', content: h })), // Limit history context
-                { role: 'user', content: input }
+                {role: 'system', content: `You are ${botName}. Respond helpfully.`},
+                ...history.slice(-10).map(h => ({role: 'user', content: h})), // Limit history context
+                {role: 'user', content: input}
             ];
 
             const result = await this.agent.ai.generate({
@@ -72,7 +72,9 @@ export class AgentStreamer {
     async processInputStreaming(input, onChunk, onStep) {
         // ... existing implementation if strictly needed, or redirect to streamExecution
         for await (const chunk of this.streamExecution(input)) {
-            if (chunk.type === 'text-delta') onChunk(chunk.textDelta);
+            if (chunk.type === 'text-delta') {
+                onChunk(chunk.textDelta);
+            }
         }
     }
 }

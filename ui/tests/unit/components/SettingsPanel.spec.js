@@ -1,6 +1,5 @@
 import { jest } from '@jest/globals';
 import { SettingsPanel } from '../../../src/components/SettingsPanel.js';
-import { GraphConfig } from '../../../src/config/GraphConfig.js';
 import { eventBus } from '../../../src/core/EventBus.js';
 import { EVENTS } from '../../../src/config/constants.js';
 

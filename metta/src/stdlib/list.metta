@@ -88,6 +88,12 @@
 ; append: concatenate two lists
 (= (append () $ys) $ys)
 (= (append (: $h $t) $ys) (: $h (append $t $ys)))
+; Single-element expression as singleton list: (x) -> (: x ())
+(= (append ($x) $ys) (: $x $ys))
+; Multi-element expression as cons-list: (x y ...) -> (: x (y ...))
+; For 2+ element lists, recursively append the tail
+(= (append ($h $t) $ys) (: $h (append $t $ys)))
+(= (append ($h $m $t) $ys) (: $h (append ($m $t) $ys)))
 
 ; ===== List Utilities =====
 

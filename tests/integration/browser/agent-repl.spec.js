@@ -3,8 +3,8 @@
  * @description Playwright test for Agent REPL with WebLLM
  */
 
-import { test, expect } from '@playwright/test';
-import { spawn } from 'child_process';
+import {expect, test} from '@playwright/test';
+import {spawn} from 'child_process';
 
 let httpServer;
 
@@ -26,7 +26,7 @@ test.describe('Agent REPL', () => {
         }
     });
 
-    test('should load agent.html and display UI components', async ({ page }) => {
+    test('should load agent.html and display UI components', async ({page}) => {
         test.setTimeout(120000); // 2 minutes for initial load
 
         // Navigate to agent.html
@@ -50,54 +50,54 @@ test.describe('Agent REPL', () => {
 
         // Wait for welcome message to appear (should be quick)
         const welcomeMessage = page.locator('text=Welcome to SeNARS Agent REPL');
-        await expect(welcomeMessage).toBeVisible({ timeout: 10000 });
+        await expect(welcomeMessage).toBeVisible({timeout: 10000});
 
         // Take screenshot of initial state
-        await page.screenshot({ path: 'test-results/agent-repl-initial.png', fullPage: true });
+        await page.screenshot({path: 'test-results/agent-repl-initial.png', fullPage: true});
     });
 
-    test('should show loading overlay initially', async ({ page }) => {
+    test('should show loading overlay initially', async ({page}) => {
         await page.goto('http://localhost:8081/agent.html');
 
         // Check loading overlay is present initially
         const loadingOverlay = page.locator('#loading-overlay');
-        await expect(loadingOverlay).toBeVisible({ timeout: 5000 });
+        await expect(loadingOverlay).toBeVisible({timeout: 5000});
 
         // Check loading text
         const loadingText = page.locator('.loading-text');
         await expect(loadingText).toContainText('Initializing');
     });
 
-    test('should display notebook panel', async ({ page }) => {
+    test('should display notebook panel', async ({page}) => {
         test.setTimeout(120000);
 
         await page.goto('http://localhost:8081/agent.html');
 
         // Wait for notebook to load
         const notebook = page.locator('.notebook-container');
-        await expect(notebook).toBeVisible({ timeout: 30000 });
+        await expect(notebook).toBeVisible({timeout: 30000});
 
         // Check for notebook input
         const input = page.locator('.notebook-input');
-        await expect(input).toBeVisible({ timeout: 10000 });
+        await expect(input).toBeVisible({timeout: 10000});
     });
 
-    test('should show available tools in welcome message', async ({ page }) => {
+    test('should show available tools in welcome message', async ({page}) => {
         test.setTimeout(120000);
 
         await page.goto('http://localhost:8081/agent.html');
 
         // Wait for welcome message
-        await page.waitForSelector('text=Welcome to SeNARS Agent REPL', { timeout: 15000 });
+        await page.waitForSelector('text=Welcome to SeNARS Agent REPL', {timeout: 15000});
 
         // Check that tools/capabilities are mentioned
         const hasCapabilities = await page.locator('text=/Capabilities|Tools|Self-Configuration|Self-Programming/').count();
         expect(hasCapabilities).toBeGreaterThan(0);
 
-        await page.screenshot({ path: 'test-results/agent-repl-welcome.png', fullPage: true });
+        await page.screenshot({path: 'test-results/agent-repl-welcome.png', fullPage: true});
     });
 
-    test('should not have JavaScript errors on load', async ({ page }) => {
+    test('should not have JavaScript errors on load', async ({page}) => {
         const errors = [];
         page.on('pageerror', error => {
             errors.push(error.message);
@@ -123,7 +123,7 @@ test.describe('Agent REPL', () => {
         expect(criticalErrors.length).toBeLessThan(5);
     });
 
-    test.skip('should initialize WebLLM model', async ({ page }) => {
+    test.skip('should initialize WebLLM model', async ({page}) => {
         // This test is skipped by default as it requires ~1GB download
         // and takes several minutes on first run
         test.setTimeout(600000); // 10 minutes for model download
@@ -131,13 +131,13 @@ test.describe('Agent REPL', () => {
         await page.goto('http://localhost:8081/agent.html');
 
         // Wait for model loading to complete
-        await page.waitForSelector('text=Model loaded', { timeout: 600000 });
+        await page.waitForSelector('text=Model loaded', {timeout: 600000});
 
         // Verify no loading overlay
         const loadingOverlay = page.locator('#loading-overlay');
         await expect(loadingOverlay).toHaveClass(/hidden/);
 
         // Take screenshot of ready state
-        await page.screenshot({ path: 'test-results/agent-repl-ready.png', fullPage: true });
+        await page.screenshot({path: 'test-results/agent-repl-ready.png', fullPage: true});
     });
 });

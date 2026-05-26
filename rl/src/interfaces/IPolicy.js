@@ -1,9 +1,9 @@
 /**
  * Policy Interface - Contract for all RL policies
- * 
+ *
  * Policies define how actions are selected given observations.
  * All policy implementations must implement this interface.
- * 
+ *
  * @interface IPolicy
  * @extends {import('../composable/Component.js').Component}
  */

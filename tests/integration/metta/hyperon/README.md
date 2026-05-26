@@ -4,7 +4,8 @@ Integration tests for validating behavioral parity with the official Hyperon (Ru
 
 ## Overview
 
-This test suite runs official MeTTa test files against our JavaScript implementation and compares results with expected output from the Hyperon reference implementation.
+This test suite runs official MeTTa test files against our JavaScript implementation and compares results with expected
+output from the Hyperon reference implementation.
 
 ## Directory Structure
 
@@ -35,6 +36,7 @@ Test files use the following format:
 ```
 
 **Example**:
+
 ```metta
 ; Test: Basic arithmetic addition
 !(+ 2 3)
@@ -44,16 +46,19 @@ Test files use the following format:
 ## Running Tests
 
 ### Run all Hyperon tests via Jest:
+
 ```bash
 npm run test:integration -- tests/integration/metta/hyperon/
 ```
 
 ### Run specific test category:
+
 ```bash
 npm run test:integration -- tests/integration/metta/hyperon/hyperon-suite.test.js -t "Basic Tests"
 ```
 
 ### Run test harness directly (with verbose output):
+
 ```bash
 node debug_hyperon_tests.js
 ```
@@ -69,31 +74,37 @@ See [GAPS.md](./GAPS.md) for detailed analysis of failures and known issues.
 ## Test Categories
 
 ### ✅ Basic Syntax (11/15 passing - 73.33%)
+
 - Arithmetic operations
 - Variable binding
 - Conditionals
 - Comparisons
 
 ### ⚠️ Standard Library (6/13 passing - 46.15%)
+
 - Expression operations
 - Math functions
 - Set operations
 - Metatype introspection
 
 ### 🔜 Type System (0 tests)
+
 - Type assertions
 - Type checking
 - Type inference
 
 ### 🔜 Non-Determinism (0 tests)
+
 - Superpose operations
 - Non-deterministic evaluation
 
 ### 🔜 Recursion (0 tests)
+
 - Recursive functions
 - Tail-call optimization
 
 ### 🔜 Edge Cases (0 tests)
+
 - Error handling
 - Boundary conditions
 
@@ -109,6 +120,7 @@ See [GAPS.md](./GAPS.md) for detailed analysis of failures and known issues.
 See [GAPS.md](./GAPS.md) for detailed list of known issues and gaps.
 
 **Summary**:
+
 - Expression reduction semantics differ from Hyperon
 - Some operations behave differently on reduced values
 - Format differences in list/set representations
@@ -123,6 +135,7 @@ See [GAPS.md](./GAPS.md) for detailed list of known issues and gaps.
 ## Contributing
 
 When adding new tests:
+
 1. Use descriptive test names
 2. Include expected output from Hyperon reference implementation
 3. Document any known differences in GAPS.md

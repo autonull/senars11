@@ -3,6 +3,7 @@
 ## Core Concepts
 
 ### Component Lifecycle
+
 All major components extend `Component` base class:
 
 ```javascript

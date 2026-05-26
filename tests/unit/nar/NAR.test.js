@@ -1,6 +1,5 @@
 import {afterEach, beforeEach, describe, expect, test} from '@jest/globals';
-import {NAR} from '../../../core/src/nar/NAR.js';
-import {Memory} from '../../../core/src/memory/Memory.js';
+import {Memory, NAR} from '@senars/nar';
 
 describe('NAR', () => {
     let nar;

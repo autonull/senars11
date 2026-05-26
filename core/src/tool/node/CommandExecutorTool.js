@@ -3,7 +3,7 @@
  * @description Tool for executing commands in a sandboxed environment
  */
 
-import { BaseTool } from '../BaseTool.js';
+import {BaseTool} from '../BaseTool.js';
 import {exec} from 'child_process';
 import path from 'path';
 import os from 'os';
@@ -48,7 +48,9 @@ export class CommandExecutorTool extends BaseTool {
     async execute(params, context) {
         const {command, args = [], cwd, env = {}} = params;
 
-        if (!command) throw new Error('Command is required');
+        if (!command) {
+            throw new Error('Command is required');
+        }
 
         // Validate and sanitize the command
         this._validateCommand(command, args, cwd, env);
@@ -246,7 +248,9 @@ export class CommandExecutorTool extends BaseTool {
         }
 
         // Check working directory if provided
-        if (cwd) this._validateWorkingDir(cwd);
+        if (cwd) {
+            this._validateWorkingDir(cwd);
+        }
 
         const allArgs = [command, ...args].join(' ');
 
@@ -313,11 +317,13 @@ export class CommandExecutorTool extends BaseTool {
      * @private
      */
     _sanitizeOutput(output) {
-        if (!output) return output;
+        if (!output) {
+            return output;
+        }
 
         // Truncate if too large
         if (output.length > this.maxOutputSize) {
-            return output.substring(0, this.maxOutputSize) + '\n[OUTPUT TRUNCATED]';
+            return `${output.substring(0, this.maxOutputSize)}\n[OUTPUT TRUNCATED]`;
         }
 
         // Redact potentially sensitive information

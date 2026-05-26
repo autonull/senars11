@@ -1,30 +1,18 @@
 import {LMConfig} from './LMConfig.js';
 
 /**
- * @deprecated Use LMConfig.interactive() or LMConfig.quickSelect() instead
+ * @deprecated Use LMConfig directly instead
  *
- * LMConfigurator is deprecated as of Phase 4. All functionality has been
- * consolidated into LMConfig for a unified configuration API.
- *
- * Migration:
- *   const configurator = new LMConfigurator();
- *   const result = await configurator.configure();
- *
- * Becomes:
- *   const config = new LMConfig();
- *   const result = await config.interactive();
+ * LMConfigurator is deprecated as of Phase 4. Interactive CLI configuration
+ * has been removed; use LMConfig.setProvider() / LMConfig.setActive() programmatically.
  */
 export class LMConfigurator {
     constructor() {
-        console.warn('[DEPRECATED] LMConfigurator is deprecated. Use LMConfig.interactive() instead.');
+        console.warn('[DEPRECATED] LMConfigurator is deprecated. Use LMConfig directly.');
         this._config = new LMConfig();
     }
 
-    async configure() {
-        return await this._config.interactive();
-    }
-
-    async quickSelect() {
-        return await this._config.quickSelect();
+    getConfig() {
+        return this._config;
     }
 }

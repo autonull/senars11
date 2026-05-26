@@ -13,11 +13,17 @@ export class Optimizer {
 
     _update(params, fn) {
         const entries = params instanceof Map ? params : params.entries();
-        for (const [k, p] of entries) if (p.requiresGrad && p.grad) fn(k, p);
+        for (const [k, p] of entries) {
+            if (p.requiresGrad && p.grad) {
+                fn(k, p);
+            }
+        }
     }
 
     _state(map, key, size, val = 0) {
-        if (!map.has(key)) map.set(key, Array(size).fill(val));
+        if (!map.has(key)) {
+            map.set(key, Array(size).fill(val));
+        }
         return map.get(key);
     }
 }
@@ -39,7 +45,9 @@ export class SGDOptimizer extends Optimizer {
                     p.data[i] -= this.lr * v[i];
                 }
             } else {
-                for (let i = 0; i < p.size; i++) p.data[i] -= this.lr * g[i];
+                for (let i = 0; i < p.size; i++) {
+                    p.data[i] -= this.lr * g[i];
+                }
             }
         });
     }

@@ -1,32 +1,32 @@
 /**
  * Phase 2 Unit Tests — Semantic Memory (Core Logic)
- * 
+ *
  * Tests the core data structures and algorithms of SemanticMemory
  * without triggering the full module import chain.
- * 
+ *
  * Focus:
  * - Atom parsing
- * - Vector parsing  
+ * - Vector parsing
  * - Cosine similarity
  * - Memory filtering and sorting
  * - Persistence format
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { mkdir, rm, writeFile, readFile } from 'fs/promises';
-import { join } from 'path';
-import { tmpdir } from 'os';
+import {afterEach, beforeEach, describe, expect, it} from '@jest/globals';
+import {mkdir, readFile, rm, writeFile} from 'fs/promises';
+import {join} from 'path';
+import {tmpdir} from 'os';
 
 describe('Phase 2: Semantic Memory Core Logic', () => {
     let testDir;
 
     beforeEach(async () => {
         testDir = join(tmpdir(), `semantic-memory-test-${Date.now()}`);
-        await mkdir(testDir, { recursive: true });
+        await mkdir(testDir, {recursive: true});
     });
 
     afterEach(async () => {
-        await rm(testDir, { recursive: true, force: true });
+        await rm(testDir, {recursive: true, force: true});
     });
 
     describe('Atom parsing', () => {
@@ -122,9 +122,9 @@ describe('Phase 2: Semantic Memory Core Logic', () => {
     describe('Memory filtering', () => {
         it('filters by type', () => {
             const atoms = new Map([
-                ['mem_1', { id: 'mem_1', type: 'semantic' }],
-                ['mem_2', { id: 'mem_2', type: 'episodic' }],
-                ['mem_3', { id: 'mem_3', type: 'pinned' }]
+                ['mem_1', {id: 'mem_1', type: 'semantic'}],
+                ['mem_2', {id: 'mem_2', type: 'episodic'}],
+                ['mem_3', {id: 'mem_3', type: 'pinned'}]
             ]);
 
             const semantic = filterByType(atoms, 'semantic');
@@ -134,9 +134,9 @@ describe('Phase 2: Semantic Memory Core Logic', () => {
 
         it('sorts by timestamp descending', () => {
             const atoms = [
-                { id: 'mem_1', timestamp: 1000 },
-                { id: 'mem_2', timestamp: 3000 },
-                { id: 'mem_3', timestamp: 2000 }
+                {id: 'mem_1', timestamp: 1000},
+                {id: 'mem_2', timestamp: 3000},
+                {id: 'mem_3', timestamp: 2000}
             ];
 
             const sorted = atoms.sort((a, b) => b.timestamp - a.timestamp);
@@ -147,9 +147,9 @@ describe('Phase 2: Semantic Memory Core Logic', () => {
 
         it('respects char budget', () => {
             const items = [
-                { content: 'A'.repeat(100) },
-                { content: 'B'.repeat(100) },
-                { content: 'C'.repeat(100) }
+                {content: 'A'.repeat(100)},
+                {content: 'B'.repeat(100)},
+                {content: 'C'.repeat(100)}
             ];
 
             const budget = 250;
@@ -175,7 +175,7 @@ describe('Phase 2: Semantic Memory Core Logic', () => {
                     type: 'semantic',
                     timestamp: 12345,
                     source: 'test',
-                    truth: { frequency: 0.9, confidence: 0.8 },
+                    truth: {frequency: 0.9, confidence: 0.8},
                     tags: ['test', 'phase2']
                 }]
             ]);
@@ -208,10 +208,10 @@ describe('Phase 2: Semantic Memory Core Logic', () => {
     describe('Stats computation', () => {
         it('counts atoms by type', () => {
             const atoms = new Map([
-                ['mem_1', { type: 'semantic' }],
-                ['mem_2', { type: 'episodic' }],
-                ['mem_3', { type: 'semantic' }],
-                ['mem_4', { type: 'pinned' }]
+                ['mem_1', {type: 'semantic'}],
+                ['mem_2', {type: 'episodic'}],
+                ['mem_3', {type: 'semantic'}],
+                ['mem_4', {type: 'pinned'}]
             ]);
 
             const stats = computeStats(atoms);
@@ -326,5 +326,5 @@ function computeStats(atoms) {
     for (const atom of atoms.values()) {
         byType[atom.type] = (byType[atom.type] || 0) + 1;
     }
-    return { total: atoms.size, byType };
+    return {total: atoms.size, byType};
 }

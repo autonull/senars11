@@ -39,7 +39,7 @@ export class LMConfigDialog extends Component {
     _saveConfig() {
         try {
             localStorage.setItem('senars-lm-config', JSON.stringify(this.config));
-            if (this.onSave) this.onSave(this.config);
+            if (this.onSave) {this.onSave(this.config);}
             this.close();
         } catch (e) {
             console.error('Failed to save config:', e);
@@ -50,7 +50,7 @@ export class LMConfigDialog extends Component {
     render() {
         // Remove existing dialog if any
         const existing = document.getElementById('lm-config-overlay');
-        if (existing) existing.remove();
+        if (existing) {existing.remove();}
 
         const overlay = FluentUI.create('div')
             .id('lm-config-overlay')
@@ -160,7 +160,7 @@ export class LMConfigDialog extends Component {
 
             options.options.forEach(opt => {
                 const el = FluentUI.create('option').text(opt.name).val(opt.id);
-                if (opt.id === options.value) el.attr({ selected: true });
+                if (opt.id === options.value) {el.attr({ selected: true });}
                 input.child(el);
             });
         } else {
@@ -176,7 +176,7 @@ export class LMConfigDialog extends Component {
     }
 
     _updateModelPlaceholder(provider) {
-        if (!this.modelInput) return;
+        if (!this.modelInput) {return;}
         const placeholders = {
             webllm: 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
             transformers: 'Xenova/t5-small',
@@ -198,6 +198,6 @@ export class LMConfigDialog extends Component {
             this.container.remove();
             this.container = null;
         }
-        if (this.onCancel) this.onCancel();
+        if (this.onCancel) {this.onCancel();}
     }
 }

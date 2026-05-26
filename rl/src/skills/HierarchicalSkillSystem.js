@@ -2,10 +2,10 @@
  * Hierarchical Skill Discovery and Composition System
  * Enables automatic discovery, learning, and composition of skills.
  */
-import { Component } from '../composable/Component.js';
-import { SymbolicTensor } from '@senars/tensor';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { Skill } from './Skill.js';
+import {Component} from '../composable/Component.js';
+import {SymbolicTensor} from '@senars/tensor';
+import {mergeConfig} from '../utils/index.js';
+import {Skill} from './Skill.js';
 
 const SKILL_LIBRARY_DEFAULTS = {
     capacity: 100,
@@ -29,9 +29,9 @@ export class SkillLibrary extends Component {
         }
 
         this.skills.set(name, skill);
-        this.usageStats.set(name, { count: 0, success: 0, lastUsed: Date.now() });
+        this.usageStats.set(name, {count: 0, success: 0, lastUsed: Date.now()});
         this.updateSkillGraph(name, skill);
-        this.emit('skillRegistered', { name, skill });
+        this.emit('skillRegistered', {name, skill});
         return this;
     }
 
@@ -48,15 +48,19 @@ export class SkillLibrary extends Component {
     }
 
     retrieve(context, options = {}) {
-        const { maxResults = 5, minSuccessRate = 0, abstractionLevel = null } = options;
+        const {maxResults = 5, minSuccessRate = 0, abstractionLevel = null} = options;
 
         const candidates = Array.from(this.skills.entries())
             .filter(([name, skill]) => {
-                if (abstractionLevel !== null && skill.config.abstractionLevel !== abstractionLevel) return false;
+                if (abstractionLevel !== null && skill.config.abstractionLevel !== abstractionLevel) {
+                    return false;
+                }
                 const stats = this.usageStats.get(name);
                 if (stats && stats.count > 0) {
                     const successRate = stats.success / stats.count;
-                    if (successRate < minSuccessRate) return false;
+                    if (successRate < minSuccessRate) {
+                        return false;
+                    }
                 }
                 return skill.canInitiate(context.observation, context);
             })
@@ -77,7 +81,9 @@ export class SkillLibrary extends Component {
     }
 
     computeRelevance(skill, context) {
-        if (!skill.config.precondition) return 0.5;
+        if (!skill.config.precondition) {
+            return 0.5;
+        }
         try {
             return skill.config.precondition(context.observation, context) ? 0.8 : 0.2;
         } catch {
@@ -107,7 +113,7 @@ export class SkillLibrary extends Component {
         toRemove.forEach(([name]) => {
             this.skills.delete(name);
             this.usageStats.delete(name);
-            this.emit('skillPruned', { name });
+            this.emit('skillPruned', {name});
         });
     }
 
@@ -117,7 +123,9 @@ export class SkillLibrary extends Component {
 
     recordSuccess(name, success) {
         const stats = this.usageStats.get(name);
-        if (stats) stats.success += success ? 1 : 0;
+        if (stats) {
+            stats.success += success ? 1 : 0;
+        }
     }
 
     list() {
@@ -131,7 +139,9 @@ export class SkillLibrary extends Component {
 
     getSuccessRate(name) {
         const stats = this.usageStats.get(name);
-        if (!stats || stats.count === 0) return 0.5;
+        if (!stats || stats.count === 0) {
+            return 0.5;
+        }
         return stats.success / stats.count;
     }
 
@@ -176,7 +186,7 @@ export class SkillDiscoveryEngine extends Component {
     }
 
     processTransition(transition) {
-        const { state, nextState } = transition;
+        const {state, nextState} = transition;
         const stateKey = this.stateToKey(state);
         const nextStateKey = this.stateToKey(nextState);
 
@@ -190,11 +200,11 @@ export class SkillDiscoveryEngine extends Component {
 
         if (this.isBottleneck(stateKey)) {
             this.bottlenecks.push(stateKey);
-            this.emit('bottleneckDetected', { state: stateKey });
+            this.emit('bottleneckDetected', {state: stateKey});
         }
 
         if (this.isNovelState(nextStateKey)) {
-            this.emit('novelStateDetected', { state: nextStateKey });
+            this.emit('novelStateDetected', {state: nextStateKey});
         }
 
         if (this.shouldDiscoverSkills()) {
@@ -203,8 +213,12 @@ export class SkillDiscoveryEngine extends Component {
     }
 
     stateToKey(state) {
-        if (Array.isArray(state)) return state.map(x => Math.round(x * 10)).join('_');
-        if (state instanceof SymbolicTensor) return state.toNarseseTerm('s');
+        if (Array.isArray(state)) {
+            return state.map(x => Math.round(x * 10)).join('_');
+        }
+        if (state instanceof SymbolicTensor) {
+            return state.toNarseseTerm('s');
+        }
         return String(state);
     }
 
@@ -212,11 +226,15 @@ export class SkillDiscoveryEngine extends Component {
         const visits = this.stateVisits.get(stateKey) ?? 0;
         const transitions = this.transitionGraph.get(stateKey);
 
-        if (!transitions || visits < this.config.minUsageCount) return false;
+        if (!transitions || visits < this.config.minUsageCount) {
+            return false;
+        }
 
         let inDegree = 0;
         for (const [, trans] of this.transitionGraph) {
-            if (trans.has(stateKey)) inDegree += trans.get(stateKey);
+            if (trans.has(stateKey)) {
+                inDegree += trans.get(stateKey);
+            }
         }
 
         const outDegree = Array.from(transitions.values()).reduce((a, b) => a + b, 0);
@@ -234,10 +252,17 @@ export class SkillDiscoveryEngine extends Component {
 
     discoverSkills() {
         switch (this.config.discoveryMode) {
-            case 'bottleneck': this.discoverBottleneckSkills(); break;
-            case 'curiosity': this.discoverNoveltySkills(); break;
-            case 'graph': this.discoverGraphSkills(); break;
-            default: this.discoverBottleneckSkills();
+            case 'bottleneck':
+                this.discoverBottleneckSkills();
+                break;
+            case 'curiosity':
+                this.discoverNoveltySkills();
+                break;
+            case 'graph':
+                this.discoverGraphSkills();
+                break;
+            default:
+                this.discoverBottleneckSkills();
         }
     }
 
@@ -245,7 +270,7 @@ export class SkillDiscoveryEngine extends Component {
         this.bottlenecks.forEach(bottleneck => {
             const skill = this.createBottleneckSkill(bottleneck);
             this.candidateSkills.push(skill);
-            this.emit('skillDiscovered', { skill, source: 'bottleneck', state: bottleneck });
+            this.emit('skillDiscovered', {skill, source: 'bottleneck', state: bottleneck});
         });
 
         this.discoveryLog.push({
@@ -277,7 +302,9 @@ export class SkillDiscoveryEngine extends Component {
         const visited = new Set();
 
         for (const [state] of this.transitionGraph) {
-            if (visited.has(state)) continue;
+            if (visited.has(state)) {
+                continue;
+            }
 
             const community = [state];
             visited.add(state);
@@ -298,7 +325,9 @@ export class SkillDiscoveryEngine extends Component {
                 }
             }
 
-            if (community.length > 1) communities.push(community);
+            if (community.length > 1) {
+                communities.push(community);
+            }
         }
 
         return communities;
@@ -344,7 +373,9 @@ export class SkillDiscoveryEngine extends Component {
 
     promoteSkill(skillName) {
         const idx = this.candidateSkills.findIndex(s => s.config.name === skillName);
-        if (idx === -1) return false;
+        if (idx === -1) {
+            return false;
+        }
         const skill = this.candidateSkills[idx];
         this.library.register(skillName, skill);
         this.candidateSkills.splice(idx, 1);
@@ -362,5 +393,5 @@ export class SkillDiscoveryEngine extends Component {
 }
 
 // Re-exports for convenience
-export { Skill } from './Skill.js';
-export { SkillDiscovery } from './SkillDiscovery.js';
+export {Skill} from './Skill.js';
+export {SkillDiscovery} from './SkillDiscovery.js';

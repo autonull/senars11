@@ -3,13 +3,13 @@
  * Tests &map-fast, &filter-fast, &foldl-fast
  */
 
-import { MeTTaTestUtils } from '../../helpers/MeTTaTestUtils.js';
+import {MeTTaTestUtils} from '../../helpers/MeTTaTestUtils.js';
 
 describe('Grounded HOF Operations', () => {
     let interpreter;
 
     beforeEach(() => {
-        interpreter = MeTTaTestUtils.createInterpreter({ loadStdlib: true });
+        interpreter = MeTTaTestUtils.createInterpreter({loadStdlib: true});
     });
 
     describe('&map-fast', () => {

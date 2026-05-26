@@ -1,5 +1,5 @@
-import { RLEnvironment } from '../core/RLEnvironment.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {Environment} from '../core/RLCore.js';
+import {mergeConfig} from '../utils/index.js';
 
 const GRID_DEFAULTS = {
     size: 5,
@@ -11,13 +11,13 @@ const GRID_DEFAULTS = {
     stepPenalty: -0.1
 };
 
-export class GridWorld extends RLEnvironment {
+export class GridWorld extends Environment {
     constructor(config = {}) {
         super();
         const merged = typeof config === 'number'
-            ? mergeConfig(GRID_DEFAULTS, { size: config })
+            ? mergeConfig(GRID_DEFAULTS, {size: config})
             : mergeConfig(GRID_DEFAULTS, config);
-        
+
         Object.assign(this, {
             size: merged.size,
             start: merged.start,
@@ -31,10 +31,18 @@ export class GridWorld extends RLEnvironment {
         this.reset();
     }
 
+    get observationSpace() {
+        return {type: 'Box', shape: [2], low: [0, 0], high: [this.size - 1, this.size - 1]};
+    }
+
+    get actionSpace() {
+        return {type: 'Discrete', n: 4};
+    }
+
     reset() {
         this.state = [...this.start];
         this.currentSteps = 0;
-        return { observation: [...this.state], info: {} };
+        return {observation: [...this.state], info: {}};
     }
 
     step(action) {
@@ -62,13 +70,5 @@ export class GridWorld extends RLEnvironment {
             truncated,
             info: {}
         };
-    }
-
-    get observationSpace() {
-        return { type: 'Box', shape: [2], low: [0, 0], high: [this.size - 1, this.size - 1] };
-    }
-
-    get actionSpace() {
-        return { type: 'Discrete', n: 4 };
     }
 }

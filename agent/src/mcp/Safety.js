@@ -15,7 +15,9 @@ export class Safety {
      * Note: Does NOT sanitize HTML entities to preserve Narsese syntax (<term --> term>).
      */
     detectAndTokenizePII(input) {
-        if (!this.config.piiDetection) return input;
+        if (!this.config.piiDetection) {
+            return input;
+        }
 
         if (typeof input === 'string') {
             const patterns = [

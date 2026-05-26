@@ -1,4 +1,4 @@
-import { BaseComponent } from '../util/BaseComponent.js';
+import { BaseComponent } from './BaseComponent.js';
 
 export class ComponentManager extends BaseComponent {
     constructor(config = {}, eventBus = null, nar = null) {
@@ -27,7 +27,7 @@ export class ComponentManager extends BaseComponent {
             try {
                 // Hiding dynamic import from bundlers like esbuild to avoid static analysis issues
                 // This is strictly for the Node.js environment where these components exist on disk
-                const module = await eval(`import("../${config.path}")`);
+                const module = await import(`../${config.path}`);
                 const ComponentClass = module[config.class];
                 if (!ComponentClass) {
                     throw new Error(`Component class ${config.class} not found in ${config.path}`);
@@ -100,7 +100,7 @@ export class ComponentManager extends BaseComponent {
         const visiting = new Set();
 
         const visit = (node) => {
-            if (visited.has(node)) return;
+            if (visited.has(node)) {return;}
             if (visiting.has(node)) {
                 throw new Error(`Circular dependency detected: ${node}`);
             }
@@ -150,7 +150,7 @@ export class ComponentManager extends BaseComponent {
 
         for (const componentName of componentOrder) {
             const component = this._components.get(componentName);
-            if (!component) continue;
+            if (!component) {continue;}
 
             this.logDebug(`${operation.charAt(0).toUpperCase() + operation.slice(1)}ing component: ${componentName}`);
 

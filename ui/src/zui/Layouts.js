@@ -9,7 +9,7 @@ export const Layouts = {
      * @param {string} yAxis - Attribute for Y axis
      */
     applyScatter(cy, xAxis = 'priority', yAxis = 'confidence') {
-        if (!cy) return;
+        if (!cy) {return;}
 
         const nodes = cy.nodes();
         const width = cy.width() * 0.8;
@@ -52,13 +52,13 @@ export const Layouts = {
      * @param {string} sortField - Field to sort by ('priority' or 'term')
      */
     applySortedGrid(cy, sortField = 'priority') {
-        if (!cy) return;
+        if (!cy) {return;}
 
         const nodes = cy.nodes().sort((a, b) => {
             const getVal = (n) => {
                  const d = n.data('fullData') || {};
-                 if (sortField === 'priority') return d.budget?.priority || 0;
-                 if (sortField === 'term') return n.id();
+                 if (sortField === 'priority') {return d.budget?.priority || 0;}
+                 if (sortField === 'term') {return n.id();}
                  return 0;
             };
             return getVal(b) - getVal(a); // Descending

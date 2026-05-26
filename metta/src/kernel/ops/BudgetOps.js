@@ -2,8 +2,8 @@
  * BudgetOps.js - Budget operations
  */
 
-import { OperationHelpers } from './OperationHelpers.js';
-import { Term } from '../Term.js';
+import {OperationHelpers} from './OperationHelpers.js';
+import {Term} from '../Term.js';
 
 export function registerBudgetOps(registry) {
     // Helper function for binary numeric operations

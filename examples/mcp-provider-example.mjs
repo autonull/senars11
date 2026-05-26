@@ -6,7 +6,7 @@
  */
 
 import { Server } from '../agent/src/mcp/Server.js';
-import { MeTTaInterpreter } from '../metta/src/MeTTaInterpreter.js';
+import { MeTTaInterpreter } from '../metta/src/index.js';
 
 async function exampleSeNARSProvidesMCP() {
   console.log('=== Use Case B: SeNARS Providing MCP Services ===\n');

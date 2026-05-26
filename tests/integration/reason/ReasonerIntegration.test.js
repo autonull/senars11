@@ -1,4 +1,4 @@
-import {NAR} from '../../../core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 
 const createReasonerConfig = (overrides = {}) => ({
     reasoning: {cpuThrottleInterval: 0, maxDerivationDepth: 5, ...overrides.reasoning},

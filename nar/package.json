@@ -1,0 +1,22 @@
+{
+  "name": "@senars/nar",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": {
+      "node": "./src/index.node.js",
+      "default": "./src/index.js"
+    },
+    "./src/*": "./src/*.js",
+    "./src/*.js": "./src/*.js"
+  },
+  "files": [
+    "src"
+  ],
+  "dependencies": {
+    "@senars/core": "workspace:*",
+    "eventemitter3": "^5.0.4",
+    "uuid": "^9.0.1"
+  }
+}

@@ -1,5 +1,6 @@
 import { Component } from '../Component.js';
 import Chart from 'chart.js/auto';
+import { deepMerge } from '@senars/core';
 
 export class ChartWidget extends Component {
     constructor(container, config = {}) {
@@ -9,7 +10,7 @@ export class ChartWidget extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
         this.container.innerHTML = '';
         this.container.style.cssText = 'position: relative; height: 250px; width: 100%; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 4px;';
 
@@ -17,7 +18,7 @@ export class ChartWidget extends Component {
         this.container.appendChild(canvas);
 
         const ctx = canvas.getContext('2d');
-        const finalConfig = this._deepMerge(this._getDefaultConfig(), this.config);
+        const finalConfig = deepMerge(this._getDefaultConfig(), this.config);
         this.chart = new Chart(ctx, finalConfig);
     }
 
@@ -59,29 +60,10 @@ export class ChartWidget extends Component {
         };
     }
 
-    _deepMerge(target, source) {
-        if (typeof source !== 'object' || source === null) {
-            return source;
-        }
-
-        const result = Array.isArray(target) ? [...target] : { ...target };
-
-        for (const key in source) {
-            if (source.hasOwnProperty(key)) {
-                if (typeof source[key] === 'object' && source[key] !== null && !Array.isArray(source[key])) {
-                    result[key] = this._deepMerge(result[key] || {}, source[key]);
-                } else {
-                    result[key] = source[key];
-                }
-            }
-        }
-        return result;
-    }
-
     updateData(label, value, datasetIndex = 0) {
-        if (!this.chart) return;
+        if (!this.chart) {return;}
 
-        const data = this.chart.data;
+        const {data} = this.chart;
 
         // Add new label
         data.labels.push(label);

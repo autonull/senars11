@@ -1,12 +1,14 @@
 /**
  * WorkerPool.js - Node.js implementation of WorkerPool using worker_threads
  */
-import { Worker } from 'worker_threads';
-import { ENV } from '../env.js';
+import {Worker} from 'worker_threads';
+import {ENV} from '../env.js';
 
 export class WorkerPool {
     constructor(workerScript, poolSize = 4) {
-        if (!ENV.isNode) throw new Error('Node.js environment required');
+        if (!ENV.isNode) {
+            throw new Error('Node.js environment required');
+        }
 
         this.workerScript = workerScript;
         this.workers = [];
@@ -30,11 +32,13 @@ export class WorkerPool {
         worker.on('message', (msg) => this._handleResult(msg, worker));
         worker.on('error', (err) => console.error('Worker error:', err));
         worker.on('exit', (code) => {
-            if (code !== 0) console.error(`Worker stopped with exit code ${code}`);
+            if (code !== 0) {
+                console.error(`Worker stopped with exit code ${code}`);
+            }
             // Remove dead worker and replace if needed (not implemented for simplicity)
         });
 
-        this.workers.push({ worker, busy: false });
+        this.workers.push({worker, busy: false});
     }
 
     /**
@@ -45,8 +49,8 @@ export class WorkerPool {
     execute(task) {
         return new Promise((resolve, reject) => {
             const id = this.nextTaskId++;
-            this.callbacks.set(id, { resolve, reject });
-            this._dispatch({ id, ...task });
+            this.callbacks.set(id, {resolve, reject});
+            this._dispatch({id, ...task});
         });
     }
 
@@ -68,7 +72,7 @@ export class WorkerPool {
     }
 
     _handleResult(msg, workerInstance) {
-        const { id, result, error } = msg;
+        const {id, result, error} = msg;
         const cb = this.callbacks.get(id);
 
         if (cb) {

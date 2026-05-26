@@ -1,11 +1,6 @@
-/**
- * NeuralAgent - Base class for neural network-based agents
- * 
- * @extends {import('../core/RLAgent.js').RLAgent}
- */
-import { RLAgent } from '../core/RLAgent.js';
-import { deepMergeConfig } from '../utils/ConfigHelper.js';
-import { AgentFactoryUtils } from './QNetwork.js';
+import {Agent} from '../core/RLCore.js';
+import {mergeConfig} from '../utils/index.js';
+import {AgentFactoryUtils} from './QNetwork.js';
 
 const AGENT_DEFAULTS = {
     learningRate: 0.001,
@@ -14,13 +9,9 @@ const AGENT_DEFAULTS = {
     batchSize: 64
 };
 
-/**
- * NeuralAgent - Base class for neural network-based agents
- * @abstract
- */
-export class NeuralAgent extends RLAgent {
+export class NeuralAgent extends Agent {
     constructor(env, config = {}) {
-        const mergedConfig = deepMergeConfig(AGENT_DEFAULTS, config);
+        const mergedConfig = mergeConfig(AGENT_DEFAULTS, config);
         super(env, mergedConfig);
         this.optimizer = null;
         this.network = null;

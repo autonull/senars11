@@ -1,11 +1,11 @@
-import { Component } from '../composable/Component.js';
-import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
-import { CausalGraph, CausalReasoner } from '../systems/CognitiveSystem.js';
-import { Experience } from '../experience/ExperienceSystem.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { NeuroSymbolicBridge } from '../bridges/NeuroSymbolicBridge.js';
-import { TensorLogicPolicy } from '../policies/TensorLogicPolicy.js';
-import { NarseseUtils } from '../utils/NarseseUtils.js';
+import {Component} from '../composable/Component.js';
+import {SymbolicTensor, TensorLogicBridge} from '@senars/tensor';
+import {CausalGraph, CausalReasoner} from '../systems/CognitiveSystem.js';
+import {Experience} from '../experience/ExperienceSystem.js';
+import {mergeConfig, NarseseUtils} from '../utils/index.js';
+import {NeuroSymbolicBridge} from '../bridges/NeuroSymbolicBridge.js';
+import {TensorLogicPolicy} from '../policies/TensorLogicPolicy.js';
+import {extractVariables} from '../utils/extractVariables.js';
 
 const AGENT_DEFAULTS = {
     senarsConfig: {},
@@ -64,7 +64,7 @@ export class UnifiedNeuroSymbolicAgent extends Component {
             await this.policyNetwork.initialize();
         }
 
-        this.causalReasoner = new CausalReasoner({ graph: new CausalGraph({ maxNodes: this.config.maxCausalNodes }) });
+        this.causalReasoner = new CausalReasoner({graph: new CausalGraph({maxNodes: this.config.maxCausalNodes})});
         await this.causalReasoner.initialize();
 
         this.emit('initialized', {
@@ -84,7 +84,7 @@ export class UnifiedNeuroSymbolicAgent extends Component {
     }
 
     async act(observation, options = {}) {
-        const { useReasoning = true, usePolicy = true, explorationRate = 0.1, goal = this.currentGoal } = options;
+        const {useReasoning = true, usePolicy = true, explorationRate = 0.1, goal = this.currentGoal} = options;
         const actionType = this._detectActionType();
         let action = null, source = 'unknown';
 
@@ -97,7 +97,7 @@ export class UnifiedNeuroSymbolicAgent extends Component {
         }
 
         if (!action && usePolicy && this.policyNetwork) {
-            const result = await this.policyNetwork.selectAction(observation, { explorationRate });
+            const result = await this.policyNetwork.selectAction(observation, {explorationRate});
             action = result.action;
             source = 'policy';
         }
@@ -107,7 +107,7 @@ export class UnifiedNeuroSymbolicAgent extends Component {
             source = 'random';
         }
 
-        this.actionHistory.push({ observation, action, source, timestamp: Date.now() });
+        this.actionHistory.push({observation, action, source, timestamp: Date.now()});
         if (this.actionHistory.length > this.config.actionHistoryLimit) this.actionHistory.shift();
 
         return action;
@@ -117,16 +117,16 @@ export class UnifiedNeuroSymbolicAgent extends Component {
         if (!this.senarsBridge) return null;
 
         // Use simple encoding for compatibility with previous behavior if needed
-        const obsNarsese = this.senarsBridge.observationToNarsese(observation, { simple: true });
+        const obsNarsese = this.senarsBridge.observationToNarsese(observation, {simple: true});
         await this.senarsBridge.inputNarsese(obsNarsese);
 
         if (this.senarsBridge.senarsBridge) {
-             await this.senarsBridge.senarsBridge.runCycles(this.config.reasoningCycles);
+            await this.senarsBridge.senarsBridge.runCycles(this.config.reasoningCycles);
         }
 
         if (goal) {
             const goalNarsese = NarseseUtils.goalToNarsese(goal);
-            const result = await this.senarsBridge.achieveGoal(goalNarsese, { cycles: this.config.reasoningCycles });
+            const result = await this.senarsBridge.achieveGoal(goalNarsese, {cycles: this.config.reasoningCycles});
 
             if (result?.executedOperations?.length > 0) {
                 return NarseseUtils.parseOperation(result.executedOperations[0]);
@@ -142,21 +142,21 @@ export class UnifiedNeuroSymbolicAgent extends Component {
     }
 
     _randomAction(actionType) {
-        const { actionSpace, actionLow = -1, actionHigh = 1 } = this.config;
+        const {actionSpace, actionLow = -1, actionHigh = 1} = this.config;
         if (actionType === 'continuous') {
             const dim = actionSpace?.shape?.[0] ?? 4;
-            return Array.from({ length: dim }, () => actionLow + Math.random() * (actionHigh - actionLow));
+            return Array.from({length: dim}, () => actionLow + Math.random() * (actionHigh - actionLow));
         }
         const n = actionSpace?.n ?? 4;
         return Math.floor(Math.random() * n);
     }
 
     async learn(transition, reward, options = {}) {
-        const { state, action, nextState, done } = transition;
+        const {state, action, nextState, done} = transition;
 
         const experience = new Experience({
             state, action, reward, nextState, done,
-            info: { timestamp: Date.now() }
+            info: {timestamp: Date.now()}
         });
         this.experienceBuffer.push(experience);
 
@@ -170,31 +170,29 @@ export class UnifiedNeuroSymbolicAgent extends Component {
 
         if (this.experienceBuffer.length > this.config.experienceBufferLimit) this.experienceBuffer.shift();
 
-        return { stored: true, experience };
+        return {stored: true, experience};
     }
 
     _updateCausalModel(transition) {
-        const { state, action, nextState, reward } = transition;
+        const {state, action, nextState, reward} = transition;
         const graph = this.causalReasoner.graph;
 
         const stateVars = this._extractVariables(state);
         const nextVars = this._extractVariables(nextState);
 
         Object.entries(stateVars).forEach(([varId, value]) => {
-            if (!graph.nodes.has(varId)) graph.addNode(varId, { type: 'state', value });
+            if (!graph.nodes.has(varId)) graph.addNode(varId, {type: 'state', value});
             graph.observe(varId, value);
         });
 
         if (this.experienceBuffer.length > 100) {
             const trajectories = this._extractTrajectories();
-            graph.learnStructure(trajectories, { minStrength: this.config.minCausalStrength });
+            graph.learnStructure(trajectories, {minStrength: this.config.minCausalStrength});
         }
     }
 
     _extractVariables(state) {
-        if (Array.isArray(state)) return Object.fromEntries(state.map((v, i) => [`var_${i}`, v]));
-        if (typeof state === 'object') return state;
-        return { value: state };
+        return extractVariables(state);
     }
 
     _extractTrajectories() {
@@ -202,9 +200,9 @@ export class UnifiedNeuroSymbolicAgent extends Component {
         let current = [];
 
         this.experienceBuffer.forEach(exp => {
-            current.push({ state: exp.state, action: exp.action, nextState: exp.nextState, reward: exp.reward });
+            current.push({state: exp.state, action: exp.action, nextState: exp.nextState, reward: exp.reward});
             if (exp.done && current.length > 1) {
-                trajectories.push({ states: current.map(e => e.state) });
+                trajectories.push({states: current.map(e => e.state)});
                 current = [];
             }
         });
@@ -215,10 +213,12 @@ export class UnifiedNeuroSymbolicAgent extends Component {
     setGoal(goal) {
         this.currentGoal = goal;
         if (this.senarsBridge) this.senarsBridge.inputNarsese(NarseseUtils.goalToNarsese(goal));
-        this.emit('goalSet', { goal });
+        this.emit('goalSet', {goal});
     }
 
-    getGoal() { return this.currentGoal; }
+    getGoal() {
+        return this.currentGoal;
+    }
 
     clearGoal() {
         this.currentGoal = null;
@@ -226,13 +226,15 @@ export class UnifiedNeuroSymbolicAgent extends Component {
     }
 
     getExperiences(options = {}) {
-        const { limit = 100, filter = null } = options;
+        const {limit = 100, filter = null} = options;
         let experiences = [...this.experienceBuffer];
         if (filter) experiences = experiences.filter(filter);
         return experiences.slice(-limit);
     }
 
-    getActionHistory(limit = 100) { return this.actionHistory.slice(-limit); }
+    getActionHistory(limit = 100) {
+        return this.actionHistory.slice(-limit);
+    }
 
     getStats() {
         return {
@@ -255,15 +257,22 @@ export class UnifiedNeuroSymbolicAgent extends Component {
 }
 
 export class UnifiedAgentFactory {
-    static create(config = {}) { return new UnifiedNeuroSymbolicAgent(config); }
+    static create(config = {}) {
+        return new UnifiedNeuroSymbolicAgent(config);
+    }
 
     static async createWithDefaults(env) {
-        const config = { actionSpace: env.actionSpace, reasoningCycles: 50, integrationMode: 'full' };
+        const config = {actionSpace: env.actionSpace, reasoningCycles: 50, integrationMode: 'full'};
         const agent = this.create(config);
         await agent.initialize();
         return agent;
     }
 
-    static createDiscrete(config = {}) { return this.create({ ...config, actionType: 'discrete' }); }
-    static createContinuous(config = {}) { return this.create({ ...config, actionType: 'continuous' }); }
+    static createDiscrete(config = {}) {
+        return this.create({...config, actionType: 'discrete'});
+    }
+
+    static createContinuous(config = {}) {
+        return this.create({...config, actionType: 'continuous'});
+    }
 }

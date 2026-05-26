@@ -1,6 +1,6 @@
-import { Component } from '../composable/Component.js';
-import { SymbolicTensor, TensorLogicBridge } from '@senars/tensor';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {Component} from '../composable/Component.js';
+import {SymbolicTensor, TensorLogicBridge} from '@senars/tensor';
+import {mergeConfig} from '../utils/index.js';
 
 const DEFAULTS = {
     name: 'primitive',
@@ -35,8 +35,10 @@ export class CognitivePrimitive extends Component {
     }
 
     connect(outputName, target, inputName) {
-        if (!this.connections.has(outputName)) this.connections.set(outputName, []);
-        this.connections.get(outputName).push({ target, inputName });
+        if (!this.connections.has(outputName)) {
+            this.connections.set(outputName, []);
+        }
+        this.connections.get(outputName).push({target, inputName});
         return this;
     }
 
@@ -44,7 +46,9 @@ export class CognitivePrimitive extends Component {
         this.activationLevel = Math.max(0, Math.min(1, this.activationLevel + delta));
     }
 
-    async learn(feedback, context = {}) { return { updated: false }; }
+    async learn(feedback, context = {}) {
+        return {updated: false};
+    }
 
     getInfo() {
         return {
@@ -58,7 +62,7 @@ export class CognitivePrimitive extends Component {
 
 export class PerceptionPrimitive extends CognitivePrimitive {
     constructor(config = {}) {
-        super({ ...config, type: 'perception', inputs: ['observation'], outputs: ['features', 'symbols'] });
+        super({...config, type: 'perception', inputs: ['observation'], outputs: ['features', 'symbols']});
         this.featureExtractors = config.featureExtractors ?? [];
         this.symbolThreshold = config.symbolThreshold ?? 0.5;
         this.tensorBridge = new TensorLogicBridge();
@@ -68,33 +72,35 @@ export class PerceptionPrimitive extends CognitivePrimitive {
         const observation = input.observation ?? input;
         const features = await this._extractFeatures(observation);
         const symbols = await this._liftToSymbols(features);
-        return { features, symbols };
+        return {features, symbols};
     }
 
     async _extractFeatures(observation) {
-        if (this.featureExtractors.length === 0) return observation;
+        if (this.featureExtractors.length === 0) {
+            return observation;
+        }
         const results = await Promise.all(this.featureExtractors.map(fn => fn(observation)));
         return results.filter(r => r !== null);
     }
 
     async _liftToSymbols(features) {
         const tensor = new SymbolicTensor(Array.isArray(features) ? features : [features], [Array.isArray(features) ? features.length : 1]);
-        return this.tensorBridge.liftToSymbols(tensor, { threshold: this.symbolThreshold });
+        return this.tensorBridge.liftToSymbols(tensor, {threshold: this.symbolThreshold});
     }
 }
 
 export class ReasoningPrimitive extends CognitivePrimitive {
     constructor(config = {}) {
-        super({ ...config, type: 'reasoning', inputs: ['symbols'], outputs: ['inferences'] });
+        super({...config, type: 'reasoning', inputs: ['symbols'], outputs: ['inferences']});
         this.inferenceDepth = config.inferenceDepth ?? 2;
         this.beliefs = new Map();
     }
 
     async process(input, context = {}) {
-        const { symbols } = input;
+        const {symbols} = input;
         this._updateBeliefs(symbols);
         const inferences = await this._performInference();
-        return { inferences, beliefs: new Map(this.beliefs) };
+        return {inferences, beliefs: new Map(this.beliefs)};
     }
 
     _updateBeliefs(symbols) {
@@ -102,7 +108,7 @@ export class ReasoningPrimitive extends CognitivePrimitive {
         if (Array.isArray(symbols)) {
             symbols.forEach(s => {
                 const key = s.symbol;
-                const value = { confidence: s.confidence, value: 1.0 };
+                const value = {confidence: s.confidence, value: 1.0};
                 this._updateSingleBelief(key, value, now);
             });
         } else if (symbols instanceof Map) {
@@ -118,7 +124,7 @@ export class ReasoningPrimitive extends CognitivePrimitive {
             existing.confidence = (existing.confidence + value.confidence) / 2;
             existing.timestamp = now;
         } else {
-            this.beliefs.set(key, { ...value, timestamp: now });
+            this.beliefs.set(key, {...value, timestamp: now});
         }
     }
 
@@ -131,28 +137,35 @@ export class ReasoningPrimitive extends CognitivePrimitive {
                 const [key1, b1] = beliefs[i];
                 const [key2, b2] = beliefs[j];
                 if (this._canCombine(key1, key2)) {
-                    inferences.push({ type: 'transitive', from: [key1, key2], result: this._combine(b1, b2) });
+                    inferences.push({type: 'transitive', from: [key1, key2], result: this._combine(b1, b2)});
                 }
             }
         }
         return inferences;
     }
 
-    _canCombine(k1, k2) { return k1.split('_')[0] === k2.split('_')[0]; }
-    _combine(b1, b2) { return { confidence: (b1.confidence + b2.confidence) / 2, value: b1.value + b2.value }; }
+    _canCombine(k1, k2) {
+        return k1.split('_')[0] === k2.split('_')[0];
+    }
+
+    _combine(b1, b2) {
+        return {confidence: (b1.confidence + b2.confidence) / 2, value: b1.value + b2.value};
+    }
 }
 
 export class PlanningPrimitive extends CognitivePrimitive {
     constructor(config = {}) {
-        super({ ...config, type: 'planning', inputs: ['state', 'goal'], outputs: ['plan'] });
+        super({...config, type: 'planning', inputs: ['state', 'goal'], outputs: ['plan']});
         this.horizon = config.planningHorizon ?? 10;
     }
 
     async process(input, context = {}) {
-        const { state, goal } = input;
-        if (!goal) return { plan: null, reason: 'No goal' };
+        const {state, goal} = input;
+        if (!goal) {
+            return {plan: null, reason: 'No goal'};
+        }
         const plan = await this._generatePlan(state, goal);
-        return { plan, goal };
+        return {plan, goal};
     }
 
     async _generatePlan(state, goal) {
@@ -162,31 +175,48 @@ export class PlanningPrimitive extends CognitivePrimitive {
             const action = await this._selectBestAction(current, goal);
             plan.push(action);
             current = this._simulateStep(current, action);
-            if (this._isGoalAchieved(current, goal)) break;
+            if (this._isGoalAchieved(current, goal)) {
+                break;
+            }
         }
         return plan.length > 0 ? plan : null;
     }
 
-    async _selectBestAction(state, goal) { return Math.floor(Math.random() * 4); }
-    _simulateStep(state, action) { return state; }
-    _isGoalAchieved(state, goal) { return false; }
+    async _selectBestAction(state, goal) {
+        return Math.floor(Math.random() * 4);
+    }
+
+    _simulateStep(state, action) {
+        return state;
+    }
+
+    _isGoalAchieved(state, goal) {
+        return false;
+    }
 }
 
 export class ActionPrimitive extends CognitivePrimitive {
     constructor(config = {}) {
-        super({ ...config, type: 'action', inputs: ['plan', 'policy', 'state'], outputs: ['action'] });
+        super({...config, type: 'action', inputs: ['plan', 'policy', 'state'], outputs: ['action']});
         this.actionSpace = config.actionSpace ?? null;
     }
 
     async process(input, context = {}) {
-        const { plan, policy, state } = context;
+        const {plan, policy, state} = context;
         let action, source;
 
-        if (plan?.length > 0) { action = plan.shift(); source = 'plan'; }
-        else if (policy) { action = await this._selectFromPolicy(policy, state); source = 'policy'; }
-        else { action = this._explore(); source = 'explore'; }
+        if (plan?.length > 0) {
+            action = plan.shift();
+            source = 'plan';
+        } else if (policy) {
+            action = await this._selectFromPolicy(policy, state);
+            source = 'policy';
+        } else {
+            action = this._explore();
+            source = 'explore';
+        }
 
-        return { action, source };
+        return {action, source};
     }
 
     async _selectFromPolicy(policy, state) {
@@ -229,17 +259,21 @@ export class EmergentArchitecture extends Component {
     addPrimitive(name, primitive) {
         this.primitives.set(name, primitive);
         primitive.parent = this;
-        this.emit('primitiveAdded', { name, primitive });
+        this.emit('primitiveAdded', {name, primitive});
         return this;
     }
 
-    getPrimitive(name) { return this.primitives.get(name); }
+    getPrimitive(name) {
+        return this.primitives.get(name);
+    }
 
     connect(from, to, transform = null) {
-        this.connections.push({ from, to, transform });
+        this.connections.push({from, to, transform});
         const fromPrim = this.primitives.get(from);
         const toPrim = this.primitives.get(to);
-        if (fromPrim && toPrim) fromPrim.connect('output', toPrim, 'input');
+        if (fromPrim && toPrim) {
+            fromPrim.connect('output', toPrim, 'input');
+        }
         return this;
     }
 
@@ -250,31 +284,37 @@ export class EmergentArchitecture extends Component {
         const order = ['perception', 'reasoning', 'planning', 'action'];
         for (const name of order) {
             const prim = this.primitives.get(name);
-            if (!prim || !prim.config.enabled) continue;
+            if (!prim || !prim.config.enabled) {
+                continue;
+            }
 
-            const result = await prim.process(current, { ...context, ...results });
+            const result = await prim.process(current, {...context, ...results});
             results[name] = result;
-            current = { ...current, ...result };
+            current = {...current, ...result};
         }
 
         this.globalState.set('lastInput', input);
         this.globalState.set('lastResults', results);
 
-        return { output: current, results, state: Object.fromEntries(this.globalState) };
+        return {output: current, results, state: Object.fromEntries(this.globalState)};
     }
 
     async act(observation, goal = null) {
-        const result = await this.process(observation, { goal });
+        const result = await this.process(observation, {goal});
         return result.results.action?.action ?? 0;
     }
 
     async learn(transition, reward) {
         this.primitives.forEach(prim => {
-            if (prim.learn) prim.learn({ transition, reward });
+            if (prim.learn) {
+                prim.learn({transition, reward});
+            }
         });
     }
 
-    getState() { return Object.fromEntries(this.globalState); }
+    getState() {
+        return Object.fromEntries(this.globalState);
+    }
 
     async shutdown() {
         await Promise.all(Array.from(this.primitives.values()).map(p => p.shutdown()));
@@ -283,10 +323,10 @@ export class EmergentArchitecture extends Component {
 }
 
 export const EmergentPresets = {
-    minimal: () => new EmergentArchitecture({ name: 'MinimalEmergent', integrationMode: 'emergent' }),
-    standard: () => new EmergentArchitecture({ name: 'StandardEmergent', integrationMode: 'emergent' }),
+    minimal: () => new EmergentArchitecture({name: 'MinimalEmergent', integrationMode: 'emergent'}),
+    standard: () => new EmergentArchitecture({name: 'StandardEmergent', integrationMode: 'emergent'}),
     reasoningFocused: () => new EmergentArchitecture({
         name: 'ReasoningEmergent',
-        primitives: { reasoning: new ReasoningPrimitive({ inferenceDepth: 4 }) }
+        primitives: {reasoning: new ReasoningPrimitive({inferenceDepth: 4})}
     })
 };

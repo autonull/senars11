@@ -1,7 +1,7 @@
 // Integration Test Setup
 // This file sets up the environment for integration tests with real services
 
-import {commonTestSetup, commonTestCleanup} from '../support/commonTestSetup.js';
+import {commonTestCleanup, commonTestSetup} from '../support/commonTestSetup.js';
 
 // Use common test setup with custom globals for integration tests
 commonTestSetup({

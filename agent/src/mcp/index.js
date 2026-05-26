@@ -53,7 +53,9 @@ export class MCPManager {
     }
 
     async callTool(toolName, input) {
-        if (!this.client) throw new Error('Client not connected');
+        if (!this.client) {
+            throw new Error('Client not connected');
+        }
         return await this.client.callTool(toolName, input);
     }
 }

@@ -13,8 +13,12 @@ import {ConsoleFormatter, VirtualConsole, VirtualGraph} from '@senars/agent';
 
 export {RemoteTaskMatch};
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+let __dirname;
+try {
+    __dirname = dirname(fileURLToPath(import.meta.url));
+} catch {
+    __dirname = process.cwd();
+}
 
 export class TestNARRemote {
     constructor() {
@@ -112,7 +116,9 @@ export class TestNARRemote {
     }
 
     async exportRecording(filepath) {
-        if (!filepath) return;
+        if (!filepath) {
+            return;
+        }
         try {
             const logs = this.virtualConsole.getLogs();
             const output = {
@@ -121,7 +127,9 @@ export class TestNARRemote {
                 logs: logs
             };
             await writeFile(filepath, JSON.stringify(output, null, 2));
-            if (this.verbose) process.stdout.write(`Recording saved to ${filepath}\n`);
+            if (this.verbose) {
+                process.stdout.write(`Recording saved to ${filepath}\n`);
+            }
         } catch (e) {
             process.stderr.write(`Failed to save recording to ${filepath}: ${e}\n`);
         }
@@ -275,8 +283,11 @@ export class TestNARRemote {
             }
 
             this.client.send(JSON.stringify(message), (error) => {
-                if (error) reject(error);
-                else resolve();
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve();
+                }
             });
         });
     }
@@ -298,10 +309,8 @@ export class TestNARRemote {
         }
 
         const matcher = (msg) => {
-            if (msg.type === 'narsese.result' || msg.type === 'control.result' || msg.type === 'narsese.error') {
-                return true;
-            }
-            return false;
+            return msg.type === 'narsese.result' || msg.type === 'control.result' || msg.type === 'narsese.error';
+
         };
 
         return this.sendMessageAndWait(message, matcher);
@@ -316,8 +325,11 @@ export class TestNARRemote {
             };
 
             this.client.send(JSON.stringify(message), (error) => {
-                if (error) reject(error);
-                else resolve();
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve();
+                }
             });
         });
     }
@@ -330,10 +342,8 @@ export class TestNARRemote {
         };
 
         const matcher = (msg) => {
-            if (msg.type === 'narsese.result' || msg.type === 'agent.result' || msg.type === 'narsese.error') {
-                return true;
-            }
-            return false;
+            return msg.type === 'narsese.result' || msg.type === 'agent.result' || msg.type === 'narsese.error';
+
         };
 
         return this.sendMessageAndWait(message, matcher);

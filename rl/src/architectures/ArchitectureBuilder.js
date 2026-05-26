@@ -2,9 +2,9 @@
  * Architecture Builder
  * Fluent builder for constructing neuro-symbolic architectures
  */
-import { NeuroSymbolicLayer } from './NeuroSymbolicLayer.js';
-import { NeuroSymbolicArchitecture } from './NeuroSymbolicArchitecture.js';
-import { ArchitectureConfig, LAYER_DEFAULTS } from './ArchitectureConfig.js';
+import {NeuroSymbolicLayer} from './NeuroSymbolicLayer.js';
+import {NeuroSymbolicArchitecture} from './NeuroSymbolicArchitecture.js';
+import {ArchitectureConfig, LAYER_DEFAULTS} from './ArchitectureConfig.js';
 
 /**
  * Fluent builder for neuro-symbolic architectures
@@ -47,7 +47,7 @@ export class ArchitectureBuilder {
      * @returns {ArchitectureBuilder} this
      */
     addPerceptionLayer(options = {}) {
-        return this.addLayer('perception', { ...LAYER_DEFAULTS.perception, ...options });
+        return this.addLayer('perception', {...LAYER_DEFAULTS.perception, ...options});
     }
 
     /**
@@ -56,7 +56,7 @@ export class ArchitectureBuilder {
      * @returns {ArchitectureBuilder} this
      */
     addReasoningLayer(options = {}) {
-        return this.addLayer('reasoning', { ...LAYER_DEFAULTS.reasoning, ...options });
+        return this.addLayer('reasoning', {...LAYER_DEFAULTS.reasoning, ...options});
     }
 
     /**
@@ -65,7 +65,7 @@ export class ArchitectureBuilder {
      * @returns {ArchitectureBuilder} this
      */
     addPlanningLayer(options = {}) {
-        return this.addLayer('planning', { ...LAYER_DEFAULTS.planning, ...options });
+        return this.addLayer('planning', {...LAYER_DEFAULTS.planning, ...options});
     }
 
     /**
@@ -74,7 +74,7 @@ export class ArchitectureBuilder {
      * @returns {ArchitectureBuilder} this
      */
     addActionLayer(options = {}) {
-        return this.addLayer('action', { ...LAYER_DEFAULTS.action, ...options });
+        return this.addLayer('action', {...LAYER_DEFAULTS.action, ...options});
     }
 
     /**
@@ -85,7 +85,7 @@ export class ArchitectureBuilder {
      * @returns {ArchitectureBuilder} this
      */
     connect(fromIdx, toIdx, targetUnits = null) {
-        this.connections.push({ from: fromIdx, to: toIdx, targetUnits });
+        this.connections.push({from: fromIdx, to: toIdx, targetUnits});
         return this;
     }
 

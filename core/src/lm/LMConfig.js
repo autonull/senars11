@@ -1,5 +1,4 @@
-import { TransformersJSProvider } from './TransformersJSProvider.js';
-import { DummyProvider } from './DummyProvider.js';
+import { TransformersJSProvider, DummyProvider } from './index.js';
 import { LangChainProvider } from './LangChainProvider.js';
 import { HuggingFaceProvider } from './HuggingFaceProvider.js';
 
@@ -87,7 +86,7 @@ export class LMConfig {
         }));
 
         provider.tools = tools;
-        if (typeof provider.bindTools === 'function') provider.bindTools(tools);
+        if (typeof provider.bindTools === 'function') {provider.bindTools(tools);}
     }
 
     setProvider(name, config) {
@@ -99,12 +98,12 @@ export class LMConfig {
     }
 
     setActive(name) {
-        if (!this.configs.has(name)) throw new Error(`Provider ${name} not configured`);
+        if (!this.configs.has(name)) {throw new Error(`Provider ${name} not configured`);}
         this.active = name;
     }
 
     getActive() {
-        if (!this.active) throw new Error('No active provider set');
+        if (!this.active) {throw new Error('No active provider set');}
         return this.configs.get(this.active);
     }
 
@@ -113,15 +112,15 @@ export class LMConfig {
     }
 
     async test(name = this.active) {
-        if (!name) return { success: false, message: 'No provider specified' };
+        if (!name) {return { success: false, message: 'No provider specified' };}
 
         const config = this.getProvider(name);
-        if (!config) return { success: false, message: `Provider ${name} not found` };
+        if (!config) {return { success: false, message: `Provider ${name} not found` };}
 
         try {
             const provider = this._createProvider(config);
-            if (provider.embed) await provider.embed('test');
-            else if (provider.complete) await provider.complete('test');
+            if (provider.embed) {await provider.embed('test');}
+            else if (provider.complete) {await provider.complete('test');}
             return { success: true, message: 'Connection successful' };
         } catch (e) {
             return { success: false, message: e.message };
@@ -147,13 +146,13 @@ export class LMConfig {
     }
 
     _createProvider(config) {
-        if (!config) throw new Error('Cannot create provider from null config');
+        if (!config) {throw new Error('Cannot create provider from null config');}
 
         const type = config.type ?? config.name;
         const { TRANSFORMERS, DUMMY, OLLAMA, OPENAI, HUGGINGFACE, ANTHROPIC } = LMConfig.PROVIDERS;
 
-        if (type === 'transformers' || type === TRANSFORMERS) return new TransformersJSProvider(config);
-        if (type === 'dummy' || type === DUMMY) return new DummyProvider(config);
+        if (type === 'transformers' || type === TRANSFORMERS) {return new TransformersJSProvider(config);}
+        if (type === 'dummy' || type === DUMMY) {return new DummyProvider(config);}
 
         if (type === 'ollama' || type === OLLAMA || type === 'openai' || type === OPENAI || type === 'anthropic' || type === ANTHROPIC) {
             return new LangChainProvider({ ...config, provider: type });
@@ -172,155 +171,5 @@ export class LMConfig {
             providers: Object.fromEntries(this.configs),
             version: '1.0.0'
         };
-    }
-
-    async interactive() {
-        const { default: inquirer } = await import('inquirer');
-        console.log('🚀 SeNARS - LM Configuration\n');
-
-        const providerChoices = Object.entries(LMConfig.DEFAULT_PROVIDERS).map(([key, info]) => ({
-            name: info.name,
-            value: key
-        }));
-
-        const { providerType } = await inquirer.prompt([{
-            type: 'list',
-            name: 'providerType',
-            message: 'Choose an LM provider:',
-            choices: [...providerChoices, { name: 'Custom configuration', value: 'custom' }],
-            default: 'ollama'
-        }]);
-
-        const providerConfig = providerType === 'custom'
-            ? await this._configureCustom(inquirer)
-            : await this._configureProvider(providerType, inquirer);
-
-        this.setProvider(providerType, providerConfig);
-        this.setActive(providerType);
-
-        console.log('✅ Configuration completed!\n');
-        return { provider: this.createActiveProvider(), config: providerConfig };
-    }
-
-    async _configureProvider(providerType, inquirer) {
-        const providerInfo = LMConfig.DEFAULT_PROVIDERS[providerType];
-        if (!providerInfo) throw new Error(`Unknown provider: ${providerType}`);
-
-        if (providerType === 'ollama') {
-            return await inquirer.prompt([
-                {
-                    type: 'input',
-                    name: 'modelName',
-                    message: 'Enter Ollama model name:',
-                    default: providerInfo.defaultConfig.modelName
-                },
-                {
-                    type: 'input',
-                    name: 'baseURL',
-                    message: 'Enter Ollama API URL:',
-                    default: providerInfo.defaultConfig.baseURL
-                }
-            ]).then(cfg => ({ ...providerInfo.defaultConfig, ...cfg, type: providerType }));
-        }
-
-        if (providerType === 'openai' || providerType === 'anthropic') {
-            return await inquirer.prompt([
-                {
-                    type: 'input',
-                    name: 'modelName',
-                    message: `Enter ${providerInfo.name} model name:`,
-                    default: providerInfo.defaultConfig.modelName
-                },
-                { type: 'password', name: 'apiKey', message: `Enter ${providerInfo.name} API key:` }
-            ]).then(cfg => ({ ...providerInfo.defaultConfig, ...cfg, type: providerType }));
-        }
-
-        if (providerType === 'huggingface') {
-            const { presetCategory } = await inquirer.prompt([{
-                type: 'list',
-                name: 'presetCategory',
-                message: 'Select model category:',
-                choices: [
-                    ...Object.keys(providerInfo.presets).map(k => ({ name: k, value: k })),
-                    { name: 'Custom model name', value: 'custom' }
-                ]
-            }]);
-
-            if (presetCategory === 'custom') {
-                const { modelName } = await inquirer.prompt([{
-                    type: 'input',
-                    name: 'modelName',
-                    message: 'Enter custom Hugging Face model name:',
-                    default: 'sshleifer/distilbart-cnn-12-6'
-                }]);
-                return { ...providerInfo.defaultConfig, modelName, type: providerType };
-            }
-
-            const models = providerInfo.presets[presetCategory];
-            const { modelName } = await inquirer.prompt([{
-                type: 'list',
-                name: 'modelName',
-                message: `Select ${presetCategory} model:`,
-                choices: models.map(m => ({ name: m, value: m }))
-            }]);
-            return { ...providerInfo.defaultConfig, modelName, type: providerType };
-        }
-
-        return { ...providerInfo.defaultConfig, type: providerType };
-    }
-
-    async _configureCustom(inquirer) {
-        const { providerName, modelName } = await inquirer.prompt([
-            { type: 'input', name: 'providerName', message: 'Enter provider name:', default: 'custom-provider' },
-            { type: 'input', name: 'modelName', message: 'Enter model name:', default: 'llama2' }
-        ]);
-        return { id: providerName, modelName, type: 'custom' };
-    }
-
-    async quickSelect() {
-        const { default: inquirer } = await import('inquirer');
-        console.log('🚀 SeNARS - Quick LM Selection\n');
-
-        const quickOptions = [
-            { name: 'Ollama - llama2 (fast, local)', value: 'ollama-llama2' },
-            { name: 'Ollama - mistral (balanced)', value: 'ollama-mistral' },
-            { name: 'SmolLM-135M (HuggingFace, small)', value: 'huggingface-smollm' },
-            { name: 'Granite-3.0-2b (HuggingFace, medium)', value: 'huggingface-granite' },
-            { name: 'Dummy Provider (testing)', value: 'dummy' },
-            { name: 'Custom configuration', value: 'custom' }
-        ];
-
-        const { choice } = await inquirer.prompt([{
-            type: 'list',
-            name: 'choice',
-            message: 'Quick select a provider:',
-            choices: quickOptions
-        }]);
-
-        if (choice === 'custom') return await this.interactive();
-
-        const [providerType, preset] = choice.split('-');
-        const modelMap = {
-            'ollama-llama2': { provider: 'ollama', modelName: 'llama2', baseURL: 'http://localhost:11434' },
-            'ollama-mistral': { provider: 'ollama', modelName: 'mistral', baseURL: 'http://localhost:11434' },
-            'huggingface-smollm': {
-                provider: 'huggingface',
-                modelName: 'HuggingFaceTB/SmolLM-135M-Instruct',
-                device: 'cpu'
-            },
-            'huggingface-granite': {
-                provider: 'huggingface',
-                modelName: 'ibm-granite/granite-3.0-2b-instruct',
-                device: 'cpu'
-            },
-            'dummy': { provider: 'dummy', id: 'dummy' }
-        };
-
-        const config = modelMap[choice];
-        this.setProvider(providerType, { ...config, type: providerType });
-        this.setActive(providerType);
-
-        console.log('✅ Configuration completed!\n');
-        return { provider: this.createActiveProvider(), config };
     }
 }

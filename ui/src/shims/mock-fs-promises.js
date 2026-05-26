@@ -1,11 +1,11 @@
 import nodeShim from './mock-node.js';
 
-export const readFile = nodeShim.readFile;
-export const writeFile = nodeShim.writeFile;
-export const access = nodeShim.access;
-export const stat = nodeShim.stat;
-export const mkdir = nodeShim.mkdir;
-export const readdir = nodeShim.readdir;
-export const rm = nodeShim.rm;
+export const {readFile} = nodeShim;
+export const {writeFile} = nodeShim;
+export const {access} = nodeShim;
+export const {stat} = nodeShim;
+export const {mkdir} = nodeShim;
+export const {readdir} = nodeShim;
+export const {rm} = nodeShim;
 
 export default nodeShim;

@@ -1,12 +1,12 @@
-import { createServer } from 'http';
-import { WebSocketServer } from 'ws';
+import {createServer} from 'http';
+import {WebSocketServer} from 'ws';
 
-const DEFAULT_OPTIONS = Object.freeze({ port: 8080, host: 'localhost' });
+const DEFAULT_OPTIONS = Object.freeze({port: 8080, host: 'localhost'});
 
 export class MonitoringAPI {
     constructor(nar, options = {}) {
         this.nar = nar;
-        this.config = { ...DEFAULT_OPTIONS, ...options };
+        this.config = {...DEFAULT_OPTIONS, ...options};
         this.server = null;
         this.wss = null;
         this.clients = new Set();
@@ -20,7 +20,7 @@ export class MonitoringAPI {
     async start() {
         return new Promise((resolve, reject) => {
             this.server = createServer();
-            this.wss = new WebSocketServer({ server: this.server });
+            this.wss = new WebSocketServer({server: this.server});
 
             this.wss.on('connection', (ws) => this._handleConnection(ws));
             this.server.listen(this.config.port, this.config.host, () => {

@@ -27,6 +27,7 @@
     "@mlc-ai/web-llm": "^0.2.82",
     "@senars/agent": "workspace:*",
     "@senars/core": "workspace:*",
+    "@senars/nar": "workspace:*",
     "ai": "^5.0.163",
     "chart.js": "^4.5.1",
     "cose-base": "^1.0.3",

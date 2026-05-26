@@ -1,373 +1,67 @@
-import { DEMOS } from '../../data/demos.js';
-import { ShortcutsModal } from '../../components/ShortcutsModal.js';
-import { DemoLibraryModal } from '../../components/DemoLibraryModal.js';
+import { CommandRegistry } from './CommandRegistry.js';
+import { DemoManager } from './DemoManager.js';
+import { KeybindManager } from './KeybindManager.js';
 
 export class InputManager {
     constructor(app) {
         this.app = app;
         this.commandPalette = app.commandPalette;
+        this._commandRegistry = new CommandRegistry(app);
+        this._demoManager = new DemoManager(app);
+        this._keybindManager = new KeybindManager(app, this._commandRegistry);
+        app._inputManager = this;
     }
 
     initialize() {
-        this._registerCommands();
+        this._commandRegistry.registerAll();
         this._bindSearch();
-        this._bindDemoSelect();
+        this._demoManager.bindDemoSelect();
         this._bindModeSwitch();
         this._bindLayerToggles();
         this._bindMappingControls();
         this._bindLayoutControls();
-        this._bindKeyboardShortcuts();
+        this._keybindManager.initialize();
     }
 
-    _registerCommands() {
-        // Navigation
-        this.commandPalette.registerCommand('fit', 'Fit View to Graph', 'F', () => this.app.graph.fit(), 'Navigation');
-        this.commandPalette.registerCommand('zoom-in', 'Zoom In', '+', () => this.app.graph.zoomIn(), 'Navigation');
-        this.commandPalette.registerCommand('zoom-out', 'Zoom Out', '-', () => this.app.graph.zoomOut(), 'Navigation');
-        this.commandPalette.registerCommand('layout', 'Re-calculate Layout', 'L', () => this.app.graph.scheduleLayout(), 'Navigation');
-        this.commandPalette.registerCommand('go-back', 'Go Back (History)', 'Esc', () => this.app.graph.goBack?.(), 'Navigation');
-
-        // Data
-        this.commandPalette.registerCommand('clear', 'Clear Workspace', null, () => {
-            this.app.graph.clear();
-            this.app.log('Workspace cleared', 'system');
-        }, 'Data');
-
-        this.commandPalette.registerCommand('add-concept', 'Add New Concept', 'A', () => this.handleAddConcept(), 'Data');
-        this.commandPalette.registerCommand('link', 'Link Selected Nodes', null, () => this.handleAddLink(), 'Data');
-        this.commandPalette.registerCommand('delete', 'Delete Selected', 'Del', () => this.handleDelete(), 'Data');
-
-        // File
-        this.commandPalette.registerCommand('save', 'Save Graph (JSON)', 'Ctrl+S', () => this.app.fileManager.handleSaveJSON(), 'File');
-        this.commandPalette.registerCommand('load', 'Load Graph (JSON)', 'Ctrl+O', () => this.app.fileManager.handleLoadJSON(), 'File');
-        this.commandPalette.registerCommand('import-csv', 'Import Graph (CSV)', null, () => this.app.fileManager.handleImportCSV(), 'File');
-        this.commandPalette.registerCommand('export-png', 'Export PNG', null, () => this.app.fileManager.handleExportImage('png'), 'File');
-        this.commandPalette.registerCommand('export-svg', 'Export SVG', null, () => this.app.fileManager.handleExportImage('svg'), 'File');
-
-        // Attention / Decay
-        this.commandPalette.registerCommand('toggle-decay', 'Toggle Attention Decay', null, () => this.toggleDecay(), 'System');
-
-        // Reasoner
-        this.commandPalette.registerCommand('run', 'Run Reasoner', 'Space', () => this.app.toggleReasoner(!this.app.isReasonerRunning), 'System');
-        this.commandPalette.registerCommand('step', 'Step Reasoner', 'S', () => this.app.stepReasoner(), 'System');
-        this.commandPalette.registerCommand('step-10', 'Step 10 Cycles', 'Shift+S', () => this.app.stepReasoner(10), 'System');
-        this.commandPalette.registerCommand('step-50', 'Step 50 Cycles', 'Alt+S', () => this.app.stepReasoner(50), 'System');
-
-        // UI
-        this.commandPalette.registerCommand('mode-vis', 'Switch to Visualization Mode', null, () => this.setMode('visualization'), 'View');
-        this.commandPalette.registerCommand('mode-ctl', 'Switch to Control Mode', null, () => this.setMode('control'), 'View');
-        this.commandPalette.registerCommand('toggle-focus', 'Toggle Focus Mode', null, () => this.app.toggleFocusMode(), 'View');
-        this.commandPalette.registerCommand('toggle-fullscreen', 'Toggle Fullscreen', null, () => this.app.handleToggleFullscreen(), 'View');
-
-        // Panels
-        const togglePanel = (id) => {
-            this.app.toggleWidget(id);
-        };
-
-        this.commandPalette.registerCommand('toggle-layers', 'Toggle Layers Panel', null, () => togglePanel('layers'), 'View');
-        this.commandPalette.registerCommand('toggle-metrics', 'Toggle Metrics Panel', null, () => togglePanel('metrics'), 'View');
-        this.commandPalette.registerCommand('toggle-log', 'Toggle Log Panel', null, () => togglePanel('log'), 'View');
-        this.commandPalette.registerCommand('toggle-inspector', 'Toggle Inspector Panel', null, () => togglePanel('inspector'), 'View');
-        this.commandPalette.registerCommand('toggle-tasks', 'Toggle Task Browser', null, () => togglePanel('tasks'), 'View');
-
-        // Demos
-        this.commandPalette.registerCommand('demos', 'Browse Demo Library', 'D', () => this.showDemoLibrary(), 'Demos');
-
-        Object.keys(DEMOS).forEach(name => {
-            this.commandPalette.registerCommand(`demo-${name.toLowerCase().replace(/\s/g, '-')}`, `Load Demo: ${name}`, null, () => this.loadDemo(name), 'Demos');
-        });
-    }
-
-    // --- Core Logic Methods ---
+    // Delegate to CommandRegistry
+    handleAddConcept(pos) { this._commandRegistry.handleAddConcept(pos); }
+    handleAddLink() { this._commandRegistry.handleAddLink(); }
+    handleDelete() { this._commandRegistry.handleDelete(); }
+    toggleDecay(force) { this._commandRegistry.toggleDecay(force); }
+    setMode(mode) { this._commandRegistry.setMode(mode); }
+    showDemoLibrary() { this._demoManager.showDemoLibrary(); }
+    loadDemo(name) { this._demoManager.loadDemo(name); }
+    handleMenuAction(action) { this._commandRegistry.handleMenuAction(action); }
 
     async handleReplCommand(command) {
-        if (!command) return;
+        if (!command) {return;}
         this.app.log(`> ${command}`, 'user');
-
         if (command.startsWith('!')) {
             const code = command.slice(1);
             if (this.app.localToolsBridge) {
                 const res = await this.app.localToolsBridge.executeTool('run_metta', { code });
-                if (res.success) {
-                    this.app.log(`MeTTa Result: ${res.data}`, 'success');
-                } else {
-                    this.app.log(`MeTTa Error: ${res.error}`, 'error');
-                }
-            } else {
-                this.app.log('MeTTa bridge not available', 'error');
-            }
+                if (res.success) {this.app.log(`MeTTa Result: ${res.data}`, 'success');}
+                else {this.app.log(`MeTTa Error: ${res.error}`, 'error');}
+            } else {this.app.log('MeTTa bridge not available', 'error');}
             return;
         }
-
         const nar = this.app.reasoningManager._getNAR();
         if (nar) {
-            try {
-                nar.input(command);
-            } catch (e) {
-                this.app.log(`NAL Error: ${e.message}`, 'error');
-            }
-        } else {
-            this.app.log('Reasoner not available', 'error');
-        }
+            try { nar.input(command); }
+            catch (e) { this.app.log(`NAL Error: ${e.message}`, 'error'); }
+        } else {this.app.log('Reasoner not available', 'error');}
     }
-
-    handleAddConcept(position = null) {
-        const input = prompt("Enter concept name (or type:name):");
-        if (input) {
-            let term = input.trim();
-            let type = 'concept';
-
-            const colonIndex = term.indexOf(':');
-            if (colonIndex > 0) {
-                 type = term.substring(0, colonIndex).trim();
-                 term = term.substring(colonIndex + 1).trim();
-            }
-
-            if (!term) {
-                 this.app.log("Invalid concept name.", "warning");
-                 return;
-            }
-
-            this.app.graph.addNode({
-                id: term,
-                term: term,
-                budget: { priority: 0.5 },
-                type: type,
-                position: position
-            }, true);
-            this.app.log(`Created ${type}: ${term}`, 'success');
-        }
-    }
-
-    handleAddLink() {
-        if (!this.app.graph.cy) return;
-        const selected = this.app.graph.cy.$(':selected');
-
-        if (selected.length !== 2) {
-            alert("Please select exactly two nodes to link.");
-            return;
-        }
-
-        const source = selected[0].id();
-        const target = selected[1].id();
-
-        const type = prompt(`Link ${source} -> ${target} as:`, 'implication');
-        if (type) {
-            this.app.graph.addEdge({ source, target, type }, true);
-            this.app.log(`Linked ${source} -> ${target} (${type})`, 'user');
-        }
-    }
-
-    handleDelete() {
-        if (!this.app.graph.cy) return;
-        const selected = this.app.graph.cy.$(':selected');
-
-        if (selected.empty()) {
-            return;
-        }
-
-        if (confirm(`Delete ${selected.length} items?`)) {
-            const nodeIds = [];
-            selected.forEach(ele => {
-                if (ele.isNode()) {
-                    nodeIds.push(ele.id());
-                } else if (ele.isEdge()) {
-                    ele.remove();
-                }
-            });
-
-            if (nodeIds.length > 0) {
-                if (this.app.graph.removeNodes) {
-                    this.app.graph.removeNodes(nodeIds);
-                } else {
-                    nodeIds.forEach(id => {
-                        if (this.app.graph.removeNode) {
-                            this.app.graph.removeNode(id);
-                        } else {
-                            if (this.app.graph.bag) this.app.graph.bag.remove(id);
-                            else {
-                                const node = this.app.graph.cy.getElementById(id);
-                                if (node.nonempty()) this.app.graph.cy.remove(node);
-                            }
-                        }
-                    });
-                    if (this.app.graph.bag && !this.app.graph.removeNode) this.app.graph._syncFromBag();
-                }
-            }
-
-            this.app.log(`Deleted ${selected.length} items.`, 'user');
-            this._updateStats();
-        }
-    }
-
-    toggleDecay(forceState) {
-        this.app.isDecayEnabled = forceState !== undefined ? forceState : !this.app.isDecayEnabled;
-
-        if (this.app.isDecayEnabled) {
-            this.app.log('Attention Decay: ON', 'system');
-            this.app.decayLoopId = setInterval(() => this._processDecay(), 1000);
-        } else {
-            this.app.log('Attention Decay: OFF', 'system');
-            clearInterval(this.app.decayLoopId);
-        }
-    }
-
-    setMode(mode) {
-        this.app.mode = mode;
-        if (mode === 'visualization') {
-            this.app.graph.cy.autoungrabify(true);
-        } else {
-            this.app.graph.cy.autoungrabify(false);
-        }
-
-        const toolbar = document.getElementById('control-toolbar');
-        const toolbarWidget = document.getElementById('controls-widget');
-
-        if (mode === 'control') {
-            if (toolbar) toolbar.classList.remove('hidden');
-            if (toolbarWidget) toolbarWidget.classList.remove('hidden');
-        } else {
-            if (toolbar) toolbar.classList.add('hidden');
-            if (toolbarWidget) toolbarWidget.classList.add('hidden');
-        }
-
-        console.log(`Mode switched to: ${mode}`);
-    }
-
-    loadDemo(name) {
-        const demo = DEMOS[name];
-        if (!demo) return;
-
-        this.app.graph.clear();
-        this.app.log(`Loading demo: ${name}`, 'system');
-
-        if (demo.bagCapacity && this.app.graph.bag) {
-            this.app.graph.bag.capacity = demo.bagCapacity;
-            this.app.log(`Set Bag Capacity to ${demo.bagCapacity}`, 'system');
-        }
-
-        if (demo.script) {
-            this.app.toastManager.show(`Running Script: ${name}`, 'info');
-            this._runDemoScript(name, demo.script);
-        } else if (demo.generator) {
-            this.app.toastManager.show(`Generating: ${name}`, 'info');
-            try {
-                demo.generator(this.app.graph);
-                this.app.graph.scheduleLayout();
-                this.app.toastManager.show(`Generated: ${name}`, 'success');
-            } catch (e) {
-                this.app.log(`Generator Error: ${e.message}`, 'error');
-            }
-        } else {
-            this.app.toastManager.show(`Demo loaded: ${name}`, 'success');
-            demo.concepts.forEach(c => this.app.graph.addNode({ ...c, id: c.term }, false));
-            demo.relationships.forEach(r => this.app.graph.addEdge({ source: r[0], target: r[1], type: r[2] }, false));
-            this.app.graph.scheduleLayout();
-        }
-
-        this._updateStats();
-    }
-
-    async _runDemoScript(name, script) {
-        for (const line of script) {
-            await this.app.handleReplCommand(line);
-            await new Promise(r => setTimeout(r, 800));
-        }
-        this.app.toastManager.show(`Script completed: ${name}`, 'success');
-    }
-
-    showDemoLibrary() {
-        const modal = new DemoLibraryModal({
-            onSelect: (selection) => {
-                if (typeof selection === 'string') {
-                    this.loadDemo(selection);
-                } else if (selection && selection.path) {
-                    this.app.fileManager.loadRemoteFile(selection.path);
-                }
-            }
-        });
-        modal.show();
-    }
-
-    _processDecay() {
-        if (this.app.graph.processDecay) {
-            const removed = this.app.graph.processDecay(0.98, 0.05);
-        }
-        this._updateStats();
-    }
-
-    _updateStats() {
-        // Triggered by loop mostly, but here for manual updates
-    }
-
-    handleMenuAction(action) {
-        switch (action) {
-            case 'save':
-                this.app.fileManager.handleSaveJSON();
-                break;
-            case 'load':
-                this.app.fileManager.handleLoadJSON();
-                break;
-            case 'import-csv':
-                this.app.fileManager.handleImportCSV();
-                break;
-            case 'export-png':
-                this.app.fileManager.handleExportImage('png');
-                break;
-            case 'export-svg':
-                this.app.fileManager.handleExportImage('svg');
-                break;
-            case 'add-concept':
-                this.handleAddConcept();
-                break;
-            case 'add-link':
-                this.handleAddLink();
-                break;
-            case 'delete':
-                this.handleDelete();
-                break;
-            case 'fit':
-                this.app.graph.fit();
-                break;
-            case 'layout':
-                this.app.graph.scheduleLayout();
-                break;
-            case 'focus-mode':
-                this.app.toggleFocusMode();
-                break;
-            case 'fullscreen':
-                this.app.handleToggleFullscreen();
-                break;
-            case 'clear':
-                this.app.graph.clear();
-                this.app.log('Workspace cleared.', 'system');
-                this._updateStats();
-                break;
-            case 'shortcuts':
-                new ShortcutsModal().show();
-                break;
-            default:
-                console.warn('Unknown menu action:', action);
-        }
-    }
-
-    // --- Helpers ---
 
     _bindSearch() {
         const searchInput = document.getElementById('search-input');
-        if (!searchInput) return;
-
+        if (!searchInput) {return;}
         const clearBtn = document.getElementById('btn-clear-search');
 
         searchInput.oninput = (e) => {
             const term = e.target.value.trim();
-            if (clearBtn) clearBtn.style.display = term ? 'block' : 'none';
-
-            if (this.app.graph.highlightMatches) {
-                this.app.graph.highlightMatches(term);
-            } else {
-                this._highlightMatches(term);
-            }
+            if (clearBtn) {clearBtn.style.display = term ? 'block' : 'none';}
+            if (this.app.graph.highlightMatches) {this.app.graph.highlightMatches(term);}
+            else {this._highlightMatches(term);}
         };
 
         if (clearBtn) {
@@ -382,40 +76,25 @@ export class InputManager {
             if (e.key === 'Enter') {
                 const term = searchInput.value.trim();
                 if (term) {
-                    let foundNode;
-                    if (this.app.graph.findNode) {
-                        foundNode = this.app.graph.findNode(term);
-                    } else {
-                        foundNode = this._findNode(term);
-                    }
-
+                    const foundNode = this.app.graph.findNode?.(term) ?? this._findNode(term);
                     if (foundNode) {
                         this.app.log(`Found: ${term}`, 'system');
                         this.app.showInspector({ id: foundNode.id(), ...foundNode.data() });
                         foundNode.select();
-                    } else {
-                        this.app.log(`Not found: ${term}`, 'warning');
-                    }
+                    } else {this.app.log(`Not found: ${term}`, 'warning');}
                 }
             }
         };
     }
 
     _highlightMatches(term) {
-        if (!this.app.graph || !this.app.graph.cy) return;
+        if (!this.app.graph?.cy) {return;}
         this.app.graph.cy.batch(() => {
             const allElements = this.app.graph.cy.elements();
             allElements.removeClass('matched dimmed');
-
-            if (!term || term.length < 2) return;
-
+            if (!term || term.length < 2) {return;}
             const termLower = term.toLowerCase();
-            const matches = allElements.filter(ele => {
-                if (!ele.isNode()) return false;
-                const label = (ele.data('label') || '').toLowerCase();
-                return label.includes(termLower);
-            });
-
+            const matches = allElements.filter(ele => ele.isNode() && (ele.data('label') || '').toLowerCase().includes(termLower));
             if (matches.nonempty()) {
                 allElements.addClass('dimmed');
                 matches.removeClass('dimmed').addClass('matched');
@@ -425,49 +104,19 @@ export class InputManager {
     }
 
     _findNode(id) {
-        if (!this.app.graph || !this.app.graph.cy) return null;
+        if (!this.app.graph?.cy) {return null;}
         const term = id?.toLowerCase();
         let node = this.app.graph.cy.$id(id);
-
         if (node.empty() && term) {
-            node = this.app.graph.cy.nodes().filter(n =>
-                (n.data('label') || '').toLowerCase().includes(term)
-            ).first();
+            node = this.app.graph.cy.nodes().filter(n => (n.data('label') || '').toLowerCase().includes(term)).first();
         }
-
         if (node.nonempty()) {
-            this.app.graph.cy.animate({
-                center: { eles: node },
-                zoom: 1.5,
-                duration: 500
-            });
+            this.app.graph.cy.animate({ center: { eles: node }, zoom: 1.5, duration: 500 });
             node.addClass('highlighted');
             setTimeout(() => node.removeClass('highlighted'), 2000);
             return node;
         }
         return null;
-    }
-
-    _bindDemoSelect() {
-        const demoSelect = document.getElementById('demo-select');
-        if (!demoSelect) return;
-
-        const newSelect = demoSelect.cloneNode(false);
-        demoSelect.parentNode.replaceChild(newSelect, demoSelect);
-
-        Object.keys(DEMOS).forEach(name => {
-            const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
-            newSelect.appendChild(opt);
-        });
-
-        newSelect.onchange = (e) => {
-            if (e.target.value) {
-                this.loadDemo(e.target.value);
-                e.target.value = "";
-            }
-        };
     }
 
     _bindModeSwitch() {
@@ -483,21 +132,19 @@ export class InputManager {
     _bindLayerToggles() {
         document.querySelectorAll('input[data-layer]').forEach(input => {
             input.onchange = (e) => {
-                const layer = e.target.dataset.layer;
+                const {layer} = e.target.dataset;
                 const visible = e.target.checked;
-
-                if (layer === 'tasks') {
-                    this.app.graph.applyFilters({ showTasks: visible });
-                } else if (layer === 'concepts') {
-                     this.app.graph.applyFilters({ showConcepts: visible });
-                } else if (layer === 'trace') {
-                     if (visible) {
-                        this.app.graph.cy.elements().addClass('trace-dim');
-                     } else {
-                        this.app.graph.cy.elements().removeClass('trace-dim trace-highlight');
-                     }
+                const filters = {
+                    'tasks': { showTasks: visible },
+                    'concepts': { showConcepts: visible },
+                    'trace': {}
+                };
+                if (layer === 'trace') {
+                    this.app.graph.cy.elements().classList.toggle('trace-dim', visible);
+                    if (!visible) {this.app.graph.cy.elements().removeClass('trace-dim trace-highlight');}
+                } else if (filters[layer]) {
+                    this.app.graph.applyFilters(filters[layer]);
                 }
-
                 this.app.log(`${layer} layer ${visible ? 'visible' : 'hidden'}`, 'system');
             };
         });
@@ -512,7 +159,6 @@ export class InputManager {
                 this.app.log(`Size mapping: ${e.target.value}`, 'system');
             };
         }
-
         const colorSelect = document.getElementById('mapping-color');
         if (colorSelect) {
             colorSelect.onchange = (e) => {
@@ -528,115 +174,34 @@ export class InputManager {
         if (layoutSelect) {
             layoutSelect.onchange = (e) => {
                 const layout = e.target.value;
-                if (layout === 'scatter') {
-                    if (this.app.graph.applyScatterLayout) {
-                        this.app.graph.applyScatterLayout('priority', 'confidence');
-                    }
-                } else if (layout === 'sorted-grid') {
-                    if (this.app.graph.applySortedGridLayout) {
-                        this.app.graph.applySortedGridLayout('priority');
-                    }
-                } else {
-                    if (this.app.graph.setLayout) {
-                        this.app.graph.setLayout(layout);
-                    }
-                }
+                if (layout === 'scatter') {this.app.graph.applyScatterLayout?.('priority', 'confidence');}
+                else if (layout === 'sorted-grid') {this.app.graph.applySortedGridLayout?.('priority');}
+                else {this.app.graph.setLayout?.(layout);}
                 this.app.log(`Layout switched to: ${layout}`, 'system');
             };
         }
-
         const isolatedCheck = document.getElementById('check-isolated');
         if (isolatedCheck) {
             isolatedCheck.onchange = (e) => {
-                const hide = e.target.checked;
-                this.app.graph.applyFilters({ hideIsolated: hide });
-                this.app.log(`Isolated nodes ${hide ? 'hidden' : 'shown'}`, 'system');
+                this.app.graph.applyFilters({ hideIsolated: e.target.checked });
+                this.app.log(`Isolated nodes ${e.target.checked ? 'hidden' : 'shown'}`, 'system');
             };
         }
-
         const prioSlider = document.getElementById('filter-priority');
         const prioVal = document.getElementById('prio-val');
         if (prioSlider) {
             prioSlider.oninput = (e) => {
                 const val = parseFloat(e.target.value);
-                if (prioVal) prioVal.textContent = val.toFixed(2);
+                if (prioVal) {prioVal.textContent = val.toFixed(2);}
                 this.app.graph.applyFilters({ minPriority: val });
             };
         }
-
         const freezeCheck = document.getElementById('check-freeze-layout');
         if (freezeCheck) {
             freezeCheck.onchange = (e) => {
-                const frozen = e.target.checked;
-                this.app.graph.setUpdatesEnabled(!frozen);
-                this.app.log(`Layout ${frozen ? 'Frozen' : 'Active'}`, 'system');
+                this.app.graph.setUpdatesEnabled(!e.target.checked);
+                this.app.log(`Layout ${e.target.checked ? 'Frozen' : 'Active'}`, 'system');
             };
         }
-    }
-
-    _bindKeyboardShortcuts() {
-        document.addEventListener('keydown', (e) => {
-            // Shortcuts valid even when focused in input
-            if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-                e.preventDefault();
-                this.app.toggleWidget('layers');
-                this.app.toggleWidget('inspector');
-                return;
-            }
-
-            if (e.key === 'F1') {
-                e.preventDefault();
-                this.commandPalette.toggle();
-                return;
-            }
-
-            // Ignore subsequent shortcuts if typing in an input
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
-                return;
-            }
-
-            if (e.key === 'Escape') {
-                this.app.graph.goBack?.();
-            }
-
-            if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
-                e.preventDefault();
-                document.getElementById('log-content').innerHTML = '';
-                this.app.log('Log cleared', 'system');
-            } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
-                e.preventDefault();
-                const search = document.getElementById('search-input');
-                if (search) search.focus();
-            } else if (e.key === 'Delete' || e.key === 'Backspace') {
-                this.handleDelete();
-            } else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-                e.preventDefault();
-                this.app.fileManager.handleSaveJSON();
-            } else if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
-                e.preventDefault();
-                this.app.fileManager.handleLoadJSON();
-            } else if (e.key === ' ') {
-                e.preventDefault(); // Prevent scroll
-                this.app.toggleReasoner(!this.app.isReasonerRunning);
-            } else if (e.shiftKey && e.key === 'S') {
-                e.preventDefault();
-                this.app.stepReasoner(10);
-                this.app.log('Stepping 10 cycles...', 'system');
-            } else if (e.altKey && e.key === 's') {
-                e.preventDefault();
-                this.app.stepReasoner(50);
-                this.app.log('Stepping 50 cycles...', 'system');
-            } else if (e.key === 'S' || e.key === 's') { // Case insensitive for single step if not modified
-                if (!e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
-                    // Only if no modifiers to avoid conflict with Shift+S above if logic flow reaches here (though Shift+S is handled)
-                    // The issue is 's' vs 'S'. 'S' is Shift+s usually.
-                    // But standard 's' handling might be tricky with Shift.
-                    // Let's be precise.
-                }
-            } else if (e.key === '?') {
-                e.preventDefault();
-                new ShortcutsModal().show();
-            }
-        });
     }
 }

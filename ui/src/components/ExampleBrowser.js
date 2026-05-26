@@ -21,11 +21,11 @@ export class ExampleBrowser extends Component {
     }
 
     async initialize() {
-        if (this.initialized) return;
+        if (this.initialized) {return;}
 
         try {
             const response = await fetch(this.options.indexUrl);
-            if (!response.ok) throw new Error(`Failed to load examples index: ${response.statusText}`);
+            if (!response.ok) {throw new Error(`Failed to load examples index: ${response.statusText}`);}
             this.treeData = await response.json();
             this.render();
             this.initialized = true;
@@ -38,7 +38,7 @@ export class ExampleBrowser extends Component {
     }
 
     render() {
-        if (!this.container || !this.treeData) return;
+        if (!this.container || !this.treeData) {return;}
 
         this.fluent().clear().addClass('example-browser');
 

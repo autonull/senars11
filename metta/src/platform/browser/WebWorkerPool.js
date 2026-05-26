@@ -1,7 +1,7 @@
 /**
  * WebWorkerPool.js - Browser implementation of WorkerPool
  */
-import { ENV } from '../env.js';
+import {ENV} from '../env.js';
 
 export class WebWorkerPool {
     constructor(workerScript, poolSize = (typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : 4)) {
@@ -32,19 +32,19 @@ export class WebWorkerPool {
 
     _addWorker() {
         // workerScript should be a URL or path
-        const worker = new Worker(this.workerScript, { type: 'module' });
+        const worker = new Worker(this.workerScript, {type: 'module'});
 
         worker.onmessage = (e) => this._handleResult(e.data, worker);
         worker.onerror = (e) => console.error('Worker error:', e);
 
-        this.workers.push({ worker, busy: false });
+        this.workers.push({worker, busy: false});
     }
 
     execute(task) {
         return new Promise((resolve, reject) => {
             const id = this.nextTaskId++;
-            this.callbacks.set(id, { resolve, reject });
-            this._dispatch({ id, ...task });
+            this.callbacks.set(id, {resolve, reject});
+            this._dispatch({id, ...task});
         });
     }
 
@@ -63,7 +63,7 @@ export class WebWorkerPool {
     }
 
     _handleResult(msg, workerInstance) {
-        const { id, result, error } = msg;
+        const {id, result, error} = msg;
         const cb = this.callbacks.get(id);
 
         if (cb) {

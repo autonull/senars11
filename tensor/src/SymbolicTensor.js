@@ -1,11 +1,13 @@
-import { Tensor } from './Tensor.js';
+import {Tensor} from './Tensor.js';
 
 const TensorOps = {
     reshape(flat, shape) {
-        if (shape.length === 1) return Array.from(flat);
+        if (shape.length === 1) {
+            return Array.from(flat);
+        }
         if (shape.length === 2) {
             const [rows, cols] = shape;
-            return Array.from({ length: rows }, (_, i) =>
+            return Array.from({length: rows}, (_, i) =>
                 Array.from(flat.slice(i * cols, (i + 1) * cols))
             );
         }
@@ -65,9 +67,18 @@ export class SymbolicTensor extends Tensor {
         return TensorOps.reshape(flat, shape);
     }
 
+    static fromJSON(json) {
+        return new SymbolicTensor(json.data, json.shape, {
+            symbols: new Map(json.symbols),
+            provenance: json.provenance,
+            confidence: json.confidence,
+            type: json.type
+        });
+    }
+
     annotate(indices, symbol, confidence = 1.0) {
         const key = Array.isArray(indices) ? indices.join(',') : String(indices);
-        this.symbols.set(key, { symbol, confidence, timestamp: Date.now() });
+        this.symbols.set(key, {symbol, confidence, timestamp: Date.now()});
         return this;
     }
 
@@ -77,14 +88,14 @@ export class SymbolicTensor extends Tensor {
     }
 
     addProvenance(source, operation, metadata = {}) {
-        this.provenance.push({ source, operation, metadata, timestamp: Date.now() });
+        this.provenance.push({source, operation, metadata, timestamp: Date.now()});
         return this;
     }
 
     toNarseseTerm(prefix = 'tensor') {
         const flatData = this.data.map(v => v.toFixed(4));
         const symbolParts = Array.from(this.symbols)
-            .map(([_, { symbol, confidence }]) => `${symbol}:${confidence.toFixed(2)}`);
+            .map(([_, {symbol, confidence}]) => `${symbol}:${confidence.toFixed(2)}`);
 
         return symbolParts.length > 0
             ? `(${prefix}_${this.shape.join('x')}:[${symbolParts.join(',')}])`
@@ -92,14 +103,10 @@ export class SymbolicTensor extends Tensor {
     }
 
     _getIndices(flatIndex) {
-        if (!this.shape || this.shape.length <= 1) return [flatIndex];
-        const res = [];
-        let current = flatIndex;
-        for (let i = this.shape.length - 1; i >= 0; i--) {
-            res.unshift(current % this.shape[i]);
-            current = Math.floor(current / this.shape[i]);
+        if (!this.shape || this.shape.length <= 1) {
+            return [flatIndex];
         }
-        return res;
+        return this.indexToCoords(flatIndex);
     }
 
     projectToSymbols(threshold = 0.5) {
@@ -115,10 +122,10 @@ export class SymbolicTensor extends Tensor {
                 }
 
                 if (annotation && annotation.confidence >= threshold) {
-                    return { index: i, symbol: annotation.symbol, value, confidence: annotation.confidence };
+                    return {index: i, symbol: annotation.symbol, value, confidence: annotation.confidence};
                 }
                 if (Math.abs(value) >= threshold) {
-                    return { index: i, symbol: `feature_${i}`, value, confidence: 0.5 };
+                    return {index: i, symbol: `feature_${i}`, value, confidence: 0.5};
                 }
                 return null;
             })
@@ -126,16 +133,28 @@ export class SymbolicTensor extends Tensor {
     }
 
     clone() {
-        return new SymbolicTensor(
+        const cloned = new SymbolicTensor(
             new Float32Array(this.data),
             this.shape,
             {
                 symbols: new Map(this.symbols),
                 provenance: [...this.provenance],
                 confidence: this.confidence,
-                type: this.type
+                type: this.type,
+                requiresGrad: this.requiresGrad,
+                backend: this.backend
             }
         );
+        if (this.grad) {
+            cloned.grad = new Float32Array(this.grad);
+        }
+        if (this._gradFn) {
+            cloned._gradFn = this._gradFn;
+        }
+        if (this._parents) {
+            cloned._parents = [...this._parents];
+        }
+        return cloned;
     }
 
     toJSON() {
@@ -145,17 +164,9 @@ export class SymbolicTensor extends Tensor {
             symbols: Array.from(this.symbols.entries()),
             provenance: this.provenance,
             confidence: this.confidence,
-            type: this.type
+            type: this.type,
+            requiresGrad: this.requiresGrad
         };
-    }
-
-    static fromJSON(json) {
-        return new SymbolicTensor(json.data, json.shape, {
-            symbols: new Map(json.symbols),
-            provenance: json.provenance,
-            confidence: json.confidence,
-            type: json.type
-        });
     }
 }
 
@@ -170,4 +181,4 @@ export function symbolicTensor(data, shape, symbols = {}) {
     return tensor;
 }
 
-export { TensorOps };
+export {TensorOps};

@@ -1,20 +1,20 @@
 /**
  * EmbodimentBus.js - I/O Router for Multiple Embodiments
- * 
+ *
  * Phase 5: Embodiment Abstraction
- * 
+ *
  * Manages registration, message routing, and retrieval across multiple
  * simultaneous I/O channels. Supports both FIFO and salience-ordered
  * message retrieval modes.
- * 
+ *
  * Key features:
  * - Register/unregister embodiments dynamically
  * - getNextMessage() with FIFO or salience-ordered retrieval
  * - Broadcast messages to all/specific embodiments
  * - Event forwarding from embodiments to central listeners
  */
-import { EventEmitter } from 'events';
-import { Logger } from '@senars/core';
+import {EventEmitter} from 'events';
+import {Logger} from '@senars/core';
 
 export class EmbodimentBus extends EventEmitter {
     constructor(config = {}) {
@@ -24,7 +24,7 @@ export class EmbodimentBus extends EventEmitter {
         this._messageQueue = [];  // Global queue for salience-ordered retrieval
         this._useSalienceOrdering = config.attentionSalience ?? false;
         this._middleware = [];
-        
+
         // Stats tracking
         this._stats = {
             totalMessages: 0,
@@ -34,10 +34,10 @@ export class EmbodimentBus extends EventEmitter {
     }
 
     /**
-     * Register an embodiment
+     * Register an embodiment and connect it.
      * @param {Embodiment} embodiment
      */
-    register(embodiment) {
+    async register(embodiment) {
         if (this.embodiments.has(embodiment.id)) {
             throw new Error(`Embodiment ${embodiment.id} already registered`);
         }
@@ -46,14 +46,17 @@ export class EmbodimentBus extends EventEmitter {
 
         // Forward events from embodiment
         embodiment.on('message', (msg) => this._handleIncomingMessage(msg));
-        embodiment.on('status', (status) => this.emit('embodiment.status', { 
-            embodimentId: embodiment.id, 
-            ...status 
+        embodiment.on('status', (status) => this.emit('embodiment.status', {
+            embodimentId: embodiment.id,
+            ...status
         }));
-        embodiment.on('error', (err) => this.emit('embodiment.error', { 
-            embodimentId: embodiment.id, 
-            error: err 
+        embodiment.on('error', (err) => this.emit('embodiment.error', {
+            embodimentId: embodiment.id,
+            error: err
         }));
+
+        // Auto-connect the embodiment
+        await embodiment.connect();
 
         Logger.info(`Embodiment registered: ${embodiment.type} (${embodiment.id})`);
         this.emit('embodiment.registered', embodiment);
@@ -71,12 +74,12 @@ export class EmbodimentBus extends EventEmitter {
             }
             embodiment.removeAllListeners();
             this.embodiments.delete(embodimentId);
-            
+
             // Remove from global queue
             this._messageQueue = this._messageQueue.filter(
                 msg => msg.embodimentId !== embodimentId
             );
-            
+
             Logger.info(`Embodiment unregistered: ${embodimentId}`);
             this.emit('embodiment.unregistered', embodimentId);
         }
@@ -101,27 +104,27 @@ export class EmbodimentBus extends EventEmitter {
 
     /**
      * Get next message from the bus
-     * 
+     *
      * If attentionSalience is enabled: returns highest-salience message
      * Otherwise: returns oldest message (FIFO)
-     * 
+     *
      * @param {object} options - Retrieval options
      * @returns {object|null} Message object or null if no messages
      */
     getNextMessage(options = {}) {
         const mode = options.mode || (this._useSalienceOrdering ? 'salience' : 'FIFO');
-        
+
         if (this._messageQueue.length === 0) {
             return null;
         }
 
         let message;
-        
+
         if (mode === 'salience') {
             // Find and remove highest-salience message
             let maxIdx = 0;
             let maxSalience = this._messageQueue[0].salience ?? 0;
-            
+
             for (let i = 1; i < this._messageQueue.length; i++) {
                 const salience = this._messageQueue[i].salience ?? 0;
                 if (salience > maxSalience) {
@@ -129,7 +132,7 @@ export class EmbodimentBus extends EventEmitter {
                     maxIdx = i;
                 }
             }
-            
+
             message = this._messageQueue.splice(maxIdx, 1)[0];
             Logger.debug(`Salience-ordered retrieval: message ${message.id} (salience: ${maxSalience})`);
         } else {
@@ -200,8 +203,12 @@ export class EmbodimentBus extends EventEmitter {
         for (const [id, embodiment] of this.embodiments) {
             if (embodiment.status === 'connected') {
                 const promise = embodiment.sendMessage(target, content, metadata)
-                    .then(success => { results[id] = { success }; })
-                    .catch(err => { results[id] = { success: false, error: err.message }; });
+                    .then(success => {
+                        results[id] = {success};
+                    })
+                    .catch(err => {
+                        results[id] = {success: false, error: err.message};
+                    });
                 promises.push(promise);
             }
         }
@@ -215,7 +222,7 @@ export class EmbodimentBus extends EventEmitter {
      * @param {Function} fn - (msg, next) => void
      */
     use(fn) {
-        this.middleware.push(fn);
+        this._middleware.push(fn);
     }
 
     /**
@@ -251,11 +258,18 @@ export class EmbodimentBus extends EventEmitter {
      * Shutdown all embodiments
      */
     async shutdown() {
-        const promises = Array.from(this.embodiments.values()).map(e => e.disconnect());
-        await Promise.all(promises);
+        if (this._shuttingDown) return;
+        this._shuttingDown = true;
+        let failures = 0;
+        await Promise.allSettled(
+            Array.from(this.embodiments.values()).map(async e => {
+                try { await e.disconnect?.(); }
+                catch (err) { failures++; Logger.warn(`[${e.id}] disconnect error:`, err.message); }
+            })
+        );
         this.embodiments.clear();
         this._messageQueue = [];
-        Logger.info('EmbodimentBus shutdown complete');
+        Logger.info(`EmbodimentBus shutdown complete${failures ? ` (${failures} errors)` : ''}`);
     }
 
     // ── Private ──────────────────────────────────────────────────────
@@ -265,11 +279,14 @@ export class EmbodimentBus extends EventEmitter {
      */
     async _handleIncomingMessage(message) {
         try {
+            Logger.debug(`[EmbodimentBus] ${message.embodimentId}: [${message.from}] ${message.content?.substring(0, 80)}`);
             // Execute middleware pipeline
-            let msg = { ...message };
+            const msg = {...message};
             for (const mw of this._middleware) {
                 let nextCalled = false;
-                const next = () => { nextCalled = true; };
+                const next = () => {
+                    nextCalled = true;
+                };
                 await mw(msg, next);
                 if (!nextCalled) {
                     Logger.debug(`Message ${msg.id} stopped by middleware`);
@@ -279,7 +296,7 @@ export class EmbodimentBus extends EventEmitter {
 
             // Add to global queue
             this._messageQueue.push(msg);
-            
+
             // Update stats
             this._stats.totalMessages++;
             this._stats.lastMessageTime = Date.now();
@@ -288,10 +305,11 @@ export class EmbodimentBus extends EventEmitter {
 
             // Emit processed message
             this.emit('message', msg);
-            
+
             Logger.debug(`Message ${msg.id} queued from ${msg.embodimentId} (salience: ${msg.salience})`);
         } catch (error) {
             Logger.error('Error in embodiment message processing:', error);
+            this.emit('message.error', { error, originalMessage: message });
         }
     }
 }

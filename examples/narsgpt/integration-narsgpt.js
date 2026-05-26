@@ -3,11 +3,7 @@
  * Demonstrates using NARS-GPT for conversational question-answering with memory.
  */
 
-import {NAR} from '../../core/src/nar/NAR.js';
-import {NarsGPTStrategy} from '../../core/src/reason/strategy/NarsGPTStrategy.js';
-import {createNarsGPTBeliefRule, createNarsGPTQARule} from '../../core/src/reason/rules/lm/index.js';
-import {EmbeddingLayer} from '../../core/src/lm/EmbeddingLayer.js';
-import {EventBus} from '../../core/src/util/EventBus.js';
+import {NAR, NarsGPTStrategy, createNarsGPTBeliefRule, createNarsGPTQARule, EmbeddingLayer, EventBus} from '@senars/nar';
 
 console.log('NARS-GPT Integration Example\n' + '='.repeat(40));
 

@@ -17,7 +17,9 @@ export class Tokenizer {
 
         const push = () => {
             const trimmed = current.trim();
-            if (trimmed) tokens.push(trimmed);
+            if (trimmed) {
+                tokens.push(trimmed);
+            }
             current = '';
         };
 
@@ -26,7 +28,9 @@ export class Tokenizer {
             const next = str[i + 1];
 
             if (inComment) {
-                if (char === '\n' || char === '\r') inComment = false;
+                if (char === '\n' || char === '\r') {
+                    inComment = false;
+                }
                 continue;
             }
 

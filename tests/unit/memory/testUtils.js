@@ -1,6 +1,4 @@
-import {Concept} from '../../../core/src/memory/Concept.js';
-import {Task} from '../../../core/src/task/Task.js';
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
+import {Concept, Task, TermFactory} from '@senars/nar';
 
 export const tf = new TermFactory();
 

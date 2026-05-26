@@ -176,7 +176,7 @@ export class AdvancedNarseseTranslator {
 
         if (result.narsese?.includes('()')) {
             result.confidence = Math.min(result.confidence, 0.3);
-            result.notes = (result.notes || '') + ' Potential syntax error: empty parentheses found.';
+            result.notes = `${result.notes || ''} Potential syntax error: empty parentheses found.`;
         }
 
         return result;

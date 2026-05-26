@@ -2,10 +2,10 @@
  * ReactiveOps.js - Reactive operations
  */
 
-import { Term } from '../kernel/Term.js';
+import {Term} from '../kernel/Term.js';
 
 export function registerReactiveOps(interpreter) {
-    const { sym, exp } = Term;
+    const {sym, exp} = Term;
     const reg = (n, fn, opts) => interpreter.ground.register(n, fn, opts);
 
     const createEventAtom = (e) => {
@@ -24,7 +24,7 @@ export function registerReactiveOps(interpreter) {
         const since = sinceAtom ? (parseInt(sinceAtom.name) || 0) : 0;
         const log = interpreter.space.getEventLog?.(since) || [];
         return interpreter._listify(log.map(createEventAtom));
-    }, { lazy: true });
+    }, {lazy: true});
 
     reg('&clear-event-log', () => {
         interpreter.space.clearEventLog?.();

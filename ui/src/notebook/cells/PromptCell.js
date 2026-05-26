@@ -54,7 +54,7 @@ export class PromptCell extends Cell {
 
         const submit = () => {
             const val = input.dom.value.trim();
-            if (!val || this.responded) return;
+            if (!val || this.responded) {return;}
             this.response = val;
             this.responded = true;
             input.dom.disabled = true;
@@ -64,7 +64,7 @@ export class PromptCell extends Cell {
         };
 
         submitBtn.on('click', submit);
-        input.on('keydown', (e) => { if (e.key === 'Enter') submit(); });
+        input.on('keydown', (e) => { if (e.key === 'Enter') {submit();} });
 
         inputContainer.child(input).child(submitBtn);
 

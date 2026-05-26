@@ -8,7 +8,7 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
 
     const getSize = (ele) => {
         const mode = mappings.size;
-        if (mode === 'fixed') return 40;
+        if (mode === 'fixed') {return 40;}
 
         const label = ele.data('label') || '';
         const priority = ele.data('priority') || 0;
@@ -41,9 +41,9 @@ export const getTacticalStyle = (mappings, getColorFromHash) => {
         if (mode === 'type') {
             let base = [0, 255, 157]; // Default Green (Concept/Belief)
             const t = (type || '').toLowerCase();
-            if (t.includes('goal')) base = [255, 204, 0]; // Amber
-            else if (t.includes('question') || t.includes('quest')) base = [0, 212, 255]; // Blue
-            else if (t === 'task') base = [200, 200, 200]; // Generic
+            if (t.includes('goal')) {base = [255, 204, 0];} // Amber
+            else if (t.includes('question') || t.includes('quest')) {base = [0, 212, 255];} // Blue
+            else if (t === 'task') {base = [200, 200, 200];} // Generic
 
             const alpha = prop === 'background' ? (0.6 + (priority * 0.4)) : 1;
             return `rgba(${base[0]}, ${base[1]}, ${base[2]}, ${alpha})`;

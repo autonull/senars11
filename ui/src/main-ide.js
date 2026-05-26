@@ -84,7 +84,7 @@ class SeNARSIDE {
 
     _onConceptSelect(payload) {
         const concept = payload?.concept;
-        if (!concept) return;
+        if (!concept) {return;}
         const memoryComponent = this.layoutManager.layout.root.getItemsByFilter(item => item.config.componentName === COMPONENTS.MEMORY)[0];
         memoryComponent?.parent?.setActiveContentItem?.(memoryComponent);
     }

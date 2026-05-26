@@ -2,7 +2,9 @@
 
 ## Executive Summary
 
-Completed a **comprehensive refactoring** of the `rl/` module following **AGENTS.md** principles, transforming it into a **more extensible, maintainable, and general-purpose Reinforcement Learning system** that effectively leverages SeNARS `core/`, MeTTa `metta/`, and Tensor Logic `tensor/`.
+Completed a **comprehensive refactoring** of the `rl/` module following **AGENTS.md** principles, transforming it into a
+**more extensible, maintainable, and general-purpose Reinforcement Learning system** that effectively leverages SeNARS
+`core/`, MeTTa `metta/`, and Tensor Logic `tensor/`.
 
 ---
 
@@ -25,6 +27,7 @@ export function hashState()       // State discretization for indexing
 ```
 
 **Impact**:
+
 - Removed duplicate `SumTree` from `ExperienceBuffer.js` and `ExperienceSystem.js`
 - Eliminated duplicate utility functions across 5+ files
 - **Net reduction: ~90 lines** with improved reusability
@@ -36,11 +39,13 @@ export function hashState()       // State discretization for indexing
 Merged 3 separate `Skill` class implementations into one unified class:
 
 **Before**:
+
 - `skills/Skill.js` - Basic skill with preconditions/termination
 - `skills/SkillDiscovery.js` - Extended skill with Narsese grounding
 - `skills/HierarchicalSkillSystem.js` - Hierarchical skill extending Component
 
 **After**: Single `Skill` class extending `Component` with:
+
 - Hierarchical composition via `children` Map
 - Both basic and advanced features (preconditions, termination, policies)
 - Consistent lifecycle management (`initialize`, `shutdown`)
@@ -48,6 +53,7 @@ Merged 3 separate `Skill` class implementations into one unified class:
 - Backward compatible with all existing usage patterns
 
 **Impact**:
+
 - `HierarchicalSkillSystem.js`: 523 → 362 lines (**31% reduction**)
 - Eliminated class duplication
 - Unified API across all skill types
@@ -63,6 +69,7 @@ Merged 3 separate `Skill` class implementations into one unified class:
 Consolidated 4 separate planning modules into one unified system:
 
 **Before**:
+
 - `modules/Planner.js` - Basic goal-directed planning
 - `modules/HierarchicalPlanner.js` - Skill-based hierarchical planning
 - `modules/PathPlanner.js` - Path finding with caching
@@ -70,6 +77,7 @@ Consolidated 4 separate planning modules into one unified system:
 - `modules/IntrinsicMotivation.js` - Novelty-based intrinsic rewards
 
 **After**: Unified `PlanningSystem` class with:
+
 - Multiple planning modes (goal-directed, hierarchical, reactive)
 - Integrated skill selection and execution
 - Path planning with caching
@@ -78,6 +86,7 @@ Consolidated 4 separate planning modules into one unified system:
 - Shared configuration and cache management
 
 **Exports for backward compatibility**:
+
 ```javascript
 export { PlanningSystem as Planner }
 export { PlanningSystem as HierarchicalPlanner }
@@ -93,11 +102,13 @@ export { IntrinsicMotivation }
 Consolidated training loop and distributed execution:
 
 **Before**:
+
 - `training/TrainingLoop.js` - Main training loop with plugins
 - `distributed/ParallelExecution.js` - Worker pool and parallel execution
 - `distributed/Worker.js` - Worker thread/process implementation
 
 **After**: Unified training system with:
+
 - `TrainingLoop` - Streamlined training loop
 - `WorkerPool` - Worker management for parallel execution
 - `ParallelExecutor` - High-level parallel task execution
@@ -105,6 +116,7 @@ Consolidated training loop and distributed execution:
 - `TrainingPresets` - Pre-configured training setups (DQN, PPO, etc.)
 
 **Features**:
+
 - Consistent configuration across all training modes
 - Shared experience buffer integration
 - Unified metrics and checkpointing
@@ -117,16 +129,19 @@ Consolidated training loop and distributed execution:
 Consolidated attention and reasoning modules:
 
 **Before**:
+
 - `attention/CrossModalAttention.js` - Neural-symbolic attention
 - `reasoning/CausalReasoning.js` - Causal graph and reasoning
 
 **After**: Unified cognitive system with:
+
 - `AttentionSystem` - Multi-head attention, sparse attention, self-attention
 - `CausalGraph` - Causal structure learning and inference
 - `ReasoningSystem` - Causal reasoning with belief tracking
 - `CognitiveSystem` - Integrated attention + reasoning with fusion
 
 **Attention Modes**:
+
 ```javascript
 attention.attend(neural, symbolic)           // Cross-modal attention
 attention.multiHeadAttend(neural, symbolic)  // Multi-head attention
@@ -135,6 +150,7 @@ attention.sparseAttend(query, concepts, k)   // Sparse attention (top-k)
 ```
 
 **Fusion Strategies**:
+
 ```javascript
 cognitive.fuse(neural, symbolic, { mode: 'gated' })     // Gated fusion
 cognitive.fuse(neural, symbolic, { mode: 'attention' }) // Attention-based
@@ -162,6 +178,7 @@ class MyComponent extends Component {
 ```
 
 **Benefits**:
+
 - Consistent lifecycle management
 - Built-in state management (`setState`, `getState`)
 - Event system (`emit`, `subscribe`)
@@ -216,38 +233,38 @@ const error = handleError(e, { operation: 'riskyOperation' });
 
 ### Lines of Code Impact
 
-| Category | Before | After | Change |
-|----------|--------|-------|--------|
-| **Duplicate Code Removed** | - | ~500 lines | **-500** |
-| **New Shared Modules** | - | ~1,340 lines | **+1,340** |
-| **Net Change** | - | - | **+840** (more reusable code) |
-| **Maintenance Reduction** | High | Low | **~60% less duplication** |
+| Category                   | Before | After        | Change                        |
+|----------------------------|--------|--------------|-------------------------------|
+| **Duplicate Code Removed** | -      | ~500 lines   | **-500**                      |
+| **New Shared Modules**     | -      | ~1,340 lines | **+1,340**                    |
+| **Net Change**             | -      | -            | **+840** (more reusable code) |
+| **Maintenance Reduction**  | High   | Low          | **~60% less duplication**     |
 
 ### File Reductions (without breaking changes)
 
-| File | Before | After | Reduction |
-|------|--------|-------|-----------|
-| `skills/HierarchicalSkillSystem.js` | 523 | 362 | **31%** |
-| `experience/ExperienceSystem.js` | 658 | 587 | **11%** |
-| `experience/ExperienceBuffer.js` | 486 | 444 | **9%** |
+| File                                | Before | After | Reduction |
+|-------------------------------------|--------|-------|-----------|
+| `skills/HierarchicalSkillSystem.js` | 523    | 362   | **31%**   |
+| `experience/ExperienceSystem.js`    | 658    | 587   | **11%**   |
+| `experience/ExperienceBuffer.js`    | 486    | 444   | **9%**    |
 
 ### New Shared Modules Created
 
 1. **`utils/DataStructures.js`** (180 lines)
-   - SumTree, PrioritizedBuffer, CircularBuffer, Index
-   - Utility functions for ID generation, serialization, hashing
+    - SumTree, PrioritizedBuffer, CircularBuffer, Index
+    - Utility functions for ID generation, serialization, hashing
 
 2. **`modules/PlanningSystem.js`** (230 lines)
-   - Unified planning with 5 modes
-   - Backward compatible exports
+    - Unified planning with 5 modes
+    - Backward compatible exports
 
 3. **`training/TrainingSystem.js`** (450 lines)
-   - TrainingLoop, WorkerPool, ParallelExecutor, DistributedTrainer
-   - TrainingPresets for common configurations
+    - TrainingLoop, WorkerPool, ParallelExecutor, DistributedTrainer
+    - TrainingPresets for common configurations
 
 4. **`cognitive/CognitiveSystem.js`** (480 lines)
-   - AttentionSystem, CausalGraph, ReasoningSystem, CognitiveSystem
-   - Multi-modal fusion strategies
+    - AttentionSystem, CausalGraph, ReasoningSystem, CognitiveSystem
+    - Multi-modal fusion strategies
 
 ---
 
@@ -260,7 +277,7 @@ const error = handleError(e, { operation: 'riskyOperation' });
 ✅ **Deduplicated** - DRY with shared utilities  
 ✅ **Terse Syntax** - Modern JavaScript (`??`, `?.`, arrow functions, destructuring)  
 ✅ **Few Comments** - Self-documenting through naming  
-✅ **Professional** - Production-ready quality  
+✅ **Professional** - Production-ready quality
 
 ---
 
@@ -406,26 +423,31 @@ const results = index.query(['tag1', 'tag2']);
 ## Benefits for Future Development
 
 ### 1. **Extensibility**
+
 - Clear patterns for adding new modules
 - Shared infrastructure reduces boilerplate
 - Component-based architecture enables composition
 
 ### 2. **Maintainability**
+
 - Single source of truth for common functionality
 - Easier to fix bugs (no duplicate code)
 - Consistent patterns reduce cognitive load
 
 ### 3. **Testability**
+
 - Shared utilities tested once
 - Component lifecycle enables consistent testing
 - Clear module boundaries simplify unit tests
 
 ### 4. **Performance**
+
 - Optimized shared implementations
 - Reduced memory footprint
 - Efficient data structures (TypedArrays, Maps, Sets)
 
 ### 5. **Integration**
+
 - Unified interfaces for SeNARS/Metta/Tensor
 - Consistent neuro-symbolic bridging
 - Clear abstraction layers
@@ -460,13 +482,15 @@ This comprehensive refactoring creates a **cleaner, more maintainable, and more 
 ✅ Improves modularity and separation of concerns  
 ✅ Maintains 100% backward compatibility  
 ✅ Enables easier future development  
-✅ Better integrates SeNARS, MeTTa, and Tensor Logic  
+✅ Better integrates SeNARS, MeTTa, and Tensor Logic
 
-The codebase is now optimally positioned as a **general-purpose Reinforcement Learning system** with professional-grade architecture and maintainability.
+The codebase is now optimally positioned as a **general-purpose Reinforcement Learning system** with professional-grade
+architecture and maintainability.
 
 ---
 
 **Total Impact**:
+
 - **4 new unified modules** created
 - **~500 lines of duplicate code** removed
 - **60% reduction** in maintenance burden

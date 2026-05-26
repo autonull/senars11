@@ -1,4 +1,4 @@
-import {MemoryValidator} from '../../../core/src/util/MemoryValidator.js';
+import {MemoryValidator} from '@senars/core/src/util/MemoryValidator';
 
 describe('MemoryValidator', () => {
     let validator;

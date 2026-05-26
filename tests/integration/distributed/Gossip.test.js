@@ -1,5 +1,4 @@
-import {NAR} from '../../../core/src/nar/NAR.js';
-import {Truth} from '../../../core/src/Truth.js';
+import {NAR, Truth} from '@senars/nar';
 
 describe('Gossip-Based Belief Sharing Integration', () => {
     let agentA, agentB;

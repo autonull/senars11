@@ -1,4 +1,4 @@
-import {validateWithSchema} from './ObjectUtils.js';
+import {validateWithSchema} from './object.js';
 
 export class ConfigurableComponent {
     constructor(defaultConfig = {}, validationSchema = null) {

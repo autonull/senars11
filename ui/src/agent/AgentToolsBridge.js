@@ -3,7 +3,7 @@
  * @description Bridge for agent tools in browser environment
  */
 
-import { NAR } from '@senars/core';
+import { NAR } from '@senars/nar';
 import { MeTTaInterpreter } from '@senars/metta';
 import { SeNARSBridge } from '@senars/metta-bridge';
 
@@ -118,7 +118,7 @@ export class AgentToolsBridge {
                 }
 
                 try {
-                    const content = args.content;
+                    const {content} = args;
                     if (!content) {
                         return { success: false, error: 'No content provided' };
                     }
@@ -150,7 +150,7 @@ export class AgentToolsBridge {
                 }
 
                 try {
-                    const content = args.content;
+                    const {content} = args;
                     if (!content) {
                         return { success: false, error: 'No content provided' };
                     }
@@ -182,7 +182,7 @@ export class AgentToolsBridge {
                 }
 
                 try {
-                    const content = args.content;
+                    const {content} = args;
                     if (!content) {
                         return { success: false, error: 'No content provided' };
                     }

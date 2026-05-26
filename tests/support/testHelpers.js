@@ -22,18 +22,19 @@ export const assertEventuallyTrue = async (predicate, {
 };
 
 export const getTermStrings = ({concepts = [], beliefs = [], questions = [], goals = []}) => [
-    ...concepts.map(c => c.term.toString()),
-    ...beliefs.map(b => b.term.toString()),
-    ...questions.map(q => q.term.toString()),
-    ...goals.map(g => g.term.toString())
+    ...concepts.map(c => c.term?.toString?.() ?? String(c)),
+    ...beliefs.map(b => b.term?.toString?.() ?? String(b)),
+    ...questions.map(q => q.term?.toString?.() ?? String(q)),
+    ...goals.map(g => g.term?.toString?.() ?? String(g))
 ];
 
-export const getTerms = (agent) => getTermStrings({
-    concepts: agent.getConcepts(),
-    beliefs: agent.getBeliefs(),
-    questions: agent.getQuestions(),
-    goals: agent.getGoals()
-});
+export const getTerms = (agent) => {
+    const beliefs = agent.getBeliefs?.() ?? [];
+    const concepts = agent.getConcepts?.() ?? agent.nar?.memory?.getConcepts?.() ?? [];
+    const questions = agent.getQuestions?.() ?? [];
+    const goals = agent.getGoals?.() ?? [];
+    return getTermStrings({concepts, beliefs, questions, goals});
+};
 
 export const hasTermMatch = (terms, ...patterns) =>
     terms.some(t => patterns.every(p => t.includes(p)));

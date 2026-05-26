@@ -15,7 +15,7 @@ export class DerivationTree extends Component {
     }
 
     initialize() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         this.fluent().clear().class('dt-wrapper');
 
@@ -76,8 +76,8 @@ export class DerivationTree extends Component {
     }
 
     addDerivation(data) {
-        if (!data) return;
-        if (!data.timestamp) data.timestamp = new Date().toLocaleTimeString();
+        if (!data) {return;}
+        if (!data.timestamp) {data.timestamp = new Date().toLocaleTimeString();}
 
         this.history.unshift(data);
         this.renderHistory();
@@ -85,7 +85,7 @@ export class DerivationTree extends Component {
     }
 
     renderHistory() {
-        if (!this.ui.historyList) return;
+        if (!this.ui.historyList) {return;}
         this.ui.historyList.clear();
 
         for (const item of this.history) {

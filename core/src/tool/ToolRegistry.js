@@ -157,8 +157,8 @@ export class ToolRegistry extends BaseComponent {
 
         const toolsToRegister = discoveredTools.filter(tool => {
             const toolId = this._generateToolId(tool.name, tool.class);
-            if (exclude?.includes(toolId)) return false;
-            if (include && !include.includes(toolId)) return false;
+            if (exclude?.includes(toolId)) {return false;}
+            if (include && !include.includes(toolId)) {return false;}
             return true;
         });
 
@@ -222,52 +222,24 @@ export class ToolRegistry extends BaseComponent {
         };
     }
 
-    /**
-     * Gets tools that match certain criteria
-     * @param {object} criteria - Selection criteria
-     * @param {string} [criteria.category] - Tool category
-     * @param {boolean} [criteria.supportsStreaming] - Whether to require streaming support
-     * @param {Array<string>} [criteria.requiredCapabilities] - Required capabilities
-     * @returns {Array<object>} - Matching tools
-     */
     findTools(criteria = {}) {
         const matching = [];
-
-        for (const [id, {class: ToolClass, metadata}] of this.discoveredTools.entries()) {
-            if (this._matchesCriteria(metadata, criteria)) {
-                matching.push({
-                    id,
-                    class: ToolClass,
-                    metadata
-                });
+        for (const [id, { class: ToolClass, metadata }] of this.discoveredTools.entries()) {
+            if (this.#matchesCriteria(metadata, criteria)) {
+                matching.push({ id, class: ToolClass, metadata });
             }
         }
-
         return matching;
     }
 
-    /**
-     * Check if metadata matches criteria
-     * @private
-     */
-    _matchesCriteria(metadata, criteria) {
-        if (criteria.category && metadata.category !== criteria.category) {
-            return false;
-        }
-
-        if (criteria.supportsStreaming !== undefined &&
-            metadata.supportsStreaming !== criteria.supportsStreaming) {
-            return false;
-        }
-
-        if (criteria.requiredCapabilities && Array.isArray(criteria.requiredCapabilities)) {
+    #matchesCriteria(metadata, criteria) {
+        if (criteria.category && metadata.category !== criteria.category) {return false;}
+        if (criteria.supportsStreaming !== undefined && metadata.supportsStreaming !== criteria.supportsStreaming) {return false;}
+        if (criteria.requiredCapabilities?.length) {
             for (const cap of criteria.requiredCapabilities) {
-                if (!metadata.capabilities || !metadata.capabilities.includes(cap)) {
-                    return false;
-                }
+                if (!metadata.capabilities?.includes(cap)) {return false;}
             }
         }
-
         return true;
     }
 
@@ -328,7 +300,7 @@ export class ToolRegistry extends BaseComponent {
         // For now, we'll implement a basic version that looks for known patterns
         const discoveryKey = `path_${path}_${Date.now()}`;
 
-        if (this.discoveredTools.has(discoveryKey)) return;
+        if (this.discoveredTools.has(discoveryKey)) {return;}
         this.discoveredTools.set(discoveryKey, {path, timestamp: Date.now()});
 
         // Clean old discovery records (keep for 5 minutes)

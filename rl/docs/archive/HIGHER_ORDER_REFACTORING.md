@@ -2,7 +2,8 @@
 
 ## Vision
 
-Achieve **breakthrough general-purpose self-improving systems** through functional abstraction, strategic composability, and unified experience accumulation for emergent general intelligence.
+Achieve **breakthrough general-purpose self-improving systems** through functional abstraction, strategic composability,
+and unified experience accumulation for emergent general intelligence.
 
 ## 🎯 Refactoring Principles (AGENTS.md)
 
@@ -28,18 +29,19 @@ Achieve **breakthrough general-purpose self-improving systems** through function
 
 **~350 lines of composable functional primitives**
 
-| Category | Functions |
-|----------|-----------|
-| **Composition** | `compose`, `pipe`, `curry`, `partial` |
-| **Memoization** | `memoize` with automatic caching |
-| **Lazy Evaluation** | `Lazy`, `Stream` for deferred computation |
-| **Monadic Types** | `Maybe` (null-safe), `Either` (error handling), `State`, `Reader` |
-| **Data Access** | `Lens` for immutable nested access |
-| **Transformers** | `transduce`, `transformer`, `liftA2`, `sequenceA`, `traverse` |
-| **Recursion Schemes** | `fold` (catamorphism), `unfold` (anamorphism) |
-| **Utilities** | `zip`, `groupBy`, `partition`, `clone`, `merge`, `setPath`, `getPath` |
+| Category              | Functions                                                             |
+|-----------------------|-----------------------------------------------------------------------|
+| **Composition**       | `compose`, `pipe`, `curry`, `partial`                                 |
+| **Memoization**       | `memoize` with automatic caching                                      |
+| **Lazy Evaluation**   | `Lazy`, `Stream` for deferred computation                             |
+| **Monadic Types**     | `Maybe` (null-safe), `Either` (error handling), `State`, `Reader`     |
+| **Data Access**       | `Lens` for immutable nested access                                    |
+| **Transformers**      | `transduce`, `transformer`, `liftA2`, `sequenceA`, `traverse`         |
+| **Recursion Schemes** | `fold` (catamorphism), `unfold` (anamorphism)                         |
+| **Utilities**         | `zip`, `groupBy`, `partition`, `clone`, `merge`, `setPath`, `getPath` |
 
 **Example Usage:**
+
 ```javascript
 import { compose, pipe, Maybe, Stream, Lens } from '@senars/rl';
 
@@ -72,16 +74,17 @@ const updated = userLens.modify(n => n.toUpperCase(), original);
 
 **~500 lines of interchangeable algorithm strategies**
 
-| Strategy Type | Implementations |
-|---------------|-----------------|
-| **Exploration** | `EpsilonGreedy`, `Softmax`, `UCB` |
-| **Learning Rate** | `ConstantLR`, `StepDecayLR`, `ExponentialDecayLR`, `CosineAnnealingLR` |
-| **Reward Shaping** | `PotentialBasedShaping`, `IntrinsicShaping` |
-| **Planning** | `RandomShooting`, `CEMPlanning` |
-| **Memory** | `UniformReplay`, `PrioritizedReplay` |
-| **Attention** | `DotProductAttention`, `MultiHeadAttention` |
+| Strategy Type      | Implementations                                                        |
+|--------------------|------------------------------------------------------------------------|
+| **Exploration**    | `EpsilonGreedy`, `Softmax`, `UCB`                                      |
+| **Learning Rate**  | `ConstantLR`, `StepDecayLR`, `ExponentialDecayLR`, `CosineAnnealingLR` |
+| **Reward Shaping** | `PotentialBasedShaping`, `IntrinsicShaping`                            |
+| **Planning**       | `RandomShooting`, `CEMPlanning`                                        |
+| **Memory**         | `UniformReplay`, `PrioritizedReplay`                                   |
+| **Attention**      | `DotProductAttention`, `MultiHeadAttention`                            |
 
 **Strategy Combinators:**
+
 ```javascript
 import { composeStrategies, withRetry, withCaching } from '@senars/rl';
 
@@ -96,6 +99,7 @@ const cached = withCaching(expensiveStrategy);
 ```
 
 **Strategy Registry:**
+
 ```javascript
 const registry = new StrategyRegistry();
 registry.register('exploration', new EpsilonGreedy({ epsilon: 0.1 }));
@@ -110,17 +114,18 @@ const result = registry.executeBest(...args);
 
 **~550 lines of experience accumulation and learning**
 
-| Component | Purpose |
-|-----------|---------|
-| `Experience` | Immutable experience record with metadata |
-| `ExperienceStream` | Lazy stream processing of experiences |
-| `Episode` | Sequence of experiences with statistics |
-| `ExperienceIndex` | Multi-dimensional indexing for efficient retrieval |
-| `ExperienceStore` | Centralized experience accumulation |
-| `SkillExtractor` | Automatic skill discovery from experience |
-| `ExperienceLearner` | Batch learning from accumulated experience |
+| Component           | Purpose                                            |
+|---------------------|----------------------------------------------------|
+| `Experience`        | Immutable experience record with metadata          |
+| `ExperienceStream`  | Lazy stream processing of experiences              |
+| `Episode`           | Sequence of experiences with statistics            |
+| `ExperienceIndex`   | Multi-dimensional indexing for efficient retrieval |
+| `ExperienceStore`   | Centralized experience accumulation                |
+| `SkillExtractor`    | Automatic skill discovery from experience          |
+| `ExperienceLearner` | Batch learning from accumulated experience         |
 
 **Experience Accumulation:**
+
 ```javascript
 import { ExperienceStore, SkillExtractor } from '@senars/rl';
 
@@ -153,17 +158,18 @@ const skills = extractor.extractSkills(store.getSuccessfulEpisodes());
 
 **~950 lines of composable cognitive modules**
 
-| Module | Function |
-|--------|----------|
-| `PerceptionModule` | Feature extraction, symbolic lifting, attention |
-| `ReasoningModule` | Belief revision, inference, causal analysis |
-| `PlanningModule` | Goal-directed planning with world models |
-| `ActionModule` | Action selection with exploration strategies |
-| `MemoryModule` | Experience storage and retrieval |
-| `SkillModule` | Skill execution and discovery |
+| Module                | Function                                        |
+|-----------------------|-------------------------------------------------|
+| `PerceptionModule`    | Feature extraction, symbolic lifting, attention |
+| `ReasoningModule`     | Belief revision, inference, causal analysis     |
+| `PlanningModule`      | Goal-directed planning with world models        |
+| `ActionModule`        | Action selection with exploration strategies    |
+| `MemoryModule`        | Experience storage and retrieval                |
+| `SkillModule`         | Skill execution and discovery                   |
 | `MetaCognitiveModule` | Self-monitoring, reflection, insight generation |
 
 **Cognitive Architecture Composition:**
+
 ```javascript
 import { CognitiveArchitecture, ArchitecturePresets } from '@senars/rl';
 
@@ -191,6 +197,7 @@ const moduleStates = arch.getModuleStates();
 ```
 
 **Module Interconnection:**
+
 ```javascript
 const arch = new CognitiveArchitecture();
 
@@ -228,6 +235,7 @@ import {
 ### Test Coverage
 
 **70+ new tests** in `tests/integration/higher_order.test.js`:
+
 - ✅ Functional utilities (compose, pipe, monads, streams, lens)
 - ✅ Strategy patterns (exploration, learning rate, planning, memory)
 - ✅ Experience system (experience, episode, store, stream)
@@ -309,17 +317,17 @@ console.log(result.results.meta.reflections);
 
 ## 📊 Architecture Comparison
 
-| Aspect | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| **Abstraction Level** | Object-oriented | Functional + OOP | Higher-order |
-| **Composability** | Manual wiring | Function composition | Declarative |
-| **Strategy Selection** | Hardcoded | Registry-based | Dynamic |
-| **Experience Handling** | Scattered | Unified store | Centralized |
-| **Null Safety** | Try-catch | Maybe monad | Type-safe |
-| **Error Handling** | Exceptions | Either monad | Functional |
-| **Lazy Evaluation** | None | Stream/Lazy | Efficient |
-| **State Management** | Mutable | Lens/State | Immutable |
-| **Cognitive Modules** | None | 7 modules | Emergent |
+| Aspect                  | Before          | After                | Improvement  |
+|-------------------------|-----------------|----------------------|--------------|
+| **Abstraction Level**   | Object-oriented | Functional + OOP     | Higher-order |
+| **Composability**       | Manual wiring   | Function composition | Declarative  |
+| **Strategy Selection**  | Hardcoded       | Registry-based       | Dynamic      |
+| **Experience Handling** | Scattered       | Unified store        | Centralized  |
+| **Null Safety**         | Try-catch       | Maybe monad          | Type-safe    |
+| **Error Handling**      | Exceptions      | Either monad         | Functional   |
+| **Lazy Evaluation**     | None            | Stream/Lazy          | Efficient    |
+| **State Management**    | Mutable         | Lens/State           | Immutable    |
+| **Cognitive Modules**   | None            | 7 modules            | Emergent     |
 
 ## 🎯 Path to General Intelligence
 
@@ -362,16 +370,16 @@ console.log(result.results.meta.reflections);
 
 ## 📈 Code Statistics
 
-| Metric | Count |
-|--------|-------|
-| **New Modules** | 4 |
-| **New Files** | 5 |
-| **Total New Code** | ~2,850 lines |
-| **Functional Primitives** | 30+ |
-| **Strategy Implementations** | 15+ |
-| **Cognitive Modules** | 7 |
-| **Test Cases** | 40+ |
-| **Test Coverage** | 100% |
+| Metric                       | Count        |
+|------------------------------|--------------|
+| **New Modules**              | 4            |
+| **New Files**                | 5            |
+| **Total New Code**           | ~2,850 lines |
+| **Functional Primitives**    | 30+          |
+| **Strategy Implementations** | 15+          |
+| **Cognitive Modules**        | 7            |
+| **Test Cases**               | 40+          |
+| **Test Coverage**            | 100%         |
 
 ## 🔮 Future Extensions
 
@@ -384,6 +392,7 @@ console.log(result.results.meta.reflections);
 ## ✅ Validation
 
 All components:
+
 - ✅ Follow AGENTS.md principles
 - ✅ Pass comprehensive tests
 - ✅ Documented with JSDoc
@@ -400,4 +409,5 @@ This refactoring establishes a **foundation for truly general intelligence** thr
 4. **Cognitive Integration**: Emergent intelligence from module composition
 5. **Functional Purity**: Predictable, testable, composable code
 
-The architecture is now positioned for **breakthrough neurosymbolic RL performance** capable of solving real-world problems and accumulating experience toward general intelligence.
+The architecture is now positioned for **breakthrough neurosymbolic RL performance** capable of solving real-world
+problems and accumulating experience toward general intelligence.

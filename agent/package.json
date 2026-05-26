@@ -3,15 +3,28 @@
   "version": "1.0.0",
   "type": "module",
   "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./io/index.js": "./src/io/index.js",
+    "./cognitive/index.js": "./src/cognitive/index.js",
+    "./config/capabilities.js": "./src/config/capabilities.js",
+    "./memory/index.js": "./src/memory/index.js",
+    "./actions/*.js": "./src/actions/*.js",
+    "./memory/*.js": "./src/memory/*.js",
+    "./introspection/*.js": "./src/introspection/*.js",
+    "./ai/*.js": "./src/ai/*.js",
+    "./io/*.js": "./src/io/*.js",
+    "./cognitive/*.js": "./src/cognitive/*.js",
+    "./src/*.js": "./src/*.js",
+    "./metta/*.js": "./src/metta/*.js"
+  },
   "bin": {
-    "senars-agent": "./src/bin/cli.js",
-    "senars-chat": "./examples/chatbot/run.js",
-    "senars": "../../scripts/cli/senars.js"
+    "senars-agent": "./src/bin/cli.js"
   },
   "scripts": {
     "repl": "node src/bin/cli.js",
-    "chat-bot": "node examples/chatbot/run.js",
-    "demo:mcp": "node ../examples/mcp-demo.js"
+    "chat:cli": "node src/bin/chat-cli.js",
+    "demo:mcp": "node ../examples/advanced/mcp-demo.js"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.72",
@@ -22,7 +35,10 @@
     "@langchain/openai": "^1.4.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@senars/core": "workspace:*",
+    "@senars/metta": "workspace:*",
+    "@senars/nar": "workspace:*",
     "ai": "^5.0.163",
+    "dotenv": "^16.4.7",
     "hnswlib-node": "^3.0.0",
     "ink": "^6.8.0",
     "ink-big-text": "^2.0.0",

@@ -2,7 +2,7 @@
  * IntrospectionOps.js - Introspection operations
  */
 
-import { sym } from '../../kernel/Term.js';
+import {sym} from '../Term.js';
 
 export function registerIntrospectionOps(registry) {
     const sti = new Map();

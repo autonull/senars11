@@ -1,4 +1,4 @@
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {mergeConfig} from '../utils/index.js';
 
 const SKILL_MANAGER_DEFAULTS = {
     maxSkills: 1000,
@@ -10,6 +10,10 @@ export class SkillManager {
     constructor(config = {}) {
         this.config = mergeConfig(SKILL_MANAGER_DEFAULTS, config);
         this.skills = new Map();
+    }
+
+    get stats() {
+        return {totalSkills: this.skills.size};
     }
 
     register(name, skill) {
@@ -39,10 +43,6 @@ export class SkillManager {
 
     clear() {
         this.skills.clear();
-    }
-
-    get stats() {
-        return { totalSkills: this.skills.size };
     }
 
     _pruneLowPerforming() {

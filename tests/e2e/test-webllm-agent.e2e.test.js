@@ -3,13 +3,13 @@
  * @description E2E tests for WebLLM Agent integration with tools in browser
  */
 
-import { expect, test } from '@playwright/test';
+import {expect, test} from '@playwright/test';
 
 test.describe('WebLLM Agent Tools Integration', () => {
     // Increase timeout for model download (first run can take 5+ minutes for ~1GB model)
     test.setTimeout(300000); // 5 minutes
 
-    test('should load WebLLM model and display tools in browser', async ({ page }) => {
+    test('should load WebLLM model and display tools in browser', async ({page}) => {
         // Navigate to agent REPL
         await page.goto('http://localhost:8080/ui/agent.html');
 
@@ -17,7 +17,7 @@ test.describe('WebLLM Agent Tools Integration', () => {
         await expect(page).toHaveTitle(/SeNARS Agent REPL/);
 
         // Check welcome message appears
-        await expect(page.locator('text=Welcome to SeNARS Agent REPL')).toBeVisible({ timeout: 5000 });
+        await expect(page.locator('text=Welcome to SeNARS Agent REPL')).toBeVisible({timeout: 5000});
 
         // Monitor console for model loading events
         const consoleMessages = [];
@@ -27,20 +27,20 @@ test.describe('WebLLM Agent Tools Integration', () => {
 
         // Wait for model loading to start (look for loading indicator)
         const loadingText = page.locator('.loading-text');
-        await expect(loadingText).toBeVisible({ timeout: 10000 });
+        await expect(loadingText).toBeVisible({timeout: 10000});
 
         // Wait for model to load completely (this may take a while)
         // Look for the success message in the notebook
         const successMessage = page.locator('text=WebLLM model loaded');
-        await expect(successMessage).toBeVisible({ timeout: 240000 }); // 4 minutes for download + load
+        await expect(successMessage).toBeVisible({timeout: 240000}); // 4 minutes for download + load
 
         // Check that loading overlay is hidden
         const loadingOverlay = page.locator('#loading-overlay');
-        await expect(loadingOverlay).toHaveClass(/hidden/, { timeout: 10000 });
+        await expect(loadingOverlay).toHaveClass(/hidden/, {timeout: 10000});
 
         // Verify tools are available - check for the tool count message
         const toolsMessage = page.locator('text=/Ready for interaction.*Available tools/');
-        await expect(toolsMessage).toBeVisible({ timeout: 5000 });
+        await expect(toolsMessage).toBeVisible({timeout: 5000});
 
         // Extract tool count from the message
         const toolsText = await toolsMessage.textContent();
@@ -54,18 +54,18 @@ test.describe('WebLLM Agent Tools Integration', () => {
         console.log(`✅ WebLLM loaded successfully with ${toolCount} tools available`);
     });
 
-    test('should receive LM response to basic query', async ({ page }) => {
+    test('should receive LM response to basic query', async ({page}) => {
         // Navigate and wait for initialization
         await page.goto('http://localhost:8080/ui/agent.html');
 
         // Wait for model to be ready
-        await expect(page.locator('text=WebLLM model loaded')).toBeVisible({ timeout: 240000 });
+        await expect(page.locator('text=WebLLM model loaded')).toBeVisible({timeout: 240000});
         await expect(page.locator('#loading-overlay')).toHaveClass(/hidden/);
 
         // Find the input area (likely a textarea or input in the notebook)
         // Based on NotebookPanel, there should be an input cell
         const input = page.locator('textarea, input[type="text"]').last();
-        await expect(input).toBeVisible({ timeout: 5000 });
+        await expect(input).toBeVisible({timeout: 5000});
 
         // Type a simple question
         await input.fill('Hello, what is 2+2?');
@@ -85,12 +85,12 @@ test.describe('WebLLM Agent Tools Integration', () => {
         console.log('✅ LM responded to basic query');
     });
 
-    test('should demonstrate tool awareness when asked about tools', async ({ page }) => {
+    test('should demonstrate tool awareness when asked about tools', async ({page}) => {
         // Navigate and wait for initialization
         await page.goto('http://localhost:8080/ui/agent.html');
 
         // Wait for model to be ready
-        await expect(page.locator('text=WebLLM model loaded')).toBeVisible({ timeout: 240000 });
+        await expect(page.locator('text=WebLLM model loaded')).toBeVisible({timeout: 240000});
         await expect(page.locator('#loading-overlay')).toHaveClass(/hidden/);
 
         // Capture initial notebook state
@@ -98,7 +98,7 @@ test.describe('WebLLM Agent Tools Integration', () => {
 
         // Ask about available tools
         const input = page.locator('textarea, input[type="text"]').last();
-        await expect(input).toBeVisible({ timeout: 5000 });
+        await expect(input).toBeVisible({timeout: 5000});
 
         await input.fill('What tools do you have available?');
         await input.press('Enter');
@@ -132,17 +132,17 @@ test.describe('WebLLM Agent Tools Integration', () => {
         console.log(`✅ LM demonstrated tool awareness (mentioned ${toolMentions} tool-related concepts)`);
     });
 
-    test('should provide coherent response about NAR system capabilities', async ({ page }) => {
+    test('should provide coherent response about NAR system capabilities', async ({page}) => {
         // Navigate and wait for initialization
         await page.goto('http://localhost:8080/ui/agent.html');
 
         // Wait for model to be ready
-        await expect(page.locator('text=WebLLM model loaded')).toBeVisible({ timeout: 240000 });
+        await expect(page.locator('text=WebLLM model loaded')).toBeVisible({timeout: 240000});
         await expect(page.locator('#loading-overlay')).toHaveClass(/hidden/);
 
         // Ask about the system
         const input = page.locator('textarea, input[type="text"]').last();
-        await expect(input).toBeVisible({ timeout: 5000 });
+        await expect(input).toBeVisible({timeout: 5000});
 
         await input.fill('What can you tell me about the SeNARS system?');
         await input.press('Enter');
@@ -170,7 +170,7 @@ test.describe('WebLLM Agent Tools Integration', () => {
         console.log('✅ LM provided coherent response about system capabilities');
     });
 
-    test('should work completely offline (no external API calls)', async ({ page, context }) => {
+    test('should work completely offline (no external API calls)', async ({page, context}) => {
         // Block all external network requests except localhost
         await context.route('**/*', (route) => {
             const url = route.request().url();
@@ -197,7 +197,7 @@ test.describe('WebLLM Agent Tools Integration', () => {
 
         // Try to wait for model load (may fail if not cached)
         try {
-            await expect(page.locator('text=WebLLM model loaded')).toBeVisible({ timeout: 60000 });
+            await expect(page.locator('text=WebLLM model loaded')).toBeVisible({timeout: 60000});
 
             // If we got here, model is cached and working offline
             console.log('✅ System works completely offline (model is cached)');

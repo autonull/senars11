@@ -17,7 +17,9 @@ export class ModelFactory {
                 ...cfg.ollamaOptions
             }),
             'openai': (cfg) => {
-                if (!cfg.apiKey) throw new Error('API key is required for OpenAI provider');
+                if (!cfg.apiKey) {
+                    throw new Error('API key is required for OpenAI provider');
+                }
                 return new ChatOpenAI({
                     modelName: cfg.modelName,
                     openAIApiKey: cfg.apiKey,

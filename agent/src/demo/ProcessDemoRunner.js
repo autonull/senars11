@@ -42,13 +42,17 @@ export class ProcessDemoRunner {
         });
 
         this.process.on('close', (code) => {
-            if (onExit) onExit(code);
+            if (onExit) {
+                onExit(code);
+            }
             this.process = null;
         });
 
         this.process.on('error', (err) => {
             onOutput(`Failed to start process: ${err.message}`, 'error');
-            if (onExit) onExit(1);
+            if (onExit) {
+                onExit(1);
+            }
             this.process = null;
         });
 
@@ -65,7 +69,7 @@ export class ProcessDemoRunner {
 
     input(text) {
         if (this.process && this.process.stdin) {
-            this.process.stdin.write(text + '\n');
+            this.process.stdin.write(`${text}\n`);
         }
     }
 }

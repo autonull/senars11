@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { EmbodimentBus } from '../../src/io/EmbodimentBus.js';
+import { EmbodimentBus } from '@senars/agent/io/index.js';
 import { Embodiment } from '../../src/io/Embodiment.js';
 
 // Mock embodiment for testing
@@ -56,11 +56,11 @@ describe('EmbodimentBus', () => {
             expect(bus.getAll().length).toBe(1);
         });
 
-        it('should throw error on duplicate registration', () => {
+        it('should throw error on duplicate registration', async () => {
             const embodiment = new MockEmbodiment({ id: 'mock1' });
-            bus.register(embodiment);
-            
-            expect(() => bus.register(embodiment)).toThrow('already registered');
+            await bus.register(embodiment);
+
+            await expect(bus.register(embodiment)).rejects.toThrow('already registered');
         });
 
         it('should unregister an embodiment', async () => {
@@ -167,8 +167,8 @@ describe('EmbodimentBus', () => {
             const embodiment = new MockEmbodiment({ id: 'emb1', defaultSalience: 0.3 });
             bus.register(embodiment);
             
-            embodiment.emitMessage({ from: 'user', content: 'Public', metadata: { isPrivate: false } });
-            embodiment.emitMessage({ from: 'user', content: 'Private', metadata: { isPrivate: true } });
+            embodiment.emitMessage({ from: 'user', content: 'Public', isPrivate: false });
+            embodiment.emitMessage({ from: 'user', content: 'Private', isPrivate: true });
             
             const messages = bus.peekMessages(2, 'salience');
             
@@ -227,28 +227,26 @@ describe('EmbodimentBus', () => {
             const emb1 = new MockEmbodiment({ id: 'emb1' });
             const emb2 = new MockEmbodiment({ id: 'emb2' });
             
-            bus.register(emb1);
-            bus.register(emb2);
-            
-            await emb1.connect();
-            // emb2 not connected
-            
+            await bus.register(emb1);
+            await bus.register(emb2);
+
+            // Both embodiments are now connected via register()
             const results = await bus.broadcast('target', 'Broadcast');
-            
+
             expect(results.emb1.success).toBe(true);
-            expect(results.emb2.success).toBe(false);
+            expect(results.emb2.success).toBe(true);
         });
     });
 
     describe('Stats and Introspection', () => {
-        it('should return bus stats', () => {
+        it('should return bus stats', async () => {
             const embodiment = new MockEmbodiment({ id: 'emb1' });
-            bus.register(embodiment);
-            
+            await bus.register(embodiment);
+
             const stats = bus.getStats();
-            
+
             expect(stats.totalEmbodiments).toBe(1);
-            expect(stats.connectedEmbodiments).toBe(0);
+            expect(stats.connectedEmbodiments).toBe(1);
             expect(stats.embodiments.emb1).toBeDefined();
         });
 

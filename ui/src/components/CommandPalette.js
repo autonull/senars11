@@ -1,4 +1,4 @@
-import { FluentUI, div, span, input } from '../utils/FluentUI.js';
+import { div, span, input } from '../utils/FluentUI.js';
 
 export class CommandPalette {
     constructor() {

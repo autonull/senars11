@@ -9,6 +9,39 @@ export class ExecutionTracker {
         this._totalTime = 0;
     }
 
+    get stats() {
+        const {calls, successes, failures} = this;
+        return {
+            calls,
+            successes,
+            failures,
+            avgTime: calls > 0 ? this._totalTime / calls : 0,
+            get successRate() {
+                return calls > 0 ? successes / calls : 0;
+            }
+        };
+    }
+
+    get calls() {
+        return this._calls;
+    }
+
+    get successes() {
+        return this._successes;
+    }
+
+    get failures() {
+        return this._failures;
+    }
+
+    get successRate() {
+        return this._calls > 0 ? this._successes / this._calls : 0;
+    }
+
+    get avgTime() {
+        return this._calls > 0 ? this._totalTime / this._calls : 0;
+    }
+
     record(success, durationMs = 0) {
         this._calls++;
         this._successes += success ? 1 : 0;
@@ -22,29 +55,6 @@ export class ExecutionTracker {
 
     recordFailure(durationMs = 0) {
         this.record(false, durationMs);
-    }
-
-    get stats() {
-        const {calls, successes, failures} = this;
-        return {
-            calls,
-            successes,
-            failures,
-            avgTime: calls > 0 ? this._totalTime / calls : 0,
-            get successRate() { return calls > 0 ? successes / calls : 0; }
-        };
-    }
-
-    get calls() { return this._calls; }
-    get successes() { return this._successes; }
-    get failures() { return this._failures; }
-
-    get successRate() {
-        return this._calls > 0 ? this._successes / this._calls : 0;
-    }
-
-    get avgTime() {
-        return this._calls > 0 ? this._totalTime / this._calls : 0;
     }
 
     reset() {
@@ -64,16 +74,18 @@ export class LMExecutionTracker extends ExecutionTracker {
         this._tokens = 0;
     }
 
-    record(success, durationMs = 0, tokens = 0) {
-        super.record(success, durationMs);
-        this._tokens += tokens;
-    }
-
     get stats() {
         return {...super.stats, tokens: this._tokens};
     }
 
-    get tokens() { return this._tokens; }
+    get tokens() {
+        return this._tokens;
+    }
+
+    record(success, durationMs = 0, tokens = 0) {
+        super.record(success, durationMs);
+        this._tokens += tokens;
+    }
 
     reset() {
         super.reset();

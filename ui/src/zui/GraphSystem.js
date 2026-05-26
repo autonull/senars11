@@ -23,7 +23,7 @@ export class GraphSystem {
      * @returns {boolean} Success status
      */
     initialize(options = {}) {
-        if (this.initialized) return true;
+        if (this.initialized) {return true;}
 
         const container = typeof this.container === 'string'
             ? document.getElementById(this.container)
@@ -66,7 +66,7 @@ export class GraphSystem {
      * @param {Function} callback Callback function
      */
     on(event, callback) {
-        if (!this.listeners[event]) this.listeners[event] = [];
+        if (!this.listeners[event]) {this.listeners[event] = [];}
         this.listeners[event].push(callback);
     }
 
@@ -76,7 +76,7 @@ export class GraphSystem {
      * @param {Function} callback Callback function
      */
     off(event, callback) {
-        if (!this.listeners[event]) return;
+        if (!this.listeners[event]) {return;}
         this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
     }
 
@@ -92,7 +92,7 @@ export class GraphSystem {
     }
 
     _setupEvents() {
-        if (!this.cy) return;
+        if (!this.cy) {return;}
 
         // Viewport events
         this.cy.on('zoom pan', () => {
@@ -145,7 +145,7 @@ export class GraphSystem {
 
     _setupResizeObserver(container) {
         this.resizeObserver = new ResizeObserver((entries) => {
-            for (let entry of entries) {
+            for (const entry of entries) {
                 if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
                     this.resize();
                 }
@@ -179,7 +179,7 @@ export class GraphSystem {
     // --- Viewport Control ---
 
     fit(eles, padding = 50) {
-        if (!this.cy) return;
+        if (!this.cy) {return;}
         if (eles) {
             this.cy.animate({ fit: { eles: eles, padding: padding }, duration: 300 });
         } else {
@@ -188,12 +188,12 @@ export class GraphSystem {
     }
 
     zoomIn(amount = 1.2) {
-        if (!this.cy) return;
+        if (!this.cy) {return;}
         this.cy.animate({ zoom: this.cy.zoom() * amount, duration: 200 });
     }
 
     zoomOut(amount = 1.2) {
-        if (!this.cy) return;
+        if (!this.cy) {return;}
         this.cy.animate({ zoom: this.cy.zoom() / amount, duration: 200 });
     }
 

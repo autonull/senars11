@@ -1,11 +1,11 @@
 /**
  * MCPClient.js - Model Context Protocol Client
- * 
+ *
  * Provides tool integration for the cognitive architecture.
  * Connects to MCP servers for extended capabilities.
  */
-import { Logger } from '@senars/core';
-import { EventEmitter } from 'events';
+import {Logger} from '@senars/core';
+import {EventEmitter} from 'events';
 
 export class MCPClient extends EventEmitter {
     constructor(config = {}) {
@@ -15,11 +15,11 @@ export class MCPClient extends EventEmitter {
             autoConnect: config.autoConnect ?? true,
             timeout: config.timeout ?? 5000
         };
-        
+
         this.connections = new Map();
         this.availableTools = new Map();
         this.connected = false;
-        
+
         Logger.info('[MCPClient] Initialized');
     }
 
@@ -34,7 +34,7 @@ export class MCPClient extends EventEmitter {
                 Logger.error(`[MCPClient] Failed to connect to ${serverConfig.name}:`, error);
             }
         }
-        
+
         this.connected = this.connections.size > 0;
         Logger.info(`[MCPClient] Connected to ${this.connections.size} server(s)`);
     }
@@ -46,14 +46,14 @@ export class MCPClient extends EventEmitter {
         // For now, register built-in tools
         // In production, this would use actual MCP protocol
         this._registerBuiltInTools(config.name);
-        
+
         this.connections.set(config.name, {
             name: config.name,
             status: 'connected',
             tools: this._getToolsForServer(config.name)
         });
-        
-        this.emit('connected', { server: config.name });
+
+        this.emit('connected', {server: config.name});
     }
 
     /**
@@ -66,41 +66,41 @@ export class MCPClient extends EventEmitter {
             description: 'Search the web for information',
             server: serverName,
             schema: {
-                query: { type: 'string', required: true }
+                query: {type: 'string', required: true}
             },
             handler: async (args) => await this._webSearch(args.query)
         });
-        
+
         // File operations
         this.availableTools.set('read_file', {
             name: 'read_file',
             description: 'Read contents of a file',
             server: serverName,
             schema: {
-                path: { type: 'string', required: true }
+                path: {type: 'string', required: true}
             },
             handler: async (args) => await this._readFile(args.path)
         });
-        
+
         // Calculator
         this.availableTools.set('calculate', {
             name: 'calculate',
             description: 'Perform mathematical calculations',
             server: serverName,
             schema: {
-                expression: { type: 'string', required: true }
+                expression: {type: 'string', required: true}
             },
             handler: async (args) => this._calculate(args.expression)
         });
-        
+
         // Memory operations
         this.availableTools.set('remember', {
             name: 'remember',
             description: 'Store information in long-term memory',
             server: serverName,
             schema: {
-                fact: { type: 'string', required: true },
-                category: { type: 'string', required: false }
+                fact: {type: 'string', required: true},
+                category: {type: 'string', required: false}
             },
             handler: async (args) => this._remember(args.fact, args.category)
         });
@@ -124,22 +124,22 @@ export class MCPClient extends EventEmitter {
      */
     async callTool(toolName, args = {}) {
         const tool = this.availableTools.get(toolName);
-        
+
         if (!tool) {
             throw new Error(`Unknown tool: ${toolName}`);
         }
-        
+
         try {
             Logger.info(`[MCPClient] Calling tool: ${toolName}`, args);
             const result = await tool.handler(args);
-            
+
             this.emit('tool_call', {
                 tool: toolName,
                 args,
                 result,
                 timestamp: Date.now()
             });
-            
+
             return result;
         } catch (error) {
             Logger.error(`[MCPClient] Tool ${toolName} failed:`, error);
@@ -165,7 +165,7 @@ export class MCPClient extends EventEmitter {
      */
     async _webSearch(query) {
         Logger.info('[MCPClient] Web search:', query);
-        
+
         // In production, integrate with actual search API
         return {
             results: [
@@ -187,9 +187,9 @@ export class MCPClient extends EventEmitter {
         try {
             const fs = await import('fs/promises');
             const content = await fs.readFile(path, 'utf-8');
-            return { content, path };
+            return {content, path};
         } catch (error) {
-            return { error: error.message, path };
+            return {error: error.message, path};
         }
     }
 
@@ -200,10 +200,10 @@ export class MCPClient extends EventEmitter {
         try {
             // Safe evaluation of math expressions
             const sanitized = expression.replace(/[^0-9+\-*/().\s]/g, '');
-            const result = Function('"use strict"; return (' + sanitized + ')')();
-            return { expression, result };
+            const result = Function(`"use strict"; return (${sanitized})`)();
+            return {expression, result};
         } catch (error) {
-            return { error: 'Invalid expression', expression };
+            return {error: 'Invalid expression', expression};
         }
     }
 
@@ -211,8 +211,8 @@ export class MCPClient extends EventEmitter {
      * Remember fact (emits event for cognitive architecture to handle)
      */
     _remember(fact, category = 'general') {
-        this.emit('remember', { fact, category, timestamp: Date.now() });
-        return { success: true, fact, category };
+        this.emit('remember', {fact, category, timestamp: Date.now()});
+        return {success: true, fact, category};
     }
 
     /**
@@ -221,7 +221,7 @@ export class MCPClient extends EventEmitter {
     async disconnect() {
         for (const [name, connection] of this.connections.entries()) {
             connection.status = 'disconnected';
-            this.emit('disconnected', { server: name });
+            this.emit('disconnected', {server: name});
         }
         this.connections.clear();
         this.connected = false;

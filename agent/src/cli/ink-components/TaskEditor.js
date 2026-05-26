@@ -8,7 +8,9 @@ export const TaskEditor = ({tasks = [], onSelect, selectedTaskId, onTaskOperatio
 
     // Group tasks if grouping mode is specified
     const groupedTasks = React.useMemo(() => {
-        if (!groupingMode) return tasks;
+        if (!groupingMode) {
+            return tasks;
+        }
 
         const groups = {};
 
@@ -24,10 +26,15 @@ export const TaskEditor = ({tasks = [], onSelect, selectedTaskId, onTaskOperatio
                     groupKey = `Date: ${new Date(task.timestamp).toDateString()}`;
                     break;
                 case 'status':
-                    if (task.error) groupKey = 'Status: Error';
-                    else if (task.processed) groupKey = 'Status: Processed';
-                    else if (task.pending) groupKey = 'Status: Pending';
-                    else groupKey = 'Status: Unknown';
+                    if (task.error) {
+                        groupKey = 'Status: Error';
+                    } else if (task.processed) {
+                        groupKey = 'Status: Processed';
+                    } else if (task.pending) {
+                        groupKey = 'Status: Pending';
+                    } else {
+                        groupKey = 'Status: Unknown';
+                    }
                     break;
                 default:
                     groupKey = 'All Tasks';
@@ -45,11 +52,17 @@ export const TaskEditor = ({tasks = [], onSelect, selectedTaskId, onTaskOperatio
     // Format task for display with color coding
     const formatTask = (task, index) => {
         let priorityColor = 'white';
-        if (task.priority >= 0.9) priorityColor = 'red';
-        else if (task.priority >= 0.7) priorityColor = 'lightRed';
-        else if (task.priority >= 0.5) priorityColor = 'yellow';
-        else if (task.priority >= 0.3) priorityColor = 'lightYellow';
-        else priorityColor = 'green';
+        if (task.priority >= 0.9) {
+            priorityColor = 'red';
+        } else if (task.priority >= 0.7) {
+            priorityColor = 'lightRed';
+        } else if (task.priority >= 0.5) {
+            priorityColor = 'yellow';
+        } else if (task.priority >= 0.3) {
+            priorityColor = 'lightYellow';
+        } else {
+            priorityColor = 'green';
+        }
 
         let statusIndicator = '🔹';
         let statusColor = 'blue';

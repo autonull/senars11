@@ -2,9 +2,9 @@
  * ImaginationExtension.js - MeTTa Extension for an Internal Mind's Eye / Imagination Canvas
  * Provides a high-level API to draw images and record key-framed video (GIF) sequences.
  */
-import { Term, sym, isGrounded, grounded } from '../kernel/Term.js';
-import { Logger } from '../../../core/src/util/Logger.js';
-import { createCanvas, loadImage } from '@napi-rs/canvas';
+import {grounded, isGrounded, sym} from '../kernel/Term.js';
+import {Logger} from '@senars/core';
+import {createCanvas} from '@napi-rs/canvas';
 import GIFEncoder from 'gifencoder';
 import fs from 'fs';
 
@@ -27,14 +27,20 @@ export class ImaginationExtension {
     }
 
     _unwrapVal(atom) {
-        if (!atom) return null;
-        if (isGrounded(atom)) return atom.value;
+        if (!atom) {
+            return null;
+        }
+        if (isGrounded(atom)) {
+            return atom.value;
+        }
         if (atom.type === 'atom') {
             const num = Number(atom.name);
-            if (!isNaN(num)) return num;
+            if (!isNaN(num)) {
+                return num;
+            }
 
             // Strip quotes
-            let name = atom.name;
+            const {name} = atom;
             if (typeof name === 'string' && name.startsWith('"') && name.endsWith('"')) {
                 return name.slice(1, -1);
             }
@@ -54,7 +60,9 @@ export class ImaginationExtension {
 
     _canvasToBuffer(canvasAtom) {
         const canvas = this._unwrapVal(canvasAtom);
-        if (!canvas || typeof canvas.toBuffer !== 'function') return sym('False');
+        if (!canvas || typeof canvas.toBuffer !== 'function') {
+            return sym('False');
+        }
 
         // Returns the node buffer
         return grounded(canvas.toBuffer('image/png'));
@@ -66,7 +74,7 @@ export class ImaginationExtension {
         const encoder = new GIFEncoder(width, height);
 
         // To work smoothly with JS reflection streams and pipes, it's easier to expose a unified start method
-        encoder._startRecording = function(filename, delay = 500, repeat = 0) {
+        encoder._startRecording = function (filename, delay = 500, repeat = 0) {
             const stream = fs.createWriteStream(filename);
             this.createReadStream().pipe(stream);
             this.start();
@@ -78,7 +86,7 @@ export class ImaginationExtension {
         };
 
         const originalFinish = encoder.finish.bind(encoder);
-        encoder.finish = function() {
+        encoder.finish = function () {
             originalFinish();
             // Let the pipeline automatically end the stream instead of ending it manually.
             return sym('True');
@@ -88,10 +96,10 @@ export class ImaginationExtension {
         const canvasMap = new WeakMap();
 
         const originalAddFrame = encoder.addFrame.bind(encoder);
-        encoder._addFrame = function(ctx) {
+        encoder._addFrame = function (ctx) {
             let actualCtx = ctx;
             if (ctx && typeof ctx === 'object' && 'value' in ctx) {
-                 actualCtx = ctx.value;
+                actualCtx = ctx.value;
             }
             try {
                 originalAddFrame(actualCtx);
@@ -108,7 +116,9 @@ export class ImaginationExtension {
     _fsWriteSync(filenameAtom, bufferAtom) {
         const filename = this._unwrapVal(filenameAtom);
         const buffer = this._unwrapVal(bufferAtom);
-        if (!filename || !buffer) return sym('False');
+        if (!filename || !buffer) {
+            return sym('False');
+        }
 
         fs.writeFileSync(filename, buffer);
         Logger.info(`[Imagination] Wrote file to ${filename}`);
@@ -117,7 +127,9 @@ export class ImaginationExtension {
 
     _fsCreateWriteStream(filenameAtom) {
         const filename = this._unwrapVal(filenameAtom);
-        if (!filename) return sym('False');
+        if (!filename) {
+            return sym('False');
+        }
 
         const stream = fs.createWriteStream(filename);
         return grounded(stream);

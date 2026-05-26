@@ -1,7 +1,7 @@
-import { step, reduce, isGroundedCall } from '@senars/metta/src/kernel/Reduce.js';
-import { Space } from '@senars/metta/src/kernel/Space.js';
-import { Ground } from '@senars/metta/src/kernel/Ground.js';
-import { Term } from '@senars/metta/src/kernel/Term.js';
+import {isGroundedCall, reduce, step} from '@senars/metta/src/kernel/Reduce.js';
+import {Space} from '@senars/metta/src/kernel/Space.js';
+import {Ground} from '@senars/metta/src/kernel/Ground.js';
+import {Term} from '@senars/metta/src/kernel/Term.js';
 
 describe('Kernel Reduce', () => {
     let space, ground;
@@ -20,7 +20,7 @@ describe('Kernel Reduce', () => {
             space.addRule(pattern, result);
 
             const query = Term.exp('double', [Term.sym('5')]);
-            const { reduced, applied } = step(query, space, ground);
+            const {reduced, applied} = step(query, space, ground);
 
             expect(applied).toBe(true);
             expect(reduced.operator.name).toBe('*');
@@ -30,7 +30,7 @@ describe('Kernel Reduce', () => {
 
         test('returns unchanged if no rule matches', () => {
             const query = Term.exp('unknown', [Term.sym('x')]);
-            const { reduced, applied } = step(query, space, ground);
+            const {reduced, applied} = step(query, space, ground);
 
             expect(applied).toBe(false);
             expect(reduced).toBe(query);
@@ -42,7 +42,7 @@ describe('Kernel Reduce', () => {
             space.addRule(pattern, resultFn);
 
             const query = Term.exp('compute', [Term.sym('10')]);
-            const { reduced, applied } = step(query, space, ground);
+            const {reduced, applied} = step(query, space, ground);
 
             expect(applied).toBe(true);
             expect(reduced.operator.name).toBe('+');
@@ -56,7 +56,7 @@ describe('Kernel Reduce', () => {
             space.addRule(Term.exp('h', [Term.var('x')]), Term.sym('h-result'));
 
             const query = Term.exp('g', [Term.sym('test')]);
-            const { reduced, applied } = step(query, space, ground);
+            const {reduced, applied} = step(query, space, ground);
 
             expect(applied).toBe(true);
             expect(reduced.name).toBe('g-result');
@@ -66,7 +66,7 @@ describe('Kernel Reduce', () => {
     describe('step - Grounded operations', () => {
         test('executes grounded operation', () => {
             const query = Term.exp('^', [Term.sym('&+'), Term.sym('2'), Term.sym('3')]);
-            const { reduced, applied } = step(query, space, ground);
+            const {reduced, applied} = step(query, space, ground);
 
             expect(applied).toBe(true);
             expect(reduced.name).toBe('5');
@@ -74,7 +74,7 @@ describe('Kernel Reduce', () => {
 
         test('handles grounded operation errors gracefully', () => {
             const query = Term.exp('^', [Term.sym('&unknown'), Term.sym('x')]);
-            const { reduced, applied } = step(query, space, ground);
+            const {reduced, applied} = step(query, space, ground);
 
             expect(applied).toBe(false);
             expect(reduced).toBe(query);

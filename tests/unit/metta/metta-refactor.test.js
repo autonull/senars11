@@ -3,12 +3,9 @@
  * Testing the changes made during the cleanup and refactoring process
  */
 
-import { MeTTaInterpreter } from '../../../metta/src/MeTTaInterpreter.js';
-import { TypeSystem, TypeChecker } from '../../../metta/src/TypeSystem.js';
-import { Term } from '../../../metta/src/kernel/Term.js';
-import { Space } from '../../../metta/src/kernel/Space.js';
-import { Ground } from '../../../metta/src/kernel/Ground.js';
-import { Parser } from '../../../metta/src/Parser.js';
+import {Ground, MeTTaInterpreter, Space, Term} from '../../../metta/src/index.js';
+import {TypeSystem} from '../../../metta/src/TypeSystem.js';
+import {Parser} from '../../../metta/src/Parser.js';
 
 describe('MeTTa Refactored Components', () => {
     describe('MeTTaInterpreter', () => {
@@ -184,8 +181,8 @@ describe('MeTTa Refactored Components', () => {
         });
 
         test('should determine if operations are lazy', () => {
-            ground.register('lazy-op', () => Term.sym('result'), { lazy: true });
-            ground.register('eager-op', () => Term.sym('result'), { lazy: false });
+            ground.register('lazy-op', () => Term.sym('result'), {lazy: true});
+            ground.register('eager-op', () => Term.sym('result'), {lazy: false});
 
             expect(ground.isLazy('lazy-op')).toBe(true);
             expect(ground.isLazy('eager-op')).toBe(false);

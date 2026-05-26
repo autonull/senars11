@@ -1,9 +1,9 @@
 /**
  * Environment Interface - Contract for all RL environments
- * 
+ *
  * All environment implementations must implement this interface.
  * Use JSDoc @implements tag to indicate implementation.
- * 
+ *
  * @interface IEnvironment
  * @extends {import('../composable/Component.js').Component}
  */
@@ -108,13 +108,13 @@ export const IEnvironment = {
  * @typedef {Object} DiscreteSpace
  * @property {'Discrete'} type
  * @property {number} n - Number of discrete values
- * 
+ *
  * @typedef {Object} BoxSpace
  * @property {'Box'} type
  * @property {number[]} shape - Shape of the space
  * @property {number|number[]} low - Lower bound(s)
  * @property {number|number[]} high - Upper bound(s)
- * 
+ *
  * @typedef {DiscreteSpace|BoxSpace} Space
  */
 

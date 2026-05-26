@@ -1,8 +1,6 @@
-import {NAR} from '../../../core/src/nar/NAR.js';
-import {DummyProvider} from '../../../core/src/lm/DummyProvider.js';
-import {LangChainProvider} from '../../../core/src/lm/LangChainProvider.js';
-import {HuggingFaceProvider} from '../../../core/src/lm/HuggingFaceProvider.js';
-import {AdvancedNarseseTranslator} from '../../../core/src/lm/AdvancedNarseseTranslator.js';
+import {NAR} from '@senars/nar';
+import {DummyProvider} from '@senars/core';
+import {AdvancedNarseseTranslator, HuggingFaceProvider, LangChainProvider} from '@senars/core/src/lm/index';
 
 describe('LM Integration Tests', () => {
     let nar;

@@ -94,7 +94,7 @@ export class PriorityCalculator {
         
         // Apply complexity penalty if needed
         if (complexity > 1) {
-            priority = priority / complexity;
+            priority /= complexity;
         }
         
         return Math.min(maxPriority, priority);
@@ -227,7 +227,7 @@ export const PriorityStrategies = {
      * Standard priority calculation for tasks
      */
     standardTask: (task) => {
-        if (!task?.budget) return 0.5;
+        if (!task?.budget) {return 0.5;}
         
         return PriorityCalculator.calculateWithValidation({
             activation: task.budget.priority || 0,
@@ -278,7 +278,7 @@ export const PriorityStrategies = {
      * Dynamic priority calculation based on context
      */
     dynamic: (entity, context = {}) => {
-        if (!entity) return 0;
+        if (!entity) {return 0;}
         
         // Determine entity type and apply appropriate strategy
         if (entity.budget) {

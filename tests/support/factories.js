@@ -1,10 +1,4 @@
-import {ArrayStamp} from '../../core/src/Stamp.js';
-import {TermFactory} from '../../core/src/term/TermFactory.js';
-import {Task} from '../../core/src/task/Task.js';
-import {Truth} from '../../core/src/Truth.js';
-import {TaskManager} from '../../core/src/task/TaskManager.js';
-import {Memory} from '../../core/src/memory/Memory.js';
-import {Focus} from '../../core/src/memory/Focus.js';
+import {ArrayStamp, Focus, Memory, Task, TaskManager, TermFactory, Truth} from '@senars/nar';
 
 const termFactory = new TermFactory();
 
@@ -128,3 +122,17 @@ export const createStreamReasonerNAR = async (config = {}) => {
         ...config
     });
 };
+
+export const COMMON_TRUTH_VALUES = [
+    {f: 1.0, c: 1.0, name: 'certain'},
+    {f: 0.9, c: 0.9, name: 'high'},
+    {f: 0.5, c: 0.8, name: 'medium'},
+    {f: 0.1, c: 0.2, name: 'low'},
+    {f: 0.0, c: 0.1, name: 'false'}
+];
+
+export const COMMON_BUDGET_VALUES = [
+    {priority: 0.9, durability: 0.8, quality: 0.7, name: 'high'},
+    {priority: 0.5, durability: 0.5, quality: 0.5, name: 'medium'},
+    {priority: 0.1, durability: 0.2, quality: 0.3, name: 'low'}
+];

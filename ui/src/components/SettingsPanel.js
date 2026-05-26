@@ -10,7 +10,7 @@ export class SettingsPanel extends Component {
     }
 
     initialize() {
-        if (!this.container) return;
+        if (!this.container) {return;}
         this.render();
     }
 
@@ -120,7 +120,7 @@ export class SettingsPanel extends Component {
     }
 
     _saveWorkspace() {
-        if (!this.app) return;
+        if (!this.app) {return;}
 
         const notebookData = this.app.getNotebook()?.exportNotebook() || [];
         const layoutConfig = this.app.layoutManager?.layout?.toConfig();
@@ -151,7 +151,7 @@ export class SettingsPanel extends Component {
         input.accept = '.json';
         input.onchange = (e) => {
             const file = e.target.files[0];
-            if (!file) return;
+            if (!file) {return;}
 
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -169,13 +169,13 @@ export class SettingsPanel extends Component {
     }
 
     async _restoreWorkspace(workspace) {
-        if (!this.app) return;
+        if (!this.app) {return;}
 
         if (await Modal.confirm('Load workspace? Current state will be overwritten.')) {
             // Restore Settings
             if (workspace.settings) {
-                if (workspace.settings.theme) this.app.themeManager?.setTheme(workspace.settings.theme);
-                if (workspace.settings.serverUrl) this.app.serverUrl = workspace.settings.serverUrl;
+                if (workspace.settings.theme) {this.app.themeManager?.setTheme(workspace.settings.theme);}
+                if (workspace.settings.serverUrl) {this.app.serverUrl = workspace.settings.serverUrl;}
             }
 
             // Restore Notebook
@@ -189,7 +189,7 @@ export class SettingsPanel extends Component {
                 await Modal.alert('Workspace loaded. Page will reload to apply layout changes.');
                 location.reload();
             } else {
-                Modal.alert('Workspace loaded (Notebook and Settings).');
+                await Modal.alert('Workspace loaded (Notebook and Settings).');
             }
         }
     }

@@ -4,7 +4,7 @@ import { TaskCard } from './TaskCard.js';
 import { FluentUI } from '../utils/FluentUI.js';
 import { FluentToolbar } from './ui/FluentToolbar.js';
 import { EVENTS } from '../config/constants.js';
-import { ReactiveState } from '../core/ReactiveState.js';
+import { ReactiveState } from '../core/index.js';
 import { eventBus } from '../core/EventBus.js';
 
 export class MemoryInspector extends Component {
@@ -52,7 +52,7 @@ export class MemoryInspector extends Component {
 
         // Events
         eventBus.on(EVENTS.CONCEPT_SELECT, (payload) => {
-            if (payload?.concept) this.selectConcept(payload.concept);
+            if (payload?.concept) {this.selectConcept(payload.concept);}
         });
     }
 
@@ -61,14 +61,14 @@ export class MemoryInspector extends Component {
     set viewMode(v) { this.state.viewMode = v; }
 
     static getValue(obj, field) {
-        if (field === 'priority') return obj.budget?.priority ?? 0;
-        if (field === 'taskCount') return obj.tasks?.length ?? obj.taskCount ?? 0;
-        if (field === 'term') return obj.term ?? '';
+        if (field === 'priority') {return obj.budget?.priority ?? 0;}
+        if (field === 'taskCount') {return obj.tasks?.length ?? obj.taskCount ?? 0;}
+        if (field === 'term') {return obj.term ?? '';}
         return obj[field];
     }
 
     initialize() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         this.fluent().clear().class('mi-container');
 
@@ -173,12 +173,12 @@ export class MemoryInspector extends Component {
     }
 
     update(payload) {
-        if (!payload?.concepts) return;
+        if (!payload?.concepts) {return;}
         this.state.data = payload.concepts;
 
         if (this.state.selectedConcept) {
              const updated = this.state.data.find(c => c.id === this.state.selectedConcept.id || c.term === this.state.selectedConcept.term);
-             if (updated) this.state.selectedConcept = updated;
+             if (updated) {this.state.selectedConcept = updated;}
         }
     }
 
@@ -203,7 +203,7 @@ export class MemoryInspector extends Component {
     }
 
     render() {
-        if (!this.contentContainer) return;
+        if (!this.contentContainer) {return;}
         this.contentContainer.innerHTML = '';
         this.toolbar.style.display = this.state.viewMode === 'list' ? 'flex' : 'none';
 
@@ -215,7 +215,7 @@ export class MemoryInspector extends Component {
     }
 
     _renderListView() {
-        if (!this.contentContainer) return;
+        if (!this.contentContainer) {return;}
 
         // Use FluentUI on existing element
         const container = FluentUI.create(this.contentContainer).clear();
@@ -232,7 +232,7 @@ export class MemoryInspector extends Component {
     }
 
     _renderListItems(container, data) {
-        const limit = this.state.limit;
+        const {limit} = this.state;
         const isCompact = this.state.listMode === 'compact';
 
         for (const concept of data.slice(0, limit)) {

@@ -2,9 +2,8 @@
  * Enhanced Component
  * Extended component with middleware and validation support
  */
-import { Component } from './Component.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
-import { MetricsTracker } from '../utils/MetricsTracker.js';
+import {Component} from './Component.js';
+import {mergeConfig, MetricsTracker} from '../utils/index.js';
 
 const COMPOSABLE_DEFAULTS = {
     autoInitialize: true,
@@ -29,9 +28,10 @@ export class EnhancedComponent extends Component {
     }
 
     async initialize() {
-        if (this.initialized) return;
+        if (this.initialized) {
+            return;
+        }
 
-        // Run validators
         for (const validator of this._validators) {
             const valid = await validator(this);
             if (!valid) {
@@ -39,10 +39,8 @@ export class EnhancedComponent extends Component {
             }
         }
 
-        // Initialize children
         await Promise.all(Array.from(this.children.values()).map(child => child.initialize()));
 
-        // Run middleware (before)
         for (const mw of this._middleware) {
             if (mw.beforeInitialize) {
                 await mw.beforeInitialize(this);
@@ -50,9 +48,9 @@ export class EnhancedComponent extends Component {
         }
 
         await this.onInitialize();
-        this.initialized = true;
+        this._initialized = true;
+        this._started = true;
 
-        // Run middleware (after)
         for (const mw of this._middleware) {
             if (mw.afterInitialize) {
                 await mw.afterInitialize(this);
@@ -63,7 +61,6 @@ export class EnhancedComponent extends Component {
     }
 
     async shutdown() {
-        // Run middleware (before shutdown)
         for (const mw of this._middleware) {
             if (mw.beforeShutdown) {
                 await mw.beforeShutdown(this);
@@ -73,7 +70,6 @@ export class EnhancedComponent extends Component {
         await Promise.all(Array.from(this.children.values()).map(child => child.shutdown()));
         await this.onShutdown();
 
-        // Run middleware (after shutdown)
         for (const mw of this._middleware) {
             if (mw.afterShutdown) {
                 await mw.afterShutdown(this);
@@ -81,7 +77,9 @@ export class EnhancedComponent extends Component {
         }
 
         this._subscriptions.forEach(sub => this.unsubscribe(sub));
-        this.initialized = false;
+        this._started = false;
+        this._initialized = false;
+        this._disposed = true;
         this.emit('shutdown', this);
     }
 
@@ -114,7 +112,7 @@ export class EnhancedComponent extends Component {
     setState(key, value) {
         const prev = this._state.get(key);
         this._state.set(key, value);
-        this.emit('stateChange', { key, value, prev });
+        this.emit('stateChange', {key, value, prev});
         return this;
     }
 

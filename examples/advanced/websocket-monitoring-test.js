@@ -2,8 +2,7 @@
  * Test script to verify WebSocket monitoring functionality
  */
 
-import {NAR} from '../../core/src/nar/NAR.js';
-import {MonitoringAPI} from '../../core/src/io/MonitoringAPI.js';
+import {NAR, MonitoringAPI} from '@senars/nar';
 
 async function testMonitoringAPI() {
     console.log('=== Testing WebSocket Monitoring API ===\n');

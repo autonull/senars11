@@ -3,11 +3,11 @@
  * Establishes performance benchmarks for core operations
  */
 
-import {NAR} from '../../core/src/nar/NAR.js';
-import {TermFactory} from '../../core/src/term/TermFactory.js';
-import {Reasoner} from '../../core/src/reason/Reasoner.js';
-import {Memory} from '../../core/src/memory/Memory.js';
-import {Task} from '../../core/src/task/Task.js';
+import {NAR} from '@senars/nar';
+import {TermFactory} from '@senars/nar';
+import {Reasoner} from '@senars/nar';
+import {Memory} from '@senars/nar';
+import {Task} from '@senars/nar';
 
 class PerformanceBenchmark {
     constructor() {

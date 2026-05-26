@@ -1,27 +1,40 @@
 /**
  * MonitoringSystem Tests
  */
-import { MetricsExporter, TrainingMonitor, createMonitor, createMonitorCallback } from '../../src/evaluation/MonitoringSystem.js';
+import {
+    createMonitor,
+    createMonitorCallback,
+    MetricsExporter,
+    TrainingMonitor
+} from '../../src/evaluation/MonitoringSystem.js';
 import fs from 'fs/promises';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import {fileURLToPath} from 'url';
 
-const _fileURLToPath = fileURLToPath;
-const __dirname_fixed = path.dirname(_fileURLToPath(import.meta.url));
-const TEST_DIR = path.join(__dirname, 'test_monitor_logs');
+// Workaround for Jest VM environment where import.meta.url might not be available
+let __dirname_fixed;
+try {
+    __dirname_fixed = path.dirname(fileURLToPath(import.meta.url));
+} catch (e) {
+    // Jest VM environment - use global.__dirname or fallback
+    __dirname_fixed = typeof global !== 'undefined' && global.__dirname
+        ? global.__dirname
+        : path.join(process.cwd(), 'rl', 'tests', 'unit');
+}
+const TEST_DIR = path.join(__dirname_fixed, 'test_monitor_logs');
 
 describe('MetricsExporter', () => {
     let exporter;
 
     beforeEach(async () => {
-        await fs.mkdir(TEST_DIR, { recursive: true });
+        await fs.mkdir(TEST_DIR, {recursive: true});
         exporter = new MetricsExporter({
             exportDirectory: TEST_DIR,
             logInterval: 1,
-            json: { enabled: true, filename: 'test_metrics.json' },
-            prometheus: { enabled: false },
-            tensorboard: { enabled: false },
-            wandb: { enabled: false }
+            json: {enabled: true, filename: 'test_metrics.json'},
+            prometheus: {enabled: false},
+            tensorboard: {enabled: false},
+            wandb: {enabled: false}
         });
         await exporter.initialize();
     });
@@ -29,7 +42,7 @@ describe('MetricsExporter', () => {
     afterEach(async () => {
         await exporter.shutdown();
         try {
-            await fs.rm(TEST_DIR, { recursive: true, force: true });
+            await fs.rm(TEST_DIR, {recursive: true, force: true});
         } catch {
             // Ignore cleanup errors
         }
@@ -37,7 +50,7 @@ describe('MetricsExporter', () => {
 
     describe('record', () => {
         it('should record metric values', () => {
-            exporter.record('reward', 50, { episode: 1 });
+            exporter.record('reward', 50, {episode: 1});
 
             expect(exporter.metrics.size).toBe(1);
             expect(exporter.history.length).toBe(1);
@@ -55,8 +68,8 @@ describe('MetricsExporter', () => {
         });
 
         it('should handle labeled metrics', () => {
-            exporter.record('loss', 0.5, { type: 'training', episode: 1 });
-            exporter.record('loss', 0.3, { type: 'validation', episode: 1 });
+            exporter.record('loss', 0.5, {type: 'training', episode: 1});
+            exporter.record('loss', 0.3, {type: 'validation', episode: 1});
 
             expect(exporter.metrics.size).toBe(2);
         });
@@ -64,8 +77,8 @@ describe('MetricsExporter', () => {
 
     describe('export', () => {
         it('should export to JSON format', async () => {
-            exporter.record('reward', 50, { episode: 1 });
-            exporter.record('reward', 75, { episode: 2 });
+            exporter.record('reward', 50, {episode: 1});
+            exporter.record('reward', 75, {episode: 2});
 
             const results = await exporter.export();
 
@@ -97,7 +110,7 @@ describe('MetricsExporter', () => {
         it('should export to TensorBoard format', async () => {
             exporter.config.tensorboard.enabled = true;
             exporter.config.tensorboard.logDir = 'tb_test';
-            exporter.record('reward', 50, { episode: 1 });
+            exporter.record('reward', 50, {episode: 1});
 
             const results = await exporter.export();
 
@@ -109,7 +122,7 @@ describe('MetricsExporter', () => {
         it('should export to WandB format', async () => {
             exporter.config.wandb.enabled = true;
             exporter.config.wandb.project = 'test-project';
-            exporter.record('reward', 50, { episode: 1 });
+            exporter.record('reward', 50, {episode: 1});
 
             const results = await exporter.export();
 
@@ -161,13 +174,13 @@ describe('TrainingMonitor', () => {
     let monitor;
 
     beforeEach(async () => {
-        await fs.mkdir(TEST_DIR, { recursive: true });
+        await fs.mkdir(TEST_DIR, {recursive: true});
         exporter = new MetricsExporter({
             exportDirectory: TEST_DIR,
-            json: { enabled: false },
-            prometheus: { enabled: false },
-            tensorboard: { enabled: false },
-            wandb: { enabled: false }
+            json: {enabled: false},
+            prometheus: {enabled: false},
+            tensorboard: {enabled: false},
+            wandb: {enabled: false}
         });
         await exporter.initialize();
 
@@ -181,7 +194,7 @@ describe('TrainingMonitor', () => {
     afterEach(async () => {
         await monitor.shutdown();
         try {
-            await fs.rm(TEST_DIR, { recursive: true, force: true });
+            await fs.rm(TEST_DIR, {recursive: true, force: true});
         } catch {
             // Ignore cleanup errors
         }
@@ -189,20 +202,20 @@ describe('TrainingMonitor', () => {
 
     describe('logEpisode', () => {
         it('should log episode metrics', () => {
-            monitor.logEpisode(1, { reward: 50, loss: 0.5, epsilon: 0.9 });
+            monitor.logEpisode(1, {reward: 50, loss: 0.5, epsilon: 0.9});
 
             expect(monitor.episodeMetrics.size).toBe(1);
             expect(monitor.episodeMetrics.get(1).reward).toBe(50);
         });
 
         it('should record metrics in exporter', () => {
-            monitor.logEpisode(1, { reward: 50, loss: 0.5 });
+            monitor.logEpisode(1, {reward: 50, loss: 0.5});
 
             expect(exporter.metrics.size).toBeGreaterThanOrEqual(2);
         });
 
         it('should handle partial metrics', () => {
-            monitor.logEpisode(1, { reward: 50 });
+            monitor.logEpisode(1, {reward: 50});
 
             expect(monitor.episodeMetrics.get(1).reward).toBe(50);
             expect(monitor.episodeMetrics.get(1).loss).toBeUndefined();
@@ -212,7 +225,7 @@ describe('TrainingMonitor', () => {
     describe('getProgress', () => {
         it('should return training progress', () => {
             for (let i = 1; i <= 25; i++) {
-                monitor.logEpisode(i, { reward: i * 4 });
+                monitor.logEpisode(i, {reward: i * 4});
             }
 
             const progress = monitor.getProgress();
@@ -224,7 +237,7 @@ describe('TrainingMonitor', () => {
 
         it('should detect declining trend', () => {
             for (let i = 1; i <= 25; i++) {
-                monitor.logEpisode(i, { reward: 100 - (i * 2) });
+                monitor.logEpisode(i, {reward: 100 - (i * 2)});
             }
 
             const progress = monitor.getProgress();
@@ -233,7 +246,7 @@ describe('TrainingMonitor', () => {
 
         it('should detect stable trend', () => {
             for (let i = 1; i <= 25; i++) {
-                monitor.logEpisode(i, { reward: 50 });
+                monitor.logEpisode(i, {reward: 50});
             }
 
             const progress = monitor.getProgress();
@@ -243,7 +256,7 @@ describe('TrainingMonitor', () => {
 
     describe('export', () => {
         it('should export metrics', async () => {
-            monitor.logEpisode(1, { reward: 50 });
+            monitor.logEpisode(1, {reward: 50});
 
             const results = await monitor.export();
             expect(results).toBeDefined();
@@ -254,16 +267,16 @@ describe('TrainingMonitor', () => {
 describe('createMonitor', () => {
     afterEach(async () => {
         try {
-            await fs.rm(TEST_DIR, { recursive: true, force: true });
+            await fs.rm(TEST_DIR, {recursive: true, force: true});
         } catch {
             // Ignore cleanup errors
         }
     });
 
     it('should create exporter and monitor', async () => {
-        const { exporter, monitor } = createMonitor({
+        const {exporter, monitor} = createMonitor({
             exportDirectory: TEST_DIR,
-            json: { enabled: false }
+            json: {enabled: false}
         });
 
         expect(exporter).toBeInstanceOf(MetricsExporter);
@@ -279,14 +292,14 @@ describe('createMonitorCallback', () => {
     let callback;
 
     beforeEach(async () => {
-        await fs.mkdir(TEST_DIR, { recursive: true });
+        await fs.mkdir(TEST_DIR, {recursive: true});
         exporter = new MetricsExporter({
             exportDirectory: TEST_DIR,
-            json: { enabled: false }
+            json: {enabled: false}
         });
         await exporter.initialize();
 
-        monitor = new TrainingMonitor(exporter, { logToConsole: false });
+        monitor = new TrainingMonitor(exporter, {logToConsole: false});
         await monitor.initialize();
 
         callback = createMonitorCallback(monitor);
@@ -295,20 +308,20 @@ describe('createMonitorCallback', () => {
     afterEach(async () => {
         await monitor.shutdown();
         try {
-            await fs.rm(TEST_DIR, { recursive: true, force: true });
+            await fs.rm(TEST_DIR, {recursive: true, force: true});
         } catch {
             // Ignore cleanup errors
         }
     });
 
     it('should create callback that logs episodes', () => {
-        callback(1, { reward: 50, loss: 0.5 });
+        callback(1, {reward: 50, loss: 0.5});
 
         expect(monitor.episodeMetrics.size).toBe(1);
     });
 
     it('should record metrics in exporter', () => {
-        callback(1, { reward: 50 });
+        callback(1, {reward: 50});
 
         expect(exporter.metrics.size).toBeGreaterThan(0);
     });

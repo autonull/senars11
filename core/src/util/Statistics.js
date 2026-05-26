@@ -8,7 +8,9 @@ export class Statistics {
      * @returns {number} The mean value, or 0 if array is empty
      */
     static mean(values) {
-        if (!values || values.length === 0) return 0;
+        if (!values || values.length === 0) {
+            return 0;
+        }
         return values.reduce((sum, val) => sum + val, 0) / values.length;
     }
 
@@ -18,7 +20,9 @@ export class Statistics {
      * @returns {number} The standard deviation, or 0 if array is empty
      */
     static stdDev(values) {
-        if (!values || values.length === 0) return 0;
+        if (!values || values.length === 0) {
+            return 0;
+        }
         const avg = this.mean(values);
         const squareDiffs = values.map(val => Math.pow(val - avg, 2));
         const variance = this.mean(squareDiffs);
@@ -31,7 +35,9 @@ export class Statistics {
      * @returns {number} The median value, or 0 if array is empty
      */
     static median(values) {
-        if (!values || values.length === 0) return 0;
+        if (!values || values.length === 0) {
+            return 0;
+        }
         const sorted = [...values].sort((a, b) => a - b);
         const mid = Math.floor(sorted.length / 2);
 
@@ -47,7 +53,9 @@ export class Statistics {
      * @returns {number} The quantile value, or 0 if array is empty
      */
     static quantile(values, q) {
-        if (!values || values.length === 0) return 0;
+        if (!values || values.length === 0) {
+            return 0;
+        }
         const sorted = [...values].sort((a, b) => a - b);
         const pos = (sorted.length - 1) * q;
         const base = Math.floor(pos);
@@ -111,7 +119,9 @@ export class Statistics {
      * @returns {Object} Object containing mean, median, and stdDev
      */
     static meanMedianStd(values) {
-        if (!values || values.length === 0) return {mean: 0, median: 0, stdDev: 0};
+        if (!values || values.length === 0) {
+            return {mean: 0, median: 0, stdDev: 0};
+        }
 
         const sum = values.reduce((acc, val) => acc + val, 0);
         const mean = sum / values.length;

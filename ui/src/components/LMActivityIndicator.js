@@ -11,7 +11,7 @@ export class LMActivityIndicator {
     get active() { return this.isActive; }
 
     _init() {
-        if (!this.container) return;
+        if (!this.container) {return;}
         this.overlay = FluentUI.create('div')
             .class('lm-activity-overlay hidden')
             .html(`
@@ -41,7 +41,7 @@ export class LMActivityIndicator {
     }
 
     _setState(visible, isError = false, msg = '') {
-        if (!this.overlay) return;
+        if (!this.overlay) {return;}
         this.isActive = visible;
 
         if (visible) {

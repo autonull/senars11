@@ -3,7 +3,7 @@
  * Space-efficient probabilistic set for MeTTa rule indexing
  */
 
-import { configManager } from '../config/config.js';
+import {configManager} from '../config/config.js';
 
 export class BloomFilter {
     constructor(size = 10000, hashCount = 3) {
@@ -14,7 +14,9 @@ export class BloomFilter {
     }
 
     add(value) {
-        if (!this.enabled) return;
+        if (!this.enabled) {
+            return;
+        }
 
         const str = typeof value === 'string' ? value : value.toString();
 
@@ -26,7 +28,9 @@ export class BloomFilter {
     }
 
     has(value) {
-        if (!this.enabled) return true; // Assume present if disabled
+        if (!this.enabled) {
+            return true;
+        } // Assume present if disabled
 
         const str = typeof value === 'string' ? value : value.toString();
 

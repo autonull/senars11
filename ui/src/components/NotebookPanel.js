@@ -28,8 +28,8 @@ export class NotebookPanel extends Component {
 
     setupEventListeners() {
         eventBus.on('notebook:cmd:add-cell', ({ type, content }) => {
-            if (type === 'code') this.notebookManager.createCodeCell(content);
-            else if (type === 'markdown') this.notebookManager.createMarkdownCell(content);
+            if (type === 'code') {this.notebookManager.createCodeCell(content);}
+            else if (type === 'markdown') {this.notebookManager.createMarkdownCell(content);}
         });
 
         eventBus.on(EVENTS.NOTEBOOK_ADD_CELL, (payload) => {
@@ -39,7 +39,7 @@ export class NotebookPanel extends Component {
     }
 
     render() {
-        if (!this.container) return;
+        if (!this.container) {return;}
 
         this.fluent().clear().class('notebook-panel-container');
         this._renderToolbar();
@@ -103,7 +103,7 @@ export class NotebookPanel extends Component {
     }
 
     controlReasoner(action) {
-        if (!this.app?.connection) return;
+        if (!this.app?.connection) {return;}
 
         if (!this.app.connection.isConnected()) {
             this.notebookManager.createResultCell('⚠️ Not connected', 'system');
@@ -180,7 +180,7 @@ export class NotebookPanel extends Component {
     }
 
     setupLoggerAdapter() {
-        if (!this.app?.logger) return;
+        if (!this.app?.logger) {return;}
 
         const categoryMap = {
             result: 'result',
@@ -196,7 +196,7 @@ export class NotebookPanel extends Component {
         this.app.logger.logViewer = {
             addLog: (content, type) => {
                 let category = categoryMap[type] || 'system';
-                if (type.includes('reasoning') || type.includes('inference')) category = 'reasoning';
+                if (type.includes('reasoning') || type.includes('inference')) {category = 'reasoning';}
 
                 const viewMode = this.messageFilter.getCategoryMode(category);
                 this.notebookManager.createResultCell(content, category, viewMode);

@@ -1,10 +1,9 @@
 /**
  * Unit Tests for Neuro-Symbolic Primitives
  */
-import { describe, it, expect } from '@jest/globals';
-import { SymbolicTensor, TensorLogicBridge, symbolicTensor, termToTensor } from '@senars/tensor';
-import { SymbolicDifferentiation } from '../../src/models/SymbolicDifferentiation.js';
-import { WorldModel } from '../../src/models/WorldModel.js';
+import {describe, expect, it} from '@jest/globals';
+import {SymbolicTensor, symbolicTensor, TensorLogicBridge, termToTensor} from '@senars/tensor';
+import {SymbolicDifferentiation, WorldModel} from '../../src/index.js';
 
 // ========== SymbolicTensor Tests ==========
 describe('SymbolicTensor', () => {
@@ -13,7 +12,7 @@ describe('SymbolicTensor', () => {
         const tensor = new SymbolicTensor(
             new Float32Array([1, 2, 3, 4]),
             [2, 2],
-            { symbols: new Map([['0,0', { symbol: 'a', confidence: 0.9 }]]) }
+            {symbols: new Map([['0,0', {symbol: 'a', confidence: 0.9}]])}
         );
 
         expect(tensor.data.length).toBe(4);
@@ -25,7 +24,7 @@ describe('SymbolicTensor', () => {
         const tensor = symbolicTensor(
             new Float32Array([0.5, 0.8, 0.3]),
             [3],
-            { '0': 'first', '1': 'second' }
+            {'0': 'first', '1': 'second'}
         );
 
         tensor.annotate(2, 'third', 0.7);
@@ -37,8 +36,8 @@ describe('SymbolicTensor', () => {
 
     it('should track provenance', () => {
         const tensor = new SymbolicTensor(new Float32Array([1, 2]), [2]);
-        tensor.addProvenance('source1', 'op1', { param: 1 });
-        tensor.addProvenance('source2', 'op2', { param: 2 });
+        tensor.addProvenance('source1', 'op1', {param: 1});
+        tensor.addProvenance('source2', 'op2', {param: 2});
 
         expect(tensor.provenance.length).toBe(2);
         expect(tensor.provenance[0].source).toBe('source1');
@@ -48,7 +47,7 @@ describe('SymbolicTensor', () => {
         const tensor = symbolicTensor(
             new Float32Array([0.5, 0.8]),
             [2],
-            { '0': 'x' }
+            {'0': 'x'}
         );
 
         const term = tensor.toNarseseTerm('obs');
@@ -60,7 +59,7 @@ describe('SymbolicTensor', () => {
         const tensor = symbolicTensor(
             new Float32Array([0.9, 0.2, 0.7, 0.1]),
             [4],
-            { '0': 'high1', '2': 'high2' }
+            {'0': 'high1', '2': 'high2'}
         );
 
         const projected = tensor.projectToSymbols(0.5);
@@ -72,7 +71,7 @@ describe('SymbolicTensor', () => {
         const original = symbolicTensor(
             new Float32Array([1, 2, 3]),
             [3],
-            { '0': 'a' }
+            {'0': 'a'}
         );
 
         const cloned = original.clone();
@@ -88,7 +87,7 @@ describe('SymbolicTensor', () => {
         const tensor = symbolicTensor(
             new Float32Array([1.5, 2.5, 3.5]),
             [3],
-            { '0': { symbol: 'test', confidence: 0.8 } }
+            {'0': {symbol: 'test', confidence: 0.8}}
         );
         tensor.confidence = 0.9;
 
@@ -105,7 +104,7 @@ describe('SymbolicTensor', () => {
 describe('TensorLogicBridge', () => {
 
     it('should lift tensor to symbols', () => {
-        const bridge = new TensorLogicBridge({ defaultSymbolThreshold: 0.5 });
+        const bridge = new TensorLogicBridge({defaultSymbolThreshold: 0.5});
         const tensor = new SymbolicTensor(new Float32Array([0.8, 0.2, 0.6, 0.1]), [4]);
 
         const symbols = bridge.liftToSymbols(tensor);
@@ -116,8 +115,8 @@ describe('TensorLogicBridge', () => {
         const bridge = new TensorLogicBridge();
 
         const symbols = [
-            { index: 0, symbol: 'a', confidence: 0.9 },
-            { index: 2, symbol: 'b', confidence: 0.7 }
+            {index: 0, symbol: 'a', confidence: 0.9},
+            {index: 2, symbol: 'b', confidence: 0.7}
         ];
 
         const tensor = bridge.groundToTensor(symbols, [4]);
@@ -129,8 +128,8 @@ describe('TensorLogicBridge', () => {
     it('should add tensors symbolically', () => {
         const bridge = new TensorLogicBridge();
 
-        const t1 = symbolicTensor(new Float32Array([1, 2, 3]), [3], { '0': 'a' });
-        const t2 = symbolicTensor(new Float32Array([4, 5, 6]), [3], { '0': 'b' });
+        const t1 = symbolicTensor(new Float32Array([1, 2, 3]), [3], {'0': 'a'});
+        const t2 = symbolicTensor(new Float32Array([4, 5, 6]), [3], {'0': 'b'});
 
         const result = bridge.symbolicAdd(t1, t2, 'union');
         expect(result.data[0]).toBe(5);
@@ -141,8 +140,8 @@ describe('TensorLogicBridge', () => {
     it('should multiply tensors symbolically', () => {
         const bridge = new TensorLogicBridge();
 
-        const t1 = symbolicTensor(new Float32Array([1, 0, 1]), [3], { '0': 'a', '2': 'c' });
-        const t2 = symbolicTensor(new Float32Array([1, 1, 0]), [3], { '0': 'b', '1': 'd' });
+        const t1 = symbolicTensor(new Float32Array([1, 0, 1]), [3], {'0': 'a', '2': 'c'});
+        const t2 = symbolicTensor(new Float32Array([1, 1, 0]), [3], {'0': 'b', '1': 'd'});
 
         const result = bridge.symbolicMul(t1, t2, 'intersection');
         expect(result.data[0]).toBe(1);
@@ -165,7 +164,7 @@ describe('TensorLogicBridge', () => {
         const tensor = symbolicTensor(
             new Float32Array([1, 2, 3, 4]),
             [4],
-            { '0': 'a', '1': 'b', '2': 'c' }
+            {'0': 'a', '1': 'b', '2': 'c'}
         );
 
         const mask = bridge.createAttentionMask(tensor, new Set(['a', 'c']));
@@ -179,7 +178,7 @@ describe('TensorLogicBridge', () => {
         const tensor = symbolicTensor(
             new Float32Array([0.9, 0.2, -0.8, 0.1]),
             [4],
-            { '0': 'cause', '2': 'effect' }
+            {'0': 'cause', '2': 'effect'}
         );
 
         const rules = bridge.extractRules(tensor, 0.7);
@@ -209,7 +208,7 @@ describe('SymbolicDifferentiation', () => {
         const param = symbolicTensor(
             new Float32Array([1, 2, 3]),
             [3],
-            { '0': 'w1', '1': 'w2' }
+            {'0': 'w1', '1': 'w2'}
         );
 
         const loss = () => param.data.reduce((sum, v) => sum + v * v, 0);
@@ -221,12 +220,12 @@ describe('SymbolicDifferentiation', () => {
     });
 
     it('should annotate gradients', () => {
-        const diff = new SymbolicDifferentiation({ symbolicThreshold: 0.1 });
+        const diff = new SymbolicDifferentiation({symbolicThreshold: 0.1});
 
         const param = symbolicTensor(
             new Float32Array([0.5, 0.5]),
             [2],
-            { '0': { symbol: 'weight', confidence: 0.9 } }
+            {'0': {symbol: 'weight', confidence: 0.9}}
         );
 
         const loss = () => param.data[0] * 2;
@@ -242,7 +241,7 @@ describe('SymbolicDifferentiation', () => {
         const param = symbolicTensor(
             new Float32Array([1, -1]),
             [2],
-            { '0': { symbol: 'positive', confidence: 0.9 } }
+            {'0': {symbol: 'positive', confidence: 0.9}}
         );
 
         const loss = () => param.data[0] + param.data[1];
@@ -292,7 +291,7 @@ describe('WorldModel', () => {
         });
 
         await wm.initialize();
-        
+
         expect(wm.latentDim).toBe(4);
         expect(wm.ensembleSize).toBe(2);
 
@@ -300,7 +299,7 @@ describe('WorldModel', () => {
     });
 
     it('should compute uncertainty', async () => {
-        const wm = new WorldModel({ latentDim: 4, ensembleSize: 3 });
+        const wm = new WorldModel({latentDim: 4, ensembleSize: 3});
         await wm.initialize();
 
         expect(wm.ensembleSize).toBe(3);

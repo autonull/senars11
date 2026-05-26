@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import {BaseTool} from '../../core/src/tool/BaseTool.js';
+import {BaseTool} from '@senars/core/src/tool/BaseTool.js';
 import {App} from '@senars/agent';
 import {exec} from 'child_process';
 import {promisify} from 'util';

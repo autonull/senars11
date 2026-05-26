@@ -1,22 +1,16 @@
-import { RLAgent } from '../core/RLAgent.js';
-import { MeTTaInterpreter } from '@senars/metta';
-import { NarseseUtils } from '../utils/NarseseUtils.js';
-import { deepMergeConfig } from '../utils/ConfigHelper.js';
+import {Agent} from '../core/RLCore.js';
+import {MeTTaInterpreter} from '@senars/metta';
+import {mergeConfig, NarseseUtils} from '../utils/index.js';
 
 const METTA_AGENT_DEFAULTS = {
     strategyPath: null,
     autoInitialize: true
 };
 
-/**
- * MeTTaAgent - Agent with MeTTa-based policy representation
- * Uses MeTTa interpreter for symbolic action selection and learning
- */
-export class MeTTaAgent extends RLAgent {
+export class MeTTaAgent extends Agent {
     constructor(env, config = {}) {
-        // Handle string config (strategy path) for backward compatibility
-        const normalizedConfig = typeof config === 'string' ? { strategyPath: config } : config;
-        const mergedConfig = deepMergeConfig(METTA_AGENT_DEFAULTS, normalizedConfig);
+        const normalizedConfig = typeof config === 'string' ? {strategyPath: config} : config;
+        const mergedConfig = mergeConfig(METTA_AGENT_DEFAULTS, normalizedConfig);
         super(env, mergedConfig);
 
         this.metta = new MeTTaInterpreter();
@@ -55,13 +49,17 @@ export class MeTTaAgent extends RLAgent {
         const result = await this.metta.run(program);
 
         const atom = result?.[0];
-        if (!atom) return 0;
+        if (!atom) {
+            return 0;
+        }
 
         const str = atom.toString();
         const val = parseFloat(str);
 
         // Return number if valid, array if list-like, else string
-        if (!isNaN(val)) return val;
+        if (!isNaN(val)) {
+            return val;
+        }
         return str.startsWith('(')
             ? str.slice(1, -1).trim().split(/\s+/).map(Number)
             : str;

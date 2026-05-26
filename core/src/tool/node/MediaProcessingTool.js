@@ -3,7 +3,7 @@
  * @description Tool for processing media files including PDFs, images, and OCR with safety features
  */
 
-import { BaseTool } from '../BaseTool.js';
+import {BaseTool} from '../BaseTool.js';
 import {promises as fs} from 'fs';
 import path from 'path';
 
@@ -35,29 +35,45 @@ export class MediaProcessingTool extends BaseTool {
     async execute(params, context) {
         const {operation, filePath, options = {}} = params;
 
-        if (!operation) throw new Error('Operation is required');
+        if (!operation) {
+            throw new Error('Operation is required');
+        }
 
         // Validate file path safety
-        if (filePath) this._validateFilePath(filePath);
+        if (filePath) {
+            this._validateFilePath(filePath);
+        }
 
         switch (operation.toLowerCase()) {
             case 'pdf-extract':
-                if (!filePath) throw new Error('filePath is required for pdf-extract operation');
+                if (!filePath) {
+                    throw new Error('filePath is required for pdf-extract operation');
+                }
                 return await this._extractPDFContent(filePath, options);
             case 'image-ocr':
-                if (!filePath) throw new Error('filePath is required for image-ocr operation');
+                if (!filePath) {
+                    throw new Error('filePath is required for image-ocr operation');
+                }
                 return await this._performOCR(filePath, options);
             case 'text-extract':
-                if (!filePath) throw new Error('filePath is required for text-extract operation');
+                if (!filePath) {
+                    throw new Error('filePath is required for text-extract operation');
+                }
                 return await this._extractText(filePath, options);
             case 'metadata':
-                if (!filePath) throw new Error('filePath is required for metadata operation');
+                if (!filePath) {
+                    throw new Error('filePath is required for metadata operation');
+                }
                 return await this._extractMetadata(filePath, options);
             case 'convert':
-                if (!filePath) throw new Error('filePath is required for convert operation');
+                if (!filePath) {
+                    throw new Error('filePath is required for convert operation');
+                }
                 return await this._convertFile(filePath, options);
             case 'image-analyze':
-                if (!filePath) throw new Error('filePath is required for image-analyze operation');
+                if (!filePath) {
+                    throw new Error('filePath is required for image-analyze operation');
+                }
                 return await this._analyzeImage(filePath, options);
             default:
                 throw new Error(`Unsupported operation: ${operation}. Supported operations: pdf-extract, image-ocr, text-extract, metadata, convert, image-analyze`);
@@ -74,7 +90,9 @@ export class MediaProcessingTool extends BaseTool {
 
         // Verify it's a PDF file
         const ext = path.extname(filePath).toLowerCase();
-        if (ext !== '.pdf') throw new Error(`File is not a PDF: ${ext}`);
+        if (ext !== '.pdf') {
+            throw new Error(`File is not a PDF: ${ext}`);
+        }
 
         // Simulate PDF content extraction (in a real implementation you'd use pdfjs-dist or similar)
         // For this example, we'll return mock content
@@ -83,7 +101,9 @@ export class MediaProcessingTool extends BaseTool {
             const buffer = await fs.readFile(filePath);
             const fileHeader = buffer.subarray(0, 5).toString();
 
-            if (fileHeader !== '%PDF-') throw new Error('File is not a valid PDF document');
+            if (fileHeader !== '%PDF-') {
+                throw new Error('File is not a valid PDF document');
+            }
 
             // In a real implementation, you'd use a PDF library to extract text
             // For now, return a mock result
@@ -245,7 +265,9 @@ export class MediaProcessingTool extends BaseTool {
     async _convertFile(filePath, options = {}) {
         const {targetFormat} = options;
 
-        if (!targetFormat) throw new Error('targetFormat is required for convert operation');
+        if (!targetFormat) {
+            throw new Error('targetFormat is required for convert operation');
+        }
 
         await this._validateFileAccess(filePath);
         this._validateFileSize(filePath, 'File');
@@ -434,11 +456,13 @@ export class MediaProcessingTool extends BaseTool {
      * @private
      */
     _sanitizeTextContent(content) {
-        if (!content) return content;
+        if (!content) {
+            return content;
+        }
 
         // Truncate if too large
         if (content.length > this.maxTextLength) {
-            return content.substring(0, this.maxTextLength) + '\n[CONTENT TRUNCATED]';
+            return `${content.substring(0, this.maxTextLength)}\n[CONTENT TRUNCATED]`;
         }
 
         // Additional sanitization could be added here

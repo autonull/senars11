@@ -1,6 +1,5 @@
-import { Ground } from '../src/kernel/Ground.js';
-import { grounded, sym } from '../src/kernel/Term.js';
-import { describe, test, expect } from '@jest/globals';
+import {Ground, grounded} from '../src/index.js';
+import {describe, expect, test} from '@jest/globals';
 
 describe('ReflectionOps', () => {
     const ground = new Ground();
@@ -20,7 +19,7 @@ describe('ReflectionOps', () => {
     });
 
     test('&js-get and &js-set', () => {
-        const obj = { foo: 'bar' };
+        const obj = {foo: 'bar'};
         const objAtom = grounded(obj);
 
         const val = ground.execute('&js-get', objAtom, grounded('foo'));

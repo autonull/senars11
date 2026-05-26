@@ -3,7 +3,7 @@
  */
 
 import { Logger } from './Logger.js';
-import { ValidationError } from './CustomErrors.js';
+import { ValidationError } from '../errors/index.js';
 
 /**
  * Validate required value
@@ -12,7 +12,7 @@ import { ValidationError } from './CustomErrors.js';
  * @throws {ValidationError} If value is null or undefined
  */
 export const validateRequired = (value, fieldName) => {
-    if (value == null) throw new ValidationError(`${fieldName} is required`, fieldName, value);
+    if (value == null) {throw new ValidationError(`${fieldName} is required`, fieldName, value);}
 };
 
 /**
@@ -24,7 +24,7 @@ export const validateRequired = (value, fieldName) => {
  * @throws {ValidationError} If type doesn't match
  */
 export const validateType = (value, expectedType, fieldName, optional = false) => {
-    if (optional && value === undefined) return;
+    if (optional && value === undefined) {return;}
     const actualType = Array.isArray(value) ? 'array' : typeof value;
     if (actualType !== expectedType) {
         throw new ValidationError(`${fieldName} must be of type ${expectedType}, got ${actualType}`, fieldName, value);
@@ -42,12 +42,12 @@ export const validateType = (value, expectedType, fieldName, optional = false) =
  * @throws {ValidationError} If value is out of range
  */
 export const validateRange = (value, { min, max }, fieldName, optional = false) => {
-    if (optional && value === undefined) return;
+    if (optional && value === undefined) {return;}
     if (typeof value !== 'number' || isNaN(value)) {
         throw new ValidationError(`${fieldName} must be a number`, fieldName, value);
     }
-    if (min !== undefined && value < min) throw new ValidationError(`${fieldName} must be >= ${min}`, fieldName, value);
-    if (max !== undefined && value > max) throw new ValidationError(`${fieldName} must be <= ${max}`, fieldName, value);
+    if (min !== undefined && value < min) {throw new ValidationError(`${fieldName} must be >= ${min}`, fieldName, value);}
+    if (max !== undefined && value > max) {throw new ValidationError(`${fieldName} must be <= ${max}`, fieldName, value);}
 };
 
 /**
@@ -59,9 +59,9 @@ export const validateRange = (value, { min, max }, fieldName, optional = false) 
  * @throws {ValidationError} If pattern doesn't match
  */
 export const validatePattern = (value, pattern, fieldName, optional = false) => {
-    if (optional && value === undefined) return;
-    if (typeof value !== 'string') throw new ValidationError(`${fieldName} must be a string`, fieldName, value);
-    if (!pattern.test(value)) throw new ValidationError(`${fieldName} must match pattern ${pattern}`, fieldName, value);
+    if (optional && value === undefined) {return;}
+    if (typeof value !== 'string') {throw new ValidationError(`${fieldName} must be a string`, fieldName, value);}
+    if (!pattern.test(value)) {throw new ValidationError(`${fieldName} must match pattern ${pattern}`, fieldName, value);}
 };
 
 /**
@@ -73,8 +73,8 @@ export const validatePattern = (value, pattern, fieldName, optional = false) => 
  * @throws {ValidationError} If any item is invalid
  */
 export const validateArray = (value, validator, fieldName, optional = false) => {
-    if (optional && value === undefined) return;
-    if (!Array.isArray(value)) throw new ValidationError(`${fieldName} must be an array`, fieldName, value);
+    if (optional && value === undefined) {return;}
+    if (!Array.isArray(value)) {throw new ValidationError(`${fieldName} must be an array`, fieldName, value);}
 
     for (const [i, item] of value.entries()) {
         try {
@@ -96,8 +96,8 @@ export const validateArray = (value, validator, fieldName, optional = false) => 
  * @throws {ValidationError} If length is invalid
  */
 export const validateLength = (value, { minLength, maxLength }, fieldName, optional = false) => {
-    if (optional && value === undefined) return;
-    if (typeof value !== 'string') throw new ValidationError(`${fieldName} must be a string`, fieldName, value);
+    if (optional && value === undefined) {return;}
+    if (typeof value !== 'string') {throw new ValidationError(`${fieldName} must be a string`, fieldName, value);}
     if (minLength !== undefined && value.length < minLength) {
         throw new ValidationError(`${fieldName} must have at least ${minLength} characters`, fieldName, value);
     }
@@ -115,7 +115,7 @@ export const validateLength = (value, { minLength, maxLength }, fieldName, optio
  * @throws {ValidationError} If value is not in enum
  */
 export const validateEnum = (value, allowedValues, fieldName, optional = false) => {
-    if (optional && value === undefined) return;
+    if (optional && value === undefined) {return;}
     if (!allowedValues.includes(value)) {
         throw new ValidationError(`${fieldName} must be one of: ${allowedValues.join(', ')}`, fieldName, value);
     }
@@ -130,17 +130,17 @@ export const validateEnum = (value, allowedValues, fieldName, optional = false) 
  * @throws {ValidationError} If validation fails
  */
 export function validateSchema(obj, schema, context = 'validation') {
-    if (obj == null) throw new ValidationError('Options object is required', 'options', obj);
-    if (typeof obj !== 'object' || Array.isArray(obj)) throw new ValidationError('Options must be an object', 'options', obj);
+    if (obj == null) {throw new ValidationError('Options object is required', 'options', obj);}
+    if (typeof obj !== 'object' || Array.isArray(obj)) {throw new ValidationError('Options must be an object', 'options', obj);}
 
     const validated = {};
     for (const [field, rules] of Object.entries(schema)) {
-        let value = obj[field];
+        const value = obj[field];
 
         if (rules.required && !rules.optional && value == null) {
             throw new ValidationError(`${context}: ${field} is required`, field, value);
         }
-        if (value === undefined && rules.optional) continue;
+        if (value === undefined && rules.optional) {continue;}
 
         if (value === undefined || value === null) {
             if (rules.default !== undefined) {
@@ -199,7 +199,7 @@ export function validateSchema(obj, schema, context = 'validation') {
  * @returns {Object} Validation result with isValid and errors
  */
 export function validateJsonSchema(params, schema, context = 'validation') {
-    if (!schema || typeof schema !== 'object') return { isValid: true, errors: [] };
+    if (!schema || typeof schema !== 'object') {return { isValid: true, errors: [] };}
 
     const errors = [];
     const { properties = {}, required = [] } = schema;
@@ -212,7 +212,7 @@ export function validateJsonSchema(params, schema, context = 'validation') {
 
     for (const [fieldName, propSchema] of Object.entries(properties)) {
         const value = params[fieldName];
-        if (!(fieldName in params)) continue;
+        if (!(fieldName in params)) {continue;}
 
         if (propSchema.type) {
             const actualType = Array.isArray(value) ? 'array' : typeof value;
@@ -295,7 +295,7 @@ export const logValidationError = (error, context = 'validation') => {
  * @returns {Function} Composed validator
  */
 export const composeValidators = (...validators) => (value, fieldName) => {
-    for (const validator of validators) validator(value, fieldName);
+    for (const validator of validators) {validator(value, fieldName);}
 };
 
 /**
@@ -304,7 +304,7 @@ export const composeValidators = (...validators) => (value, fieldName) => {
  * @returns {Function} Optional validator
  */
 export const optional = (validator) => (value, fieldName) => {
-    if (value === undefined || value === null) return;
+    if (value === undefined || value === null) {return;}
     validator(value, fieldName);
 };
 
@@ -314,7 +314,7 @@ export const optional = (validator) => (value, fieldName) => {
  * @returns {Function} Nullable validator
  */
 export const nullable = (validator) => (value, fieldName) => {
-    if (value === null) return;
+    if (value === null) {return;}
     validator(value, fieldName);
 };
 

@@ -10,8 +10,7 @@ import {
     ReactiveState,
     ServiceContainer,
     EventBus,
-    $, button, div, h2, p,
-    ComponentGenerator
+    $, button, div, h2, ComponentGenerator
 } from './index.js';
 
 // ============================================
@@ -194,9 +193,9 @@ class TodoApp {
 
         // Computed filtered todos
         this.state.computed('filteredTodos', function () {
-            if (this.filter === 'all') return this.todos;
-            if (this.filter === 'active') return this.todos.filter(t => !t.done);
-            if (this.filter === 'completed') return this.todos.filter(t => t.done);
+            if (this.filter === 'all') {return this.todos;}
+            if (this.filter === 'active') {return this.todos.filter(t => !t.done);}
+            if (this.filter === 'completed') {return this.todos.filter(t => t.done);}
         });
 
         // Watch for changes and re-render
@@ -215,7 +214,7 @@ class TodoApp {
                         this.input = $('input')
                             .attr('placeholder', 'Add todo...')
                             .on('keypress', (e) => {
-                                if (e.key === 'Enter') this.addTodo();
+                                if (e.key === 'Enter') {this.addTodo();}
                             })
                             .build(),
                         button('Add')
@@ -235,7 +234,7 @@ class TodoApp {
 
     addTodo() {
         const text = this.input.value.trim();
-        if (!text) return;
+        if (!text) {return;}
 
         this.state.todos = [
             ...this.state.todos,
@@ -265,7 +264,7 @@ class TodoApp {
                     $('input')
                         .attr('type', 'checkbox')
                         .apply(b => {
-                            if (todo.done) b.attr('checked', 'checked');
+                            if (todo.done) {b.attr('checked', 'checked');}
                         })
                         .on('change', () => this.toggleTodo(todo.id)),
                     $('span').text(todo.text)

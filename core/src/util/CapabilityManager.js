@@ -232,14 +232,18 @@ export class CapabilityManager {
     }
 
     async hasAllCapabilities(toolId, capabilityIds) {
-        if (!Array.isArray(capabilityIds) || !capabilityIds.length) return true;
+        if (!Array.isArray(capabilityIds) || !capabilityIds.length) {
+            return true;
+        }
         const toolGrants = this.grants.get(toolId);
         return !!toolGrants && capabilityIds.every(capId => toolGrants.has(capId));
     }
 
     async getToolCapabilities(toolId) {
         const toolGrants = this.grants.get(toolId);
-        if (!toolGrants) return [];
+        if (!toolGrants) {
+            return [];
+        }
 
         return Array.from(toolGrants).map(capId => {
             const capability = this.capabilities.get(capId);
@@ -297,7 +301,9 @@ export class CapabilityManager {
             if (toolMatch && capMatch) {
                 if (rule.condition && typeof rule.condition === 'function') {
                     try {
-                        if (!rule.condition(toolId, capabilityId, grantOptions)) continue;
+                        if (!rule.condition(toolId, capabilityId, grantOptions)) {
+                            continue;
+                        }
                     } catch (error) {
                         this._logAudit('policy-condition-error', {ruleId, error: error.message});
                         continue;
@@ -317,12 +323,20 @@ export class CapabilityManager {
     }
 
     _matchesPattern(value, patterns) {
-        if (typeof patterns === 'string') patterns = [patterns];
+        if (typeof patterns === 'string') {
+            patterns = [patterns];
+        }
 
         for (const pattern of patterns) {
-            if (pattern === '*' || pattern === value) return true;
-            if (pattern.endsWith('*') && value.startsWith(pattern.slice(0, -1))) return true;
-            if (pattern.startsWith('*') && value.endsWith(pattern.slice(1))) return true;
+            if (pattern === '*' || pattern === value) {
+                return true;
+            }
+            if (pattern.endsWith('*') && value.startsWith(pattern.slice(0, -1))) {
+                return true;
+            }
+            if (pattern.startsWith('*') && value.endsWith(pattern.slice(1))) {
+                return true;
+            }
         }
 
         return false;
@@ -417,18 +431,24 @@ export class CapabilityManager {
 
     hasCapabilityType(toolId, capabilityType) {
         const toolGrants = this.grants.get(toolId);
-        if (!toolGrants) return false;
+        if (!toolGrants) {
+            return false;
+        }
 
         for (const capId of toolGrants) {
             const capability = this.capabilities.get(capId);
-            if (capability?.type === capabilityType) return true;
+            if (capability?.type === capabilityType) {
+                return true;
+            }
         }
         return false;
     }
 
     getCapabilityTypesForTool(toolId) {
         const toolGrants = this.grants.get(toolId);
-        if (!toolGrants) return [];
+        if (!toolGrants) {
+            return [];
+        }
 
         const types = new Set();
         for (const capId of toolGrants) {

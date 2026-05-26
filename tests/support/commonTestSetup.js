@@ -65,6 +65,12 @@ export const commonTestSetup = (options = {}) => {
     // Set up test-specific configurations
     process.env.NODE_ENV = 'test';
 
+    // Prevent "OpenAI/Anthropic provider selected but no API key configured" errors.
+    // The workspace/agent.json defaults to openai provider; tests that don't need
+    // a real LM still trigger validation. A dummy key satisfies the validation check.
+    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'test-dummy-key-for-ci';
+    process.env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || 'test-dummy-key-for-ci';
+
     // Validate test environment
     const envValidation = validateTestEnvironment();
     if (!envValidation.isValid) {

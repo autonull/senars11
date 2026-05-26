@@ -1,9 +1,7 @@
-
-import { MetaController } from '../../src/meta/MetaController.js';
-import { NeuroSymbolicBridge } from '../../src/bridges/NeuroSymbolicBridge.js';
-import { strict as assert } from 'assert';
-import { describe, test } from '@jest/globals';
-import { MeTTaInterpreter } from '@senars/metta/src/MeTTaInterpreter.js';
+import {MetaController, NeuroSymbolicBridge} from '../../src/index.js';
+import {strict as assert} from 'assert';
+import {describe, test} from '@jest/globals';
+import {MeTTaInterpreter} from '@senars/metta/src/MeTTaInterpreter.js';
 
 describe('MeTTa Reflection Integration', () => {
 
@@ -13,11 +11,11 @@ describe('MeTTa Reflection Integration', () => {
         const controller = new MetaController({
             useMettaRepresentation: true,
             mettaInterpreter,
-            mettaConfig: { ground: mettaInterpreter.ground }
+            mettaConfig: {ground: mettaInterpreter.ground}
         });
 
         // Mock architecture and history
-        controller.currentArchitecture = { id: 'test-arch' };
+        controller.currentArchitecture = {id: 'test-arch'};
         // controller.config.forceAdd = true; // Set via constructor
         controller.config.forceAdd = true;
 
@@ -47,7 +45,7 @@ describe('MeTTa Reflection Integration', () => {
         const controller = new MetaController({
             useMettaRepresentation: true,
             mettaInterpreter,
-            mettaConfig: { ground: mettaInterpreter.ground }
+            mettaConfig: {ground: mettaInterpreter.ground}
         });
 
         // Mock state -> should trigger 'modify' op from script
@@ -78,8 +76,8 @@ describe('MeTTa Reflection Integration', () => {
             (= (get-prop $obj $key) (&js-get $obj $key))
         `);
 
-        const obj = { foo: 'bar' };
-        const { grounded, exp, sym } = await import('@senars/metta/src/kernel/Term.js');
+        const obj = {foo: 'bar'};
+        const {grounded, exp, sym} = await import('@senars/metta/src/kernel/Term.js');
         const objAtom = grounded(obj);
         const keyAtom = grounded('foo'); // Or string? "foo"
         // MeTTa string literal "foo" parses to symbol "foo" or string "foo"?
@@ -107,9 +105,10 @@ describe('MeTTa Reflection Integration', () => {
                 this.history = [];
             }
         }
+
         const obj = new TestClass();
 
-        const { grounded, exp, sym } = await import('@senars/metta/src/kernel/Term.js');
+        const {grounded, exp, sym} = await import('@senars/metta/src/kernel/Term.js');
         const objAtom = grounded(obj);
 
         // (&js-get $obj "prop")
@@ -130,7 +129,7 @@ describe('MeTTa Reflection Integration', () => {
 
     test('Reflection: Comparison behavior', async () => {
         const mettaInterpreter = new MeTTaInterpreter();
-        const { sym } = await import('@senars/metta/src/kernel/Term.js');
+        const {sym} = await import('@senars/metta/src/kernel/Term.js');
 
         // Check (&< 15 10)
         const res1 = await mettaInterpreter.runAsync('!(&< 15 10)');
@@ -147,7 +146,7 @@ describe('MeTTa Reflection Integration', () => {
 
         // Create expression (&< sym15 num10)
         // Need to import exp
-        const { exp } = await import('@senars/metta/src/kernel/Term.js');
+        const {exp} = await import('@senars/metta/src/kernel/Term.js');
         const expr = exp(sym('&<'), [sym15, num10]);
         const res2 = await mettaInterpreter.evaluateAsync(expr);
         console.log('(&< "15" "10") ->', res2.toString());

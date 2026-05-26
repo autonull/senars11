@@ -9,7 +9,7 @@ export class ShortcutsModal {
         // Backdrop
         const backdrop = FluentUI.create('div')
             .class('modal-backdrop')
-            .on('click', (e) => { if (e.target === backdrop.dom) this.close(backdrop); })
+            .on('click', (e) => { if (e.target === backdrop.dom) {this.close(backdrop);} })
             .style({
                 position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh',
                 background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(3px)',

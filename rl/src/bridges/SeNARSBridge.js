@@ -2,7 +2,7 @@
  * SeNARS Bridge
  * Integration layer for SeNARS reasoning engine
  */
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {mergeConfig} from '../utils/index.js';
 
 const DEFAULTS = {
     cyclesPerStep: 1,
@@ -21,14 +21,16 @@ export class SeNARSBridge {
     }
 
     async initialize() {
-        if (this.initialized) return;
+        if (this.initialized) {
+            return;
+        }
 
-        const { SeNARS } = await import('@senars/core');
+        const {SeNARS} = await import('@senars/nar');
         this.senars = new SeNARS(this.config);
         await this.senars.start();
 
         if (this.agent?.metta) {
-            const { SeNARSBridge: MettaToSeNARSBridge } = await import('@senars/metta');
+            const {SeNARSBridge: MettaToSeNARSBridge} = await import('@senars/metta');
             this.mettaBridge = new MettaToSeNARSBridge(this.senars.nar, this.agent.metta);
             this.mettaBridge.registerPrimitives(this.agent.metta.ground);
         }
@@ -43,12 +45,12 @@ export class SeNARSBridge {
 
     async ask(question, options = {}) {
         await this.ensureInitialized();
-        return this.senars.ask(question, { maxQuestions: this.config.maxQuestions, ...options });
+        return this.senars.ask(question, {maxQuestions: this.config.maxQuestions, ...options});
     }
 
     async achieve(goal, options = {}) {
         await this.ensureInitialized();
-        return this.senars.achieve(goal, { maxGoals: this.config.maxGoals, ...options });
+        return this.senars.achieve(goal, {maxGoals: this.config.maxGoals, ...options});
     }
 
     async runCycles(count) {
@@ -57,7 +59,9 @@ export class SeNARSBridge {
     }
 
     async ensureInitialized() {
-        if (!this.initialized) await this.initialize();
+        if (!this.initialized) {
+            await this.initialize();
+        }
     }
 
     reset() {

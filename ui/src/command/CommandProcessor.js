@@ -27,7 +27,7 @@ export class CommandProcessor {
     }
 
     processCommand(text, isSystem = false, mode = 'narsese') {
-        if (!text) return;
+        if (!text) {return;}
 
         if (text.startsWith('/')) {
             this._handleSlashCommand(text);
@@ -149,8 +149,8 @@ export class CommandProcessor {
         }
 
         const setWidth = (item, w) => {
-            if (item.config) item.config.width = w;
-            else item.width = w;
+            if (item.config) {item.config.width = w;}
+            else {item.width = w;}
         };
 
         if (mode === 'full-notebook' || mode === 'full-repl' || mode === 'collapse-sidebar') {
@@ -169,22 +169,22 @@ export class CommandProcessor {
     }
 
     _findLayoutComponents() {
-        const root = this.layout.root;
-        if (!root) return {};
+        const {root} = this.layout;
+        if (!root) {return {};}
 
         const findItem = (item, name) => {
-            if (item.componentName === name) return item;
+            if (item.componentName === name) {return item;}
             if (item.contentItems) {
                 for (const c of item.contentItems) {
                     const found = findItem(c, name);
-                    if (found) return found;
+                    if (found) {return found;}
                 }
             }
             return null;
         };
 
         const notebookItem = findItem(root, 'notebookComponent');
-        if (!notebookItem) return {};
+        if (!notebookItem) {return {};}
 
         let currentItem = notebookItem;
         let row = null;

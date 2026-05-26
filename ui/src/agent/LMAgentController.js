@@ -236,7 +236,7 @@ When users ask you to perform actions that require tools, explain what you would
      * Parses the response for JSON code blocks specifying a tool.
      */
     async handleToolCalls(response) {
-        if (!this.toolsBridge) return null;
+        if (!this.toolsBridge) {return null;}
 
         const toolRegex = /```json\s*({[\s\S]*?"tool"\s*:\s*"[^"]+"[\s\S]*?})\s*```/g;
         let match;

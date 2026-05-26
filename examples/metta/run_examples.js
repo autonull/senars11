@@ -8,9 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import {fileURLToPath} from 'url';
 
-import {MeTTaInterpreter} from '../../core/src/metta/MeTTaInterpreter.js';
-import {TermFactory} from '../../core/src/term/TermFactory.js';
-import {Term} from '../../core/src/metta/kernel/Term.js';
+import {MeTTaInterpreter, TermFactory, Term} from '@senars/nar';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

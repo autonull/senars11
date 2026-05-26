@@ -101,13 +101,17 @@ export class BuiltinDemoSource {
 
     async loadDemoSteps(id) {
         const demo = DEMOS[id];
-        if (!demo) throw new Error(`Builtin demo ${id} not found`);
+        if (!demo) {
+            throw new Error(`Builtin demo ${id} not found`);
+        }
         return demo.steps;
     }
 
     async getFileContent(id) {
         const demo = DEMOS[id];
-        if (!demo) return '// Demo not found';
+        if (!demo) {
+            return '// Demo not found';
+        }
         // Return a readable representation
         return `// Builtin Demo: ${demo.name}\n// ${demo.description}\n\n${JSON.stringify(demo.steps, null, 2)}`;
     }

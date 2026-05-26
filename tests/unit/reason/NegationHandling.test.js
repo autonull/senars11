@@ -1,7 +1,4 @@
-import {TermFactory} from '../../../core/src/term/TermFactory.js';
-import {InputProcessor} from '../../../core/src/nar/InputProcessor.js';
-import {NarseseParser} from '../../../core/src/parser/NarseseParser.js';
-import {Task} from '../../../core/src/task/Task.js';
+import {InputProcessor, NarseseParser, Task, TermFactory} from '@senars/nar';
 
 describe('Negation Handling', () => {
     let termFactory;

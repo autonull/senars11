@@ -1,17 +1,16 @@
 /**
  * DQN Agent - Deep Q-Network
- * 
+ *
  * Implements Deep Q-Learning with experience replay and target network.
- * 
+ *
  * @implements {import('../interfaces/IAgent.js').IAgent}
  */
-import { NeuralAgent } from './AgentSystem.js';
-import { Tensor, AdamOptimizer, LossFunctor } from '@senars/tensor';
-import { ExperienceBuffer, CausalExperience } from '../experience/ExperienceBuffer.js';
-import { PolicyUtils } from '../utils/PolicyUtils.js';
-import { deepMergeConfig } from '../utils/ConfigHelper.js';
-import { AgentFactoryUtils, QNetwork } from './QNetwork.js';
-import { torch } from '@senars/tensor';
+import {NeuralAgent} from './AgentSystem.js';
+import {AdamOptimizer, LossFunctor, Tensor, torch} from '@senars/tensor';
+import {CausalExperience, ExperienceBuffer} from '../experience/ExperienceBuffer.js';
+import {PolicyUtils} from '../utils/index.js';
+import {deepMergeConfig} from '../utils/ConfigHelper.js';
+import {AgentFactoryUtils} from './QNetwork.js';
 
 const DQN_DEFAULTS = {
     gamma: 0.99,
@@ -98,7 +97,7 @@ export class DQNAgent extends NeuralAgent {
      * @param {boolean} done - Whether episode terminated
      */
     async learn(obs, action, reward, nextObs, done) {
-        await this.replayBuffer.store(new CausalExperience({ state: obs, action, reward, nextState: nextObs, done }));
+        await this.replayBuffer.store(new CausalExperience({state: obs, action, reward, nextState: nextObs, done}));
 
         if (done && this.config.epsilon > this.config.epsilonMin) {
             this.config.epsilon *= this.config.epsilonDecay;
@@ -115,9 +114,11 @@ export class DQNAgent extends NeuralAgent {
 
     async _trainStep() {
         const batch = await this.replayBuffer.sample(this.config.batchSize);
-        if (!batch || batch.length < this.config.batchSize) return;
+        if (!batch || batch.length < this.config.batchSize) {
+            return;
+        }
 
-        const { states, nextStates, actions, rewards, dones, obsDim, actionDim, batchSize } =
+        const {states, nextStates, actions, rewards, dones, obsDim, actionDim, batchSize} =
             this._prepareBatch(batch);
 
         const nextQ = this.targetNet.forward(nextStates);
@@ -133,7 +134,7 @@ export class DQNAgent extends NeuralAgent {
     _computeQ_loss(states, targets, actions, batchSize, actionDim) {
         const currentQ = this.qNet.forward(states);
         const currentQData = currentQ.data;
-        
+
         let totalLoss = 0;
         for (let i = 0; i < batchSize; i++) {
             const qValue = currentQData[i * actionDim + actions[i]];
@@ -141,7 +142,7 @@ export class DQNAgent extends NeuralAgent {
             const diff = qValue - target;
             totalLoss += diff * diff;
         }
-        
+
         return new Tensor([totalLoss / batchSize]);
     }
 
@@ -176,18 +177,25 @@ export class DQNAgent extends NeuralAgent {
 
     _padState(state, dim) {
         const padded = new Float32Array(dim);
-        for (let j = 0; j < Math.min(state.length, dim); j++) padded[j] = state[j];
+        for (let j = 0; j < Math.min(state.length, dim); j++) {
+            padded[j] = state[j];
+        }
         return padded;
     }
 
     _computeMaxNextQ(nextQData, dones, batchSize, actionDim) {
         const maxQ = new Float32Array(batchSize);
         for (let i = 0; i < batchSize; i++) {
-            if (dones[i]) { maxQ[i] = 0; continue; }
+            if (dones[i]) {
+                maxQ[i] = 0;
+                continue;
+            }
             let maxVal = -Infinity;
             for (let j = 0; j < actionDim; j++) {
                 const val = nextQData[i * actionDim + j];
-                if (val > maxVal) maxVal = val;
+                if (val > maxVal) {
+                    maxVal = val;
+                }
             }
             maxQ[i] = maxVal;
         }

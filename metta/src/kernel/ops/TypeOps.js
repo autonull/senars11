@@ -2,22 +2,50 @@
  * TypeOps.js - Type operations
  */
 
-import { sym, isExpression, exp } from '../../kernel/Term.js';
-import { OperationHelpers } from './OperationHelpers.js';
+import {isExpression, isVariable, sym} from '../Term.js';
+import {TYPE_GROUNDED, TYPE_VARIABLE} from '../FastPaths.js';
+
+import {OperationHelpers} from './OperationHelpers.js';
+
+const GROUNDED_OPS = new Set(['+', '-', '*', '/', '%', '<', '>', '<=', '>=', '==', '!=',
+    'pow-math', 'sqrt-math', 'abs-math', 'log-math', 'sin-math', 'cos-math', 'tan-math',
+    'asin-math', 'acos-math', 'atan-math', 'ceil-math', 'floor-math', 'round-math',
+    'trunc-math', 'isnan-math', 'isinf-math', 'min-atom', 'max-atom', 'min', 'max', 'exp']);
+
+const isNumberStr = (s) => s != null && /^-?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(s);
 
 export function registerTypeOps(registry) {
     // Get metatype of an atom
     registry.register('&get-metatype', (atom) => {
-        if (!atom) return sym('%Undefined%');
-        if (atom.name?.startsWith('$')) return sym('Variable');
-        if (isExpression(atom)) return sym('Expression');
-        if (typeof atom.execute === 'function') return sym('Grounded');
+        if (!atom) {
+            return sym('%Undefined%');
+        }
+        // Check _typeTag first (most reliable)
+        if (atom._typeTag === TYPE_VARIABLE || isVariable(atom)) {
+            return sym('Variable');
+        }
+        if (atom._typeTag === TYPE_GROUNDED || typeof atom.execute === 'function') {
+            return sym('Grounded');
+        }
+        if (isExpression(atom)) {
+            return sym('Expression');
+        }
+        // Numbers are Grounded in PeTTa
+        if (isNumberStr(atom.name)) {
+            return sym('Grounded');
+        }
+        // Known grounded operators
+        if (GROUNDED_OPS.has(atom.name)) {
+            return sym('Grounded');
+        }
         return sym('Symbol');
-    }, { lazy: true }); // Prevent reduction to check actual metatype
+    }, {lazy: true}); // Prevent reduction to check actual metatype
 
     // Check if type is a function type (has -> arrow)
     registry.register('&is-function', (type) => {
-        if (!isExpression(type)) return sym('False');
+        if (!isExpression(type)) {
+            return sym('False');
+        }
         return OperationHelpers.bool(type.operator?.name === '->');
     });
 

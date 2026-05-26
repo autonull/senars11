@@ -8,7 +8,7 @@
  * Lazy initialization: model loads on first embed() call.
  */
 
-import { Logger } from '@senars/core';
+import {Logger} from '@senars/core';
 
 export class Embedder {
     constructor(config = {}) {
@@ -22,23 +22,41 @@ export class Embedder {
     }
 
     /**
+     * Get the embedding dimensions.
+     */
+    get dimensions() {
+        return this._dimensions;
+    }
+
+    /**
      * Lazy initialization. Loads the ONNX model on first call.
      */
     async _ensureInitialized() {
-        if (this._initialized) return;
-        if (this._initPromise) return this._initPromise;
+        if (this._initialized) {
+            return;
+        }
+        if (this._initPromise) {
+            return this._initPromise;
+        }
 
         this._initPromise = (async () => {
             try {
-                const { pipeline } = await import('@huggingface/transformers');
-                Logger.info(`[Embedder] Loading ${this._modelName}...`);
-                this._model = await pipeline('feature-extraction', this._modelName, {
-                    quantized: true,
-                    progress_callback: null // disable progress bar
-                });
+                const {pipeline} = await import('@huggingface/transformers');
+                Logger.debug(`[Embedder] Loading ${this._modelName}...`);
+                // Suppress transformers.js dtype warning (we accept fp32 default)
+                const origWarn = console.warn;
+                console.warn = () => {};
+                try {
+                    this._model = await pipeline('feature-extraction', this._modelName, {
+                        quantized: true,
+                        progress_callback: null,
+                    });
+                } finally {
+                    console.warn = origWarn;
+                }
                 this._dimensions = this._model.config?.hidden_size ?? 384;
                 this._initialized = true;
-                Logger.info(`[Embedder] Ready (${this._dimensions} dims)`);
+                Logger.debug(`[Embedder] Ready (${this._dimensions} dims)`);
             } catch (err) {
                 Logger.error('[Embedder] Failed to load local model:', err.message);
                 if (this._fallback) {
@@ -127,12 +145,5 @@ export class Embedder {
 
         const data = await response.json();
         return data.data[0].embedding;
-    }
-
-    /**
-     * Get the embedding dimensions.
-     */
-    get dimensions() {
-        return this._dimensions;
     }
 }

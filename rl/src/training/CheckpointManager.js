@@ -2,14 +2,22 @@
  * Checkpoint Manager for Training Persistence
  * Save/load agent states, manage checkpoint rotation, track best models
  */
-import { Component } from '../composable/Component.js';
-import { mergeConfig } from '../utils/ConfigHelper.js';
+import {Component} from '../composable/Component.js';
+import {mergeConfig} from '../utils/index.js';
 import fs from 'fs/promises';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import {fileURLToPath} from 'url';
 
-const _fileURLToPath = fileURLToPath;
-const __dirname_fixed = path.dirname(_fileURLToPath(import.meta.url));
+// Workaround for Jest VM environment where import.meta.url might not be available
+let __dirname_fixed;
+try {
+    __dirname_fixed = path.dirname(fileURLToPath(import.meta.url));
+} catch (e) {
+    // Jest VM environment - use global.__dirname or fallback
+    __dirname_fixed = typeof global !== 'undefined' && global.__dirname
+        ? global.__dirname
+        : process.cwd();
+}
 
 const CHECKPOINT_DEFAULTS = {
     directory: './checkpoints',
@@ -33,7 +41,7 @@ export class CheckpointManager extends Component {
     }
 
     async onInitialize() {
-        await fs.mkdir(this.config.directory, { recursive: true });
+        await fs.mkdir(this.config.directory, {recursive: true});
         await this._loadMetadata();
         this.setState('ready', true);
     }
@@ -110,13 +118,13 @@ export class CheckpointManager extends Component {
         }
 
         if (this.config.saveHistory) {
-            this.history.push({ episode, reward, timestamp: Date.now() });
+            this.history.push({episode, reward, timestamp: Date.now()});
         }
 
         await this._rotateCheckpoints();
         await this._saveMetadata();
 
-        this.emit('checkpointSaved', { filepath, episode, reward, isBest });
+        this.emit('checkpointSaved', {filepath, episode, reward, isBest});
         return filepath;
     }
 
@@ -130,12 +138,12 @@ export class CheckpointManager extends Component {
 
         // Try agent's getParameters method
         if (typeof agent.getParameters === 'function') {
-            return { parameters: agent.getParameters() };
+            return {parameters: agent.getParameters()};
         }
 
         // Try agent's serialize method
         if (typeof agent.serialize === 'function') {
-            return { serialized: agent.serialize() };
+            return {serialized: agent.serialize()};
         }
 
         // Fallback: extract network weights if available
@@ -166,7 +174,7 @@ export class CheckpointManager extends Component {
         // Separate best checkpoint if it exists
         const bestIdx = this.checkpoints.findIndex(cp => cp.isBest);
         const bestCheckpoint = bestIdx >= 0 ? this.checkpoints[bestIdx] : null;
-        
+
         if (bestIdx >= 0) {
             this.checkpoints.splice(bestIdx, 1); // Remove best from list temporarily
         }
@@ -183,12 +191,14 @@ export class CheckpointManager extends Component {
 
         // Remove old checkpoint files (but never delete best)
         for (const checkpoint of toRemove) {
-            if (checkpoint.isBest) continue; // Never delete best
+            if (checkpoint.isBest) {
+                continue;
+            } // Never delete best
 
             const filepath = path.join(this.config.directory, checkpoint.filename);
             try {
                 await fs.unlink(filepath);
-                this.emit('checkpointRemoved', { filename: checkpoint.filename });
+                this.emit('checkpointRemoved', {filename: checkpoint.filename});
             } catch (e) {
                 this.logger.warn(`Failed to remove old checkpoint: ${checkpoint.filename}`, e);
             }
@@ -233,7 +243,7 @@ export class CheckpointManager extends Component {
 
         try {
             const data = await fs.readFile(filepath, 'utf-8');
-            const { checkpoint, stateDict, history } = JSON.parse(data);
+            const {checkpoint, stateDict, history} = JSON.parse(data);
 
             await this._restoreStateDict(agent, stateDict);
 
@@ -241,7 +251,7 @@ export class CheckpointManager extends Component {
                 this.history = history;
             }
 
-            this.emit('checkpointLoaded', { filepath, episode: checkpoint.episode, reward: checkpoint.reward });
+            this.emit('checkpointLoaded', {filepath, episode: checkpoint.episode, reward: checkpoint.reward});
             return checkpoint;
         } catch (e) {
             this.logger.error(`Failed to load checkpoint: ${filename}`, e);
@@ -289,7 +299,7 @@ export class CheckpointManager extends Component {
      * @returns {Promise<Array>} List of checkpoint metadata
      */
     async list() {
-        return this.checkpoints.map(cp => ({ ...cp }));
+        return this.checkpoints.map(cp => ({...cp}));
     }
 
     /**
@@ -298,7 +308,9 @@ export class CheckpointManager extends Component {
      */
     async delete(filename) {
         const idx = this.checkpoints.findIndex(cp => cp.filename === filename);
-        if (idx === -1) return false;
+        if (idx === -1) {
+            return false;
+        }
 
         const checkpoint = this.checkpoints[idx];
         const filepath = path.join(this.config.directory, filename);
@@ -313,7 +325,7 @@ export class CheckpointManager extends Component {
             }
 
             await this._saveMetadata();
-            this.emit('checkpointDeleted', { filename });
+            this.emit('checkpointDeleted', {filename});
             return true;
         } catch (e) {
             this.logger.error(`Failed to delete checkpoint: ${filename}`, e);
@@ -327,7 +339,7 @@ export class CheckpointManager extends Component {
      */
     getProgress() {
         if (this.history.length === 0) {
-            return { episodes: 0, bestReward: -Infinity, avgReward: 0, trend: 'stable' };
+            return {episodes: 0, bestReward: -Infinity, avgReward: 0, trend: 'stable'};
         }
 
         const rewards = this.history.map(h => h.reward);
@@ -357,7 +369,7 @@ export class CheckpointManager extends Component {
  * @returns {Function} Callback function for training
  */
 export function createCheckpointCallback(manager, options = {}) {
-    const { metric = 'reward', threshold = null } = options;
+    const {metric = 'reward', threshold = null} = options;
 
     return async (agent, episode, metrics) => {
         const value = metrics?.[metric] ?? metrics?.reward ?? 0;

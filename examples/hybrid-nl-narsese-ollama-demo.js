@@ -5,9 +5,7 @@
  * Demonstrates the hybrid neurosymbolic capabilities with Ollama integration
  */
 
-import {NAR} from '../core/src/nar/NAR.js';
-import {LangChainProvider} from '../core/src/lm/LangChainProvider.js';
-import {HybridDemoOrchestrator, HybridDemoConfig, RuleFactory} from '../core/src/lm/HybridDemoUtils.js';
+import {NAR, LangChainProvider, HybridDemoOrchestrator, HybridDemoConfig, RuleFactory} from '@senars/nar';
 
 async function createHybridDemo() {
     console.log("🚀 Starting Hybrid Demo: NL ↔ Narsese via Ollama\n");

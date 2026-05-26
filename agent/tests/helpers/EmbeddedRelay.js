@@ -1,5 +1,5 @@
-import { WebSocketServer } from 'ws';
-import { Logger } from '@senars/core';
+import {WebSocketServer} from 'ws';
+import {Logger} from '@senars/core';
 
 export class EmbeddedRelay {
     constructor(port = 0) {
@@ -11,7 +11,7 @@ export class EmbeddedRelay {
 
     async start() {
         return new Promise((resolve) => {
-            this.wss = new WebSocketServer({ port: this.port });
+            this.wss = new WebSocketServer({port: this.port});
 
             this.wss.on('listening', () => {
                 const addr = this.wss.address();
@@ -63,7 +63,7 @@ export class EmbeddedRelay {
         this.events.set(event.id, event);
 
         // Broadcast to matching subs
-        for (const [subId, { conn, filters }] of this.subs.entries()) {
+        for (const [subId, {conn, filters}] of this.subs.entries()) {
             if (this._matches(event, filters)) {
                 if (conn.readyState === 1) {
                     conn.send(JSON.stringify(['EVENT', subId, event]));
@@ -76,7 +76,7 @@ export class EmbeddedRelay {
     }
 
     _handleReq(ws, subId, filters) {
-        this.subs.set(`${subId}:${Math.random()}`, { conn: ws, filters }); // Simplified sub tracking
+        this.subs.set(`${subId}:${Math.random()}`, {conn: ws, filters}); // Simplified sub tracking
 
         // Send stored events
         for (const event of this.events.values()) {

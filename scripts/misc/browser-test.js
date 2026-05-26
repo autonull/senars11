@@ -1,7 +1,7 @@
-import { Tensor } from '@senars/tensor';
 import { T } from '@senars/tensor/src/backends/NativeBackend.js';
 import { MeTTaInterpreter } from '@senars/metta';
-import { Config, Term } from '@senars/core';
+import { Term } from '@senars/nar';
+import { Config } from '@senars/core';
 
 async function runTest() {
     console.log('Browser Compatibility Test Starting...');

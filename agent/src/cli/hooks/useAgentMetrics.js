@@ -10,7 +10,9 @@ export const useAgentMetrics = (engine) => {
 
     useEffect(() => {
         const handleMetrics = (data) => {
-            if (!data) return;
+            if (!data) {
+                return;
+            }
             const perf = data.performance || {};
             const res = data.resourceUsage || {};
 

@@ -1,4 +1,4 @@
-import {NAR} from '../../core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 
 /**
  * Base test setup for NAR integration tests

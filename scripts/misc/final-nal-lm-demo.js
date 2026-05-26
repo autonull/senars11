@@ -4,7 +4,7 @@
  * Final demonstration: NAL and LM interaction with the new model configuration
  */
 
-import {NAR} from './core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 
 async function finalDemo() {
     console.log("🚀 Final Demo: NAL and LM Interaction with Xenova/t5-small\n");

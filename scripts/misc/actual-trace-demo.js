@@ -4,7 +4,7 @@
  * Actual trace demonstration: NAL and natural language mixing with NAL/LM interaction
  */
 
-import {NAR} from './core/src/nar/NAR.js';
+import {NAR} from '@senars/nar';
 
 // Custom event listener to capture the actual trace
 class TraceCapture {

@@ -1,5 +1,5 @@
 import {jest} from '@jest/globals';
-import {EventBus} from '../../../core/src/util/EventBus.js';
+import {EventBus} from '@senars/core';
 
 describe('EventBus', () => {
     let bus;

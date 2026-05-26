@@ -5,7 +5,6 @@ import { CommandProcessor } from './command/CommandProcessor.js';
 import { MessageRouter } from './messaging/MessageRouter.js';
 import { CodeEditorPanel } from './components/CodeEditorPanel.js';
 import { SimpleOutputPanel } from './components/SimpleOutputPanel.js';
-import { eventBus } from './core/EventBus.js';
 
 class SimpleEditorApp {
     constructor() {
