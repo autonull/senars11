@@ -12,12 +12,6 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "test:unit": "NODE_OPTIONS=--experimental-vm-modules jest tests/unit/",
     "test:integration": "NODE_OPTIONS=--experimental-vm-modules jest tests/integration/",
-    "test:e2e": "CI=true playwright test --reporter=list",
-    "test:screenshots": "playwright test tests/e2e/screenshots.spec.js",
-    "test:debug": "CI=true playwright test tests/e2e/debug.spec.js --reporter=list",
-    "test:graph": "CI=true playwright test tests/e2e/graph.spec.js --reporter=list",
-    "test:production": "CI=true playwright test tests/e2e/production.spec.js --reporter=list",
-    "test:verification": "CI=true playwright test tests/e2e/verification.spec.js --reporter=list",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },

@@ -14,4 +14,6 @@ class Tool {
     }
 }
 
-module.exports = {DynamicTool, Tool};
+export {DynamicTool, Tool};
+
+export const tool = () => {};
