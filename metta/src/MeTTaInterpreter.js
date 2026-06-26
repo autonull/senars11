@@ -32,7 +32,7 @@ import {
     registerReactiveOps
 } from './interp/index.js';
 
-let ImaginationExtension = null;
+
 
 export class MeTTaInterpreter extends BaseMeTTaComponent {
     constructor(reasoner, options = {}) {
@@ -93,18 +93,6 @@ export class MeTTaInterpreter extends BaseMeTTaComponent {
 
         extensionsToLoad.length && await this.extensionRegistry.loadAll(extensionsToLoad);
 
-        await (async () => {
-            if (!ImaginationExtension) {
-                try {
-                    ImaginationExtension = (await import('./extensions/ImaginationExtension.js')).ImaginationExtension;
-                } catch {
-                    ImaginationExtension = null;
-                }
-            }
-            if (ImaginationExtension) {
-                new ImaginationExtension(this, this.reasoner).register();
-            }
-        })();
     }
 
     _initializeBridge() {
