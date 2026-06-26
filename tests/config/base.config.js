@@ -36,6 +36,8 @@ const baseConfig = {
         '^@senars/rl/(.*)$': '<rootDir>/rl/src/$1',
         '^@modelcontextprotocol/sdk/server/mcp\\.js$': '<rootDir>/tests/mocks/mcp-sdk-mcp.js',
         '^@modelcontextprotocol/sdk/server/stdio\\.js$': '<rootDir>/tests/mocks/mcp-sdk-stdio.js',
+        '^@langchain/core/messages$': '<rootDir>/tests/mocks/langchain-core-messages.js',
+        '^@langchain/core/tools$': '<rootDir>/tests/mocks/langchain-core-tools.js',
         '^@langchain/core$': '<rootDir>/tests/mocks/langchain-core.js',
         '^@langchain/core/(.*)$': '<rootDir>/tests/mocks/langchain-core.js',
         '^@langchain/langgraph$': '<rootDir>/tests/mocks/langchain-langgraph.js',

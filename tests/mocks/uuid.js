@@ -1,4 +1,4 @@
-const crypto = await import('crypto');
+import crypto from 'crypto';
 
 export const v1 = () => crypto.randomUUID();
 export const v3 = () => crypto.randomUUID();
